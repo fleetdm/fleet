@@ -764,7 +764,15 @@ type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string)
 
 type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error)
 
-type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, declarationType fleet.MDMAppleDeclarationCategory, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
+type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
+
+type MDMAppleGetHostsWithChangedDeclarationsFunc func(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error)
+
+type MDMAppleBatchInsertHostDeclarationsFunc func(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error
+
+type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
+
+type MDMAppleSetDeclarationsAsVerifyingFunc func(ctx context.Context, hostUUID string) error
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -1992,6 +2000,18 @@ type DataStore struct {
 
 	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
 	MDMAppleDDMDeclarationsResponseFuncInvoked bool
+
+	MDMAppleGetHostsWithChangedDeclarationsFunc        MDMAppleGetHostsWithChangedDeclarationsFunc
+	MDMAppleGetHostsWithChangedDeclarationsFuncInvoked bool
+
+	MDMAppleBatchInsertHostDeclarationsFunc        MDMAppleBatchInsertHostDeclarationsFunc
+	MDMAppleBatchInsertHostDeclarationsFuncInvoked bool
+
+	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
+	MDMAppleStoreDDMStatusReportFuncInvoked bool
+
+	MDMAppleSetDeclarationsAsVerifyingFunc        MDMAppleSetDeclarationsAsVerifyingFunc
+	MDMAppleSetDeclarationsAsVerifyingFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4763,11 +4783,39 @@ func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID st
 	return s.MDMAppleDDMDeclarationItemsFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType fleet.MDMAppleDeclarationCategory, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
+func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, declarationType, identifier, hostUUID)
+	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, identifier, hostUUID)
+}
+
+func (s *DataStore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error) {
+	s.mu.Lock()
+	s.MDMAppleGetHostsWithChangedDeclarationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleGetHostsWithChangedDeclarationsFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleBatchInsertHostDeclarations(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error {
+	s.mu.Lock()
+	s.MDMAppleBatchInsertHostDeclarationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleBatchInsertHostDeclarationsFunc(ctx, changedDeclarations)
+}
+
+func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
+	s.mu.Lock()
+	s.MDMAppleStoreDDMStatusReportFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleStoreDDMStatusReportFunc(ctx, hostUUID, updates)
+}
+
+func (s *DataStore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.MDMAppleSetDeclarationsAsVerifyingFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleSetDeclarationsAsVerifyingFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

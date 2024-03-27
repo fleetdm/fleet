@@ -16,8 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -240,7 +240,7 @@ SELECT
 FROM
 	mdm_apple_declarations
 WHERE
-	declaration_uuid = ? AND category = 'com.apple.configuration'`
+	declaration_uuid = ?`
 
 	var res fleet.MDMAppleDeclaration
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, declUUID)
@@ -352,7 +352,29 @@ COALESCE(detail, '') AS detail
 FROM
 host_mdm_apple_profiles
 WHERE
+host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
+
+UNION ALL
+SELECT
+declaration_uuid AS profile_uuid,
+declaration_name AS name,
+declaration_identifier AS identifier,
+-- internally, a NULL status implies that the cron needs to pick up
+-- this profile, for the user that difference doesn't exist, the
+-- profile is effectively pending. This is consistent with all our
+-- aggregation functions.
+COALESCE(status, '%s') AS status,
+COALESCE(operation_type, '') AS operation_type,
+COALESCE(detail, '') AS detail
+FROM
+host_mdm_apple_declarations
+WHERE
 host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+		fleet.MDMDeliveryPending,
+		fleet.MDMOperationTypeRemove,
+		fleet.MDMDeliveryPending,
+		fleet.MDMDeliveryVerifying,
+		fleet.MDMDeliveryVerified,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -361,7 +383,7 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 	)
 
 	var profiles []fleet.HostMDMAppleProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, hostUUID); err != nil {
 		return nil, err
 	}
 	return profiles, nil
@@ -1490,6 +1512,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		return nil
 	}
 
+	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
+
 	// TODO(mna): the conditions here (and in toRemoveStmt) are subtly different
 	// than the ones in ListMDMAppleProfilesToInstall/Remove, so I'm keeping
 	// those statements distinct to avoid introducing a subtle bug, but we should
@@ -1720,20 +1744,30 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	return nil
 }
 
-const appleMDMProfilesDesiredStateQuery = `
-	-- non label-based profiles
+// mdmEntityTypeToTable tracks what table should be used in the templates for
+// SQL statements based on the given entity type.
+var mdmEntityTypeToTable = map[string]string{
+	"declaration": "declaration",
+	"profile":     "configuration_profile",
+}
+
+// generateDesiredStateQuery generates a query string that represents the
+// desired state of an Apple entity based on its type (profile or declaration)
+func generateDesiredStateQuery(entityType string) string {
+	return fmt.Sprintf(`
+	-- non label-based entities
 	SELECT
-		macp.profile_uuid,
+		mae.%[1]s_uuid,
 		h.uuid as host_uuid,
-		macp.identifier as profile_identifier,
-		macp.name as profile_name,
-		macp.checksum as checksum,
-		0 as count_profile_labels,
+		mae.identifier as %[1]s_identifier,
+		mae.name as %[1]s_name,
+		mae.checksum as checksum,
+		0 as count_%[1]s_labels,
 		0 as count_host_labels
 	FROM
-		mdm_apple_configuration_profiles macp
+		mdm_apple_%[2]ss mae
 			JOIN hosts h
-				ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
 	WHERE
@@ -1742,81 +1776,146 @@ const appleMDMProfilesDesiredStateQuery = `
 		ne.type = 'Device' AND
 		NOT EXISTS (
 			SELECT 1
-			FROM mdm_configuration_profile_labels mcpl
-			WHERE mcpl.apple_profile_uuid = macp.profile_uuid
+			FROM mdm_%[2]s_labels mel
+			WHERE mel.apple_%[1]s_uuid = mae.%[1]s_uuid
 		) AND
-		( %s )
+		( %[3]s )
 
 	UNION
 
-	-- label-based profiles where the host is a member of all the labels
+	-- label-based entities where the host is a member of all the labels
 	SELECT
-		macp.profile_uuid,
+		mae.%[1]s_uuid,
 		h.uuid as host_uuid,
-		macp.identifier as profile_identifier,
-		macp.name as profile_name,
-		macp.checksum as checksum,
-		COUNT(*) as count_profile_labels,
+		mae.identifier as %[1]s_identifier,
+		mae.name as %[1]s_name,
+		mae.checksum as checksum,
+		COUNT(*) as count_%[1]s_labels,
 		COUNT(lm.label_id) as count_host_labels
 	FROM
-		mdm_apple_configuration_profiles macp
+		mdm_apple_%[2]ss mae
 			JOIN hosts h
-				ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
-			JOIN mdm_configuration_profile_labels mcpl
-				ON mcpl.apple_profile_uuid = macp.profile_uuid
+			JOIN mdm_%[2]s_labels mel
+				ON mel.apple_%[1]s_uuid = mae.%[1]s_uuid
 			LEFT OUTER JOIN label_membership lm
-				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
+				ON lm.label_id = mel.label_id AND lm.host_id = h.id
 	WHERE
 		h.platform = 'darwin' AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
-		( %s )
+		( %[3]s )
 	GROUP BY
-		macp.profile_uuid, h.uuid, macp.identifier, macp.name, macp.checksum
+		mae.%[1]s_uuid, h.uuid, mae.identifier, mae.name, mae.checksum
 	HAVING
-		count_profile_labels > 0 AND count_host_labels = count_profile_labels
-`
+		count_%[1]s_labels > 0 AND count_host_labels = count_%[1]s_labels
+
+	`, entityType, mdmEntityTypeToTable[entityType], "%s")
+}
+
+// generateEntitiesToInstallQuery is a set difference between:
+//
+//   - Set A (ds), the "desired state", can be obtained from a JOIN between
+//     mdm_apple_x and hosts.
+//
+// - Set B, the "current state" given by host_mdm_apple_x.
+//
+// A - B gives us the entities that need to be installed:
+//
+//   - entities that are in A but not in B
+//
+//   - entities which contents have changed, but their identifier are
+//     the same (by checking the checksums)
+//
+//   - entities that are in A and in B, but with an operation type of
+//     "remove", regardless of the status. (technically, if status is NULL then
+//     the entity should be already installed - it has not been queued for
+//     remove yet -, and same if status is failed, but the proper thing to do
+//     with it would be to remove the row, not return it as "to install". For
+//     simplicity of implementation here (and to err on the safer side - the
+//     entity's content could've changed), we'll return it as "to install" for
+//     now, which will cause the row to be updated with the correct operation
+//     type and status).
+//
+//   - entities that are in A and in B, with an operation type of "install"
+//     and a NULL status. Other statuses mean that the operation is already in
+//     flight (pending), the operation has been completed but is still subject
+//     to independent verification by Fleet (verifying), or has reached a terminal
+//     state (failed or verified). If the entity's content is edited, all
+//     relevant hosts will be marked as status NULL so that it gets
+//     re-installed.
+//
+// Note that for label-based entities, only fully-satisfied entities are
+// considered for installation. This means that a broken label-based entity,
+// where one of the labels does not exist anymore, will not be considered for
+// installation.
+func generateEntitiesToInstallQuery(entityType string) string {
+	return fmt.Sprintf(`
+	( %[3]s ) as ds
+		LEFT JOIN host_mdm_apple_%[1]ss hmae
+			ON hmae.%[1]s_uuid = ds.%[1]s_uuid AND hmae.host_uuid = ds.host_uuid
+	WHERE
+		-- entity has been updated
+		( hmae.checksum != ds.checksum ) OR
+		-- entity in A but not in B
+		( hmae.%[1]s_uuid IS NULL AND hmae.host_uuid IS NULL ) OR
+		-- entities in A and B but with operation type "remove"
+		( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
+		-- entities in A and B with operation type "install" and NULL status
+		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
+`, entityType, mdmEntityTypeToTable[entityType], fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE"))
+}
+
+// generateEntitiesToRemoveQuery is a set difference between:
+//
+// - Set A (ds), the "desired state", can be obtained from a JOIN between
+// mdm_apple_configuration_x and hosts.
+//
+// - Set B, the "current state" given by host_mdm_apple_x.
+//
+// B - A gives us the entities that need to be removed:
+//
+//   - entities that are in B but not in A, except those with operation type
+//     "remove" and a terminal state (failed) or a state indicating
+//     that the operation is in flight (pending) or the operation has been completed
+//     but is still subject to independent verification by Fleet (verifying)
+//     or the operation has been completed and independenly verified by Fleet (verified).
+//
+// Any other case are entities that are in both B and A, and as such are
+// processed by the generateEntitiesToInstallQuery query (since they are in
+// both, their desired state is necessarily to be installed).
+//
+// Note that for label-based entities, only those that are fully-sastisfied
+// by the host are considered for install (are part of the desired state used
+// to compute the ones to remove). However, as a special case, a broken
+// label-based entity will NOT be removed from a host where it was
+// previously installed. However, if a host used to satisfy a label-based
+// entity but no longer does (and that label-based entity is not "broken"),
+// the entity will be removed from the host.
+func generateEntitiesToRemoveQuery(entityType string) string {
+	return fmt.Sprintf(`
+	( %[3]s ) as ds
+		RIGHT JOIN host_mdm_apple_%[1]ss hmae
+			ON hmae.%[1]s_uuid = ds.%[1]s_uuid AND hmae.host_uuid = ds.host_uuid
+	WHERE
+		-- entities that are in B but not in A
+		ds.%[1]s_uuid IS NULL AND ds.host_uuid IS NULL AND
+		-- except "remove" operations in a terminal state or already pending
+		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
+		-- except "would be removed" entities if they are a broken label-based entities
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_%[2]s_labels mcpl
+			WHERE
+				mcpl.apple_%[1]s_uuid = hmae.%[1]s_uuid AND
+				mcpl.label_id IS NULL
+		)
+`, entityType, mdmEntityTypeToTable[entityType], fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE"))
+}
 
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
-	// The query below is a set difference between:
-	//
-	// - Set A (ds), the "desired state", can be obtained from a JOIN between
-	//   mdm_apple_configuration_profiles and hosts.
-	//
-	// - Set B, the "current state" given by host_mdm_apple_profiles.
-	//
-	// A - B gives us the profiles that need to be installed:
-	//
-	//   - profiles that are in A but not in B
-	//
-	//   - profiles which contents have changed, but their identifier are
-	//   the same (by checking the checksums)
-	//
-	//   - profiles that are in A and in B, but with an operation type of
-	//   "remove", regardless of the status. (technically, if status is NULL then
-	//   the profile should be already installed - it has not been queued for
-	//   remove yet -, and same if status is failed, but the proper thing to do
-	//   with it would be to remove the row, not return it as "to install". For
-	//   simplicity of implementation here (and to err on the safer side - the
-	//   profile's content could've changed), we'll return it as "to install" for
-	//   now, which will cause the row to be updated with the correct operation
-	//   type and status).
-	//
-	//   - profiles that are in A and in B, with an operation type of "install"
-	//   and a NULL status. Other statuses mean that the operation is already in
-	//   flight (pending), the operation has been completed but is still subject
-	//   to independent verification by Fleet (verifying), or has reached a terminal
-	//   state (failed or verified). If the profile's content is edited, all
-	//   relevant hosts will be marked as status NULL so that it gets
-	//   re-installed.
-	//
-	// Note that for label-based profiles, only fully-satisfied profiles are
-	// considered for installation. This means that a broken label-based profile,
-	// where one of the labels does not exist anymore, will not be considered for
-	// installation.
-
 	query := fmt.Sprintf(`
 	SELECT
 		ds.profile_uuid,
@@ -1824,82 +1923,26 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		ds.profile_identifier,
 		ds.profile_name,
 		ds.checksum
-	FROM ( %s ) as ds
-		LEFT JOIN host_mdm_apple_profiles hmap
-			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
-	WHERE
-		-- profile has been updated
-		( hmap.checksum != ds.checksum ) OR
-		-- profiles in A but not in B
-		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
-		-- profiles in A and B but with operation type "remove"
-		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
-		-- profiles in A and B with operation type "install" and NULL status
-		( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "TRUE", "TRUE"))
-
+	FROM %s `,
+		generateEntitiesToInstallQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 	return profiles, err
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
-	// The query below is a set difference between:
-	//
-	// - Set A (ds), the "desired state", can be obtained from a JOIN between
-	// mdm_apple_configuration_profiles and hosts.
-	//
-	// - Set B, the "current state" given by host_mdm_apple_profiles.
-	//
-	// B - A gives us the profiles that need to be removed:
-	//
-	//   - profiles that are in B but not in A, except those with operation type
-	//   "remove" and a terminal state (failed) or a state indicating
-	//   that the operation is in flight (pending) or the operation has been completed
-	//   but is still subject to independent verification by Fleet (verifying)
-	//   or the operation has been completed and independenly verified by Fleet (verified).
-	//
-	// Any other case are profiles that are in both B and A, and as such are
-	// processed by the ListMDMAppleProfilesToInstall method (since they are in
-	// both, their desired state is necessarily to be installed).
-	//
-	// Note that for label-based profiles, only those that are fully-sastisfied
-	// by the host are considered for install (are part of the desired state used
-	// to compute the ones to remove). However, as a special case, a broken
-	// label-based profile will NOT be removed from a host where it was
-	// previously installed. However, if a host used to satisfy a label-based
-	// profile but no longer does (and that label-based profile is not "broken"),
-	// the profile will be removed from the host.
-
 	query := fmt.Sprintf(`
 	SELECT
-		hmap.profile_uuid,
-		hmap.profile_identifier,
-		hmap.profile_name,
-		hmap.host_uuid,
-		hmap.checksum,
-		hmap.operation_type,
-		COALESCE(hmap.detail, '') as detail,
-		hmap.status,
-		hmap.command_uuid
-	FROM ( %s ) as ds
-		RIGHT JOIN host_mdm_apple_profiles hmap
-			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
-	WHERE
-		-- profiles that are in B but not in A
-		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- except "remove" operations in a terminal state or already pending
-		( hmap.operation_type IS NULL OR hmap.operation_type != ? OR hmap.status IS NULL ) AND
-		-- except "would be removed" profiles if they are a broken label-based profile
-		NOT EXISTS (
-			SELECT 1
-			FROM mdm_configuration_profile_labels mcpl
-			WHERE
-				mcpl.apple_profile_uuid = hmap.profile_uuid AND
-				mcpl.label_id IS NULL
-		)
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "TRUE", "TRUE"))
-
+		hmae.profile_uuid,
+		hmae.profile_identifier,
+		hmae.profile_name,
+		hmae.host_uuid,
+		hmae.checksum,
+		hmae.operation_type,
+		COALESCE(hmae.detail, '') as detail,
+		hmae.status,
+		hmae.command_uuid
+	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
 	return profiles, err
@@ -2169,55 +2212,249 @@ func subqueryAppleProfileStatus(status fleet.MDMDeliveryStatus) (string, []any, 
 	return query, args, nil
 }
 
+// subqueryAppleDeclarationStatus builds out the subquery for declaration status
+func subqueryAppleDeclarationStatus() (string, []any, error) {
+	const declNamedStmt = `
+		CASE WHEN EXISTS (
+			SELECT
+				1
+			FROM
+				host_mdm_apple_declarations d1
+			WHERE
+				h.uuid = d1.host_uuid
+				AND d1.status = :failed) THEN
+			'declarations_failed'
+		WHEN EXISTS (
+			SELECT
+				1
+			FROM
+				host_mdm_apple_declarations d2
+			WHERE
+				h.uuid = d2.host_uuid
+				AND(d2.status IS NULL
+					OR d2.status = :pending)
+				AND NOT EXISTS (
+					SELECT
+						1
+					FROM
+						host_mdm_apple_declarations d3
+					WHERE
+						h.uuid = d3.host_uuid
+						AND d3.status = :failed)) THEN
+			'declarations_pending'
+		WHEN EXISTS (
+			SELECT
+				1
+			FROM
+				host_mdm_apple_declarations d4
+			WHERE
+				h.uuid = d4.host_uuid
+				AND d4.status = :verifying
+				AND NOT EXISTS (
+					SELECT
+						1
+					FROM
+						host_mdm_apple_declarations d5
+					WHERE (h.uuid = d5.host_uuid
+						AND(d5.status IS NULL
+							OR d5.status IN(:pending, :failed))))) THEN
+			'declarations_verifying'
+		WHEN EXISTS (
+			SELECT
+				1
+			FROM
+				host_mdm_apple_declarations d6
+			WHERE
+				h.uuid = d6.host_uuid
+				AND d6.status = :verified
+				AND NOT EXISTS (
+					SELECT
+						1
+					FROM
+						host_mdm_apple_declarations d7
+					WHERE (h.uuid = d7.host_uuid
+						AND(d7.status IS NULL
+							OR d7.status IN(:pending, :failed, :verifying))))) THEN
+			'declarations_verified'
+		ELSE
+			''
+		END`
+
+	// TODO: do we need to differentiate between install and remove?
+	arg := map[string]any{
+		// "install":   fleet.MDMOperationTypeInstall,
+		// "remove":    fleet.MDMOperationTypeRemove,
+		"verifying": fleet.MDMDeliveryVerifying,
+		"failed":    fleet.MDMDeliveryFailed,
+		"verified":  fleet.MDMDeliveryVerified,
+		"pending":   fleet.MDMDeliveryPending,
+	}
+	query, args, err := sqlx.Named(declNamedStmt, arg)
+	if err != nil {
+		return "", nil, fmt.Errorf("subqueryAppleDeclarationStatus: %w", err)
+	}
+
+	return query, args, nil
+}
+
+func subqueryOSSettingsStatusMac() (string, []any, error) {
+	var profArgs []any
+	profFailed, profFailedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryFailed)
+	if err != nil {
+		return "", nil, err
+	}
+	profArgs = append(profArgs, profFailedArgs...)
+
+	profPending, profPendingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryPending)
+	if err != nil {
+		return "", nil, err
+	}
+	profArgs = append(profArgs, profPendingArgs...)
+
+	profVerifying, profVerifyingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerifying)
+	if err != nil {
+		return "", nil, err
+	}
+	profArgs = append(profArgs, profVerifyingArgs...)
+
+	profVerified, profVerifiedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerified)
+	if err != nil {
+		return "", nil, err
+	}
+	profArgs = append(profArgs, profVerifiedArgs...)
+
+	profStmt := fmt.Sprintf(`
+	    CASE WHEN EXISTS (%s) THEN
+	        'profiles_failed'
+	    WHEN EXISTS (%s) THEN
+	        'profiles_pending'
+	    WHEN EXISTS (%s) THEN
+	        'profiles_verifying'
+	    WHEN EXISTS (%s) THEN
+	        'profiles_verified'
+	    ELSE
+	        ''
+	    END`,
+		profFailed,
+		profPending,
+		profVerifying,
+		profVerified,
+	)
+
+	declStmt, declArgs, err := subqueryAppleDeclarationStatus()
+	if err != nil {
+		return "", nil, err
+	}
+
+	stmt := fmt.Sprintf(`
+	CASE (%s)
+	WHEN 'profiles_failed' THEN
+	    'failed'
+	WHEN 'profiles_pending' THEN (
+	    CASE (%s)
+	    WHEN 'declarations_failed' THEN
+	        'failed'
+	    ELSE
+	        'pending'
+	    END)
+	WHEN 'profiles_verifying' THEN (
+	    CASE (%s)
+	    WHEN 'declarations_failed' THEN
+	        'failed'
+	    WHEN 'declarations_pending' THEN
+	        'pending'
+	    ELSE
+	        'verifying'
+	    END)
+	WHEN 'profiles_verified' THEN (
+	    CASE (%s)
+	    WHEN 'declarations_failed' THEN
+	        'failed'
+	    WHEN 'declarations_pending' THEN
+	        'pending'
+	    WHEN 'declarations_verifying' THEN
+	        'verifying'
+	    ELSE
+	        'verified'
+	    END)
+	ELSE
+	    REPLACE((%s), 'declarations_', '')
+	END`, profStmt, declStmt, declStmt, declStmt, declStmt)
+
+	args := append(profArgs, declArgs...)
+	args = append(args, declArgs...)
+	args = append(args, declArgs...)
+	args = append(args, declArgs...)
+
+	// FIXME(roberto): we found issues in MySQL 5.7.17 (only that version,
+	// which we must support for now) with prepared statements on this
+	// query. The results returned by the DB were always different what
+	// expected unless the arguments are inlined in the query.
+	//
+	// We decided to do this given:
+	//
+	// - The time constraints we were given to develop DDM
+	// - The fact that all the variables in this query are really strings managed by us
+	// - The imminent deprecation of MySQL 5.7
+	return fmt.Sprintf(strings.Replace(stmt, "?", "'%s'", -1), args...), []any{}, nil
+}
+
 func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	var args []interface{}
-
-	subqueryFailed, subqueryFailedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryFailed)
+	subquery, args, err := subqueryOSSettingsStatusMac()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building failed subquery")
+		return nil, ctxerr.Wrap(ctx, err, "building os settings subquery")
 	}
-	args = append(args, subqueryFailedArgs...)
-
-	subqueryPending, subqueryPendingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryPending)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building pending subquery")
-	}
-	args = append(args, subqueryPendingArgs...)
-
-	subqueryVerifying, subqueryVerifyingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerifying)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building verifying subquery")
-	}
-	args = append(args, subqueryVerifyingArgs...)
-
-	subqueryVerified, subqueryVerifiedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerified)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building verified subquery")
-	}
-	args = append(args, subqueryVerifiedArgs...)
 
 	sqlFmt := `
-          SELECT
-              COUNT(CASE WHEN EXISTS (%s) THEN 1 END) AS failed,
-              COUNT(CASE WHEN EXISTS (%s) THEN 1 END) AS pending,
-              COUNT(CASE WHEN EXISTS (%s) THEN 1 END) AS verifying,
-              COUNT(CASE WHEN EXISTS (%s) THEN 1 END) AS verified
-          FROM
-              hosts h
-          WHERE
-              h.platform = 'darwin' AND %s`
+SELECT
+  %s as status,
+  COUNT(id) as count
+FROM
+  hosts h
+GROUP BY status, platform, team_id HAVING platform = 'darwin' AND status IN (?, ?, ?, ?) AND %s`
 
-	teamFilter := "h.team_id IS NULL"
+	args = append(args, fleet.MDMDeliveryFailed, fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified)
+
+	teamFilter := "team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = "h.team_id = ?"
+		teamFilter = "team_id = ?"
 		args = append(args, *teamID)
 	}
 
-	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryVerifying, subqueryVerified, teamFilter)
-	var res fleet.MDMProfilesSummary
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...)
+	stmt := fmt.Sprintf(sqlFmt, subquery, teamFilter)
+
+	var dest []struct {
+		Count  uint   `db:"count"`
+		Status string `db:"status"`
+	}
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
 	if err != nil {
 		return nil, err
+	}
+
+	byStatus := make(map[string]uint)
+	for _, s := range dest {
+		if _, ok := byStatus[s.Status]; ok {
+			return nil, fmt.Errorf("duplicate status %s", s.Status)
+		}
+		byStatus[s.Status] = s.Count
+	}
+
+	var res fleet.MDMProfilesSummary
+	for s, c := range byStatus {
+		switch fleet.MDMDeliveryStatus(s) {
+		case fleet.MDMDeliveryFailed:
+			res.Failed = c
+		case fleet.MDMDeliveryPending:
+			res.Pending = c
+		case fleet.MDMDeliveryVerifying:
+			res.Verifying = c
+		case fleet.MDMDeliveryVerified:
+			res.Verified = c
+		default:
+			return nil, fmt.Errorf("unknown status %s", s)
+		}
 	}
 
 	return &res, nil
@@ -3160,20 +3397,19 @@ WHERE h.uuid = ?
 	return nil
 }
 
-func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, declarations []*fleet.MDMAppleDeclaration) ([]*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, incomingDeclarations []*fleet.MDMAppleDeclaration) ([]*fleet.MDMAppleDeclaration, error) {
 	const insertStmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
 	identifier,
 	name,
-	category,
 	raw_json,
 	checksum,
 	uploaded_at,
 	team_id
 )
 VALUES (
-	?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP(),?
+	?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP(),?
 )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
@@ -3207,15 +3443,13 @@ WHERE
 		declTeamID = *tmID
 	}
 
-	var incomingLabels []fleet.ConfigurationProfileLabel
-
 	// build a list of identifiers for the incoming declarations, will keep the
 	// existing ones if there's a match and no change
-	incomingIdents := make([]string, len(declarations))
+	incomingIdents := make([]string, len(incomingDeclarations))
 	// at the same time, index the incoming declarations keyed by identifier for ease
 	// or processing
-	incomingDecls := make(map[string]*fleet.MDMAppleDeclaration, len(declarations))
-	for i, p := range declarations {
+	incomingDecls := make(map[string]*fleet.MDMAppleDeclaration, len(incomingDeclarations))
+	for i, p := range incomingDeclarations {
 		incomingIdents[i] = p.Identifier
 		incomingDecls[p.Identifier] = p
 	}
@@ -3273,17 +3507,16 @@ WHERE
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
+		return nil, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
 	}
 
-	for _, d := range declarations {
+	for _, d := range incomingDeclarations {
 		checksum := md5ChecksumScriptContent(string(d.RawJSON))
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 		if _, err := tx.ExecContext(ctx, insertStmt,
 			declUUID,
 			d.Identifier,
 			d.Name,
-			d.Category,
 			d.RawJSON,
 			checksum,
 			declTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
@@ -3292,11 +3525,36 @@ WHERE
 			}
 			return nil, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
+	}
 
-		d.DeclarationUUID = declUUID
-		for _, l := range d.Labels {
-			l.ProfileUUID = declUUID
-			incomingLabels = append(incomingLabels, l)
+	incomingLabels := []fleet.ConfigurationProfileLabel{}
+	if len(incomingIdents) > 0 {
+		var newlyInsertedDecls []*fleet.MDMAppleDeclaration
+		// load current declarations (again) that match the incoming declarations by name to grab their uuids
+		// this is an easy way to grab the identifiers for both the existing declarations and the new ones we generated.
+		//
+		// TODO(roberto): if we're a bit careful, we can harvest this
+		// information without this extra request in the previous DB
+		// calls. Due to time constraints, I'm leaving that
+		// optimization for a later iteration.
+		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingIdents)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build query to load newly inserted declarations")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedDecls, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load newly inserted declarations")
+		}
+
+		for _, newlyInsertedDecl := range newlyInsertedDecls {
+			incomingDecl, ok := incomingDecls[newlyInsertedDecl.Identifier]
+			if !ok {
+				return nil, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Identifier)
+			}
+
+			for _, label := range incomingDecl.Labels {
+				label.ProfileUUID = newlyInsertedDecl.DeclarationUUID
+				incomingLabels = append(incomingLabels, label)
+			}
 		}
 	}
 
@@ -3304,10 +3562,10 @@ WHERE
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
+		return nil, ctxerr.Wrap(ctx, err, "inserting apple declaration label associations")
 	}
 
-	return declarations, nil
+	return incomingDeclarations, nil
 }
 
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -3320,11 +3578,10 @@ INSERT INTO mdm_apple_declarations (
 	team_id,
 	identifier,
 	name,
-	category,
 	raw_json,
 	checksum,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -3339,7 +3596,7 @@ INSERT INTO mdm_apple_declarations (
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
-			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.Category, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
 			case isDuplicate(err):
@@ -3473,8 +3730,7 @@ func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID s
 	const stmt = `
 SELECT
 	HEX(mad.checksum) as checksum,
-	mad.identifier,
-	mad.category
+	mad.identifier
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
@@ -3489,7 +3745,7 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType fleet.MDMAppleDeclarationCategory, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
 	// TODO: When hosts table is indexed by uuid, consider joining on hosts to ensure that the
 	// declaration for the host's current team is returned. In the case where the specified
 	// identifier is not unique to the team, the cron should ensure that any conflicting
@@ -3501,12 +3757,12 @@ FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	host_uuid = ? AND identifier = ? AND category = ? AND operation_type = ?`
+	host_uuid = ? AND identifier = ? AND operation_type = ?`
 
 	var res fleet.MDMAppleDeclaration
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, declarationType, fleet.MDMOperationTypeInstall); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, fleet.MDMOperationTypeInstall); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, notFound(string(declarationType)).WithName(identifier)
+			return nil, notFound("MDMAppleDeclaration").WithName(identifier)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get ddm declarations response")
 	}
@@ -3530,4 +3786,143 @@ VALUES
 	}
 
 	return nil
+}
+
+func (ds *Datastore) MDMAppleBatchInsertHostDeclarations(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error {
+	baseStmt := `
+	  INSERT INTO host_mdm_apple_declarations
+	    (host_uuid, status, operation_type, checksum, declaration_uuid, declaration_identifier, declaration_name)
+	  VALUES
+	    %s
+	  ON DUPLICATE KEY UPDATE
+	    status = VALUES(status),
+	    operation_type = VALUES(operation_type),
+	    checksum = VALUES(checksum)
+	  `
+	var placeholders strings.Builder
+	var args []any
+	for _, d := range changedDeclarations {
+		placeholders.WriteString("(?, 'pending', ?, ?, ?, ?, ?),")
+		args = append(args, d.HostUUID, d.OperationType, d.Checksum, d.DeclarationUUID, d.Identifier, d.Name)
+	}
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		fmt.Sprintf(baseStmt, strings.TrimSuffix(placeholders.String(), ",")),
+		args...,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
+}
+
+func (ds *Datastore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error) {
+	stmt := fmt.Sprintf(`
+        (
+            SELECT
+                ds.host_uuid,
+                'install' as operation_type,
+                ds.checksum,
+                ds.declaration_uuid,
+                ds.declaration_identifier,
+                ds.declaration_name
+            FROM
+                %s
+        )
+        UNION ALL
+        (
+            SELECT
+                hmae.host_uuid,
+                'remove' as operation_type,
+                hmae.checksum,
+                hmae.declaration_uuid,
+                hmae.declaration_identifier,
+                hmae.declaration_name
+            FROM
+                %s
+        )
+    `,
+		generateEntitiesToInstallQuery("declaration"),
+		generateEntitiesToRemoveQuery("declaration"),
+	)
+
+	var decls []*fleet.MDMAppleHostDeclaration
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &decls, stmt, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
+	}
+	return decls, nil
+}
+
+func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
+	getHostDeclarationsStmt := `
+    SELECT host_uuid, status, operation_type, HEX(checksum) as checksum, declaration_uuid, declaration_identifier, declaration_name
+    FROM host_mdm_apple_declarations
+    WHERE host_uuid = ?
+  `
+
+	updateHostDeclarationsStmt := `
+INSERT INTO host_mdm_apple_declarations
+    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, checksum)
+VALUES
+  %s
+ON DUPLICATE KEY UPDATE
+  status = VALUES(status),
+  operation_type = VALUES(operation_type),
+  detail = VALUES(detail)
+  `
+
+	deletePendingRemovesStmt := `
+  DELETE FROM host_mdm_apple_declarations
+  WHERE host_uuid = ? AND operation_type = 'remove' AND status = 'pending'
+  `
+
+	var current []*fleet.MDMAppleHostDeclaration
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &current, getHostDeclarationsStmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "getting current host declarations")
+	}
+
+	updatesByChecksum := make(map[string]*fleet.MDMAppleHostDeclaration, len(updates))
+	for _, u := range updates {
+		updatesByChecksum[u.Checksum] = u
+	}
+
+	var args []any
+	var insertVals strings.Builder
+	for _, c := range current {
+		if u, ok := updatesByChecksum[c.Checksum]; ok {
+			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?)),")
+			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Checksum)
+		}
+	}
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if len(args) != 0 {
+			stmt := fmt.Sprintf(updateHostDeclarationsStmt, strings.TrimSuffix(insertVals.String(), ","))
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating existing declarations")
+			}
+		}
+
+		if _, err := tx.ExecContext(ctx, deletePendingRemovesStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting pending removals")
+		}
+
+		return nil
+	})
+
+	return ctxerr.Wrap(ctx, err, "updating host declarations")
+}
+
+func (ds *Datastore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error {
+	stmt := `
+  UPDATE host_mdm_apple_declarations
+  SET status = ?
+  WHERE
+    operation_type = ?
+    AND status = ?
+    AND host_uuid = ?
+  `
+
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, stmt, fleet.MDMDeliveryVerifying,
+		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending, hostUUID,
+	)
+	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
 }

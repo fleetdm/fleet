@@ -11,24 +11,6 @@ func init() {
 
 func Up_20240314150853(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-CREATE TABLE mdm_apple_declaration_categories (
-    declaration_category varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-    PRIMARY KEY (declaration_category)
-)
-  `)
-	if err != nil {
-		return fmt.Errorf("creating mdm_apple_declaration_categories table: %w", err)
-	}
-
-	_, err = tx.Exec(`
-    INSERT INTO mdm_apple_declaration_categories
-    VALUES ('com.apple.configuration'), ('com.apple.activation')
-	`)
-	if err != nil {
-		return fmt.Errorf("inserting default values into mdm_apple_declaration_categories table: %w", err)
-	}
-
-	_, err = tx.Exec(`
 CREATE TABLE mdm_apple_declarations (
     -- declaration_uuid is used as the primary key of the declaration
     declaration_uuid varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
@@ -42,10 +24,6 @@ CREATE TABLE mdm_apple_declarations (
     -- name is the name of the declaration
     name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 
-    -- category is the category of the declaration (activation,
-    -- declaration, management or asset)
-    category varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-
     -- raw_json contains a JSON blob with the declaration contents
     raw_json json NOT NULL,
 
@@ -57,8 +35,7 @@ CREATE TABLE mdm_apple_declarations (
 
     PRIMARY KEY (declaration_uuid),
     UNIQUE KEY idx_mdm_apple_declaration_team_identifier (team_id, identifier),
-    UNIQUE KEY idx_mdm_apple_declaration_team_name (team_id, name),
-    CONSTRAINT mdm_apple_declaration_category FOREIGN KEY (category) REFERENCES mdm_apple_declaration_categories (declaration_category) ON DELETE CASCADE
+    UNIQUE KEY idx_mdm_apple_declaration_team_name (team_id, name)
 )
     `)
 	if err != nil {

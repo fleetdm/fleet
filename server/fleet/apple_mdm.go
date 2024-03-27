@@ -450,6 +450,8 @@ const (
 	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
 )
 
+const MDMAppleDeclarationUUIDPrefix = "d"
+
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly
@@ -533,25 +535,6 @@ type SCEPIdentityAssociation struct {
 	RenewCommandUUID string `db:"renew_command_uuid"`
 }
 
-// MDMAppleDeclarationCategory is the type for the supported declaration types.
-type MDMAppleDeclarationCategory string
-
-const (
-	// MDMAppleConfigurationDeclaration is the value for [configuration][1] declarations
-	//
-	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3813088
-	MDMAppleDeclarativeConfiguration MDMAppleDeclarationCategory = "com.apple.configuration"
-
-	// MDMAppleActivationConfiguration is the value for [activation][1] declarations
-	//
-	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3829708
-	MDMAppleDeclarativeActivation MDMAppleDeclarationCategory = "com.apple.activation"
-
-	// MDMAppleDeclarationUUIDPrefix is the prefix used to differentiate declaration uuids
-	// from legacy Apple profile uuids and Windows profile uuids.
-	MDMAppleDeclarationUUIDPrefix = "d"
-)
-
 // MDMAppleDeclaration represents a DDM JSON declaration.
 type MDMAppleDeclaration struct {
 	// DeclarationUUID is the unique identifier of the declaration in
@@ -571,10 +554,6 @@ type MDMAppleDeclaration struct {
 	// Name corresponds to the file name of the associated JSON declaration payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
-
-	// Category is the category of the declaration, at the moment we
-	// only support configurations and activations.
-	Category MDMAppleDeclarationCategory `db:"category"`
 
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
@@ -604,7 +583,6 @@ var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.account.google":               {},
 	"com.apple.configuration.account.ldap":                 {},
 	"com.apple.configuration.account.mail":                 {},
-	"com.apple.configuration.management.test":              {},
 	"com.apple.configuration.screensharing.connection":     {},
 	"com.apple.configuration.security.certificate":         {},
 	"com.apple.configuration.security.identity":            {},
@@ -629,7 +607,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
 	}
 
-	if !strings.HasPrefix(r.Type, string(MDMAppleDeclarativeConfiguration)) {
+	if !strings.HasPrefix(r.Type, "com.apple.configuration") {
 		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration) are supported.")
 	}
 
@@ -657,10 +635,10 @@ type MDMAppleHostDeclaration struct {
 	DeclarationUUID string `db:"declaration_uuid" json:"profile_uuid"`
 
 	// Name corresponds to the file name of the associated JSON declaration payload.
-	Name string `db:"name" json:"name"`
+	Name string `db:"declaration_name" json:"name"`
 
 	// Identifier corresponds to the "Identifier" key of the associated declaration.
-	Identifier string `db:"identifier" json:"-"`
+	Identifier string `db:"declaration_identifier" json:"-"`
 
 	// Status represent the current state of the declaration, as known by the Fleet server.
 	Status *MDMDeliveryStatus `db:"status" json:"status"`
@@ -671,12 +649,15 @@ type MDMAppleHostDeclaration struct {
 	// Detail contains any messages that must be surfaced to the user,
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
+
+	// Checksum contains the MD5 checksum of the declaration JSON uploaded
+	// by the IT admin. Fleet uses this value as the ServerToken.
+	Checksum string `db:"checksum" json:"-"`
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
 	var decl MDMAppleDeclaration
 
-	decl.Category = MDMAppleDeclarationCategory(strings.Join(strings.Split(declType, ".")[:3], "."))
 	decl.Identifier = ident
 	decl.Name = name
 	decl.RawJSON = raw
@@ -733,7 +714,6 @@ type MDMAppleDDMManifest struct {
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
 	Identifier  string `db:"identifier"`
-	Category    string `db:"category"`
 	ServerToken string `db:"checksum"`
 }
 
@@ -746,4 +726,95 @@ type MDMAppleDDMDeclarationResponse struct {
 	Type        string          `db:"type"`
 	Payload     json.RawMessage `db:"payload"`
 	ServerToken string          `db:"server_token"`
+}
+
+// MDMAppleDDMStatusReport represents a report of the device's current state.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreport
+type MDMAppleDDMStatusReport struct {
+	StatusItems MDMAppleDDMStatusItems `json:"StatusItems"`
+	Errors      []MDMAppleDDMErrors    `json:"Errors"`
+}
+
+// MDMAppleDDMStatusItems are the status items for a report.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreport/statusitems
+type MDMAppleDDMStatusItems struct {
+	Management MDMAppleDDMStatusManagement `json:"management"`
+}
+
+// MDMAppleDDMStatusManagement represents status report of the client's
+// processed declarations.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusmanagementdeclarations
+type MDMAppleDDMStatusManagement struct {
+	Declarations MDMAppleDDMStatusDeclarations `json:"declarations"`
+}
+
+// MDMAppleDDMStatusDeclarations represents a collection of the client's
+// processed declarations.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusmanagementdeclarationsdeclarationsobject
+type MDMAppleDDMStatusDeclarations struct {
+	// Activations is an array of declarations that represent the client's
+	// processed activation types.
+	Activations []MDMAppleDDMStatusDeclaration `json:"activations"`
+	// Configurations is an array of declarations that represent the
+	// client's processed configuration types.
+	Configurations []MDMAppleDDMStatusDeclaration `json:"configurations"`
+	// Assets is an array of declarations that represent the client's
+	// processed assets.
+	Assets []MDMAppleDDMStatusDeclaration `json:"assets"`
+	// Management is an array of declarations that represent the client's
+	// processed declaration types.
+	Management []MDMAppleDDMStatusDeclaration `json:"management"`
+}
+
+type MDMAppleDeclarationValidity string
+
+const (
+	MDMAppleDeclarationValid   MDMAppleDeclarationValidity = "valid"
+	MDMAppleDeclarationInvalid MDMAppleDeclarationValidity = "invalid"
+	MDMAppleDeclarationUnknown MDMAppleDeclarationValidity = "valid"
+)
+
+// MDMAppleDDMStatusDeclaration represents a processed declaration for the client.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusmanagementdeclarationsdeclarationobject
+type MDMAppleDDMStatusDeclaration struct {
+	// Active signals if the declaration is active on the device.
+	Active bool `json:"active"`
+	// Identifier is the identifier of the declaration this status report refers to.
+	Identifier string `json:"identifier"`
+	// Valid defines the validity of the declaration. If it's invalid, the
+	// reasons property contains more details.
+	Valid MDMAppleDeclarationValidity `json:"valid"`
+	// ServerToken of the declaration this status report refers to.
+	ServerToken string `json:"server-token"`
+	// Reasons are the details of any client errors.
+	Reasons []MDMAppleDDMStatusErrorReason `json:"reasons,omitempty"`
+}
+
+// A status report's error that contains the status item and the reasons for
+// the error.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreport/error
+type MDMAppleDDMErrors struct {
+	// StatusItem is the status item that this error pertains to.
+	StatusItem string `json:"StatusItem"`
+	// Reasons is an array of reasons for the error.
+	Reasons []MDMAppleDDMStatusErrorReason `json:"Reasons"`
+}
+
+// A status report that contains details about an error.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreason
+type MDMAppleDDMStatusErrorReason struct {
+	// Code is the error code for this error.
+	Code string `json:"Code"`
+	// Description is a short error description.
+	Description string `json:"Description"`
+	// Details is a dictionary that contains further details about this
+	// error.
+	Details map[string]any `json:"Details"`
 }

@@ -660,29 +660,18 @@ CREATE TABLE `mdm_apple_declaration_activation_references` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `mdm_apple_declaration_categories` (
-  `declaration_category` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`declaration_category`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `mdm_apple_declaration_categories` VALUES ('com.apple.activation'),('com.apple.configuration');
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `mdm_apple_declarations` (
   `declaration_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `team_id` int(10) unsigned NOT NULL DEFAULT '0',
   `identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `category` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `raw_json` json NOT NULL,
   `checksum` binary(16) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uploaded_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`declaration_uuid`),
   UNIQUE KEY `idx_mdm_apple_declaration_team_identifier` (`team_id`,`identifier`),
-  UNIQUE KEY `idx_mdm_apple_declaration_team_name` (`team_id`,`name`),
-  KEY `mdm_apple_declaration_category` (`category`),
-  CONSTRAINT `mdm_apple_declaration_category` FOREIGN KEY (`category`) REFERENCES `mdm_apple_declaration_categories` (`declaration_category`) ON DELETE CASCADE
+  UNIQUE KEY `idx_mdm_apple_declaration_team_name` (`team_id`,`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
