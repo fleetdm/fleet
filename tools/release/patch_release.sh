@@ -177,14 +177,23 @@ validate_and_format_date() {
 }
 
 print_announce_info() {
+    qa_ticket=`gh issue list --search "Release QA: $target_milestone in:title" --json url | jq -r .[0].url`
+    docker_deploy=`gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch --limit 100 | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
     echo
     echo "For announcing in #help-engineering"
     echo "===================================================="
     echo "Release $target_milestone QA ticket and docker publish"
-    echo "QA ticket for Release $target_milestone " `gh issue list --search "Release QA: $target_milestone in:title" --json url | jq -r .[0].url`
-    echo "Docker Deploy status " `gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch --limit 100 | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
+    echo "QA ticket for Release $target_milestone " $qa_ticket
+    echo "Docker Deploy status " $docker_deploy
     echo "List of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
     echo 
+    slack_hook_url=https://hooks.slack.com/services
+    app_id=T019PP37ALW
+    help_eng_channel_id=B06RDTMUP1U/x2R36PXvW13KE6daxMiUK6W7
+    announce_text="Release $target_milestone QA ticket and docker publish\nQA ticket for Release $target_milestone $qa_ticket\nDocker Deploy status $docker_deploy\nList of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
+    curl -X POST -H 'Content-type: application/json' \
+        --data "{\"text\":\"$announce_text\"}" \
+        $slack_hook_url/$app_id/$help_infra_channel_id
 }
 
 update_release_notes() {
