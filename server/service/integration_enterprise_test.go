@@ -7676,6 +7676,12 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 	})
+	currentAppCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
+		require.NoError(t, err)
+	})
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "team1",
@@ -8108,6 +8114,12 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+	})
+	currentAppCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
+		require.NoError(t, err)
 	})
 
 	// Set global configuration for the calendar feature.
