@@ -4132,7 +4132,7 @@ Add a dynamic or manual label.
 | hosts       | array | body | The list of host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name` to create a label from. Only one of either `query` or `hosts` can be included in the request. |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
-If both 'query' and 'hosts' aren't specified, a manual label with no hosts will be created.
+If both `query` and `hosts` aren't specified, a manual label with no hosts will be created.
 
 #### Example
 
