@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/stretchr/testify/require"
@@ -264,7 +265,9 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		//default:
 		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
 		//}
-		cmds = append(cmds, cmd)
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
@@ -327,7 +330,9 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		cmd, err = mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
-			cmds = append(cmds, cmd)
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmds = append(cmds, &fullCmd)
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
 		}
@@ -374,12 +379,14 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
-			if cmd.Command.RequestType == "InstallEnterpriseApplication" &&
-				cmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
-				strings.Contains(*cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
-				fleetdCmd = cmd
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" &&
+				fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
+				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
+				fleetdCmd = &fullCmd
 			} else if cmd.Command.RequestType == "InstallProfile" {
-				installProfileCmd = cmd
+				installProfileCmd = &fullCmd
 			}
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
