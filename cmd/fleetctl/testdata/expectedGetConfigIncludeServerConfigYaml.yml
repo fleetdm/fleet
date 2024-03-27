@@ -36,6 +36,7 @@ spec:
     macos_setup:
       bootstrap_package:
       enable_end_user_authentication: false
+      enable_release_device_manually: false
       macos_setup_assistant:
     windows_settings:
       custom_settings:

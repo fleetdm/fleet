@@ -146,6 +146,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       bootstrap_package: "",
       enable_end_user_authentication: false,
       macos_setup_assistant: null,
+      enable_release_device_manually: false,
     },
     macos_migration: {
       enable: false,

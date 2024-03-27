@@ -19,6 +19,7 @@ spec:
         bootstrap_package: null
         enable_end_user_authentication: false
         macos_setup_assistant: null
+        enable_release_device_manually: false
       macos_updates:
         deadline: null
         minimum_version: null

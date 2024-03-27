@@ -48,6 +48,7 @@ export interface IMdmConfig {
     bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
     macos_setup_assistant: string | null;
+    enable_release_device_manually: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
