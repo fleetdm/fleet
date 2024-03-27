@@ -2,6 +2,7 @@ import React from "react";
 import {
   isEmpty,
   flatMap,
+  find,
   omit,
   pick,
   size,
@@ -25,6 +26,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -39,6 +41,8 @@ import { UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
+import { checkTable } from "utilities/sql_tools";
+import { osqueryTables } from "utilities/osquery_tables";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -887,6 +891,40 @@ export const getUniqueColumnNamesFromRows = <
 // can allow additional dropdown value types in the future
 type DropdownOptionValue = IDropdownOption["value"];
 
+/** Generates the column schema for a sql query */
+export const getTableColumnsFromSql = (
+  sql: string
+): IQueryTableColumn[] | [] => {
+  const tableNames = (sql && checkTable(sql).tables) || [];
+
+  let sqlColumns: IQueryTableColumn[] | [] = [];
+  tableNames.forEach((tableName: string) => {
+    const tableColumns =
+      find(osqueryTables, { name: tableName })?.columns || [];
+    sqlColumns = [...sqlColumns, ...tableColumns];
+  });
+  // TODO: Edge case of tables sharing column names with different typing not considered
+
+  return sqlColumns;
+};
+
+/** Sorts sql results numerical columns correctly while perserving case insensitive sort for text columns */
+export const getSortTypeFromColumnType = (
+  colName: string | number | symbol,
+  tableColumns?: IQueryTableColumn[] | []
+) => {
+  if (typeof colName === "string") {
+    const numberTypes = ["integer", "bigint", "unsigned_bigint", "double"];
+
+    const type = find(tableColumns, { name: colName })?.type;
+
+    if (type && numberTypes.includes(type)) {
+      return "alphanumeric";
+    }
+  }
+  return "caseInsensitive";
+};
+
 export function getCustomDropdownOptions(
   defaultOptions: IDropdownOption[],
   customValue: DropdownOptionValue,
@@ -918,6 +956,8 @@ export default {
   generateRole,
   generateTeam,
   getUniqueColumnNamesFromRows,
+  getTableColumnsFromSql,
+  getSortTypeFromColumnType,
   getCustomDropdownOptions,
   greyCell,
   humanHostLastSeen,
