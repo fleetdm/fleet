@@ -27,7 +27,7 @@ const GOOGLE_WORKSPACE_DOMAINS =
 const DOMAIN_WIDE_DELEGATION =
   "https://www.fleetdm.com/learn-more-about/domain-wide-delegation";
 const ENABLING_CALENDAR_API =
-  "fleetdm.com/learn-more-about/enabling-calendar-api";
+  "https://www.fleetdm.com/learn-more-about/enabling-calendar-api";
 const OAUTH_SCOPES =
   "https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/calendar.settings.readonly";
 
