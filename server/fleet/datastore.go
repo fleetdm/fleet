@@ -1155,6 +1155,9 @@ type Datastore interface {
 	// serials.
 	UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error
 
+	// InsertMDMAppleDDMRequest inserts a DDM request.
+	InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType, rawJSON string) error
+
 	// MDMAppleDDMDeclarationsToken returns the token used to synchronize declarations for the
 	// specified host UUID.
 	MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*MDMAppleDDMDeclarationsToken, error)

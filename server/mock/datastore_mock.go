@@ -758,6 +758,8 @@ type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint
 
 type UpdateDEPAssignProfileRetryPendingFunc func(ctx context.Context, jobID uint, serials []string) error
 
+type InsertMDMAppleDDMRequestFunc func(ctx context.Context, hostUUID string, messageType string, rawJSON string) error
+
 type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error)
 
 type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error)
@@ -1986,6 +1988,9 @@ type DataStore struct {
 
 	UpdateDEPAssignProfileRetryPendingFunc        UpdateDEPAssignProfileRetryPendingFunc
 	UpdateDEPAssignProfileRetryPendingFuncInvoked bool
+
+	InsertMDMAppleDDMRequestFunc        InsertMDMAppleDDMRequestFunc
+	InsertMDMAppleDDMRequestFuncInvoked bool
 
 	MDMAppleDDMDeclarationsTokenFunc        MDMAppleDDMDeclarationsTokenFunc
 	MDMAppleDDMDeclarationsTokenFuncInvoked bool
@@ -4755,6 +4760,13 @@ func (s *DataStore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobI
 	s.UpdateDEPAssignProfileRetryPendingFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateDEPAssignProfileRetryPendingFunc(ctx, jobID, serials)
+}
+
+func (s *DataStore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID string, messageType string, rawJSON string) error {
+	s.mu.Lock()
+	s.InsertMDMAppleDDMRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMAppleDDMRequestFunc(ctx, hostUUID, messageType, rawJSON)
 }
 
 func (s *DataStore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
