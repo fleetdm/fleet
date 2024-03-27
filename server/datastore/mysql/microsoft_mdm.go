@@ -703,9 +703,10 @@ WHERE
 	}
 
 	if dest.Status == "" {
-		// If we have no status, we treat it as enforcing since we know disk encryption is enabled and log for potential debugging
-		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
-		dest.Status = fleet.DiskEncryptionEnforcing
+		// This is unexpected. We know that disk encryption is enabled so we treat it failed to draw
+		// attention to the issue and log potential debugging
+		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info", fmt.Sprintf("%+v", host.MDMInfo))
+		dest.Status = fleet.DiskEncryptionFailed
 	}
 
 	return &fleet.HostMDMDiskEncryption{

@@ -407,6 +407,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetMDMWindowsBitLockerStatusFuncInvoked = false
 		ds.GetHostMDMAppleProfilesFuncInvoked = false
 		ds.GetHostMDMWindowsProfilesFuncInvoked = false
+		ds.GetHostMDMFuncInvoked = false
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
@@ -424,7 +425,6 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			return nil, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			// TODO: test with various data (e.g., server status, etc.)
 			hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
 			return &hmdm, nil
 		}
@@ -447,6 +447,11 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			switch c.host.Platform {
 			case "windows":
 				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				if c.licenseTier == fleet.TierPremium {
+					require.True(t, ds.GetHostMDMFuncInvoked)
+				} else {
+					require.False(t, ds.GetHostMDMFuncInvoked)
+				}
 				if c.wantStatus != "" {
 					require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 					require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
@@ -506,7 +511,6 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-		// TODO: test with various data (e.g., server status, etc.)
 		hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
 		return &hmdm, nil
 	}
@@ -520,6 +524,7 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	require.NotNil(t, hostDetail)
 	require.True(t, ds.AppConfigFuncInvoked)
 	require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+	require.True(t, ds.GetHostMDMFuncInvoked)
 	require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 	require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
