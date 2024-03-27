@@ -283,7 +283,6 @@ You can confirm that the device has been ordered correctly by following these st
 - Use the device serial number to find the device.
   - Note: if the device cannot be found, you will need to manually enroll the device.
 - View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
-<img width="143" alt="Screenshot 2023-11-21 at 11 08 50 AM" src="https://github.com/fleetdm/confidential/assets/47070608/512dc629-76dd-4090-bf86-9c4582286d1d">
 
 On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
 - If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
