@@ -68,6 +68,7 @@ usage() {
     echo "Usage: $0 [options] (optional|start_version)"
     echo ""
     echo "Options:"
+    echo "  -a, --main_release     This is a release based off of main and not a tagged patch."
     echo "  -c, --cherry_pick_resolved The script has been run, had merge conflicts, and those have been resolved and all cherry picks completed manually."
     echo "  -d, --dry_run          Perform a trial run with no changes made"
     echo "  -f, --force            Skip all confirmations"
@@ -271,11 +272,13 @@ target_version=""
 print_info=false
 publish_release=false
 release_notes=false
+main_release=false
 
 # Parse long options manually
 for arg in "$@"; do
   shift
   case "$arg" in
+    "--main_release") set -- "$@" "-a" ;;
     "--cherry_pick_resolved") set -- "$@" "-c" ;;
     "--dry-run") set -- "$@" "-d" ;;
     "--force") set -- "$@" "-f" ;;
@@ -293,8 +296,9 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "cdfhmo:prs:t:uv:" opt; do
+while getopts "acdfhmo:prs:t:uv:" opt; do
     case "$opt" in
+        a) main_release=true ;;
         c) cherry_pick_resolved=true ;;
         d) dry_run=true ;;
         f) force=true ;;
@@ -384,7 +388,13 @@ fi
 
 start_ver_tag=fleet-$start_version
 
-echo "Patch release from $start_version to $next_ver"
+if [[ "$main_release" == "true" ]]; then
+    echo "Main release from $start_version to $next_ver"
+    start_ver_tag=main
+else
+    echo "Patch release from $start_version to $next_ver"
+fi
+
 if [ "$force" = "false" ]; then
     read -r -p "If this is correct confirm yes to continue? [y/N] " response
     case "$response" in
@@ -404,6 +414,10 @@ target_milestone="${next_ver:1}"
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
 # patch-fleet-v4.47.3
 target_patch_branch="patch-fleet-$next_ver"
+if [[ "$main_release" == "true" ]]; then
+    target_patch_branch="prepare-fleet-$next_ver"
+fi
+
 # fleet-v4.47.3
 next_tag="fleet-$next_ver"
 
@@ -438,6 +452,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
     # TODO Fail if not found
     if [ "$dry_run" = "false" ]; then
         git checkout $start_ver_tag
+        git pull origin $start_ver_tag
     else
         echo "DRYRUN: Would have checked out starting tag $start_ver_tag"
     fi
@@ -494,67 +509,69 @@ if [ "$cherry_pick_resolved" = "false" ]; then
 
     commits=""
 
-    for pr in ${total_prs[*]};
-    do
-        output=`gh pr view $pr --json state,mergeCommit,baseRefName`
-        state=`echo $output | jq -r .state`
-        commit=`echo $output | jq -r .mergeCommit.oid`
-        target_branch=`echo $output | jq -r .baseRefName`
-        echo -n "$pr $state $commit $target_branch:"
-        if [[ "$state" != "MERGED" || "$target_branch" != "main" ]]; then
-            echo " WARNING - Skipping pr https://github.com/fleetdm/fleet/pull/$pr"
-        else
-            if [[ "$commit" != "" && "$commit" != "null" ]]; then
-                echo " Commit looks valid - $commit, adding to cherry-pick"
-                commits+="$commit "
+    if [[ "$main_release" == "false" ]]; then
+        for pr in ${total_prs[*]};
+        do
+            output=`gh pr view $pr --json state,mergeCommit,baseRefName`
+            state=`echo $output | jq -r .state`
+            commit=`echo $output | jq -r .mergeCommit.oid`
+            target_branch=`echo $output | jq -r .baseRefName`
+            echo -n "$pr $state $commit $target_branch:"
+            if [[ "$state" != "MERGED" || "$target_branch" != "main" ]]; then
+                echo " WARNING - Skipping pr https://github.com/fleetdm/fleet/pull/$pr"
             else
-                echo " WARNING - invalid commit for pr https://github.com/fleetdm/fleet/pull/$pr - $commit"
+                if [[ "$commit" != "" && "$commit" != "null" ]]; then
+                    echo " Commit looks valid - $commit, adding to cherry-pick"
+                    commits+="$commit "
+                else
+                    echo " WARNING - invalid commit for pr https://github.com/fleetdm/fleet/pull/$pr - $commit"
+                fi
             fi
-        fi
-        #echo "======================================="
-    done
+            #echo "======================================="
+        done
 
-    for commit in $commits;
-    do
-        # echo $commit
-        timestamp=`git log -n 1 --pretty=format:%at $commit`
-        if [ $? -ne 0 ]; then
-            echo "Failed to identify $commit, exiting"
-            exit 1
-        fi
-        # echo $timestamp
-        time_map[$timestamp]=$commit
-    done
+        for commit in $commits;
+        do
+            # echo $commit
+            timestamp=`git log -n 1 --pretty=format:%at $commit`
+            if [ $? -ne 0 ]; then
+                echo "Failed to identify $commit, exiting"
+                exit 1
+            fi
+            # echo $timestamp
+            time_map[$timestamp]=$commit
+        done
 
-    timestamps=""
-    for key in "${!time_map[@]}"; do
-        timestamps+="$key\n"
-    done
-    for ts in `echo -e $timestamps | sort`; do
-        commit_hash="${time_map[$ts]}"
-        # echo "# $ts $commit_hash"
-        if git branch --contains "$commit_hash" | $GREP_CMD -q "$(git rev-parse --abbrev-ref HEAD)"; then
-            echo "# Commit $commit_hash is on the current branch."
-            is_on_current_branch=true
-        else
-            # echo "# Commit $commit_hash is not on the current branch."
-            if [[ "$failed" == "false" ]]; then
+        timestamps=""
+        for key in "${!time_map[@]}"; do
+            timestamps+="$key\n"
+        done
+        for ts in `echo -e $timestamps | sort`; do
+            commit_hash="${time_map[$ts]}"
+            # echo "# $ts $commit_hash"
+            if git branch --contains "$commit_hash" | $GREP_CMD -q "$(git rev-parse --abbrev-ref HEAD)"; then
+                echo "# Commit $commit_hash is on the current branch."
+                is_on_current_branch=true
+            else
+                # echo "# Commit $commit_hash is not on the current branch."
+                if [[ "$failed" == "false" ]]; then
 
-                if [ "$dry_run" = "false" ]; then
-                    git cherry-pick $commit_hash
-                    if [ $? -ne 0 ]; then
-                        echo "Cherry pick of $commit_hash failed. Please resolve then continue the cherry-picks manually"
-                        failed=true
+                    if [ "$dry_run" = "false" ]; then
+                        git cherry-pick $commit_hash
+                        if [ $? -ne 0 ]; then
+                            echo "Cherry pick of $commit_hash failed. Please resolve then continue the cherry-picks manually"
+                            failed=true
+                        fi
+                    else
+                        echo "DRYRUN: Would have cherry picked $commit_hash"
                     fi
                 else
-                    echo "DRYRUN: Would have cherry picked $commit_hash"
+                    echo "git cherry-pick $commit_hash"
                 fi
-            else
-                echo "git cherry-pick $commit_hash"
+                is_on_current_branch=false
             fi
-            is_on_current_branch=false
-        fi
-    done
+        done
+    fi
 fi
 
 if [[ "$failed" == "false" ]]; then
