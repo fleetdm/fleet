@@ -223,12 +223,22 @@ update_release_notes() {
 publish() {
     gh release edit --latest $next_tag
     gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+    show_spinner 200
     echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
     echo "Then copy the topic and paste it in #general and #help-infrastructure"
     echo "In #help-infrastructure add a thread message with:"
     gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'
     echo "to let them see the status of the dogfood deployment"
     cd tools/fleetctl-npm && npm publish
+
+    issues=`gh issue list -m $target_milestone --json number | jq -r '.[] | .number'`
+    for iss in $issues; do
+        echo "Closing #$iss"
+        gh issue close $iss
+    done
+
+    echo "Closing milestone"
+    gh api repos/fleetdm/fleet/milestones/$target_milestone_number -f state=closed
 }
 
 # Validate we have all commands required to perform this script
@@ -371,6 +381,7 @@ if [ "$force" = "false" ]; then
             ;;
     esac
 fi
+# 4.47.2
 start_milestone="${start_version:1}"
 target_milestone="${next_ver:1}"
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
