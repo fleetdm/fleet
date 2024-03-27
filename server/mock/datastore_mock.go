@@ -642,6 +642,8 @@ type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profil
 
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error)
 
+type GetMDMAppleDeclarationFunc func(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error)
+
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
 type DeleteMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) error
@@ -778,6 +780,20 @@ type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint
 
 type UpdateDEPAssignProfileRetryPendingFunc func(ctx context.Context, jobID uint, serials []string) error
 
+type InsertMDMAppleDDMRequestFunc func(ctx context.Context, hostUUID string, messageType string, rawJSON string) error
+
+type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error)
+
+type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error)
+
+type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
+
+type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]string, error)
+
+type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
+
+type MDMAppleSetDeclarationsAsVerifyingFunc func(ctx context.Context, hostUUID string) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -836,7 +852,9 @@ type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindow
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
-type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error
+type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error
+
+type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -1817,6 +1835,9 @@ type DataStore struct {
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
 
+	GetMDMAppleDeclarationFunc        GetMDMAppleDeclarationFunc
+	GetMDMAppleDeclarationFuncInvoked bool
+
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
 
@@ -2021,6 +2042,27 @@ type DataStore struct {
 	UpdateDEPAssignProfileRetryPendingFunc        UpdateDEPAssignProfileRetryPendingFunc
 	UpdateDEPAssignProfileRetryPendingFuncInvoked bool
 
+	InsertMDMAppleDDMRequestFunc        InsertMDMAppleDDMRequestFunc
+	InsertMDMAppleDDMRequestFuncInvoked bool
+
+	MDMAppleDDMDeclarationsTokenFunc        MDMAppleDDMDeclarationsTokenFunc
+	MDMAppleDDMDeclarationsTokenFuncInvoked bool
+
+	MDMAppleDDMDeclarationItemsFunc        MDMAppleDDMDeclarationItemsFunc
+	MDMAppleDDMDeclarationItemsFuncInvoked bool
+
+	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
+	MDMAppleDDMDeclarationsResponseFuncInvoked bool
+
+	MDMAppleBatchSetHostDeclarationStateFunc        MDMAppleBatchSetHostDeclarationStateFunc
+	MDMAppleBatchSetHostDeclarationStateFuncInvoked bool
+
+	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
+	MDMAppleStoreDDMStatusReportFuncInvoked bool
+
+	MDMAppleSetDeclarationsAsVerifyingFunc        MDMAppleSetDeclarationsAsVerifyingFunc
+	MDMAppleSetDeclarationsAsVerifyingFuncInvoked bool
+
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
 
@@ -2110,6 +2152,9 @@ type DataStore struct {
 
 	BatchSetMDMProfilesFunc        BatchSetMDMProfilesFunc
 	BatchSetMDMProfilesFuncInvoked bool
+
+	NewMDMAppleDeclarationFunc        NewMDMAppleDeclarationFunc
+	NewMDMAppleDeclarationFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -4361,6 +4406,13 @@ func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID st
 	return s.GetMDMAppleConfigProfileFunc(ctx, profileUUID)
 }
 
+func (s *DataStore) GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.GetMDMAppleDeclarationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleDeclarationFunc(ctx, declUUID)
+}
+
 func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.ListMDMAppleConfigProfilesFuncInvoked = true
@@ -4837,6 +4889,55 @@ func (s *DataStore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobI
 	return s.UpdateDEPAssignProfileRetryPendingFunc(ctx, jobID, serials)
 }
 
+func (s *DataStore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID string, messageType string, rawJSON string) error {
+	s.mu.Lock()
+	s.InsertMDMAppleDDMRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMAppleDDMRequestFunc(ctx, hostUUID, messageType, rawJSON)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationsTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationsTokenFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationItemsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationItemsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, identifier, hostUUID)
+}
+
+func (s *DataStore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error) {
+	s.mu.Lock()
+	s.MDMAppleBatchSetHostDeclarationStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleBatchSetHostDeclarationStateFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
+	s.mu.Lock()
+	s.MDMAppleStoreDDMStatusReportFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleStoreDDMStatusReportFunc(ctx, hostUUID, updates)
+}
+
+func (s *DataStore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.MDMAppleSetDeclarationsAsVerifyingFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleSetDeclarationsAsVerifyingFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
 	s.mu.Lock()
 	s.WSTEPStoreCertificateFuncInvoked = true
@@ -5040,11 +5141,18 @@ func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp f
 	return s.SetOrUpdateMDMWindowsConfigProfileFunc(ctx, cp)
 }
 
-func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error {
 	s.mu.Lock()
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles)
+	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations)
+}
+
+func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.NewMDMAppleDeclarationFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMAppleDeclarationFunc(ctx, declaration)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

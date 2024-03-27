@@ -294,8 +294,9 @@ func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fle
 		}
 
 		// by default, use the file name. macOS profiles use their PayloadDisplayName
-		name := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
-		if mdm.GetRawProfilePlatform(fileContents) == "darwin" {
+		ext := filepath.Ext(filePath)
+		name := strings.TrimSuffix(filepath.Base(filePath), ext)
+		if mdm.GetRawProfilePlatform(fileContents) == "darwin" && ext == ".mobileconfig" {
 			mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
 			if err != nil {
 				return nil, fmt.Errorf("applying fleet config: %w", err)
