@@ -1387,6 +1387,12 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		EnrollmentProfile: json.RawMessage(noTeamProf),
 	}, http.StatusOK, &globalAsstResp)
 
+	// set the global Enable Release Device manually setting to true,
+	// will be inherited by teams created via preassign/match.
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		json.RawMessage(jsonMustMarshal(t, map[string]any{"enable_release_device_manually": true})),
+		http.StatusNoContent)
+
 	s.runWorker()
 
 	// preassign an empty profile, fails
@@ -1423,6 +1429,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	tm1, err := s.ds.Team(ctx, *h.TeamID)
 	require.NoError(t, err)
 	require.Equal(t, "g1", tm1.Name)
+	require.True(t, tm1.Config.MDM.EnableDiskEncryption)
+	require.True(t, tm1.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
 	runWithAdminToken(func() {
 		// it create activities for the new team, the profiles assigned to it,
@@ -1454,8 +1462,6 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// order is guaranteed by profile name
 	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
 	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
-	// filevault is enabled by default
-	require.True(t, tm1.Config.MDM.EnableDiskEncryption)
 	// setup assistant settings are copyied from "no team"
 	teamAsst, err := s.ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
 	require.NoError(t, err)
@@ -1486,6 +1492,9 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 		prof1, prof4,
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
+	// tm2 has disk encryption and release device manually disabled
+	require.False(t, tm2.Config.MDM.EnableDiskEncryption)
+	require.False(t, tm2.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
 	// create another team with a superset of profiles
 	tm3, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -1523,6 +1532,11 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	require.NotNil(t, h.TeamID)
 	require.Equal(t, tm2.ID, *h.TeamID)
+	// tm2 still has disk encryption and release device manually disabled
+	tm2, err = s.ds.Team(ctx, *h.TeamID)
+	require.NoError(t, err)
+	require.False(t, tm2.Config.MDM.EnableDiskEncryption)
+	require.False(t, tm2.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
 	// the host's profiles are:
 	// - the same as the team's and are pending (prof1 + prof4)
