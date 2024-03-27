@@ -6,7 +6,6 @@ On this page, you can learn how to write configuration files.
 
 ## Default configuration
 
-
 The `default.yml` file defines the queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). Controls and agent options are defined for hosts on "No team." 
 
 Queries, policies, configuration profiles, scripts, and agent options can be referenced from `lib/` folder. Learn more about it in the [Library section](https://#library-lib).
@@ -70,21 +69,19 @@ org_settings:
 
 ### Agent options
 
-
 The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in.
 
-See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" for more information.
+See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to find all possible options.
 
 ### Features
 
-
 ...
+
 ----
 
 ## Team configuration
 
-
-`team/{team_name}.yml` file updates controls, queries, policies, and agent options for hosts assigned to the specified team. Below the example file you can find each option explained.
+The `team/{team_name}.yml` file updates controls, queries, policies, and agent options for hosts assigned to the specified team. Below the example file, you can find each option explained.
 
 Queries, policies, configuration profiles, scripts and agent options can be referenced from `lib/` folder. Learn more about it in the [Library section](https://#library-lib).
 
@@ -128,22 +125,19 @@ team_settings:
 
 ### Agent options
 
-
 ...
 
 ### Controls
 
-
 ...
+
 ----
 
 ## Library (`lib/`) 
 
-
-Library is used to store files that define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in default configuration (`default.yml`) and team configurations inside `teams/` folder in GitOps repo.
+The library is used to store files that define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in the default configuration (`default.yml`) and team configurations inside `teams/` folder in the GitOps repo.
 
 ### Policies
-
 
 The `lib/{name}.policies.yml` files define set of policies that can be referenced in a default and team configurations.
 
@@ -170,11 +164,9 @@ The `lib/{name}.policies.yml` files define set of policies that can be reference
   query: SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/DeviceLock/MaxInactivityTimeDeviceLock</LocURI></Target></Item></Get></SyncBody>" and CAST(mdm_command_output AS INT) <= 20;
 ```
 
-
 ### Queries
 
-
-The `lib/{name}.queries.yml` files define set of policies that can be referenced in a default and team configurations.
+The `lib/{name}.queries.yml` files define a set of policies that can be referenced in a default and team configurations.
 
 ```yaml
 name: Collect USB devices
@@ -185,11 +177,9 @@ name: Collect USB devices
   automations_enabled: false
 ```
 
-
 ### Agent options
 
-
-The `lib/agent-options.yml` define agent options.
+The `lib/agent-options.yml` defines agent options. See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to find all possible options.
 
 ```yaml
 command_line_flags:
@@ -207,13 +197,10 @@ config:
     pack_delimiter: /
 ```
 
-
 ### Configuration profiles
-
 
 The `lib/`folder can be used to add configuration profiles that can be referenced in a default and team configurations. You can add macOS profiles (.json), declaration (DDM) profiles (.json) and Windows profiles (.xml)
 
 ### Scripts
-
 
 The `lib/`folder can be used to add scripts that can be referenced in a default and team configurations. You can add shell scripts (.sh) for macOS and Linux and PowerShell scripts (.ps1) for Windows hosts.
