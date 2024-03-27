@@ -7376,7 +7376,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Add script](#upload-a-script)
 - [Delete script](#delete-a-script)
 - [List scripts](#list-scripts)
-- [Get or download script](#get-or-download-a-script)
+- [Get or download script](#get-or-download-script)
 - [Get script details by host](#get-script-details-by-host)
 
 ### Run script
