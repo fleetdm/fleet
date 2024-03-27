@@ -10,6 +10,7 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
+import { getTableColumnsFromSql } from "utilities/helpers";
 import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -24,7 +25,6 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
-import { getTableColumnsFromSql } from "utilities/helpers";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
