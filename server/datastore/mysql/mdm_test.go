@@ -1541,10 +1541,10 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				IdentifierOrName: newTm1Profiles[1].Identifier,
 			},
 			{
-				ProfileUUID:      globalProfiles[2].ProfileUUID,
-				Status:           &fleet.MDMDeliveryFailed,
+				ProfileUUID:      globalProfiles[3].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeRemove,
-				IdentifierOrName: globalProfiles[2].Identifier,
+				IdentifierOrName: globalProfiles[3].Identifier,
 			},
 			{
 				ProfileUUID:      globalProfiles[1].ProfileUUID,
@@ -1553,10 +1553,10 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				IdentifierOrName: globalProfiles[1].Identifier,
 			},
 			{
-				ProfileUUID:      globalProfiles[3].ProfileUUID,
-				Status:           &fleet.MDMDeliveryPending,
+				ProfileUUID:      globalProfiles[4].ProfileUUID,
+				Status:           &fleet.MDMDeliveryFailed,
 				OperationType:    fleet.MDMOperationTypeRemove,
-				IdentifierOrName: globalProfiles[3].Identifier,
+				IdentifierOrName: globalProfiles[4].Identifier,
 			},
 		},
 		darwinHosts[1]: {
@@ -1702,10 +1702,10 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				IdentifierOrName: newTm1Profiles[2].Identifier,
 			},
 			{
-				ProfileUUID:      globalProfiles[2].ProfileUUID,
-				Status:           &fleet.MDMDeliveryFailed,
+				ProfileUUID:      globalProfiles[3].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeRemove,
-				IdentifierOrName: globalProfiles[2].Identifier,
+				IdentifierOrName: globalProfiles[3].Identifier,
 			},
 			{
 				ProfileUUID:      globalProfiles[1].ProfileUUID,
@@ -1714,14 +1714,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				IdentifierOrName: globalProfiles[1].Identifier,
 			},
 			{
-				ProfileUUID:      globalProfiles[3].ProfileUUID,
-				Status:           &fleet.MDMDeliveryPending,
-				OperationType:    fleet.MDMOperationTypeRemove,
-				IdentifierOrName: globalProfiles[3].Identifier,
-			},
-			{
 				ProfileUUID:      globalProfiles[4].ProfileUUID,
-				Status:           &fleet.MDMDeliveryPending,
+				Status:           &fleet.MDMDeliveryFailed,
 				OperationType:    fleet.MDMOperationTypeRemove,
 				IdentifierOrName: globalProfiles[4].Identifier,
 			},
@@ -1860,24 +1854,28 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
-				Status:        &fleet.MDMDeliveryFailed,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[4].ProfileUUID,
+				Status:           &fleet.MDMDeliveryFailed,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[4].Identifier,
 			},
 			{
-				ProfileUUID:   newTm1Profiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:      newTm1Profiles[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: newTm1Profiles[0].Identifier,
 			},
 			{
-				ProfileUUID:   newTm1Profiles[1].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:      newTm1Profiles[1].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: newTm1Profiles[1].Identifier,
 			},
 			{
-				ProfileUUID:   newTm1Profiles[2].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:      newTm1Profiles[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: newTm1Profiles[2].Identifier,
 			},
 		},
 		darwinHosts[1]: {
@@ -1887,12 +1885,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -1987,7 +1985,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2014,12 +2012,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2098,7 +2096,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2125,12 +2123,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2228,7 +2226,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2255,12 +2253,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2435,7 +2433,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2457,24 +2455,28 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[1]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[0].Identifier,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[2].Identifier,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[4].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[4].Identifier,
 			},
 			{
-				ProfileUUID:   tm2Profiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:      tm2Profiles[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: tm2Profiles[0].Identifier,
 			},
 		},
 		darwinHosts[2]: {
@@ -2606,7 +2608,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2633,12 +2635,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2810,7 +2812,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -2837,12 +2839,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3029,7 +3031,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3056,12 +3058,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3244,7 +3246,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3271,12 +3273,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3457,7 +3459,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3484,12 +3486,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3666,7 +3668,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3693,12 +3695,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3865,7 +3867,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -3887,29 +3889,34 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[1]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[0].Identifier,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[2].Identifier,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[4].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[4].Identifier,
 			},
 			{
-				ProfileUUID:   tm2Profiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:      tm2Profiles[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: tm2Profiles[0].Identifier,
 			},
 			{
-				ProfileUUID:   tm2Profiles[1].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:      tm2Profiles[1].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: tm2Profiles[1].Identifier,
 			},
 		},
 		darwinHosts[2]: {
@@ -4070,7 +4077,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -4092,29 +4099,34 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[1]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[0].Identifier,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[2].Identifier,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
+				ProfileUUID:      globalProfiles[4].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: globalProfiles[4].Identifier,
 			},
 			{
-				ProfileUUID:   tm2Profiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:      tm2Profiles[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: tm2Profiles[0].Identifier,
 			},
 			{
-				ProfileUUID:   tm2Profiles[1].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:      tm2Profiles[1].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: tm2Profiles[1].Identifier,
 			},
 		},
 		darwinHosts[2]: {
@@ -4280,7 +4292,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -4307,12 +4319,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -4485,7 +4497,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -4512,12 +4524,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -4687,7 +4699,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
@@ -4714,12 +4726,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[1].ProfileUUID,
+				ProfileUUID:   globalProfiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			{
-				ProfileUUID:   globalProfiles[2].ProfileUUID,
+				ProfileUUID:   globalProfiles[4].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeRemove,
 			},
