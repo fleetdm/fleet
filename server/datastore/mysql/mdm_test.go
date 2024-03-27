@@ -1205,13 +1205,13 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	newGlobalProfiles := getProfs(nil)
 	require.Len(t, newGlobalProfiles, 6)
 
-	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[0].UUID, nil))
-	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[1].UUID, nil))
-	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[2].UUID, nil))
-
 	// update status of the affected "no-team"
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{0}, nil, nil)
 	require.NoError(t, err)
+
+	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[0].UUID, nil))
+	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[1].UUID, nil))
+	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[2].UUID, nil))
 
 	assertHostProfiles(map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
