@@ -3,7 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec // used only for tests
 	"encoding/json"
 	"fmt"
 	"io"
