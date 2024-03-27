@@ -221,7 +221,7 @@ update_release_notes() {
 }
 
 publish() {
-    gh release edit --latest $next_tag
+    gh release edit --draft=false --latest $next_tag
     gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
     show_spinner 200
     echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
