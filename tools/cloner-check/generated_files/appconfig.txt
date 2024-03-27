@@ -84,6 +84,9 @@ github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	APIToken	string
 github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	GroupID	int64
 github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	EnableFailingPolicies	bool
 github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	EnableSoftwareVulnerabilities	bool
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleCalendar	[]*fleet.GoogleCalendarIntegration
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	Domain	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	ApiKey	map[string]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	MDM	fleet.MDM
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMDefaultTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool

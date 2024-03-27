@@ -8,13 +8,57 @@
     .button-wrap {
       display: flex;
       justify-content: flex-end;
-      min-width: 266px;
+      align-items: center;
+      gap: 8px;
     }
   }
 
-  &__manage-automations {
-    padding: $pad-small;
-    margin-right: $pad-small;
+  &__manage-automations-wrapper {
+    @include button-dropdown;
+    .Select-multi-value-wrapper {
+      width: 146px;
+    }
+    .Select > .Select-menu-outer {
+      left: -186px;
+      width: 360px;
+      .dropdown__help-text {
+        color: $ui-fleet-black-50;
+      }
+      .is-disabled * {
+        color: $ui-fleet-black-25;
+        .label-text {
+          font-style: normal;
+          // increase height to allow for broader tooltip activation area
+          position: absolute;
+          height: 34px;
+          width: 100%;
+        }
+        .dropdown__help-text {
+          // compensate for absolute label-text height
+          margin-top: 20px;
+        }
+        .react-tooltip {
+          @include tooltip-text;
+          font-style: normal;
+          text-align: center;
+        }
+      }
+    }
+    .Select-control {
+      margin-top: 0;
+      gap: 6px;
+      .Select-placeholder {
+        color: $core-vibrant-blue;
+        font-weight: $bold;
+      }
+      .dropdown__custom-arrow .dropdown__icon {
+        svg {
+          path {
+            stroke: $core-vibrant-blue-over;
+          }
+        }
+      }
+    }
   }
 
   &__header {

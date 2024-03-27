@@ -768,6 +768,18 @@ the way that the Fleet server works.
 				}
 			}
 
+			if license.IsPremium() {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return newCalendarSchedule(
+							ctx, instanceID, ds, logger,
+						)
+					},
+				); err != nil {
+					initFatal(err, "failed to register calendar schedule")
+				}
+			}
+
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.

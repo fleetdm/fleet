@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -195,18 +196,29 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.Integrations != nil {
-		// the team integrations must reference an existing global config integration.
-		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
-			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
-		}
+		if payload.Integrations.Jira != nil || payload.Integrations.Zendesk != nil {
+			// the team integrations must reference an existing global config integration.
+			if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
 
-		// integrations must be unique
-		if err := payload.Integrations.Validate(); err != nil {
-			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
-		}
+			// integrations must be unique
+			if err := payload.Integrations.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
 
-		team.Config.Integrations.Jira = payload.Integrations.Jira
-		team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
+			team.Config.Integrations.Jira = payload.Integrations.Jira
+			team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
+		}
+		// Only update the calendar integration if it's not nil
+		if payload.Integrations.GoogleCalendar != nil {
+			invalid := &fleet.InvalidArgumentError{}
+			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, invalid)
+			if invalid.HasErrors() {
+				return nil, ctxerr.Wrap(ctx, invalid)
+			}
+			team.Config.Integrations.GoogleCalendar = payload.Integrations.GoogleCalendar
+		}
 	}
 
 	if payload.WebhookSettings != nil || payload.Integrations != nil {
@@ -1068,6 +1080,15 @@ func (svc *Service) editTeamFromSpec(
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
+
+	if spec.Integrations.GoogleCalendar != nil {
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, invalid)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
+		}
+		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
+	}
+
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
@@ -1124,11 +1145,33 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if didUpdateMacOSEndUserAuth {
-		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
+		if err := svc.updateMacOSSetupEnableEndUserAuth(
+			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,
+		); err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (svc *Service) validateTeamCalendarIntegrations(
+	calendarIntegration *fleet.TeamGoogleCalendarIntegration,
+	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+) error {
+	if !calendarIntegration.Enable {
+		return nil
+	}
+	// Check that global configs exist
+	if len(appCfg.Integrations.GoogleCalendar) == 0 {
+		invalid.Append("integrations.google_calendar.enable_calendar_events", "global Google Calendar integration is not configured")
+	}
+	// Validate URL
+	if u, err := url.ParseRequestURI(calendarIntegration.WebhookURL); err != nil {
+		invalid.Append("integrations.google_calendar.webhook_url", err.Error())
+	} else if u.Scheme != "https" && u.Scheme != "http" {
+		invalid.Append("integrations.google_calendar.webhook_url", "webhook_url must be https or http")
+	}
 	return nil
 }
 
