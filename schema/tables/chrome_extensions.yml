@@ -57,7 +57,7 @@ columns:
       - windows
       - linux
   - name: path
-    type: string
+    type: text
     description: Path to extension folder. Defaults to '' on ChromeOS
   - name: optional_permissions
     platforms: 
@@ -85,7 +85,7 @@ columns:
       - windows
       - linux
   - name: state
-    type: string
+    type: text
   - name: install_time
     platforms: 
       - darwin

@@ -8,7 +8,7 @@ import ReactTooltip from "react-tooltip";
 
 const baseClass = "version-cell";
 
-const generateText = (versions: ISoftwareTitleVersion[]) => {
+const generateText = (versions: ISoftwareTitleVersion[] | null) => {
   if (!versions) {
     return <TextCell value="Unavailable" greyed />;
   }
@@ -40,7 +40,7 @@ const generateTooltip = (
 };
 
 interface IVersionCellProps {
-  versions: ISoftwareTitleVersion[];
+  versions: ISoftwareTitleVersion[] | null;
 }
 
 const VersionCell = ({ versions }: IVersionCellProps) => {

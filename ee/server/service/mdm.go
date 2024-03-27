@@ -237,6 +237,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.EnableReleaseDeviceManually != nil {
+		if ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
+			ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
@@ -550,7 +557,10 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	if _, ok := m["url"]; ok {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The automatic enrollment profile can't include url.`))
+	}
+	if _, ok := m["await_device_configured"]; ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
 	// must read the existing setup assistant first to detect if it did change
@@ -925,22 +935,21 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 			return nil, err
 		}
 
-		payload.MDM = &fleet.TeamPayloadMDM{
-			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSetup: &fleet.MacOSSetup{
-				MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
-				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
-				// instead by CopyDefaultMDMAppleBootstrapPackage below
-				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
-				EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSetup: fleet.MacOSSetup{
+					MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
+					// NOTE: BootstrapPackage gets set by
+					// CopyDefaultMDMAppleBootstrapPackage below
+					// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
+					EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
+					EnableReleaseDeviceManually: ac.MDM.MacOSSetup.EnableReleaseDeviceManually,
+				},
 			},
 		}
-
-		// TODO: seems like we don't support enabling disk encryption
-		// on team creation?
-		// see https://github.com/fleetdm/fleet/issues/12220
-		team, err = svc.ModifyTeam(ctx, team.ID, payload)
-		if err != nil {
+		if _, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{}); err != nil {
 			return nil, err
 		}
 		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {

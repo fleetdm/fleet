@@ -102,11 +102,21 @@
   }
 
   [purpose='breadcrumbs'] {
+    [purpose='page-breadcrumbs'] {
+      max-width: 100%;
+      overflow: hidden;
+    }
+
     padding-bottom: 16px;
     padding-top: 16px;
     p, a, strong {
       font-size: 12px;
       line-height: 18px;
+    }
+    [purpose='current-page-breadcrumb'] {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     a {
       text-decoration: none;
@@ -323,6 +333,7 @@
       font-family: @code-font;
       display: inline-block;
       svg {
+        max-width: 100%;
         max-height: 600px;
       }
     }
@@ -627,6 +638,12 @@
   @media (max-width: 576px) {
     [purpose='handbook-template'] {
       padding: 0px 24px;
+    }
+    [purpose='content'] {
+      h1 {
+        font-size: 28px;
+        line-height: 120%;
+      }
     }
   }
 

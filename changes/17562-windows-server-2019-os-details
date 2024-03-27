@@ -1,0 +1,1 @@
+- Fixed a bug where OS version information would not get detected on Windows Server 2019

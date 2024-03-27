@@ -37,6 +37,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------- | ---------- | ----- | ------- |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
+| View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅    | ✅      |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
@@ -83,6 +84,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅    |         |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |            |            | ✅    | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |            |            | ✅    | ✅      |
+| View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
 | Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |            |            | ✅    |         |
 | View/download MDM macOS setup assistant\*                                                                                                  |          |            | ✅         | ✅    |         |
 | Edit/upload MDM macOS setup assistant\*                                                                                                    |          |            | ✅         | ✅    | ✅      |
@@ -119,6 +121,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | Team GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------- | --------------- | ---------- | ----------- |
 | View hosts                                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
+| View a host by identifier                                                                                                        | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |

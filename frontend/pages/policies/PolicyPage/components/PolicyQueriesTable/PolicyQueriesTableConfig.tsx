@@ -53,6 +53,7 @@ const generateTableHeaders = (): IDataColumn[] => {
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
+      sortType: "caseInsensitive",
     },
     {
       title: "Status",

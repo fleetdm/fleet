@@ -594,6 +594,9 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
+	GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]HostPolicyMembershipData, error)
+	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
+
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
 	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error
@@ -612,6 +615,19 @@ type Datastore interface {
 	// DeleteOutOfDateVulnerabilities deletes 'software_cve' entries from the provided source where
 	// the updated_at timestamp is older than the provided duration
 	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Calendar events
+
+	CreateOrUpdateCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus CalendarWebhookStatus) (*CalendarEvent, error)
+	GetCalendarEvent(ctx context.Context, email string) (*CalendarEvent, error)
+	DeleteCalendarEvent(ctx context.Context, calendarEventID uint) error
+	UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error
+	GetHostCalendarEvent(ctx context.Context, hostID uint) (*HostCalendarEvent, *CalendarEvent, error)
+	GetHostCalendarEventByEmail(ctx context.Context, email string) (*HostCalendarEvent, *CalendarEvent, error)
+	UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status CalendarWebhookStatus) error
+	ListCalendarEvents(ctx context.Context, teamID *uint) ([]*CalendarEvent, error)
+	ListOutOfDateCalendarEvents(ctx context.Context, t time.Time) ([]*CalendarEvent, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -844,8 +860,9 @@ type Datastore interface {
 	// NewJob inserts a new job into the jobs table (queue).
 	NewJob(ctx context.Context, job *Job) (*Job, error)
 
-	// GetQueuedJobs gets queued jobs from the jobs table (queue).
-	GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*Job, error)
+	// GetQueuedJobs gets queued jobs from the jobs table (queue) ready to be
+	// processed. If now is the zero time, the current time will be used.
+	GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*Job, error)
 
 	// UpdateJobs updates an existing job. Call this after processing a job.
 	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
@@ -1339,6 +1356,9 @@ type Datastore interface {
 	// after it has been unlocked.
 	CleanMacOSMDMLock(ctx context.Context, hostUUID string) error
 
+	// CleanupUnusedScriptContents will remove script contents that have no references to them from
+	// the scripts or host_script_results tables.
+	CleanupUnusedScriptContents(ctx context.Context) error
 	// WipeHostViaScript sends a script to wipe a host and updates the
 	// states in host_mdm_actions.
 	WipeHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
