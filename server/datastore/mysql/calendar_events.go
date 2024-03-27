@@ -210,7 +210,6 @@ func (ds *Datastore) ListCalendarEvents(ctx context.Context, teamID *uint) ([]*f
 
 	var args []interface{}
 	if teamID != nil {
-		// TODO(lucas): Should we add a team_id column to calendar_events?
 		calendarEventsQuery += ` JOIN host_calendar_events hce ON ce.id=hce.calendar_event_id
 								 JOIN hosts h ON h.id=hce.host_id WHERE h.team_id = ?`
 		args = append(args, *teamID)
