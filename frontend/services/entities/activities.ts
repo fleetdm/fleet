@@ -1,5 +1,9 @@
 import endpoints from "utilities/endpoints";
-import { IActivity, IPastActivity } from "interfaces/activity";
+import {
+  IActivity,
+  IPastActivity,
+  IUpcomingActivity,
+} from "interfaces/activity";
 import sendRequest from "services";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -24,8 +28,13 @@ export interface IPastActivitiesResponse {
   };
 }
 
-export interface IUpcomingActivitiesResponse extends IActivitiesResponse {
+export interface IUpcomingActivitiesResponse {
   count: number;
+  activities: IUpcomingActivity[] | null;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 export default {

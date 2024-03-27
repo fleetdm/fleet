@@ -5,30 +5,14 @@ import createMockActivity from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ActivityType } from "interfaces/activity";
+import { daysAgo } from "test/test-utils";
 
 import ActivityItem from ".";
 
-const getByTextContent = (text: string) => {
-  return screen.getByText((content, element) => {
-    if (!element) {
-      return false;
-    }
-    const hasText = (thisElement: Element) => thisElement.textContent === text;
-    const elementHasText = hasText(element);
-    const childrenDontHaveText = Array.from(element?.children || []).every(
-      (child) => !hasText(child)
-    );
-    return elementHasText && childrenDontHaveText;
-  });
-};
-
 describe("Activity Feed", () => {
   it("renders avatar, actor name, timestamp", async () => {
-    const currentDate = new Date();
-    currentDate.setDate(currentDate.getDate() - 2);
-
     const activity = createMockActivity({
-      created_at: currentDate.toISOString(),
+      created_at: daysAgo(2),
     });
 
     render(<ActivityItem activity={activity} isPremiumTier />);

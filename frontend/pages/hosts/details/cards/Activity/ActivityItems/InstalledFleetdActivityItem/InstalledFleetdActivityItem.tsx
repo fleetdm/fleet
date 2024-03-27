@@ -4,9 +4,9 @@ import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityCo
 import HostActivityItem from "../../HostActivityItem";
 import ShowDetailsButton from "../../ShowDetailsButton";
 
-const baseClass = "unlocked-host-activity-item";
+const baseClass = "installed-fleetd-activity-item";
 
-const UnlockedHostActivityItem = ({
+const InstalledFleetdActivityItem = ({
   activity,
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
@@ -14,23 +14,24 @@ const UnlockedHostActivityItem = ({
 
   switch (activity.details?.status) {
     case "Acknowledged":
-      statusText = "unlocked";
+      statusText = "ran";
       break;
     case "Pending":
-      statusText = "told Fleet to unlock";
+      statusText = "will run";
       break;
     case "Failed":
-      statusText = "failed to unlock";
+      statusText = "failed to run";
       break;
     default:
   }
 
   return (
     <HostActivityItem className={baseClass} activity={activity}>
-      <b>{activity.actor_full_name}</b> {statusText} this host.{" "}
+      <b>{activity.actor_full_name}</b> {statusText} the MDM command to install
+      the <b>fleetd agent</b> on this host.
       <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
     </HostActivityItem>
   );
 };
 
-export default UnlockedHostActivityItem;
+export default InstalledFleetdActivityItem;

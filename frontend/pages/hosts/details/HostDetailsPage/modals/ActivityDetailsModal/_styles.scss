@@ -1,0 +1,36 @@
+.activity-details-modal {
+
+  &__modal-content {
+    display: grid;
+    gap: $pad-xlarge;
+  }
+
+  &__error-message {
+    margin-top: $pad-xxxlarge;
+  }
+
+  &__payload-textarea {
+    margin-top: $pad-medium;
+  }
+
+  &__payload-textarea, &__result-textarea {
+    font-family: "SourceCodePro";
+    height: 300px;
+  }
+
+  &__command-result {
+    > p {
+      margin: $pad-xlarge 0 $pad-medium;
+    }
+  }
+
+  &__command-result-message {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    p {
+      margin: 0;
+    }
+  }
+}

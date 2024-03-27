@@ -1,13 +1,13 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 
+import { daysAgo } from "test/test-utils";
+
 import LastUpdatedText from ".";
 
 describe("Last updated text", () => {
   it("renders updated text", () => {
-    const currentDate = new Date();
-    currentDate.setDate(currentDate.getDate() - 2);
-    const twoDaysAgo = currentDate.toISOString();
+    const twoDaysAgo = daysAgo(2);
 
     render(
       <LastUpdatedText whatToRetrieve="software" lastUpdatedAt={twoDaysAgo} />

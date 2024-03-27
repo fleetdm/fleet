@@ -5,7 +5,7 @@
 		"body": [
 			"import React from \"react\";",
 			"",
-			"const baseClass = \"${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/}\";",
+			"const baseClass = \"${TM_FILENAME_BASE/(^[A-Z])|(?<=[a-z0-9])([A-Z])/${1:/downcase}${2:+-}${2:/downcase}/g}\";",
 			"",
 			"interface I${TM_FILENAME_BASE}Props {}",
 			"",

@@ -91,6 +91,7 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
+import ActivityDetailsModal from "./modals/ActivityDetailsModal";
 
 const baseClass = "host-details";
 
@@ -152,6 +153,9 @@ const HostDetailsPage = ({
 
   const handlePageError = useErrorHandler();
 
+  const [showActivityDetailsModal, setShowActivityDetailsModal] = useState(
+    false
+  );
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
@@ -987,6 +991,12 @@ const HostDetailsPage = ({
             hostName={host.display_name}
             onSuccess={() => setHostMdmDeviceState("wiping")}
             onClose={() => setShowWipeModal(false)}
+          />
+        )}
+        {true && (
+          <ActivityDetailsModal
+            commandUUID="test"
+            onCancel={() => setShowActivityDetailsModal(false)}
           />
         )}
       </>

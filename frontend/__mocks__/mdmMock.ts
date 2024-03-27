@@ -3,7 +3,9 @@ import {
   IMdmSolution,
   IMdmProfile,
   IMdmSummaryMdmSolution,
+  IMdmCommandResult,
 } from "interfaces/mdm";
+import { IMdmCommandResultResponse } from "services/entities/mdm";
 
 const DEFAULT_MDM_SOLUTION_MOCK: IMdmSolution = {
   id: 1,
@@ -78,4 +80,30 @@ export const createMockHostMdmData = (
   overrides?: Partial<IHostMdmData>
 ): IHostMdmData => {
   return { ...DEFAULT_HOST_MDM_DATA, ...overrides };
+};
+
+const DEFAULT_MOCK_MDM_COMMAND_RESULT: IMdmCommandResult = {
+  host_uuid: "123-abc",
+  command_uuid: "456-def",
+  status: "pending",
+  updated_at: "2021-01-01T00:00:00Z",
+  request_type: "InstallProfile",
+  hostname: "My Host",
+  payload: "VGhpcyBpcyBteSBwYXlsb2FkIQ==", // 64 bit encoded for "This is my payload!"
+  result: "VGhpcyBpcyBteSByZXN1bHQh", // 64 bit encoded for "This is my result!"
+};
+
+export const createMockMdmCommandResult = (
+  overrides?: Partial<IMdmCommandResult>
+): IMdmCommandResult => {
+  return { ...DEFAULT_MOCK_MDM_COMMAND_RESULT, ...overrides };
+};
+
+export const createMockMdmCommandResultResponse = (
+  overrides?: Partial<IMdmCommandResultResponse>
+): IMdmCommandResultResponse => {
+  return {
+    results: [createMockMdmCommandResult()],
+    ...overrides,
+  };
 };

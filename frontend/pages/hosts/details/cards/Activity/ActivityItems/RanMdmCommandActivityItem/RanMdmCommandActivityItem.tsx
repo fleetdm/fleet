@@ -4,33 +4,19 @@ import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityCo
 import HostActivityItem from "../../HostActivityItem";
 import ShowDetailsButton from "../../ShowDetailsButton";
 
-const baseClass = "unlocked-host-activity-item";
+const baseClass = "ran-mdm-command-activity-item";
 
-const UnlockedHostActivityItem = ({
+const RanMdmCommandActivityItem = ({
   activity,
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
-  let statusText;
-
-  switch (activity.details?.status) {
-    case "Acknowledged":
-      statusText = "unlocked";
-      break;
-    case "Pending":
-      statusText = "told Fleet to unlock";
-      break;
-    case "Failed":
-      statusText = "failed to unlock";
-      break;
-    default:
-  }
-
   return (
     <HostActivityItem className={baseClass} activity={activity}>
-      <b>{activity.actor_full_name}</b> {statusText} this host.{" "}
+      <b>{activity.actor_full_name}</b> told Fleet to run an MDM command on this
+      host.{" "}
       <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
     </HostActivityItem>
   );
 };
 
-export default UnlockedHostActivityItem;
+export default RanMdmCommandActivityItem;

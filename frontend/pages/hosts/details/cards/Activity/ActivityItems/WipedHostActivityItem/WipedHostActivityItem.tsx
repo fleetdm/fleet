@@ -4,9 +4,9 @@ import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityCo
 import HostActivityItem from "../../HostActivityItem";
 import ShowDetailsButton from "../../ShowDetailsButton";
 
-const baseClass = "unlocked-host-activity-item";
+const baseClass = "wiped-host-activity-item";
 
-const UnlockedHostActivityItem = ({
+const WipedHostActivityItem = ({
   activity,
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
@@ -14,13 +14,13 @@ const UnlockedHostActivityItem = ({
 
   switch (activity.details?.status) {
     case "Acknowledged":
-      statusText = "unlocked";
+      statusText = "wiped";
       break;
     case "Pending":
-      statusText = "told Fleet to unlock";
+      statusText = "told Fleet to wipe";
       break;
     case "Failed":
-      statusText = "failed to unlock";
+      statusText = "failed to wipe";
       break;
     default:
   }
@@ -33,4 +33,4 @@ const UnlockedHostActivityItem = ({
   );
 };
 
-export default UnlockedHostActivityItem;
+export default WipedHostActivityItem;

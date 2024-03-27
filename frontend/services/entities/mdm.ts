@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import {
+  createMockMdmCommandResult,
+  createMockMdmCommandResultResponse,
+} from "__mocks__/mdmMock";
+import {
   DiskEncryptionStatus,
+  IMdmCommandResult,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
@@ -44,6 +49,10 @@ export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
   labels?: string[];
+}
+
+export interface IMdmCommandResultResponse {
+  results: IMdmCommandResult[];
 }
 
 const mdmService = {
@@ -225,6 +234,19 @@ const mdmService = {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
     });
+  },
+
+  getCommandResult: (uuid: string): Promise<IMdmCommandResultResponse> => {
+    const { MDM_COMMAND_RESULTS } = endpoints;
+    const path = `${MDM_COMMAND_RESULTS}?${buildQueryStringFromParams({
+      command_uuid: uuid,
+    })}`;
+
+    return new Promise((resolve) => {
+      resolve(createMockMdmCommandResultResponse());
+    });
+
+    return sendRequest("GET", path);
   },
 };
 
