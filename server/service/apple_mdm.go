@@ -406,6 +406,15 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
+	var teamName string
+	if teamID >= 1 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -440,6 +449,23 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
 	if err != nil {
 		return nil, err
+	}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
+		TeamID:      actTeamID,
+		TeamName:    actTeamName,
+		ProfileName: decl.Name,
+		Identifier:  decl.Identifier,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple declaration")
 	}
 
 	return decl, nil
@@ -802,13 +828,10 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: confirm if bulk set pending host profiles is needed
-	// cannot use the profile ID as it is now deleted
 	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
-	// TODO: confirm activity type
 	var (
 		actTeamID   *uint
 		actTeamName *string
@@ -817,11 +840,11 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:            actTeamID,
-		TeamName:          actTeamName,
-		ProfileName:       decl.Name,
-		ProfileIdentifier: decl.Identifier,
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
+		TeamID:      actTeamID,
+		TeamName:    actTeamName,
+		ProfileName: decl.Name,
+		Identifier:  decl.Identifier,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple declaration")
 	}
