@@ -676,7 +676,7 @@ if [[ "$failed" == "false" ]]; then
         echo `gh pr view $update_changelog_patch_branch --json url | jq -r .url`
         echo
         waiting=true
-        while waiting; do
+        while $waiting; do
             pr_state=`gh pr view $update_changelog_patch_branch --json state | jq -r .state`
             if [[ "$pr_state" == "MERGED" ]]; then
                 waiting=false
