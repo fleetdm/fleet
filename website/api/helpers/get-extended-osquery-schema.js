@@ -275,6 +275,8 @@ module.exports = {
               if(overrideColumnToAdd.type) {
                 if(typeof overrideColumnToAdd.type !== 'string') {
                   throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "type" for the "${fleetOverrideColumn.name}" column of the "${fleetOverridesForTable.name}" table is an invalid type (${typeof fleetOverrideColumn.type}). To resolve, change the value of a column's "type" to be a string.`);
+                } else if(overrideColumnToAdd.type !== overrideColumnToAdd.type.toLowerCase()){
+                  throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "type" for the "${fleetOverrideColumn.name}" column of the "${fleetOverridesForTable.name}" table is not lowercase.  To resolve, change the value of a column's "type" to be lowercase. (${fleetOverrideColumn.type} » ${fleetOverrideColumn.type.toLowerCase()})`);
                 }//•
               } else {
                 throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "${fleetOverrideColumn.name}" column added to the merged schema for the "${fleetOverridesForTable.name}" table is missing a "type" in the Fleet overrides schema. To resolve, add a type for this column to the Fleet overrides schema.`);
@@ -346,6 +348,8 @@ module.exports = {
               throw new Error(`Could not add a new table from the Fleet overrides schema. The "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table is missing a "type". To resolve add a "type" to the "${columnToValidate.name}" column at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}.`);
             } else if(typeof columnToValidate.type !== 'string') {
               throw new Error(`Could not add a table from the Fleet overrides schema. The "type" of the "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} has an invalid value. (expected a string, but got a ${typeof columnToValidate.type}) To resolve, change the value of the column's "type" be a string.`);
+            } else if(columnToValidate.type !== columnToValidate.type.toLowerCase()){
+              throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "type" for the "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table is not lowercase.  To resolve, change the value of a column's "type" to be lowercase. (${columnToValidate.type} » ${columnToValidate.type.toLowerCase()})`);
             }//•
 
             if(!columnToValidate.description) {
