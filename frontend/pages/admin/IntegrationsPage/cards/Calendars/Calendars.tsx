@@ -286,7 +286,7 @@ const Calendars = (): JSX.Element => {
           </p>
           <p className={`${baseClass}__configuration`}>
             5. Configure your service account integration in Fleet using the
-            form below:
+            form below.
             <ul>
               <li>
                 Paste the full contents of the JSON file downloaded when
