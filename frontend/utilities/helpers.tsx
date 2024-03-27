@@ -891,7 +891,7 @@ export const getUniqueColumnNamesFromRows = <
 // can allow additional dropdown value types in the future
 type DropdownOptionValue = IDropdownOption["value"];
 
-/** */
+/** Generates the column schema for a sql query */
 export const getTableColumnsFromSql = (
   sql: string
 ): IQueryTableColumn[] | [] => {
@@ -903,6 +903,7 @@ export const getTableColumnsFromSql = (
       find(osqueryTables, { name: tableName })?.columns || [];
     sqlColumns = [...sqlColumns, ...tableColumns];
   });
+  // TODO: Edge case of tables sharing column names with different typing not considered
 
   return sqlColumns;
 };
