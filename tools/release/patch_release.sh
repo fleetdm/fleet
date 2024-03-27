@@ -84,6 +84,9 @@ usage() {
     echo ""
     echo "Environment Variables:"
     echo "  OPEN_API_KEY           Open API key used for fallback if not provided via -o or --open-api-key option"
+    echo "  SLACK_GENERAL_TOKEN    Slack token to publish via curl to #general"
+    echo "  SLACK_HELP_INFRA_TOKEN Slack token to publish via curl to #help-infrastructure"
+    echo "  SLACK_HELP_ENG_TOKEN   Slack token to publish via curl to #help-engineering"
     echo ""
     echo "Examples:"
     echo "  $0 -d                  Dry run the script"
@@ -189,11 +192,10 @@ print_announce_info() {
     echo 
     slack_hook_url=https://hooks.slack.com/services
     app_id=T019PP37ALW
-    help_eng_channel_id=B06RDTMUP1U/x2R36PXvW13KE6daxMiUK6W7
     announce_text="Release $target_milestone QA ticket and docker publish\nQA ticket for Release $target_milestone $qa_ticket\nDocker Deploy status $docker_deploy\nList of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
     curl -X POST -H 'Content-type: application/json' \
         --data "{\"text\":\"$announce_text\"}" \
-        $slack_hook_url/$app_id/$help_infra_channel_id
+        $slack_hook_url/$app_id/$SLACK_HELP_ENG_TOKEN
 }
 
 update_release_notes() {
@@ -252,18 +254,15 @@ publish() {
     # Slack
     slack_hook_url=https://hooks.slack.com/services
     app_id=T019PP37ALW
-    general_channel_id=B06RZ60NUHX/tzaDZOvFCSvS2HC6rECi3Mvu
-    help_infra_channel_id=B06RLDFLC75/biuacbLxWRsDhv0hLA2qnLbX
-    help_eng_channel_id=B06RDTMUP1U/x2R36PXvW13KE6daxMiUK6W7
     announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nUpgrade now: https://fleetdm.com/docs/deploying/upgrading-fleet"
 
     curl -X POST -H 'Content-type: application/json' \
         --data "{\"text\":\"$announce_text\"}" \
-        $slack_hook_url/$app_id/$general_channel_id
+        $slack_hook_url/$app_id/$SLACK_GENERAL_TOKEN
 
     curl -X POST -H 'Content-type: application/json' \
         --data "{\"text\":\"$announce_text\nDogfood Deployed $dogfood_deploy\"}" \
-        $slack_hook_url/$app_id/$help_infra_channel_id
+        $slack_hook_url/$app_id/$SLACK_HELP_INFRA_TOKEN
 }
 
 # Validate we have all commands required to perform this script
@@ -356,6 +355,19 @@ if [ -z "$open_api_key" ]; then
         echo "Error: No open API key provided. Set the key via -o/--open-api-key option or OPEN_API_KEY environment variable." >&2
         exit 1
     fi
+fi
+
+if [ -n "$SLACK_GENERAL_TOKEN" ]; then
+    echo "Error: No SLACK_GENERAL_TOKEN environment variable." >&2
+    exit 1
+fi
+if [ -n "$SLACK_HELP_INFRA_TOKEN" ]; then
+    echo "Error: No SLACK_HELP_INFRA_TOKEN environment variable." >&2
+    exit 1
+fi
+if [ -n "$SLACK_HELP_ENG_TOKEN" ]; then
+    echo "Error: No SLACK_HELP_ENG_TOKEN environment variable." >&2
+    exit 1
 fi
 
 if [[ "$target_date" != "" ]]; then
