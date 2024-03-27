@@ -80,7 +80,7 @@ controls:
     - path: ../lib/windows-install-bitdefender.ps1
 policies:
   - path: ../lib/macos-device-health.policies.yml
-  - path: ../lib/windows-device-health.policies.yml
+  - path: ../../ee/cis/win-11/cis-policy-queries.yml
   - path: ../lib/linux-device-health.policies.yml
   - name: chromeOS/macOS - Screenlock enabled
     query: SELECT 1 FROM screenlock WHERE enabled = 1;
