@@ -53,6 +53,7 @@ controls:
     - path: ../lib/macos-remove-old-nudge.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
+    - path: ../lib/windows-install-bitdefender.ps1
 policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml

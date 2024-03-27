@@ -5171,6 +5171,205 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Len(t, config.Integrations.Zendesk, 0)
 }
 
+func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
+	t := s.T()
+	email := "service-account@example.com"
+	privateKey := "-----BEGIN PRIVATE KEY-----\nXXXXX\n-----END"
+	domain := "example.com"
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q
+			}]
+		}
+	}`, email, privateKey, domain,
+		)), http.StatusOK,
+	)
+
+	appConfig := s.getConfig()
+	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
+	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
+	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
+	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
+
+	// Add 2nd config -- not allowed at this time
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q
+			},
+			{
+				"api_key_json": {
+					"client_email": "bozo@example.com",
+					"private_key": "abc"
+				},
+				"domain": "example.com"
+			}]
+		}
+	}`, email, privateKey, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+
+	// Make an unrelated config change, should not remove the integrations
+	var appCfgResp appConfigResponse
+	s.DoJSON(
+		"PATCH", "/api/v1/fleet/config", json.RawMessage(
+			`{
+		"org_info": {
+			"org_name": "test-google-calendar-integrations"
+		}
+	}`,
+		), http.StatusOK, &appCfgResp,
+	)
+	require.Equal(t, "test-google-calendar-integrations", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.GoogleCalendar, 1)
+
+	// Update calendar config
+	domain = "new.com"
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q
+			}]
+		}
+	}`, email, privateKey, domain,
+		)), http.StatusOK,
+	)
+	appConfig = s.getConfig()
+	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
+	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
+	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
+	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
+
+	// Clearing other integrations does not clear Google Calendar integration
+	appCfgResp = appConfigResponse{}
+	s.DoJSON(
+		"PATCH", "/api/v1/fleet/config", json.RawMessage(
+			`{
+		"integrations": {
+			"jira": [],
+			"zendesk": []
+		}
+	}`,
+		), http.StatusOK, &appCfgResp,
+	)
+	require.Len(t, appCfgResp.Integrations.GoogleCalendar, 1)
+
+	// Clearing Google Calendar integration
+	appCfgResp = appConfigResponse{}
+	s.DoJSON(
+		"PATCH", "/api/v1/fleet/config", json.RawMessage(
+			`{
+		"integrations": {
+			"google_calendar": []
+		}
+	}`,
+		), http.StatusOK, &appCfgResp,
+	)
+	assert.Empty(t, appCfgResp.Integrations.GoogleCalendar)
+
+	// Try adding Google Calendar integration without sending private key -- not allowed
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q
+				},
+				"domain": %q
+			}]
+		}
+	}`, email, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+
+	// Empty email -- not allowed
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": " ",
+					"private_key": %q
+				},
+				"domain": %q
+			}]
+		}
+	}`, privateKey, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+
+	// Empty domain -- not allowed
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": ""
+			}]
+		}
+	}`, email, privateKey,
+		)), http.StatusUnprocessableEntity,
+	)
+
+	// Unknown fields fails as bad request
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q,
+				"foo": "bar"
+			}]
+		}
+	}`, email, privateKey, domain,
+		)), http.StatusBadRequest,
+	)
+
+	// Null api_key_json -- fails validation
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": null,
+				"domain": %q
+			}]
+		}
+	}`, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+
+}
+
 func (s *integrationTestSuite) TestQueriesBadRequests() {
 	t := s.T()
 

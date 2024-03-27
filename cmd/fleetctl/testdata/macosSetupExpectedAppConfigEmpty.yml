@@ -11,6 +11,7 @@ spec:
     host_expiry_enabled: false
     host_expiry_window: 0
   integrations:
+    google_calendar: null
     jira: null
     zendesk: null
   mdm:

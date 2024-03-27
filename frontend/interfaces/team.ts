@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 import { IConfigFeatures, IWebhookSettings } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
-import { IIntegrations } from "./integration";
+import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
 
 export default PropTypes.shape({
@@ -83,7 +83,7 @@ export type ITeamWebhookSettings = Pick<
  */
 export interface ITeamAutomationsConfig {
   webhook_settings: ITeamWebhookSettings;
-  integrations: IIntegrations;
+  integrations: ITeamIntegrations;
 }
 
 /**

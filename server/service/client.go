@@ -885,9 +885,24 @@ func (c *Client) DoGitOps(
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
 		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
-		if _, ok := group.AppConfig.(map[string]interface{})["mdm"]; !ok {
-			group.AppConfig.(map[string]interface{})["mdm"] = map[string]interface{}{}
+
+		// Integrations
+		var integrations interface{}
+		var ok bool
+		if integrations, ok = group.AppConfig.(map[string]interface{})["integrations"]; !ok || integrations == nil {
+			integrations = map[string]interface{}{}
+			group.AppConfig.(map[string]interface{})["integrations"] = integrations
 		}
+		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
+			integrations.(map[string]interface{})["jira"] = []interface{}{}
+		}
+		if zendesk, ok := integrations.(map[string]interface{})["zendesk"]; !ok || zendesk == nil {
+			integrations.(map[string]interface{})["zendesk"] = []interface{}{}
+		}
+		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
+			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
+		}
+
 		// Ensure mdm config exists
 		mdmConfig, ok := group.AppConfig.(map[string]interface{})["mdm"]
 		if !ok || mdmConfig == nil {
@@ -941,6 +956,26 @@ func (c *Client) DoGitOps(
 			// Clear out any existing host_status_webhook settings
 			team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = map[string]interface{}{}
 		}
+		// Integrations
+		var integrations interface{}
+		var ok bool
+		if integrations, ok = config.TeamSettings["integrations"]; !ok || integrations == nil {
+			integrations = map[string]interface{}{}
+		}
+		team["integrations"] = integrations
+		_, ok = integrations.(map[string]interface{})
+		if !ok {
+			return errors.New("team_settings.integrations config is not a map")
+		}
+		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
+			integrations.(map[string]interface{})["google_calendar"] = map[string]interface{}{}
+		} else {
+			_, ok = googleCal.(map[string]interface{})
+			if !ok {
+				return errors.New("team_settings.integrations.google_calendar config is not a map")
+			}
+		}
+
 		team["mdm"] = map[string]interface{}{}
 		mdmAppConfig = team["mdm"].(map[string]interface{})
 	}
@@ -1044,6 +1079,7 @@ func (c *Client) DoGitOps(
 	if err != nil {
 		return err
 	}
+
 	err = c.doGitOpsQueries(config, logFn, dryRun)
 	if err != nil {
 		return err
