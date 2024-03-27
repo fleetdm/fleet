@@ -7634,7 +7634,7 @@ Deletes an existing script.
 
 ```
 
-#### Example (download script's contents)
+#### Example (download script)
 
 `GET /api/v1/fleet/scripts/123?alt=media`
 
