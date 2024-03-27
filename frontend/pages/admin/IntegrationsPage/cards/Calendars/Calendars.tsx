@@ -7,6 +7,7 @@ import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
+import paths from "router/paths";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -17,6 +18,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import Icon from "components/Icon";
+import Card from "components/Card";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -236,6 +238,9 @@ const Calendars = (): JSX.Element => {
                 For &quot;Organization&quot; and &quot;Location&quot;, select
                 your calendar&apos;s organization.
               </li>
+              <li>
+                Click <b>Create</b>.
+              </li>
             </ul>
           </p>
 
@@ -277,69 +282,72 @@ const Calendars = (): JSX.Element => {
               <li>
                 Click <b>Create</b> to create the key & download a JSON file.
               </li>
-              <li className={`${baseClass}__configuration`}>
-                Configure your service account integration in Fleet using the
-                form below:
-                <form onSubmit={onFormSubmit} autoComplete="off">
-                  <InputField
-                    label="API key JSON"
-                    onChange={onInputChange}
-                    name="apiKeyJson"
-                    value={apiKeyJson}
-                    parseTarget
-                    type="textarea"
-                    tooltip={
-                      <>
-                        Paste the full contents of the JSON file downloaded{" "}
-                        <br />
-                        when creating your service account API key.
-                      </>
-                    }
-                    placeholder={API_KEY_JSON_PLACEHOLDER}
-                    ignore1password
-                    inputClassName={`${baseClass}__api-key-json`}
-                    error={formErrors.apiKeyJson}
-                  />
-                  <InputField
-                    label="Primary domain"
-                    onChange={onInputChange}
-                    name="domain"
-                    value={domain}
-                    parseTarget
-                    tooltip={
-                      <>
-                        If the end user is signed into multiple Google accounts,
-                        this will be used to identify their work calendar.
-                      </>
-                    }
-                    placeholder="example.com"
-                    helpText={
-                      <>
-                        You can find your primary domain in Google Workspace{" "}
-                        <CustomLink
-                          url={GOOGLE_WORKSPACE_DOMAINS}
-                          text="here"
-                          newTab
-                        />
-                      </>
-                    }
-                    error={formErrors.domain}
-                  />
-                  <Button
-                    type="submit"
-                    variant="brand"
-                    disabled={Object.keys(formErrors).length > 0}
-                    className="save-loading"
-                    isLoading={isUpdatingSettings}
-                  >
-                    Save
-                  </Button>
-                </form>
+            </ul>
+          </p>
+          <p className={`${baseClass}__configuration`}>
+            5. Configure your service account integration in Fleet using the
+            form below:
+            <ul>
+              <li>
+                Paste the full contents of the JSON file downloaded when
+                creating your service account API key.
+              </li>
+              <li>
+                Set your primary domain. (If the end user is signed into
+                multiple Google accounts, this will be used to identify their
+                work calendar.)
+              </li>
+              <li>
+                Save your changes.
+                <Card>
+                  <form onSubmit={onFormSubmit} autoComplete="off">
+                    <InputField
+                      label="API key JSON"
+                      onChange={onInputChange}
+                      name="apiKeyJson"
+                      value={apiKeyJson}
+                      parseTarget
+                      type="textarea"
+                      placeholder={API_KEY_JSON_PLACEHOLDER}
+                      ignore1password
+                      inputClassName={`${baseClass}__api-key-json`}
+                      error={formErrors.apiKeyJson}
+                    />
+                    <InputField
+                      label="Primary domain"
+                      onChange={onInputChange}
+                      name="domain"
+                      value={domain}
+                      parseTarget
+                      placeholder="example.com"
+                      helpText={
+                        <>
+                          You can find your primary domain in Google Workspace{" "}
+                          <CustomLink
+                            url={GOOGLE_WORKSPACE_DOMAINS}
+                            text="here"
+                            newTab
+                          />
+                        </>
+                      }
+                      error={formErrors.domain}
+                    />
+                    <Button
+                      type="submit"
+                      variant="brand"
+                      disabled={Object.keys(formErrors).length > 0}
+                      className="save-loading"
+                      isLoading={isUpdatingSettings}
+                    >
+                      Save
+                    </Button>
+                  </form>
+                </Card>
               </li>
             </ul>
           </p>
           <p>
-            5. Authorize the service account via domain-wide delegation.
+            6. Authorize the service account via domain-wide delegation.
             <ul>
               <li>
                 In Google Workspace, go to{" "}
@@ -381,7 +389,7 @@ const Calendars = (): JSX.Element => {
             </ul>
           </p>
           <p>
-            6. Enable the Google Calendar API.
+            7. Enable the Google Calendar API.
             <ul>
               <li>
                 In the Google Cloud console API library, go to the Google
@@ -402,8 +410,12 @@ const Calendars = (): JSX.Element => {
             </ul>
           </p>
           <p>
-            You&apos;re ready to automatically schedule calendar events for end
-            users.
+            Now head over to{" "}
+            <CustomLink
+              url={paths.MANAGE_POLICIES}
+              text="Policies &gt; Manage automations"
+            />{" "}
+            to finish setup.
           </p>
         </div>
       </>

@@ -1181,28 +1181,30 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	query := `
 	SELECT 
 		COALESCE(sh.email, '') AS email,
-		pm.passing AS passing,
+		COALESCE(pm.passing, 1) AS passing,
 		h.id AS host_id,
-		hdn.display_name AS host_display_name,
+		COALESCE(hdn.display_name, '') AS host_display_name,
 		h.hardware_serial AS host_hardware_serial
-	FROM (
+	FROM hosts h
+	LEFT JOIN (
 		SELECT host_id, BIT_AND(COALESCE(passes, 0)) AS passing
 		FROM policy_membership
 		WHERE policy_id IN (?)
 		GROUP BY host_id
-	) pm
+	) pm ON h.id = pm.host_id
 	LEFT JOIN (
 		SELECT host_id, MIN(email) AS email
 		FROM host_emails
 		JOIN hosts ON host_emails.host_id=hosts.id
 		WHERE email LIKE CONCAT('%@', ?) AND team_id = ? 
 		GROUP BY host_id
-	) sh ON sh.host_id = pm.host_id
-	JOIN hosts h ON h.id = pm.host_id
-	LEFT JOIN host_display_names hdn ON hdn.host_id = pm.host_id;
+	) sh ON h.id = sh.host_id
+	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
+	LEFT JOIN host_calendar_events hce ON h.id = hce.host_id
+	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL));
 `
 
-	query, args, err := sqlx.In(query, policyIDs, domain, teamID)
+	query, args, err := sqlx.In(query, policyIDs, domain, teamID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
 	}

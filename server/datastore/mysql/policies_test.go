@@ -2865,6 +2865,23 @@ func testGetCalendarPolicies(t *testing.T, ds *Datastore) {
 func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	//
+	// Test setup:
+	//
+	// 	team1:
+	//		team1Policy1 (calendar), team1Policy2
+	//		host1, host5, host6
+	//
+	// 	team2:
+	//		team2Policy1 (calendar), team2Policy2 (calendar)
+	//		host2, host3
+	//
+	//	global:
+	//		Global Policy 1
+	//		host4
+	//
+	//
+
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
@@ -2894,11 +2911,16 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 		CalendarEventsEnabled: true,
 	})
 	require.NoError(t, err)
+	_, err = ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  "Global Policy 1",
+		Query: "SELECT * FROM foobar;",
+	})
+	require.NoError(t, err)
 
 	// Empty teams.
 	hostsTeam1, err := ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID})
 	require.NoError(t, err)
-	require.Len(t, hostsTeam1, 0)
+	require.Empty(t, hostsTeam1)
 
 	host1, err := ds.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:  ptr.String("host1"),
@@ -2939,11 +2961,35 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 		TeamID:         &team1.ID,
 	})
 	require.NoError(t, err)
+	host6, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("host6"),
+		NodeKey:        ptr.String("host6"),
+		HardwareSerial: "serial6",
+		ComputerName:   "display_name6",
+		TeamID:         &team1.ID,
+	})
+	require.NoError(t, err)
 
-	// No policy results yet.
+	// Some domain that doesn't exist on any of the hosts
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "not-exists.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID})
+	require.NoError(t, err)
+	require.Empty(t, hostsTeam1)
+
+	// No policy results yet (and no calendar events).
 	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID})
 	require.NoError(t, err)
-	require.Len(t, hostsTeam1, 0)
+	require.Empty(t, hostsTeam1)
+
+	//
+	// Email setup
+	//
+	// 	host1 has foo@example.com, zoo@example.com
+	//	host2 has foo@example.com, foo@other.com
+	//	host3 has zoo@example.com
+	//	host4 has foo@example.com
+	//	host5 has foo@other.com
+	//	host6 has bar@example.com
+	//
 
 	err = ds.ReplaceHostDeviceMapping(ctx, host1.ID, []*fleet.HostDeviceMapping{
 		{HostID: host1.ID, Email: "foo@example.com", Source: "google_chrome_profiles"},
@@ -2973,6 +3019,20 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 		{HostID: host5.ID, Email: "foo@other.com", Source: "google_chrome_profiles"},
 	}, "google_chrome_profiles")
 	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, host6.ID, []*fleet.HostDeviceMapping{
+		{HostID: host6.ID, Email: "bar@example.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	//
+	// Results setup
+	//
+	//	host1 (team1) is passing team1Policy1 (calendar) and failing team1Policy2.
+	//	host2 (team2) is failing team2Policy1 (calendar) and passing team2Policy2 (calendar).
+	//	host3 (team2) is passing all policies.
+	//	host5 (team1) is failing all policies.
+	//	host6 (team1) has not returned results.
+	//
 
 	err = ds.RecordPolicyQueryExecutions(ctx, host1, map[uint]*bool{
 		team1Policy1.ID: ptr.Bool(true),
@@ -3005,9 +3065,34 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 2)
 
+	// Only returns the failing host, because the passing hosts do not have a calendar event.
 	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID})
 	require.NoError(t, err)
-	require.Len(t, hostsTeam1, 2)
+	sort.Slice(hostsTeam1, func(i, j int) bool {
+		return hostsTeam1[i].HostID < hostsTeam1[j].HostID
+	})
+	require.Len(t, hostsTeam1, 1)
+	require.Equal(t, host5.ID, hostsTeam1[0].HostID)
+	require.Empty(t, hostsTeam1[0].Email)
+	require.False(t, hostsTeam1[0].Passing)
+	require.Equal(t, "serial5", hostsTeam1[0].HostHardwareSerial)
+	require.Equal(t, "display_name5", hostsTeam1[0].HostDisplayName)
+
+	//
+	// Create a calendar event on host1 and host6.
+	//
+	now := time.Now()
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), host1.ID, fleet.CalendarWebhookStatusPending)
+	require.NoError(t, err)
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, "bar@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), host6.ID, fleet.CalendarWebhookStatusPending)
+	require.NoError(t, err)
+
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID})
+	require.NoError(t, err)
+	sort.Slice(hostsTeam1, func(i, j int) bool {
+		return hostsTeam1[i].HostID < hostsTeam1[j].HostID
+	})
+	require.Len(t, hostsTeam1, 3)
 	require.Equal(t, host1.ID, hostsTeam1[0].HostID)
 	require.Equal(t, "foo@example.com", hostsTeam1[0].Email)
 	require.True(t, hostsTeam1[0].Passing)
@@ -3018,6 +3103,15 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.False(t, hostsTeam1[1].Passing)
 	require.Equal(t, "serial5", hostsTeam1[1].HostHardwareSerial)
 	require.Equal(t, "display_name5", hostsTeam1[1].HostDisplayName)
+	require.Equal(t, host6.ID, hostsTeam1[2].HostID)
+	require.Equal(t, "bar@example.com", hostsTeam1[2].Email)
+	require.True(t, hostsTeam1[2].Passing)
+	require.Equal(t, "serial6", hostsTeam1[2].HostHardwareSerial)
+	require.Equal(t, "display_name6", hostsTeam1[2].HostDisplayName)
+
+	//
+	// Move host 4 to team1 and have it fail all team1 policies.
+	//
 
 	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host4.ID})
 	require.NoError(t, err)
@@ -3029,7 +3123,10 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 
 	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID})
 	require.NoError(t, err)
-	require.Len(t, hostsTeam1, 3)
+	require.Len(t, hostsTeam1, 4)
+	sort.Slice(hostsTeam1, func(i, j int) bool {
+		return hostsTeam1[i].HostID < hostsTeam1[j].HostID
+	})
 	require.Equal(t, host1.ID, hostsTeam1[0].HostID)
 	require.Equal(t, "foo@example.com", hostsTeam1[0].Email)
 	require.True(t, hostsTeam1[0].Passing)
@@ -3045,10 +3142,44 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.False(t, hostsTeam1[2].Passing)
 	require.Equal(t, "serial5", hostsTeam1[2].HostHardwareSerial)
 	require.Equal(t, "display_name5", hostsTeam1[2].HostDisplayName)
+	require.Equal(t, host6.ID, hostsTeam1[3].HostID)
+	require.Equal(t, "bar@example.com", hostsTeam1[3].Email)
+	require.True(t, hostsTeam1[3].Passing)
+	require.Equal(t, "serial6", hostsTeam1[3].HostHardwareSerial)
+	require.Equal(t, "display_name6", hostsTeam1[3].HostDisplayName)
+
+	//
+	// host3 doesn't have a calendar event so it's not returned by GetTeamHostsPolicyMemberships.
+	//
 
 	hostsTeam2, err := ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
 	require.NoError(t, err)
+	require.Len(t, hostsTeam2, 1)
+	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam2[0].Email)
+	require.False(t, hostsTeam2[0].Passing)
+	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
+	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
+
+	//
+	// Create a calendar event on host2 and host3.
+	//
+	now = time.Now()
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), host2.ID, fleet.CalendarWebhookStatusPending)
+	require.NoError(t, err)
+	calendarEventHost3, err := ds.CreateOrUpdateCalendarEvent(ctx, "zoo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), host3.ID, fleet.CalendarWebhookStatusPending)
+	require.NoError(t, err)
+
+	//
+	// Now it should return host3 because it's passing and has a calendar event.
+	//
+
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	require.NoError(t, err)
 	require.Len(t, hostsTeam2, 2)
+	sort.Slice(hostsTeam2, func(i, j int) bool {
+		return hostsTeam2[i].HostID < hostsTeam1[j].HostID
+	})
 	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
 	require.Equal(t, "foo@example.com", hostsTeam2[0].Email)
 	require.False(t, hostsTeam2[0].Passing)
@@ -3059,4 +3190,71 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.True(t, hostsTeam2[1].Passing)
 	require.Equal(t, "serial3", hostsTeam2[1].HostHardwareSerial)
 	require.Equal(t, "display_name3", hostsTeam2[1].HostDisplayName)
+
+	//
+	// Make host2 pass all policies.
+	//
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host2, map[uint]*bool{
+		team2Policy1.ID: ptr.Bool(true),
+		team2Policy2.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam2, 2)
+	sort.Slice(hostsTeam2, func(i, j int) bool {
+		return hostsTeam2[i].HostID < hostsTeam1[j].HostID
+	})
+	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam2[0].Email)
+	require.True(t, hostsTeam2[0].Passing)
+	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
+	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
+	require.Equal(t, host3.ID, hostsTeam2[1].HostID)
+	require.Equal(t, "zoo@example.com", hostsTeam2[1].Email)
+	require.True(t, hostsTeam2[1].Passing)
+	require.Equal(t, "serial3", hostsTeam2[1].HostHardwareSerial)
+	require.Equal(t, "display_name3", hostsTeam2[1].HostDisplayName)
+
+	//
+	// Delete host3 calendar event
+	//
+
+	err = ds.DeleteCalendarEvent(ctx, calendarEventHost3.ID)
+	require.NoError(t, err)
+
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam2, 1)
+	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam2[0].Email)
+	require.True(t, hostsTeam2[0].Passing)
+	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
+	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
+
+	//
+	// Edit team2Policy1 platform (which removes all its policy_membership entries).
+	//
+
+	team2Policy1.Platform = "darwin"
+	err = ds.SavePolicy(ctx, team1Policy1, false)
+	require.NoError(t, err)
+	team1Policy1.Platform = "darwin"
+	err = ds.SavePolicy(ctx, team2Policy1, false)
+	require.NoError(t, err)
+
+	//
+	// We should still get host2 as passing because it has an associated calendar event.
+	//
+
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam2, 1)
+	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam2[0].Email)
+	require.True(t, hostsTeam2[0].Passing)
+	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
+	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
 }

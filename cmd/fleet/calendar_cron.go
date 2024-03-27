@@ -110,6 +110,10 @@ func cronCalendarEventsForTeam(
 	}
 
 	if len(policies) == 0 {
+		level.Debug(logger).Log(
+			"msg", "skipping, no calendar policies",
+			"team_id", team.ID,
+		)
 		return nil
 	}
 
@@ -120,6 +124,7 @@ func cronCalendarEventsForTeam(
 	// 	- We ignore hosts that are passing all policies and do not have an associated email.
 	//	- We get only one host per email that's failing policies (the one with lower host id).
 	//	- On every host, we get only the first email that matches the domain (sorted lexicographically).
+	//	- GetTeamHostsPolicyMemberships returns the hosts that are passing all policies and have a calendar event.
 	//
 
 	policyIDs := make([]uint, 0, len(policies))
@@ -625,7 +630,7 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger k
 	}
 
 	for _, team := range teams {
-		if err := deleteTeamCalendarEvents(ctx, ds, userCalendar, *team); err != nil {
+		if err := cleanupTeamCalendarEvents(ctx, ds, userCalendar, *team); err != nil {
 			level.Info(logger).Log("msg", "delete team calendar events", "team_id", team.ID, "err", err)
 		}
 	}
@@ -666,17 +671,27 @@ func deleteAllCalendarEvents(
 	return nil
 }
 
-func deleteTeamCalendarEvents(
+func cleanupTeamCalendarEvents(
 	ctx context.Context,
 	ds fleet.Datastore,
 	userCalendar fleet.UserCalendar,
 	team fleet.Team,
 ) error {
-	if team.Config.Integrations.GoogleCalendar != nil &&
-		team.Config.Integrations.GoogleCalendar.Enable {
-		// Feature is enabled, nothing to cleanup.
-		return nil
+	teamFeatureEnabled := team.Config.Integrations.GoogleCalendar != nil && team.Config.Integrations.GoogleCalendar.Enable
+
+	if teamFeatureEnabled {
+		policies, err := ds.GetCalendarPolicies(ctx, team.ID)
+		if err != nil {
+			return fmt.Errorf("get calendar policy ids: %w", err)
+		}
+		if len(policies) > 0 {
+			// Feature is enabled and there are calendar policies configured, so nothing to do.
+			return nil
+		}
+		// Feature is enabled but there are no calendar policies,
+		// so we want to cleanup all calendar events for the team.
 	}
+
 	return deleteAllCalendarEvents(ctx, ds, userCalendar, &team.ID)
 }
 
