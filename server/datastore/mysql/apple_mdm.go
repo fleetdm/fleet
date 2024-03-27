@@ -352,7 +352,29 @@ COALESCE(detail, '') AS detail
 FROM
 host_mdm_apple_profiles
 WHERE
+host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
+
+UNION ALL
+SELECT
+declaration_uuid AS profile_uuid,
+declaration_name AS name,
+declaration_identifier AS identifier,
+-- internally, a NULL status implies that the cron needs to pick up
+-- this profile, for the user that difference doesn't exist, the
+-- profile is effectively pending. This is consistent with all our
+-- aggregation functions.
+COALESCE(status, '%s') AS status,
+COALESCE(operation_type, '') AS operation_type,
+COALESCE(detail, '') AS detail
+FROM
+host_mdm_apple_declarations
+WHERE
 host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+		fleet.MDMDeliveryPending,
+		fleet.MDMOperationTypeRemove,
+		fleet.MDMDeliveryPending,
+		fleet.MDMDeliveryVerifying,
+		fleet.MDMDeliveryVerified,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -361,7 +383,7 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 	)
 
 	var profiles []fleet.HostMDMAppleProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, hostUUID); err != nil {
 		return nil, err
 	}
 	return profiles, nil
@@ -2190,55 +2212,249 @@ func subqueryAppleProfileStatus(status fleet.MDMDeliveryStatus) (string, []any, 
 	return query, args, nil
 }
 
+// subqueryAppleDeclarationStatus builds out the subquery for declaration status
+func subqueryAppleDeclarationStatus() (string, []any, error) {
+	const declNamedStmt = `
+		CASE WHEN EXISTS (
+			SELECT
+				1
+			FROM
+				host_mdm_apple_declarations d1
+			WHERE
+				h.uuid = d1.host_uuid
+				AND d1.status = :failed) THEN
+			'declarations_failed'
+		WHEN EXISTS (
+			SELECT
+				1
+			FROM
+				host_mdm_apple_declarations d2
+			WHERE
+				h.uuid = d2.host_uuid
+				AND(d2.status IS NULL
+					OR d2.status = :pending)
+				AND NOT EXISTS (
+					SELECT
+						1
+					FROM
+						host_mdm_apple_declarations d3
+					WHERE
+						h.uuid = d3.host_uuid
+						AND d3.status = :failed)) THEN
+			'declarations_pending'
+		WHEN EXISTS (
+			SELECT
+				1
+			FROM
+				host_mdm_apple_declarations d4
+			WHERE
+				h.uuid = d4.host_uuid
+				AND d4.status = :verifying
+				AND NOT EXISTS (
+					SELECT
+						1
+					FROM
+						host_mdm_apple_declarations d5
+					WHERE (h.uuid = d5.host_uuid
+						AND(d5.status IS NULL
+							OR d5.status IN(:pending, :failed))))) THEN
+			'declarations_verifying'
+		WHEN EXISTS (
+			SELECT
+				1
+			FROM
+				host_mdm_apple_declarations d6
+			WHERE
+				h.uuid = d6.host_uuid
+				AND d6.status = :verified
+				AND NOT EXISTS (
+					SELECT
+						1
+					FROM
+						host_mdm_apple_declarations d7
+					WHERE (h.uuid = d7.host_uuid
+						AND(d7.status IS NULL
+							OR d7.status IN(:pending, :failed, :verifying))))) THEN
+			'declarations_verified'
+		ELSE
+			''
+		END`
+
+	// TODO: do we need to differentiate between install and remove?
+	arg := map[string]any{
+		// "install":   fleet.MDMOperationTypeInstall,
+		// "remove":    fleet.MDMOperationTypeRemove,
+		"verifying": fleet.MDMDeliveryVerifying,
+		"failed":    fleet.MDMDeliveryFailed,
+		"verified":  fleet.MDMDeliveryVerified,
+		"pending":   fleet.MDMDeliveryPending,
+	}
+	query, args, err := sqlx.Named(declNamedStmt, arg)
+	if err != nil {
+		return "", nil, fmt.Errorf("subqueryAppleDeclarationStatus: %w", err)
+	}
+
+	return query, args, nil
+}
+
+func subqueryOSSettingsStatusMac() (string, []any, error) {
+	var profArgs []any
+	profFailed, profFailedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryFailed)
+	if err != nil {
+		return "", nil, err
+	}
+	profArgs = append(profArgs, profFailedArgs...)
+
+	profPending, profPendingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryPending)
+	if err != nil {
+		return "", nil, err
+	}
+	profArgs = append(profArgs, profPendingArgs...)
+
+	profVerifying, profVerifyingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerifying)
+	if err != nil {
+		return "", nil, err
+	}
+	profArgs = append(profArgs, profVerifyingArgs...)
+
+	profVerified, profVerifiedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerified)
+	if err != nil {
+		return "", nil, err
+	}
+	profArgs = append(profArgs, profVerifiedArgs...)
+
+	profStmt := fmt.Sprintf(`
+	    CASE WHEN EXISTS (%s) THEN
+	        'profiles_failed'
+	    WHEN EXISTS (%s) THEN
+	        'profiles_pending'
+	    WHEN EXISTS (%s) THEN
+	        'profiles_verifying'
+	    WHEN EXISTS (%s) THEN
+	        'profiles_verified'
+	    ELSE
+	        ''
+	    END`,
+		profFailed,
+		profPending,
+		profVerifying,
+		profVerified,
+	)
+
+	declStmt, declArgs, err := subqueryAppleDeclarationStatus()
+	if err != nil {
+		return "", nil, err
+	}
+
+	stmt := fmt.Sprintf(`
+	CASE (%s)
+	WHEN 'profiles_failed' THEN
+	    'failed'
+	WHEN 'profiles_pending' THEN (
+	    CASE (%s)
+	    WHEN 'declarations_failed' THEN
+	        'failed'
+	    ELSE
+	        'pending'
+	    END)
+	WHEN 'profiles_verifying' THEN (
+	    CASE (%s)
+	    WHEN 'declarations_failed' THEN
+	        'failed'
+	    WHEN 'declarations_pending' THEN
+	        'pending'
+	    ELSE
+	        'verifying'
+	    END)
+	WHEN 'profiles_verified' THEN (
+	    CASE (%s)
+	    WHEN 'declarations_failed' THEN
+	        'failed'
+	    WHEN 'declarations_pending' THEN
+	        'pending'
+	    WHEN 'declarations_verifying' THEN
+	        'verifying'
+	    ELSE
+	        'verified'
+	    END)
+	ELSE
+	    REPLACE((%s), 'declarations_', '')
+	END`, profStmt, declStmt, declStmt, declStmt, declStmt)
+
+	args := append(profArgs, declArgs...)
+	args = append(args, declArgs...)
+	args = append(args, declArgs...)
+	args = append(args, declArgs...)
+
+	// FIXME(roberto): we found issues in MySQL 5.7.17 (only that version,
+	// which we must support for now) with prepared statements on this
+	// query. The results returned by the DB were always different what
+	// expected unless the arguments are inlined in the query.
+	//
+	// We decided to do this given:
+	//
+	// - The time constraints we were given to develop DDM
+	// - The fact that all the variables in this query are really strings managed by us
+	// - The imminent deprecation of MySQL 5.7
+	return fmt.Sprintf(strings.Replace(stmt, "?", "'%s'", -1), args...), []any{}, nil
+}
+
 func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	var args []interface{}
-
-	subqueryFailed, subqueryFailedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryFailed)
+	subquery, args, err := subqueryOSSettingsStatusMac()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building failed subquery")
+		return nil, ctxerr.Wrap(ctx, err, "building os settings subquery")
 	}
-	args = append(args, subqueryFailedArgs...)
-
-	subqueryPending, subqueryPendingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryPending)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building pending subquery")
-	}
-	args = append(args, subqueryPendingArgs...)
-
-	subqueryVerifying, subqueryVerifyingArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerifying)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building verifying subquery")
-	}
-	args = append(args, subqueryVerifyingArgs...)
-
-	subqueryVerified, subqueryVerifiedArgs, err := subqueryAppleProfileStatus(fleet.MDMDeliveryVerified)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building verified subquery")
-	}
-	args = append(args, subqueryVerifiedArgs...)
 
 	sqlFmt := `
-          SELECT
-              COUNT(CASE WHEN EXISTS (%s) THEN 1 END) AS failed,
-              COUNT(CASE WHEN EXISTS (%s) THEN 1 END) AS pending,
-              COUNT(CASE WHEN EXISTS (%s) THEN 1 END) AS verifying,
-              COUNT(CASE WHEN EXISTS (%s) THEN 1 END) AS verified
-          FROM
-              hosts h
-          WHERE
-              h.platform = 'darwin' AND %s`
+SELECT
+  %s as status,
+  COUNT(id) as count
+FROM
+  hosts h
+GROUP BY status, platform, team_id HAVING platform = 'darwin' AND status IN (?, ?, ?, ?) AND %s`
 
-	teamFilter := "h.team_id IS NULL"
+	args = append(args, fleet.MDMDeliveryFailed, fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified)
+
+	teamFilter := "team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = "h.team_id = ?"
+		teamFilter = "team_id = ?"
 		args = append(args, *teamID)
 	}
 
-	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryVerifying, subqueryVerified, teamFilter)
-	var res fleet.MDMProfilesSummary
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...)
+	stmt := fmt.Sprintf(sqlFmt, subquery, teamFilter)
+
+	var dest []struct {
+		Count  uint   `db:"count"`
+		Status string `db:"status"`
+	}
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
 	if err != nil {
 		return nil, err
+	}
+
+	byStatus := make(map[string]uint)
+	for _, s := range dest {
+		if _, ok := byStatus[s.Status]; ok {
+			return nil, fmt.Errorf("duplicate status %s", s.Status)
+		}
+		byStatus[s.Status] = s.Count
+	}
+
+	var res fleet.MDMProfilesSummary
+	for s, c := range byStatus {
+		switch fleet.MDMDeliveryStatus(s) {
+		case fleet.MDMDeliveryFailed:
+			res.Failed = c
+		case fleet.MDMDeliveryPending:
+			res.Pending = c
+		case fleet.MDMDeliveryVerifying:
+			res.Verifying = c
+		case fleet.MDMDeliveryVerified:
+			res.Verified = c
+		default:
+			return nil, fmt.Errorf("unknown status %s", s)
+		}
 	}
 
 	return &res, nil
