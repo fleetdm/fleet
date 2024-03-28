@@ -38,7 +38,7 @@ When a self-service license dispenser customer reaches out to upgrade a license 
 
 To update the host count on a user's subscription:
 
-1. Log in to the Stripe dashboard and search for the customer's email address.
+1. Log in to the [Stripe dashboard](https://dashboard.stripe.com/dashboard) and search for the customer's email address.
 2. Click on their subscription and select the "Update subscription" option in the "Actions" dropdown
 3. Update the quantity of the user's subscription to be their desired host count.
 4. Turn the "Proration charges" option on and select the "Charge proration amount immediately" option.
