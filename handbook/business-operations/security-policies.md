@@ -29,29 +29,29 @@ All Fleet employees and long-term collaborators are expected to read and electro
 
 Fleet requires all team members to comply with the following acceptable use requirements and procedures:
 
-1. The use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
+- The use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
 
-2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public. Unattended devices (even in private spaces) must be locked with the lid closed or through the OS screen lock mechanism.
+- Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public. Unattended devices (even in private spaces) must be locked with the lid closed or through the OS screen lock mechanism.
 
-3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
+- Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-4. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
+- Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers. This is automatically enforced on Fleet-managed macOS devices and must be manually configured for any unmanaged workstations.
 
-5. Teams must exclusively use legal software with a valid license installed through the "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC).  
+- Teams must exclusively use legal software with a valid license installed through the "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC).  
 
-6. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager (1Password). If you don't know how to use the password manager or safely access secrets, please ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC)!
+- Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager (1Password). If you don't know how to use the password manager or safely access secrets, please ask in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC)!
 
-7. Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (eg. debug profiles) should not be shared publicly.
+- Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (eg. debug profiles) should not be shared publicly.
 
-8. Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly, and never allow unattended screen sharing.
+- Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly, and never allow unattended screen sharing.
 
-9. Device operating systems must be kept up to date. Fleet-managed macOS workstations will receive prompts for updates to be installed, and unmanaged devices are to be updated by the team member using them. Access may be revoked for devices not kept up to date.
+- Device operating systems must be kept up to date. Fleet-managed macOS workstations will receive prompts for updates to be installed, and unmanaged devices are to be updated by the team member using them. Access may be revoked for devices not kept up to date.
 
-10. Team members must not store sensitive data on external storage devices (USB sticks, external hard drives).
+- Team members must not store sensitive data on external storage devices (USB sticks, external hard drives).
 
-11. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
+- The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
-12. Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
+- Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
 
 When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC))
 
@@ -64,53 +64,53 @@ When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C03
 
 Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
 
-1. Access to all computing resources, including servers, end-user computing devices, network equipment, services, and applications, must be protected by strong authentication, authorization, and auditing.
+- Access to all computing resources, including servers, end-user computing devices, network equipment, services, and applications, must be protected by strong authentication, authorization, and auditing.
 
-2. Interactive user access to production systems must be associated with an account or login unique to each user.
+- Interactive user access to production systems must be associated with an account or login unique to each user.
 
-3. All credentials, including user passwords, service accounts, and access keys, must meet the length, complexity, age, and rotation requirements defined in Fleet security standards.
+- All credentials, including user passwords, service accounts, and access keys, must meet the length, complexity, age, and rotation requirements defined in Fleet security standards.
 
-4. Use a strong password and two-factor authentication (2FA) whenever possible to authenticate to all computing resources (including both devices and applications).
+- Use a strong password and two-factor authentication (2FA) whenever possible to authenticate to all computing resources (including both devices and applications).
 
-5. 2FA is required to access any critical system or resource, including but not limited to resources in Fleet production environments.
+- 2FA is required to access any critical system or resource, including but not limited to resources in Fleet production environments.
 
-6. Unused accounts, passwords, and access keys must be removed within 30 days.
+- Unused accounts, passwords, and access keys must be removed within 30 days.
 
-7. A unique access key or service account must be used for different applications or user access.
+- A unique access key or service account must be used for different applications or user access.
 
-8. Authenticated sessions must time out after a defined period of inactivity.
+- Authenticated sessions must time out after a defined period of inactivity.
 
 ### Access authorization and termination
 
 Fleet policy requires that:
 
-1. Access authorization shall be implemented using role-based access control (RBAC) or a similar mechanism.
+- Access authorization shall be implemented using role-based access control (RBAC) or a similar mechanism.
 
-2. Standard access based on a user's job role may be pre-provisioned during employee onboarding. All subsequent access requests to computing resources must be approved by the requestor’s manager prior to granting and provisioning of access.
+- Standard access based on a user's job role may be pre-provisioned during employee onboarding. All subsequent access requests to computing resources must be approved by the requestor’s manager prior to granting and provisioning of access.
 
-3. Access to critical resources, such as production environments, must be approved by the security team in addition to the requestor’s manager.
+- Access to critical resources, such as production environments, must be approved by the security team in addition to the requestor’s manager.
 
-4. Access must be reviewed regularly and revoked if no longer needed.
+- Access must be reviewed regularly and revoked if no longer needed.
 
-5. Upon the termination of employment, all system access must be revoked, and user accounts terminated within 24-hours or one business day, whichever is shorter.
+- Upon the termination of employment, all system access must be revoked, and user accounts terminated within 24-hours or one business day, whichever is shorter.
 
-6. All system access must be reviewed at least annually and whenever a user's job role changes.
+- All system access must be reviewed at least annually and whenever a user's job role changes.
 
 ### Shared secrets management
 
 Fleet policy requires that:
 
-1. Use of shared credentials/secrets must be minimized.
+- Use of shared credentials/secrets must be minimized.
 
-2. If required by business operations, secrets/credentials must be shared securely and stored in encrypted vaults that meet the Fleet data encryption standards.
+- If required by business operations, secrets/credentials must be shared securely and stored in encrypted vaults that meet the Fleet data encryption standards.
 
 ### Privileged access management
 
 Fleet policy requires that:
 
-1. Automation with service accounts must be used to configure production systems when technically feasible.
+- Automation with service accounts must be used to configure production systems when technically feasible.
 
-2. Use of high privilege accounts must only be performed when absolutely necessary.
+- Use of high privilege accounts must only be performed when absolutely necessary.
 
 ## Asset management policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -123,11 +123,11 @@ You can't protect what you can't see. Therefore, Fleet must maintain an accurate
 
 Fleet policy requires that:
 
-1. IT and/or security must maintain an inventory of all critical company assets, both physical and logical.
+- IT and/or security must maintain an inventory of all critical company assets, both physical and logical.
 
-2. All assets should have identified owners and a risk/data classification tag.
+- All assets should have identified owners and a risk/data classification tag.
 
-3. All company-owned computer purchases must be tracked.
+- All company-owned computer purchases must be tracked.
 
 ## Business continuity and disaster recovery policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
@@ -140,11 +140,11 @@ The Fleet business continuity and disaster recovery plan establishes procedures 
 
 Fleet policy requires that:
 
-1. A plan and process for business continuity and disaster recovery (BCDR), will be defined and documented including the backup and recovery of critical systems and data,.
+- A plan and process for business continuity and disaster recovery (BCDR), will be defined and documented including the backup and recovery of critical systems and data,.
 
-2. BCDR shall be simulated and tested at least once a year. 
+- BCDR shall be simulated and tested at least once a year. 
 
-3. Security controls and requirements will be maintained during all BCDR activities.
+- Security controls and requirements will be maintained during all BCDR activities.
 
 ### Business continuity plan
 
@@ -153,22 +153,22 @@ Fleet policy requires that:
 The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Executive Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate.
 
 For technical incidents:
-1. CTO (Luke Heath)
-2. CEO (Mike McNeil)
+- CTO (Luke Heath)
+- CEO (Mike McNeil)
 
 For business/operational incidents:
-1. CEO (Mike McNeil)
-2. Head of Business Operations (Joanne Stableford)
+- CEO (Mike McNeil)
+- Head of Business Operations (Joanne Stableford)
 
 ### Response Teams and Responsibilities
 
 The following teams have been developed and trained to respond to a contingency event affecting Fleet infrastructure and systems.
 
-1. **Infrastructure** is responsible for recovering the Fleet automatic update service hosted environment. The team includes personnel responsible for the daily IT operations and maintenance. The team reports to the CTO.
+- **Infrastructure** is responsible for recovering the Fleet automatic update service hosted environment. The team includes personnel responsible for the daily IT operations and maintenance. The team reports to the CTO.
 
-2. **People Ops** is responsible for ensuring the physical safety of all Fleet personnel and coordinating the response to incidents that could impact it. Fleet has no physical site to recover. The team reports to the CEO.
+- **People Ops** is responsible for ensuring the physical safety of all Fleet personnel and coordinating the response to incidents that could impact it. Fleet has no physical site to recover. The team reports to the CEO.
 
-3. **Security** is responsible for assessing and responding to all cybersecurity-related incidents according to Fleet Incident Response policy and procedures. The security team shall assist the above teams in recovery as needed in non-cybersecurity events. The team leader is the CTO.
+- **Security** is responsible for assessing and responding to all cybersecurity-related incidents according to Fleet Incident Response policy and procedures. The security team shall assist the above teams in recovery as needed in non-cybersecurity events. The team leader is the CTO.
 
 Members of the above teams must maintain local copies of the contact information of the BCDR succession team. Additionally, the team leads must maintain a local copy of this policy in the event Internet access is not available during a disaster scenario.
 
@@ -863,5 +863,5 @@ Subcontractors, and Contracted Developers.
 ## Anti-corruption policy
 > Fleet is committed to ethical business practices and compliance with the law.  All Fleeties are required to comply with the "Foreign Corrup Practices Act" and anti-bribery laws and regulations in applicable jurisdictions including, but not limited to, the "UK Bribery Act 2010", "European Commission on Anti-Corruption" and others.  The policies set forth in [this document](https://docs.google.com/document/d/16iHhLhAV0GS2mBrDKIBaIRe_pmXJrA1y7-gTWNxSR6c/edit?usp=sharing) go over Fleet's anti-corruption policy in detail.
 
-<meta name="maintainedBy" value="hollidayn">
+<meta name="maintainedBy" value="jostableford">
 <meta name="title" value="📜 Security policies">
