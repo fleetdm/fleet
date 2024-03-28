@@ -69,6 +69,9 @@ export FLEET_ENV_PATH=./path/to/env/file/fleet_env
 ./tools/api/fleet/queries/run "[1,2]" "[3,4]"
 ```
 
+> The following examples are made obsolete with the vuln endpoint https://fleetdm.com/docs/rest-api/rest-api#vulnerabilities
+
+
 Bash Script - Pulls all hosts based on software _name_ for your Fleet instance, uses jq. Helps if wanting to track down a particular software and see what hosts might be affected.
 
 `./name.sh api_token software_title_id base_url`
