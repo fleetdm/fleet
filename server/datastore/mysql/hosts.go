@@ -498,7 +498,7 @@ var hostRefs = []string{
 	"host_updates",
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
-	"host_script_results",
+	// "host_script_results",
 	"query_results",
 	"host_activities",
 	"host_mdm_actions",
@@ -523,11 +523,26 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_windows_profiles":         "host_uuid",
 }
 
+// softDeleteHostRefs are the tables that have a soft delete column that should be set when a host
+// is deleted. The map key is the table name and the map value is the soft delete column name to set
+// to the time of deletion.
+var softDeleteHostRefs = map[string]string{
+	"host_script_results": "host_deleted_at",
+}
+
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	delHostRef := func(tx sqlx.ExtContext, table string) error {
 		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting %s for host %d", table, hid)
+		}
+		return nil
+	}
+
+	softDeleteHostRef := func(tx sqlx.ExtContext, table, column string) error {
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(`UPDATE %s SET %s = NOW() WHERE host_id = ?`, table, column), hid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "soft deleting %s for host %d", table, hid)
 		}
 		return nil
 	}
@@ -546,6 +561,13 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 
 		for _, table := range hostRefs {
 			err := delHostRef(tx, table)
+			if err != nil {
+				return err
+			}
+		}
+
+		for table, column := range softDeleteHostRefs {
+			err := softDeleteHostRef(tx, table, column)
 			if err != nil {
 				return err
 			}

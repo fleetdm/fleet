@@ -116,7 +116,7 @@ const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
         >
           output recorded
         </TooltipWrapper>{" "}
-        when <b>{hostname}</b> ran the script above:
+        when {hostname ? <b>{hostname}</b> : "the host "} ran the script above:
       </p>
       <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>
     </div>

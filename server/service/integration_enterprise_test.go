@@ -5226,6 +5226,18 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 		0,
 	)
 
+	// get script result by execution id as a new var so we can check it later after we delete this host
+	var expectScriptResultResp getScriptResultResponse
+	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/scripts/results/%s`, scriptResultResp.ExecutionID), nil, http.StatusOK, &expectScriptResultResp)
+	require.Equal(t, host.ID, expectScriptResultResp.HostID)
+	require.Equal(t, "echo 'no team'", expectScriptResultResp.ScriptContents)
+	require.NotNil(t, expectScriptResultResp.ExitCode)
+	require.Equal(t, int64(0), *expectScriptResultResp.ExitCode)
+	require.False(t, expectScriptResultResp.HostTimeout)
+	require.Equal(t, savedNoTmScript.ID, *expectScriptResultResp.ScriptID)
+	require.Equal(t, "ok", expectScriptResultResp.Output)
+	require.Equal(t, host.DisplayName(), expectScriptResultResp.HostName)
+
 	// verify that orbit does not receive any pending script anymore
 	orbitResp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config",
@@ -5313,6 +5325,27 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusConflict, &runResp)
+
+	// delete the host
+	s.Do("DELETE", "/api/latest/fleet/hosts/"+fmt.Sprint(host.ID), nil, http.StatusOK)
+	// verify the host is deleted
+	s.Do("GET", "/api/latest/fleet/hosts/"+fmt.Sprint(host.ID), nil, http.StatusNotFound)
+	// verify that the host script request is not deleted
+	scriptResultResp = getScriptResultResponse{}
+	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/scripts/results/%s`, expectScriptResultResp.ExecutionID), nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
+	require.NotNil(t, scriptResultResp.ExitCode)
+	require.Equal(t, int64(0), *scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	// // TODO: script id is not preserved on script deleteion, should we soft delete?
+	require.Nil(t, scriptResultResp.ScriptID)
+	// require.NotNil(t, scriptResultResp.ScriptID)
+	// require.Equal(t, savedNoTmScript.ID, *scriptResultResp.ScriptID)
+	require.Equal(t, "ok", scriptResultResp.Output)
+	// // TODO: host name is not preserved on host deletion, should we soft delete?
+	require.Empty(t, scriptResultResp.HostName)
+	// require.Equal(t, host.DisplayName(), scriptResultResp.HostName)
 
 	// set up a new host, new team, and some new scripts
 	host2 := createOrbitEnrolledHost(t, "linux", "f1337", s.ds)

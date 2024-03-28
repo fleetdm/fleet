@@ -393,23 +393,50 @@ func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.
 		return nil, ctxerr.Wrap(ctx, err, "get script result")
 	}
 
-	host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
-	if err != nil {
-		// if error is because the host does not exist, check first if the user
-		// had access to run a script (to prevent leaking valid host ids).
-		if fleet.IsNotFound(err) {
-			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
-				return nil, err
+	if scriptResult.HostDeletedAt == nil {
+		// auth based on the host's team
+		host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
+		if err != nil {
+			// if error is because the host does not exist, check first if the user
+			// had access to run a script (to prevent leaking valid host ids).
+			if fleet.IsNotFound(err) {
+				if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+					return nil, err
+				}
 			}
+			svc.authz.SkipAuthorization(ctx)
+			return nil, ctxerr.Wrap(ctx, err, "get host lite")
 		}
-		svc.authz.SkipAuthorization(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "get host lite")
-	}
-	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
+		if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+		scriptResult.Hostname = host.DisplayName()
 
-	scriptResult.Hostname = host.DisplayName()
+		// } else if scriptResult.ScriptID != nil {
+		// 	// if the host is deleted, we need to get the script to get the team id for auth
+		// 	s, err := svc.ds.Script(ctx, *scriptResult.ScriptID)
+		// 	if err != nil {
+		// 		svc.authz.SkipAuthorization(ctx)
+		// 		return nil, ctxerr.Wrap(ctx, err, "get script for result")
+		// 	}
+		// 	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: s.TeamID}, fleet.ActionRead); err != nil {
+		// 		return nil, err
+		// 	}
+		// 	// TODO: UI expects the script details API response to contain the hostname, but it is lost
+		// 	// when the host is deleted. It is stored in the activity item so we could make the UI grab
+		// 	// it from there instead of relying on the details API response here.
+
+		// } else {
+		// 	// TODO: this shouldn't happen in theory, but it will if we don't add soft deletes to the scripts
+		// 	// table
+		// 	svc.authz.SkipAuthorization(ctx)
+		// 	return nil, fleet.NewInvalidArgumentError("execution_id", "No script found for the given execution id")
+	} else {
+		// TODO: this auth is not correct, we need to get the team id from the script
+		if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+	}
 
 	return scriptResult, nil
 }

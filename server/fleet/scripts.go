@@ -234,6 +234,8 @@ type HostScriptResult struct {
 	// the request was synchronous or asynchronous. It is otherwise not returned
 	// as part of any API endpoint.
 	SyncRequest bool `json:"-" db:"sync_request"`
+	// HostDeletedAt is the time the host was deleted, if it was deleted, or nil.
+	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
