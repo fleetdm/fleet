@@ -875,6 +875,7 @@ func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 		require.NoError(t, err)
 		out := make(map[string]*fleet.HostMDMAppleProfile, len(profs))
 		for _, p := range profs {
+			p := p
 			out[p.Identifier] = &p
 		}
 
