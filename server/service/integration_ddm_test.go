@@ -92,7 +92,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "bad2", Contents: newDeclBytes(2, `"baz": "bing"`)},
 	}}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "A configuration profile with this name already exists.")
+	require.Contains(t, errMsg, "More than one configuration profile have the same name")
 
 	// Same identifier should fail
 	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{

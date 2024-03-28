@@ -1527,32 +1527,8 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
 
-	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
-	// "mobileconfig" or "json" or "xml"
-	allNames := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
-	for _, p := range appleProfiles {
-		if v, ok := allNames[p.Name]; ok {
-			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(p.Name, "A configuration profile with this name already exists."),
-				fmt.Sprintf("duplicate mobileconfig and %s by name", v))
-		}
-		allNames[p.Name] = "mobileconfig"
-	}
-	for _, p := range windowsProfiles {
-		if v, ok := allNames[p.Name]; ok {
-			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(p.Name, "A configuration profile with this name already exists."),
-				fmt.Sprintf("duplicate xml and %s by name", v))
-		}
-		allNames[p.Name] = "xml"
-	}
-	for _, p := range appleDecls {
-		if v, ok := allNames[p.Name]; ok {
-			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(p.Name, "A configuration profile with this name already exists."),
-				fmt.Sprintf("duplicate json and %s by name", v))
-		}
-		allNames[p.Name] = "json"
+	if err := svc.validateCrossPlatformProfileNames(ctx, appleProfiles, windowsProfiles, appleDecls); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
 	}
 
 	if dryRun {
@@ -1595,6 +1571,52 @@ func (svc *Service) BatchSetMDMProfiles(
 		TeamName: tmName,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
+	}
+
+	return nil
+}
+
+func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles []*fleet.MDMAppleConfigProfile, windowsProfiles []*fleet.MDMWindowsConfigProfile, appleDecls []*fleet.MDMAppleDeclaration) error {
+	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
+	// "mobileconfig" or "json" or "xml"
+	allNames := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
+	for i, p := range appleProfiles {
+		if _, ok := allNames[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleProfiles[%d]", i), fmt.Sprintf(
+				"Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
+			return ctxerr.Wrap(ctx, err, "duplicate mobileconfig profile by name")
+		}
+		allNames[p.Name] = "mobileconfig"
+	}
+	for i, p := range windowsProfiles {
+		if v, ok := allNames[p.Name]; ok {
+			switch v {
+			case "mobileconfig":
+				err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmt.Sprintf(
+					"Couldn’t edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
+				return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
+			default:
+				err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmt.Sprintf(
+					"Couldn’t edit custom_settings. More than one Windows configuration profile have the same name: %q", p.Name))
+				return ctxerr.Wrap(ctx, err, "duplicate xml by name")
+			}
+		}
+		allNames[p.Name] = "xml"
+	}
+	for i, p := range appleDecls {
+		if v, ok := allNames[p.Name]; ok {
+			switch v {
+			case "xml":
+				err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmt.Sprintf(
+					"Couldn’t edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile: %q", p.Name))
+				return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
+			default:
+				err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmt.Sprintf(
+					"Couldn’t edit custom_settings. More than one configuration profile have the same name: %q", p.Name))
+				return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
+			}
+		}
+		allNames[p.Name] = "json"
 	}
 
 	return nil
