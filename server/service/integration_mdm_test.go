@@ -87,6 +87,7 @@ type integrationMDMTestSuite struct {
 	mdmStorage                 *mysql.NanoMDMStorage
 	worker                     *worker.Worker
 	mdmCommander               *apple_mdm.MDMAppleCommander
+	logger                     kitlog.Logger
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -158,10 +159,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = kitlog.NewNopLogger()
 	}
+	serverLogger := kitlog.NewJSONLogger(os.Stdout)
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		serverLogger = kitlog.NewNopLogger()
+	}
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
+		Logger:      serverLogger,
 		FleetConfig: &fleetCfg,
 		MDMStorage:  mdmStorage,
 		DEPStorage:  depStorage,
@@ -241,9 +247,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		},
 		APNSTopic: "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 	}
-	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		config.Logger = kitlog.NewNopLogger()
-	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
 	s.users = users
@@ -257,6 +260,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.profileSchedule = profileSchedule
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
+	s.logger = serverLogger
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -339,6 +343,16 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	// clear any mdm windows enrollments
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_windows_enrollments")
+		return err
+	})
+
+	// clear any lingering declarations
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_apple_declarations")
 		return err
 	})
 }
@@ -8705,8 +8719,6 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
-
-	t.Cleanup(func() { s.cleanupDeclarations(t) })
 
 	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := map[string][]string{

@@ -442,13 +442,16 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
 
-	// TODO(roberto): Is this already handled in NewMDMAppleDeclaration? Could we add the labels as well?
+	// TODO(roberto): this should be part of fleet.NewMDMAppleDeclaration
 	d.Labels = validatedLabels
-	d.TeamID = tmID
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
 	}
 
 	var (
@@ -2603,6 +2606,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 		}
+
+		return nil, nil
 	}
 
 	// We explicitly get the request type because it comes empty. There's a
@@ -2639,8 +2644,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.UDID, cmdResult.CommandUUID, requestType, cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
 		}
 	case "DeclarativeManagement":
-		// set "pending-install" profiles to "verifying"
-		err := svc.ds.MDMAppleSetDeclarationsAsVerifying(r.Context, cmdResult.UDID)
+		// set "pending-install" profiles to "verifying" or "failed"
+		// depending on the status of the DeviceManagement command
+		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
+		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13 or higher.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
+		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 
 	}
@@ -3412,10 +3420,6 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 			Detail:        detail,
 			Checksum:      r.ServerToken,
 		}
-	}
-
-	if len(updates) == 0 {
-		return nil
 	}
 
 	// MDMAppleStoreDDMStatusReport takes care of cleaning ("pending", "remove")
