@@ -32,6 +32,20 @@ Each PR to the website is manually checked for quality and tested before before 
 3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
 
+### Update the host count of a premium subscription
+
+When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
+
+To update the host count on a user's subscription:
+
+1. Log in to the [Stripe dashboard](https://dashboard.stripe.com/dashboard) and search for the customer's email address.
+2. Click on their subscription and select the "Update subscription" option in the "Actions" dropdown
+3. Update the quantity of the user's subscription to be their desired host count.
+4. Turn the "Proration charges" option on and select the "Charge proration amount immediately" option.
+5. Under "Payment" select "Email invoice to the customer", and set the payment due date to be 15 days, and make sure the "Invoice payment page" option is checked.
+6. Select "Update subscription" to send the user an updated invoice for their subscription. Once the customer pays their new invoice, the Fleet website will update the user's subscription and generate a new Fleet Premium license with an updated host count.
+7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
+
 ### Test fleetdm.com locally 
 When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
 
