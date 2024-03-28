@@ -32,7 +32,7 @@ Each PR to the website is manually checked for quality and tested before before 
 3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
 
-### Upgrading host counts for Fleet Premium licenses
+### Update the host count of a premium subscription
 
 When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
 
