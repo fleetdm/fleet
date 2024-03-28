@@ -35,13 +35,9 @@ agent_options:
                 - client_type
                 - auth_value
                 - auth_reason
-                - auth_version
-                - csreq
                 - policy_id
                 - indirect_object_identifier
                 - indirect_object_identifier_type
-                - indirect_object_code_identity
-                - flags
                 - last_modified
             tcc_user:
               path: /Users/%/Library/Application Support/com.apple.TCC/TCC.db
@@ -52,13 +48,9 @@ agent_options:
                 - client_type
                 - auth_value
                 - auth_reason
-                - auth_version
-                - csreq
                 - policy_id
                 - indirect_object_identifier
                 - indirect_object_identifier_type
-                - indirect_object_code_identity
-                - flags
                 - last_modified
 controls:
   enable_disk_encryption: true
