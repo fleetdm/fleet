@@ -7711,10 +7711,103 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
+- [Add software](#add-software)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
+
+### Add managed software
+
+Add software to install on macOS, Windows, and Linux (Ubuntu) hosts.
+
+`POST /api/v1/fleet/software/manage`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software        | file    | form | **Required**. Installer file. PKG or DMG for macOS and MSI for Windows hosts.   |
+| team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
+
+#### Example
+
+`POST /api/v1/fleet/software/manage`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+
+### Download managed software
+
+Download the uploaded software installer.
+
+`GET /api/v1/fleet/software/manage/:id?alt=media`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | **Required**. The ID of uploaded software version to download.|
+| alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software installer. |
+
+#### Example
+
+`GET /api/v1/fleet/software/manage/123?alt=media`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+### Delete managed software
+
+Delete the uploaded software installer.
+
+`DELETE /api/v1/fleet/software/manage/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | **Required**. The ID of the managed software version to delete.|
+
+#### Example
+
+`DELETE /api/v1/fleet/software/manage/24`
+
+##### Default response
+
+`Status: 204`
+
 
 ### List software
 
