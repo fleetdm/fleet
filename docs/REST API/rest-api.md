@@ -2369,6 +2369,7 @@ Returns the information of the specified host.
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
+    "scripts_enabled": true,
     "users": [
       {
         "uid": 0,
