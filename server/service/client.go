@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/text/unicode/norm"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -21,6 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
+
+const batchSize = 100
 
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
@@ -1099,11 +1102,19 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string,
 		numPolicies := len(config.Policies)
 		logFn("[+] syncing %d policies\n", numPolicies)
 		if !dryRun {
-			// Note: We are reusing the spec flow here for adding/updating policies, instead of creating a new flow for GitOps.
-			if err := c.ApplyPolicies(config.Policies); err != nil {
-				return fmt.Errorf("error applying policies: %w", err)
+			totalApplied := 0
+			for i := 0; i < len(config.Policies); i += batchSize {
+				end := i + batchSize
+				if end > len(config.Policies) {
+					end = len(config.Policies)
+				}
+				totalApplied += end - i
+				// Note: We are reusing the spec flow here for adding/updating policies, instead of creating a new flow for GitOps.
+				if err := c.ApplyPolicies(config.Policies[i:end]); err != nil {
+					return fmt.Errorf("error applying policies: %w", err)
+				}
+				logFn("[+] synced %d policies\n", totalApplied)
 			}
-			logFn("[+] synced %d policies\n", numPolicies)
 		}
 	}
 	var policiesToDelete []uint
@@ -1123,8 +1134,17 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string,
 	if len(policiesToDelete) > 0 {
 		logFn("[-] deleting %d policies\n", len(policiesToDelete))
 		if !dryRun {
-			if err := c.DeletePolicies(config.TeamID, policiesToDelete); err != nil {
-				return fmt.Errorf("error deleting policies: %w", err)
+			totalDeleted := 0
+			for i := 0; i < len(policiesToDelete); i += batchSize {
+				end := i + batchSize
+				if end > len(policiesToDelete) {
+					end = len(policiesToDelete)
+				}
+				totalDeleted += end - i
+				if err := c.DeletePolicies(config.TeamID, policiesToDelete[i:end]); err != nil {
+					return fmt.Errorf("error deleting policies: %w", err)
+				}
+				logFn("[-] deleted %d policies\n", totalDeleted)
 			}
 		}
 	}
@@ -1132,6 +1152,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string,
 }
 
 func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	batchSize := 100
 	// Get the ids and names of current queries to figure out which ones to delete
 	queries, err := c.GetQueries(config.TeamID, nil)
 	if err != nil {
@@ -1141,11 +1162,19 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		numQueries := len(config.Queries)
 		logFn("[+] syncing %d queries\n", numQueries)
 		if !dryRun {
-			// Note: We are reusing the spec flow here for adding/updating queries, instead of creating a new flow for GitOps.
-			if err := c.ApplyQueries(config.Queries); err != nil {
-				return fmt.Errorf("error applying queries: %w", err)
+			appliedCount := 0
+			for i := 0; i < len(config.Queries); i += batchSize {
+				end := i + batchSize
+				if end > len(config.Queries) {
+					end = len(config.Queries)
+				}
+				appliedCount += end - i
+				// Note: We are reusing the spec flow here for adding/updating queries, instead of creating a new flow for GitOps.
+				if err := c.ApplyQueries(config.Queries[i:end]); err != nil {
+					return fmt.Errorf("error applying queries: %w", err)
+				}
+				logFn("[+] synced %d queries\n", appliedCount)
 			}
-			logFn("[+] synced %d queries\n", numQueries)
 		}
 	}
 	var queriesToDelete []uint
@@ -1165,8 +1194,17 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	if len(queriesToDelete) > 0 {
 		logFn("[-] deleting %d queries\n", len(queriesToDelete))
 		if !dryRun {
-			if err := c.DeleteQueries(queriesToDelete); err != nil {
-				return fmt.Errorf("error deleting queries: %w", err)
+			deleteCount := 0
+			for i := 0; i < len(queriesToDelete); i += batchSize {
+				end := i + batchSize
+				if end > len(queriesToDelete) {
+					end = len(queriesToDelete)
+				}
+				deleteCount += end - i
+				if err := c.DeleteQueries(queriesToDelete[i:end]); err != nil {
+					return fmt.Errorf("error deleting queries: %w", err)
+				}
+				logFn("[-] deleted %d queries\n", deleteCount)
 			}
 		}
 	}

@@ -26,14 +26,40 @@ agent_options:
       platforms:
         darwin:
           auto_table_construction:
-            tcc:
+            tcc_system:
               path: /Library/Application Support/com.apple.TCC/TCC.db
-              query: 'select service, client, auth_value, auth_reason from access'
+              query: 'select service, client, client_type, auth_value, auth_reason, auth_version, csreq, policy_id, indirect_object_identifier, indirect_object_identifier_type, indirect_object_code_identity, flags, last_modified from access'
               columns:
                 - service
                 - client
+                - client_type
                 - auth_value
                 - auth_reason
+                - auth_version
+                - csreq
+                - policy_id
+                - indirect_object_identifier
+                - indirect_object_identifier_type
+                - indirect_object_code_identity
+                - flags
+                - last_modified
+            tcc_user:
+              path: /Users/%/Library/Application Support/com.apple.TCC/TCC.db
+              query: 'select service, client, client_type, auth_value, auth_reason, auth_version, csreq, policy_id, indirect_object_identifier, indirect_object_identifier_type, indirect_object_code_identity, flags, last_modified from access'
+              columns:
+                - service
+                - client
+                - client_type
+                - auth_value
+                - auth_reason
+                - auth_version
+                - csreq
+                - policy_id
+                - indirect_object_identifier
+                - indirect_object_identifier_type
+                - indirect_object_code_identity
+                - flags
+                - last_modified
 controls:
   enable_disk_encryption: true
   macos_settings:
@@ -92,3 +118,5 @@ queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-usb-devices.queries.yml
   - path: ../lib/collect-vs-code-extensions.queries.yml
+  - path: ../lib/collect-software-permissions-system.queries.yml
+  - path: ../lib/collect-software-permissions-user.queries.yml

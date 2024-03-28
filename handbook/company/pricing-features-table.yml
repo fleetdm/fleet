@@ -756,11 +756,11 @@
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Trigger a workflow based on a failing policy
-  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
+  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  tier: Premium
+  tier: Free
 - industryName: Role-based access control
   documentationUrl: https://fleetdm.com/docs/using-fleet/manage-access#manage-access
   productCategories: [Endpoint operations,Device management,Vulnerability management]

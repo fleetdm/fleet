@@ -8,10 +8,16 @@
     font-weight: 800;
     line-height: 150%;
   }
+  [purpose='logo-container'] {
+    max-width: 524px;
+    margin-left: auto;
+    margin-right: auto;
+  }
   [purpose='page-container'] {
     padding-top: 80px;
     padding-left: 64px;
     padding-right: 64px;
+    max-width: unset;
     display: flex;
     flex-direction: column;
   }
@@ -67,6 +73,7 @@
       padding-top: 60px;
       padding-left: 40px;
       padding-right: 40px;
+      max-width: 600px;
     }
 
   }
@@ -79,9 +86,11 @@
 
   }
   @media (max-width: 575px) {
+    [purpose='logo-container'] {
+      max-width: 100%;
+    }
     [purpose='start-cards'] {
       flex-direction: column;
-      padding-bottom: 120px;
     }
     [purpose='card']:first-of-type {
       margin-right: unset;
