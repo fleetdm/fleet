@@ -1,11 +1,8 @@
-package main
+package cron
 
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -17,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/log"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -207,16 +203,19 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		calendar.ClearMockEvents()
 	})
 
-	// TODO(lucas): Test!
-	webhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "POST", r.Method)
-		requestBodyBytes, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		t.Logf("webhook request: %s\n", requestBodyBytes)
-	}))
-	t.Cleanup(func() {
-		webhookServer.Close()
-	})
+	//
+	// Test setup
+	//
+	//	team1:
+	//
+	//	policyID1 (calendar)
+	//	policyID2 (calendar)
+	//
+	// 	hostID1 has user1@example.com not passing policies.
+	//	hostID2 has user2@example.com passing policies.
+	//	hostID3 does not have example.com email and is not passing policies.
+	//	hostID4 does not have example.com email and is passing policies.
+	//
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -242,7 +241,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 					Integrations: fleet.TeamIntegrations{
 						GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
 							Enable:     true,
-							WebhookURL: webhookServer.URL,
+							WebhookURL: "https://foo.example.com",
 						},
 					},
 				},
@@ -268,12 +267,13 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 
 	hostID1, userEmail1 := uint(100), "user1@example.com"
 	hostID2, userEmail2 := uint(101), "user2@example.com"
-	hostID3, userEmail3 := uint(102), "user3@other.com"
-	hostID4, userEmail4 := uint(103), "user4@other.com"
+	hostID3 := uint(102)
+	hostID4 := uint(103)
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
 		ctx context.Context, domain string, teamID uint, policyIDs []uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
+		require.Equal(t, "example.com", domain)
 		require.Equal(t, teamID1, teamID)
 		require.Equal(t, []uint{policyID1, policyID2}, policyIDs)
 		return []fleet.HostPolicyMembershipData{
@@ -289,12 +289,12 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 			},
 			{
 				HostID:  hostID3,
-				Email:   userEmail3,
+				Email:   "", // because it does not belong to example.com
 				Passing: false,
 			},
 			{
 				HostID:  hostID4,
-				Email:   userEmail4,
+				Email:   "", // because it does not belong to example.com
 				Passing: true,
 			},
 		}, nil
@@ -304,6 +304,10 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		return nil, nil, notFoundErr{}
 	}
 
+	var eventsMu sync.Mutex
+	calendarEvents := make(map[string]*fleet.CalendarEvent)
+	hostCalendarEvents := make(map[uint]*fleet.HostCalendarEvent)
+
 	ds.CreateOrUpdateCalendarEventFunc = func(ctx context.Context,
 		email string,
 		startTime, endTime time.Time,
@@ -311,26 +315,43 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
-		switch email {
-		case userEmail1:
-			require.Equal(t, hostID1, hostID)
-		case userEmail2:
-			require.Equal(t, hostID2, hostID)
-		case userEmail3:
-			require.Equal(t, hostID3, hostID)
-		case userEmail4:
-			require.Equal(t, hostID4, hostID)
-		}
+		require.Equal(t, hostID1, hostID)
+		require.Equal(t, userEmail1, email)
 		require.Equal(t, fleet.CalendarWebhookStatusNone, webhookStatus)
 		require.NotEmpty(t, data)
 		require.NotZero(t, startTime)
 		require.NotZero(t, endTime)
-		// Currently, the returned calendar event is unused.
+
+		eventsMu.Lock()
+		calendarEventID := uint(len(calendarEvents) + 1)
+		calendarEvents[email] = &fleet.CalendarEvent{
+			ID:        calendarEventID,
+			Email:     email,
+			StartTime: startTime,
+			EndTime:   endTime,
+			Data:      data,
+		}
+		hostCalendarEventID := uint(len(hostCalendarEvents) + 1)
+		hostCalendarEvents[hostID] = &fleet.HostCalendarEvent{
+			ID:              hostCalendarEventID,
+			HostID:          hostID,
+			CalendarEventID: calendarEventID,
+			WebhookStatus:   webhookStatus,
+		}
+		eventsMu.Unlock()
 		return nil, nil
 	}
 
 	err := cronCalendarEvents(ctx, ds, logger)
 	require.NoError(t, err)
+
+	eventsMu.Lock()
+	require.Len(t, calendarEvents, 1)
+	require.Len(t, hostCalendarEvents, 1)
+	eventsMu.Unlock()
+
+	createdCalendarEvents := calendar.ListGoogleMockEvents()
+	require.Len(t, createdCalendarEvents, 1)
 }
 
 type notFoundErr struct{}
@@ -354,17 +375,6 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
-	})
-
-	// TODO(lucas): Use for the test.
-	webhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "POST", r.Method)
-		requestBodyBytes, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		t.Logf("webhook request: %s\n", requestBodyBytes)
-	}))
-	t.Cleanup(func() {
-		webhookServer.Close()
 	})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -395,7 +405,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 					Integrations: fleet.TeamIntegrations{
 						GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
 							Enable:     true,
-							WebhookURL: webhookServer.URL,
+							WebhookURL: "https://foo.example.com",
 						},
 					},
 				},
@@ -406,7 +416,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 					Integrations: fleet.TeamIntegrations{
 						GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
 							Enable:     true,
-							WebhookURL: webhookServer.URL,
+							WebhookURL: "https://foo.example.com",
 						},
 					},
 				},
@@ -417,7 +427,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 					Integrations: fleet.TeamIntegrations{
 						GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
 							Enable:     true,
-							WebhookURL: webhookServer.URL,
+							WebhookURL: "https://foo.example.com",
 						},
 					},
 				},
@@ -428,7 +438,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 					Integrations: fleet.TeamIntegrations{
 						GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
 							Enable:     true,
-							WebhookURL: webhookServer.URL,
+							WebhookURL: "https://foo.example.com",
 						},
 					},
 				},
@@ -439,7 +449,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 					Integrations: fleet.TeamIntegrations{
 						GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
 							Enable:     true,
-							WebhookURL: webhookServer.URL,
+							WebhookURL: "https://foo.example.com",
 						},
 					},
 				},

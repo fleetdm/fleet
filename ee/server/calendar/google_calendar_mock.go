@@ -93,3 +93,14 @@ func ClearMockEvents() {
 	defer mu.Unlock()
 	mockEvents = make(map[string]*calendar.Event)
 }
+
+func SetMockEventsToNow() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	now := time.Now()
+	for _, mockEvent := range mockEvents {
+		mockEvent.Start = &calendar.EventDateTime{DateTime: now.Format(time.RFC3339)}
+		mockEvent.End = &calendar.EventDateTime{DateTime: now.Add(30 * time.Minute).Format(time.RFC3339)}
+	}
+}

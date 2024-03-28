@@ -95,6 +95,12 @@ func (ts *withServer) TearDownSuite() {
 }
 
 func (ts *withServer) commonTearDownTest(t *testing.T) {
+	// By setting DISABLE_TABLES_CLEANUP a developer can troubleshoot tests
+	// by inspecting mysql tables.
+	if os.Getenv("DISABLE_CLEANUP_TABLES") != "" {
+		return
+	}
+
 	ctx := context.Background()
 
 	u := ts.users["admin1@example.com"]

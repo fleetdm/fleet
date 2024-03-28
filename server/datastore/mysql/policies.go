@@ -1171,7 +1171,6 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 	return policies, nil
 }
 
-// TODO(lucas): Must be tested at scale.
 func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	ctx context.Context,
 	domain string,
