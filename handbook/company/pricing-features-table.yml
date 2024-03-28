@@ -634,7 +634,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Deploy and update apps on macOS, Windows, and Linux computers.
-  description: Install Zoom, Slack, Chrome, and other productivity apps without interrupting your end users.
+  description: Install Zoom, Slack, Chrome, and other apps without interrupting your end users.
   tier: Premium
   comingSoonOn: 2024-06-31
   usualDepartment: IT
