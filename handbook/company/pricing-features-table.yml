@@ -640,7 +640,7 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: App self-service for macOS, Windows, and Linux computers.
+- industryName: Self-service portal for users to install apps
   description: Add optional apps for your end users through Fleet Desktop.
   tier: Premium
   comingSoonOn: 2024-06-31
