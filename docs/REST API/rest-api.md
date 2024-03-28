@@ -980,7 +980,14 @@ None.
     }
   },
   "integrations": {
-    "jira": null
+    "jira": null,
+    "google_calendar": [
+      {
+        "email": "name@example.com",
+        "domain": "example.com",
+        "private_key": "abc123"
+      }
+    ]
   },
   "logging": {
     "debug": false,
@@ -1082,6 +1089,9 @@ Modifies the Fleet's configuration with the supplied information.
 | email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
 | group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| email                             | string  | body  | _integrations.google_calendar[] settings_. The email address for the Google Workspace service account to be used for this calendar integration. |
+| domain                            | string  | body  | _integrations.google_calendar[] settings_. The domain for the Google Workspace service account to be used for this calendar integration. |
+| private_key                       | string  | body  | _integrations.google_calendar[] settings_. The private key for the Google Workspace service account to be used for this calendar integration. |
 | apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
 | windows_enabled_and_configured    | boolean | body  | _mdm settings_. Enables Windows MDM support. |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
@@ -1270,6 +1280,13 @@ Note that when making changes to the `integrations` object, all integrations mus
         "password": "sec4et!",
         "project_key": "jira_project",
         "enable_software_vulnerabilities": false
+      }
+    ],
+    "google_calendar": [
+      {
+        "email": "name@example.com",
+        "domain": "example.com",
+        "private_key": "abc123"
       }
     ]
   },
@@ -8461,6 +8478,13 @@ _Available in Fleet Premium_
         "host_batch_size": 0
       }
     },
+    "integrations": {
+      "google_calendar": {
+        "enable_calendar_events": true,
+        "email": "name@example.com",
+        "policy_ids": [1, 2, 3]
+      }
+    },
     "mdm": {
       "macos_updates": {
         "minimum_version": "12.3.1",
@@ -8600,6 +8624,11 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that belong to this team and are members of the specified label.                                                                                                                               |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
+| integrations                                            | object  | body | Integration settings for this team.                                                                                                                                                                   |
+| &nbsp;&nbsp;google_calendar                             | object  | body | Google Calendar integration settings.                                                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_calendar_events          | boolean | body | Whether or not calendar events are enabled for this team.                                                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;email                           | string | body | The Google Workspace service account email to use. Service account must already be configured in organization settings.                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | list   | body | The IDs of policies that will trigger calendar events if failing on a host. Must all be policies for this team or global ("All teams") policies.                      |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team.                                                                                                                                                                         |
 | &nbsp;&nbsp;host_expiry_enabled                         | boolean | body | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
 | &nbsp;&nbsp;host_expiry_window                          | integer | body | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                                                             |
