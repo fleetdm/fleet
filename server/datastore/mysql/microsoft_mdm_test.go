@@ -157,6 +157,10 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			h, err := ds.Host(ctx, id)
 			require.NoError(t, err)
 			require.NotNil(t, h)
+			mdmInfo, err := ds.GetHostMDM(ctx, id)
+			require.NoError(t, err)
+			require.NotNil(t, mdmInfo)
+			h.MDMInfo = mdmInfo
 			bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
 			require.NoError(t, err)
 			require.NotNil(t, bls)
