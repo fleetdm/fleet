@@ -410,7 +410,36 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 
 1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
 2. Performance mangement is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
-3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.  
+3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.
+
+## Skip Level 1:1 Meetings 
+
+At this time of the organization, most of the Skip Level 1:1s will be defined as non-managerial Fleeties meeting with the CEO. As the org grows, additional levels of management between team members and the CEO may be created, this section will be updated as needed with the appropriate links and language to reflect such a change.
+
+### The Why
+
+1.  Team members **must** feel absolutely heard by the CEO for them to resonate with the company’s core values.
+2.  A CEO needs to have **confidence** that his manager’s direct reports feel comfortable and supported when addressing sensitive topics(i.e. management) that could very well have dire repercussions if not addressed. A company that facilitates a culture where direct reports are fearful of telling the truth can only fail slowly and miserably.
+3. Non-managerial team members have low-level insight into their duties and responsibilities that may help Illuminate strategies that better assist themselves, their team, or other departments.
+4.  The CEO may discover insightful details regarding managers from a different perspective that may help them better support these managers.
+
+### The How-To
+
+**Actions For The Manager:**
+
+1.  Once communication from a team member has been received that they wish to initiate a Skip-Level 1:1 OR you would like to initiate a Skip-Level 1:1 on behalf of a Fleetie, you may do so by sending `@mikermcneil` a DM in Fleet Slack, at-mention our CEO in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+2.  In your communication to your direct report, be sure to link them to this section of the document so they have a clearer understanding of the Skip-Level 1:1 process, meeting structure, and helpful recommendations. 
+3.  After initiation is made with the CEO, managers should then make sure to help the CEO, and Fleetie establish communication to ensure a timeline has been set in motion for the two to meet. Managers then only need to check in with their direct reports to make sure everything is going accordingly.
+
+**Recommendations For The Non-Manager Fleetie:**
+
+1.  Take a breath first and read through the [CEO’s Flaws](#ceo-flaws). This will hopefully give you a better understanding of Mike and should hope to serve both you and Mike in making the conversation a smoother experience.
+2.  We highly recommend you read through the [Performance Feedback](#performance-feedback) section, the items listed here are a set of expectations that lay at the heart of all Fleet 1:1 meetings. That section should help you with the processing of feedback as well as presenting it.
+3.  Please use the template [here](https://docs.google.com/document/d/1AyZPGRdLtGXFU6TRndbTqs033rWSKy5dUvXU3d4LLZc/copy). The answering of the three questions on the template are pertinent to the success of the meeting, however, we would like to emphasis that if you have talking points beyond the items listed on the template, we empower you to share, and add them to the document. If you feel uncomfortable speaking about items on the template, we hope you can help the CEO identify why that is.
+4.  Once you have completed the document, please send the document to Mike via the communication pipeline you two have established. Turnaround time for these meetings will be communicated to you by Mike. The length of time for the meeting can scale, however, we do ask you to try to keep Mike’s schedule in mind and limit meetings to one hour or less. Never fear though, if you have items that weren’t fully completed in one of your meetings, just be sure to let Mike know that you have additional content to go over and would like to set up an additional meeting.
+
+
+
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛠️ Leadership">
