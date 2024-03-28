@@ -397,12 +397,6 @@ module "ses" {
   domain  = "dogfood.fleetdm.com"
 }
 
-module "waf" {
-  source = "github.com/fleetdm/fleet//terraform/addons/waf-alb?ref=tf-mod-addon-waf-alb-v1.0.0"
-  name   = local.customer
-  lb_arn = module.main.byo-vpc.byo-db.alb.lb_arn
-}
-
 # module "saml_auth_proxy" {
 #   # source                       = "github.com/fleetdm/fleet//terraform/addons/saml-auth-proxy?ref=main"
 #   # public_alb_security_group_id = module.main.byo-vpc.byo-db.alb.security_group_id
