@@ -633,17 +633,17 @@ WHERE
 
 func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 	if host == nil {
-		return nil, errors.New("cannot get bitlocker status for nil host")
+		return nil, ctxerr.New(ctx, "cannot get bitlocker status for nil host")
 	}
 
 	if host.Platform != "windows" {
 		// the caller should have already checked this
-		return nil, fmt.Errorf("cannot get bitlocker status for non-windows host %d", host.ID)
+		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status for non-windows host %d", host.ID)
 	}
 
 	if host.MDMInfo == nil {
 		// the caller should have already checked
-		return nil, fmt.Errorf("cannot get bitlocker status because no mdm info for host %d", host.ID)
+		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status because no mdm info for host %d", host.ID)
 	}
 
 	if host.MDMInfo.IsServer {
