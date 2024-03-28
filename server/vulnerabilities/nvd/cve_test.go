@@ -639,6 +639,17 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 			want:    "",
 			wantErr: false,
 		},
+		{
+			name: "Can compare 4th version part",
+			cve:  "CVE-2022-45889",
+			meta: &wfn.Attributes{
+				Vendor:  "planetestream",
+				Product: "planet_estream",
+				Version: "6.72.10.06",
+			},
+			want:    "6.72.10.07",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -649,7 +660,7 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 				return
 			}
 			if got != tt.want {
-				t.Errorf("getMatchingVersionEndExcluding() = %v, want %v", got, tt.want)
+				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -660,23 +671,24 @@ func TestPreprocessVersion(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"2.3.0.2", "2.3.0+2"},
-		{"2.3.0+2", "2.3.0+2"},
-		{"v2.3.0+2", "v2.3.0+2"},
-		{"2.3.0.2.5", "2.3.0+2.5"},
+		{"2.3.0.2", "2.3.0-2"},
+		{"2.3.0+2", "2.3.0-2"},
+		{"v5.3.0+2", "v5.3.0-2"},
+		{"5.3.0-2", "5.3.0-2"},
+		{"2.3.0.2.5", "2.3.0-2.5"},
 		{"2.3.0", "2.3.0"},
 		{"2.3", "2.3"},
 		{"v2.3.0", "v2.3.0"},
 		{"notAVersion", "notAVersion"},
-		{"2.0.0+svn315-7fakesync1ubuntu0.22.04.1", "2.0.0+svn315-7fakesync1ubuntu0.22.04.1"},
-		{"1.21.1ubuntu2", "1.21.1+ubuntu2"},
+		{"2.0.0-svn315-7fakesync1ubuntu0.22.04.1", "2.0.0-svn315-7fakesync1ubuntu0.22.04.1"},
+		{"1.21.1ubuntu2", "1.21.1-ubuntu2"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
 			output := preprocessVersion(tc.input)
 			if output != tc.expected {
-				t.Fatalf("expected: %s, got: %s", tc.expected, output)
+				t.Fatalf("input: %s, expected: %s, got: %s", tc.input, tc.expected, output)
 			}
 		})
 	}

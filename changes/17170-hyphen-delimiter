@@ -1,0 +1,1 @@
+- fixed issue where resolved_in_version was not returning if the version number differed by a 4th part

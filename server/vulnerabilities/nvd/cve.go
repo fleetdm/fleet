@@ -654,29 +654,36 @@ func buildConstraintString(startIncluding, startExcluding, endExcluding string) 
 }
 
 // Products using 4 part versioning scheme (ie. docker desktop)
-// need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0+3) for use with
+// need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0-3) for use with
 // the semver library.
 func preprocessVersion(version string) string {
-	// If "+" is already present, validate the part before "+" as a semver
-	if strings.Contains(version, "+") {
-		parts := strings.Split(version, "+")
+	// If "-" is already present, validate the part before "-" as a semver
+	if strings.Contains(version, "-") {
+		parts := strings.Split(version, "-")
 		if semverPattern.MatchString(parts[0]) {
 			return version
+		}
+	}
+
+	if strings.Contains(version, "+") {
+		part := strings.Split(version, "+")[0]
+		if semverPattern.MatchString(part) {
+			return strings.Replace(version, "+", "-", 1)
 		}
 	}
 
 	// If the version string contains more than 3 parts, convert it to 3 parts
 	parts := strings.Split(version, ".")
 	if len(parts) > 3 {
-		return parts[0] + "." + parts[1] + "." + parts[2] + "+" + strings.Join(parts[3:], ".")
+		return parts[0] + "." + parts[1] + "." + parts[2] + "-" + strings.Join(parts[3:], ".")
 	}
 
 	// If the version string ends with a non-numeric character (like '1.0.0b'), replace
-	// it with '+<char>' (like '1.0.0+b')
+	// it with '-<char>' (like '1.0.0-b')
 	if len(parts) == 3 {
 		matches := nonNumericPartRegex.FindStringSubmatch(parts[2])
 		if len(matches) > 2 {
-			parts[2] = matches[1] + "+" + matches[2]
+			parts[2] = matches[1] + "-" + matches[2]
 		}
 	}
 
