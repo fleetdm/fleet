@@ -792,7 +792,7 @@ type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]strin
 
 type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
 
-type MDMAppleSetDeclarationsAsVerifyingFunc func(ctx context.Context, hostUUID string) error
+type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -2060,8 +2060,8 @@ type DataStore struct {
 	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
 	MDMAppleStoreDDMStatusReportFuncInvoked bool
 
-	MDMAppleSetDeclarationsAsVerifyingFunc        MDMAppleSetDeclarationsAsVerifyingFunc
-	MDMAppleSetDeclarationsAsVerifyingFuncInvoked bool
+	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
+	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4931,11 +4931,11 @@ func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID s
 	return s.MDMAppleStoreDDMStatusReportFunc(ctx, hostUUID, updates)
 }
 
-func (s *DataStore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error {
+func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
 	s.mu.Lock()
-	s.MDMAppleSetDeclarationsAsVerifyingFuncInvoked = true
+	s.MDMAppleSetPendingDeclarationsAsFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMAppleSetDeclarationsAsVerifyingFunc(ctx, hostUUID)
+	return s.MDMAppleSetPendingDeclarationsAsFunc(ctx, hostUUID, status, detail)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
