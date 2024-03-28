@@ -184,20 +184,18 @@ This phase addresses the initial actions taken to detect and assess the damage i
 
 The notification sequence is listed below:
 
-* The first responder is to notify the CTO. All known information must be relayed.
-* The CTO is to contact the Response Teams and inform them of the event. The CTO or delegate is responsible to beginning the assessment procedures.
-* The CTO is to notify team members and direct them to complete the assessment procedures outlined below to determine the extent of the issue and estimated recovery time. 
-* The Fleet Contingency Plan is to be activated if one or more of the following criteria are met:
-
-    * Fleet automatic update service will be unavailable for more than 48 hours.
-    * Cloud infrastructure service is damaged and will be unavailable for more than 24 hours.
-    * Other criteria, as appropriate and as defined by Fleet.
-
-* If the plan is to be activated, the CTO is to notify and inform team members of the event details.
-* Upon notification from the CTO, group leaders and managers must notify their respective teams. Team members are to be informed of all applicable information and prepared to respond and relocate if necessary.
-* The CTO is to notify the remaining personnel and executive leadership on the general status of the incident.
-* Notification can be via Slack, email, or phone.
-* The CTO posts a blog post explaining that the service is down and recovery is in progress.
+1. The first responder is to notify the CTO. All known information must be relayed.
+2. The CTO is to contact the Response Teams and inform them of the event. The CTO or delegate is responsible to beginning the assessment procedures.
+3. The CTO is to notify team members and direct them to complete the assessment procedures outlined below to determine the extent of the issue and estimated recovery time. 
+4. The Fleet Contingency Plan is to be activated if one or more of the following criteria are met:
+    - Fleet automatic update service will be unavailable for more than 48 hours.
+    - Cloud infrastructure service is damaged and will be unavailable for more than 24 hours.
+    - Other criteria, as appropriate and as defined by Fleet.
+5. If the plan is to be activated, the CTO is to notify and inform team members of the event details.
+6. Upon notification from the CTO, group leaders and managers must notify their respective teams. Team members are to be informed of all applicable information and prepared to respond and relocate if necessary.
+7. The CTO is to notify the remaining personnel and executive leadership on the general status of the incident.
+8. Notification can be via Slack, email, or phone.
+9. The CTO posts a blog post explaining that the service is down and recovery is in progress.
 
 #### Reconstitution Phase
 
@@ -228,24 +226,13 @@ Additionally, this policy outlines requirements and procedures to create and mai
 Data backup is an important part of the day-to-day operations of Fleet. To protect the confidentiality, integrity, and availability of sensitive and critical data, both for Fleet and Fleet Customers, complete backups are done daily to assure that data remains available when needed and in case of a disaster.
 
 Fleet policy requires that:
-
-1. Data should be classified at the time of creation or acquisition.
-
-2. Fleet must maintain an up-to-date inventory and data flows mapping of all critical data.
-
-3. All business data should be stored or replicated to a company-controlled repository.
-
-4. Data must be backed up according to the level defined in Fleet data classification.
-
-5. Data backup must be validated for integrity.
-
-6. The data retention period must be defined and comply with any and all applicable regulatory and contractual requirements.  More specifically,
-
-  * Data and records belonging to Fleet platform customers must be retained
-    per Fleet product terms and conditions and/or specific contractual
-    agreements.
-
-7. By default, all security documentation and audit trails are kept for a minimum of seven years unless otherwise specified by Fleet data classification, specific regulations, or contractual agreement.
+- Data should be classified at the time of creation or acquisition.
+- Fleet must maintain an up-to-date inventory and data flows mapping of all critical data.
+- All business data should be stored or replicated to a company-controlled repository.
+- Data must be backed up according to the level defined in Fleet data classification.
+- Data backup must be validated for integrity.
+- The data retention period must be defined and comply with any and all applicable regulatory and contractual requirements.  More specifically, **data and records belonging to Fleet platform customers must be retained per Fleet product terms and conditions and/or specific contractual agreements.**
+- By default, all security documentation and audit trails are kept for a minimum of seven years unless otherwise specified by Fleet data classification, specific regulations, or contractual agreement.
 
 ### Data Classification Model
 
@@ -345,17 +332,12 @@ This process is followed when offboarding a customer and deleting all of the pro
 
 Fleet requires all workforce members to comply with the encryption policy, such that:
 
-1. The storage drives of all Fleet-owned workstations must be encrypted and enforced by the IT and/or security team.
-
-2. Confidential data must be stored in a manner that supports user access logs.
-
-3. All Production Data at rest is stored on encrypted volumes.
-
-4. Volume encryption keys and machines that generate volume encryption keys are protected from unauthorized access. Volume encryption key material is protected with access controls such that the key material is only accessible by privileged accounts.
-
-5. Encrypted volumes use strong cipher algorithms, key strength, and key management process as defined below.
-
-6. Data is protected in transit using recent TLS versions with ciphers recognized as secure.
+- The storage drives of all Fleet-owned workstations must be encrypted and enforced by the IT and/or security team.
+- Confidential data must be stored in a manner that supports user access logs.
+- All Production Data at rest is stored on encrypted volumes.
+- Volume encryption keys and machines that generate volume encryption keys are protected from unauthorized access. Volume encryption key material is protected with access controls such that the key material is only accessible by privileged accounts.
+- Encrypted volumes use strong cipher algorithms, key strength, and key management process as defined below.
+- Data is protected in transit using recent TLS versions with ciphers recognized as secure.
 
 ### Local disk/volume encryption
 
@@ -363,13 +345,11 @@ Encryption and key management for local disk encryption of end-user devices foll
 
 ### Protecting data in transit
 
-1. All external data transmission is encrypted end-to-end. This includes, but is not limited to, cloud infrastructure and third-party vendors and applications.
-
-2. Transmission encryption keys and systems that generate keys are protected from unauthorized access. Transmission encryption key materials are protected with access controls and may only be accessed by privileged accounts.
-
-3. TLS endpoints must score at least an "A" on SSLLabs.com.
-
-4. Transmission encryption keys are limited to use for one year and then must be regenerated.
+- All external data transmission is encrypted end-to-end. This includes, but is not limited to, cloud infrastructure and third-party vendors and applications.
+- Transmission encryption keys and systems that generate keys are protected from unauthorized access.
+- Transmission encryption key materials are protected with access controls and may only be accessed by privileged accounts.
+- TLS endpoints must score at least an "A" on SSLLabs.com.
+- Transmission encryption keys are limited to use for one year and then must be regenerated.
 
 ### Authorized Sub-Processors for Fleet Cloud services
 
@@ -391,95 +371,70 @@ Fleet policy requires all workforce members to comply with the HR Security Polic
 
 Fleet policy requires that:
 
-1. Background verification checks on candidates for employees and contractors with production access to the Fleet infrastructure resources must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
-
-2. Employees, contractors, and third-party users must agree to and sign the terms and conditions of their employment contract and comply with acceptable use.
-
-3. Employees will perform an onboarding process that familiarizes them with the environments, systems, security requirements, and procedures that Fleet already has in place. Employees will also have ongoing security awareness training that is audited.
-
-4. Employee offboarding will include reiterating any duties and responsibilities still valid after terminations, verifying that access to any Fleet systems has been removed, and ensuring that all company-owned assets are returned.
-
-5. Fleet and its employees will take reasonable measures to make sure no sensitive data is transmitted via digital communications such as email or posted on social media outlets.
-
-6. Fleet will maintain a list of prohibited activities that will be part of onboarding procedures and have training available if/when the list of those activities changes.
-
-7. A fair disciplinary process will be used for employees suspected of committing security breaches. Fleet will consider multiple factors when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of severe cases of misconduct.
-
-8. Fleet will maintain a reporting structure that aligns with the organization's business lines and/or individual's functional roles. The list of employees and reporting structure must be available to [all employees](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
-
-9. Employees will receive regular feedback and acknowledgment from their managers and peers. Managers will give constant feedback on performance, including but not limited to during regular one-on-one meetings.
-
-10. Fleet will publish job descriptions for available positions and conduct interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
-
-11. Background checks of an employee or contractor must be performed by operations and/or the hiring team before we grant the new employee or contractor access to the Fleet production environment.
-
-12. A list of employees and contractors will be maintained, including their titles and managers, and made available to everyone internally.
-
-13. An [anonymous](https://docs.google.com/forms/d/e/1FAIpQLSdv2abLfCUUSxFCrSwh4Ou5yF80c4V2K_POoYbHt3EU1IY-sQ/viewform?vc=0&c=0&w=1&flr=0&fbzx=4276110450338060288) form to report unethical behavior will be provided to employees.
+- Background verification checks on candidates for employees and contractors with production access to the Fleet infrastructure resources must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
+- Employees, contractors, and third-party users must agree to and sign the terms and conditions of their employment contract and comply with acceptable use.
+- Employees will perform an onboarding process that familiarizes them with the environments, systems, security requirements, and procedures that Fleet already has in place. Employees will also have ongoing security awareness training that is audited.
+- Employee offboarding will include reiterating any duties and responsibilities still valid after terminations, verifying that access to any Fleet systems has been removed, and ensuring that all company-owned assets are returned.
+- Fleet and its employees will take reasonable measures to make sure no sensitive data is transmitted via digital communications such as email or posted on social media outlets.
+- Fleet will maintain a list of prohibited activities that will be part of onboarding procedures and have training available if/when the list of those activities changes.
+- A fair disciplinary process will be used for employees suspected of committing security breaches. Fleet will consider multiple factors when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of severe cases of misconduct.
+- Fleet will maintain a reporting structure that aligns with the organization's business lines and/or individual's functional roles. The list of employees and reporting structure must be available to [all employees](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
+- Employees will receive regular feedback and acknowledgment from their managers and peers. Managers will give constant feedback on performance, including but not limited to during regular one-on-one meetings.
+- Fleet will publish job descriptions for available positions and conduct interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
+- Background checks of an employee or contractor must be performed by operations and/or the hiring team before we grant the new employee or contractor access to the Fleet production environment.
+- A list of employees and contractors will be maintained, including their titles and managers, and made available to everyone internally.
+- An [anonymous](https://docs.google.com/forms/d/e/1FAIpQLSdv2abLfCUUSxFCrSwh4Ou5yF80c4V2K_POoYbHt3EU1IY-sQ/viewform?vc=0&c=0&w=1&flr=0&fbzx=4276110450338060288) form to report unethical behavior will be provided to employees.
 
 ## Incident response policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/). Based on the SANS incident response process._
 
 Fleet policy requires that:
 
-1. All computing environments and systems must be monitored in accordance with Fleet policies and procedures specified in the Fleet handbook.
-2. Alerts must be reviewed to identify security incidents.
-3. Incident response procedures are invoked upon discovery of a valid security incident.
-4. Incident response team and management must comply with any additional requests by law enforcement in the event of a criminal investigation or national security, including but not limited to warranted data requests, subpoenas, and breach notifications.
+- All computing environments and systems must be monitored in accordance with Fleet policies and procedures specified in the Fleet handbook.
+- Alerts must be reviewed to identify security incidents.
+- Incident response procedures are invoked upon discovery of a valid security incident.
+- Incident response team and management must comply with any additional requests by law enforcement in the event of a criminal investigation or national security, including but not limited to warranted data requests, subpoenas, and breach notifications.
 
 ### Incident response plan
 #### Security Incident Response Team (SIRT)
 
 The Security Incident Response Team (SIRT) is responsible for
 
-* Reviewing analyzing, and logging all received reports and tracking their statuses.
-* Performing investigations, creating and executing action plans, and post-incident activities.
-* Collaboration with law enforcement agencies.
+- Reviewing analyzing, and logging all received reports and tracking their statuses.
+- Performing investigations, creating and executing action plans, and post-incident activities.
+- Collaboration with law enforcement agencies.
 
 Current members of the Fleet SIRT:
-
-* CTO
-* CEO
-* VP of Customer Success
+- CTO
+- CEO
+- VP of Customer Success
 
 #### Incident Management Process
 Fleet's incident response classifies security-related events into the following categories:
+- **Events** - Any observable computer security-related occurrence in a system or network with a negative consequence. Examples:
+  - Hardware component failing, causing service outages.
+  - Software error causing service outages.
+  - General network or system instability.
 
-* **Events** - Any observable computer security-related occurrence in a system
-  or network with a negative consequence. Examples:
+- **Precursors** - A sign that an incident may occur in the future. Examples:
+  - Monitoring system showing unusual behavior.
+  - Audit log alerts indicated several failed login attempts.
+  - Suspicious emails that target specific Fleet staff members with administrative access to production systems.
+  - Alerts raised from a security control source based on its monitoring policy, such as:
+    - Google Workspace (user authentication activities)
+    - Fleet (internal instance)
+    - Syslog events from servers
 
-    * Hardware component failing, causing service outages.
-    * Software error causing service outages.
-    * General network or system instability.
+- **Indications** - A sign that an incident may have occurred or may be occurring at the present time. Examples:
+  - Alerts for modified system files or unusual system accesses.
+  - Antivirus alerts for infected files or devices.
+  - Excessive network traffic directed at unexpected geographic locations.
 
-* **Precursors** - A sign that an incident may occur in the future. Examples:
-
-    * Monitoring system showing unusual behavior.
-    * Audit log alerts indicated several failed login attempts.
-    * Suspicious emails that target specific Fleet staff members with
-      administrative access to production systems.
-    * Alerts raised from a security control source based on its monitoring
-      policy, such as
-
-        - Google Workspace (user authentication activities)
-        - Fleet (internal instance)
-        - Syslog events from servers
-
-* **Indications** - A sign that an incident may have occurred or may be
-  occurring at the present time. Examples:
-
-    * Alerts for modified system files or unusual system accesses.
-    * Antivirus alerts for infected files or devices.
-    * Excessive network traffic directed at unexpected geographic locations.
-
-* **Incidents** - A confirmed attack/indicator of compromise or a validated
-  violation of computer security policies or acceptable use policies, often
-  resulting in data breaches. Examples:
-
-    * Unauthorized disclosure of sensitive data
-    * Unauthorized change or destruction of sensitive data
-    * A data breach accomplished by an internal or external entity
-    * A Denial-of-Service (DoS) attack causing a critical service to become
+- **Incidents** - A confirmed attack/indicator of compromise or a validated violation of computer security policies or acceptable use policies, often resulting in data breaches. Examples:
+  - Unauthorized disclosure of sensitive data
+  - Unauthorized change or destruction of sensitive data
+  - A data breach accomplished by an internal or external entity
+  - A Denial-of-Service (DoS) attack causing a critical service to become
       unreachable
 
 Fleet employees must report any unauthorized or suspicious activity seen on
