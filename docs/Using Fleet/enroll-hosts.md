@@ -123,7 +123,7 @@ How to unenroll a host from Fleet:
 
 ## Advanced
 
-
+- [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd installer](#signing-fleetd-installer)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
 - [Using mTLS](#using-mtls)
@@ -133,6 +133,25 @@ How to unenroll a host from Fleet:
 - [Using system keystore for enroll secret](#using-system-keystore-for-enroll-secret)
 - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
 - [Experimental features](#experimental-features)
+
+### fleetd components
+
+```mermaid
+graph LR;
+    tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
+    fleet_server[Fleet<br>Server];
+    subgraph fleetd
+        orbit[orbit];
+        desktop[Fleet Desktop<br>Tray App];
+        osqueryd[osqueryd];
+        desktop_browser[Fleet Desktop<br> from Browser];
+    end
+    orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
+    desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
+    osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
+    desktop_browser -- "My Device API (TLS)" --> fleet_server;
+    orbit -- "Auto Update (TLS)" --> tuf;
+```
 
 ### Signing fleetd installers
 
