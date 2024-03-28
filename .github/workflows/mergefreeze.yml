@@ -1,0 +1,66 @@
+name: Mergefreeze
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Unfreeze if all modified files are OK to merge.
+        id: modified-files
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          ALLOWED_PATHS=("docs/**/*.md" "handbook/**/*.md" "mdm_profiles/** website/**")
+          CHANGED_FILES=$(gh pr view $PR_NUMBER --repo fleetdm/fleet --json files --jq '.files[].path')
+
+          OLD_IFS="$IFS"
+          IFS=$'\n'
+
+          for FILE in $CHANGED_FILES; do
+            for PATTERN in "${ALLOWED_PATHS[@]}"; do
+            echo $FILE, $PATTERN
+                if [[ $FILE == $PATTERN ]]; then
+                  break
+                else
+                  echo "file $FILE is not in the allowed paths, PR can't be automatically unfrozen."
+                  echo "files_with_frozen_changes=true" >> "$GITHUB_OUTPUT"
+                  exit 0
+                fi
+            done
+          done
+
+          IFS="$OLD_IFS"
+          echo "all changed files are in the allowed paths. Automatically unfreezing."
+
+      - name: Unfreeze if the PR has the unfrozen tag
+        if: ${{ steps.modified-files.outputs.files_with_frozen_changes }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REQUIRED_TAG="~timebox"
+      
+          LABELS=$(gh pr view $PR_NUMBER --repo fleetdm/fleet --json labels --jq '.labels[].name')
+      
+          for LABEL in $LABELS; do
+            if [ "$LABEL" == "$REQUIRED_TAG" ]; then
+              exit 0
+            fi
+          done
+      
+          echo "☃️❄️ merge freeze is on! to unfreeze your PR tag, add the '$REQUIRED_TAG' tag."
+          exit 1
+    
