@@ -714,3 +714,66 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, results)
 }
+
+func TestComparePlatforms(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		p1       string
+		p2       string
+		expected bool
+	}{
+		{
+			name:     "equal single value",
+			p1:       "linux",
+			p2:       "linux",
+			expected: true,
+		},
+		{
+			name:     "different single value",
+			p1:       "macos",
+			p2:       "linux",
+			expected: false,
+		},
+		{
+			name:     "equal multiple values",
+			p1:       "linux,windows",
+			p2:       "linux,windows",
+			expected: true,
+		},
+		{
+			name:     "equal multiple values out of order",
+			p1:       "linux,windows",
+			p2:       "windows,linux",
+			expected: true,
+		},
+		{
+			name:     "different multiple values",
+			p1:       "linux,windows",
+			p2:       "linux,windows,darwin",
+			expected: false,
+		},
+		{
+			name:     "no values set",
+			p1:       "",
+			p2:       "",
+			expected: true,
+		},
+		{
+			name:     "no values set",
+			p1:       "",
+			p2:       "linux",
+			expected: false,
+		},
+		{
+			name:     "single and multiple values",
+			p1:       "linux",
+			p2:       "windows,linux",
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := comparePlatforms(tc.p1, tc.p2)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}

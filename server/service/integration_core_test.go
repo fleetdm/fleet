@@ -10017,10 +10017,146 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 2)
 
-	// now cause deletions and verify that results are deleted
+	// now update the query and verify that results are deleted
 	updatedQuery := "SELECT * FROM some_new_table;"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{Query: &updatedQuery}}, http.StatusOK, &modifyQueryResp)
 	require.Equal(t, updatedQuery, modifyQueryResp.Query.Query)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the platform and verify that results are deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			Platform: ptr.String("linux"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "linux", modifyQueryResp.Query.Platform)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the platform to the same value and verify that results are not deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			Platform: ptr.String("linux"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "linux", modifyQueryResp.Query.Platform)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the min_osquery_version and verify that results are deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			MinOsqueryVersion: ptr.String("5.9.1"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "5.9.1", modifyQueryResp.Query.MinOsqueryVersion)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the min_osquery_version to another value and verify that results are deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			MinOsqueryVersion: ptr.String("5.11.0"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "5.11.0", modifyQueryResp.Query.MinOsqueryVersion)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the min_osquery_version to the same value and verify that results are not deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			MinOsqueryVersion: ptr.String("5.11.0"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "5.11.0", modifyQueryResp.Query.MinOsqueryVersion)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the query via specs and change the min_osquery_version, results should be deleted.
+	osqueryInfoQuerySpec := &fleet.QuerySpec{
+		Name:               osqueryInfoQuery.Name,
+		Description:        osqueryInfoQuery.Description,
+		Query:              osqueryInfoQuery.Query,
+		Interval:           osqueryInfoQuery.Interval,
+		ObserverCanRun:     osqueryInfoQuery.ObserverCanRun,
+		Platform:           osqueryInfoQuery.Platform,
+		MinOsqueryVersion:  osqueryInfoQuery.MinOsqueryVersion,
+		AutomationsEnabled: osqueryInfoQuery.AutomationsEnabled,
+		Logging:            osqueryInfoQuery.Logging,
+		DiscardData:        osqueryInfoQuery.DiscardData,
+	}
+	osqueryInfoQuerySpec.MinOsqueryVersion = "5.12.0"
+	var applyResp applyQuerySpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{osqueryInfoQuerySpec},
+	}, http.StatusOK, &applyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// don't change platform or min_osquery_version and results should not be deleted
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{osqueryInfoQuerySpec},
+	}, http.StatusOK, &applyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the platform and results should be deleted.
+	osqueryInfoQuerySpec.Platform = "darwin"
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{osqueryInfoQuerySpec},
+	}, http.StatusOK, &applyResp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 
