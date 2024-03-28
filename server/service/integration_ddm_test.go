@@ -502,8 +502,10 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	t := s.T()
 	ctx := context.Background()
 
-	addDeclaration := func(identifier string, teamID uint) string {
-		fields := map[string][]string{}
+	addDeclaration := func(identifier string, teamID uint, labelNames []string) string {
+		fields := map[string][]string{
+			"labels": labelNames,
+		}
 		if teamID > 0 {
 			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
@@ -599,8 +601,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkNoCommands(device)
 
 	// add global declarations
-	d1UUID := addDeclaration("I1", 0)
-	addDeclaration("I2", 0)
+	d1UUID := addDeclaration("I1", 0, nil)
+	addDeclaration("I2", 0, nil)
 
 	// reconcile again, this time new declarations were added
 	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
@@ -655,8 +657,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkNoCommands(deviceTwo)
 
 	// add declarations to the team
-	addDeclaration("I1", team.ID)
-	addDeclaration("I2", team.ID)
+	addDeclaration("I1", team.ID, nil)
+	addDeclaration("I2", team.ID, nil)
 
 	// reconcile
 	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
@@ -685,9 +687,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkNoCommands(deviceTwo)
 	checkNoCommands(deviceThree)
 
-	// TODO: use proper APIs for this
-	// add a new label + label declaration
-	addDeclaration("I3", team.ID)
 	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "select 1;"})
 	require.NoError(t, err)
 	// update label with host membership
@@ -703,22 +702,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		},
 	)
 
-	// update declaration <-> label mapping
-	mysql.ExecAdhocSQL(
-		t, s.ds, func(db sqlx.ExtContext) error {
-			_, err := db.ExecContext(
-				context.Background(),
-				`INSERT INTO
-				  mdm_declaration_labels (apple_declaration_uuid, label_name, label_id)
-				  VALUES ((SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? and identifier = ?), ?, ?)`,
-				team.ID,
-				"I3",
-				label.Name,
-				label.ID,
-			)
-			return err
-		},
-	)
+	// add a new label + label declaration
+	addDeclaration("I3", team.ID, []string{label.Name})
 
 	// reconcile
 	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
