@@ -1,0 +1,28 @@
+meta {
+  name: Create a user account without an invitation
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/users/admin
+  body: json
+}
+
+body:json {
+  {
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "password": "test-123",
+    "teams": [
+      {
+        "id": 2,
+        "role": "observer"
+      },
+      {
+        "id": 3,
+        "role": "maintainer"
+      }
+    ]
+  }
+}

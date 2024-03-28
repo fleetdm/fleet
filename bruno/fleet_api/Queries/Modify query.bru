@@ -1,0 +1,19 @@
+meta {
+  name: Modify query
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{host}}/api/{{api_version}}/fleet/queries/:id
+  body: json
+}
+
+body:json {
+  {
+    "name": "new_title_for_my_query"
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

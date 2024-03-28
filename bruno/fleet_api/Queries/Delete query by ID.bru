@@ -1,0 +1,13 @@
+meta {
+  name: Delete query by ID
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{host}}/api/{{api_version}}/fleet/queries/:id
+  body: none
+}
+headers {
+  Authorization: Bearer {{token}}
+}

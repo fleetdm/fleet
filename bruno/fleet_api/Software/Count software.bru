@@ -1,0 +1,20 @@
+meta {
+  name: Count software
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/software/count
+  body: none
+}
+
+query {
+  ~page: 1
+  ~per_page: 20
+  ~order_key: hosts_count
+  ~order_direction: asc
+  ~query: version
+  ~team_id: 3
+  ~vulnerable: true
+}

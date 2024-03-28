@@ -1,0 +1,10 @@
+meta {
+  name: Delete user
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{host}}/api/{{api_version}}/fleet/users/:id
+  body: none
+}

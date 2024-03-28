@@ -1,0 +1,17 @@
+meta {
+  name: List activities
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/activities
+  body: none
+}
+
+query {
+  ~page: 1
+  ~per_page: 20
+  ~order_key: 
+  ~order_direction: asc
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Remove team policies
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/teams/:id/policies/delete
+  body: json
+}
+
+body:json {
+  {
+    "ids": [ 1 ]
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

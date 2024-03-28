@@ -1,0 +1,23 @@
+meta {
+  name: Add policy
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/global/policies
+  body: json
+}
+
+body:json {
+  {
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "resolution": "Resolution steps",
+    "platform": "darwin"
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

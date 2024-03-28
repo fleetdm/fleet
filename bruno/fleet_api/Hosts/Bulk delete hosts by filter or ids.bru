@@ -1,0 +1,22 @@
+meta {
+  name: Bulk delete hosts by filter or ids
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/delete
+  body: json
+}
+
+body:json {
+  {
+      "ids": [
+          567,
+          789
+      ]
+  }
+}
+headers {
+  Authorization: Bearer {{token}}
+}

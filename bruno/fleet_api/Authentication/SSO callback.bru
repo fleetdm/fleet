@@ -1,0 +1,16 @@
+meta {
+  name: SSO callback
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/sso/callback
+  body: json
+}
+
+body:json {
+  {
+    "SAMLResponse": "<SAML response from IdP>"
+  }
+}

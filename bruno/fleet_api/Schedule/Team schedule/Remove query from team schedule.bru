@@ -1,0 +1,10 @@
+meta {
+  name: Remove query from team schedule
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{host}}/api/{{api_version}}/fleet/teams/:team_id/schedule/:scheduled_query
+  body: none
+}

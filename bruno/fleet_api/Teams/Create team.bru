@@ -1,0 +1,16 @@
+meta {
+  name: Create team
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/teams
+  body: json
+}
+
+body:json {
+  {
+    "name": "workstations"
+  }
+}

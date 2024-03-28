@@ -1,0 +1,10 @@
+meta {
+  name: Get session info
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/sessions/:id
+  body: none
+}

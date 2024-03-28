@@ -1,0 +1,18 @@
+meta {
+  name: List teams
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/teams
+  body: none
+}
+
+query {
+  ~page: 1
+  ~per_page: 20
+  ~order_key: 
+  ~order_direction: desc
+  ~query: name
+}

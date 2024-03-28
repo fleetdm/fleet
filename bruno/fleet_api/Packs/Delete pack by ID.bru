@@ -1,0 +1,10 @@
+meta {
+  name: Delete pack by ID
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{host}}/api/{{api_version}}/fleet/packs/:id
+  body: none
+}

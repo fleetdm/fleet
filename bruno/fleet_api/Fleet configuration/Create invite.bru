@@ -1,0 +1,29 @@
+meta {
+  name: Create invite
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/invites
+  body: json
+}
+
+body:json {
+  {
+    "email": "john_appleseed@example.com",
+    "name": "John",
+    "sso_enabled": false,
+    "global_role": null,
+    "teams": [
+      {
+        "id": 2,
+        "role": "observer"
+      },
+      {
+        "id": 3,
+        "role": "maintainer"
+      }
+    ]
+  }
+}

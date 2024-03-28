@@ -1,0 +1,41 @@
+meta {
+  name: Translate IDs
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/translate
+  body: json
+}
+
+body:json {
+  {
+    "list": [
+      {
+        "type": "user",
+        "payload": {
+          "identifier": "some@email.com"
+        }
+      },
+      {
+        "type": "label",
+        "payload": {
+          "identifier": "labelA"
+        }
+      },
+      {
+        "type": "team",
+        "payload": {
+          "identifier": "team1"
+        }
+      },
+      {
+        "type": "host",
+        "payload": {
+          "identifier": "host-ABC"
+        }
+      }
+    ]
+  }
+}

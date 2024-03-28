@@ -1,0 +1,21 @@
+meta {
+  name: Search targets
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host}}/api/{{api_version}}/fleet/targets
+  body: json
+}
+
+body:json {
+  {
+    "query": "172",
+    "selected": {
+      "hosts": [],
+      "labels": [7]
+    },
+    "include_observer": true
+  }
+}

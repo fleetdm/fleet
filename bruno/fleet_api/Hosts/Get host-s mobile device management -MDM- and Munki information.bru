@@ -1,0 +1,18 @@
+meta {
+  name: Get host-s mobile device management -MDM- and Munki information
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{host}}/api/{{api_version}}/fleet/hosts/{{host_id}}/macadmins
+  body: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: 200
+}
