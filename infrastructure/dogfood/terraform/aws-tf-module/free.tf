@@ -122,12 +122,6 @@ module "ses-free" {
   domain  = "free.fleetdm.com"
 }
 
-module "waf-free" {
-  source = "github.com/fleetdm/fleet//terraform/addons/waf-alb?ref=tf-mod-addon-waf-alb-v1.0.0"
-  name   = local.customer_free
-  lb_arn = module.free.byo-db.alb.lb_arn
-}
-
 module "migrations_free" {
   depends_on = [
     module.geolite2
