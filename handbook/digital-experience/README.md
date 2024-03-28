@@ -43,7 +43,8 @@ To update the host count on a user's subscription:
 3. Update the quantity of the user's subscription to be their desired host count.
 4. Turn the "Proration charges" option on and select the "Charge proration amount immediately" option.
 5. Under "Payment" select "Email invoice to the customer", and set the payment due date to be 15 days, and make sure the "Invoice payment page" option is checked.
-6. Select "Update subscription" to complete this process. Once the customer pays their new invoice, the Fleet website will update the user's subscription and generate a new Fleet Premium license with an updated host count.
+6. Select "Update subscription" to send the user an updated invoice for their subscription. Once the customer pays their new invoice, the Fleet website will update the user's subscription and generate a new Fleet Premium license with an updated host count.
+7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
 ### Test fleetdm.com locally 
 When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
