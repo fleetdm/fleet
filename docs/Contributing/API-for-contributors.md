@@ -1654,7 +1654,7 @@ for which the user has an observer role.
 
 | Name              | Type    | In   | Description                                                                                                                                     |
 | ----------------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| query             | string  | body | The query used to identify hosts to target. Searchable items include a host's hostname or IPv4 address.                                         |
+| query             | string  | body | The query used to identify hosts to target. Searchable items include a `display_name`, `hostname`, `hardware_serial`, `uuid` or `primary_ip`. |
 | query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included. |
 | excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                                                           |
 
