@@ -101,6 +101,7 @@ func GenerateRandomPin(length int) string {
 	return fmt.Sprintf(f, v)
 }
 
+// FmtErrorChain formats Command error message for macOS MDM v1
 func FmtErrorChain(chain []mdm.ErrorChain) string {
 	var sb strings.Builder
 	for _, mdmErr := range chain {
@@ -111,6 +112,15 @@ func FmtErrorChain(chain []mdm.ErrorChain) string {
 		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
 	}
 	return sb.String()
+}
+
+// FmtDDMError formats a DDM error message
+func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
+	var errMsg strings.Builder
+	for _, r := range reasons {
+		errMsg.WriteString(fmt.Sprintf("%s: %s %+v\n", r.Code, r.Description, r.Details))
+	}
+	return errMsg.String()
 }
 
 func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {

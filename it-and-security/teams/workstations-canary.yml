@@ -9,7 +9,31 @@ team_settings:
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET
 agent_options:
-  path: ../lib/agent-options.yml
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  overrides:
+      platforms:
+        darwin:
+          auto_table_construction:
+            tcc:
+              path: /Library/Application Support/com.apple.TCC/TCC.db
+              query: 'select service, client, auth_value, auth_reason from access'
+              columns:
+                - service
+                - client
+                - auth_value
+                - auth_reason
 controls:
   enable_disk_encryption: true
   macos_settings:
