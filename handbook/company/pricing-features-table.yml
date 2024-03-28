@@ -641,7 +641,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Self-service portal for users to install apps
-  description: Add optional apps for your end users through Fleet Desktop.
+  description: Add optional apps for your end users through Fleet Desktop (for macOS, Windows, and Linux).
   tier: Premium
   comingSoonOn: 2024-06-31
   usualDepartment: IT
