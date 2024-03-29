@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -323,7 +324,6 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 		teamID = ptr.Uint(0)
 	}
 
-	// TODO: add deletion of declarations here or separate method?
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`, teamID, profileIdentifier)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -3970,7 +3970,7 @@ func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostU
 	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
 }
 
-func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType, rawJSON string) error {
+func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType string, rawJSON json.RawMessage) error {
 	const stmt = `
 INSERT INTO
     mdm_apple_declarative_requests (
