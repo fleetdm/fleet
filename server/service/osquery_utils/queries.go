@@ -753,7 +753,6 @@ var softwareMacOS = DetailQuery{
 SELECT
   name AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
-  'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -766,7 +765,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -779,7 +777,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
   identifier AS extension_id,
   browser_type AS browser,
@@ -792,7 +789,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
   identifier AS extension_id,
   'firefox' AS browser,
@@ -805,7 +801,6 @@ UNION
 SELECT
   name As name,
   version AS version,
-  'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -818,7 +813,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -841,7 +835,6 @@ var softwareVSCodeExtensions = DetailQuery{
 SELECT
   name,
   version,
-  'IDE extension (VS Code)' AS type,
   '' AS bundle_identifier,
   uuid AS extension_id,
   '' AS browser,
@@ -869,7 +862,6 @@ var softwareLinux = DetailQuery{
 SELECT
   name AS name,
   version AS version,
-  'Package (deb)' AS type,
   '' AS extension_id,
   '' AS browser,
   'deb_packages' AS source,
@@ -883,7 +875,6 @@ UNION
 SELECT
   package AS name,
   version AS version,
-  'Package (Portage)' AS type,
   '' AS extension_id,
   '' AS browser,
   'portage_packages' AS source,
@@ -896,7 +887,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (RPM)' AS type,
   '' AS extension_id,
   '' AS browser,
   'rpm_packages' AS source,
@@ -909,7 +899,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (NPM)' AS type,
   '' AS extension_id,
   '' AS browser,
   'npm_packages' AS source,
@@ -922,7 +911,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -935,7 +923,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
@@ -948,7 +935,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
@@ -967,7 +953,6 @@ var softwareWindows = DetailQuery{
 SELECT
   name AS name,
   version AS version,
-  'Program (Windows)' AS type,
   '' AS extension_id,
   '' AS browser,
   'programs' AS source,
@@ -978,7 +963,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
@@ -989,7 +973,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (IE)' AS type,
   '' AS extension_id,
   '' AS browser,
   'ie_extensions' AS source,
@@ -1000,7 +983,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -1011,7 +993,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
@@ -1022,7 +1003,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Chocolatey)' AS type,
   '' AS extension_id,
   '' AS browser,
   'chocolatey_packages' AS source,
@@ -1040,7 +1020,6 @@ var softwareChrome = DetailQuery{
   version AS version,
   identifier AS extension_id,
   browser_type AS browser,
-  'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
