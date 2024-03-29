@@ -3342,7 +3342,7 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 	case "configuration":
 		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID)
 	default:
-		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.Errorf(ctx, "declaration type not supported: %s", parts[1]))
+		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, ctxerr.Errorf(ctx, "declaration type not supported: %s", parts[1]))
 	}
 }
 

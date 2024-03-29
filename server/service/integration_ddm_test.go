@@ -450,16 +450,14 @@ INSERT INTO host_mdm_apple_declarations (
 
 		// try getting a non-existent declaration, should fail 404
 		nonExistantDeclarationPath := fmt.Sprintf("declaration/%s/%s", "configuration", "nonexistent")
-		res, err := mdmDevice.DeclarativeManagement(nonExistantDeclarationPath)
+		_, err = mdmDevice.DeclarativeManagement(nonExistantDeclarationPath)
 		require.Error(t, err)
-		require.Equal(t, http.StatusNotFound, res.StatusCode)
 		require.ErrorContains(t, err, "404 Not Found")
 
 		// try getting an unsupported declaration, should fail 404
 		unsupportedDeclarationPath := fmt.Sprintf("declaration/%s/%s", "asset", "nonexistent")
-		res, err = mdmDevice.DeclarativeManagement(unsupportedDeclarationPath)
+		_, err = mdmDevice.DeclarativeManagement(unsupportedDeclarationPath)
 		require.Error(t, err)
-		require.Equal(t, http.StatusNotFound, res.StatusCode)
 		require.ErrorContains(t, err, "404 Not Found")
 
 		// typo should fail as bad request
