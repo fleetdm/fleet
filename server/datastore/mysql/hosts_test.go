@@ -6558,6 +6558,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid)
+          VALUES (?, uuid())
+	`, host.UUID)
+	require.NoError(t, err)
+
 	err = ds.NewActivity( // automatically creates the host_activities entry
 		context.Background(),
 		user1,

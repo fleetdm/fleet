@@ -346,30 +346,9 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 	}
 
-	checkRequestsDatabase := func(t *testing.T, messageType, enrollmentID string, expectedCount int) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			var count int
-			if err := sqlx.GetContext(
-				context.Background(),
-				q,
-				&count,
-				"SELECT count(*) AS count FROM mdm_apple_declarative_requests WHERE enrollment_id = ? AND message_type = ?",
-				enrollmentID,
-				messageType,
-			); err != nil {
-				return err
-			}
-
-			require.Equal(t, expectedCount, count, "unexpected db row count for declaration requests")
-
-			return nil
-		})
-	}
-
 	var currDeclToken string // we'll use this to track the expected token across tests
 
 	t.Run("Tokens", func(t *testing.T) {
-		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 0)
 		// get tokens, timestamp should be the same as the declaration and token should be non-empty
 		r, err := mdmDevice.DeclarativeManagement("tokens")
 		require.NoError(t, err)
@@ -393,7 +372,6 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["456"])
 		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["456"])
-		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 1)
 
 		// get tokens again, timestamp and token should have changed
 		r, err = mdmDevice.DeclarativeManagement("tokens")
@@ -401,11 +379,9 @@ INSERT INTO host_mdm_apple_declarations (
 		parsed = parseTokensResp(r)
 		checkTokensResp(t, parsed, then.Add(1*time.Minute), currDeclToken)
 		currDeclToken = parsed.SyncTokens.DeclarationsToken
-		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 2)
 	})
 
 	t.Run("DeclarationItems", func(t *testing.T) {
-		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 0)
 		r, err := mdmDevice.DeclarativeManagement("declaration-items")
 		require.NoError(t, err)
 		checkDeclarationItemsResp(t, parseDeclarationItemsResp(r), currDeclToken, mapDeclsByChecksum(noTeamDeclsByUUID))
@@ -426,7 +402,6 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["789"])
 		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["789"])
-		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 1)
 
 		// get tokens again, timestamp and token should have changed
 		r, err = mdmDevice.DeclarativeManagement("tokens")
@@ -438,20 +413,16 @@ INSERT INTO host_mdm_apple_declarations (
 		r, err = mdmDevice.DeclarativeManagement("declaration-items")
 		require.NoError(t, err)
 		checkDeclarationItemsResp(t, parseDeclarationItemsResp(r), currDeclToken, mapDeclsByChecksum(noTeamDeclsByUUID))
-		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 2)
 	})
 
 	t.Run("Status", func(t *testing.T) {
-		checkRequestsDatabase(t, "status", mdmDevice.UUID, 0)
 		_, err := mdmDevice.DeclarativeManagement("status", fleet.MDMAppleDDMStatusReport{})
 		require.NoError(t, err)
-		checkRequestsDatabase(t, "status", mdmDevice.UUID, 1)
 	})
 
 	t.Run("Declaration", func(t *testing.T) {
 		want := noTeamDeclsByUUID["123"]
 		declarationPath := fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier)
-		checkRequestsDatabase(t, declarationPath, mdmDevice.UUID, 0)
 		r, err := mdmDevice.DeclarativeManagement(declarationPath)
 		require.NoError(t, err)
 
@@ -476,23 +447,24 @@ INSERT INTO host_mdm_apple_declarations (
 		want = noTeamDeclsByUUID["abc"]
 		r, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier))
 		require.NoError(t, err)
-		checkRequestsDatabase(t, declarationPath, mdmDevice.UUID, 1)
 
 		// try getting a non-existent declaration, should fail 404
 		nonExistantDeclarationPath := fmt.Sprintf("declaration/%s/%s", "configuration", "nonexistent")
-		checkRequestsDatabase(t, nonExistantDeclarationPath, mdmDevice.UUID, 0)
 		_, err = mdmDevice.DeclarativeManagement(nonExistantDeclarationPath)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "404 Not Found")
-		checkRequestsDatabase(t, nonExistantDeclarationPath, mdmDevice.UUID, 1)
+
+		// try getting an unsupported declaration, should fail 404
+		unsupportedDeclarationPath := fmt.Sprintf("declaration/%s/%s", "asset", "nonexistent")
+		_, err = mdmDevice.DeclarativeManagement(unsupportedDeclarationPath)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "404 Not Found")
 
 		// typo should fail as bad request
 		typoDeclarationPath := fmt.Sprintf("declarations/%s/%s", "configurations", want.Identifier)
-		checkRequestsDatabase(t, typoDeclarationPath, mdmDevice.UUID, 0)
 		_, err = mdmDevice.DeclarativeManagement(typoDeclarationPath)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "400 Bad Request")
-		checkRequestsDatabase(t, typoDeclarationPath, mdmDevice.UUID, 1)
 
 		assertDeclarationResponse(r, want)
 	})
@@ -933,6 +905,108 @@ func (s *integrationMDMTestSuite) TestDDMNoDeclarationsLeft() {
 	require.Empty(t, items.Declarations.Management)
 }
 
+func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
+	t := s.T()
+	ctx := context.Background()
+
+	type record struct {
+		EnrollmentID string           `db:"enrollment_id"`
+		MessageType  string           `db:"message_type"`
+		RawJSON      *json.RawMessage `db:"raw_json"`
+	}
+	verifyTransactionRecord := func(want record) {
+		var got record
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(
+				ctx, q, &got,
+				`SELECT
+				    enrollment_id, message_type, raw_json
+				 FROM mdm_apple_declarative_requests
+				 ORDER BY id DESC
+				 LIMIT 1`,
+			)
+		})
+		if got.RawJSON != nil {
+			fmt.Println(string(*got.RawJSON))
+		}
+		require.Equal(t, want, got)
+	}
+
+	declarations := []fleet.MDMProfileBatchPayload{
+		{Name: "N1.json", Contents: declarationForTest("I1")},
+		{Name: "N2.json", Contents: declarationForTest("I2")},
+	}
+	// add global declarations
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+
+	// reconcile declarations
+	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+
+	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	_, err = mdmDevice.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "tokens",
+		EnrollmentID: mdmDevice.UUID,
+		RawJSON:      nil,
+	})
+
+	res, err := mdmDevice.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "declaration-items",
+		EnrollmentID: mdmDevice.UUID,
+		RawJSON:      nil,
+	})
+
+	var items fleet.MDMAppleDDMDeclarationItemsResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&items))
+	var i1ServerToken string
+	for _, d := range items.Declarations.Configurations {
+		if d.Identifier == "I1" {
+			i1ServerToken = d.ServerToken
+		}
+	}
+
+	// a second device requests tokens
+	_, mdmDeviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	_, err = mdmDeviceTwo.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "tokens",
+		EnrollmentID: mdmDeviceTwo.UUID,
+		RawJSON:      nil,
+	})
+
+	_, err = mdmDevice.DeclarativeManagement("declaration/configuration/I1")
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "declaration/configuration/I1",
+		EnrollmentID: mdmDevice.UUID,
+		RawJSON:      nil,
+	})
+
+	report := fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+		{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: "I1", ServerToken: i1ServerToken},
+	}
+	_, err = mdmDevice.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "status",
+		EnrollmentID: mdmDevice.UUID,
+		RawJSON: ptr.RawMessage(
+			json.RawMessage(
+				fmt.Sprintf(
+					`{"StatusItems":{"management":{"declarations":{"activations":null,"configurations":[{"active":true,"identifier":"I1","valid":"valid","server-token":"%s"}],"assets":null,"management":null}}},"Errors":null}`,
+					i1ServerToken,
+				),
+			),
+		),
+	})
+}
+
 func declarationForTest(identifier string) []byte {
 	return []byte(fmt.Sprintf(`
 {
@@ -942,4 +1016,15 @@ func declarationForTest(identifier string) []byte {
     },
     "Identifier": "%s"
 }`, identifier))
+}
+
+func declarationForTestWithType(identifier string, dType string) []byte {
+	return []byte(fmt.Sprintf(`
+{
+    "Type": "%s",
+    "Payload": {
+        "Echo": "foo"
+    },
+    "Identifier": "%s"
+}`, dType, identifier))
 }

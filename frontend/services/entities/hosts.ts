@@ -116,7 +116,7 @@ export interface IExportHostsOptions {
 }
 
 export interface IActionByFilter {
-  teamId: number | null;
+  teamId?: number | null;
   query: string;
   status: string;
   labelId?: number;
