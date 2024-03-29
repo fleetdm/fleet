@@ -597,7 +597,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 
 	// Check against types we don't allow
 	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. OS updates coming soon!")
 	}
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
