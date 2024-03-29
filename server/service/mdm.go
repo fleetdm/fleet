@@ -1568,6 +1568,12 @@ func (svc *Service) BatchSetMDMProfiles(
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
 	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
+		TeamID:   tmID,
+		TeamName: tmName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
+	}
 
 	return nil
 }
@@ -1631,14 +1637,7 @@ func getAppleProfiles(
 		}
 
 		// Check for DDM files
-
-		isJSON := func(b []byte) bool {
-			var js json.RawMessage
-			return json.Unmarshal(b, &js) == nil
-		}
-
-		// TODO(roberto): As a mini optimization, GetRawDeclarationValues could replace isJSON.
-		if isJSON(prof.Contents) {
+		if mdm.GuessProfileExtension(prof.Contents) == "json" {
 			rawDecl, err := fleet.GetRawDeclarationValues(prof.Contents)
 			if err != nil {
 				return nil, nil, err

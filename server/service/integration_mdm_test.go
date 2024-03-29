@@ -10846,6 +10846,11 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		`{"team_id": null, "team_name": null}`,
 		0,
 	)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
+		`{"team_id": null, "team_name": null}`,
+		0,
+	)
 
 	// apply to both team id and name
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil},
@@ -10860,6 +10865,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N2", Contents: mobileconfigForTest("N1", "I2")},
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N4", Contents: declarationForTest("D1")},
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 
 	// profiles with reserved macOS identifiers
@@ -10868,6 +10874,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 			{Name: p, Contents: mobileconfigForTest(p, p)},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
@@ -10878,6 +10885,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", "II1", p, "")},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
@@ -10888,19 +10896,48 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", p, "random", "")},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
 	}
 
+	// profiles with forbidden declaration types
+	for dt := range fleet.ForbiddenDeclTypes {
+		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N4", Contents: declarationForTestWithType("D1", dt)},
+		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported", dt)
+	}
+	// and one more for the software update declaration
+	res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N4", Contents: declarationForTestWithType("D1", "com.apple.configuration.softwareupdate.enforcement.specific")},
+	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+
+	// invalid JSON
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N4", Contents: []byte(`{"foo":}`)},
+	}}, http.StatusBadRequest, "team_id", strconv.Itoa(int(tm.ID)))
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "The file should include valid JSON")
+
 	// profiles with reserved Windows location URIs
 	// bitlocker
-	res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: syncml.FleetBitLockerTargetLocURI, Contents: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetBitLockerTargetLocURI))},
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
-	errMsg := extractServerErrorText(res.Body)
+	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
 
 	// os updates
@@ -10930,6 +10967,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N4", Contents: declarationForTest("D1")},
 	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", false)
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N1", false)
@@ -10938,6 +10976,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N4", Contents: declarationForTest("D1")},
 	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", true)
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N2", true)
@@ -10948,6 +10987,11 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
+		0,
+	)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
