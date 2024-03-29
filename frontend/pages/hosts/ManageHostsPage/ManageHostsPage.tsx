@@ -1089,8 +1089,6 @@ const ManageHostsPage = ({
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
 
-    const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
-
     try {
       await (isAllMatchingHostsSelected
         ? hostsAPI.destroyByFilter({
