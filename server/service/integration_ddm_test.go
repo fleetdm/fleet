@@ -944,3 +944,14 @@ func declarationForTest(identifier string) []byte {
     "Identifier": "%s"
 }`, identifier))
 }
+
+func declarationForTestWithType(identifier string, dType string) []byte {
+	return []byte(fmt.Sprintf(`
+{
+    "Type": "%s",
+    "Payload": {
+        "Echo": "foo"
+    },
+    "Identifier": "%s"
+}`, dType, identifier))
+}
