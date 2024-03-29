@@ -205,3 +205,98 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 	}
 	return cc, nil
 }
+
+// apiCommand fleetctl api [options] uri
+// -F, --field <key=value>
+// Add a typed parameter in key=value format
+// -H, --header <key:value>
+// Add a HTTP request header in key:value format
+// -X, --method <string> (default "GET") 
+// The HTTP method for the request
+func apiCommand() *cli.Command {
+	var (
+		flField string
+		flHeader string
+		flMethod string
+	)
+	return &cli.Command{
+		Name:      "api",
+		Usage:     "Run an api command by uri",
+		UsageText: `fleetctl api [options] [url]`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "F",
+				EnvVars:     []string{"FIELD"},
+				Value:       "",
+				Destination: &flField,
+				Usage:       "Add a typed parameter in key=value format",
+			},
+			&cli.StringFlag{
+				Name:        "H",
+				EnvVars:     []string{"HEADER"},
+				Value:       "",
+				Destination: &flHeader,
+				Usage:       "Add a HTTP request header in key:value format",
+			},
+			&cli.StringFlag{
+				Name:        "X",
+				EnvVars:     []string{"METHOD"},
+				Value:       "GET",
+				Destination: &flMethod,
+				Usage:       "The HTTP method for the request",
+			},
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			uriString := c.Args().First()
+			params := ""
+			method := "GET"
+			// TODO add param for body for POST etc
+			//body := nil
+
+			if uriString == "" {
+				return errors.New("must provide uri first argument")
+			}
+
+			if flField != "" {
+				// TODO this could be multiple and needs to be encoded
+				params = flField
+			}
+
+			if flHeader != "" {
+				// TODO support headers
+			}
+
+			if flMethod != "" {
+				method = flMethod
+			}
+
+			fleetClient, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			//                                string  string     string  interface
+			resp, err := fleetClient.AuthenticatedDo(method, uriString, params, nil)
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				bodyBytes, err := io.ReadAll(resp.Body)
+				if err != nil {
+					return err
+				}
+				bodyString := string(bodyBytes)
+				fmt.Printf("%s", bodyString)
+			} else {
+				return fmt.Errorf("Got non 2XX return of %d", resp.StatusCode)
+			}
+
+			return nil
+		},
+	}
+}
