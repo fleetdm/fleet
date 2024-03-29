@@ -1578,48 +1578,66 @@ func (svc *Service) BatchSetMDMProfiles(
 
 func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles []*fleet.MDMAppleConfigProfile, windowsProfiles []*fleet.MDMWindowsConfigProfile, appleDecls []*fleet.MDMAppleDeclaration) error {
 	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
-	// "mobileconfig" or "json" or "xml"
-	allNames := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
+	// ".mobileconfig" or ".json" or ".xml"
+	extByName := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
 	for i, p := range appleProfiles {
-		if _, ok := allNames[p.Name]; ok {
-			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleProfiles[%d]", i), fmt.Sprintf(
-				"Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
+		if v, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".mobileconfig", v))
 			return ctxerr.Wrap(ctx, err, "duplicate mobileconfig profile by name")
 		}
-		allNames[p.Name] = "mobileconfig"
+		extByName[p.Name] = ".mobileconfig"
 	}
 	for i, p := range windowsProfiles {
-		if v, ok := allNames[p.Name]; ok {
-			switch v {
-			case "mobileconfig":
-				err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmt.Sprintf(
-					"Couldn’t edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
-				return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
-			default:
-				err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmt.Sprintf(
-					"Couldn’t edit custom_settings. More than one Windows configuration profile have the same name: %q", p.Name))
-				return ctxerr.Wrap(ctx, err, "duplicate xml by name")
-			}
+		if v, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".xml", v))
+			return ctxerr.Wrap(ctx, err, "duplicate xml by name")
 		}
-		allNames[p.Name] = "xml"
+		extByName[p.Name] = ".xml"
 	}
 	for i, p := range appleDecls {
-		if v, ok := allNames[p.Name]; ok {
-			switch v {
-			case "xml":
-				err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmt.Sprintf(
-					"Couldn’t edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile: %q", p.Name))
-				return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
-			default:
-				err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmt.Sprintf(
-					"Couldn’t edit custom_settings. More than one configuration profile have the same name: %q", p.Name))
-				return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
-			}
+		if v, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".json", v))
+			return ctxerr.Wrap(ctx, err, "duplicate json by name")
 		}
-		allNames[p.Name] = "json"
+		extByName[p.Name] = ".json"
 	}
 
 	return nil
+}
+
+func fmtDuplicateNameErrMsg(name, fileType1, fileType2 string) string {
+	var part1 string
+	switch fileType1 {
+	case ".xml":
+		part1 = "Windows .xml file name"
+	case ".mobileconfig":
+		part1 = "macOS .mobileconfig PayloadDisplayName"
+	case ".json":
+		part1 = "macOS .json file name"
+	}
+
+	var part2 string
+	switch fileType2 {
+	case ".xml":
+		part2 = "Windows .xml file name"
+	case ".mobileconfig":
+		part2 = "macOS .mobileconfig PayloadDisplayName"
+	case ".json":
+		part2 = "macOS .json file name"
+	}
+
+	base := fmt.Sprintf(`Couldn’t edit custom_settings. More than one configuration profile have the same name '%s'`, name)
+	detail := ` (%s).`
+	switch {
+	case part1 == part2:
+		return fmt.Sprintf(base+detail, part1)
+	case part1 != "" && part2 != "":
+		return fmt.Sprintf(base+detail, fmt.Sprintf("%s or %s", part1, part2))
+	case part1 != "" || part2 != "":
+		return fmt.Sprintf(base+detail, part1+part2)
+	default:
+		return base + "." // should never happen
+	}
 }
 
 func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmName *string) (*uint, *string, error) {

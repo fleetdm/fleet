@@ -10969,15 +10969,15 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	}{
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: winBytes}},
-			expectErr: "A Windows configuration profile shares the same name as a macOS configuration",
+			expectErr: "More than one configuration profile have the same name 'N1' (Windows .xml file name or macOS .mobileconfig PayloadDisplayName).",
 		},
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: declBytes}, {Name: "N1", Contents: winBytes}},
-			expectErr: "A Windows configuration profile shares the same name as a macOS configuration",
+			expectErr: "More than one configuration profile have the same name 'N1' (macOS .json file name or Windows .xml file name).",
 		},
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: declBytes}},
-			expectErr: "More than one configuration profile have the same name",
+			expectErr: "More than one configuration profile have the same name 'N1' (macOS .json file name or macOS .mobileconfig PayloadDisplayName).",
 		},
 	} {
 		// team profiles
