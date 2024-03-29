@@ -853,8 +853,13 @@ export const getSoftwareBundleTooltipJSX = (bundle: string) => (
 );
 
 export const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  queryByHostRoute: (hostId?: number | null, teamId?: number | null) => {
+    const queryString = buildQueryStringFromParams({
+      host_id: hostId || undefined,
+      team_id: teamId,
+    });
+
+    return queryString && `?${queryString}`;
   },
 };
 

@@ -147,6 +147,7 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
+    currentTeam,
   } = useContext(AppContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -567,7 +568,8 @@ const HostDetailsPage = ({
   const onQueryHostCustom = () => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+      PATHS.NEW_QUERY() +
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
     );
   };
 

@@ -30,6 +30,7 @@ import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import EditQueryForm from "./components/EditQueryForm";
 
@@ -38,7 +39,7 @@ interface IEditQueryPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_ids: string; team_id?: string };
+    query: { host_id: string; team_id?: string };
     search: string;
   };
 }
@@ -51,9 +52,11 @@ const EditQueryPage = ({
   location,
 }: IEditQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+
   const {
     currentTeamName: teamNameForQuery,
     teamIdForApi: apiTeamIdForQuery,
+    currentTeamId,
   } = useTeamIdParam({
     location,
     router,
@@ -70,6 +73,7 @@ const EditQueryPage = ({
     isObserverPlus,
     isAnyTeamObserverPlus,
     config,
+    filteredQueriesPath,
   } = useContext(AppContext);
   const {
     editingExistingQuery,
@@ -319,7 +323,13 @@ const EditQueryPage = ({
 
   // Function instead of constant eliminates race condition
   const backToQueriesPath = () => {
-    return queryId ? PATHS.QUERY_DETAILS(queryId) : PATHS.MANAGE_QUERIES;
+    const manageQueryPage =
+      filteredQueriesPath ||
+      `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+        team_id: currentTeamId,
+      })}`;
+
+    return queryId ? PATHS.QUERY_DETAILS(queryId) : manageQueryPage;
   };
 
   const showSidebar =
@@ -348,6 +358,7 @@ const EditQueryPage = ({
             storedQuery={storedQuery}
             queryIdForEdit={queryId}
             apiTeamIdForQuery={apiTeamIdForQuery}
+            currentTeamId={currentTeamId}
             teamNameForQuery={teamNameForQuery}
             isStoredQueryLoading={isStoredQueryLoading}
             showOpenSchemaActionText={showOpenSchemaActionText}
@@ -356,7 +367,7 @@ const EditQueryPage = ({
             backendValidators={backendValidators}
             isQuerySaving={isQuerySaving}
             isQueryUpdating={isQueryUpdating}
-            hostId={parseInt(location.query.host_ids as string, 10)}
+            hostId={parseInt(location.query.host_id as string, 10)}
             queryReportsDisabled={
               appConfig?.server_settings.query_reports_disabled
             }
