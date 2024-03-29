@@ -12063,6 +12063,14 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 
 	var hr getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hr)
+	require.Nil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
 
+	// create a non-server host that is enrolled in MDM
+	host2 := createOrbitEnrolledHost(t, "windows", "non-server-host", s.ds)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host2.ID, false, true, "http://example.com", false, fleet.WellKnownMDMFleet, ""))
+
+	hr = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &hr)
+	require.NotNil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
 }
