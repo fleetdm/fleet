@@ -401,7 +401,7 @@ type agent struct {
 	// single goroutine at a time can execute scripts.
 	scriptExecRunning atomic.Bool
 
-	softwareVSCodeExtensionsProb     float64
+	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 
 	//
@@ -544,7 +544,7 @@ func newAgent(
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
 
-		softwareVSCodeExtensionsProb:     softwareQueryFailureProb,
+		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
 
 		macMDMClient: macMDMClient,
@@ -1737,7 +1737,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_macos":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -1746,7 +1746,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -1755,7 +1755,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -2019,8 +2019,8 @@ func main() {
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
-		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
-		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.5, "Probability of the software vscode_extensions query failing")
+		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.05, "Probability of the software query failing")
+		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.05, "Probability of the software vscode_extensions query failing")
 
 		commonSoftwareCount                          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 		commonVSCodeExtensionsSoftwareCount          = flag.Int("common_vscode_extensions_software_count", 5, "Number of common vscode_extensions installed applications reported to fleet")
