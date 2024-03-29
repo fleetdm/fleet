@@ -633,17 +633,20 @@ WHERE
 
 func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 	if host == nil {
-		return nil, errors.New("host cannot be nil")
+		return nil, ctxerr.New(ctx, "cannot get bitlocker status for nil host")
 	}
 
 	if host.Platform != "windows" {
-		// Generally, the caller should have already checked this, but just in case we log and
-		// return nil
-		level.Debug(ds.logger).Log("msg", "cannot get bitlocker status for non-windows host", "host_id", host.ID)
-		return nil, nil
+		// the caller should have already checked this
+		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status for non-windows host %d", host.ID)
 	}
 
-	if host.MDMInfo != nil && host.MDMInfo.IsServer {
+	if host.MDMInfo == nil {
+		// the caller should have already checked
+		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status because no mdm info for host %d", host.ID)
+	}
+
+	if host.MDMInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
 		// the query and return nil. We log for potential debugging in case this changes in the future.
 		level.Debug(ds.logger).Log("msg", "no bitlocker status for server host", "host_id", host.ID)
@@ -700,9 +703,10 @@ WHERE
 	}
 
 	if dest.Status == "" {
-		// If we have no status, we treat it as enforcing since we know disk encryption is enabled and log for potential debugging
-		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
-		dest.Status = fleet.DiskEncryptionEnforcing
+		// This is unexpected. We know that disk encryption is enabled so we treat it failed to draw
+		// attention to the issue and log potential debugging
+		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info", fmt.Sprintf("%+v", host.MDMInfo))
+		dest.Status = fleet.DiskEncryptionFailed
 	}
 
 	return &fleet.HostMDMDiskEncryption{
