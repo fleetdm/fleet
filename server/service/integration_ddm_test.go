@@ -88,7 +88,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "bad2", Contents: newDeclBytes(2, `"baz": "bing"`)},
 	}}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "A declaration profile with this name already exists.")
+	require.Contains(t, errMsg, "More than one configuration profile have the same name")
 
 	// Same identifier should fail
 	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -877,7 +877,6 @@ func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 	require.Contains(t, profs["I1"].Detail, "Feature Disabled")
 	require.Equal(t, &fleet.MDMDeliveryFailed, profs["I2"].Status)
 	require.Contains(t, profs["I2"].Detail, "Feature Disabled")
-
 }
 
 func (s *integrationMDMTestSuite) TestDDMNoDeclarationsLeft() {

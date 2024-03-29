@@ -1527,6 +1527,10 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
 
+	if err := svc.validateCrossPlatformProfileNames(ctx, appleProfiles, windowsProfiles, appleDecls); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
+	}
+
 	if dryRun {
 		return nil
 	}
@@ -1576,6 +1580,70 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	return nil
+}
+
+func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles []*fleet.MDMAppleConfigProfile, windowsProfiles []*fleet.MDMWindowsConfigProfile, appleDecls []*fleet.MDMAppleDeclaration) error {
+	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
+	// ".mobileconfig" or ".json" or ".xml"
+	extByName := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
+	for i, p := range appleProfiles {
+		if v, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".mobileconfig", v))
+			return ctxerr.Wrap(ctx, err, "duplicate mobileconfig profile by name")
+		}
+		extByName[p.Name] = ".mobileconfig"
+	}
+	for i, p := range windowsProfiles {
+		if v, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".xml", v))
+			return ctxerr.Wrap(ctx, err, "duplicate xml by name")
+		}
+		extByName[p.Name] = ".xml"
+	}
+	for i, p := range appleDecls {
+		if v, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".json", v))
+			return ctxerr.Wrap(ctx, err, "duplicate json by name")
+		}
+		extByName[p.Name] = ".json"
+	}
+
+	return nil
+}
+
+func fmtDuplicateNameErrMsg(name, fileType1, fileType2 string) string {
+	var part1 string
+	switch fileType1 {
+	case ".xml":
+		part1 = "Windows .xml file name"
+	case ".mobileconfig":
+		part1 = "macOS .mobileconfig PayloadDisplayName"
+	case ".json":
+		part1 = "macOS .json file name"
+	}
+
+	var part2 string
+	switch fileType2 {
+	case ".xml":
+		part2 = "Windows .xml file name"
+	case ".mobileconfig":
+		part2 = "macOS .mobileconfig PayloadDisplayName"
+	case ".json":
+		part2 = "macOS .json file name"
+	}
+
+	base := fmt.Sprintf(`Couldn’t edit custom_settings. More than one configuration profile have the same name '%s'`, name)
+	detail := ` (%s).`
+	switch {
+	case part1 == part2:
+		return fmt.Sprintf(base+detail, part1)
+	case part1 != "" && part2 != "":
+		return fmt.Sprintf(base+detail, fmt.Sprintf("%s or %s", part1, part2))
+	case part1 != "" || part2 != "":
+		return fmt.Sprintf(base+detail, part1+part2)
+	default:
+		return base + "." // should never happen
+	}
 }
 
 func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmName *string) (*uint, *string, error) {
@@ -1658,26 +1726,7 @@ func getAppleProfiles(
 				}
 			}
 
-			v, ok := byName[mdmDecl.Name]
-			switch {
-			case !ok:
-				byName[mdmDecl.Name] = "declaration"
-			case v == "mobileconfig":
-				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(mdmDecl.Name, "A configuration profile with this name already exists."),
-					"duplicate mobileconfig profile by name")
-			case v == "declaration":
-				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(mdmDecl.Name, "A declaration profile with this name already exists."),
-					"duplicate declaration profile by name")
-			default:
-				// this should never happen but just in case
-				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(mdmDecl.Name, "A profile with this name already exists."),
-					"duplicate profile by name")
-			}
-
-			v, ok = byIdent[mdmDecl.Identifier]
+			v, ok := byIdent[mdmDecl.Identifier]
 			switch {
 			case !ok:
 				byIdent[mdmDecl.Identifier] = "declaration"

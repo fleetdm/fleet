@@ -1752,6 +1752,34 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		profs = append(profs, mdmProf)
 	}
 
+	if !skipBulkPending {
+		// check for duplicates with existing profiles, skipBulkPending signals that the caller
+		// is responsible for ensuring that the profiles names are unique (e.g., MDMAppleMatchPreassignment)
+		allProfs, _, err := svc.ds.ListMDMConfigProfiles(ctx, tmID, fleet.ListOptions{PerPage: 0})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list mdm config profiles")
+		}
+		for _, p := range allProfs {
+			if byName[p.Name] {
+				switch {
+				case strings.HasPrefix(p.ProfileUUID, "a"):
+					// do nothing, all existing mobileconfigs will be replaced and we've already checked
+					// the new mobileconfigs for duplicates
+					continue
+				case strings.HasPrefix(p.ProfileUUID, "w"):
+					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
+						"Couldn’t edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
+					return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
+				default:
+					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
+						"Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
+					return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
+				}
+			}
+			byName[p.Name] = true
+		}
+	}
+
 	if dryRun {
 		return nil
 	}
@@ -2753,7 +2781,6 @@ func ReconcileAppleDeclarations(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
-
 	// batch set declarations as pending
 	changedHosts, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
 	if err != nil {
