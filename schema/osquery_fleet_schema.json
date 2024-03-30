@@ -70,7 +70,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -572,7 +571,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "type",
@@ -1800,7 +1798,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -2461,7 +2458,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "tid",
@@ -2630,7 +2626,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "tid",
@@ -3626,7 +3621,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -4167,7 +4161,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -4746,7 +4739,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device_id",
@@ -5975,7 +5967,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -6113,7 +6104,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "variable",
@@ -6157,7 +6147,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6351,7 +6340,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6422,7 +6410,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -9350,7 +9337,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -9609,7 +9595,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -9773,7 +9758,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -9948,7 +9932,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -10059,7 +10042,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "fan",
@@ -10492,7 +10474,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_path",
@@ -11099,7 +11080,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -11321,7 +11301,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -11582,7 +11561,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -11643,7 +11621,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "boot_uuid",
@@ -11714,7 +11691,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -11766,7 +11742,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -12578,7 +12553,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "filter_name",
@@ -12984,7 +12958,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -13775,7 +13748,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "label",
@@ -15355,7 +15327,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -15485,7 +15456,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device_name",
@@ -15780,7 +15750,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "md_device_name",
@@ -15832,7 +15801,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -16078,7 +16046,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16140,7 +16107,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16220,7 +16186,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16310,7 +16275,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16507,7 +16471,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16595,7 +16558,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "memory_total",
@@ -16701,7 +16663,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -16859,7 +16820,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "processor_number",
@@ -17344,7 +17304,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -17405,7 +17364,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -17600,7 +17558,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -19141,7 +19098,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -19512,7 +19468,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19573,7 +19528,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19661,7 +19615,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -20419,7 +20372,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "pid",
@@ -20731,7 +20683,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "This table will only include events for changes and files in directories that existed before the fleetd agent starts.",
-    "examples": [],
     "columns": [
       {
         "name": "operation",
@@ -21881,7 +21832,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_name",
@@ -22332,7 +22282,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -22637,7 +22586,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -22716,7 +22664,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -23029,7 +22976,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "label",
@@ -23206,7 +23152,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n- For ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- For ChromeOS, this table is only available for Chrome 73+.\n",
-    "examples": [],
     "columns": [
       {
         "name": "enabled",
@@ -23239,7 +23184,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -23477,7 +23421,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "minimum_password_age",
@@ -23700,7 +23643,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "type",
@@ -24067,7 +24009,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "shmid",
@@ -24895,7 +24836,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -25343,7 +25283,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -25877,7 +25816,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "id",
@@ -26787,7 +26725,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "uid",
@@ -26904,7 +26841,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "uid",
@@ -26938,7 +26874,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -27273,7 +27208,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "color_depth",
@@ -29831,7 +29765,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_path",
