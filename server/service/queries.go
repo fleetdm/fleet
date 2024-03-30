@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -325,7 +327,6 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
 	// Load query first to determine if the user can modify it.
 	query, err := svc.ds.Query(ctx, id)
-	shouldDiscardQueryResults, shouldDeleteStats := false, false
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
@@ -344,6 +345,8 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		})
 	}
 
+	shouldDiscardQueryResults, shouldDeleteStats := false, false
+
 	if p.Name != nil {
 		query.Name = *p.Name
 	}
@@ -361,9 +364,15 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		query.Interval = *p.Interval
 	}
 	if p.Platform != nil {
+		if !comparePlatforms(query.Platform, *p.Platform) {
+			shouldDiscardQueryResults = true
+		}
 		query.Platform = *p.Platform
 	}
 	if p.MinOsqueryVersion != nil {
+		if query.MinOsqueryVersion != *p.MinOsqueryVersion {
+			shouldDiscardQueryResults = true
+		}
 		query.MinOsqueryVersion = *p.MinOsqueryVersion
 	}
 	if p.AutomationsEnabled != nil {
@@ -403,6 +412,17 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 
 	return query, nil
+}
+
+func comparePlatforms(platform1, platform2 string) bool {
+	if platform1 == platform2 {
+		return true
+	}
+	p1s := strings.Split(platform1, ",")
+	slices.Sort(p1s)
+	p2s := strings.Split(platform2, ",")
+	slices.Sort(p2s)
+	return slices.Compare(p1s, p2s) == 0
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -627,7 +647,9 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 
 		if (query.DiscardData && query.DiscardData != dbQuery.DiscardData) ||
 			(query.Logging != dbQuery.Logging && query.Logging != fleet.LoggingSnapshot) ||
-			query.Query != dbQuery.Query {
+			query.Query != dbQuery.Query ||
+			query.MinOsqueryVersion != dbQuery.MinOsqueryVersion ||
+			!comparePlatforms(query.Platform, dbQuery.Platform) {
 			queriesToDiscardResults[dbQuery.ID] = struct{}{}
 		}
 	}

@@ -14,11 +14,14 @@ import {
   ICreateQueryRequestBody,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { IConfig } from "interfaces/config";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
+import BackLink from "components/BackLink";
+import InfoBanner from "components/InfoBanner";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -28,9 +31,7 @@ import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 
-import BackLink from "components/BackLink";
-import EditQueryForm from "pages/queries/edit/components/EditQueryForm";
-import { IConfig } from "interfaces/config";
+import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
   router: InjectedRouter;
@@ -304,19 +305,15 @@ const EditQueryPage = ({
     }
 
     return (
-      <div className={`${baseClass}__warning`}>
-        <div className={`${baseClass}__message`}>
-          <p>
-            Fleet is unable to run a live query. Refresh the page or log in
-            again. If this keeps happening please{" "}
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new/choose"
-              text="file an issue"
-              newTab
-            />
-          </p>
-        </div>
-      </div>
+      <InfoBanner color="yellow">
+        Fleet is unable to run a live query. Refresh the page or log in again.
+        If this keeps happening please{" "}
+        <CustomLink
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="file an issue"
+          newTab
+        />
+      </InfoBanner>
     );
   };
 

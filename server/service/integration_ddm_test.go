@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -34,9 +33,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		"DataAssetReference": "com.fleet.asset.bash" %s
 	}
 }`
-	// TODO: figure out the best way to do this. We might even consider
-	// starting a different test suite.
-	t.Cleanup(func() { s.cleanupDeclarations(t) })
 
 	newDeclBytes := func(i int, payload ...string) []byte {
 		var p string
@@ -92,7 +88,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "bad2", Contents: newDeclBytes(2, `"baz": "bing"`)},
 	}}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "A declaration profile with this name already exists.")
+	require.Contains(t, errMsg, "More than one configuration profile have the same name")
 
 	// Same identifier should fail
 	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -200,8 +196,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
 		csum := fmt.Sprintf("%x", md5.Sum(source)) //nolint:gosec
 		return strings.ToUpper(csum)
 	}
-
-	t.Cleanup(func() { s.cleanupDeclarations(t) })
 
 	insertDeclaration := func(t *testing.T, decl fleet.MDMAppleDeclaration) {
 		stmt := `
@@ -352,30 +346,9 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 	}
 
-	checkRequestsDatabase := func(t *testing.T, messageType, enrollmentID string, expectedCount int) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			var count int
-			if err := sqlx.GetContext(
-				context.Background(),
-				q,
-				&count,
-				"SELECT count(*) AS count FROM mdm_apple_declarative_requests WHERE enrollment_id = ? AND message_type = ?",
-				enrollmentID,
-				messageType,
-			); err != nil {
-				return err
-			}
-
-			require.Equal(t, expectedCount, count, "unexpected db row count for declaration requests")
-
-			return nil
-		})
-	}
-
 	var currDeclToken string // we'll use this to track the expected token across tests
 
 	t.Run("Tokens", func(t *testing.T) {
-		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 0)
 		// get tokens, timestamp should be the same as the declaration and token should be non-empty
 		r, err := mdmDevice.DeclarativeManagement("tokens")
 		require.NoError(t, err)
@@ -399,7 +372,6 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["456"])
 		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["456"])
-		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 1)
 
 		// get tokens again, timestamp and token should have changed
 		r, err = mdmDevice.DeclarativeManagement("tokens")
@@ -407,11 +379,9 @@ INSERT INTO host_mdm_apple_declarations (
 		parsed = parseTokensResp(r)
 		checkTokensResp(t, parsed, then.Add(1*time.Minute), currDeclToken)
 		currDeclToken = parsed.SyncTokens.DeclarationsToken
-		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 2)
 	})
 
 	t.Run("DeclarationItems", func(t *testing.T) {
-		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 0)
 		r, err := mdmDevice.DeclarativeManagement("declaration-items")
 		require.NoError(t, err)
 		checkDeclarationItemsResp(t, parseDeclarationItemsResp(r), currDeclToken, mapDeclsByChecksum(noTeamDeclsByUUID))
@@ -432,7 +402,6 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["789"])
 		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["789"])
-		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 1)
 
 		// get tokens again, timestamp and token should have changed
 		r, err = mdmDevice.DeclarativeManagement("tokens")
@@ -444,20 +413,16 @@ INSERT INTO host_mdm_apple_declarations (
 		r, err = mdmDevice.DeclarativeManagement("declaration-items")
 		require.NoError(t, err)
 		checkDeclarationItemsResp(t, parseDeclarationItemsResp(r), currDeclToken, mapDeclsByChecksum(noTeamDeclsByUUID))
-		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 2)
 	})
 
 	t.Run("Status", func(t *testing.T) {
-		checkRequestsDatabase(t, "status", mdmDevice.UUID, 0)
 		_, err := mdmDevice.DeclarativeManagement("status", fleet.MDMAppleDDMStatusReport{})
 		require.NoError(t, err)
-		checkRequestsDatabase(t, "status", mdmDevice.UUID, 1)
 	})
 
 	t.Run("Declaration", func(t *testing.T) {
 		want := noTeamDeclsByUUID["123"]
 		declarationPath := fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier)
-		checkRequestsDatabase(t, declarationPath, mdmDevice.UUID, 0)
 		r, err := mdmDevice.DeclarativeManagement(declarationPath)
 		require.NoError(t, err)
 
@@ -482,23 +447,24 @@ INSERT INTO host_mdm_apple_declarations (
 		want = noTeamDeclsByUUID["abc"]
 		r, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier))
 		require.NoError(t, err)
-		checkRequestsDatabase(t, declarationPath, mdmDevice.UUID, 1)
 
 		// try getting a non-existent declaration, should fail 404
 		nonExistantDeclarationPath := fmt.Sprintf("declaration/%s/%s", "configuration", "nonexistent")
-		checkRequestsDatabase(t, nonExistantDeclarationPath, mdmDevice.UUID, 0)
 		_, err = mdmDevice.DeclarativeManagement(nonExistantDeclarationPath)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "404 Not Found")
-		checkRequestsDatabase(t, nonExistantDeclarationPath, mdmDevice.UUID, 1)
+
+		// try getting an unsupported declaration, should fail 404
+		unsupportedDeclarationPath := fmt.Sprintf("declaration/%s/%s", "asset", "nonexistent")
+		_, err = mdmDevice.DeclarativeManagement(unsupportedDeclarationPath)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "404 Not Found")
 
 		// typo should fail as bad request
 		typoDeclarationPath := fmt.Sprintf("declarations/%s/%s", "configurations", want.Identifier)
-		checkRequestsDatabase(t, typoDeclarationPath, mdmDevice.UUID, 0)
 		_, err = mdmDevice.DeclarativeManagement(typoDeclarationPath)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "400 Bad Request")
-		checkRequestsDatabase(t, typoDeclarationPath, mdmDevice.UUID, 1)
 
 		assertDeclarationResponse(r, want)
 	})
@@ -507,27 +473,29 @@ INSERT INTO host_mdm_apple_declarations (
 func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	t := s.T()
 	ctx := context.Background()
-	// TODO: use config logger or take into account FLEET_INTEGRATION_TESTS_DISABLE_LOG
-	logger := kitlog.NewJSONLogger(os.Stdout)
 
-	// TODO: use endpoints once those are available.
-	addDeclaration := func(identifier string, teamID uint) {
-		stmt := `
-		  INSERT INTO mdm_apple_declarations
-		    (declaration_uuid, team_id, identifier, name, raw_json, checksum)
-		  VALUES
-		    (UUID(), ?, ?, UUID(), ?, HEX(MD5(raw_json)) )`
-		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, stmt, teamID, identifier, declarationForTest(identifier))
-			return err
-		})
+	addDeclaration := func(identifier string, teamID uint, labelNames []string) string {
+		fields := map[string][]string{
+			"labels": labelNames,
+		}
+		if teamID > 0 {
+			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+		}
+		body, headers := generateNewProfileMultipartRequest(
+			t, identifier+".json", declarationForTest(identifier), s.token, fields,
+		)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		var resp newMDMConfigProfileResponse
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.ProfileUUID)
+		require.Equal(t, "d", string(resp.ProfileUUID[0]))
+		return resp.ProfileUUID
 	}
 
-	deleteDeclaration := func(identifier string, teamID uint) {
-		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?", teamID, identifier)
-			return err
-		})
+	deleteDeclaration := func(declUUID string) {
+		var deleteResp deleteMDMConfigProfileResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusOK, &deleteResp)
 	}
 
 	// create a team
@@ -539,10 +507,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
-
-	// TODO: figure out the best way to do this. We might even consider
-	// starting a different test suite.
-	t.Cleanup(func() { s.cleanupDeclarations(t) })
 
 	checkNoCommands := func(d *mdmtest.TestAppleMDMClient) {
 		cmd, err := d.Idle()
@@ -602,18 +566,18 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	mdmHost, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// trigger the reconciler, no error
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	// declarativeManagement command is not sent.
 	checkNoCommands(device)
 
 	// add global declarations
-	addDeclaration("I1", 0)
-	addDeclaration("I2", 0)
+	d1UUID := addDeclaration("I1", 0, nil)
+	addDeclaration("I2", 0, nil)
 
 	// reconcile again, this time new declarations were added
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	// TODO: check command is pending
@@ -622,15 +586,15 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkDDMSync(device)
 
 	// reconcile again, commands for the uploaded declarations are already sent
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	// no new commands are sent
 	checkNoCommands(device)
 
 	// delete a declaration
-	deleteDeclaration("I1", 0)
+	deleteDeclaration(d1UUID)
 	// reconcile again
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	// a DDM sync is triggered
 	checkDDMSync(device)
@@ -638,7 +602,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	// add a new host
 	_, deviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// reconcile again
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	// DDM sync is triggered only for the new host
 	checkNoCommands(device)
@@ -649,7 +613,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHost.ID}}, http.StatusOK)
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	// DDM sync is triggered only for the transferred host
@@ -658,18 +622,18 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkNoCommands(deviceTwo)
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	// nobody receives commands this time
 	checkNoCommands(device)
 	checkNoCommands(deviceTwo)
 
 	// add declarations to the team
-	addDeclaration("I1", team.ID)
-	addDeclaration("I2", team.ID)
+	addDeclaration("I1", team.ID, nil)
+	addDeclaration("I2", team.ID, nil)
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	// DDM sync is triggered for the host in the team
 	checkDDMSync(device)
@@ -681,7 +645,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHostThree.ID}}, http.StatusOK)
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	// DDM sync is triggered only for the new host
 	checkNoCommands(device)
@@ -689,15 +653,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkDDMSync(deviceThree)
 
 	// no new commands after another reconciliation
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	checkNoCommands(device)
 	checkNoCommands(deviceTwo)
 	checkNoCommands(deviceThree)
 
-	// TODO: use proper APIs for this
-	// add a new label + label declaration
-	addDeclaration("I3", team.ID)
 	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "select 1;"})
 	require.NoError(t, err)
 	// update label with host membership
@@ -713,25 +674,11 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		},
 	)
 
-	// update declaration <-> label mapping
-	mysql.ExecAdhocSQL(
-		t, s.ds, func(db sqlx.ExtContext) error {
-			_, err := db.ExecContext(
-				context.Background(),
-				`INSERT INTO
-				  mdm_declaration_labels (apple_declaration_uuid, label_name, label_id)
-				  VALUES ((SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? and identifier = ?), ?, ?)`,
-				team.ID,
-				"I3",
-				label.Name,
-				label.ID,
-			)
-			return err
-		},
-	)
+	// add a new label + label declaration
+	addDeclaration("I3", team.ID, []string{label.Name})
 
 	// reconcile
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	// DDM sync is triggered only for the host with the label
 	checkNoCommands(device)
@@ -742,12 +689,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	t := s.T()
 	ctx := context.Background()
-	// TODO: use config logger or take into account FLEET_INTEGRATION_TESTS_DISABLE_LOG
-	logger := kitlog.NewJSONLogger(os.Stdout)
-
-	// TODO: figure out the best way to do this. We might even consider
-	// starting a different test suite.
-	t.Cleanup(func() { s.cleanupDeclarations(t) })
 
 	assertHostDeclarations := func(hostUUID string, wantDecls []*fleet.MDMAppleHostDeclaration) {
 		var gotDecls []*fleet.MDMAppleHostDeclaration
@@ -768,7 +709,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	// declarations are ("install", "pending") after the cron run
@@ -851,7 +792,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
@@ -881,6 +822,191 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	})
 }
 
+func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
+	t := s.T()
+	ctx := context.Background()
+	fleetHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	getProfiles := func(h *fleet.Host) map[string]*fleet.HostMDMAppleProfile {
+		profs, err := s.ds.GetHostMDMAppleProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		out := make(map[string]*fleet.HostMDMAppleProfile, len(profs))
+		for _, p := range profs {
+			p := p
+			out[p.Identifier] = &p
+		}
+
+		return out
+	}
+
+	declarations := []fleet.MDMProfileBatchPayload{
+		{Name: "N1.json", Contents: declarationForTest("I1")},
+		{Name: "N2.json", Contents: declarationForTest("I2")},
+	}
+	// add global declarations
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+
+	// reconcile declarations
+	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+
+	// declaration is pending
+	profs := getProfiles(fleetHost)
+	require.Equal(t, &fleet.MDMDeliveryPending, profs["I1"].Status)
+	require.Equal(t, &fleet.MDMDeliveryPending, profs["I2"].Status)
+
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+
+	// simulate an error returned by devices that don't support DDM
+	errChain := []mdm.ErrorChain{
+		{
+			ErrorCode:            4,
+			ErrorDomain:          "RMErrorDomain",
+			LocalizedDescription: "Feature Disabled: DeclarativeManagement is disabled.",
+		},
+	}
+	cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// profiles are failed
+	profs = getProfiles(fleetHost)
+	require.Equal(t, &fleet.MDMDeliveryFailed, profs["I1"].Status)
+	require.Contains(t, profs["I1"].Detail, "Feature Disabled")
+	require.Equal(t, &fleet.MDMDeliveryFailed, profs["I2"].Status)
+	require.Contains(t, profs["I2"].Detail, "Feature Disabled")
+}
+
+func (s *integrationMDMTestSuite) TestDDMNoDeclarationsLeft() {
+	t := s.T()
+	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	res, err := mdmDevice.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	var tok fleet.MDMAppleDDMTokensResponse
+	err = json.NewDecoder(res.Body).Decode(&tok)
+	require.NoError(t, err)
+	require.Empty(t, tok.SyncTokens.DeclarationsToken)
+	require.NotEmpty(t, tok.SyncTokens.Timestamp)
+
+	res, err = mdmDevice.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	var items fleet.MDMAppleDDMDeclarationItemsResponse
+	err = json.NewDecoder(res.Body).Decode(&items)
+	require.NoError(t, err)
+	require.Empty(t, items.DeclarationsToken)
+	require.Empty(t, items.Declarations.Activations)
+	require.Empty(t, items.Declarations.Configurations)
+	require.Empty(t, items.Declarations.Assets)
+	require.Empty(t, items.Declarations.Management)
+}
+
+func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
+	t := s.T()
+	ctx := context.Background()
+
+	type record struct {
+		EnrollmentID string           `db:"enrollment_id"`
+		MessageType  string           `db:"message_type"`
+		RawJSON      *json.RawMessage `db:"raw_json"`
+	}
+	verifyTransactionRecord := func(want record) {
+		var got record
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(
+				ctx, q, &got,
+				`SELECT
+				    enrollment_id, message_type, raw_json
+				 FROM mdm_apple_declarative_requests
+				 ORDER BY id DESC
+				 LIMIT 1`,
+			)
+		})
+		if got.RawJSON != nil {
+			fmt.Println(string(*got.RawJSON))
+		}
+		require.Equal(t, want, got)
+	}
+
+	declarations := []fleet.MDMProfileBatchPayload{
+		{Name: "N1.json", Contents: declarationForTest("I1")},
+		{Name: "N2.json", Contents: declarationForTest("I2")},
+	}
+	// add global declarations
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+
+	// reconcile declarations
+	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+
+	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	_, err = mdmDevice.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "tokens",
+		EnrollmentID: mdmDevice.UUID,
+		RawJSON:      nil,
+	})
+
+	res, err := mdmDevice.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "declaration-items",
+		EnrollmentID: mdmDevice.UUID,
+		RawJSON:      nil,
+	})
+
+	var items fleet.MDMAppleDDMDeclarationItemsResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&items))
+	var i1ServerToken string
+	for _, d := range items.Declarations.Configurations {
+		if d.Identifier == "I1" {
+			i1ServerToken = d.ServerToken
+		}
+	}
+
+	// a second device requests tokens
+	_, mdmDeviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	_, err = mdmDeviceTwo.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "tokens",
+		EnrollmentID: mdmDeviceTwo.UUID,
+		RawJSON:      nil,
+	})
+
+	_, err = mdmDevice.DeclarativeManagement("declaration/configuration/I1")
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "declaration/configuration/I1",
+		EnrollmentID: mdmDevice.UUID,
+		RawJSON:      nil,
+	})
+
+	report := fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+		{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: "I1", ServerToken: i1ServerToken},
+	}
+	_, err = mdmDevice.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	verifyTransactionRecord(record{
+		MessageType:  "status",
+		EnrollmentID: mdmDevice.UUID,
+		RawJSON: ptr.RawMessage(
+			json.RawMessage(
+				fmt.Sprintf(
+					`{"StatusItems":{"management":{"declarations":{"activations":null,"configurations":[{"active":true,"identifier":"I1","valid":"valid","server-token":"%s"}],"assets":null,"management":null}}},"Errors":null}`,
+					i1ServerToken,
+				),
+			),
+		),
+	})
+}
+
 func declarationForTest(identifier string) []byte {
 	return []byte(fmt.Sprintf(`
 {
@@ -892,18 +1018,13 @@ func declarationForTest(identifier string) []byte {
 }`, identifier))
 }
 
-func (s *integrationMDMTestSuite) cleanupDeclarations(t *testing.T) {
-	ctx := context.Background()
-	// TODO: figure out the best way to do this. We might even consider
-	// starting a different test suite.
-	// delete declarations to not affect other tests
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations")
-		return err
-	})
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_apple_declarations")
-		return err
-	})
-
+func declarationForTestWithType(identifier string, dType string) []byte {
+	return []byte(fmt.Sprintf(`
+{
+    "Type": "%s",
+    "Payload": {
+        "Echo": "foo"
+    },
+    "Identifier": "%s"
+}`, dType, identifier))
 }

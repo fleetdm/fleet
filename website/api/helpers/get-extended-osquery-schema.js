@@ -132,6 +132,9 @@ module.exports = {
           // Examples are parsed as markdown, so we wrap the example in a code
           // fence so it renders as a code block.
           expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
+        } else {
+          // If this table has an examples value that is an empty array, we'll completly remove it from the merged schema.
+          delete expandedTableToPush.examples;
         }
         if(includeLastModifiedAtValue) {
           expandedTableToPush.lastModifiedAt = rawOsqueryTablesLastModifiedAt;
@@ -164,6 +167,9 @@ module.exports = {
           if (examplesFromOsquerySchema.length > 0) {
             // Examples are parsed as markdown, so we wrap the example in a code fence so it renders as a code block.
             expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
+          } else {
+            // If this table has an examples value that is an empty array, we'll completly remove it from the merged schema.
+            delete expandedTableToPush.examples;
           }
         }
         if(fleetOverridesForTable.notes !== undefined) {

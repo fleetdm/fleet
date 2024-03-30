@@ -207,8 +207,16 @@
                   <a purpose="mobile-dropdown-link" href="/pricing" class="d-flex align-items-center">Pricing</a>
                   <% if(_.has(me, 'id')) {%>
                     <hr>
-                    <a purpose="mobile-nav-btn"  href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
+                    <a purpose="mobile-dropdown-link" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
                   <% }%>
+                  <%if(me && me.isSuperAdmin && showAdminLinks) {%>
+                    <hr>
+                    <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
+                    <div id="mobileNavbarToggleAdmin" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                      <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
+                      <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
+                    </div>
+                  <%}%>
                   <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact">Talk to us</a>
                 </div>
               </div>
@@ -275,14 +283,13 @@
               </div>
           <% } %>
           <%if(me && me.isSuperAdmin && showAdminLinks) {%>
-            <div purpose="admin-nav" class="d-flex flex-row align-items-center py-2 px-1">
+            <div purpose="admin-nav" class="d-lg-flex d-none flex-row align-items-center justify-content-center py-2 px-1">
               <div class="justify-self-start">
                 <span>Admin pages</span>
               </div>
-              <div class="d-flex flex-row align-self-end">
-                <a style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
-                <a style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
-                <a style="text-decoration: none; line-height: 23px;" href="/admin/sandbox-waitlist">Manage Fleet Sandbox waitlist</a>
+              <div class="d-flex flex-row align-self-end justify-content-between">
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
               </div>
             </div>
           <%} %>
