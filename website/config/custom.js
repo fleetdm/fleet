@@ -124,15 +124,14 @@ module.exports.custom = {
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
-    'website': 'mikermcneil',// (catch-all)
+    'website': 'eashaw',// (catch-all)
     'website/assets': 'eashaw', // « Eric is DRI for website frontend code
     'website/views': 'eashaw',
-    'website/api': 'mikermcneil',//« Website backend, scripts, deps
-    'website/api/controllers/webhooks/receive-from-github.js': 'mikermcneil',// github bot (webhook)
-    'website/api/controllers/imagine': 'eashaw',// landing pages
-    'website/config': 'mikermcneil',
+    'website/api': 'eashaw',//« Website backend, scripts, deps
+    'website/api/controllers/webhooks/receive-from-github.js': 'eashaw',// github bot (webhook)
+    'website/config': 'eashaw',
     'website/config/routes.js': 'eashaw',//« Website redirects and URLs
-    'website/scripts': 'mikermcneil',
+    'website/scripts': 'eashaw',
     'website/package.json': 'eashaw',
 
     // 🫧 Vulnerability dashboard
@@ -204,7 +203,7 @@ module.exports.custom = {
     'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
-    'website': 'mikermcneil',// (default for website)
+    'website': ['mikermcneil', 'eashaw'],// (default for website)
     'website/views': 'eashaw',
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
