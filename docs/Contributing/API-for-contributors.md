@@ -2426,7 +2426,7 @@ Lists the software installed on the current device.
       "source": "apps"
       "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
       "status": "failed",
-      "detail": "Configuration profile failed before installation. Resend profile to try again."
+      "detail": "Software is installed, but script after installation failed."
     },
     {
       "id": 127,
@@ -2434,6 +2434,15 @@ Lists the software installed on the current device.
       "versions": ["118.0, 119.0"]
       "source": "apps"
       "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+      "status": "installed",
+      "detail": ""
+    },
+    {
+      "id": 129,
+      "name": "Zoom.us.app"
+      "versions": ["118.0"]
+      "source": "apps"
+      "vulnerabilities": [],
       "status": null,
       "detail": ""
     }
