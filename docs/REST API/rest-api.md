@@ -7895,7 +7895,7 @@ Delete managed software.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | **Required**. The ID of the managed software version to delete.|
+| id              | integer | path | **Required**. The ID of the managed software title to delete software installer. |
 
 #### Example
 
@@ -7913,7 +7913,7 @@ Get an installation result of the software that was installed.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| installation_id | integer | path | **Required**. The installation ID of the software.|
+| installation_uuid | string | path | **Required**. The installation UUID of the software.|
 
 #### Example
 
