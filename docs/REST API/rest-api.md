@@ -3663,6 +3663,66 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ```
 
+### Get host's software
+
+`GET /api/v1/fleet/hosts/:id/software/titles`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/software/titles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+  "software_titles": [
+    {
+      "id": 121,
+      "name": "Google Chrome.app"
+      "managed": true,
+      "versions": ["121.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+      "status": "failed",
+      "detail": "Software is installed, but script after installation failed."
+    },
+    {
+      "id": 134,
+      "name": "Falcon.app",
+      "managed": true,
+      "versions": [],
+      "source": "",
+      "vulnerabilities": [],
+      "status": null,
+      "detail": ""
+    },
+    {
+      "id": 147,
+      "name": "Firefox.app",
+      "managed": false,
+      "versions": ["112.1"],
+      "source": "apps",
+      "vulnerabilities": [],
+      "status": null,
+      "detail": ""
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
 ### Get hosts report in CSV
 
 Returns the list of hosts corresponding to the search criteria in CSV format, ready for download when
