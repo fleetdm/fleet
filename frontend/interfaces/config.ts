@@ -90,6 +90,8 @@ export interface IConfigFormData {
   enableSmtp: boolean;
   enableHostExpiry: boolean;
   hostExpiryWindow: number;
+  deleteActivities: boolean;
+  activityExpiryWindow: boolean;
   disableLiveQuery: boolean;
   agentOptions: any;
   enableHostStatusWebhook: boolean;
@@ -153,6 +155,10 @@ export interface IConfig {
   host_expiry_settings: {
     host_expiry_enabled: boolean;
     host_expiry_window: number;
+  };
+  activity_expiry_settings: {
+    activity_expiry_enabled: boolean;
+    activity_expiry_window: number;
   };
   features: IConfigFeatures;
   agent_options: string;
