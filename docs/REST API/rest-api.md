@@ -7572,7 +7572,7 @@ Deletes an existing script.
 
 #### Example
 
-`GET /api/v1/fleet/scripts?team_id=2`
+`GET /api/v1/fleet/scripts`
 
 ##### Default response
 
