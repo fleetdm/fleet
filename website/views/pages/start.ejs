@@ -1,23 +1,492 @@
 <div id="start" v-cloak>
   <div class="d-flex container" purpose="page-container">
-    <div class="text-center mx-auto">
-      <h1>Welcome to Fleet</h1>
-      <p class="mb-0">Spin up a local demo or get your Fleet Premium license key.</p>
+    <div purpose="form-container">
+    <div v-if="currentStep === 'start'">
+      <div class="text-center mx-auto">
+        <h1>Let’s get started</h1>
+        <p>To see whether Fleet’s right for your team, let's have a look at your hosts and what you're trying to do.</p>
+        <p>You can come back at any time and pick up where you left off.</p>
+        <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['start']" :form-rules="formLessStepRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group btn-container">
+          <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Start</ajax-button>
+        </div>
+        </ajax-form>
+      </div>
+
     </div>
-    <div purpose="start-cards">
-      <a purpose="card" href="/try-fleet">
-        <img alt="Run a local demo of Fleet" src="/images/start-try-fleet-64x64@2x.png">
-        <h2>Try Fleet</h2>
-        <p>Run a local demo of Fleet</p>
-      </a>
-      <a purpose="card" href="/new-license">
-        <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
-        <h2>Start</h2>
-        <p>Purchase a Fleet Premium license</p>
-      </a>
+    <div v-if="currentStep === 'what-are-you-using-fleet-for'">
+      <h2>What will you use Fleet for?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-are-you-using-fleet-for']" :form-rules="primaryBuyingSituationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <div class="input-group-text">
+                <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-security">
+              </div>
+            </div>
+            <div class="form-control">
+              <p>Endpoint ops for security engineers</p>
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <div class="input-group-text">
+                <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-it">
+              </div>
+            </div>
+            <div class="form-control">
+              <p>Endpoint ops for IT admins</p>
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <div class="input-group-text">
+                <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="mdm">
+              </div>
+            </div>
+            <div class="form-control">
+              <p>Device management (MDM)</p>
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <div class="input-group-text">
+                <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="vm">
+              </div>
+            </div>
+            <div class="form-control">
+              <p>Vulnerability management</p>
+            </div>
+          </div>
+          <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div class="form-group btn-container">
+          <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
     </div>
-    <div purpose="logo-container">
-    <logo-carousel></logo-carousel>
+
+    <div v-if="currentStep === 'have-you-ever-used-fleet'">
+      <h2>Have you ever used Fleet?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['have-you-ever-used-fleet']" :form-rules="isUsingFleetFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">oup">
+
+          <div class="form-group">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Yes, we actively use Fleet at work today</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-recently-deployed">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Yes, we deployed Fleet at work recently to try it out</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed-local">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Yes, but only in a local / homelab environment</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed-long-time">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Yes, but it's been a long time</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="no">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>No, not yet</p>
+              </div>
+            </div>
+            <div class="invalid-feedback" v-if="formErrors.fleetUseStatus">Please select an option</div>
+          </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div class="form-group btn-container">
+          <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+
+    <div v-if="currentStep === 'how-many-hosts'">
+      <h2>How many hosts do you have:</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['how-many-hosts']" :form-rules="numberOfHostsFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="1 to 100">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>1 to 100</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="100 to 700">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>100 to 700</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="700 to 1000">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>700 to 1000</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="over 1000">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>More than 1000</p>
+              </div>
+            </div>
+            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div class="form-group btn-container">
+          <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+
+    <div v-if="currentStep === 'will-you-be-self-hosting'">
+      <h2>Will you be hosting Fleet yourself?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['will-you-be-self-hosting']" :form-rules="hostingFleetFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['will-you-be-self-hosting'].willSelfHost" value=true>
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Yes, self hosted</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['will-you-be-self-hosting'].willSelfHost" value=false>
+                </div>
+              </div>
+              <div class="form-control">
+                <p>I'd prefer not to</p>
+              </div>
+            </div>
+            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div class="form-group btn-container">
+          <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+
+    <div v-if="currentStep === 'what-are-you-working-on-eo-security'">
+      <h2>What are you working on, mainly?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-are-you-working-on-eo-security']" :form-rules="endpointOpsSecurityWorkinOnFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="detection-and-response">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Detection and response</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="production-infrastructure-security">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Production infrastructure / security</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="identity-and-access-management-endpoint-security">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Identity and access management (IAM) / endpoint security</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="cyber-threat-intelligence">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Cyber-threat intelligence (CTI)</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="risk-grc">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Risk (GRC)</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="ot-ics-iot-security">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>OT / ICS / IoT security</p>
+              </div>
+            </div>
+            <div class="invalid-feedback" v-if="formErrors.endpointOpsSecurityUseCase">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div class="form-group btn-container">
+          <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+
+    <div v-if="currentStep === 'is-it-any-good'">
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-are-you-working-on-eo-security']" :form-rules="formLessStepRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="mx-auto">
+          <h2>Is it any good?</h2>
+          <p class="mb-0">We don’t have a public sample environment, but you can try Fleet out locally on your computer.</p>
+        </div>
+        <div purpose="start-cards">
+          <a purpose="card" href="/try-fleet">
+            <img alt="Run a local demo of Fleet" src="/images/start-try-fleet-64x64@2x.png">
+            <h2>Try Fleet yourself</h2>
+            <p>Try Fleet locally on your device</p>
+          </a>
+          <a purpose="card" href="/new-license">
+            <img alt="Purchase a Fleet Premium license" src="/images/homepage-icon-documentation-64x64@2x.png">
+            <h2>Read the docs</h2>
+            <p>See what Fleet can do</p>
+          </a>
+        </div>
+        <p>You can come back here any time to continue with your deployment.</p>
+        <div class="form-group btn-container">
+          <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+
+    <div v-if="currentStep === 'what-did-you-think-eo-security'">
+      <h2>What did you think?</h2>
+      <p>Now that you’ve seen what Fleet can do, what do you want to do next?</p>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-did-you-think-eo-security']" :form-rules="endpointOpsSecurityWhatDidYouThinkFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+
+
+          <div class="form-group">
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <div class="input-group-text">
+                    <input type="radio" v-model.trim="formData['what-did-you-think-eo-security'].whatDidYouThink" value="Id like you to host Fleet for me" @click="window.location = '/contact'">
+                  </div>
+                </div>
+                <div class="form-control">
+                  <p>I’d like you to host Fleet for me</p>
+                </div>
+              </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['what-did-you-think-eo-security'].whatDidYouThink" value="deploy-fleet-in-environemnt">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>I’d like to deploy Fleet in my environment</p>
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <div class="input-group-text">
+                  <input type="radio" v-model.trim="formData['what-did-you-think-eo-security'].whatDidYouThink" value="no">
+                </div>
+              </div>
+              <div class="form-control">
+                <p>Let me think about it</p>
+              </div>
+            </div>
+            <div class="invalid-feedback" v-if="formErrors.fleetUseStatus">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div class="form-group btn-container">
+          <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+
+    <div v-if="currentStep === 'lets-talk-to-your-team'">
+      <div class="text-center mx-auto">
+        <h2>Let’s talk to your team</h2>
+        <p>Great, let’s jump on a call to talk more about your fleet.</p>
+      </div>
+      <div purpose="start-cards">
+        <a purpose="card" @click="clickGoToCalendly()">
+          <img alt="Premium support" src="/images/icon-premium-support-64x64@2x.png">
+          <h2>Work with us</h2>
+          <p>Get support and training or schedule a personalized demo for your team.</p>
+        </a>
+        <a purpose="card" @click="clickGoToCalendly()">
+          <img alt="Ask us anything" src="/images/icon-ask-anything-64x64@2x.png">
+          <h2>Got questions?</h2>
+          <p>Grab some time and ask us anything.</p>
+        </a>
+      </div>
+      <div class="form-group btn-container">
+        <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
+
+    <div v-if="currentStep === 'deploy-fleet-in-your-environment-eo-security'">
+      <div class="text-center mx-auto">
+        <h2>Deploy Fleet in your environment</h2>
+        <p>Learn how to deploy and roll out Fleet in your environment.</p>
+      </div>
+      <div purpose="start-cards">
+        <a purpose="card" href="/docs/deploy">
+          <img alt="Premium support" src="/images/icon-premium-support-64x64@2x.png">
+          <h2>Deploy Fleet</h2>
+          <p>Get support and training or schedule a personalized demo for your team.</p>
+        </a>
+        <a purpose="card" href="/support">
+          <img alt="Ask us anything" src="/images/icon-ask-anything-64x64@2x.png">
+          <h2>Got questions?</h2>
+          <p>Ask Fleet’s community of helpful, knowledgeable people.</p>
+        </a>
+      </div>
+      <div purpose="logo-container">
+      <logo-carousel></logo-carousel>
+      </div>
+      <div class="form-group btn-container">
+        <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
+
+    <div v-if="currentStep === 'self-hosted-deploy'">
+      <div class="text-center mx-auto">
+        <h2>Deploy Fleet in your environment</h2>
+        <p>Learn how to deploy and rollout Fleet in your environment, get a Fleet Premium license, or both. You can back back in any time to upgrade.</p>
+      </div>
+      <div purpose="start-cards">
+        <a purpose="card" href="/docs/deploy">
+          <img alt="Premium support" src="/images/icon-deploy-fleet-64x64@2x.png">
+          <h2>Deploy Fleet</h2>
+          <p>Learn how to deploy Fleet</p>
+        </a>
+
+        <a purpose="card" href="/new-license">
+          <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
+          <h2>Get a license</h2>
+          <p>Purchase a Fleet Premium license</p>
+        </a>
+      </div>
+      <div class="form-group btn-container">
+        <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
+
+    <div v-if="currentStep === 'managed-cloud-for-growing-deployments'">
+      <div class="mx-auto">
+        <h2>Managed cloud for growing deployments</h2>
+        <p>Unfortunately, managed cloud hosting is not yet available for growing deployments of less than 700 hosts.</p>
+      </div>
+      <div purpose="start-cards" class="justify-content-start">
+        <a purpose="card" href="/docs/deploy">
+          <img alt="Premium support" src="/images/icon-deploy-fleet-64x64@2x.png">
+          <h2>Deploy Fleet</h2>
+          <p>Learn how to deploy Fleet</p>
+        </a>
+      </div>
+      <div class="form-group btn-container">
+        <a class="btn btn-transparent" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
+
+    <div v-if="currentStep === 'welcome-to-fleet'">
+      <div class="text-center mx-auto">
+        <h1>Welcome to Fleet</h1>
+        <p class="mb-0">Spin up a local demo or get your Fleet Premium license key.</p>
+      </div>
+      <div purpose="start-cards">
+        <a purpose="card" href="/try-fleet">
+          <img alt="Run a local demo of Fleet" src="/images/start-try-fleet-64x64@2x.png">
+          <h2>Try Fleet</h2>
+          <p>Run a local demo of Fleet</p>
+        </a>
+        <a purpose="card" href="/new-license">
+          <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
+          <h2>Start</h2>
+          <p>Purchase a Fleet Premium license</p>
+        </a>
+      </div>
+      <div purpose="logo-container">
+        <logo-carousel></logo-carousel>
+      </div>
+    </div>
     </div>
   </div>
 </div>

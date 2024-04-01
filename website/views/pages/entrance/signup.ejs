@@ -43,7 +43,7 @@
               </div>
             </div>
           </div>
-          <div class="form-group">
+<!--           <div class="form-group">
             <label for="primaryBuyingSituation">What will you be using Fleet for? *</label>
             <div class="selectbox">
             <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation" @input="typeClearOneFormError('primaryBuyingSituation')">
@@ -55,7 +55,7 @@
             </select>
             </div>
             <div class="d-block invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option.</div>
-          </div>
+          </div> -->
         </div>
         <cloud-error v-if="cloudError==='emailAlreadyInUse'">
           <p>This email is already linked to a Fleet account.<br> Please <a href="/login">sign in</a> with your email and password.</p>

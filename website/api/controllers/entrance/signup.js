@@ -66,7 +66,6 @@ the account verification message.)`,
     primaryBuyingSituation: {
       type: 'string',
       description: 'What the user will be using Fleet for.',
-      required: true,
       isIn: [
         'eo-security',
         'eo-it',

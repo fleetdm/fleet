@@ -13,6 +13,11 @@
     margin-left: auto;
     margin-right: auto;
   }
+  [purpose='form-container'] {
+    width: 528px;
+    margin-left: auto;
+    margin-right: auto;
+  }
   [purpose='page-container'] {
     padding-top: 80px;
     padding-left: 64px;
@@ -31,13 +36,14 @@
   }
   [purpose='card'] {
     width: 252px;
+    min-height: 200px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-decoration: none;
 
-    padding: 43px 52px;
+    padding: 24px;
     background: #FFF;
     color: @core-fleet-black-75;
     border-radius: 12px;
@@ -57,7 +63,7 @@
       font-size: 12px;
       font-weight: 400;
       line-height: 150%;
-      white-space: nowrap;
+      // white-space: nowrap;
       margin-bottom: 0px;
     }
     &:first-of-type {
