@@ -7866,7 +7866,7 @@ Download managed software.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | **Required**. The ID of uploaded software version to download.|
+| id              | integer | path | **Required**. The ID of the managed software title to download installer.|
 | alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software installer. |
 
 #### Example
