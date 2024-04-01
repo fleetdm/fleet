@@ -7800,9 +7800,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Add software](#add-software)
 - [Download software](#download-software)
 - [Delete software](#delete-software)
+- [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
-- [Install software](#install-software)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 
@@ -7896,6 +7896,38 @@ Delete managed software.
 ##### Default response
 
 `Status: 204`
+
+### Get installation results
+
+`GET /api/v1/fleet/software/install/results`
+
+Get an installation result of the software that was installed.
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| installation_id | integer | path | **Required**. The installation ID of the software.|
+
+#### Example
+
+`GET /api/v1/fleet/software/install/results`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  {
+    "installation_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+    "software_title": "Falcon.app",
+    "software_installer": "FalconSensor-6.44.pkg",
+    "host_display_name": "Marko's MacBook Pro",
+    "host_id": "123",
+    "status": "Pending",
+    "output": "",
+  }
+}
+```
 
 ### List software
 
