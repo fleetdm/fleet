@@ -8138,9 +8138,19 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
+    "managed": {
+      "installer": "FalconSensor-6.44.pkg",
+      "version": "6.44",
+      "uploaded_at": "2024-04-01T14:22:58Z"
+    },
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
+    "status": {
+      "installed": 3,
+      "pending": 1,
+      "failed": 2,
+    }
     "versions": [ 
       {
         "id": 123,
