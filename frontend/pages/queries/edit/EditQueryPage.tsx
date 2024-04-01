@@ -329,7 +329,9 @@ const EditQueryPage = ({
         team_id: currentTeamId,
       })}`;
 
-    return queryId ? PATHS.QUERY_DETAILS(queryId) : manageQueryPage;
+    return queryId
+      ? PATHS.QUERY_DETAILS(queryId, currentTeamId)
+      : manageQueryPage;
   };
 
   const showSidebar =

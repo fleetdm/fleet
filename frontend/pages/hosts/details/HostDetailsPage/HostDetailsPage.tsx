@@ -577,7 +577,7 @@ const HostDetailsPage = ({
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
     );
   };
 
