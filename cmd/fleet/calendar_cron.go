@@ -601,9 +601,10 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger k
 	}
 
 	var userCalendar fleet.UserCalendar
+	var calendarConfig *fleet.GoogleCalendarIntegration
 	if len(appConfig.Integrations.GoogleCalendar) > 0 {
-		googleCalendarIntegrationConfig := appConfig.Integrations.GoogleCalendar[0]
-		userCalendar = createUserCalendarFromConfig(ctx, googleCalendarIntegrationConfig, logger)
+		calendarConfig = appConfig.Integrations.GoogleCalendar[0]
+		userCalendar = createUserCalendarFromConfig(ctx, calendarConfig, logger)
 	}
 
 	// If global setting is disabled, we remove all calendar events from the DB
@@ -630,7 +631,7 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger k
 	}
 
 	for _, team := range teams {
-		if err := cleanupTeamCalendarEvents(ctx, ds, userCalendar, *team, logger); err != nil {
+		if err := cleanupTeamCalendarEvents(ctx, ds, calendarConfig, *team, logger); err != nil {
 			level.Info(logger).Log("msg", "delete team calendar events", "team_id", team.ID, "err", err)
 		}
 	}
@@ -644,14 +645,14 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger k
 	if err != nil {
 		return fmt.Errorf("list out of date calendar events: %w", err)
 	}
-	deleteCalendarEventsInParallel(ctx, ds, userCalendar, outOfDateCalendarEvents, logger)
+	deleteCalendarEventsInParallel(ctx, ds, calendarConfig, outOfDateCalendarEvents, logger)
 	return nil
 }
 
 func deleteAllCalendarEvents(
 	ctx context.Context,
 	ds fleet.Datastore,
-	userCalendar fleet.UserCalendar,
+	calendarConfig *fleet.GoogleCalendarIntegration,
 	teamID *uint,
 	logger kitlog.Logger,
 ) error {
@@ -659,12 +660,13 @@ func deleteAllCalendarEvents(
 	if err != nil {
 		return fmt.Errorf("list calendar events: %w", err)
 	}
-	deleteCalendarEventsInParallel(ctx, ds, userCalendar, calendarEvents, logger)
+	deleteCalendarEventsInParallel(ctx, ds, calendarConfig, calendarEvents, logger)
 	return nil
 }
 
 func deleteCalendarEventsInParallel(
-	ctx context.Context, ds fleet.Datastore, userCalendar fleet.UserCalendar, calendarEvents []*fleet.CalendarEvent, logger kitlog.Logger,
+	ctx context.Context, ds fleet.Datastore, calendarConfig *fleet.GoogleCalendarIntegration, calendarEvents []*fleet.CalendarEvent,
+	logger kitlog.Logger,
 ) {
 	if len(calendarEvents) > 0 {
 		const consumers = 20
@@ -675,6 +677,7 @@ func deleteCalendarEventsInParallel(
 			go func() {
 				defer wg.Done()
 				for calEvent := range calendarEventCh {
+					userCalendar := createUserCalendarFromConfig(ctx, calendarConfig, logger)
 					if err := deleteCalendarEvent(ctx, ds, userCalendar, calEvent); err != nil {
 						level.Error(logger).Log("msg", "delete user calendar event", "err", err)
 						continue
@@ -693,7 +696,7 @@ func deleteCalendarEventsInParallel(
 func cleanupTeamCalendarEvents(
 	ctx context.Context,
 	ds fleet.Datastore,
-	userCalendar fleet.UserCalendar,
+	calendarConfig *fleet.GoogleCalendarIntegration,
 	team fleet.Team,
 	logger kitlog.Logger,
 ) error {
@@ -712,7 +715,7 @@ func cleanupTeamCalendarEvents(
 		// so we want to cleanup all calendar events for the team.
 	}
 
-	return deleteAllCalendarEvents(ctx, ds, userCalendar, &team.ID, logger)
+	return deleteAllCalendarEvents(ctx, ds, calendarConfig, &team.ID, logger)
 }
 
 func deleteCalendarEvent(ctx context.Context, ds fleet.Datastore, userCalendar fleet.UserCalendar, calendarEvent *fleet.CalendarEvent) error {
