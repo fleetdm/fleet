@@ -2301,7 +2301,8 @@ Returns the information of the specified host.
         "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-1"]
+        "installed_paths": ["/usr/lib/some-path-1"],
+        "permissions": []
       },
       {
         "id": 1146,
