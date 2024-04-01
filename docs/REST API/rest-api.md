@@ -3684,6 +3684,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 `Status: 200`
 
 ```json
+{
   "software_titles": [
     {
       "id": 121,
