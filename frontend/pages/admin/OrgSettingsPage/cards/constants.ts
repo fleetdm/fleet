@@ -40,6 +40,7 @@ export interface IAppConfigFormErrors {
   days_count?: string | null;
   host_percentage?: string | null;
   host_expiry_window?: string | null;
+  activity_expiry_window?: string | null;
   agent_options?: string | null;
   transparency_url?: string | null;
 }

@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import SectionHeader from "components/SectionHeader";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+
+import { ACTIVITY_EXPIRY_WINDOW } from "utilities/constants";
+import { getCustomDropdownOptions } from "utilities/helpers";
 
 import {
   IAppConfigFormProps,
@@ -26,6 +31,10 @@ const Advanced = ({
     enableHostExpiry:
       appConfig.host_expiry_settings.host_expiry_enabled || false,
     hostExpiryWindow: appConfig.host_expiry_settings.host_expiry_window || 0,
+    deleteActivities:
+      appConfig.activity_expiry_settings?.activity_expiry_enabled || false,
+    activityExpiryWindow:
+      appConfig.activity_expiry_settings?.activity_expiry_window || 30,
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
@@ -38,6 +47,8 @@ const Advanced = ({
     enableStartTLS,
     enableHostExpiry,
     hostExpiryWindow,
+    deleteActivities,
+    activityExpiryWindow,
     disableLiveQuery,
     disableScripts,
     disableQueryReports,
@@ -45,9 +56,29 @@ const Advanced = ({
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
+  const activityExpiryWindowOptions = useMemo(
+    () =>
+      getCustomDropdownOptions(
+        ACTIVITY_EXPIRY_WINDOW,
+        activityExpiryWindow,
+        // it's safe to assume that frequency is a number
+        (frequency: number | string) => `${frequency as number} days`
+      ),
+    // intentionally leave activityExpiryWindow out of the dependencies, so that the custom
+    // options are maintained even if the user changes the frequency in the UI
+    [deleteActivities]
+  );
+
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
+
+  const onChangeSelectActivityExpiryWindow = useCallback(
+    (option: { value: number; name: string }) => {
+      setFormData({ ...formData, activityExpiryWindow: option.value });
+    },
+    [formData]
+  );
 
   useEffect(() => {
     // validate desired form fields
@@ -79,6 +110,10 @@ const Advanced = ({
       host_expiry_settings: {
         host_expiry_enabled: enableHostExpiry,
         host_expiry_window: Number(hostExpiryWindow),
+      },
+      activity_expiry_settings: {
+        activity_expiry_enabled: deleteActivities,
+        activity_expiry_window: Number(activityExpiryWindow),
       },
     };
 
@@ -180,6 +215,38 @@ const Advanced = ({
               value={hostExpiryWindow}
               parseTarget
               error={formErrors.host_expiry_window}
+            />
+          )}
+          <Checkbox
+            onChange={handleInputChange}
+            name="deleteActivities"
+            value={deleteActivities}
+            parseTarget
+            tooltipContent={
+              <>
+                When enabled, allows automatic cleanup of audit logs older than
+                the number of days specified in the{" "}
+                <em>Audit log retention window</em>
+                setting.
+                <em>
+                  (Default: <strong>Off</strong>)
+                </em>
+              </>
+            }
+          >
+            Delete activities
+          </Checkbox>
+          {deleteActivities && (
+            <Dropdown
+              searchable={false}
+              options={activityExpiryWindowOptions}
+              onChange={onChangeSelectActivityExpiryWindow}
+              placeholder="Select"
+              value={activityExpiryWindow}
+              label="Max activity age"
+              name="Max activity age"
+              parseTarget
+              error={formErrors.activity_expiry_window}
             />
           )}
           <Checkbox
