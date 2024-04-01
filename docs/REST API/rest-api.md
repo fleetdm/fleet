@@ -7566,7 +7566,7 @@ Deletes an existing script.
 
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team to filter scripts. If not specified, it will filter only scripts that are available to hosts with no team. |
+| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team to filter scripts by. If not specified, it will filter only scripts that are available to hosts with no team. |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 
