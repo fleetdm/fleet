@@ -1831,6 +1831,8 @@ None.
 - [List host OS versions](#list-host-os-versions)
 - [Get host OS version](#get-host-os-version)
 - [Get host's scripts](#get-hosts-scripts)
+- [Get host's software](#get-hosts-software)
+- [Install software](#install-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Lock host](#lock-host)
@@ -3723,6 +3725,29 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
   }
 }
 ```
+
+### Install software
+
+Install managed software on macOS, Windows, or Linux (Ubuntu) host.
+
+`POST /api/v1/fleet/hosts/:id/software/install/:software_id`
+
+#### Parameters
+
+| Name              | Type       | In   | Description                                      |
+| ---------         | ---------- | ---- | --------------------------------------------     |
+| id                | integer    | path | **Required**. The host's ID.                     |
+| software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+Software title must be `managed` to be installed.
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/software/install/3435`
+
+##### Default response
+
+`Status: 202`
 
 ### Get hosts report in CSV
 
@@ -7773,14 +7798,17 @@ Deletes the session specified by ID. When the user associated with the session n
 ## Software
 
 - [Add software](#add-software)
+- [Download software](#download-software)
+- [Delete software](#delete-software)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
+- [Install software](#install-software)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 
-### Add managed software
+### Add software
 
-Add software to install on macOS, Windows, and Linux (Ubuntu) hosts.
+Add managed software to install on macOS, Windows, and Linux (Ubuntu) hosts.
 
 `POST /api/v1/fleet/software/manage`
 
@@ -7820,9 +7848,9 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download managed software
+### Download software
 
-Download the uploaded software installer.
+Download managed software.
 
 `GET /api/v1/fleet/software/manage/:id?alt=media`
 
@@ -7849,9 +7877,9 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete managed software
+### Delete software
 
-Delete the uploaded software installer.
+Delete managed software.
 
 `DELETE /api/v1/fleet/software/manage/:id`
 
@@ -7868,7 +7896,6 @@ Delete the uploaded software installer.
 ##### Default response
 
 `Status: 204`
-
 
 ### List software
 
