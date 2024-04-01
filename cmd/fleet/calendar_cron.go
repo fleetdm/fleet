@@ -17,6 +17,8 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+const calendarConsumers = 18
+
 func newCalendarSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -200,11 +202,10 @@ func processCalendarFailingHosts(
 ) {
 	hosts = filterHostsWithSameEmail(hosts)
 
-	const consumers = 20
 	hostsCh := make(chan fleet.HostPolicyMembershipData)
 	var wg sync.WaitGroup
 
-	for i := 0; i < consumers; i++ {
+	for i := 0; i < calendarConsumers; i++ {
 		wg.Add(+1)
 		go func() {
 			defer wg.Done()
@@ -500,11 +501,10 @@ func removeCalendarEventsFromPassingHosts(
 		})
 	}
 
-	const consumers = 20
 	emailsCh := make(chan emailWithHosts)
 	var wg sync.WaitGroup
 
-	for i := 0; i < consumers; i++ {
+	for i := 0; i < calendarConsumers; i++ {
 		wg.Add(+1)
 		go func() {
 			defer wg.Done()
@@ -669,10 +669,9 @@ func deleteCalendarEventsInParallel(
 	logger kitlog.Logger,
 ) {
 	if len(calendarEvents) > 0 {
-		const consumers = 20
 		calendarEventCh := make(chan *fleet.CalendarEvent)
 		var wg sync.WaitGroup
-		for i := 0; i < consumers; i++ {
+		for i := 0; i < calendarConsumers; i++ {
 			wg.Add(+1)
 			go func() {
 				defer wg.Done()
