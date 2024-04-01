@@ -7818,6 +7818,8 @@ Add managed software to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer file. PKG or DMG for macOS and MSI for Windows hosts.   |
 | team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
+| configuration_profile_uuid         | string | form | The UUID of the configuration profile. If specified, the software can't be installed if the specified profile doesn't have status `verified`. Only configuration profiles added to the specified `team_id` can be selected. |
+| script_id         | integer | form | The ID of the script. If specified, script will be installed after the software is installed. Only scripts added to the specified `team_id` can be selected. |
 
 #### Example
 
@@ -7836,6 +7838,12 @@ Content-Type: multipart/form-data; boundary=------------------------d8c247122f59
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="team_id"
 1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="configuration_profile_uuid"
+4b44d8b9-eed8-48e8-a470-4843bc59880c
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="script_id"
+148
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
 Content-Type: application/octet-stream
