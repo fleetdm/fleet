@@ -15,7 +15,7 @@ This handbook page details processes specific to working [with](#what-we-do) and
 
 
 ## Responsibilities
-The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
+The Business Operations department is directly responsible for finance + invoicing, people operations, legal + deal desk, and corporate information technology (IT). 
 
 ### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
@@ -24,10 +24,10 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Revenue Operations
+| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Business Operations
 | Sign-on bonus                | "Bonus" payroll              | Head of Business Operations
 | Performance bonus            | "Bonus" payroll              | Head of Business Operations     
-| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
+| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Business Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
 ### Reconcile monthly recurring expenses
@@ -109,7 +109,7 @@ For Fleet's US contractors, running payroll is a manual process:
 - Sync hours and run contractor payroll.
 
 
-### Grant role-specific license to a team member (RevOps)
+### Grant role-specific license to a team member
 Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
 
 | Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
