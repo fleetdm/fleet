@@ -1773,6 +1773,17 @@ func (s *integrationTestSuite) TestListHosts() {
 			assert.Equal(t, "pass", policies[1].Response)
 		}
 	}
+
+	// there are 3 hosts, whos names end with ...local0, ...local1, ...local2
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	resp = listHostsResponse{}
+	// now with leading/trailing whitespace
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", " local0 ")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
 }
 
 func (s *integrationTestSuite) TestInvites() {
