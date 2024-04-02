@@ -19,11 +19,8 @@ parasails.registerPage('start', {
       },
       'what-are-you-working-on-eo-security': {},
       'is-it-any-good': {stepCompleted: true},
-      'what-did-you-think-eo-security': {},
+      'what-did-you-think': {},
     },
-
-
-
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
@@ -62,7 +59,6 @@ parasails.registerPage('start', {
 
     // Success state when form has been submitted
     cloudSuccess: false,
-    prefilledAnswers: {},
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -83,18 +79,18 @@ parasails.registerPage('start', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     handleSubmittingForm: async function(argins) {
-      console.log('argins:',argins);
       let formDataForThisStep = _.clone(argins);
-      let responseFromEndpoint = await Cloud.saveQuestionnaireProgress.with({
+      let nextStep = this.getNextStep();
+      let getStartedProgress = await Cloud.saveQuestionnaireProgress.with({
         currentStep: this.currentStep,
         formData: formDataForThisStep,
       });
-      console.log(responseFromEndpoint);
-      this.previouslyAnsweredQuestions[this.currentStep] = responseFromEndpoint.getStartedProgress[this.currentStep];
+      this.previouslyAnsweredQuestions[this.currentStep] = getStartedProgress[this.currentStep];
       this.syncing = false;
-      this.currentStep = responseFromEndpoint.nextStepInForm;
+      this.currentStep = nextStep;
     },
     clickGoToPreviousStep: async function() {
+      console.log(this.currentStep);
       switch(this.currentStep) {
         case 'have-you-ever-used-fleet':
           this.currentStep = 'what-are-you-using-fleet-for';
@@ -121,16 +117,81 @@ parasails.registerPage('start', {
           this.currentStep = 'how-many-hosts';
           break;
         case 'welcome-to-fleet':
-          this.currentStep = 'will-you-be-self-hosting';
+          this.currentStep = 'have-you-ever-used-fleet';
+          break;
+        case 'deploy-fleet-in-your-environment':
+          this.currentStep = 'what-did-you-think';
+          break;
+        case 'what-did-you-think':
+          this.currentStep = 'is-it-any-good';
           break;
       }
+    },
+    getNextStep: function() {
+      let nextStepInForm;
+      switch(this.currentStep) {
+        case 'start':
+          nextStepInForm = 'what-are-you-using-fleet-for';
+          break;
+        case 'what-are-you-using-fleet-for':
+          nextStepInForm = 'have-you-ever-used-fleet';
+          break;
+        case 'have-you-ever-used-fleet':
+          let fleetUseStatus = this.formData['have-you-ever-used-fleet'].fleetUseStatus;
+          if(fleetUseStatus === 'yes-recently-deployed' || fleetUseStatus === 'yes-deployed') {
+            nextStepInForm = 'how-many-hosts';
+          } else if((fleetUseStatus === 'no' && this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security') ||
+            (fleetUseStatus === 'yes-deployed-long-time' && this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security')) {
+            nextStepInForm = 'what-are-you-working-on-eo-security';
+          } else {
+            nextStepInForm = 'welcome-to-fleet';
+          }
+          break;
+        case 'how-many-hosts':
+          if(this.formData['how-many-hosts'].numberOfHosts === '1 to 100' ||
+            this.formData['how-many-hosts'].numberOfHosts === '100 to 700') {
+            nextStepInForm = 'will-you-be-self-hosting';
+          } else {
+            nextStepInForm = 'lets-talk-to-your-team';
+          }
+          break;
+        case 'will-you-be-self-hosting':
+          if(this.formData['will-you-be-self-hosting'].willSelfHost === 'true'){
+            nextStepInForm = 'self-hosted-deploy';
+          } else {
+            nextStepInForm = 'managed-cloud-for-growing-deployments';
+          }
+          break;
+        case 'what-are-you-working-on-eo-security':
+          nextStepInForm = 'is-it-any-good';
+          break;
+        case 'is-it-any-good':
+          nextStepInForm = 'what-did-you-think';
+          break;
+        case 'what-did-you-think':
+          if(this.formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it'){
+            nextStepInForm = 'is-it-any-good';
+          } else {
+            nextStepInForm = 'deploy-fleet-in-your-environment';
+          }
+          break;
+      }
+      return nextStepInForm;
     },
     clickGoToCalendly: function() {
       window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`;
     },
-    prefillPreviousAnswers: async function() {
+    clickGoToContactPage: function() {
+      window.location = `/contact?talk-to-us`;
+    },
+    prefillPreviousAnswers: function() {
       for(let formKey in this.previouslyAnsweredQuestions){
         this.formData[formKey] = this.previouslyAnsweredQuestions[formKey];
+      }
+      if(this.previouslyAnsweredQuestions){
+        console.log(this.currentStep);
+        console.log(this.previouslyAnsweredQuestions);
+        this.currentStep = this.getNextStep();
       }
     },
   }

@@ -223,7 +223,7 @@ without necessarily having a billing card.`
       type: 'json',
       description: 'This users progress in the get started form.'
     }
-    await USer.update({}).set({currentGetStartedQuestionnarieStep: undefined, getStartedQuestionnarieAnswers: undefined});
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
