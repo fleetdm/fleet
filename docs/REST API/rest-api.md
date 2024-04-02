@@ -8149,16 +8149,24 @@ Returns information about the specified software. By default, `versions` are sor
     "managed": {
       "installer": "FalconSensor-6.44.pkg",
       "version": "6.44",
-      "uploaded_at": "2024-04-01T14:22:58Z"
+      "uploaded_at": "2024-04-01T14:22:58Z",
+      "profile_before_install": {
+        "profile_name": "Falcon settings",
+        "profile_uuid": "111bb781-53ae-41d6-84dd-5b2b501fb4c5",
+      },
+      "script_after_install": {
+        "profile_name": "falcon-agent-pre-install-settings.sh",
+        "script_id": "133",
+      },
+      "status": {
+        "installed": 3,
+        "pending": 1,
+        "failed": 2,
+      }
     },
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
-    "status": {
-      "installed": 3,
-      "pending": 1,
-      "failed": 2,
-    }
     "versions": [ 
       {
         "id": 123,
