@@ -8163,6 +8163,7 @@ Returns information about the specified software. By default, `versions` are sor
         "pending": 1,
         "failed": 2,
       }
+      "broken": "false",
     },
     "source": "apps",
     "browser": "",
