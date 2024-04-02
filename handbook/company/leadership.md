@@ -184,7 +184,7 @@ This section is about creating a core team member role, and the hiring process f
 
 #### Creating a new position
 
-Want to hire? Use these steps to hire a [fleetie, not a consultant](https://fleetdm.com/handbook/business-operations#who-isnt-a-consultant). Here's how to  open up a new position on the core team:
+Want to hire? Use these steps to hire a [fleetie, not a consultant](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant). Here's how to  open up a new position on the core team:
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
