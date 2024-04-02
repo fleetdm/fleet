@@ -136,17 +136,15 @@ const SelectQueryModal = ({
 
       return (
         <>
-          <div className={`${baseClass}__filter-queries`}>
-            <InputFieldWithIcon
-              name="query-filter"
-              onChange={onFilterQueries}
-              placeholder="Filter queries"
-              value={queriesFilter}
-              autofocus
-              iconSvg="search"
-              iconPosition="start"
-            />
-          </div>
+          <InputFieldWithIcon
+            name="query-filter"
+            onChange={onFilterQueries}
+            placeholder="Filter queries"
+            value={queriesFilter}
+            autofocus
+            iconSvg="search"
+            iconPosition="start"
+          />
           <div>{queryList}</div>
         </>
       );

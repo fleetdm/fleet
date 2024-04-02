@@ -12,31 +12,23 @@
   }
 
   &__no-queries {
-    .info {
-      &__header {
-        margin: $pad-medium 0 $pad-medium 0;
-      }
-      &__data {
-        margin: 0 0 $pad-large 0;
-      }
-    }
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+    margin: $pad-large 0;
   }
 
   .info {
-    &__header {
+    &__header,
+    &__data {
       display: block;
       color: $core-fleet-black;
-      font-weight: $bold;
       font-size: $x-small;
       text-align: center;
     }
 
-    &__data {
-      display: block;
-      color: $core-fleet-black;
-      font-weight: normal;
-      font-size: $x-small;
-      text-align: center;
+    &__header {
+      font-weight: $bold;
     }
   }
 }
