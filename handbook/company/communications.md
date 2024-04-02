@@ -493,27 +493,14 @@ You can learn more about how Fleet approaches security in the [security handbook
 
 
 ## Vendor questionnaires 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our
-[security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and
-[application security](https://fleetdm.com/handbook/business-operations/application-security)
-documentation. In addition to this documentation, please refer to [the vendor questionnaires
-page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires)
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires)
 
 ### Internal process for handling questionnaires
 - The Account Executive (AE) will create a github issue to track completion of the vendor questionnaire.
-- The AE will use the handbook to answer most of the questions with links to appropriate sections in
-  the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will assign the
-  issue to Business Operations (BizOps) (#g-business-operations) with a requested timeline for completion defined.
-- BizOps consults the handbook to validate that nothing was missed by the AE. After the second pass
-  has been completed, and if there are outstanding questions, BizOps will reassign the issue to the
-  #g-sales board for intake.
-- The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to
-  complete any unanswered questions.
-- The SC will search for unanswered questions and confirm again that nothing was missed from the
-  handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions
-  after this pass has been completed by the SC will need to be escalated to the Infrastructure team
-  (#g-customer-success) with the requested timeline for completion defined in the issue. Once
-  complete, the infra team will assign the issue back to the #g-sales board.
+- The AE will use the handbook to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will assign the issue to Business Operations (BizOps) (#g-business-operations) with a requested timeline for completion defined.
+- BizOps consults the handbook to validate that nothing was missed by the AE. After the second pass has been completed, and if there are outstanding questions, BizOps will reassign the issue to the #g-sales board for intake.
+- The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
+- The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be escalated to the Infrastructure team (#g-customer-success) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
 - Any questions answered by the infra team will be added to the handbook by the SC.
 
 
