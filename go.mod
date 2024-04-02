@@ -41,7 +41,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
-	github.com/golang-jwt/jwt/v4 v4.4.2
+	github.com/golang-jwt/jwt/v4 v4.4.3
 	github.com/gomodule/oauth1 v0.2.0
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.6.0
@@ -64,7 +64,7 @@ require (
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
 	github.com/macadmins/osquery-extension v0.0.15
-	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
+	github.com/mattermost/xml-roundtrip-validator v0.1.0
 	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/micromdm/micromdm v1.9.0
 	github.com/mitchellh/go-ps v1.0.0
@@ -85,7 +85,7 @@ require (
 	github.com/prometheus/client_golang v1.13.0
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/rs/zerolog v1.20.0
-	github.com/russellhaering/goxmldsig v1.2.0
+	github.com/russellhaering/goxmldsig v1.3.0
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
 	github.com/sethvargo/go-password v0.2.0
 	github.com/shirou/gopsutil/v3 v3.23.3
@@ -191,6 +191,8 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/crewjam/httperr v0.2.0 // indirect
+	github.com/crewjam/saml v0.4.14 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/dghubble/go-twitter v0.0.0-20210609183100-2fdbf421508e // indirect
 	github.com/dghubble/oauth1 v0.7.0 // indirect
