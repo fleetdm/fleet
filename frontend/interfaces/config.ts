@@ -69,17 +69,19 @@ export interface IConfigFormData {
   smtpAuthenticationMethod: string;
   smtpAuthenticationType: string;
   domain: string;
-  smtpEnableSslTls: boolean;
-  enableStartTls: boolean;
-  serverUrl: string;
-  orgLogoUrl: string;
+  smtpEnableSSLTLS: boolean;
+  enableStartTLS?: boolean;
+  serverURL: string;
+  orgLogoURL: string;
   orgName: string;
+  orgLogoURLLightBackground: string;
+  orgSupportURL: string;
   smtpPassword: string;
   smtpPort?: number;
   smtpSenderAddress: string;
   smtpServer: string;
   smtpUsername: string;
-  verifySslCerts: boolean;
+  verifySSLCerts: boolean;
   entityId: string;
   idpImageUrl: string;
   metadata: string;
@@ -87,19 +89,22 @@ export interface IConfigFormData {
   idpName: string;
   enableSso: boolean;
   enableSsoIdpLogin: boolean;
-  enableSmtp: boolean;
+  enableSMTP: boolean;
   enableHostExpiry: boolean;
   hostExpiryWindow: number;
   deleteActivities: boolean;
-  activityExpiryWindow: boolean;
+  activityExpiryWindow: number;
   disableLiveQuery: boolean;
-  agentOptions: any;
+  agentOptions?: any;
   enableHostStatusWebhook: boolean;
-  hostStatusWebhookDestinationUrl?: string;
-  hostStatusWebhookHostPercentage?: number;
-  hostStatusWebhookDaysCount?: number;
+  destination_url?: string;
+  hostStatusWebhookHostPercentage: number;
+  hostStatusWebhookWindow: number;
   enableUsageStatistics: boolean;
   transparencyUrl: string;
+  disableScripts: boolean;
+  disableQueryReports: boolean;
+  enableJitProvisioning: boolean;
 }
 
 export interface IConfigFeatures {

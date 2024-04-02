@@ -13,6 +13,7 @@ import YamlAce from "components/YamlAce";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 
+import { IConfigFormData } from "interfaces/config";
 import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
 
 const baseClass = "app-config-form";
@@ -25,10 +26,14 @@ const Agents = ({
 }: IAppConfigFormProps): JSX.Element => {
   const { ADMIN_TEAMS } = paths;
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<
+    Pick<IConfigFormData, "agentOptions">
+  >({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),
   });
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<
+    Pick<IAppConfigFormErrors, "agent_options">
+  >({});
 
   const { agentOptions } = formData;
 
@@ -37,7 +42,7 @@ const Agents = ({
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: Pick<IAppConfigFormErrors, "agent_options"> = {};
 
     if (agentOptions) {
       const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);

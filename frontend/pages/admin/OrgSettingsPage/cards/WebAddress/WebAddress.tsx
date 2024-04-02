@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import { IConfigFormData } from "interfaces/config";
+
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -19,13 +21,15 @@ const WebAddress = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<Pick<IConfigFormData, "serverURL">>({
     serverURL: appConfig.server_settings.server_url || "",
   });
 
   const { serverURL } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<
+    Pick<IAppConfigFormErrors, "server_url">
+  >({});
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
