@@ -530,6 +530,9 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
+	// GetHostOperatingSystem returns the operating system information
+	// for a given host.
+	GetHostOperatingSystem(ctx context.Context, hostID uint) (*OperatingSystem, error)
 	// ListOperationsSystems returns all operating systems (id, name, version)
 	ListOperatingSystems(ctx context.Context) ([]OperatingSystem, error)
 	// ListOperatingSystemsForPlatform returns all operating systems for the given platform.

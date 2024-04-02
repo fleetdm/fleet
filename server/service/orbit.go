@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -264,10 +265,28 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			return fleet.OrbitConfig{}, err
 		}
 
+		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "get orbit config")
+		}
+
+		var macOsVersionFloat float32
+		if hostOS.Platform == "darwin" {
+			versionFloat, err := strconv.ParseFloat(hostOS.Version, 32)
+			macOsVersionFloat = float32(versionFloat)
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "parsing macos version float")
+		}
+
+		// Newer versions of macOS have a builtin version update
+		// notifyer and don't require nudge, so we don't produce a
+		// nudge config
+		macOsRequiresNudge := hostOS.Platform == "darwin" && macOsVersionFloat < 14
+
 		var nudgeConfig *fleet.NudgeConfig
 		if appConfig.MDM.EnabledAndConfigured &&
 			mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.EnabledForHost(host) {
+			mdmConfig.MacOSUpdates.EnabledForHost(host) &&
+			macOsRequiresNudge {
 			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
