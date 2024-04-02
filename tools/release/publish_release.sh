@@ -429,17 +429,17 @@ if [ "$force" = "false" ]; then
 fi
 # 4.47.2
 start_milestone="${start_version:1}"
-# 4.47.3
+# 4.48.0
 target_milestone="${next_ver:1}"
 # 79
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
-# patch-fleet-v4.47.3
+# patch-fleet-v4.48.0
 target_patch_branch="patch-fleet-$next_ver"
 if [[ "$main_release" == "true" ]]; then
     target_patch_branch="prepare-fleet-$next_ver"
 fi
 
-# fleet-v4.47.3
+# fleet-v4.48.0
 next_tag="fleet-$next_ver"
 
 if [ "$print_info" = "true" ]; then
