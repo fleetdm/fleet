@@ -166,11 +166,13 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	// Add empty folders to be created.
+	const defaultUmask = 0o022
 	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
 		contents = append(contents, (&files.Content{
 			Destination: emptyFolder,
 			Type:        "dir",
-		}).WithFileInfoDefaults())
+		}).WithFileInfoDefaults(defaultUmask),
+		)
 	}
 
 	if varLibSymlink {
@@ -186,7 +188,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			})
 	}
 
-	contents, err = files.ExpandContentGlobs(contents, false)
+	contents, err = files.PrepareForPackager(contents, defaultUmask, "", false)
 	if err != nil {
 		return "", fmt.Errorf("glob contents: %w", err)
 	}
