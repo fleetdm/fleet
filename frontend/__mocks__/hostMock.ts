@@ -1,4 +1,4 @@
-import { IHost } from "interfaces/host";
+import { IHost, IHostResponse } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
@@ -32,8 +32,10 @@ const DEFAULT_HOST_MOCK: IHost = {
   display_name: "9b20fc72a247",
   display_text: "mock host 1",
   uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
-  platform: "ubuntu",
+  platform: "chrome",
   osquery_version: "4.9.0",
+  orbit_version: "1.22.0",
+  fleet_desktop_version: "1.22.0",
   os_version: "Ubuntu 18.4.0",
   build: "",
   platform_like: "debian",
@@ -100,5 +102,7 @@ const DEFAULT_HOST_MOCK: IHost = {
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
   return { ...DEFAULT_HOST_MOCK, ...overrides };
 };
+
+export const createMockHostResponse = { host: createMockHost() };
 
 export default createMockHost;
