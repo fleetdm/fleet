@@ -244,8 +244,12 @@ publish() {
 
     issues=`gh issue list -m $target_milestone --json number | jq -r '.[] | .number'`
     for iss in $issues; do
-        echo "Closing #$iss"
-        gh issue close $iss
+        is_story=`gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story`
+        # close all non-stories
+        if [[ "$is_story" == "" ]]; then
+            echo "Closing #$iss"
+            gh issue close $iss
+        fi
     done
 
     echo "Closing milestone"
@@ -357,15 +361,15 @@ if [ -z "$open_api_key" ]; then
     fi
 fi
 
-if [ -n "$SLACK_GENERAL_TOKEN" ]; then
+if [ -z "$SLACK_GENERAL_TOKEN" ]; then
     echo "Error: No SLACK_GENERAL_TOKEN environment variable." >&2
     exit 1
 fi
-if [ -n "$SLACK_HELP_INFRA_TOKEN" ]; then
+if [ -z "$SLACK_HELP_INFRA_TOKEN" ]; then
     echo "Error: No SLACK_HELP_INFRA_TOKEN environment variable." >&2
     exit 1
 fi
-if [ -n "$SLACK_HELP_ENG_TOKEN" ]; then
+if [ -z "$SLACK_HELP_ENG_TOKEN" ]; then
     echo "Error: No SLACK_HELP_ENG_TOKEN environment variable." >&2
     exit 1
 fi
@@ -519,7 +523,6 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         read -r -p "Check any issues that have no pull requests, no to cancel and yes to continue? [y/N] " response
         case "$response" in
             [yY][eE][sS]|[yY])
-                echo "Continuing to cherry-pick"
                 echo
                 ;;
             *)
@@ -531,6 +534,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
     commits=""
 
     if [[ "$main_release" == "false" ]]; then
+        echo "Continuing to cherry-pick"
         for pr in ${total_prs[*]};
         do
             output=`gh pr view $pr --json state,mergeCommit,baseRefName`
