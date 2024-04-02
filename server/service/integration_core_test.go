@@ -3761,7 +3761,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, hosts[1].ID, listHostsResp.Hosts[0].ID)
 	assert.Equal(t, hosts[2].ID, listHostsResp.Hosts[1].ID)
 
-	// list hosts in label searching by display_name
+	// list hosts in label ordered by display_name
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "display_name", "order_direction", "desc")
 	assert.Len(t, listHostsResp.Hosts, len(hosts))
 	// first in the list is the last one, as the names are ordered with the index
@@ -3780,6 +3780,11 @@ func (s *integrationTestSuite) TestLabels() {
 
 	// list hosts in label searching by email address
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "query", "a@b.c")
+	assert.Len(t, listHostsResp.Hosts, 1)
+	assert.Equal(t, hosts[0].ID, listHostsResp.Hosts[0].ID)
+
+	// list hosts in label searching by email address with leading/trailing whitespace
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "query", "    a@b.c   ")
 	assert.Len(t, listHostsResp.Hosts, 1)
 	assert.Equal(t, hosts[0].ID, listHostsResp.Hosts[0].ID)
 
