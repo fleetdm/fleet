@@ -105,6 +105,7 @@ const AddPolicyModal = ({
     if (platformSelected === "all") {
       setFilteredPolicies(DEFAULT_POLICIES);
     } else {
+      // Note: Default policies currently map to a single platform
       const policiesFilteredByPlatform = DEFAULT_POLICIES.filter((policy) => {
         return policy.platform === platformSelected;
       });
@@ -154,23 +155,21 @@ const AddPolicyModal = ({
       width="large"
     >
       <>
-        <div className={`${baseClass}__create-policy`}>
+        <div className={`${baseClass}__description`}>
           Choose a policy template to get started or{" "}
           <Button variant="text-link" onClick={onCreateYourOwnPolicyClick}>
             create your own policy
           </Button>
           .
         </div>
-        <div className={`${baseClass}__platform-filter`}>
-          <Dropdown
-            value={platform}
-            className={`${baseClass}__platform-dropdown`}
-            options={PLATFORM_FILTER_OPTIONS}
-            searchable={false}
-            onChange={onPlatformFilterChange}
-            tableFilterDropdown
-          />
-        </div>
+        <Dropdown
+          value={platform}
+          className={`${baseClass}__platform-dropdown`}
+          options={PLATFORM_FILTER_OPTIONS}
+          searchable={false}
+          onChange={onPlatformFilterChange}
+          tableFilterDropdown
+        />
         <div className={`${baseClass}__policy-selection`}>
           {filteredPolicies.length > 0 ? policiesAvailable : renderNoResults()}
         </div>
