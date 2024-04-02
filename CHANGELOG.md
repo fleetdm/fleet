@@ -7,12 +7,10 @@
 ### Endpoint operations
 
 - Added integration with Google Calendar.
-
-* Fleet admins can enable Google Calendar integration by using a Google service account with domain-wide delegation.
-* Calendar integration is enabled at the team level for specific team policies.
-* If the policy is failing, a calendar event will be put on the host user's calendar for the 3rd Tuesday of the month.
-* During the event, Fleet will fire a webhook. IT admins should use this webhook to trigger a script or MDM command that will remediate the issue.
-
+  * Fleet admins can enable Google Calendar integration by using a Google service account with domain-wide delegation.
+  * Calendar integration is enabled at the team level for specific team policies.
+  * If the policy is failing, a calendar event will be put on the host user's calendar for the 3rd Tuesday of the month.
+  * During the event, Fleet will fire a webhook. IT admins should use this webhook to trigger a script or MDM command that will remediate the issue.
 - Reduced the number of 'Deadlock found' errors seen by the server when multiple hosts share the same UUID.
 - Removed outdated tooltips from UI.
 - Added hover states to clickable elements.

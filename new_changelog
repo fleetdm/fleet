@@ -1,0 +1,78 @@
+- Fix a bug where valid MDM enrollments would show up as unmanaged (EnrollmentState 3)
+
+* Fix flash message from closing when a modal closes
+
+- Adds a migration that removes the `script_contents` columns that aren't needed anymore due to the
+  introduction of the `script_contents` table
+- Adds a cleanup cron job that will remove unused script contents periodically
+
+- Fixed a bug where OS version information would not get detected on Windows Server 2019
+
+Reduced the number of 'Deadlock found' errors seen by the server when multiple hosts share the same UUID
+
+- Fixed issue where getting host details failed when attempting to read the host's bitlocker status
+  from the datastore.
+
+- update UI to support macos DDM profiles.
+
+Fixing false negative vulnerabilities on macOS Homebrew python packages.
+
+- UI fix: styling of live query disabled warning
+
+* Added Windows MDM support to the `osquery-perf` host-simulation command.
+* Added a missing database index to the MDM Windows enrollments table that will improve performance at scale.
+
+- UI fix: users can see a tooltip on a disabled checkbox
+
+- Fixes an issue with Windows MDM profile processing where `<Add>` commands were being skipped.
+
+- add env from secret/cm capability to helm charts
+
+* Fix a small alignment bug
+
+- add a minimum supported node version in the package.json
+
+- Fix UI's ability to bulk delete hosts when "All teams" is selected
+
+- Removed outdated tooltips from UI.
+
+- Fix error state rendering on the global Host status expiry settings page, fix error state
+  alignment for tooltip-wrapper field labels across organization settings.
+
+Fleet UI: Add hover states to clickable elements
+
+* Visual Studio extensions added to Fleet's software inventory.
+
+- Fix a bug where `null` or excluded `smtp_settings` caused a UI 500.
+
+* Migrate MDM-related endpoints to new paths, deprecating (but still supporting indefinitely) the old endpoints.
+
+- Adds API functionality for creating DDM declarations, both individually and as a batch.
+
+Added integration with Google Calendar.
+- Fleet admins can enable Google Calendar integration by using a Google service account with domain-wide delegation.
+- Calendar integration is enabled at the team level for specific team policies.
+- If the policy is failing, a calendar event will be put on the host user's calendar for the 3rd Tuesday of the month.
+- During the event, Fleet will fire a webhook. IT admins should use this webhook to trigger a script or MDM command that will remediate the issue.
+
+- Query report is reset when there is a change to the selected platform or selected minimum osquery version
+
+* UI fix of sql result sort for both string and numerical columns on live query results, live policy results, and query report
+
+- add ddm activities to the fleet UI
+
+* Added the `enable_release_device_manually` configuration setting for a team and no team. **Note** that the macOS automatic enrollment profile cannot set the `await_device_configured` option anymore, this setting is controlled by Fleet via the new `enable_release_device_manually` option.
+* Automatically release a macOS DEP-enrolled device after enrollment commands and profiles have been delivered, unless `enable_release_device_manually` is set to `true`.
+
+For GET fleet/os_versions and GET fleet/os_versions/[id], team users no longer have access to os versions on hosts from other teams.
+
+- `fleetctl gitops` now batch processes queries and policies
+
+- Fixes UI bug to render the query platform correctly for queries imported from the standard query library
+
+- Fixed issue where microsoft edge was not reporting vulnerabilities
+
+- Fix a bug where all Windows MDM enrollments were detected as automatic
+
+- Added cross-platform check for duplicate MDM profiles names in batch set MDM profiles API.
+
