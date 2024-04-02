@@ -495,6 +495,8 @@ You can learn more about how Fleet approaches security in the [security handbook
 ## Vendor questionnaires 
 In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires)
 
+The Sales department is responsible for [processing security questionnaires](https://fleetdm.com/handbook/sales#process-a-security-questionnaire) of any kind.
+
 ### Internal process for handling questionnaires
 - The Account Executive (AE) will create a github issue to track completion of the vendor questionnaire.
 - The AE will use the handbook to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will assign the issue to Business Operations (BizOps) (#g-business-operations) with a requested timeline for completion defined.
