@@ -1055,6 +1055,15 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}, nil
 }
 
+func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint, updates fleet.MacOSUpdates) error {
+	if updates.MinimumVersion.Value == "" {
+		// TODO: OS updates disabled, remove the profile
+		return nil
+	}
+	// TODO: OS updates enabled and modified, create or update the profile
+	return nil
+}
+
 func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint, updates fleet.WindowsUpdates) error {
 	var contents bytes.Buffer
 	params := windowsOSUpdatesProfileOptions{
