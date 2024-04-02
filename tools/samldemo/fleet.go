@@ -25,6 +25,10 @@ type basicHost struct {
 	} `json:"issues"`
 }
 
+type hostResponse struct {
+	Host basicHost `json:"host"`
+}
+
 // Get all the hosts for a user (by email address)
 func hostsForUser(email string) ([]basicHost, error) {
 	req, err := http.NewRequest("GET", fleetURL+"/api/latest/fleet/hosts?page=0&per_page=50&query="+email, &bytes.Buffer{})
@@ -89,12 +93,15 @@ func checkByIdentifier(identifier string) error {
 		return err
 	}
 
-	var host basicHost
-	err = json.Unmarshal(body, &host)
+	log.Println(string(body))
+
+	var hresp hostResponse
+	err = json.Unmarshal(body, &hresp)
 	if err != nil {
 		return err
 	}
 
+	host := hresp.Host
 	log.Println(host)
 
 	if host.Issues.FailingPoliciesCount > 0 {

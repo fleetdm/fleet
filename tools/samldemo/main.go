@@ -9,7 +9,6 @@ const addr = "localhost:9337"
 
 func main() {
 	idp := getIDP()
-	sp := getSP()
 	mux := http.NewServeMux()
 
 	// IdP
@@ -18,11 +17,15 @@ func main() {
 	mux.HandleFunc("/sso", idp.ServeSSO)
 	mux.HandleFunc("/ssowithidentifier", idp.ServeSSOWithIdentifier)
 
-	// SP (used for MFA)
-	mux.Handle("/sso/acs", sp)
-
 	mux.Handle("/img/", http.StripPrefix("/img", http.FileServer(http.Dir("./img"))))
 
-	fmt.Println(hostsForUser("zach@fleetdm.com"))
+	// SP (used for MFA)
+	m := NewSPMiddleware()
+	mux.Handle("/", m)
+
+	mux.Handle("/testsp", m.RequireAccount(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
+
+	// fmt.Println(hostsForUser("zach@fleetdm.com"))
+	fmt.Println("serving")
 	panic(http.ListenAndServe(addr, mux))
 }

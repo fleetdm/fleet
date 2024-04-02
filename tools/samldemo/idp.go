@@ -79,39 +79,39 @@ UzreO96WzlBBMtY=
 var spMeta = func() *saml.EntityDescriptor {
 	var res saml.EntityDescriptor
 	err := xml.Unmarshal([]byte(`<?xml version="1.0" encoding="UTF-8"?>
-<md:EntityDescriptor entityID="https://www.okta.com/saml2/service-provider/spmgaikhxteyxumoajkg" xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"><md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"><md:KeyDescriptor use="encryption"><ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:X509Data><ds:X509Certificate>MIIDqjCCApKgAwIBAgIGAY2kcw61MA0GCSqGSIb3DQEBCwUAMIGVMQswCQYDVQQGEwJVUzETMBEG
+<md:EntityDescriptor entityID="https://www.okta.com/saml2/service-provider/spdhkwkrikxbahheysxi" xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"><md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"><md:KeyDescriptor use="encryption"><ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:X509Data><ds:X509Certificate>MIIDqjCCApKgAwIBAgIGAY5iiKkkMA0GCSqGSIb3DQEBCwUAMIGVMQswCQYDVQQGEwJVUzETMBEG
 A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
-MBIGA1UECwwLU1NPUHJvdmlkZXIxFjAUBgNVBAMMDXRyaWFsLTE5MzA2ODExHDAaBgkqhkiG9w0B
-CQEWDWluZm9Ab2t0YS5jb20wHhcNMjQwMjEzMjE0OTIwWhcNMzQwMjEzMjE1MDIwWjCBlTELMAkG
+MBIGA1UECwwLU1NPUHJvdmlkZXIxFjAUBgNVBAMMDXRyaWFsLTIxNzE2MDUxHDAaBgkqhkiG9w0B
+CQEWDWluZm9Ab2t0YS5jb20wHhcNMjQwMzIxMTk0MDQ3WhcNMzQwMzIxMTk0MTQ3WjCBlTELMAkG
 A1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExFjAUBgNVBAcMDVNhbiBGcmFuY2lzY28xDTAL
-BgNVBAoMBE9rdGExFDASBgNVBAsMC1NTT1Byb3ZpZGVyMRYwFAYDVQQDDA10cmlhbC0xOTMwNjgx
+BgNVBAoMBE9rdGExFDASBgNVBAsMC1NTT1Byb3ZpZGVyMRYwFAYDVQQDDA10cmlhbC0yMTcxNjA1
 MRwwGgYJKoZIhvcNAQkBFg1pbmZvQG9rdGEuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
-CgKCAQEAoNxTYBkURtCx75KqjDIzh0q61l7QXYjtFfy5OPDp9h6I3aDyUKdJtR3DAn2R3TjAQu8/
-336+/76SsC3fBBEkXd4DWJ9dzd8zxX0MDYg2VL6/L/zrCq9+oK8UDGGGh6EhpKbc8ZOysyoX0sbZ
-BraZxtCuRkmZYMfJVudVfCTiJn/2hy3NdfP33AN+d+Ercr5oJpftJwzAqvZZ9YzvytoPV26k5yQv
-p3sPg/mgp6mMYOVw9LNnPvRHAOjks3Dlh/h0ZQ9vhUvPvu2pVV4nX7+1wfb/6cBt7RSmnimOoV2+
-1b0Bttg87GRjgfbjT7ejijbxqVwSVslFedO2PETLHPOBywIDAQABMA0GCSqGSIb3DQEBCwUAA4IB
-AQBiey581q7M2wBGWchyyoSYQTuN0YnHhx3KEEcq2evZH/TmWJ1Yjx8MSCPtTgUzDkpv6aAnpcF1
-/1y1xW7Rm4T9is6BaXWSKzm3e2m4217/IdgJ3NfLZE52imRdaZHkVdiM1//NlC5EG7bRBr002ciR
-6ShKHatYFpA8HDW2RIbiDg4NHI4HN5sXGWf+evPrpdbREHN0MHo4BMe3MM0SDE+/sUC3nhTmc6D1
-JYmdRUj+GvUv0cqieUESf/A9yMDsdjTcgNzStGU93JXhJDJ/GUZpveHmPY7GH+0k8CW36LZrtxKG
-J6k/4lrVU/5lJWohLx7BSfGCc9OrH6DYG++YSlHy</ds:X509Certificate></ds:X509Data></ds:KeyInfo><md:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes128-cbc"/><md:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes192-cbc"/><md:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes256-cbc"/><md:EncryptionMethod Algorithm="http://www.w3.org/2009/xmlenc11#aes128-gcm"/><md:EncryptionMethod Algorithm="http://www.w3.org/2009/xmlenc11#aes256-gcm"/><md:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#tripledes-cbc"/></md:KeyDescriptor><md:KeyDescriptor use="signing"><ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:X509Data><ds:X509Certificate>MIIDqjCCApKgAwIBAgIGAY2kcw61MA0GCSqGSIb3DQEBCwUAMIGVMQswCQYDVQQGEwJVUzETMBEG
+CgKCAQEAulSGykIpWxpSPYbFWi535nt5zxXx7ku+h6e4XX7W3DBIFb+D6MGldfridUHkuXrF1b9f
+ZP+9mbD6D6jNLvjTgBeK3y2+Ty1NyFEoS5T5U9m37p0NE8r9kOUkjtnKpo9b3I1pQw9XRaQk0JYY
+ZINhzd5K7xSa8tHf0F7PzWtzOC1SEuwXzm+bWgyLRaeBVWc1M6lLkar+uFpSBtUcUcV88DgdPx5g
+8M8waNdvv92Qs+mL5PL6CKiWrfatTbXgSYbmf0ssZSgk4BOOSLeL49NL3ED0rEVUlL0TbypPgEIO
++UtGFgrcbCjfBiRI/4thV/Sup04bpfRE7s666QN5SJNzgwIDAQABMA0GCSqGSIb3DQEBCwUAA4IB
+AQCf2z9mp/lwaD7AnoR2Xa3WcJCTKON02xrftlCpDBfj6thPYhZr1he0RZXXlzAn7pzj5la46Bwq
+LdK6yKvzy8bMY0phaIeiNuTXXK62hj2SJuRDgyVJZyfYmw582h44g51Xt0qSq6pNiClaUGYf9WEa
+dirsr/V9GtrMLSFuaqnDpceKoILg2F+YBTXWXu9vwSbtf1gccbjtgTc41jrsUfEMol3Yr/iBhXIg
+j6+NHot/QROcy1tB7CWPFyJ8SxzcUe8cJoueBLKBWDF6Jdpy6y8TDdaDYwXKsCJBXWSHd9C6celq
+DDJo/AsWSArqnGsEy7QjitygdVc6y+4X4ee3h+fM</ds:X509Certificate></ds:X509Data></ds:KeyInfo><md:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes128-cbc"/><md:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes192-cbc"/><md:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes256-cbc"/><md:EncryptionMethod Algorithm="http://www.w3.org/2009/xmlenc11#aes128-gcm"/><md:EncryptionMethod Algorithm="http://www.w3.org/2009/xmlenc11#aes256-gcm"/><md:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#tripledes-cbc"/></md:KeyDescriptor><md:KeyDescriptor use="signing"><ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:X509Data><ds:X509Certificate>MIIDqjCCApKgAwIBAgIGAY5iiKkkMA0GCSqGSIb3DQEBCwUAMIGVMQswCQYDVQQGEwJVUzETMBEG
 A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
-MBIGA1UECwwLU1NPUHJvdmlkZXIxFjAUBgNVBAMMDXRyaWFsLTE5MzA2ODExHDAaBgkqhkiG9w0B
-CQEWDWluZm9Ab2t0YS5jb20wHhcNMjQwMjEzMjE0OTIwWhcNMzQwMjEzMjE1MDIwWjCBlTELMAkG
+MBIGA1UECwwLU1NPUHJvdmlkZXIxFjAUBgNVBAMMDXRyaWFsLTIxNzE2MDUxHDAaBgkqhkiG9w0B
+CQEWDWluZm9Ab2t0YS5jb20wHhcNMjQwMzIxMTk0MDQ3WhcNMzQwMzIxMTk0MTQ3WjCBlTELMAkG
 A1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExFjAUBgNVBAcMDVNhbiBGcmFuY2lzY28xDTAL
-BgNVBAoMBE9rdGExFDASBgNVBAsMC1NTT1Byb3ZpZGVyMRYwFAYDVQQDDA10cmlhbC0xOTMwNjgx
+BgNVBAoMBE9rdGExFDASBgNVBAsMC1NTT1Byb3ZpZGVyMRYwFAYDVQQDDA10cmlhbC0yMTcxNjA1
 MRwwGgYJKoZIhvcNAQkBFg1pbmZvQG9rdGEuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
-CgKCAQEAoNxTYBkURtCx75KqjDIzh0q61l7QXYjtFfy5OPDp9h6I3aDyUKdJtR3DAn2R3TjAQu8/
-336+/76SsC3fBBEkXd4DWJ9dzd8zxX0MDYg2VL6/L/zrCq9+oK8UDGGGh6EhpKbc8ZOysyoX0sbZ
-BraZxtCuRkmZYMfJVudVfCTiJn/2hy3NdfP33AN+d+Ercr5oJpftJwzAqvZZ9YzvytoPV26k5yQv
-p3sPg/mgp6mMYOVw9LNnPvRHAOjks3Dlh/h0ZQ9vhUvPvu2pVV4nX7+1wfb/6cBt7RSmnimOoV2+
-1b0Bttg87GRjgfbjT7ejijbxqVwSVslFedO2PETLHPOBywIDAQABMA0GCSqGSIb3DQEBCwUAA4IB
-AQBiey581q7M2wBGWchyyoSYQTuN0YnHhx3KEEcq2evZH/TmWJ1Yjx8MSCPtTgUzDkpv6aAnpcF1
-/1y1xW7Rm4T9is6BaXWSKzm3e2m4217/IdgJ3NfLZE52imRdaZHkVdiM1//NlC5EG7bRBr002ciR
-6ShKHatYFpA8HDW2RIbiDg4NHI4HN5sXGWf+evPrpdbREHN0MHo4BMe3MM0SDE+/sUC3nhTmc6D1
-JYmdRUj+GvUv0cqieUESf/A9yMDsdjTcgNzStGU93JXhJDJ/GUZpveHmPY7GH+0k8CW36LZrtxKG
-J6k/4lrVU/5lJWohLx7BSfGCc9OrH6DYG++YSlHy</ds:X509Certificate></ds:X509Data></ds:KeyInfo></md:KeyDescriptor><md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat><md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat><md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</md:NameIDFormat><md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat><md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://trial-1930681.okta.com/sso/saml2/0oabsqp1lb2Vs5eZ4697" index="0" isDefault="true"/><md:AttributeConsumingService index="0"><md:ServiceName xml:lang="en">Fleet test</md:ServiceName><md:RequestedAttribute FriendlyName="First Name" Name="firstName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" isRequired="true"/><md:RequestedAttribute FriendlyName="Last Name" Name="lastName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" isRequired="true"/><md:RequestedAttribute FriendlyName="Email" Name="email" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" isRequired="true"/><md:RequestedAttribute FriendlyName="Mobile Phone" Name="mobilePhone" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" isRequired="false"/></md:AttributeConsumingService></md:SPSSODescriptor><md:Organization><md:OrganizationName xml:lang="en">trial-1930681</md:OrganizationName><md:OrganizationDisplayName xml:lang="en">fleetdm-trial-1930681</md:OrganizationDisplayName><md:OrganizationURL xml:lang="en">https://fleetdm.com</md:OrganizationURL></md:Organization></md:EntityDescriptor>`),
+CgKCAQEAulSGykIpWxpSPYbFWi535nt5zxXx7ku+h6e4XX7W3DBIFb+D6MGldfridUHkuXrF1b9f
+ZP+9mbD6D6jNLvjTgBeK3y2+Ty1NyFEoS5T5U9m37p0NE8r9kOUkjtnKpo9b3I1pQw9XRaQk0JYY
+ZINhzd5K7xSa8tHf0F7PzWtzOC1SEuwXzm+bWgyLRaeBVWc1M6lLkar+uFpSBtUcUcV88DgdPx5g
+8M8waNdvv92Qs+mL5PL6CKiWrfatTbXgSYbmf0ssZSgk4BOOSLeL49NL3ED0rEVUlL0TbypPgEIO
++UtGFgrcbCjfBiRI/4thV/Sup04bpfRE7s666QN5SJNzgwIDAQABMA0GCSqGSIb3DQEBCwUAA4IB
+AQCf2z9mp/lwaD7AnoR2Xa3WcJCTKON02xrftlCpDBfj6thPYhZr1he0RZXXlzAn7pzj5la46Bwq
+LdK6yKvzy8bMY0phaIeiNuTXXK62hj2SJuRDgyVJZyfYmw582h44g51Xt0qSq6pNiClaUGYf9WEa
+dirsr/V9GtrMLSFuaqnDpceKoILg2F+YBTXWXu9vwSbtf1gccbjtgTc41jrsUfEMol3Yr/iBhXIg
+j6+NHot/QROcy1tB7CWPFyJ8SxzcUe8cJoueBLKBWDF6Jdpy6y8TDdaDYwXKsCJBXWSHd9C6celq
+DDJo/AsWSArqnGsEy7QjitygdVc6y+4X4ee3h+fM</ds:X509Certificate></ds:X509Data></ds:KeyInfo></md:KeyDescriptor><md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat><md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat><md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</md:NameIDFormat><md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat><md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://trial-2171605.okta.com/sso/saml2/0oackhonw04QjK6ki697" index="0" isDefault="true"/><md:AttributeConsumingService index="0"><md:ServiceName xml:lang="en">Fleet</md:ServiceName><md:RequestedAttribute FriendlyName="First Name" Name="firstName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" isRequired="true"/><md:RequestedAttribute FriendlyName="Last Name" Name="lastName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" isRequired="true"/><md:RequestedAttribute FriendlyName="Email" Name="email" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" isRequired="true"/><md:RequestedAttribute FriendlyName="Mobile Phone" Name="mobilePhone" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" isRequired="false"/></md:AttributeConsumingService></md:SPSSODescriptor><md:Organization><md:OrganizationName xml:lang="en">trial-2171605</md:OrganizationName><md:OrganizationDisplayName xml:lang="en">fleetdm-trial-2171605</md:OrganizationDisplayName><md:OrganizationURL xml:lang="en">https://fleetdm.com</md:OrganizationURL></md:Organization></md:EntityDescriptor>`),
 		&res)
 	if err != nil {
 		panic(err)
@@ -193,8 +193,15 @@ func (idp *identityProvider) ServeSSO(w http.ResponseWriter, r *http.Request) {
 	t, err := template.New("").Parse(`
 <html>
 	<head>
-	<script type="text/javascript">
+
+	</head>
+	<body>
+		If you are seeing this, javascript is disabled or an error occurred. See the console for more.
+	</body>
+		<script type="text/javascript">
 	(async () => {
+		document.body.innerHTML = ""; // Clear JS disabled message
+
 		const email = {{ .Email }};
 		const saml = {{ .SAMLRequest }};
 		const relay = {{ .RelayState }};
@@ -231,10 +238,6 @@ func (idp *identityProvider) ServeSSO(w http.ResponseWriter, r *http.Request) {
   		form.submit();
 	})();
 	</script>
-	</head>
-	<body>
-		If you are seeing this, javascript is disabled or an error occurred. See the console for more.
-	</body>
 </html>
 	`)
 	if err != nil {
@@ -281,9 +284,19 @@ func (idp *identityProvider) ServeSSOWithIdentifier(w http.ResponseWriter, r *ht
 	log.Println("got fleet ID: ", fleetID)
 
 	if err := checkByIdentifier(fleetID); err != nil {
-		http.Error(w, "failing policies", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<html>
+		<body>
+		<img src="/img/failure.png" style="width:80%; display: block;  margin-left: auto;  margin-right: auto;" />
+		</body>
+		</html>`)
 		return
 	}
+
+	// Redirect to Okta as service provider for MFA
+	m := NewSPMiddleware()
+	m.HandleStartAuthFlow(w, r)
+	return
 
 	session := &saml.Session{
 		NameID: req.Request.Subject.NameID.Value,
