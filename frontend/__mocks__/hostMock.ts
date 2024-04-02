@@ -32,7 +32,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   display_name: "9b20fc72a247",
   display_text: "mock host 1",
   uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
-  platform: "chrome",
+  platform: "ubuntu",
   osquery_version: "4.9.0",
   orbit_version: "1.22.0",
   fleet_desktop_version: "1.22.0",
