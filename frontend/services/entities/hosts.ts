@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IHost, HostStatus, IHostResponse } from "interfaces/host";
+import { IHost, HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
   getLabelParam,
