@@ -1,17 +1,22 @@
 .add-policy-modal {
-  height: 80%;
+  height: 90%;
   overflow: hidden;
+  min-height: 460px;
+  max-height: fit-content;
+
   .modal__content {
-    height: 100%;
+    height: 90%;
     overflow: scroll;
-    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
-  &__create-policy {
-    padding-top: 1.5rem;
+
+  .Select-multi-value-wrapper {
+    display: flex;
   }
-  &__policy-selection {
-    padding: $pad-large 0;
-    height: 100%;
+  .Select-menu-outer {
+    max-height: 220px;
   }
 
   &__policy-name {
