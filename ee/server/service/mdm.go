@@ -1056,6 +1056,12 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint, updates fleet.MacOSUpdates) error {
+	// TODO: must do the equivalent, more or less, of svc.NewMDMAppleDeclaration
+	// (avoiding the validation that prevents the declaration type, and without
+	// the activity as we want to leave this Software Updates profile hidden,
+	// like an internal implementation detail of how Fleet manages those update
+	// requirements).
+
 	if updates.MinimumVersion.Value == "" {
 		// TODO: OS updates disabled, remove the profile
 		return nil
