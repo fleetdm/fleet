@@ -12,7 +12,7 @@ columns:
     required: true
     type: text
   - name: fullkey
-    description: Key including any parent keys or document indices.
+    description: Key including any parent keys.
     required: false
     type: text
   - name: parent
