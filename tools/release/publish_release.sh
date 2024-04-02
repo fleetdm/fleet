@@ -83,7 +83,7 @@ usage() {
     echo "  -v, --target_version   Set the target version for the release"
     echo ""
     echo "Environment Variables:"
-    echo "  OPEN_API_KEY           Open API key used for fallback if not provided via -o or --open-api-key option"
+    echo "  OPEN_API_KEY           Open API key used for api requests to chat GPT"
     echo "  SLACK_GENERAL_TOKEN    Slack token to publish via curl to #general"
     echo "  SLACK_HELP_INFRA_TOKEN Slack token to publish via curl to #help-infrastructure"
     echo "  SLACK_HELP_ENG_TOKEN   Slack token to publish via curl to #help-engineering"
@@ -491,6 +491,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
             git branch -D $target_patch_branch
         fi
         git checkout -b $target_patch_branch
+        git push origin $target_patch_branch -f
     else
         echo "DRYRUN: Would have cleared / checked out new branch $target_patch_branch"
     fi
