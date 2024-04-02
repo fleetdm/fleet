@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 
+import { IConfigFormData } from "interfaces/config";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
@@ -16,16 +18,22 @@ import {
 
 const baseClass = "app-config-form";
 
-interface ISsoFormData {
-  enableSso?: boolean;
-  idpName?: string;
-  entityId?: string;
-  idpImageUrl?: string;
-  metadata?: string;
-  metadataUrl?: string;
-  enableSsoIdpLogin?: boolean;
-  enableJitProvisioning?: boolean;
-}
+type ISsoFormData = Pick<
+  IConfigFormData,
+  | "enableSso"
+  | "idpName"
+  | "entityId"
+  | "idpImageUrl"
+  | "metadata"
+  | "metadataUrl"
+  | "enableSsoIdpLogin"
+  | "enableJitProvisioning"
+>;
+
+type ISsoFormErrors = Pick<
+  IAppConfigFormErrors,
+  "idp_image_url" | "metadata" | "metadata_url" | "entity_id" | "idp_name"
+>;
 
 const Sso = ({
   appConfig,
@@ -56,14 +64,14 @@ const Sso = ({
     enableJitProvisioning,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: ISsoFormErrors = {};
 
     if (enableSso) {
       if (idpImageUrl && !validUrl({ url: idpImageUrl })) {

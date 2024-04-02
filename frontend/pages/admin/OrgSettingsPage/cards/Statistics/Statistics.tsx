@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import { IConfigFormData } from "interfaces/config";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import SectionHeader from "components/SectionHeader";
@@ -15,7 +17,9 @@ const Statistics = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<
+    Pick<IConfigFormData, "enableUsageStatistics">
+  >({
     enableUsageStatistics: appConfig.server_settings.enable_analytics,
   });
 

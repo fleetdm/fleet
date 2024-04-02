@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 
+import { IConfigFormData } from "interfaces/config";
+
 import { AppContext } from "context/app";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -21,6 +23,24 @@ import {
   authTypeOptions,
 } from "../constants";
 
+type ISmtpConfigFormData = Pick<
+  IConfigFormData,
+  | "enableSMTP"
+  | "smtpSenderAddress"
+  | "smtpServer"
+  | "smtpPort"
+  | "smtpEnableSSLTLS"
+  | "smtpAuthenticationType"
+  | "smtpUsername"
+  | "smtpPassword"
+  | "smtpAuthenticationMethod"
+>;
+
+type ISmtpConfigFormErrors = Pick<
+  IAppConfigFormErrors,
+  "sender_address" | "server" | "server_port" | "user_name" | "password"
+>;
+
 const baseClass = "app-config-form";
 
 const Smtp = ({
@@ -30,7 +50,7 @@ const Smtp = ({
 }: IAppConfigFormProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<ISmtpConfigFormData>({
     enableSMTP: appConfig.smtp_settings?.enable_smtp || false,
     smtpSenderAddress: appConfig.smtp_settings?.sender_address || "",
     smtpServer: appConfig.smtp_settings?.server || "",
@@ -55,7 +75,7 @@ const Smtp = ({
     smtpAuthenticationMethod,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<ISmtpConfigFormErrors>({});
 
   const sesConfigured = appConfig.email?.backend === "ses" || false;
 
@@ -64,7 +84,7 @@ const Smtp = ({
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: ISmtpConfigFormErrors = {};
 
     if (enableSMTP) {
       if (!smtpSenderAddress) {

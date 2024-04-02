@@ -31,7 +31,9 @@ const FleetDesktop = ({
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
   });
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<
+    Pick<IAppConfigFormErrors, "transparency_url">
+  >({});
 
   const handleInputChange = ({ value }: IFormField) => {
     setFormData({ transparencyUrl: value.toString() });

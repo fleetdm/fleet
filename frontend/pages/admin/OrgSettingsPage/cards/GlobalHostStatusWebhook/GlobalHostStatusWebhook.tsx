@@ -9,6 +9,8 @@ import { getCustomDropdownOptions } from "utilities/helpers";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
+import { IConfigFormData } from "interfaces/config";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -26,12 +28,13 @@ import {
 
 const baseClass = "app-config-form";
 
-export type IGlobalHostStatusWebhookFormData = {
-  enableHostStatusWebhook: boolean;
-  destination_url: string;
-  hostStatusWebhookHostPercentage: number;
-  hostStatusWebhookWindow: number;
-};
+export type IGlobalHostStatusWebhookFormData = Pick<
+  IConfigFormData,
+  | "enableHostStatusWebhook"
+  | "destination_url"
+  | "hostStatusWebhookHostPercentage"
+  | "hostStatusWebhookWindow"
+>;
 
 const GlobalHostStatusWebhook = ({
   appConfig,
@@ -61,7 +64,9 @@ const GlobalHostStatusWebhook = ({
     hostStatusWebhookWindow,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<
+    Pick<IAppConfigFormErrors, "destination_url">
+  >({});
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
