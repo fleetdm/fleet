@@ -45,6 +45,7 @@
 - Fixed a bug where `null` or excluded `smtp_settings` caused a UI 500.
 - Fixed query reports so they reset when there is a change to the selected platform or selected minimum osquery version.
 - Fixed live query sort of sql result sort for both string and numerical columns.
+
 ## Fleet 4.47.3 (Mar 26, 2024)
 
 ### Bug fixes
