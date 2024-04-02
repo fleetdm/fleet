@@ -128,7 +128,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 ### Report on status of customer financial actions
 This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
 - Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
-- Post in the #g-sales slack channel in the following format, using the data from the SFDC reports:
+- Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending. 
 > Weekly revenue report - [@ mention CRO and CEO]
 > - The number of accounts that have outstanding balances
 > - List the number of customers awaiting invoices
