@@ -1916,6 +1916,26 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Len(t, listResp.Invites, 1)
 	require.Equal(t, validInvite.ID, listResp.Invites[0].ID)
 
+	// list invites filtered by search query with leading/trailing whitespace
+	// matches name
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp, "query", " some name                     ")
+	require.Len(t, listResp.Invites, 1)
+	require.Equal(t, validInvite.ID, listResp.Invites[0].ID)
+
+	// list invites filtered by search query with leading/trailing whitespace
+	// matches email
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp, "query", " some email                     ")
+	require.Len(t, listResp.Invites, 1)
+	require.Equal(t, validInvite.ID, listResp.Invites[0].ID)
+
+	// list invites filtered by search query with leading/trailing whitespace
+	// matches nothing
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp, "query", " no match                     ")
+	require.Len(t, listResp.Invites, 0)
+
 	// list invites, next page is empty
 	listResp = listInvitesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp, "page", "1", "per_page", "2")
