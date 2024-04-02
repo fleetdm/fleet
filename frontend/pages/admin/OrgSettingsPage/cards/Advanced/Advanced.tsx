@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 
+import { IConfigFormData } from "interfaces/config";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -8,7 +10,7 @@ import SectionHeader from "components/SectionHeader";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
-import { ACTIVITY_EXPIRY_WINDOW } from "utilities/constants";
+import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
 import { getCustomDropdownOptions } from "utilities/helpers";
 
 import {
@@ -19,12 +21,31 @@ import {
 
 const baseClass = "app-config-form";
 
+type IAdvancedConfigFormData = Pick<
+  IConfigFormData,
+  | "domain"
+  | "verifySSLCerts"
+  | "enableStartTLS"
+  | "enableHostExpiry"
+  | "hostExpiryWindow"
+  | "deleteActivities"
+  | "activityExpiryWindow"
+  | "disableLiveQuery"
+  | "disableScripts"
+  | "disableQueryReports"
+>;
+
+type IAdvancedConfigFormErrors = Pick<
+  IAppConfigFormErrors,
+  "host_expiry_window"
+>;
+
 const Advanced = ({
   appConfig,
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<IAdvancedConfigFormData>({
     domain: appConfig.smtp_settings?.domain || "",
     verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
     enableStartTLS: appConfig.smtp_settings?.enable_start_tls,
@@ -54,12 +75,12 @@ const Advanced = ({
     disableQueryReports,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IAdvancedConfigFormErrors>({});
 
   const activityExpiryWindowOptions = useMemo(
     () =>
       getCustomDropdownOptions(
-        ACTIVITY_EXPIRY_WINDOW,
+        ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS,
         activityExpiryWindow,
         // it's safe to assume that frequency is a number
         (frequency: number | string) => `${frequency as number} days`
@@ -245,7 +266,6 @@ const Advanced = ({
               label="Max activity age"
               name="Max activity age"
               parseTarget
-              error={formErrors.activity_expiry_window}
             />
           )}
           <Checkbox

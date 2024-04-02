@@ -26,7 +26,7 @@ export const DEFAULT_GRAVATAR_LINK_FALLBACK =
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
-export const ACTIVITY_EXPIRY_WINDOW: IDropdownOption[] = [
+export const ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { value: 30, label: "30 days" },
   { value: 60, label: "60 days" },
   { value: 90, label: "90 days" },

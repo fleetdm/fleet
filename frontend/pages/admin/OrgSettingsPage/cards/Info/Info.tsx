@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import { IConfigFormData } from "interfaces/config";
+
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -14,12 +16,18 @@ import {
   IAppConfigFormErrors,
 } from "../constants";
 
-interface IOrgInfoFormData {
-  orgName: string;
-  orgLogoURL: string;
-  orgLogoURLLightBackground: string;
-  orgSupportURL: string;
-}
+type IOrgInfoFormData = Pick<
+  IConfigFormData,
+  "orgName" | "orgLogoURL" | "orgLogoURLLightBackground" | "orgSupportURL"
+>;
+
+type IOrgInfoFormErrors = Pick<
+  IAppConfigFormErrors,
+  | "org_name"
+  | "org_logo_url"
+  | "org_logo_url_light_background"
+  | "org_support_url"
+>;
 
 // TODO: change base classes to these cards to follow the same pattern as the
 // other components in the app.
@@ -47,7 +55,7 @@ const Info = ({
     orgSupportURL,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IOrgInfoFormErrors>({});
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
