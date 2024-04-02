@@ -24,16 +24,19 @@ module.exports = {
 
 
   fn: async function ({currentStep, formData}) {
-    console.log(formData);
-    if(this.req.session.getStartedProgress === undefined) {
-      this.req.session.getStartedProgress = {
-        currentStep: currentStep,
-        previouslyAnsweredQuestions: {},
-      };
+    console.log(formData, currentStep);
+    let userRecord = await User.findOne({id: this.req.me.id});
+    let questionnaireProgress;
+    console.log(userRecord.getStartedQuestionnarieAnswers);
+    if(!userRecord.currentGetStartedQuestionnarieStep || _.isEmpty(userRecord.getStartedQuestionnarieAnswers)) {
+      questionnaireProgress = {};
+    } else {
+      questionnaireProgress = _.clone(userRecord.getStartedQuestionnarieAnswers);
     }
-    console.log(this.req.session.getStartedProgress);
-    this.req.session.getStartedProgress.previouslyAnsweredQuestions[currentStep] = formData;
-    let previouslyAnsweredQuestions = _.clone(this.req.session.getStartedProgress.previouslyAnsweredQuestions);
+    questionnaireProgress[currentStep] = formData;
+    console.log(questionnaireProgress);
+    // this.req.session.getStartedProgress.previouslyAnsweredQuestions[currentStep] = formData;
+    let previouslyAnsweredQuestions = _.clone(questionnaireProgress);
     // this.req.session.getStartedProgress.currentStep = currentStep;
     let nextStepInForm;
 
@@ -83,12 +86,14 @@ module.exports = {
         }
         break;
     }
-    this.req.session.getStartedProgress.currentStep = nextStepInForm;
+    let currentGetStartedQuestionnarieStep = nextStepInForm;
+    // this.req.session.getStartedProgress.currentStep = nextStepInForm;
     // All done.
     console.log('»»»»');
     console.log(this.req.session.getStartedProgress);
-
-    return this.req.session.getStartedProgress;
+    let getStartedProgress = _.clone(questionnaireProgress);
+    await User.updateOne({id: userRecord.id}).set({getStartedQuestionnarieAnswers: questionnaireProgress, currentGetStartedQuestionnarieStep});
+    return {getStartedProgress, nextStepInForm};
   }
 
 

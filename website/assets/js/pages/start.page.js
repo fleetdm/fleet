@@ -19,7 +19,7 @@ parasails.registerPage('start', {
       },
       'what-are-you-working-on-eo-security': {},
       'is-it-any-good': {stepCompleted: true},
-      'what-did-you-think': {},
+      'what-did-you-think-eo-security': {},
     },
 
 
@@ -90,9 +90,9 @@ parasails.registerPage('start', {
         formData: formDataForThisStep,
       });
       console.log(responseFromEndpoint);
-      this.previouslyAnsweredQuestions[this.currentStep] = responseFromEndpoint.previouslyAnsweredQuestions[this.currentStep];
+      this.previouslyAnsweredQuestions[this.currentStep] = responseFromEndpoint.getStartedProgress[this.currentStep];
       this.syncing = false;
-      this.currentStep = responseFromEndpoint.currentStep;
+      this.currentStep = responseFromEndpoint.nextStepInForm;
     },
     clickGoToPreviousStep: async function() {
       switch(this.currentStep) {

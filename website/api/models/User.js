@@ -212,8 +212,18 @@ without necessarily having a billing card.`
         'mdm',
         'vm',
       ]
-    }
+    },
 
+    currentGetStartedQuestionnarieStep: {
+      type: 'string',
+      description: 'This users progress in the get started form.'
+    },
+
+    getStartedQuestionnarieAnswers: {
+      type: 'json',
+      description: 'This users progress in the get started form.'
+    }
+    await USer.update({}).set({currentGetStartedQuestionnarieStep: undefined, getStartedQuestionnarieAnswers: undefined});
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

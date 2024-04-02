@@ -19,11 +19,12 @@ module.exports = {
   fn: async function () {
     let currentStep = 'start';
     let previouslyAnsweredQuestions;
-    if(this.req.session.getStartedProgress && this.req.session.getStartedProgress.currentStep){
-      currentStep = this.req.session.getStartedProgress.currentStep;
-      previouslyAnsweredQuestions = this.req.session.getStartedProgress.previouslyAnsweredQuestions;
+    if(this.req.me.currentGetStartedQuestionnarieStep && this.req.me.getStartedQuestionnarieAnswers){
+      currentStep = this.req.me.currentGetStartedQuestionnarieStep;
+      previouslyAnsweredQuestions = this.req.me.getStartedQuestionnarieAnswers;
     }
-    console.log(this.req.session.getStartedProgress);
+    console.log(this.req.me.currentGetStartedQuestionnarieStep);
+    console.log(this.req.me.getStartedQuestionnarieAnswers);
     // Respond with view.
     return {currentStep, previouslyAnsweredQuestions};
 
