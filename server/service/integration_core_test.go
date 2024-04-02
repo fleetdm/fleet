@@ -1208,6 +1208,62 @@ func (s *integrationTestSuite) TestHostsCount() {
 	)
 	assert.Equal(t, 1, resp.Count)
 
+	// there are 3 hosts, whos names end with ...local0, ...local1, ...local2
+	// query by host name
+
+	req = countHostsRequest{}
+	resp = countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts/count", req, http.StatusOK, &resp,
+		"query", "local0",
+	)
+	assert.Equal(t, 1, resp.Count)
+
+	req = countHostsRequest{}
+	resp = countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts/count", req, http.StatusOK, &resp,
+		"query", "local",
+	)
+	assert.Equal(t, 3, resp.Count)
+
+	// query by host name with leading/trailing whitespace
+	req = countHostsRequest{}
+	resp = countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts/count", req, http.StatusOK, &resp,
+		"query", " local0  ",
+	)
+	assert.Equal(t, 1, resp.Count)
+
+	req = countHostsRequest{}
+	resp = countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts/count", req, http.StatusOK, &resp,
+		"query", " local  ",
+	)
+	assert.Equal(t, 3, resp.Count)
+
+	// query by host name leading/trailing whitespace and label
+	req = countHostsRequest{}
+	resp = countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts/count", req, http.StatusOK, &resp,
+		"label_id", fmt.Sprint(label.ID),
+		"query", "   local0	",
+	)
+	assert.Equal(t, 1, resp.Count)
+
+	req = countHostsRequest{}
+	resp = countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts/count", req, http.StatusOK, &resp,
+		"label_id", fmt.Sprint(label.ID),
+		// only host 0 has the label
+		"query", "   local1	",
+	)
+	assert.Equal(t, 0, resp.Count)
+
 	// filter by low_disk_space criteria is ignored (premium-only filter)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Equal(t, len(hosts), resp.Count)
