@@ -35,7 +35,7 @@ Do we add the `changeAtNextAuth` key? A read of Apple's documentation means ever
 
 
 <blockquote purpose="large-quote">
-`changeAtNextAuth` (boolean)
+<code>changeAtNextAuth</code> (boolean)
 
 If true, the system causes a password reset to occur the next time the user tries to authenticate. If this key is set in a device profile, the setting takes effect for all users, and admin authentications may fail until the admin user password is also reset. Available in macOS 10.13 and later.
 </blockquote>
@@ -58,5 +58,5 @@ In wrapping up this exploration into the intricacies of passcode profiles and th
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-04-01">
-<meta name="articleImageUrl" value="../website/assets/images/articles/sysadmin-diaies-1600x900@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/sysadmin-diaries-1600x900@2x.png">
 <meta name="description" value="In this sysadmin diary, we explore a missapplied passcode policy.">
