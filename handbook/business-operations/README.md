@@ -129,10 +129,12 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
 - Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
 - Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending. 
-> Weekly revenue report - [@ mention CRO and CEO]
-> - The number of accounts that have outstanding balances
-> - List the number of customers awaiting invoices
-> - List the number of past-due renewals
+```
+Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
+- Number accounts with outstanding balances = `todo`
+- Number of customers awaiting invoices = `todo`
+- Number of past-due renewals = `todo`
+```
 
 
 ### Add a seat to Salesforce
