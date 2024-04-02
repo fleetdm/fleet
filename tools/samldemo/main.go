@@ -16,6 +16,7 @@ func main() {
 	mux.HandleFunc("/metadata", idp.ServeMetadata)
 	mux.HandleFunc("/sso", idp.ServeSSO)
 	mux.HandleFunc("/ssowithidentifier", idp.ServeSSOWithIdentifier)
+	mux.HandleFunc("/saml/acs", idp.ServeMFAResponse)
 
 	mux.Handle("/img/", http.StripPrefix("/img", http.FileServer(http.Dir("./img"))))
 

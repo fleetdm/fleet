@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
@@ -120,7 +121,15 @@ DDJo/AsWSArqnGsEy7QjitygdVc6y+4X4ee3h+fM</ds:X509Certificate></ds:X509Data></ds:
 }()
 
 type identityProvider struct {
+	// embed IdentityProvider to override methods
 	saml.IdentityProvider
+	// this ServiceProvider is used to do the MFA with Okta
+	mfaServiceProvider saml.ServiceProvider
+	// requestMap holds a map with keys that are the service provider request ID (the ID that we
+	// generate before sending a MFA service provider request TO Okta), and values that are the
+	// original identity provider request (FROM Okta). This is used to look up the original request
+	// when we receive the MFA response (with InResponseTo).
+	requestMap map[string]*saml.IdpAuthnRequest
 }
 
 func (i *identityProvider) GetServiceProvider(r *http.Request, serviceProviderID string) (*saml.EntityDescriptor, error) {
@@ -258,7 +267,6 @@ func (idp *identityProvider) ServeSSO(w http.ResponseWriter, r *http.Request) {
 }
 
 // ServeSSO handles SAML auth requests after we've retrieved the device identifier
-
 func (idp *identityProvider) ServeSSOWithIdentifier(w http.ResponseWriter, r *http.Request) {
 	req, err := saml.NewIdpAuthnRequest(&idp.IdentityProvider, r)
 	if err != nil {
@@ -283,6 +291,7 @@ func (idp *identityProvider) ServeSSOWithIdentifier(w http.ResponseWriter, r *ht
 	fleetID := r.PostForm.Get("FleetIdentifier")
 	log.Println("got fleet ID: ", fleetID)
 
+	// Show the error if the user needs to resolve policies
 	if err := checkByIdentifier(fleetID); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, `<html>
@@ -293,16 +302,77 @@ func (idp *identityProvider) ServeSSOWithIdentifier(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// Redirect to Okta as service provider for MFA
-	m := NewSPMiddleware()
-	m.HandleStartAuthFlow(w, r)
+	// If we were not doing MFA, we could redirect to Okta now with a successful assertion.
+
+	// Redirect to Okta as a service provider for MFA
+	// Assume we are using HTTP Post binding. We could support other bindings in the future.
+	bindingLocation := idp.mfaServiceProvider.GetSSOBindingLocation(saml.HTTPPostBinding)
+	authReq, err := idp.mfaServiceProvider.MakeAuthenticationRequest(bindingLocation, saml.HTTPPostBinding, saml.HTTPPostBinding)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Track this request (in memory here, though we would probably want to do this in the database
+	// for a production implementation). For production: Do we need to do anything else to prevent
+	// replay attacks?
+	idp.requestMap[authReq.ID] = req
+	w.Header().Add("Content-Security-Policy", ""+
+		"default-src; "+
+		"script-src 'sha256-AjPdJSbZmeWHnEc5ykvJFay8FTWeTeRbs9dutfZ0HqE='; "+
+		"reflected-xss block; referrer no-referrer;")
+	w.Header().Add("Content-type", "text/html")
+	var buf bytes.Buffer
+	buf.WriteString(`<!DOCTYPE html><html><body>`)
+	buf.Write(authReq.Post(authReq.ID))
+	buf.WriteString(`</body></html>`)
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	return
+}
+
+func (idp *identityProvider) ServeMFAResponse(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// It seems a little sketchy to allow the RelayState from the response to be used as one of the
+	// possible InResponseTo IDs (because the request could be crafted to make those match). I think
+	// this is okay because we check below that the RelayState actually corresponds to a request
+	// that we initiated by looking it up in the requestMap. Someone should verify this.
+	relayState := r.Form.Get("RelayState")
+	assertion, err := idp.mfaServiceProvider.ParseResponse(r, []string{relayState})
+	if err != nil {
+		if ierr, ok := err.(*saml.InvalidResponseError); ok {
+			log.Println(ierr.PrivateErr.Error())
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Check that we initiated the MFA request and look up the originating IdP request
+	req, ok := idp.requestMap[relayState]
+	if !ok {
+		http.Error(w, "did not find matching request", http.StatusForbidden)
+		return
+	}
+	delete(idp.requestMap, relayState)
+
+	// Validate that the same user completed the MFA request as initiated the original IdP request.
+	if assertion.Subject.NameID.Value != req.Request.Subject.NameID.Value {
+		http.Error(w, "name IDs do not match", http.StatusForbidden)
+		return
+	}
+
+	// If everything is good up to this point, complete the original IdP request back to Okta
 
 	session := &saml.Session{
 		NameID: req.Request.Subject.NameID.Value,
 	}
-
-	///////////
 
 	assertionMaker := idp.AssertionMaker
 	if assertionMaker == nil {
@@ -330,7 +400,10 @@ func getIDP() *identityProvider {
 	ssoURL := *u
 	ssoURL.Path = ssoURL.Path + "/sso"
 
-	i := &identityProvider{}
+	i := &identityProvider{
+		mfaServiceProvider: getSP(),
+		requestMap:         make(map[string]*saml.IdpAuthnRequest),
+	}
 	idp := saml.IdentityProvider{
 		Key:                     key,
 		SignatureMethod:         dsig.RSASHA256SignatureMethod,
