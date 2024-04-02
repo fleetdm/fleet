@@ -31,7 +31,6 @@ module.exports = {
     let util = require('util');
 
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
-
     require('assert')(sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation, 'Please set sails.config.custom.sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation to the version of osquery to use, for example \'5.8.1\'.');
     let VERSION_OF_OSQUERY_SCHEMA_TO_USE = sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation;
 
@@ -212,10 +211,6 @@ module.exports = {
           } else {// If the Fleet overrides JSON has column data for this table, we'll find the matching column and use the values from the Fleet overrides in the final schema.
             let columnHasFleetOverrides = _.find(fleetOverridesForTable.columns, {'name': osquerySchemaColumn.name});
             if(!columnHasFleetOverrides) {// If this column has no Fleet overrides, we'll add it to the final schema unchanged
-              let columnWithNoOverrides = _.clone(osquerySchemaColumn);
-              if(osquerySchemaColumn.type !== undefined) {
-                columnWithNoOverrides.type = osquerySchemaColumn.type.toUpperCase();
-              }
               mergedTableColumns.push(osquerySchemaColumn);
             } else { // If this table has Fleet overrides, we'll adjust the value in the merged schema
               let fleetColumn = _.clone(osquerySchemaColumn);
@@ -240,7 +235,7 @@ module.exports = {
                 }
               }
               if(columnHasFleetOverrides.type !== undefined) {
-                fleetColumn.type = _.clone(columnHasFleetOverrides.type.toUpperCase());
+                fleetColumn.type = _.clone(columnHasFleetOverrides.type.toLowerCase());
               }
               if(columnHasFleetOverrides.required !== undefined) {
                 fleetColumn.required = _.clone(columnHasFleetOverrides.required);
@@ -282,6 +277,7 @@ module.exports = {
                 if(typeof overrideColumnToAdd.type !== 'string') {
                   throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "type" for the "${fleetOverrideColumn.name}" column of the "${fleetOverridesForTable.name}" table is an invalid type (${typeof fleetOverrideColumn.type}). To resolve, change the value of a column's "type" to be a string.`);
                 }//•
+                overrideColumnToAdd.type = overrideColumnToAdd.type.toLowerCase();
               } else {
                 throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "${fleetOverrideColumn.name}" column added to the merged schema for the "${fleetOverridesForTable.name}" table is missing a "type" in the Fleet overrides schema. To resolve, add a type for this column to the Fleet overrides schema.`);
               }
@@ -353,6 +349,7 @@ module.exports = {
             } else if(typeof columnToValidate.type !== 'string') {
               throw new Error(`Could not add a table from the Fleet overrides schema. The "type" of the "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} has an invalid value. (expected a string, but got a ${typeof columnToValidate.type}) To resolve, change the value of the column's "type" be a string.`);
             }//•
+            columnToValidate.type = columnToValidate.type.toLowerCase();
 
             if(!columnToValidate.description) {
               throw new Error(`Could not add a new table from the Fleet overrides schema. The "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table is missing a "description". To resolve add a "description" property to the "${columnToValidate.name}" column at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}`);
