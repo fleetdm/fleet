@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -265,8 +266,11 @@ func apiCommand() *cli.Command {
 				params = flField
 			}
 
+			headers := map[string]string{}
 			if flHeader != "" {
 				// TODO support headers
+				values := strings.Split(flHeader, ":")
+				headers[values[0]] = values[1]
 			}
 
 			if flMethod != "" {
@@ -279,7 +283,7 @@ func apiCommand() *cli.Command {
 			}
 
 			//                                string  string     string  interface
-			resp, err := fleetClient.AuthenticatedDo(method, uriString, params, nil)
+			resp, err := fleetClient.AuthenticatedDoCustomHeaders(method, uriString, params, nil, headers)
 			if err != nil {
 				return err
 			}
