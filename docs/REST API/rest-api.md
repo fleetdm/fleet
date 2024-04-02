@@ -3730,7 +3730,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 Install managed software on macOS, Windows, or Linux (Ubuntu) host.
 
-`POST /api/v1/fleet/hosts/:id/software/install/:software_id`
+`POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
 
 #### Parameters
 
