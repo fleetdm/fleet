@@ -1,9 +1,5 @@
 ## Fleet 4.48.0 (Apr 02, 2024)
 
-### Bug fixes
-
-## Changelog
-
 ### Endpoint operations
 
 - Added integration with Google Calendar.
