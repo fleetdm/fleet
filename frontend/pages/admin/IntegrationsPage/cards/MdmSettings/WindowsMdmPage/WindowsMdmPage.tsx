@@ -111,12 +111,6 @@ interface IWindowsMdmPageProps {
 const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const { config } = useContext(AppContext);
 
-  // TODO: remove when windows MDM is fully released. This is a temporary redirect
-  // when the feature is not enabled.
-  if (!config?.mdm_enabled) {
-    router.replace(PATHS.ADMIN_INTEGRATIONS_MDM);
-  }
-
   const isWindowsMdmEnabled =
     config?.mdm?.windows_enabled_and_configured ?? false;
 

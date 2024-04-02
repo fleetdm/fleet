@@ -102,34 +102,19 @@ func WithShell() func(*Runner) error {
 	}
 }
 
-func WithDataPath(path string) Option {
+// WithDataPath configures the dataPath in the *Runner and
+// sets the --pidfile and --extensions_socket paths
+// to the osqueryd invocation.
+func WithDataPath(dataPath, extensionPathPostfix string) Option {
 	return func(r *Runner) error {
-		r.dataPath = path
+		r.dataPath = dataPath
 
-		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(dataPath, constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize osquery data path: %w", err)
 		}
 
 		r.cmd.Args = append(r.cmd.Args,
-			"--pidfile="+filepath.Join(path, "osquery.pid"),
-			"--database_path="+filepath.Join(path, "osquery.db"),
-			"--extensions_socket="+r.ExtensionSocketPath(),
-		)
-		return nil
-	}
-}
-
-func WithDataPathAndExtensionPathPostfix(path string, extensionPathPostfix string) Option {
-	return func(r *Runner) error {
-		r.dataPath = path
-
-		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
-			return fmt.Errorf("initialize osquery data path: %w", err)
-		}
-
-		r.cmd.Args = append(r.cmd.Args,
-			"--pidfile="+filepath.Join(path, "osquery.pid"),
-			"--database_path="+filepath.Join(path, "osquery.db"),
+			"--pidfile="+filepath.Join(dataPath, constant.OsqueryPidfile),
 			"--extensions_socket="+r.ExtensionSocketPath()+extensionPathPostfix,
 		)
 		return nil

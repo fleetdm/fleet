@@ -6,7 +6,10 @@ import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
 
 interface ISliderProps {
-  onChange: () => void;
+  onChange: (newValue?: {
+    name: string;
+    value: string | number | boolean;
+  }) => void;
   value: boolean;
   inactiveText: string;
   activeText: string;
@@ -33,7 +36,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
   };
 
   const formFieldProps = pick(props, [
-    "hint",
+    "helpText",
     "label",
     "error",
     "name",

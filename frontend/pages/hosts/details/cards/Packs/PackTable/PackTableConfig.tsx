@@ -4,12 +4,12 @@ import { uniqueId } from "lodash";
 import { IQueryStats } from "interfaces/query_stats";
 import {
   humanQueryLastRun,
-  performanceIndicator,
+  getPerformanceImpactDescription,
   secondsToHms,
 } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import PillCell from "components/TableContainer/DataTable/PillCell";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 
 interface IHeaderProps {
@@ -31,7 +31,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IPillCellProps extends IRowProps {
+interface IPerformanceImpactCell extends IRowProps {
   cell: {
     value: { indicator: string; id: number };
   };
@@ -43,7 +43,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IPillCellProps) => JSX.Element);
+    | ((props: IPerformanceImpactCell) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -116,8 +116,8 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps: IPillCellProps) => (
-        <PillCell
+      Cell: (cellProps: IPerformanceImpactCell) => (
+        <PerformanceImpactCell
           value={cellProps.cell.value}
           customIdPrefix="query-perf-pill"
         />
@@ -139,7 +139,7 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       frequency: secondsToHms(query.interval),
       last_run: humanQueryLastRun(query.last_executed),
       performance: {
-        indicator: performanceIndicator(scheduledQueryPerformance),
+        indicator: getPerformanceImpactDescription(scheduledQueryPerformance),
         id: query.scheduled_query_id || parseInt(uniqueId(), 10),
       },
     };

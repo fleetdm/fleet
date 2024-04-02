@@ -3,6 +3,7 @@ import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
 
 import Icon from "components/Icon";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "issue-cell";
 
@@ -32,7 +33,7 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
       <ReactTooltip
         place="top"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor={COLORS["tooltip-bg"]}
         id={`host-issue__${rowId.toString()}`}
         data-html
       >

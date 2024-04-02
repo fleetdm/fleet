@@ -20,7 +20,7 @@ type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{
 
 type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 
-type SubmitDistributedQueryResultsFunc func(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) (err error)
+type SubmitDistributedQueryResultsFunc func(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string, stats map[string]*fleet.Stats) (err error)
 
 type SubmitStatusLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
 
@@ -79,11 +79,11 @@ func (s *TLSService) GetDistributedQueries(ctx context.Context) (queries map[str
 	return s.GetDistributedQueriesFunc(ctx)
 }
 
-func (s *TLSService) SubmitDistributedQueryResults(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) (err error) {
+func (s *TLSService) SubmitDistributedQueryResults(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string, stats map[string]*fleet.Stats) (err error) {
 	s.mu.Lock()
 	s.SubmitDistributedQueryResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SubmitDistributedQueryResultsFunc(ctx, results, statuses, messages)
+	return s.SubmitDistributedQueryResultsFunc(ctx, results, statuses, messages, stats)
 }
 
 func (s *TLSService) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error) {

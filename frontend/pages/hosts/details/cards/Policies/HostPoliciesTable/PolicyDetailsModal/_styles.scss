@@ -1,15 +1,13 @@
 .policy-details-modal {
+  &__body {
+    white-space: pre-wrap;
+  }
   &__resolution {
-    p {
-      margin-top: $pad-xsmall;
-    }
-  }
-
-  &__resolve-header {
-    font-weight: $bold;
-  }
-
-  .policy-details-modal__resolution {
+    margin-top: $pad-small;
     overflow: hidden;
+  }
+
+  &__resolution-header {
+    font-weight: $bold;
   }
 }

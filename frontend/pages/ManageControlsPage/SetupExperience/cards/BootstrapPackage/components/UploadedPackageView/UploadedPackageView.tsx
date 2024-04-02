@@ -34,6 +34,7 @@ const UploadedPackageView = ({
         />
       </p>
       <UploadList
+        keyAttribute="name"
         listItems={[bootstrapPackage]}
         ListItemComponent={({ listItem }) => (
           <BootstrapPackageListItem

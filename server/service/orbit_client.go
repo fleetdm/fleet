@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,8 +36,22 @@ type OrbitClient struct {
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
 
+	configCache                 configCache
+	onGetConfigErrFns           *OnGetConfigErrFuncs
+	lastNetErrOnGetConfigLogged time.Time
+
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
+}
+
+// time-to-live for config cache
+const configCacheTTL = 3 * time.Second
+
+type configCache struct {
+	mu          sync.Mutex
+	lastUpdated time.Time
+	config      *fleet.OrbitConfig
+	err         error
 }
 
 func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
@@ -72,11 +87,26 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	return nil
 }
 
+// OnGetConfigErrFuncs defines functions to be executed on GetConfig errors.
+type OnGetConfigErrFuncs struct {
+	// OnNetErrFunc receives network and 5XX errors on GetConfig requests.
+	// These errors are rate limited to once every 5 minutes.
+	OnNetErrFunc func(err error)
+	// DebugErrFunc receives all errors on GetConfig requests.
+	DebugErrFunc func(err error)
+}
+
+var (
+	netErrInterval            = 5 * time.Minute
+	configRetryOnNetworkError = 30 * time.Second
+)
+
 // NewOrbitClient creates a new OrbitClient.
 //
 //   - rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
 //   - addr is the address of the Fleet server.
 //   - orbitHostInfo is the host system information used for enrolling to Fleet.
+//   - onGetConfigErrFns can be used to handle errors in the GetConfig request.
 func NewOrbitClient(
 	rootDir string,
 	addr string,
@@ -85,6 +115,7 @@ func NewOrbitClient(
 	enrollSecret string,
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
+	onGetConfigErrFns *OnGetConfigErrFuncs,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
@@ -94,27 +125,56 @@ func NewOrbitClient(
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
 	return &OrbitClient{
-		nodeKeyFilePath: nodeKeyFilePath,
-		baseClient:      bc,
-		enrollSecret:    enrollSecret,
-		hostInfo:        orbitHostInfo,
-		enrolled:        false,
+		nodeKeyFilePath:   nodeKeyFilePath,
+		baseClient:        bc,
+		enrollSecret:      enrollSecret,
+		hostInfo:          orbitHostInfo,
+		enrolled:          false,
+		onGetConfigErrFns: onGetConfigErrFns,
 	}, nil
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
+// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
+// to reduce traffic to the Fleet server.
+// Upon network errors, this method will retry the get config request (every 30 seconds).
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
-	verb, path := "POST", "/api/fleet/orbit/config"
-	var resp orbitGetConfigResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp); err != nil {
-		return nil, err
+	oc.configCache.mu.Lock()
+	defer oc.configCache.mu.Unlock()
+
+	// If time-to-live passed, we update the config cache
+	now := time.Now()
+	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
+		verb, path := "POST", "/api/fleet/orbit/config"
+		var (
+			resp fleet.OrbitConfig
+			err  error
+		)
+		// Retry until we don't get a network error or a 5XX error.
+		_ = retry.Do(func() error {
+			err = oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
+			var (
+				netErr        net.Error
+				statusCodeErr *statusCodeErr
+			)
+			if err != nil && oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.DebugErrFunc != nil {
+				oc.onGetConfigErrFns.DebugErrFunc(err)
+			}
+			if errors.As(err, &netErr) || (errors.As(err, &statusCodeErr) && statusCodeErr.code >= 500) {
+				now := time.Now()
+				if oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.OnNetErrFunc != nil && now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrInterval)) {
+					oc.onGetConfigErrFns.OnNetErrFunc(err)
+					oc.lastNetErrOnGetConfigLogged = now
+				}
+				return err // retry on network or server 5XX errors
+			}
+			return nil
+		}, retry.WithInterval(configRetryOnNetworkError))
+		oc.configCache.config = &resp
+		oc.configCache.err = err
+		oc.configCache.lastUpdated = now
 	}
-	return &fleet.OrbitConfig{
-		Flags:         resp.Flags,
-		Extensions:    resp.Extensions,
-		Notifications: resp.Notifications,
-		NudgeConfig:   resp.NudgeConfig,
-	}, nil
+	return oc.configCache.config, oc.configCache.err
 }
 
 // SetOrUpdateDeviceToken sends a request to the server to set or update the
@@ -125,6 +185,20 @@ func (oc *OrbitClient) SetOrUpdateDeviceToken(deviceAuthToken string) error {
 		DeviceAuthToken: deviceAuthToken,
 	}
 	var resp setOrUpdateDeviceTokenResponse
+	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SetOrUpdateDeviceMappingEmail sends a request to the server to set or update the
+// device mapping email with the given value.
+func (oc *OrbitClient) SetOrUpdateDeviceMappingEmail(email string) error {
+	verb, path := "PUT", "/api/fleet/orbit/device_mapping"
+	params := orbitPutDeviceMappingRequest{
+		Email: email,
+	}
+	var resp orbitPutDeviceMappingResponse
 	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
 		return err
 	}
@@ -170,11 +244,12 @@ func (oc *OrbitClient) Ping() error {
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
 	params := EnrollOrbitRequest{
-		EnrollSecret:   oc.enrollSecret,
-		HardwareUUID:   oc.hostInfo.HardwareUUID,
-		HardwareSerial: oc.hostInfo.HardwareSerial,
-		Hostname:       oc.hostInfo.Hostname,
-		Platform:       oc.hostInfo.Platform,
+		EnrollSecret:      oc.enrollSecret,
+		HardwareUUID:      oc.hostInfo.HardwareUUID,
+		HardwareSerial:    oc.hostInfo.HardwareSerial,
+		Hostname:          oc.hostInfo.Hostname,
+		Platform:          oc.hostInfo.Platform,
+		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
 	}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
@@ -227,8 +302,12 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				return err
 			}
 		},
-		retry.WithInterval(OrbitRetryInterval()),
+		// The below configuration means the following retry intervals (exponential backoff):
+		// 10s, 20s, 40s, 80s, 160s and then return the failure (max attempts = 6)
+		// thus executing no more than ~6 enroll request failures every ~5 minutes.
+		retry.WithInterval(orbitEnrollRetryInterval()),
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
+		retry.WithBackoffMultiplier(constant.OrbitEnrollBackoffMultiplier),
 	); err != nil {
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
 	}
@@ -327,7 +406,7 @@ func (oc *OrbitClient) setLastRecordedError(err error) {
 	oc.lastRecordedErr = fmt.Errorf("%s: %w", time.Now().UTC().Format("2006-01-02T15:04:05Z"), err)
 }
 
-func OrbitRetryInterval() time.Duration {
+func orbitEnrollRetryInterval() time.Duration {
 	interval := os.Getenv("FLEETD_ENROLL_RETRY_INTERVAL")
 	if interval != "" {
 		d, err := time.ParseDuration(interval)

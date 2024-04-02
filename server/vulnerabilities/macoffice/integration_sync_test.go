@@ -27,5 +27,22 @@ func TestIntegrationSync(t *testing.T) {
 	}
 
 	require.NoError(t, err)
-	require.Contains(t, filesInVulnPath, io.MacOfficeRelNotesFileName(time.Now()))
+
+	// Checking for the presence of the file for today or yesterday
+	// in case the NVD repo is having delays publishing the data
+	todayFilename := io.MacOfficeRelNotesFileName(time.Now())
+	yesterdayFilename := io.MacOfficeRelNotesFileName(time.Now().AddDate(0, 0, -1))
+
+	require.Condition(t, func() bool {
+		return contains(filesInVulnPath, todayFilename) || contains(filesInVulnPath, yesterdayFilename)
+	}, "Expected to find %s or %s in %s", todayFilename, yesterdayFilename, vulnPath)
+}
+
+func contains(slice []string, str string) bool {
+	for _, v := range slice {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }

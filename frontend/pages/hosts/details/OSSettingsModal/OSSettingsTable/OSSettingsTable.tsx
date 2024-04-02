@@ -1,12 +1,14 @@
 import React from "react";
 import TableContainer from "components/TableContainer";
 
-import tableHeaders, { ITableRowOsSettings } from "./OSSettingsTableConfig";
+import tableHeaders, {
+  IHostMdmProfileWithAddedStatus,
+} from "./OSSettingsTableConfig";
 
 const baseClass = "os-settings-table";
 
 interface IOSSettingsTableProps {
-  tableData?: ITableRowOsSettings[];
+  tableData?: IHostMdmProfileWithAddedStatus[];
 }
 
 const OSSettingsTable = ({ tableData }: IOSSettingsTableProps) => {
@@ -15,9 +17,9 @@ const OSSettingsTable = ({ tableData }: IOSSettingsTableProps) => {
       <TableContainer
         resultsTitle="settings"
         defaultSortHeader="name"
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={tableData}
-        emptyComponent={"symbol"}
+        emptyComponent="symbol"
         isLoading={false}
         showMarkAllPages={false}
         isAllPagesSelected={false}

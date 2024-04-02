@@ -33,6 +33,8 @@ module.exports = {
     let daysSinceReleasedBugsWereOpened = [];
     let allBugsWithUnreleasedLabel = [];
     let allBugsWithReleasedLabel = [];
+    let allBugsCreatedInPastWeek = [];
+    let allBugsClosedInPastWeek = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -41,6 +43,21 @@ module.exports = {
     let publicPrsMergedInThePastThreeWeeks = [];
     let allNonPublicOpenPrs = [];
     let nonPublicPrsClosedInThePastThreeWeeks = [];
+
+    // Product group KPIS
+
+    // Endpoint operations
+    let allBugsCreatedInPastWeekEndpointOps = [];
+    let allBugsCreatedInPastWeekEndpointOpsUnreleased = [];
+    let allBugsCreatedInPastWeekEndpointOpsReleased = [];
+    let allBugsCreatedInPastWeekEndpointOpsCustomerImpacting = [];
+
+    // Mobile Device Management
+    let allBugsCreatedInPastWeekMobileDeviceManagement = [];
+
+    let allBugsCreatedInPastWeekMobileDeviceManagementUnreleased = [];
+    let allBugsCreatedInPastWeekMobileDeviceManagementReleased = [];
+    let allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting = [];
 
 
     await sails.helpers.flow.simultaneously([
@@ -86,6 +103,35 @@ module.exports = {
           let timeOpenInMS = Math.abs(todaysDate - issueOpenedOn);
           // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
           let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          if (timeOpenInDays <= 7) {
+            allBugsCreatedInPastWeek.push(issue);
+            // Get Endpoint Ops KPIs
+            if (issue.labels.some(label => label.name === '#g-endpoint-ops')) {
+              allBugsCreatedInPastWeekEndpointOps.push(issue);
+              if (issue.labels.some(label => label.name === '~unreleased bug')) {
+                allBugsCreatedInPastWeekEndpointOpsUnreleased.push(issue);
+              }
+              else if (issue.labels.some(label => label.name === '~released bug')) {
+                allBugsCreatedInPastWeekEndpointOpsReleased.push(issue);
+              }
+              if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
+                allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.push(issue);
+              }
+            }
+            // Get MDM KPIs
+            if (issue.labels.some(label => label.name === '#g-mdm')) {
+              allBugsCreatedInPastWeekMobileDeviceManagement.push(issue);
+              if (issue.labels.some(label => label.name === '~unreleased bug')) {
+                allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.push(issue);
+              }
+              else if (issue.labels.some(label => label.name === '~released bug')) {
+                allBugsCreatedInPastWeekMobileDeviceManagementReleased.push(issue);
+              }
+              if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
+                allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.push(issue);
+              }
+            }
+          }
           daysSinceBugsWereOpened.push(timeOpenInDays);
           // Send to released or unreleased bugs array
           if (issue.labels.some(label => label.name === '~unreleased bug')) {
@@ -102,6 +148,55 @@ module.exports = {
         }
 
       },
+
+      //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██╗   ██╗ ██████╗ ███████╗
+      //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██║   ██║██╔════╝ ██╔════╝
+      //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██║   ██║██║  ███╗███████╗
+      //  ██║     ██║     ██║   ██║╚════██║██╔══╝  ██║  ██║    ██╔══██╗██║   ██║██║   ██║╚════██║
+      //  ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝    ██████╔╝╚██████╔╝╚██████╔╝███████║
+      //   ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝     ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝
+      //
+
+      async()=>{
+
+        let pageNumberForPaginatedResults = 0;
+        let allIssuesWithBugLabel = [];
+
+        // Fetch all closed issues in the fleetdm/fleet repo with the bug label.
+        // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+        await sails.helpers.flow.until(async ()=>{
+          // Increment the page of results we're requesting.
+          pageNumberForPaginatedResults += 1;
+          let issuesWithBugLabel = await sails.helpers.http.get(
+            `https://api.github.com/repos/fleetdm/fleet/issues`,
+            {
+              'state': 'closed',
+              'labels': 'bug',
+              'per_page': NUMBER_OF_RESULTS_REQUESTED,
+              'page': pageNumberForPaginatedResults,
+            },
+            baseHeaders
+          ).retry();
+          // Add the results to the allIssuesWithBugLabel array.
+          allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
+          // Stop when we've received results from the third page.
+          return pageNumberForPaginatedResults === 3;
+        }, 10000);
+
+        // iterate through the allIssuesWithBugLabel array, adding the number
+        for (let issue of allIssuesWithBugLabel) {
+          // Create a date object from the issue's closed_at timestamp.
+          let issueClosedOn = new Date(issue.closed_at);
+          // Get the amount of time this issue has been closed in milliseconds.
+          let timeClosedInMS = Math.abs(todaysDate - issueClosedOn);
+          // Convert the miliseconds to days and add the value to the allBugsClosedInPastWeek array
+          let timeClosedInDays = timeClosedInMS / ONE_DAY_IN_MILLISECONDS;
+          if (timeClosedInDays <= 7) {
+            allBugsClosedInPastWeek.push(issue);
+          }
+        }
+      },
+
       //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██████╗ ███████╗
       //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██╔══██╗██╔════╝
       //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██████╔╝███████╗
@@ -204,7 +299,7 @@ module.exports = {
           }
           // If not a draft, not a bot, not a PR labeled with #handbook
           // Track as a contributor PR and include in contributor PR KPI
-          if (!pullRequest.draft && pullRequest.user.type !== 'Bot' && !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '#g-ceo' || label.name === ':improve documentation')) {
+          if (!pullRequest.draft && pullRequest.user.type !== 'Bot' && !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '~ceo' || label.name === ':improve documentation')) {
             daysSinceContributorPullRequestsWereOpened.push(timeOpenInDays);
             contributorPullRequests.push(pullRequest);
           }
@@ -255,7 +350,6 @@ module.exports = {
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
     let averageNumberOfDaysUnreleasedBugsAreOpenFor = Math.round(_.sum(daysSinceUnreleasedBugsWereOpened) / daysSinceUnreleasedBugsWereOpened.length);
     let averageNumberOfDaysReleasedBugsAreOpenFor = Math.round(_.sum(daysSinceReleasedBugsWereOpened)/daysSinceReleasedBugsWereOpened.length);
-    let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
     let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
@@ -264,12 +358,12 @@ module.exports = {
     // FUTURE: Refactor this to be less messy.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     let ceoDependentOpenPrs = [];
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
+    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('~ceo')));
+    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('~ceo')));
 
     let ceoDependentPrsMergedRecently = [];
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
+    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('~ceo')));
+    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('~ceo')));
 
     let ceoDependentPrOpenTime = ceoDependentPrsMergedRecently.reduce((avgDaysOpen, pr)=>{
       let openedAt = new Date(pr.created_at).getTime();
@@ -281,39 +375,92 @@ module.exports = {
     }, 0);
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+    const kpiResults = [];
+
+    // NOTE: If order of the KPI sheets columns changes, the order values are pushed into this array needs to change, as well.
+    kpiResults.push(
+      averageDaysContributorPullRequestsAreOpenFor,
+      daysSinceContributorPullRequestsWereOpened.length,
+      averageDaysPullRequestsAreOpenFor,
+      daysSincePullRequestsWereOpened.length,
+      averageNumberOfDaysReleasedBugsAreOpenFor,
+      averageNumberOfDaysUnreleasedBugsAreOpenFor,
+      allBugsClosedInPastWeek.length,
+      averageNumberOfDaysBugsAreOpenFor,
+      allBugsCreatedInPastWeek.length,
+      allBugsCreatedInPastWeekEndpointOps.length,
+      allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length,
+      allBugsCreatedInPastWeekEndpointOpsReleased.length,
+      allBugsCreatedInPastWeekEndpointOpsUnreleased.length,
+      allBugsCreatedInPastWeekMobileDeviceManagement.length,
+      allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length,
+      allBugsCreatedInPastWeekMobileDeviceManagementReleased.length,
+      allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length,
+      daysSinceBugsWereOpened.length,
+      allBugsWithReleasedLabel.length,
+      allBugsWithUnreleasedLabel.length);
 
     // Log the results
     sails.log(`
-    Bugs:
+
+    CSV for copy-pasting into KPI spreadsheet:
+    ---------------------------
+    ${kpiResults.join(',')}
+
+    Note: Copy the values above, then in Google sheets paste them into a cell and select "Split text to columns" to paste the values into separate cells.
+
+    Pull requests:
+    ---------------------------
+    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
+    Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
+
+    Average open time (all PRs): ${averageDaysPullRequestsAreOpenFor} days.
+    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
+
+    Bugs (part 1):
+    ---------------------------
+    Average open time (released bugs): ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
+
+    Average open time (unreleased bugs): ${averageNumberOfDaysUnreleasedBugsAreOpenFor} days.
+
+    Number of issues with the "bug" label closed in the past week: ${allBugsClosedInPastWeek.length}
+
+    Average open time (all bugs): ${averageNumberOfDaysBugsAreOpenFor} days.
+
+    Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
+
+    Endpoint Operations:
+    ---------------------------
+    Number of issues with the "#g-endpoint-ops" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOps.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsReleased.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsUnreleased.length}
+
+    MDM:
+    ---------------------------
+    Number of issues with the "#g-mdm" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagement.length}
+
+    Number of issues with the "#g-mdm", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length}
+
+    Number of issues with the "#g-emdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
+
+    Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
+
+    Bugs (part 2):
     ---------------------------
     Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
-    Average open time: ${averageNumberOfDaysBugsAreOpenFor} days.
-
-    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
-    Average open time: ${averageNumberOfDaysUnreleasedBugsAreOpenFor} days.
 
     Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
-    Average open time: ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
 
-    Closed pull requests:
-    ---------------------------
-    Number of pull requests merged in the past three weeks in fleetdm/fleet: ${commitToMergeTimesInDays.length}
-    Average time from first commit to merge: ${averageNumberOfDaysFromCommitToMerge} days.
-
-
-    Open pull requests
-    ---------------------------
-    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
-    Average open time: ${averageDaysPullRequestsAreOpenFor} days.
-
-    Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
-    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
-
+    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
 
     Pull requests requiring CEO review
     ---------------------------------------
-    Number of open #g-ceo pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
-    Average open time (#g-ceo PRs): ${Math.round(ceoDependentPrOpenTime*100)/100} days.
+    Number of open ~ceo pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
+    Average open time (~ceo PRs): ${Math.round(ceoDependentPrOpenTime*100)/100} days.
     `);
 
   }

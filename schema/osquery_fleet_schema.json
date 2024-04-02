@@ -1,19 +1,19 @@
 [
   {
     "name": "account_policy_data",
-    "description": "Additional macOS user account data from the AccountPolicy section of OpenDirectory.",
+    "description": "Additional macOS user account data from the AccountPolicy section of [OpenDirectory](https://en.wikipedia.org/wiki/Apple_Open_Directory), the identity provider used by Apple.",
     "url": "https://fleetdm.com/tables/account_policy_data",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
+    "notes": "- The values in this OpenDirectory table are related to account creation.  In the past, it was fairly common to use OpenDirectory to have a home folder (`~`) on a server, and then log in and get that folder wherever they are.  (These days, this use case is more uncommon.)\n- To determine who is logged in to the Mac, or for example, to check the record name versus the computer's \"short name\", consider using the data in [the DSCL table](https://fleetdm.com/tables/dscl).",
     "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data;\n```\n\nSee each user's last password set date and number of failed logins since last successful login to detect any intrusion attempts.\n```\nSELECT u.username u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;\n```",
     "columns": [
       {
         "name": "uid",
-        "description": "User ID",
+        "description": "[User ID](https://superuser.com/a/1108201)",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -70,7 +70,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -472,6 +471,37 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_volumes.yml"
   },
   {
+    "name": "app_icons",
+    "description": "Icons and their locations for macOS applications.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "path",
+        "description": "The icon's path.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "icon",
+        "description": "The icon.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "hash",
+        "description": "The icon's hash.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/app_icons",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/app_icons.yml"
+  },
+  {
     "name": "app_schemes",
     "description": "macOS application schemes and handlers (e.g., http, file, mailto).",
     "url": "https://fleetdm.com/tables/app_schemes",
@@ -541,7 +571,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "type",
@@ -1347,87 +1376,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/asl.yml"
   },
   {
-    "name": "atom_packages",
-    "description": "Lists all atom packages in a directory or globally installed in a system.",
-    "url": "https://fleetdm.com/tables/atom_packages",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
-    "evented": false,
-    "cacheable": false,
-    "notes": "",
-    "examples": "List installed Atom packages and their version.\n```\nSELECT name, version, description FROM atom_packages;\n```",
-    "columns": [
-      {
-        "name": "name",
-        "description": "Package display name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "version",
-        "description": "Package supplied version",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "description",
-        "description": "Package supplied description",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "path",
-        "description": "Package's package.json path",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "license",
-        "description": "License for package",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "homepage",
-        "description": "Package supplied homepage",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "uid",
-        "description": "The local user that owns the plugin",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": true,
-        "requires_user_context": true
-      }
-    ],
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/atom_packages.yml"
-  },
-  {
     "name": "augeas",
     "description": "Configuration files parsed by [augeas](https://augeas.net/).",
     "url": "https://fleetdm.com/tables/augeas",
@@ -1850,7 +1798,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -2511,7 +2458,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "tid",
@@ -2680,7 +2626,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "tid",
@@ -3676,7 +3621,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -3748,9 +3692,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [
-      "SELECT chrome_extension_content_scripts.* FROM users JOIN chrome_extension_content_scripts USING (uid) GROUP BY identifier, match"
-    ],
+    "examples": "```\nSELECT chrome_extension_content_scripts.* FROM users JOIN chrome_extension_content_scripts USING (uid) GROUP BY identifier, match\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -4022,7 +3964,7 @@
       {
         "name": "path",
         "description": "Path to extension folder. Defaults to '' on ChromeOS",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -4119,7 +4061,7 @@
       {
         "name": "state",
         "description": "1 if this extension is enabled",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -4219,7 +4161,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -4241,7 +4182,7 @@
       },
       {
         "name": "serial_number",
-        "description": "The serial number of the display.",
+        "description": "The serial number of the display. (may not be unique)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -4798,7 +4739,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device_id",
@@ -5379,6 +5319,112 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/crontab.yml"
   },
   {
+    "name": "cryptoinfo",
+    "description": "Get info about the a certificate on the host.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path to the certificate.",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "passphrase",
+        "description": "The passphrase for the certificate.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the drive.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the drive.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column. For example the SQL `SELECT * FROM cryuptsetup_status WHERE name = 'LUKS_DRIVE' will print \"*\"` in the query column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/cryptoinfo",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cryptoinfo.yml"
+  },
+  {
+    "name": "cryptsetup_status",
+    "description": "Get info about the encrypted drive on the host.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "name",
+        "required": true,
+        "description": "The name of the drive.",
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the drive.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the drive.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column. For example the SQL `SELECT * FROM cryuptsetup_status WHERE name = 'LUKS_DRIVE'` will print \"*\" in the query column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/cryptsetup_status",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cryptsetup_status.yml"
+  },
+  {
     "name": "csrutil_info",
     "platforms": [
       "darwin"
@@ -5921,7 +5967,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -6059,7 +6104,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "variable",
@@ -6103,7 +6147,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6297,7 +6340,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6368,7 +6410,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6475,7 +6516,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true
+        "index": false
       },
       {
         "name": "uuid",
@@ -6751,7 +6792,7 @@
       {
         "name": "type",
         "description": "The interface type of the disk.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6760,7 +6801,7 @@
       {
         "name": "id",
         "description": "The unique identifier of the drive on the system.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6781,7 +6822,7 @@
       {
         "name": "disk_size",
         "description": "Size of the disk.",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6814,7 +6855,7 @@
       {
         "name": "name",
         "description": "The label of the disk object.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -8877,10 +8918,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [
-      "select * from docker_volumes",
-      "select * from docker_volumes where name = 'btrfs'"
-    ],
+    "examples": "```\nselect * from docker_volumes where name = 'btrfs'\n```",
     "columns": [
       {
         "name": "name",
@@ -9299,7 +9337,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -9465,7 +9502,7 @@
       },
       {
         "name": "team_id",
-        "description": "Team identifier of thd process",
+        "description": "Team identifier of the process",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -9558,7 +9595,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -9722,7 +9758,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -9897,7 +9932,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -9949,6 +9983,56 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fextended_attributes.yml&value=name%3A%20extended_attributes%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "falcon_kernel_check",
+    "description": "Get information about Crowdstrike Falcon agent installed on the host.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "kernel",
+        "description": "Version of the host's kernel.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "supported",
+        "description": "Whether or not the host's kernel supports the Crowdstrike Falcon sensor version.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "sensor_version",
+        "description": "Version of the Crowdstrike Falcon's sensor.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/falcon_kernel_check",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/falcon_kernel_check.yml"
+  },
+  {
+    "name": "falconctl_options",
+    "description": "Get information about Crowdstrike Falcon agent installed on the host.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "options",
+        "description": "The falconctol options to run. Supported values are listed here: `--aid`, `--apd`,`--aph`, `--app`, `--cid`, `--feature`, `--metadata-query`, `--rfm-reason`,`--rfm-state`, `--tags`, `--version`",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "url": "https://fleetdm.com/tables/falconctl_options",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/falconctl_options.yml"
+  },
+  {
     "name": "fan_speed_sensors",
     "description": "Fan speeds.",
     "url": "https://fleetdm.com/tables/fan_speed_sensors",
@@ -9958,7 +10042,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "fan",
@@ -10258,6 +10341,90 @@
         ]
       },
       {
+        "name": "shortcut_target_path",
+        "description": "Full path to the file the shortcut points to",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_target_type",
+        "description": "Display name for the target type",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_target_location",
+        "description": "Folder name where the shortcut target resides",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_start_in",
+        "description": "Full path to the working directory to use when executing the shortcut target",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_run",
+        "description": "Window mode the target of the shortcut should be run in",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_comment",
+        "description": "Comment on the shortcut",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
         "name": "bsd_flags",
         "description": "The BSD file flags (chflags). Possible values: NODUMP, UF_IMMUTABLE, UF_APPEND, OPAQUE, HIDDEN, ARCHIVED, SF_IMMUTABLE, SF_APPEND",
         "type": "text",
@@ -10307,7 +10474,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_path",
@@ -10523,6 +10689,25 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_prk.yml"
   },
   {
+    "name": "filevault_status",
+    "description": "Get current FileVault status.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "status",
+        "description": "FileVault status.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/filevault_status",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_status.yml"
+  },
+  {
     "name": "filevault_users",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
@@ -10730,6 +10915,55 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firefox_addons.yml"
   },
   {
+    "name": "firefox_preferences",
+    "description": "Get the filepath where the host's Firefox preferences live.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "path",
+        "description": "The path to the host's Firefox preferences.",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the path.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the path.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column. For example the SQL `SELECT * FROM firefox_preferences WHERE path = 'testdata/prefs.js'` will print \"*\" in the query column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/firefox_preferences",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firefox_preferences.yml"
+  },
+  {
     "name": "firmware_eficheck_integrity_check",
     "platforms": [
       "darwin"
@@ -10753,6 +10987,37 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
+  },
+  {
+    "name": "firmwarepasswd",
+    "description": "Information on the device's firmware password. Supported on Intel macOS hosts only. Reference: https://support.apple.com/en-us/HT204455",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "option_roms_allowed",
+        "description": "Whether or not option ROMs are allowed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "password_enabled",
+        "description": "Whether or not the host has a firmware password.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "mode",
+        "description": "Host's mode setting.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/firmwarepasswd",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmwarepasswd.yml"
   },
   {
     "name": "gatekeeper",
@@ -10815,7 +11080,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -11037,7 +11301,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -11298,7 +11561,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -11359,7 +11621,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "boot_uuid",
@@ -11430,7 +11691,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -11482,7 +11742,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -11592,11 +11851,7 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [
-      "select interface, mac, type, idrops as input_drops from interface_details;",
-      "select interface, mac, type, flags, (1<<8) as promisc_flag from interface_details where (flags & promisc_flag) > 0;",
-      "select interface, mac, type, flags, (1<<3) as loopback_flag from interface_details where (flags & loopback_flag) > 0;"
-    ],
+    "examples": "```\nselect interface, mac, type, flags, (1<<3) as loopback_flag from interface_details where (flags & loopback_flag) > 0;\n```",
     "columns": [
       {
         "name": "interface",
@@ -12210,6 +12465,85 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/iokit_registry.yml"
   },
   {
+    "name": "ioreg",
+    "description": "Get values from macOS ioreg command. Columns are input options for the command. They match the ioreg command line tool.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "c",
+        "description": "List properties of objects with the given class.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "d",
+        "description": "Limit tree to the given depth.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "k",
+        "description": "List properties of objects with the given key.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "n",
+        "description": "List properties of objects with the given name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "p",
+        "description": "Traverse registry over the given plane (IOService is default).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "r",
+        "description": "Show subtrees rooted by the given criteria.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the returned value.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the value.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/ioreg",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ioreg.yml"
+  },
+  {
     "name": "iptables",
     "description": "Linux IP packet filtering and NAT tool.",
     "url": "https://fleetdm.com/tables/iptables",
@@ -12219,7 +12553,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "filter_name",
@@ -12625,7 +12958,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -12810,7 +13142,7 @@
   },
   {
     "name": "keychain_acls",
-    "description": "Applications that have ACL entries in the keychain.",
+    "description": "Applications that have ACL entries in the keychain. NOTE: osquery limits frequent access to keychain files. This limit is controlled by keychain_access_interval flag.",
     "url": "https://fleetdm.com/tables/keychain_acls",
     "platforms": [
       "darwin"
@@ -12870,7 +13202,7 @@
   },
   {
     "name": "keychain_items",
-    "description": "Generic details about keychain items.",
+    "description": "Generic details about keychain items. NOTE: osquery limits frequent access to keychain files. This limit is controlled by keychain_access_interval flag.",
     "url": "https://fleetdm.com/tables/keychain_items",
     "platforms": [
       "darwin"
@@ -12975,9 +13307,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [
-      "select * from users join known_hosts using (uid)"
-    ],
+    "examples": "```\nselect * from users join known_hosts using (uid)\n```",
     "columns": [
       {
         "name": "uid",
@@ -13418,7 +13748,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "label",
@@ -14786,19 +15115,19 @@
         "name": "trace_id",
         "description": "The ID of a trace event",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "event_type",
         "description": "The type of event, this can be logEvent, signpostEvent or stateEvent.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "format_string",
         "description": "The format string used to convert variable content into a string for output.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "activity_identifier",
@@ -14828,19 +15157,19 @@
         "name": "sender_image_uuid",
         "description": "The UUID of the library, framework, kernel extension, or mach-o image, that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "sender_image_path",
         "description": "The full path of the library, framework, kernel extension, or mach-o image, that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "boot_uuid",
         "description": "The boot UUID of the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "process_id",
@@ -14852,7 +15181,7 @@
         "name": "process_image_path",
         "description": "The full path of the process that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "timestamp",
@@ -14864,7 +15193,7 @@
         "name": "event_message",
         "description": "The message of the log entry.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "sender_program_counter",
@@ -14998,7 +15327,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -15128,7 +15456,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device_name",
@@ -15423,7 +15750,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "md_device_name",
@@ -15475,7 +15801,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -15721,7 +16046,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -15783,7 +16107,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -15863,7 +16186,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -15953,7 +16275,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16150,7 +16471,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16238,7 +16558,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "memory_total",
@@ -16344,7 +16663,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -16502,7 +16820,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "processor_number",
@@ -16600,7 +16917,7 @@
   },
   {
     "name": "munki_info",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
     "platforms": [
       "darwin"
@@ -16668,7 +16985,7 @@
   },
   {
     "name": "munki_installs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
     "platforms": [
       "darwin"
@@ -16987,7 +17304,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -17048,7 +17364,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -17243,7 +17558,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -17387,6 +17701,12 @@
         "type": "text",
         "required": false,
         "description": "The Update Framework update channel used for the Fleet Desktop executable."
+      },
+      {
+        "name": "uptime",
+        "type": "bigint",
+        "required": false,
+        "description": "Uptime of the orbit process in seconds."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
@@ -18481,7 +18801,7 @@
       {
         "name": "uid",
         "description": "User ID for the policy. Returns `-1` if the policy applies to all users.",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18490,7 +18810,7 @@
       {
         "name": "policy_identifier",
         "description": "Policy identifier, such as `ProfilePayload:1d33ef8c-da1c-4534-8458-95a4d43d849e:minLength`.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18499,7 +18819,7 @@
       {
         "name": "policy_content",
         "description": "Policy content, such as `policyAttributePassword matches '.{10,}'`.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18508,7 +18828,7 @@
       {
         "name": "policy_description",
         "description": "Policy description, such as `Contain at least 10 characters.`",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18778,7 +19098,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -19149,7 +19468,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19210,7 +19528,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19298,7 +19615,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -20056,7 +20372,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "pid",
@@ -20367,8 +20682,7 @@
     ],
     "evented": true,
     "cacheable": false,
-    "notes": "",
-    "examples": [],
+    "notes": "This table will only include events for changes and files in directories that existed before the fleetd agent starts.",
     "columns": [
       {
         "name": "operation",
@@ -20551,8 +20865,7 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/process_file_events.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fprocess_file_events.yml&value=name%3A%20process_file_events%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/process_file_events.yml"
   },
   {
     "name": "process_memory_map",
@@ -20892,7 +21205,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true
+        "index": false
       },
       {
         "name": "fd",
@@ -21519,7 +21832,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_name",
@@ -21970,7 +22282,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -22275,7 +22586,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -22354,7 +22664,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -22534,10 +22843,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "- Includes installed extensions for all system users.",
-    "examples": [
-      "select * from safari_extensions where uid=501",
-      "select count(*) from users JOIN safari_extensions using (uid)"
-    ],
+    "examples": "```\nselect count(*) from users JOIN safari_extensions using (uid)\n```",
     "columns": [
       {
         "name": "uid",
@@ -22670,7 +22976,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "label",
@@ -22847,7 +23152,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n- For ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- For ChromeOS, this table is only available for Chrome 73+.\n",
-    "examples": [],
     "columns": [
       {
         "name": "enabled",
@@ -22880,7 +23184,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -23046,7 +23349,43 @@
       },
       {
         "name": "secure_mode",
-        "description": "Secure mode for Intel-based macOS: 0 disabled, 1 full security, 2 medium security",
+        "description": "(Intel) Secure mode: 0 disabled, 1 full security, 2 medium security",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
+      },
+      {
+        "name": "description",
+        "description": "(Apple Silicon) Human-readable description: 'Full Security', 'Reduced Security', or 'Permissive Security'",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
+      },
+      {
+        "name": "kernel_extensions",
+        "description": "(Apple Silicon) Allow user management of kernel extensions from identified developers (1 if allowed)",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
+      },
+      {
+        "name": "mdm_operations",
+        "description": "(Apple Silicon) Allow remote (MDM) management of kernel extensions and automatic software updates (1 if allowed)",
         "type": "integer",
         "notes": "",
         "hidden": true,
@@ -23082,7 +23421,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "minimum_password_age",
@@ -23305,7 +23643,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "type",
@@ -23672,7 +24009,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "shmid",
@@ -24500,7 +24836,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -24948,7 +25283,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -25222,7 +25556,7 @@
       {
         "name": "hostname",
         "description": "Network hostname including domain. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25240,7 +25574,7 @@
       {
         "name": "cpu_type",
         "description": "CPU type",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25263,7 +25597,7 @@
       {
         "name": "cpu_brand",
         "description": "CPU brand string, contains vendor and model",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25323,7 +25657,7 @@
       {
         "name": "physical_memory",
         "description": "Total physical memory in bytes",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25332,7 +25666,7 @@
       {
         "name": "hardware_vendor",
         "description": "Hardware vendor. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25341,7 +25675,7 @@
       {
         "name": "hardware_model",
         "description": "Hardware model. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25364,7 +25698,7 @@
       {
         "name": "hardware_serial",
         "description": "The device's serial number. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25429,7 +25763,7 @@
       {
         "name": "computer_name",
         "description": "Friendly computer name (optional). For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25462,7 +25796,7 @@
     "columns": [
       {
         "name": "idle_state",
-        "type": "string",
+        "type": "text",
         "description": "Returns \"locked\", \"idle\", or \"active\".",
         "required": false
       }
@@ -25482,7 +25816,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "id",
@@ -26392,7 +26725,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "uid",
@@ -26509,7 +26841,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "uid",
@@ -26543,7 +26874,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -26589,7 +26919,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "Identify SSH keys stored in clear text in user directories\n```\nSELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;,\n```",
+    "examples": "Identify SSH keys stored in clear text in user directories\n```\nSELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;\n```",
     "columns": [
       {
         "name": "uid",
@@ -26859,7 +27189,7 @@
       {
         "name": "email",
         "required": false,
-        "type": "string",
+        "type": "text",
         "description": "Email",
         "platforms": [
           "chrome"
@@ -26878,7 +27208,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "color_depth",
@@ -27168,6 +27497,104 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/virtual_memory_info.yml"
+  },
+  {
+    "name": "vscode_extensions",
+    "description": "Installed extensions for [Visual Studio (VS) Code](https://code.visualstudio.com/).",
+    "url": "https://fleetdm.com/tables/vscode_extensions",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "Querying this table requires joining against the `users` table.",
+    "examples": "List the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.\n```\nSELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);\n```",
+    "columns": [
+      {
+        "name": "name",
+        "description": "Extension Name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uuid",
+        "description": "Extension UUID",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "version",
+        "description": "Extension version",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Extension path",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "publisher",
+        "description": "Publisher Name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "publisher_id",
+        "description": "Publisher ID",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "installed_at",
+        "description": "Installed Timestamp",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "prerelease",
+        "description": "Pre release version",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uid",
+        "description": "The local user that owns the plugin",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/vscode_extensions.yml"
   },
   {
     "name": "wifi_networks",
@@ -28713,6 +29140,61 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fwindows_update_history.yml&value=name%3A%20windows_update_history%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "windows_updates",
+    "description": "Returns information about Windows updates that are available for installation.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "windows"
+    ],
+    "columns": [
+      {
+        "name": "locale",
+        "description": "Location of the update.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "is_default",
+        "description": "Whether or not the update is the default.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the update.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the update.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/windows_updates",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/windows_updates.yml"
+  },
+  {
     "name": "wmi_bios_info",
     "description": "Lists important information from the system bios.",
     "url": "https://fleetdm.com/tables/wmi_bios_info",
@@ -29283,7 +29765,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_path",
@@ -29405,6 +29886,15 @@
       {
         "name": "folder_id",
         "description": "Folder identifier for the VM",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "cloud_id",
+        "description": "Cloud identifier for the VM",
         "type": "text",
         "notes": "",
         "hidden": false,

@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,22 +19,25 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-	"github.com/micromdm/nanodep/godep"
-	"github.com/micromdm/nanomdm/mdm"
 )
 
 type getMDMAppleCommandResultsRequest struct {
@@ -297,7 +299,8 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
+	// providing an empty set of labels since this endpoint is only maintained for backwards compat
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -306,7 +309,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -346,6 +349,12 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
+	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating labels")
+	}
+	cp.Labels = labelMap
+
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
 		var existsErr existsErrorInterface
@@ -355,7 +364,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -377,6 +386,139 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	return newCP, nil
+}
+
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*fleet.MDMAppleDeclaration, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// check that Apple MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just Windows
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("declaration", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+
+	fleetNames := mdm_types.FleetReservedProfileNames()
+	if _, ok := fleetNames[name]; ok {
+		err := fleet.NewInvalidArgumentError("declaration", fmt.Sprintf("Profile name %q is not allowed.", name)).WithStatus(http.StatusBadRequest)
+		return nil, err
+	}
+
+	var teamName string
+	if teamID >= 1 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var tmID *uint
+	if teamID >= 1 {
+		tmID = &teamID
+	}
+
+	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
+	rawDecl, err := fleet.GetRawDeclarationValues(data)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := rawDecl.ValidateUserProvided(); err != nil {
+		return nil, err
+	}
+
+	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
+
+	// TODO(roberto): this should be part of fleet.NewMDMAppleDeclaration
+	d.Labels = validatedLabels
+
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
+	}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
+		TeamID:      actTeamID,
+		TeamName:    actTeamName,
+		ProfileName: decl.Name,
+		Identifier:  decl.Identifier,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple declaration")
+	}
+
+	return decl, nil
+}
+
+func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	uniqueNames := make(map[string]bool)
+	for _, entry := range labelNames {
+		if _, value := uniqueNames[entry]; !value {
+			uniqueNames[entry] = true
+		}
+	}
+
+	if len(labels) != len(uniqueNames) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all the labels provided don't exist",
+			InternalErr: fmt.Errorf("names provided: %v", labelNames),
+		}
+	}
+
+	profLabels := make(map[string]fleet.ConfigurationProfileLabel)
+	for labelName, labelID := range labels {
+		profLabels[labelName] = fleet.ConfigurationProfileLabel{
+			LabelName: labelName,
+			LabelID:   labelID,
+		}
+	}
+	return profLabels, nil
+}
+
+func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
+	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
+	}
+
+	var declLabels []fleet.ConfigurationProfileLabel
+	for _, label := range labelMap {
+		declLabels = append(declLabels, label)
+	}
+	return declLabels, nil
 }
 
 type listMDMAppleConfigProfilesRequest struct {
@@ -460,7 +602,7 @@ func (r getMDMAppleConfigProfileResponse) hijackRender(ctx context.Context, w ht
 func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleConfigProfileRequest)
 
-	cp, err := svc.GetMDMAppleConfigProfile(ctx, req.ProfileID)
+	cp, err := svc.GetMDMAppleConfigProfileByDeprecatedID(ctx, req.ProfileID)
 	if err != nil {
 		return getMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -470,13 +612,50 @@ func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	return getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: fileName}, nil
 }
 
-func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	// first we perform a perform basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileID)
+	cp, err := svc.ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, profileID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// call the standard service method with a profile UUID that will not be
+			// found, just to ensure the same sequence of validations are applied.
+			return svc.GetMDMAppleConfigProfile(ctx, "-")
+		}
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return svc.GetMDMAppleConfigProfile(ctx, cp.ProfileUUID)
+}
+
+func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// now we can do a specific authz check based on team id of profile before we return the profile
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: cp.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return cp, nil
+}
+
+func (svc *Service) GetMDMAppleDeclaration(ctx context.Context, profileUUID string) (*fleet.MDMAppleDeclaration, error) {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	cp, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -502,14 +681,33 @@ func (r deleteMDMAppleConfigProfileResponse) error() error { return r.Err }
 func deleteMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMAppleConfigProfileRequest)
 
-	if err := svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileID); err != nil {
+	if err := svc.DeleteMDMAppleConfigProfileByDeprecatedID(ctx, req.ProfileID); err != nil {
 		return &deleteMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 
 	return &deleteMDMAppleConfigProfileResponse{}, nil
 }
 
-func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
+func (svc *Service) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// get the profile by ID and call the standard delete function
+	cp, err := svc.ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, profileID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// call the standard service method with a profile UUID that will not be
+			// found, just to ensure the same sequence of validations are applied.
+			return svc.DeleteMDMAppleConfigProfile(ctx, "-")
+		}
+		return ctxerr.Wrap(ctx, err)
+	}
+	return svc.DeleteMDMAppleConfigProfile(ctx, cp.ProfileUUID)
+}
+
+func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
 	// first we perform a perform basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -518,11 +716,11 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	// check that Apple MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just Windows
 	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-		err := fleet.NewInvalidArgumentError("profile_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		err := fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 		return ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 	}
 
-	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileID)
+	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -550,11 +748,11 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		}
 	}
 
-	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileID); err != nil {
+	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -578,12 +776,128 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	return nil
 }
 
+func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// check that Apple MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just Windows
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+
+	decl, err := svc.ds.GetMDMAppleDeclaration(ctx, declUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
+		return &fleet.BadRequestError{
+			Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
+			InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
+		}
+	}
+
+	// TODO: refine our approach to deleting restricted/forbidden types of declarations so that we
+	// can check that Fleet-managed aren't being deleted; this can be addressed once we add support
+	// for more types of declarations
+	var d fleet.MDMAppleRawDeclaration
+	if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
+	}
+	if err := d.ValidateUserProvided(); err != nil {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+	}
+
+	var teamName string
+	teamID := *decl.TeamID
+	if teamID >= 1 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	// now we can do a specific authz check based on team id of profile before we delete the profile
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: decl.TeamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, declUUID); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
+		TeamID:      actTeamID,
+		TeamName:    actTeamName,
+		ProfileName: decl.Name,
+		Identifier:  decl.Identifier,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple declaration")
+	}
+
+	return nil
+}
+
+type getMDMAppleFileVaultSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleFileVaultSummaryResponse struct {
+	*fleet.MDMAppleFileVaultSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleFileVaultSummaryResponse) error() error { return r.Err }
+
+func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleFileVaultSummaryRequest)
+
+	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMAppleFileVaultSummaryResponse{Err: err}, nil
+	}
+
+	return &getMDMAppleFileVaultSummaryResponse{
+		MDMAppleFileVaultSummary: fvs,
+	}, nil
+}
+
+func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	fvs, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return fvs, nil
+}
+
 type getMDMAppleProfilesSummaryRequest struct {
 	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
-	fleet.MDMAppleConfigProfilesSummary
+	fleet.MDMProfilesSummary
 	Err error `json:"error,omitempty"`
 }
 
@@ -606,54 +920,21 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 	return &res, nil
 }
 
-func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
+func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	ps, err := svc.ds.GetMDMAppleHostsProfilesSummary(ctx, teamID)
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
+
+	ps, err := svc.ds.GetMDMAppleProfilesSummary(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	return ps, nil
-}
-
-type getMDMAppleFileVaultSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
-}
-
-type getMDMAppleFileVauleSummaryResponse struct {
-	*fleet.MDMAppleFileVaultSummary
-	Err error `json:"error,omitempty"`
-}
-
-func (r getMDMAppleFileVauleSummaryResponse) error() error { return r.Err }
-
-func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*getMDMAppleFileVaultSummaryRequest)
-
-	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
-	if err != nil {
-		return &getMDMAppleFileVauleSummaryResponse{Err: err}, nil
-	}
-
-	return &getMDMAppleFileVauleSummaryResponse{
-		MDMAppleFileVaultSummary: fvs,
-	}, nil
-}
-
-func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
-	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	fvs, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	return fvs, nil
 }
 
 type uploadAppleInstallerRequest struct {
@@ -1038,16 +1319,9 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollURL := appConfig.ServerSettings.ServerURL
-	if ref != "" {
-		u, err := url.Parse(enrollURL)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "parsing configured server URL")
-		}
-		q := u.Query()
-		q.Add("enroll_reference", ref)
-		u.RawQuery = q.Encode()
-		enrollURL = u.String()
+	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
 
 	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
@@ -1478,6 +1752,34 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		profs = append(profs, mdmProf)
 	}
 
+	if !skipBulkPending {
+		// check for duplicates with existing profiles, skipBulkPending signals that the caller
+		// is responsible for ensuring that the profiles names are unique (e.g., MDMAppleMatchPreassignment)
+		allProfs, _, err := svc.ds.ListMDMConfigProfiles(ctx, tmID, fleet.ListOptions{PerPage: 0})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list mdm config profiles")
+		}
+		for _, p := range allProfs {
+			if byName[p.Name] {
+				switch {
+				case strings.HasPrefix(p.ProfileUUID, "a"):
+					// do nothing, all existing mobileconfigs will be replaced and we've already checked
+					// the new mobileconfigs for duplicates
+					continue
+				case strings.HasPrefix(p.ProfileUUID, "w"):
+					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
+						"Couldn’t edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
+					return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
+				default:
+					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
+						"Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
+					return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
+				}
+			}
+			byName[p.Name] = true
+		}
+	}
+
 	if dryRun {
 		return nil
 	}
@@ -1490,7 +1792,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	}
 
 	if !skipBulkPending {
-		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 	}
@@ -1589,37 +1891,13 @@ func (r updateMDMAppleSettingsResponse) Status() int { return http.StatusNoConte
 // team endpoints only allow write access to admins.
 func updateMDMAppleSettingsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateMDMAppleSettingsRequest)
-	if err := svc.UpdateMDMAppleSettings(ctx, req.MDMAppleSettingsPayload); err != nil {
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.MDMAppleSettingsPayload.TeamID, req.MDMAppleSettingsPayload.EnableDiskEncryption); err != nil {
 		return updateMDMAppleSettingsResponse{Err: err}, nil
 	}
 	return updateMDMAppleSettingsResponse{}, nil
 }
 
-func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
-	// for now, assume all settings require premium (this is true for the first
-	// supported setting, enable_disk_encryption. Adjust as needed in the future
-	// if this is not always the case).
-	lic, _ := license.FromContext(ctx)
-	if lic == nil || !lic.IsPremium() {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ErrMissingLicense
-	}
-
-	if err := svc.authz.Authorize(ctx, payload, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-
-	if payload.TeamID != nil {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, payload.TeamID, nil)
-		if err != nil {
-			return err
-		}
-		return svc.EnterpriseOverrides.UpdateTeamMDMAppleSettings(ctx, tm, payload)
-	}
-	return svc.updateAppConfigMDMAppleSettings(ctx, payload)
-}
-
-func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
+func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enabled *bool) error {
 	// appconfig is only used internally, it's fine to read it unobfuscated
 	// (svc.AppConfigObfuscated must not be used because the write-only users
 	// such as gitops will fail to access it).
@@ -1629,9 +1907,9 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 	}
 
 	var didUpdate, didUpdateMacOSDiskEncryption bool
-	if payload.EnableDiskEncryption != nil {
-		if ac.MDM.EnableDiskEncryption.Value != *payload.EnableDiskEncryption {
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(*payload.EnableDiskEncryption)
+	if enabled != nil {
+		if ac.MDM.EnableDiskEncryption.Value != *enabled {
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(*enabled)
 			didUpdate = true
 			didUpdateMacOSDiskEncryption = true
 		}
@@ -1799,6 +2077,10 @@ type bootstrapPackageMetadataRequest struct {
 	// "write" instead of a "read", this is needed specifically for the gitops
 	// user which is a write-only user, but needs to call this endpoint to check
 	// if it needs to upload the bootstrap package (if the hashes are different).
+	//
+	// NOTE: this parameter is going to be removed in a future version.
+	// Prefer other ways to allow gitops read access.
+	// For context, see: https://github.com/fleetdm/fleet/issues/15337#issuecomment-1932878997
 	ForUpdate bool `query:"for_update,optional"`
 }
 
@@ -2088,7 +2370,7 @@ type callbackMDMAppleSSOResponse struct {
 
 func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.redirectURL)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	w.WriteHeader(http.StatusSeeOther)
 }
 
 // Error will always be nil because errors are handled by sending a query
@@ -2108,6 +2390,30 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	svc.authz.SkipAuthorization(ctx)
 
 	return apple_mdm.FleetUISSOCallbackPath + "?error=true"
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/manual_enrollment_profile
+////////////////////////////////////////////////////////////////////////////////
+
+type getManualEnrollmentProfileRequest struct{}
+
+func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
+	if err != nil {
+		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+	}
+
+	// Using this type to keep code DRY as it already has all the functionality we need.
+	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+}
+
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2151,6 +2457,18 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	host.SerialNumber = m.SerialNumber
 	host.UDID = m.UDID
 	host.Model = m.Model
+
+	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		var nfe fleet.NotFoundError
+		if !errors.As(err, &nfe) {
+			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
+		}
+	} else if existingDeviceInfo.SCEPRenewalInProgress {
+		svc.logger.Log("info", "Authenticate message received for a SCEP renewal in process, skipping host ingestion and cleanups", "host_uuid", r.ID)
+		return nil
+	}
+
 	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
 		return ctxerr.Wrap(r.Context, err, "ingesting device in Authenticate message")
 	}
@@ -2164,7 +2482,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 		HostSerial:       info.HardwareSerial,
 		HostDisplayName:  info.DisplayName,
-		InstalledFromDEP: info.InstalledFromDEP,
+		InstalledFromDEP: info.DEPAssignedToFleet,
 		MDMPlatform:      fleet.MDMPlatformApple,
 	})
 }
@@ -2175,31 +2493,40 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
 func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return ctxerr.Wrap(r.Context, err, "retrieving host checkin info on TokenUpdate")
+	}
+
+	if info.SCEPRenewalInProgress {
+		svc.logger.Log("info", "TokenUpdate message received for a SCEP renewal in process", "host_uuid", r.ID)
+		err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID)
+		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs on TokenUpdate")
+	}
+
 	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(r.Context, err, "retrieving nano enrollment info on TokenUpdate")
 	}
+
 	if nanoEnroll != nil && nanoEnroll.Enabled &&
 		nanoEnroll.Type == "Device" && nanoEnroll.TokenUpdateTally == 1 {
 		// device is enrolled for the first time, not a token update
-		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
+		svc.logger.Log("info", "TokenUpdate message received for a new enrollment", "host_uuid", r.ID)
+
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
 			return err
 		}
 
-		info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
-		if err != nil {
-			return err
+		var tmID *uint
+		if info.TeamID != 0 {
+			tmID = &info.TeamID
 		}
 
 		// TODO: improve this to not enqueue the job if a host that is
 		// assigned in ABM is manually enrolling for some reason.
 		if info.DEPAssignedToFleet || info.InstalledFromDEP {
 			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
-
-			var tmID *uint
-			if info.TeamID != 0 {
-				tmID = &info.TeamID
-			}
 			if err := worker.QueueAppleMDMJob(
 				r.Context,
 				svc.ds,
@@ -2207,9 +2534,24 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				worker.AppleMDMPostDEPEnrollmentTask,
 				r.ID,
 				tmID,
-				r.Params["enroll_reference"],
+				r.Params[mobileconfig.FleetEnrollReferenceKey],
 			); err != nil {
 				return ctxerr.Wrap(r.Context, err, "queue DEP post-enroll task")
+			}
+		}
+
+		// manual MDM enrollments that are not fleet-enrolled yet
+		if !info.InstalledFromDEP && !info.OsqueryEnrolled {
+			if err := worker.QueueAppleMDMJob(
+				r.Context,
+				svc.ds,
+				svc.logger,
+				worker.AppleMDMPostManualEnrollmentTask,
+				r.ID,
+				tmID,
+				r.Params[mobileconfig.FleetEnrollReferenceKey],
+			); err != nil {
+				return ctxerr.Wrap(r.Context, err, "queue manual post-enroll task")
 			}
 		}
 	}
@@ -2271,7 +2613,8 @@ func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(*mdm.Request, *mdm
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
-func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request, *mdm.DeclarativeManagement) ([]byte, error) {
+func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(r *mdm.Request, dm *mdm.DeclarativeManagement) ([]byte, error) {
+	// DeclarativeManagement is handled by the MDMAppleDDMService.
 	return nil, nil
 }
 
@@ -2280,17 +2623,25 @@ func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request,
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
-func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, res *mdm.CommandResults) (*mdm.Command, error) {
-	// Sometimes we get results with Status == "Idle" which don't contain a command
-	// UUID and are not actionable anyways.
-	if res.CommandUUID == "" {
+func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	if cmdResult.Status == "Idle" {
+		// macOS hosts are considered unlocked if they are online any time
+		// after they have been unlocked. If the host has been seen after a
+		// successful unlock, take the opportunity and update the value in the
+		// db as well.
+		//
+		// TODO: sanity check if this approach is still valid after we implement wipe
+		if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
+		}
+
 		return nil, nil
 	}
 
 	// We explicitly get the request type because it comes empty. There's a
 	// RequestType field in the struct, but it's used when a mdm.Command is
 	// issued.
-	requestType, err := svc.ds.GetMDMAppleCommandRequestType(r.Context, res.CommandUUID)
+	requestType, err := svc.ds.GetMDMAppleCommandRequestType(r.Context, cmdResult.CommandUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(r.Context, err, "command service")
 	}
@@ -2300,20 +2651,36 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, apple_mdm.HandleHostMDMProfileInstallResult(
 			r.Context,
 			svc.ds,
-			res.UDID,
-			res.CommandUUID,
-			mdmAppleDeliveryStatusFromCommandStatus(res.Status),
-			apple_mdm.FmtErrorChain(res.ErrorChain),
+			cmdResult.UDID,
+			cmdResult.CommandUUID,
+			mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
+			apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 		)
 	case "RemoveProfile":
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
-			CommandUUID:   res.CommandUUID,
-			HostUUID:      res.UDID,
-			Status:        mdmAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
+			CommandUUID:   cmdResult.CommandUUID,
+			HostUUID:      cmdResult.UDID,
+			Status:        mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
+			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
+	case "DeviceLock", "EraseDevice":
+		// call into our datastore to update host_mdm_actions if the status is terminal
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.UDID, cmdResult.CommandUUID, requestType, cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
+		}
+	case "DeclarativeManagement":
+		// set "pending-install" profiles to "verifying" or "failed"
+		// depending on the status of the DeviceManagement command
+		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
+		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13 or higher.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
+		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
+		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
+
 	}
+
 	return nil, nil
 }
 
@@ -2385,6 +2752,7 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 			EnrollSecret: es.Secret,
 			ServerURL:    appCfg.ServerSettings.ServerURL,
 			PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+			PayloadName:  mdm_types.FleetdConfigProfileName,
 		}
 
 		if err := mobileconfig.FleetdProfileTemplate.Execute(&contents, params); err != nil {
@@ -2407,12 +2775,46 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	return nil
 }
 
+func ReconcileAppleDeclarations(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) error {
+	// batch set declarations as pending
+	changedHosts, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host declaration state")
+	}
+
+	if len(changedHosts) == 0 {
+		logger.Log("msg", "no hosts with changed declarations")
+		return nil
+	}
+
+	// send a DeclarativeManagement command to start a sync
+	if err := commander.DeclarativeManagement(ctx, changedHosts, uuid.NewString()); err != nil {
+		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
+	}
+
+	logger.Log("msg", "sent DeclarativeManagement command", "host_number", len(changedHosts))
+
+	return nil
+}
+
 func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("reading app config: %w", err)
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
+		return nil
+	}
 	if err := ensureFleetdConfig(ctx, ds, logger); err != nil {
 		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
@@ -2429,11 +2831,11 @@ func ReconcileAppleProfiles(
 
 	// Perform aggregations to support all the operations we need to do
 
-	// toGetContents contains the IDs of all the profiles from which we
+	// toGetContents contains the UUIDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents
 	// there, so we make another request. Using a map to deduplicate.
-	toGetContents := make(map[uint]bool)
+	toGetContents := make(map[string]bool)
 
 	// hostProfiles tracks each host_mdm_apple_profile we need to upsert
 	// with the new status, operation_type, etc.
@@ -2455,7 +2857,7 @@ func ReconcileAppleProfiles(
 	// command.
 	hostProfilesToCleanup := []*fleet.MDMAppleProfilePayload{}
 
-	// install/removeTargets are maps from profileID -> command uuid and host
+	// install/removeTargets are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
 	// for all hosts in a given install/remove target operation.
@@ -2464,7 +2866,7 @@ func ReconcileAppleProfiles(
 		profIdent string
 		hostUUIDs []string
 	}
-	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
+	installTargets, removeTargets := make(map[string]*cmdTarget), make(map[string]*cmdTarget)
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
 			// if the profile was in any other status than `failed`
@@ -2473,7 +2875,7 @@ func ReconcileAppleProfiles(
 			// command.
 			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
 				hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
-					ProfileID:         p.ProfileID,
+					ProfileUUID:       p.ProfileUUID,
 					HostUUID:          p.HostUUID,
 					ProfileIdentifier: p.ProfileIdentifier,
 					ProfileName:       p.ProfileName,
@@ -2486,20 +2888,20 @@ func ReconcileAppleProfiles(
 				continue
 			}
 		}
-		toGetContents[p.ProfileID] = true
+		toGetContents[p.ProfileUUID] = true
 
-		target := installTargets[p.ProfileID]
+		target := installTargets[p.ProfileUUID]
 		if target == nil {
 			target = &cmdTarget{
 				cmdUUID:   uuid.New().String(),
 				profIdent: p.ProfileIdentifier,
 			}
-			installTargets[p.ProfileID] = target
+			installTargets[p.ProfileUUID] = target
 		}
 		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
 
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
-			ProfileID:         p.ProfileID,
+			ProfileUUID:       p.ProfileUUID,
 			HostUUID:          p.HostUUID,
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryPending,
@@ -2516,18 +2918,18 @@ func ReconcileAppleProfiles(
 			continue
 		}
 
-		target := removeTargets[p.ProfileID]
+		target := removeTargets[p.ProfileUUID]
 		if target == nil {
 			target = &cmdTarget{
 				cmdUUID:   uuid.New().String(),
 				profIdent: p.ProfileIdentifier,
 			}
-			removeTargets[p.ProfileID] = target
+			removeTargets[p.ProfileUUID] = target
 		}
 		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
 
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
-			ProfileID:         p.ProfileID,
+			ProfileUUID:       p.ProfileUUID,
 			HostUUID:          p.HostUUID,
 			OperationType:     fleet.MDMOperationTypeRemove,
 			Status:            &fleet.MDMDeliveryPending,
@@ -2558,11 +2960,11 @@ func ReconcileAppleProfiles(
 	}
 
 	// Grab the contents of all the profiles we need to install
-	profileIDs := make([]uint, 0, len(toGetContents))
-	for pid := range toGetContents {
-		profileIDs = append(profileIDs, pid)
+	profileUUIDs := make([]string, 0, len(toGetContents))
+	for pUUID := range toGetContents {
+		profileUUIDs = append(profileUUIDs, pUUID)
 	}
-	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileIDs)
+	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
@@ -2576,13 +2978,13 @@ func ReconcileAppleProfiles(
 	var wgProd, wgCons sync.WaitGroup
 	ch := make(chan remoteResult)
 
-	execCmd := func(profID uint, target *cmdTarget, op fleet.MDMOperationType) {
+	execCmd := func(profUUID string, target *cmdTarget, op fleet.MDMOperationType) {
 		defer wgProd.Done()
 
 		var err error
 		switch op {
 		case fleet.MDMOperationTypeInstall:
-			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profID], target.cmdUUID)
+			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
 		case fleet.MDMOperationTypeRemove:
 			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
 		}
@@ -2596,13 +2998,13 @@ func ReconcileAppleProfiles(
 			ch <- remoteResult{err, target.cmdUUID}
 		}
 	}
-	for profID, target := range installTargets {
+	for profUUID, target := range installTargets {
 		wgProd.Add(1)
-		go execCmd(profID, target, fleet.MDMOperationTypeInstall)
+		go execCmd(profUUID, target, fleet.MDMOperationTypeInstall)
 	}
-	for profID, target := range removeTargets {
+	for profUUID, target := range removeTargets {
 		wgProd.Add(1)
-		go execCmd(profID, target, fleet.MDMOperationTypeRemove)
+		go execCmd(profUUID, target, fleet.MDMOperationTypeRemove)
 	}
 
 	// index the host profiles by cmdUUID, for ease of error processing in the
@@ -2692,7 +3094,7 @@ func (svc *Service) restorePendingDEPHost(ctx context.Context, host *fleet.Host,
 		return ctxerr.Wrap(ctx, err, "restore pending dep host")
 	}
 
-	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger,
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger,
 		worker.MacosSetupAssistantHostsTransferred, tmID, host.HardwareSerial); err != nil {
 		return ctxerr.Wrap(ctx, err, "restore pending dep host")
 	}
@@ -2721,4 +3123,348 @@ func (svc *Service) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *f
 	}
 
 	return tmID, nil
+}
+
+// scepCertRenewalThresholdDays defines the number of days before a SCEP
+// certificate must be renewed.
+const scepCertRenewalThresholdDays = 30
+
+// maxCertsRenewalPerRun specifies the maximum number of certificates to renew
+// in a single cron run.
+//
+// Assuming that the cron runs every hour, we'll enqueue 24,000 renewals per
+// day, and we have room for 24,000 * scepCertRenewalThresholdDays total
+// renewals.
+//
+// For a default of 30 days as a threshold this gives us room for a fleet of
+// 720,000 devices expiring at the same time.
+const maxCertsRenewalPerRun = 100
+
+func RenewSCEPCertificates(
+	ctx context.Context,
+	logger kitlog.Logger,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	commander *apple_mdm.MDMAppleCommander,
+) error {
+	if !config.MDM.IsAppleSCEPSet() {
+		logger.Log("inf", "skipping renewal of macOS SCEP certificates as MDM is not fully configured")
+		return nil
+	}
+
+	if commander == nil {
+		logger.Log("inf", "skipping renewal of macOS SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
+		return nil
+	}
+
+	// for each hash, grab the host that uses it as its identity certificate
+	certAssociations, err := ds.GetHostCertAssociationsToExpire(ctx, scepCertRenewalThresholdDays, maxCertsRenewalPerRun)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host cert associations")
+	}
+
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting AppConfig")
+	}
+
+	mdmPushCertTopic, err := config.MDM.AppleAPNsTopic()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting certificate topic")
+	}
+
+	// assocsWithRefs stores hosts that have enrollment references on their
+	// enrollment profiles. This is the case for ADE-enrolled hosts using
+	// SSO to authenticate.
+	assocsWithRefs := []fleet.SCEPIdentityAssociation{}
+	// assocsWithoutRefs stores hosts that don't have an enrollment
+	// reference in their enrollment profile.
+	assocsWithoutRefs := []fleet.SCEPIdentityAssociation{}
+	for _, assoc := range certAssociations {
+		if assoc.EnrollReference != "" {
+			assocsWithRefs = append(assocsWithRefs, assoc)
+			continue
+		}
+		assocsWithoutRefs = append(assocsWithoutRefs, assoc)
+	}
+
+	// send a single command for all the hosts without references.
+	if len(assocsWithoutRefs) > 0 {
+		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+			appConfig.OrgInfo.OrgName,
+			appConfig.ServerSettings.ServerURL,
+			config.MDM.AppleSCEPChallenge,
+			mdmPushCertTopic,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+		}
+
+		cmdUUID := uuid.NewString()
+		var uuids []string
+		for _, assoc := range assocsWithoutRefs {
+			uuids = append(uuids, assoc.HostUUID)
+			assoc.RenewCommandUUID = cmdUUID
+		}
+
+		if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithoutRefs)
+		}
+
+		if err := ds.SetCommandForPendingSCEPRenewal(ctx, assocsWithoutRefs, cmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting pending command associations")
+		}
+	}
+
+	// send individual commands for each host with a reference
+	for _, assoc := range assocsWithRefs {
+		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, assoc.EnrollReference)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
+		}
+
+		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+			appConfig.OrgInfo.OrgName,
+			enrollURL,
+			config.MDM.AppleSCEPChallenge,
+			mdmPushCertTopic,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
+		}
+		cmdUUID := uuid.NewString()
+		if err := commander.InstallProfile(ctx, []string{assoc.HostUUID}, profile, cmdUUID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithRefs)
+		}
+
+		if err := ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assoc}, cmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting pending command associations")
+		}
+	}
+
+	return nil
+}
+
+// MDMAppleDDMService is the service that handles MDM [DeclarativeManagement][1] requests.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
+type MDMAppleDDMService struct {
+	ds     fleet.Datastore
+	logger kitlog.Logger
+}
+
+func NewMDMAppleDDMService(ds fleet.Datastore, logger kitlog.Logger) *MDMAppleDDMService {
+	return &MDMAppleDDMService{
+		ds:     ds,
+		logger: logger,
+	}
+}
+
+// DeclarativeManagement handles MDM [DeclarativeManagement][1] requests.
+//
+// This method is when the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
+func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.DeclarativeManagement) ([]byte, error) {
+	if dm == nil {
+		level.Debug(svc.logger).Log("msg", "ddm request received with nil payload")
+		return nil, nil
+	}
+	level.Debug(svc.logger).Log("msg", "ddm request received", "endpoint", dm.Endpoint)
+
+	if err := svc.ds.InsertMDMAppleDDMRequest(r.Context, dm.UDID, dm.Endpoint, dm.Data); err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "insert ddm request history")
+	}
+
+	if dm.UDID == "" {
+		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.New(r.Context, "missing UDID in request"))
+	}
+
+	switch {
+	case dm.Endpoint == "tokens":
+		level.Debug(svc.logger).Log("msg", "received tokens request")
+		return svc.handleTokens(r.Context, dm.UDID)
+
+	case dm.Endpoint == "declaration-items":
+		level.Debug(svc.logger).Log("msg", "received declaration-items request")
+		return svc.handleDeclarationItems(r.Context, dm.UDID)
+
+	case dm.Endpoint == "status":
+		level.Debug(svc.logger).Log("msg", "received status request")
+		return nil, svc.handleDeclarationStatus(r.Context, dm)
+
+	case strings.HasPrefix(dm.Endpoint, "declaration/"):
+		level.Debug(svc.logger).Log("msg", "received declarations request")
+		return svc.handleDeclarationsResponse(r.Context, dm.Endpoint, dm.UDID)
+
+	default:
+		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.New(r.Context, fmt.Sprintf("unrecognized declarations endpoint: %s", dm.Endpoint)))
+	}
+}
+
+func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string) ([]byte, error) {
+	tok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
+	}
+
+	b, err := json.Marshal(fleet.MDMAppleDDMTokensResponse{
+		SyncTokens: *tok,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling synchronization tokens")
+	}
+
+	return b, nil
+}
+
+func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostUUID string) ([]byte, error) {
+	di, err := svc.ds.MDMAppleDDMDeclarationItems(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
+	}
+
+	activations := []fleet.MDMAppleDDMManifest{}
+	configurations := []fleet.MDMAppleDDMManifest{}
+	for _, d := range di {
+		configurations = append(configurations, fleet.MDMAppleDDMManifest(d))
+		activations = append(activations, fleet.MDMAppleDDMManifest{
+			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
+			ServerToken: d.ServerToken,
+		})
+	}
+
+	// TODO: Look for ways to optimize the declaration item query so that we don't have to get the declarations token separately.
+	dTok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting declarations token")
+	}
+
+	b, err := json.Marshal(fleet.MDMAppleDDMDeclarationItemsResponse{
+		Declarations: fleet.MDMAppleDDMManifestItems{
+			Activations:    activations,
+			Configurations: configurations,
+			Assets:         []fleet.MDMAppleDDMManifest{},
+			Management:     []fleet.MDMAppleDDMManifest{},
+		},
+		DeclarationsToken: dTok.DeclarationsToken,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling synchronization tokens")
+	}
+
+	return b, nil
+}
+
+func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, endpoint string, hostUUID string) ([]byte, error) {
+	parts := strings.Split(endpoint, "/")
+	if len(parts) != 3 {
+		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.Errorf(ctx, "unrecognized declarations endpoint: %s", endpoint))
+	}
+	level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", parts[1], "identifier", parts[2])
+
+	switch parts[1] {
+	case "activation":
+		return svc.handleActivationDeclaration(ctx, parts, hostUUID)
+	case "configuration":
+		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID)
+	default:
+		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, ctxerr.Errorf(ctx, "declaration type not supported: %s", parts[1]))
+	}
+}
+
+func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+	references := strings.TrimSuffix(parts[2], ".activation")
+
+	// ensure the declaration for the requested activation stil exists
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, references, hostUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting linked configuration for activation declaration")
+	}
+
+	response := fmt.Sprintf(`
+{
+  "Identifier": "%s",
+  "Payload": {
+    "StandardConfigurations": ["%s"]
+  },
+  "ServerToken": "%s",
+  "Type": "com.apple.activation.simple"
+}`, parts[2], references, d.Checksum)
+
+	return []byte(response), nil
+}
+
+func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, parts[2], hostUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting declaration response")
+	}
+
+	var tempd map[string]any
+	if err := json.Unmarshal(d.RawJSON, &tempd); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
+	}
+	tempd["ServerToken"] = d.Checksum
+
+	b, err := json.Marshal(tempd)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
+	}
+	return b, nil
+}
+
+func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement) error {
+	var status fleet.MDMAppleDDMStatusReport
+	if err := json.Unmarshal(dm.Data, &status); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling response")
+	}
+
+	configurationReports := status.StatusItems.Management.Declarations.Configurations
+	updates := make([]*fleet.MDMAppleHostDeclaration, len(configurationReports))
+	for i, r := range configurationReports {
+		var status fleet.MDMDeliveryStatus
+		var detail string
+		switch {
+		case r.Active && r.Valid == fleet.MDMAppleDeclarationValid:
+			status = fleet.MDMDeliveryVerified
+		case r.Valid == fleet.MDMAppleDeclarationInvalid:
+			status = fleet.MDMDeliveryFailed
+			detail = apple_mdm.FmtDDMError(r.Reasons)
+		default:
+			status = fleet.MDMDeliveryVerifying
+		}
+
+		updates[i] = &fleet.MDMAppleHostDeclaration{
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        detail,
+			Checksum:      r.ServerToken,
+		}
+	}
+
+	// MDMAppleStoreDDMStatusReport takes care of cleaning ("pending", "remove")
+	// pairs for the host.
+	//
+	// TODO(roberto): in the DDM documentation, it's mentioned that status
+	// report will give you a "remove" status so the server can track
+	// removals. In my testing, I never saw this (after spending
+	// considerable time trying to make it work.)
+	//
+	// My current guess is that the documentation is implicitly referring
+	// to asset declarations (which deliver tangible "assets" to the host)
+	//
+	// The best indication I found so far, is that if the declaration is
+	// not in the report, then it's implicitly removed.
+	if err := svc.ds.MDMAppleStoreDDMStatusReport(ctx, dm.UDID, updates); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host declaration status with reports")
+	}
+
+	return nil
 }

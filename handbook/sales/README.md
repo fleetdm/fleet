@@ -1,62 +1,35 @@
 # Sales
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
-## What we do
-The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
-
-
 ## Team
-| Role                                  | Contributor(s)           |
+| Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Chief Revenue Officer (CRO)           | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| [Customer Success](https://www.fleetdm.com/handbook/customer-success#responsibilities) | [Customer Success team members](https://www.fleetdm.com/handbook/customer-success#team)
+| 🏹 [Customer Success](https://www.fleetdm.com/handbook/customer-success#responsibilities) | [Customer Success team members](https://www.fleetdm.com/handbook/customer-success#team)
 | Director of Solutions Consulting      | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
 | Solutions Consultant (SC)             | [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
 | Head of Public Sector                 | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
-| Account Executive (AE)                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_, [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))
-| Sales Development Rep (SDR)           | [Ringo Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_, [Brad Macdowall](https://www.linkedin.com/in/bradmacdowall/) _([@bradmacd](https://github.com/bradmacd))_
+| Account Executive (AE)                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_, [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_, [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_
+
 
 ## Contact us
-- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
-  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
-- If urgent, or if you need help submitting your request, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.
-
-
-## Customer codenames
-Occasionally, we will need to track public issues for customers who wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
-
-
+  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 <!---
-
 Rituals (out-dated 2023-10-19)
 
-The following table lists the Customer's group's rituals, frequency, and Directly Responsible Individual (DRI).
-
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Overnight customer feedback  | Daily | Check Slack for customer feedback that occurred outside of usual business hours.| Kathy Satterlee       |  
-| Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour.   | Kathy Satterlee        |
-| Customer follow-up | Daily | Follow-up and tag appropriate personnel for follow-up on customer items in progress and items that remain unresolved. | Kathy Satterlee |
-| Internal follow-up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Kathy Satterlee |
-| [Customer voice](https://docs.google.com/document/d/15Zn6qdm9NyNM7C9kLKtvgMKsuY4Hpgo7lABOBhw7olI/edit?usp=sharing) | Weekly | Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more. | Kathy Satterlee  |
-| Stand-up | Weekly | Meet with the Engineering team three to four times a week to share information and prioritize issues. | Kathy Satterlee |
-| Customer request backlog | Weekly | Check-in before the 🗣️ Product Feature Requests meeting to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team. | Kathy Satterlee |
-| 🗣️ Product Feature Requests | Weekly | Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective. | Kathy Satterlee |
-| Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Kathy Satterlee |
-| Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
 | Opportunity pipeline review | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps, amounts, dates, and status (including choosing Closed Lost if no communications for >= 45 days). | Alex Mitchell
-[Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Taylor Hughes |
+
 | Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. Clean up Open MQL list. Ask CRO if questions. | Alex Mitchell |
-| Dripify review | Daily | Review responses to Dripify sequencing, respond to standard messages, escalate urgent messages in `#help-CEO`. | Brad Macdowall
-
-
 --->
 
-
-
 ## Responsibilities
+The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
+
+### Onboard a new sales team member
+Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
 
 ### Send a quote
 During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
@@ -84,7 +57,7 @@ To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep ac
 3. If outreach is too frequent or doesn't fit the company's strategy, then set up a 30 minute coaching session to discuss with the rep.
 
 
-### Validate Salesforce data
+### Validate Salesforce data (RevOps) 
 In order to maintain a consistent contributor experience in Salesforce, we log in to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere. Then we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
 
 1. Make sure the default tabs for a standard user include a detailed view of contacts, opportunities, accounts, and leads. No other tabs should exist.
@@ -131,22 +104,27 @@ Sometimes there is a change in the champion within the customer's organization.
     3. Offer training to get them up to speed.
     4. Provide a white glove experience.
 
-### Schedule a customer call
-To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer, use the ["Customer meeting" Calendly link](https://calendly.com/fleetdm/customer).
-- **Documenting a customer call:** When we do prospect calls, add the customer's name in both the google doc title and the heading, ex. "Charlie (Fleet)."  This makes it easier when searching for the document later. 
-- **Before a customer call(48hrs):** Check the calendar invite 48hrs before the meeting to determine if the customer has accepted the invitation.
-  - If the customer has not accepted the invitation, reach out to confirm attendance (e.g., EAs, email, Slack).
+### To schedule Solutions Consultant (SC) for a prospect meeting
+To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet prospect, the Account Executive (AE) will [open an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales%2C%23solutions-consultant%2C%3Adiscovery%2C%3Ademo%2C%3Ascoping%2C%3Atech-eval&projects=&template=custom-request.md&title=prospect+name+-+prep+%28date%29+-+discovery%2Cdemo%2Cscoping+%28date%29). 
+ - Use [this calendly link](https://calendly.com/fleetdm/talk-to-a-solutions-consultant) to obtain SC availability.
+ - The AE will populate this issue with the appropriate dates for an internal prep meeting as well as the dates for the external prospect meeting.
+ - Do not assign the issue. The Director of Solutions Consulting will assign the issue.
+ - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
+
+- **Documenting a prospect call:** When we do prospect calls, add the prospect's name in both the google doc title and the heading, ex. "Alex + Natalie (Fleet + Acme Co)."  This makes it easier when searching for the document later. 
+- **Before a prospect call(48hrs):** Check the calendar invite 48hrs before the meeting to determine if the prospect has accepted the invitation.
+  - If the prospect has not accepted the invitation, reach out to confirm attendance (e.g., EAs, email, Slack).
   - Test the Zoom Meeting link to make sure that it is working.
   - Make sure that agenda documents are attached and accessible to meeting attendees (as appropriate to the situation).
-- **Day of the customer call:** Join the meeting two to three minutes before the start time.
+- **Day of the prospect call:** Join the meeting two to three minutes before the start time.
 
-- **Missed customer call:** If the customer does not join the call after three minutes, contact the customer with
+- **Missed prospect call:** If the prospect does not join the call after three minutes, contact the prospect with
   - Slack, if we have a shared channel.
   - email, using the email address from the calendar invite.
   - LinkedIn, send a direct message.
   - phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
-  - an alternative date and time. Suggest two to three options from which the customer can choose.
-    - Confirm that contact information is accurate and that the customer can receive and access meeting invites.
+  - an alternative date and time. Suggest two to three options from which the prospect can choose.
+    - Confirm that contact information is accurate and that the prospect can receive and access meeting invites.
 
 ### Create a customer agreement
 - **Contract terms:** Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
@@ -157,7 +135,7 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
 
 - **Standard terms:** For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578). Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
 
-> All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from from the Business Operations department before being signed. [Create an issue request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
+> All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from the Business Operations department before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
 
 ### Close a new customer deal
 To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hughestaylor&labels=%23g-business-operations&projects=&template=3-sale.md&title=New+customer%3A+_____________).
@@ -165,9 +143,10 @@ To close a deal with a new customer (non-self-service), create and complete a Gi
 ### Change customer credit card number
 You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
 
+
 ## Rituals
 
-<rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/sales/sales.rituals.yml']"></rituals>
 
 
 #### Stubs
@@ -186,7 +165,7 @@ Please see [handbook/company/communications#customer-support-service-level-agree
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
 ##### Customer codenames
-Please see [Handbook/customer-success#create-customer-support-issue](https://www.fleetdm.com/handbook/create-customer-support-issue)
+Please see [Handbook/sales#assign-a-customer-codename](https://www.fleetdm.com/handbook/sales#assign-a-customer-codename)
 
 ##### Document customer requests
 Please see [handbook/customer-success#document-customer-requests](https://fleetdm.com/handbook/customer-success#document-customer-requests)

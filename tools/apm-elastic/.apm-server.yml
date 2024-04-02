@@ -1,0 +1,11 @@
+apm-server:
+  host: apm-server:8200
+  frontend.enabled: true
+  frontend.allow_origins: "*"
+
+output.elasticsearch:
+  enabled: true
+  hosts: ["elasticsearch"]
+
+setup.kibana:
+  host: "kibana"

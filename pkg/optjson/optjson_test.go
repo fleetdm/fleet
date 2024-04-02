@@ -90,7 +90,7 @@ func TestString(t *testing.T) {
 }
 
 func TestBool(t *testing.T) {
-	t.Run("plain string", func(t *testing.T) {
+	t.Run("plain bool", func(t *testing.T) {
 		cases := []struct {
 			data      string
 			wantErr   string
@@ -147,6 +147,90 @@ func TestBool(t *testing.T) {
 			{`{"i": 1, "b": true, "n": {"b2": null}}`, "", T{I: 1, B: Bool{Set: true, Valid: true, Value: true}, N: N{B2: Bool{Set: true, Valid: false, Value: false}}}, `{"i": 1, "b": true, "n": {"b2": null}}`},
 			{`{"i": 1, "b": ""}`, "cannot unmarshal string into Go struct", T{I: 1, B: Bool{Set: true, Valid: false, Value: false}}, `{"i": 1, "b": null, "n": {"b2": null}}`},
 			{`{"i": 1, "n": {"b2": 123}}`, "cannot unmarshal number into Go struct", T{I: 1, N: N{B2: Bool{Set: true, Valid: false, Value: false}}}, `{"i": 1, "b": null, "n": {"b2": null}}`},
+		}
+
+		for _, c := range cases {
+			t.Run(c.data, func(t *testing.T) {
+				var tt T
+				err := json.Unmarshal([]byte(c.data), &tt)
+
+				if c.wantErr != "" {
+					require.Error(t, err)
+					require.ErrorContains(t, err, c.wantErr)
+				} else {
+					require.NoError(t, err)
+				}
+				require.Equal(t, c.wantRes, tt)
+
+				b, err := json.Marshal(tt)
+				require.NoError(t, err)
+				require.JSONEq(t, c.marshalAs, string(b))
+			})
+		}
+	})
+}
+
+func TestInt(t *testing.T) {
+	t.Run("plain int", func(t *testing.T) {
+		cases := []struct {
+			data      string
+			wantErr   string
+			wantRes   Int
+			marshalAs string
+		}{
+			{`1`, "", Int{Set: true, Valid: true, Value: 1}, `1`},
+			{`-1`, "", Int{Set: true, Valid: true, Value: -1}, `-1`},
+			{`0`, "", Int{Set: true, Valid: true, Value: 0}, `0`},
+			{`1.23`, "cannot unmarshal number 1.23 into Go value of type int", Int{Set: true, Valid: false, Value: 0}, `null`},
+			{`null`, "", Int{Set: true, Valid: false, Value: 0}, `null`},
+			{`"x"`, "cannot unmarshal string into Go value of type int", Int{Set: true, Valid: false, Value: 0}, `null`},
+			{`{"v": "foo"}`, "cannot unmarshal object into Go value of type int", Int{Set: true, Valid: false, Value: 0}, `null`},
+		}
+
+		for _, c := range cases {
+			t.Run(c.data, func(t *testing.T) {
+				var i Int
+				err := json.Unmarshal([]byte(c.data), &i)
+
+				if c.wantErr != "" {
+					require.Error(t, err)
+					require.ErrorContains(t, err, c.wantErr)
+				} else {
+					require.NoError(t, err)
+				}
+				require.Equal(t, c.wantRes, i)
+
+				b, err := json.Marshal(i)
+				require.NoError(t, err)
+				require.Equal(t, c.marshalAs, string(b))
+			})
+		}
+	})
+
+	t.Run("struct", func(t *testing.T) {
+		type N struct {
+			I2 Int `json:"i2"`
+		}
+		type T struct {
+			I Int  `json:"i"`
+			B bool `json:"b"`
+			N N    `json:"n"`
+		}
+
+		cases := []struct {
+			data      string
+			wantErr   string
+			wantRes   T
+			marshalAs string
+		}{
+			{`{}`, "", T{}, `{"i": null, "b": false, "n": {"i2": null}}`},
+			{`{"x": "nope"}`, "", T{}, `{"i": null, "b": false, "n": {"i2": null}}`},
+			{`{"i": 1, "b": true}`, "", T{I: Int{Set: true, Valid: true, Value: 1}, B: true}, `{"i": 1, "b": true, "n": {"i2": null}}`},
+			{`{"i": null, "b": true, "n": {}}`, "", T{I: Int{Set: true, Valid: false, Value: 0}, B: true}, `{"i": null, "b": true, "n": {"i2": null}}`},
+			{`{"i": 1, "b": true, "n": {"i2": 2}}`, "", T{I: Int{Set: true, Valid: true, Value: 1}, B: true, N: N{I2: Int{Set: true, Valid: true, Value: 2}}}, `{"i": 1, "b": true, "n": {"i2": 2}}`},
+			{`{"i": 1, "b": true, "n": {"i2": null}}`, "", T{I: Int{Set: true, Valid: true, Value: 1}, B: true, N: N{I2: Int{Set: true, Valid: false, Value: 0}}}, `{"i": 1, "b": true, "n": {"i2": null}}`},
+			{`{"i": "", "b": true}`, "cannot unmarshal string into Go struct", T{I: Int{Set: true, Valid: false, Value: 0}, B: false}, `{"i": null, "b": false, "n": {"i2": null}}`},
+			{`{"b": true, "n": {"i2": true}}`, "cannot unmarshal bool into Go struct", T{I: Int{Set: false, Valid: false, Value: 0}, B: true, N: N{I2: Int{Set: true, Valid: false, Value: 0}}}, `{"i": null, "b": true, "n": {"i2": null}}`},
 		}
 
 		for _, c := range cases {

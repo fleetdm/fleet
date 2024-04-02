@@ -7,7 +7,7 @@ import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
 
 import DataError from "components/DataError";
 // @ts-ignore
-import Input from "components/forms/fields/InputFieldWithIcon";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
 
@@ -20,7 +20,7 @@ interface ITargetsInputProps {
   targetedHosts: IHost[];
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row) => void;
-  handleRowRemove: (value: Row) => void;
+  handleRowRemove: (value: Row<IHost>) => void;
 }
 
 const baseClass = "targets-input";
@@ -40,8 +40,6 @@ const TargetsInput = ({
   const selectedTableHeaders = generateTableHeaders(handleRowRemove);
   const dropdownHosts =
     searchResults && pullAllBy(searchResults, targetedHosts, "display_name");
-  // const finalSelectedHostTargets =
-  //   targetedHosts && filter(targetedHosts, "display_name");
   const isActiveSearch =
     !isEmpty(searchText) && (!hasFetchError || isTargetsLoading);
   const isSearchError = !isEmpty(searchText) && hasFetchError;
@@ -49,7 +47,7 @@ const TargetsInput = ({
   return (
     <div>
       <div className={baseClass}>
-        <Input
+        <InputFieldWithIcon
           autofocus
           type="search"
           iconSvg="search"
@@ -63,7 +61,7 @@ const TargetsInput = ({
         {isActiveSearch && (
           <div className={`${baseClass}__hosts-search-dropdown`}>
             <TableContainer
-              columns={resultsDropdownTableHeaders}
+              columnConfigs={resultsDropdownTableHeaders}
               data={dropdownHosts}
               isLoading={isTargetsLoading}
               resultsTitle=""
@@ -94,7 +92,7 @@ const TargetsInput = ({
         )}
         <div className={`${baseClass}__hosts-selected-table`}>
           <TableContainer
-            columns={selectedTableHeaders}
+            columnConfigs={selectedTableHeaders}
             data={targetedHosts}
             isLoading={false}
             resultsTitle=""

@@ -6,12 +6,12 @@
   h2 {
     text-align: center;
   }
+  .help-text {
+    @include help-text;
+  }
 
   &__wrapper {
-    & + p {
-      margin-top: 40px;
-      font-size: $x-small;
-    }
+    width: auto;
   }
 
   &__icon {

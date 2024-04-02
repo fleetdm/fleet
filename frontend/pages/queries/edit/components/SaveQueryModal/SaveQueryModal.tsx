@@ -145,7 +145,7 @@ const SaveQueryModal = ({
   );
 
   return (
-    <Modal title={"Save query"} onExit={toggleSaveQueryModal}>
+    <Modal title="Save query" onExit={toggleSaveQueryModal}>
       <form
         onSubmit={onClickSaveQuery}
         className={baseClass}
@@ -168,7 +168,7 @@ const SaveQueryModal = ({
           inputClassName={`${baseClass}__description`}
           label="Description"
           type="textarea"
-          hint="What information does your query reveal? (optional)"
+          helpText="What information does your query reveal? (optional)"
         />
         <Dropdown
           searchable={false}
@@ -176,32 +176,27 @@ const SaveQueryModal = ({
           onChange={(value: number) => {
             setSelectedFrequency(value);
           }}
-          placeholder={"Every hour"}
+          placeholder="Every hour"
           value={selectedFrequency}
           label="Frequency"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
+          helpText="This is how often your query collects data."
         />
-        <div className="help-text">
-          This is how often your query collects data.
-        </div>
         <Checkbox
           name="observerCanRun"
           onChange={setObserverCanRun}
           value={observerCanRun}
-          wrapperClassName={"observer-can-run-wrapper"}
+          wrapperClassName="observer-can-run-wrapper"
+          helpText="Users with the Observer role will be able to run this query as a live query."
         >
           Observers can run
         </Checkbox>
-        <div className="help-text">
-          Users with the Observer role will be able to run this query as a live
-          query.
-        </div>
         <RevealButton
           isShowing={showAdvancedOptions}
-          className={"advanced-options-toggle"}
-          hideText={"Hide advanced options"}
-          showText={"Show advanced options"}
-          caretPosition={"after"}
+          className="advanced-options-toggle"
+          hideText="Hide advanced options"
+          showText="Show advanced options"
+          caretPosition="after"
           onClick={toggleAdvancedOptions}
         />
         {showAdvancedOptions && (
@@ -214,10 +209,8 @@ const SaveQueryModal = ({
               value={selectedPlatformOptions}
               multi
               wrapperClassName={`${baseClass}__form-field form-field--platform`}
+              helpText="By default, your query collects data on all compatible platforms."
             />
-            <div className="help-text">
-              By default, your query collects data on all compatible platforms.
-            </div>
             <Dropdown
               options={MIN_OSQUERY_VERSION_OPTIONS}
               onChange={setSelectedMinOsqueryVersionOptions}

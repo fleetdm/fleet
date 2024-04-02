@@ -4,7 +4,7 @@ import ReactTooltip from "react-tooltip";
 
 import { formatDistanceToNow } from "date-fns";
 
-import { ISoftware } from "interfaces/software";
+import { ISoftware, SOURCE_TYPE_CONVERSION } from "interfaces/software";
 import PATHS from "router/paths";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -68,28 +68,8 @@ interface IDataColumn {
   // or one of the custom `filterTypes` defined for the `useTable` instance (see `DataTable`)
 }
 
-const TYPE_CONVERSION: Record<string, string> = {
-  apt_sources: "Package (APT)",
-  deb_packages: "Package (deb)",
-  portage_packages: "Package (Portage)",
-  rpm_packages: "Package (RPM)",
-  yum_sources: "Package (YUM)",
-  npm_packages: "Package (NPM)",
-  atom_packages: "Package (Atom)",
-  python_packages: "Package (Python)",
-  apps: "Application (macOS)",
-  chrome_extensions: "Browser plugin (Chrome)",
-  firefox_addons: "Browser plugin (Firefox)",
-  safari_extensions: "Browser plugin (Safari)",
-  homebrew_packages: "Package (Homebrew)",
-  programs: "Program (Windows)",
-  ie_extensions: "Browser plugin (IE)",
-  chocolatey_packages: "Package (Chocolatey)",
-  pkg_packages: "Package (pkg)",
-};
-
 const formatSoftwareType = (source: string) => {
-  const DICT = TYPE_CONVERSION;
+  const DICT = SOURCE_TYPE_CONVERSION;
   return DICT[source] || "Unknown";
 };
 
@@ -211,12 +191,12 @@ export const generateSoftwareTableHeaders = ({
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
           setFilteredSoftwarePath(pathname);
-          router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
+          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_DETAILS(id.toString())}
+            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
             value={name}
             tooltipContent={
@@ -293,7 +273,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`vulnerabilities__${cellProps.row.original.id}`}
               data-html
             >
@@ -333,7 +313,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`last_used__${cellProps.row.original.id}`}
               className="last_used_tooltip"
               data-tip-disable={hasLastUsed}

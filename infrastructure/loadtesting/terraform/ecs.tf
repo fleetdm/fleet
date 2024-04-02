@@ -12,7 +12,7 @@ resource "aws_ecs_service" "fleet" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
-  desired_count                      = 10
+  desired_count                      = var.fleet_containers
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
@@ -130,35 +130,35 @@ resource "aws_ecs_task_definition" "backend" {
         environment = concat([
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_MYSQL_MAX_OPEN_CONNS"
-            value = "5"
+            value = "10"
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_reader_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_reader_endpoint}:3306"
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS"
-            value = "5"
+            value = "10"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
@@ -261,15 +261,15 @@ resource "aws_ecs_task_definition" "migration" {
           },
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
@@ -284,8 +284,8 @@ resource "aws_ecs_task_definition" "migration" {
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
-  max_capacity       = 10
-  min_capacity       = 10
+  max_capacity       = var.fleet_containers
+  min_capacity       = var.fleet_containers
   resource_id        = "service/${aws_ecs_cluster.fleet.name}/${aws_ecs_service.fleet.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"

@@ -6,10 +6,12 @@ import {
   ISoftwareResponse,
   ISoftwareCountResponse,
   IGetSoftwareByIdResponse,
+  ISoftwareVersion,
+  ISoftwareTitle,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 
-interface ISoftwareApiParams {
+export interface ISoftwareApiParams {
   page?: number;
   perPage?: number;
   orderKey?: string;
@@ -19,6 +21,34 @@ interface ISoftwareApiParams {
   teamId?: number;
 }
 
+export interface ISoftwareTitlesResponse {
+  counts_updated_at: string | null;
+  count: number;
+  software_titles: ISoftwareTitle[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface ISoftwareVersionsResponse {
+  counts_updated_at: string | null;
+  count: number;
+  software: ISoftwareVersion[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface ISoftwareTitleResponse {
+  software_title: ISoftwareTitle;
+}
+
+export interface ISoftwareVersionResponse {
+  software: ISoftwareVersion;
+}
+
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
   scope: "software";
 }
@@ -26,6 +56,26 @@ export interface ISoftwareQueryKey extends ISoftwareApiParams {
 export interface ISoftwareCountQueryKey
   extends Pick<ISoftwareApiParams, "query" | "vulnerable" | "teamId"> {
   scope: "softwareCount";
+}
+
+export interface IGetSoftwareTitleQueryParams {
+  softwareId: number;
+  teamId?: number;
+}
+
+export interface IGetSoftwareTitleQueryKey
+  extends IGetSoftwareTitleQueryParams {
+  scope: "softwareById";
+}
+
+export interface IGetSoftwareVersionQueryParams {
+  versionId: number;
+  teamId?: number;
+}
+
+export interface IGetSoftwareVersionQueryKey
+  extends IGetSoftwareVersionQueryParams {
+  scope: "softwareVersion";
 }
 
 const ORDER_KEY = "name";
@@ -100,6 +150,39 @@ export default {
   ): Promise<IGetSoftwareByIdResponse> => {
     const { SOFTWARE } = endpoints;
     const path = `${SOFTWARE}/${softwareId}`;
+
+    return sendRequest("GET", path);
+  },
+
+  getSoftwareTitles: (params: ISoftwareApiParams) => {
+    const { SOFTWARE_TITLES } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE_TITLES}?${queryString}`;
+    return sendRequest("GET", path);
+  },
+
+  getSoftwareTitle: ({ softwareId, teamId }: IGetSoftwareTitleQueryParams) => {
+    const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
+    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+
+    return sendRequest("GET", path);
+  },
+
+  getSoftwareVersions: (params: ISoftwareApiParams) => {
+    const { SOFTWARE_VERSIONS } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE_VERSIONS}?${queryString}`;
+    return sendRequest("GET", path);
+  },
+
+  getSoftwareVersion: ({
+    versionId,
+    teamId,
+  }: IGetSoftwareVersionQueryParams) => {
+    const endpoint = endpoints.SOFTWARE_VERSION(versionId);
+    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
     return sendRequest("GET", path);
   },

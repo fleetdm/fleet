@@ -1,6 +1,6 @@
 # Tutorials and guides
 
-A collections of guides to help you get up and running with Fleet.
+A collection of guides to help you get up and running with Fleet.
 
 ## Deployment guides
 

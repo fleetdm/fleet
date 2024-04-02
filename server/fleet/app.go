@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -147,7 +148,9 @@ type MDM struct {
 	// backend, should be done only after careful analysis.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates          MacOSUpdates             `json:"macos_updates"`
+	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	WindowsUpdates WindowsUpdates `json:"windows_updates"`
+
 	MacOSSettings         MacOSSettings            `json:"macos_settings"`
 	MacOSSetup            MacOSSetup               `json:"macos_setup"`
 	MacOSMigration        MacOSMigration           `json:"macos_migration"`
@@ -172,10 +175,7 @@ type MDM struct {
 // AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
 // (macOS or Windows) has MDM enabled and configured.
 func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
-	// explicitly check for the feature flag to account for the edge case of:
-	// 1. FF enabled, windows is turned on
-	// 2. FF disabled on server restart
-	return m.EnabledAndConfigured || (config.IsMDMFeatureFlagEnabled() && m.WindowsEnabledAndConfigured)
+	return m.EnabledAndConfigured || m.WindowsEnabledAndConfigured
 }
 
 // versionStringRegex is used to validate that a version string is in the x.y.z
@@ -231,14 +231,76 @@ func (m MacOSUpdates) Validate() error {
 	return nil
 }
 
+// WindowsUpdates is part of AppConfig and defines the Windows update settings.
+type WindowsUpdates struct {
+	DeadlineDays    optjson.Int `json:"deadline_days"`
+	GracePeriodDays optjson.Int `json:"grace_period_days"`
+}
+
+// EnabledForHost returns a boolean indicating if enforced Windows OS updates
+// are enabled for the host. Note that the provided Host needs to be loaded
+// with full MDMInfo data for the check to be valid.
+func (w WindowsUpdates) EnabledForHost(h *Host) bool {
+	return w.DeadlineDays.Valid &&
+		w.GracePeriodDays.Valid &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled()
+}
+
+// Equal returns true if the values of the fields of w and other are equal. It
+// returns false otherwise. If e.g. w.DeadlineDays.Value == 0 but its .Valid
+// field == false (i.e. it is null), it is not equal to
+// other.DeadlineDays.Value == 0 with its .Valid field == true.
+func (w WindowsUpdates) Equal(other WindowsUpdates) bool {
+	if w.DeadlineDays.Value != other.DeadlineDays.Value || w.DeadlineDays.Valid != other.DeadlineDays.Valid {
+		return false
+	}
+	if w.GracePeriodDays.Value != other.GracePeriodDays.Value || w.GracePeriodDays.Valid != other.GracePeriodDays.Valid {
+		return false
+	}
+	return true
+}
+
+func (w WindowsUpdates) Validate() error {
+	const (
+		minDeadline    = 0
+		maxDeadline    = 30
+		minGracePeriod = 0
+		maxGracePeriod = 7
+	)
+
+	// both must be specified or not specified
+	if w.DeadlineDays.Valid != w.GracePeriodDays.Valid {
+		if w.DeadlineDays.Valid && !w.GracePeriodDays.Valid {
+			return errors.New("grace_period_days is required when deadline_days is provided")
+		} else if !w.DeadlineDays.Valid && w.GracePeriodDays.Valid {
+			return errors.New("deadline_days is required when grace_period_days is provided")
+		}
+	}
+
+	// if both are unspecified, nothing more to validate, updates are not enforced.
+	if !w.DeadlineDays.Valid {
+		return nil
+	}
+
+	// at this point, both fields are set
+	if w.DeadlineDays.Value < minDeadline || w.DeadlineDays.Value > maxDeadline {
+		return fmt.Errorf("deadline_days must be an integer between %d and %d", minDeadline, maxDeadline)
+	}
+	if w.GracePeriodDays.Value < minGracePeriod || w.GracePeriodDays.Value > maxGracePeriod {
+		return fmt.Errorf("grace_period_days must be an integer between %d and %d", minGracePeriod, maxGracePeriod)
+	}
+	return nil
+}
+
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
 	// CustomSettings is a slice of configuration profile file paths.
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings                 []string `json:"custom_settings"`
-	DeprecatedEnableDiskEncryption *bool    `json:"enable_disk_encryption,omitempty"`
+	CustomSettings                 []MDMProfileSpec `json:"custom_settings"`
+	DeprecatedEnableDiskEncryption *bool            `json:"enable_disk_encryption,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
@@ -263,20 +325,37 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
-			strs := make([]string, 0, len(vals))
+			csSpecs := make([]MDMProfileSpec, 0, len(vals))
 			for _, v := range vals {
-				str, ok := v.(string)
-				if !ok {
-					// error, must be a []string
+				if m, ok := v.(map[string]interface{}); ok {
+					var spec MDMProfileSpec
+					// extract the Path field
+					if path, ok := m["path"].(string); ok {
+						spec.Path = path
+					}
+
+					// extract the Labels field (if they are not provided, labels are
+					// cleared for that profile)
+					if labels, ok := m["labels"].([]interface{}); ok {
+						for _, label := range labels {
+							if strLabel, ok := label.(string); ok {
+								spec.Labels = append(spec.Labels, strLabel)
+							}
+						}
+					}
+
+					csSpecs = append(csSpecs, spec)
+				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
+					csSpecs = append(csSpecs, MDMProfileSpec{Path: m})
+				} else {
 					return nil, &json.UnmarshalTypeError{
 						Value: fmt.Sprintf("%T", v),
 						Type:  reflect.TypeOf(s.CustomSettings),
 						Field: "macos_settings.custom_settings",
 					}
 				}
-				strs = append(strs, str)
 			}
-			s.CustomSettings = strs
+			s.CustomSettings = csSpecs
 		}
 	}
 
@@ -302,6 +381,7 @@ type MacOSSetup struct {
 	BootstrapPackage            optjson.String `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
 	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.
@@ -413,7 +493,7 @@ func (c *AppConfig) Obfuscate() {
 }
 
 // Clone implements cloner.
-func (c *AppConfig) Clone() (interface{}, error) {
+func (c *AppConfig) Clone() (Cloner, error) {
 	return c.Copy(), nil
 }
 
@@ -490,10 +570,25 @@ func (c *AppConfig) Copy() *AppConfig {
 			clone.Integrations.Zendesk[i] = &zd
 		}
 	}
+	if len(c.Integrations.GoogleCalendar) > 0 {
+		clone.Integrations.GoogleCalendar = make([]*GoogleCalendarIntegration, len(c.Integrations.GoogleCalendar))
+		for i, g := range c.Integrations.GoogleCalendar {
+			gCal := *g
+			clone.Integrations.GoogleCalendar[i] = &gCal
+			clone.Integrations.GoogleCalendar[i].ApiKey = make(map[string]string, len(g.ApiKey))
+			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
+		}
+	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
-		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
-		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
+		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
+		for i, mps := range c.MDM.MacOSSettings.CustomSettings {
+			clone.MDM.MacOSSettings.CustomSettings[i] = *mps.Copy()
+		}
+	}
+	if c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
+		b := *c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption
+		clone.MDM.MacOSSettings.DeprecatedEnableDiskEncryption = &b
 	}
 
 	if c.Scripts.Set {
@@ -503,8 +598,10 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.MDM.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]string, len(c.MDM.WindowsSettings.CustomSettings.Value))
-		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
+		windowsSettings := make([]MDMProfileSpec, len(c.MDM.WindowsSettings.CustomSettings.Value))
+		for i, mps := range c.MDM.WindowsSettings.CustomSettings.Value {
+			windowsSettings[i] = *mps.Copy()
+		}
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
@@ -723,6 +820,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
 	}
+	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
@@ -779,6 +879,7 @@ type ServerSettings struct {
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
+	ScriptsDisabled      bool   `json:"scripts_disabled"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -812,7 +913,7 @@ func (f *Features) ApplyDefaults() {
 }
 
 // Clone implements cloner for Features.
-func (f *Features) Clone() (interface{}, error) {
+func (f *Features) Clone() (Cloner, error) {
 	return f.Copy(), nil
 }
 
@@ -906,8 +1007,7 @@ type ListQueryOptions struct {
 	// team.
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
-	IsScheduled        *bool
-	OnlyObserverCanRun bool
+	IsScheduled *bool
 }
 
 type ListActivitiesOptions struct {
@@ -1144,5 +1244,5 @@ func (v *Version) AuthzType() string {
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[string] `json:"custom_settings"`
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
 }

@@ -29,6 +29,7 @@ const UploadedEulaView = ({
         />
       </p>
       <UploadList
+        keyAttribute="name"
         listItems={[eulaMetadata]}
         ListItemComponent={({ listItem }) => (
           <EulaListItem eulaData={listItem} onDelete={onDelete} />

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -157,30 +156,17 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		}
 	}
 
-	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "run query")
-	}
-
+	// Metrics are used for total hosts targeted for the activity feed.
 	campaign.Metrics, err = svc.ds.CountHostsInTargets(ctx, filter, targets, time.Now())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
 	}
 
-	activityData := fleet.ActivityTypeLiveQuery{
-		TargetsCount: campaign.Metrics.TotalHosts,
-		QuerySQL:     query.Query,
+	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
-	if queryID != nil {
-		activityData.QueryName = &query.Name
-	}
-	if err := svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		activityData,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for campaign creation")
-	}
+
 	return campaign, nil
 }
 
@@ -220,9 +206,14 @@ func (svc *Service) NewDistributedQueryCampaignByNames(ctx context.Context, quer
 		return nil, ctxerr.Wrap(ctx, err, "finding host IDs")
 	}
 
-	labelIDs, err := svc.ds.LabelIDsByName(ctx, labels)
+	labelMap, err := svc.ds.LabelIDsByName(ctx, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
+	}
+
+	var labelIDs []uint
+	for _, labelID := range labelMap {
+		labelIDs = append(labelIDs, labelID)
 	}
 
 	targets := fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}

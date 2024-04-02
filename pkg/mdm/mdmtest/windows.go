@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
@@ -194,7 +195,7 @@ func (c *TestWindowsMDMClient) doManagementReq(rawXMLReq []byte) (map[string]fle
 
 	cmds := make(map[string]fleet.ProtoCmdOperation)
 	for _, p := range c.lastManagementResp.GetOrderedCmds() {
-		cmds[p.Cmd.CmdID] = p
+		cmds[p.Cmd.CmdID.Value] = p
 	}
 
 	// before returning, clean up any lingering responses
@@ -220,10 +221,10 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 	}
 
 	var msg fleet.SyncML
-	msg.Xmlns = microsoft_mdm.SyncCmdNamespace
+	msg.Xmlns = syncml.SyncCmdNamespace
 	msg.SyncHdr = fleet.SyncHdr{
-		VerDTD:    microsoft_mdm.SyncMLSupportedVersion,
-		VerProto:  microsoft_mdm.SyncMLVerProto,
+		VerDTD:    syncml.SyncMLSupportedVersion,
+		VerProto:  syncml.SyncMLVerProto,
 		SessionID: sessionID,
 		MsgID:     fmt.Sprint(messageIDInt + 1),
 		Source:    &fleet.LocURI{LocURI: &c.DeviceID},
@@ -247,7 +248,7 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 
 // AppendResponse sets a response for a specific command UUID.
 func (c *TestWindowsMDMClient) AppendResponse(op fleet.SyncMLCmd) {
-	c.queuedCommandResponses[op.CmdID] = op
+	c.queuedCommandResponses[op.CmdID.Value] = op
 }
 
 func (c *TestWindowsMDMClient) GetCurrentMsgID() (string, error) {
@@ -498,11 +499,11 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 			return "", "", err
 		}
 
-		tokenValueType = microsoft_mdm.BinarySecurityAzureEnroll
+		tokenValueType = syncml.BinarySecurityAzureEnroll
 		binarySecToken = base64.URLEncoding.EncodeToString([]byte(tokenString))
 	case fleet.WindowsMDMProgrammaticEnrollmentType:
 		var err error
-		tokenValueType = microsoft_mdm.BinarySecurityDeviceEnroll
+		tokenValueType = syncml.BinarySecurityDeviceEnroll
 		binarySecToken, err = fleet.GetEncodedBinarySecurityToken(c.enrollmentType, c.tokenIdentifier)
 		if err != nil {
 			return "", "", fmt.Errorf("generating encoded security token: %w", err)

@@ -13,12 +13,13 @@ class InputFieldWithIcon extends InputField {
   static propTypes = {
     autofocus: PropTypes.bool,
     error: PropTypes.string,
-    hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    helpText: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     iconName: PropTypes.string,
     iconSvg: PropTypes.string,
     label: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
     placeholder: PropTypes.string,
     tabIndex: PropTypes.number,
     type: PropTypes.string,
@@ -55,11 +56,15 @@ class InputFieldWithIcon extends InputField {
     );
   };
 
-  renderHint = () => {
-    const { hint } = this.props;
+  renderHelpText = () => {
+    const { helpText } = this.props;
 
-    if (hint) {
-      return <span className={`${baseClass}__hint`}>{hint}</span>;
+    if (helpText) {
+      return (
+        <span className={`${baseClass}__help-text form-field__help-text`}>
+          {helpText}
+        </span>
+      );
     }
 
     return false;
@@ -80,10 +85,11 @@ class InputFieldWithIcon extends InputField {
       iconPosition,
       inputOptions,
       ignore1Password,
+      onClick,
     } = this.props;
-    const { onInputChange, renderHint } = this;
+    const { onInputChange, renderHelpText } = this;
 
-    const wrapperClasses = classnames(baseClass, {
+    const wrapperClasses = classnames(baseClass, "form-field", {
       [`${baseClass}--icon-start`]: iconPosition && iconPosition === "start",
     });
 
@@ -108,25 +114,28 @@ class InputFieldWithIcon extends InputField {
     return (
       <div className={wrapperClasses}>
         {this.props.label && this.renderHeading()}
-        <input
-          id={name}
-          name={name}
-          onChange={onInputChange}
-          className={inputClasses}
-          placeholder={placeholder}
-          ref={(r) => {
-            this.input = r;
-          }}
-          tabIndex={tabIndex}
-          type={type}
-          value={value}
-          disabled={disabled}
-          {...inputOptions}
-          data-1p-ignore={ignore1Password}
-        />
-        {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
-        {iconName && <FleetIcon name={iconName} className={iconClasses} />}
-        {renderHint()}
+        <div className={`${baseClass}__input-wrapper`}>
+          <input
+            id={name}
+            name={name}
+            onChange={onInputChange}
+            onClick={onClick}
+            className={inputClasses}
+            placeholder={placeholder}
+            ref={(r) => {
+              this.input = r;
+            }}
+            tabIndex={tabIndex}
+            type={type}
+            value={value}
+            disabled={disabled}
+            {...inputOptions}
+            data-1p-ignore={ignore1Password}
+          />
+          {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
+          {iconName && <FleetIcon name={iconName} className={iconClasses} />}
+        </div>
+        {renderHelpText()}
       </div>
     );
   }

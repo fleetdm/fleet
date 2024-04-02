@@ -343,7 +343,7 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
 	if teamID != nil {
-		globalQueries, err := client.GetQueries(nil)
+		globalQueries, err := client.GetQueries(nil, nil)
 		if err != nil {
 			return fmt.Errorf("could not list global queries: %w", err)
 		}
@@ -410,7 +410,7 @@ func getQueriesCommand() *cli.Command {
 
 			// if name wasn't provided, list either all global queries or all team queries...
 			if name == "" {
-				queries, err := client.GetQueries(teamID)
+				queries, err := client.GetQueries(teamID, nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -559,7 +559,7 @@ func getPacksCommand() *cli.Command {
 				}
 
 				// Get global queries (teamID==nil), because 2017 packs reference global queries.
-				queries, err := client.GetQueries(nil)
+				queries, err := client.GetQueries(nil, nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -1213,11 +1213,15 @@ func getSoftwareCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "software",
 		Aliases: []string{"s"},
-		Usage:   "List software",
+		Usage:   "List software titles",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:  teamFlagName,
 				Usage: "Only list software of hosts that belong to the specified team",
+			},
+			&cli.BoolFlag{
+				Name:  "versions",
+				Usage: "List all software versions",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -1242,47 +1246,102 @@ func getSoftwareCommand() *cli.Command {
 				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 			}
 
-			software, err := client.ListSoftware(query.Encode())
-			if err != nil {
-				return fmt.Errorf("could not list software: %w", err)
+			if c.Bool("versions") {
+				return printSoftwareVersions(c, client, query)
 			}
-
-			if len(software) == 0 {
-				log(c, "No software found")
-				return nil
-			}
-
-			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
-				spec := specGeneric{
-					Kind:    "software",
-					Version: "1",
-					Spec:    software,
-				}
-				err = printSpec(c, spec)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-
-			// Default to printing as table
-			data := [][]string{}
-
-			for _, s := range software {
-				data = append(data, []string{
-					s.Name,
-					s.Version,
-					s.Source,
-					s.GenerateCPE,
-					fmt.Sprint(len(s.Vulnerabilities)),
-				})
-			}
-			columns := []string{"Name", "Version", "Source", "CPE", "# of CVEs"}
-			printTable(c, columns, data)
-
-			return nil
+			return printSoftwareTitles(c, client, query)
 		},
 	}
+}
+
+func printSoftwareVersions(c *cli.Context, client *service.Client, query url.Values) error {
+	software, err := client.ListSoftwareVersions(query.Encode())
+	if err != nil {
+		return fmt.Errorf("could not list software versions: %w", err)
+	}
+
+	if len(software) == 0 {
+		log(c, "No software versions found")
+		return nil
+	}
+
+	if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+		spec := specGeneric{
+			Kind:    "software",
+			Version: "1",
+			Spec:    software,
+		}
+		err = printSpec(c, spec)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Default to printing as table
+	data := [][]string{}
+
+	for _, s := range software {
+		data = append(data, []string{
+			s.Name,
+			s.Version,
+			s.Source,
+			fmt.Sprintf("%d vulnerabilities", len(s.Vulnerabilities)),
+			fmt.Sprint(s.HostsCount),
+		})
+	}
+	columns := []string{"Name", "Version", "Type", "Vulnerabilities", "Hosts"}
+	printTable(c, columns, data)
+	return nil
+}
+
+func printSoftwareTitles(c *cli.Context, client *service.Client, query url.Values) error {
+	software, err := client.ListSoftwareTitles(query.Encode())
+	if err != nil {
+		return fmt.Errorf("could not list software titles: %w", err)
+	}
+
+	if len(software) == 0 {
+		log(c, "No software titles found")
+		return nil
+	}
+
+	if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+		spec := specGeneric{
+			Kind:    "software_title",
+			Version: "1",
+			Spec:    software,
+		}
+		err = printSpec(c, spec)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Default to printing as table
+	data := [][]string{}
+
+	for _, s := range software {
+		vulns := make(map[string]bool)
+		for _, ver := range s.Versions {
+			if ver.Vulnerabilities != nil {
+				for _, vuln := range *ver.Vulnerabilities {
+					vulns[vuln] = true
+				}
+			}
+		}
+		data = append(data, []string{
+			s.Name,
+			fmt.Sprintf("%d versions", s.VersionsCount),
+			s.Source,
+			fmt.Sprintf("%d vulnerabilities", len(vulns)),
+			fmt.Sprint(s.HostsCount),
+		})
+	}
+	columns := []string{"Name", "Versions", "Type", "Vulnerabilities", "Hosts"}
+	printTable(c, columns, data)
+	return nil
 }
 
 func getMDMAppleCommand() *cli.Command {
@@ -1438,20 +1497,34 @@ func getMDMCommandResultsCommand() *cli.Command {
 				// unformatted command
 				if err != nil {
 					if getDebug(c) {
-						log(c, fmt.Sprintf("error formatting command: %s\n", err))
+						log(c, fmt.Sprintf("error formatting command result: %s\n", err))
 					}
 					formattedResult = r.Result
+				}
+				formattedPayload, err := formatXML(r.Payload)
+				// if we get an error, just log it and use the
+				// unformatted payload
+				if err != nil {
+					if getDebug(c) {
+						log(c, fmt.Sprintf("error formatting command payload: %s\n", err))
+					}
+					formattedPayload = r.Payload
+				}
+				reqType := r.RequestType
+				if len(reqType) == 0 {
+					reqType = "InstallProfile"
 				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),
-					r.RequestType,
+					reqType,
 					r.Status,
 					r.Hostname,
+					string(formattedPayload),
 					string(formattedResult),
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
 			printTableWithXML(c, columns, data)
 
 			return nil
@@ -1492,10 +1565,14 @@ func getMDMCommandsCommand() *cli.Command {
 			// print the results as a table
 			data := [][]string{}
 			for _, r := range results {
+				reqType := r.RequestType
+				if len(reqType) == 0 {
+					reqType = "InstallProfile"
+				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),
-					r.RequestType,
+					reqType,
 					r.Status,
 					r.Hostname,
 				})

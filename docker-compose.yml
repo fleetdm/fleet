@@ -25,6 +25,8 @@ services:
       MYSQL_DATABASE: fleet
       MYSQL_USER: fleet
       MYSQL_PASSWORD: insecure
+      # This is required by Percona XtraDB server.
+      CLUSTER_NAME: fleet
     ports:
       - "3306:3306"
 
@@ -75,6 +77,19 @@ services:
         "--smtp-auth-file=/auth.txt",
         "--smtp-auth-allow-insecure=true"
       ]
+
+  # SMTP server with TLS
+  smtp4dev_test:
+    image: rnwood/smtp4dev:v3
+    ports:
+      - "8028:80"
+      - "1027:25"
+    volumes:
+      - ./tools/smtp4dev:/certs
+    environment:
+      - ServerOptions__TlsMode=ImplicitTls
+      - ServerOptions__TlsCertificate=/certs/fleet.crt
+      - ServerOptions__TlsCertificatePrivateKey=/certs/fleet.key
 
   redis:
     image: redis:5

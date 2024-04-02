@@ -78,6 +78,17 @@
           display: inline-block;
         }
       }
+
+      // styles to truncate table names in the dropdown options
+      .Select-option .dropdown__option {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        // this width makes the dropdown option truncation consistant regardless
+        // if the scrollbar is showing or not.
+        width: 225px;
+      }
     }
   }
 

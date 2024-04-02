@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -21,6 +22,8 @@ const (
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
+	SoftwareExtensionIDMaxLength      = 255
+	SoftwareBrowserMaxLength          = 255
 
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
@@ -40,6 +43,10 @@ type Software struct {
 	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
+	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
+	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
+	// Browser is the browser type (from osquery chrome_extensions)
+	Browser string `json:"browser" db:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -70,6 +77,10 @@ type Software struct {
 	// corresponding host. Only filled when the software list is requested for
 	// a specific host (host_id is provided).
 	LastOpenedAt *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
+
+	// TitleID is the ID of the associated software title, representing a unique combination of name
+	// and source.
+	TitleID *uint `json:"-" db:"title_id"`
 }
 
 func (Software) AuthzType() string {
@@ -84,7 +95,77 @@ func (s Software) ToUniqueStr() string {
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
 	}
+	// ExtensionID and Browser were added in a single migration, so they are only included if they exist.
+	// This way a blank ExtensionID/Browser matches the pre-migration unique string.
+	if s.ExtensionID != "" || s.Browser != "" {
+		ss = append(ss, s.ExtensionID, s.Browser)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
+type VulnerableSoftware struct {
+	ID                uint    `json:"id" db:"id"`
+	Name              string  `json:"name" db:"name"`
+	Version           string  `json:"version" db:"version"`
+	Source            string  `json:"source" db:"source"`
+	Browser           string  `json:"browser" db:"browser"`
+	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
+	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
+	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
+}
+
+type SliceString []string
+
+func (c *SliceString) Scan(v interface{}) error {
+	switch tv := v.(type) {
+	case []byte:
+		return json.Unmarshal(tv, &c)
+	}
+	return errors.New("unsupported type")
+}
+
+// SoftwareVersion is an abstraction over the `software` table to support the
+// software titles APIs
+type SoftwareVersion struct {
+	ID uint `db:"id" json:"id"`
+	// Version is the version string we grab for this specific software.
+	Version string `db:"version" json:"version"`
+	// Vulnerabilities is the list of CVE names for vulnerabilities found for this version.
+	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities"`
+	// HostsCount is the number of hosts that use this software version.
+	HostsCount *uint `db:"hosts_count" json:"hosts_count,omitempty"`
+
+	// TitleID is used only as an auxiliary field and it's not part of the
+	// JSON response.
+	TitleID uint `db:"title_id" json:"-"`
+}
+
+// SoftwareTitle represents a title backed by the `software_titles` table.
+type SoftwareTitle struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
+	Browser string `json:"browser,omitempty" db:"browser"`
+	// HostsCount is the number of hosts that use this software title.
+	HostsCount uint `json:"hosts_count" db:"hosts_count"`
+	// VesionsCount is the number of versions that have the same title.
+	VersionsCount uint `json:"versions_count" db:"versions_count"`
+	// Versions countains information about the versions that use this title.
+	Versions []SoftwareVersion `json:"versions" db:"-"`
+	// CountsUpdatedAt is the timestamp when the hosts count
+	// was last updated for that software title
+	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
+}
+
+type SoftwareTitleListOptions struct {
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions ListOptions `url:"list_options"`
+
+	TeamID         *uint `query:"team_id,optional"`
+	VulnerableOnly bool  `query:"vulnerable,optional"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -212,7 +293,9 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 //
 // All fields are trimmed to fit on Fleet's database.
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
-func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, lastOpenedAt string) (*Software, error) {
+func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, browser, lastOpenedAt string) (
+	*Software, error,
+) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
 	}
@@ -241,6 +324,8 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 		Version:          truncateString(version, SoftwareVersionMaxLength),
 		Source:           truncateString(source, SoftwareSourceMaxLength),
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
+		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
+		Browser:          truncateString(browser, SoftwareBrowserMaxLength),
 
 		Release: truncateString(release, SoftwareReleaseMaxLength),
 		Vendor:  vendor,

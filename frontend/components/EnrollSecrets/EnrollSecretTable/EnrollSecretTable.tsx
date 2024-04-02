@@ -19,7 +19,6 @@ const EnrollSecretTable = ({
   toggleDeleteSecretModal,
   setSelectedSecret,
 }: IEnrollSecretRowProps): JSX.Element | null => {
-  let enrollSecretsClass = baseClass;
   if (!secrets) {
     return null;
   }
@@ -30,12 +29,11 @@ const EnrollSecretTable = ({
         <em>No active enroll secrets.</em>
       </div>
     );
-  } else if (secrets.length > 1)
-    enrollSecretsClass += ` ${baseClass}--multiple-secrets`;
+  }
 
   if (toggleSecretEditorModal && toggleDeleteSecretModal) {
     return (
-      <div className={enrollSecretsClass}>
+      <>
         {secrets.map((secretInfo) => (
           <EnrollSecretRow
             secret={secretInfo}
@@ -45,16 +43,16 @@ const EnrollSecretTable = ({
             setSelectedSecret={setSelectedSecret}
           />
         ))}
-      </div>
+      </>
     );
   }
 
   return (
-    <div className={enrollSecretsClass}>
+    <>
       {secrets.map((secretInfo) => {
         return <EnrollSecretRow secret={secretInfo} key={secretInfo.secret} />;
       })}
-    </div>
+    </>
   );
 };
 

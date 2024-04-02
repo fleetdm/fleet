@@ -2,7 +2,6 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React, { useMemo, useEffect, useCallback, useContext } from "react";
-import { TableContext } from "context/table";
 import classnames from "classnames";
 import {
   Column,
@@ -15,7 +14,7 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { kebabCase, noop, omit, pick } from "lodash";
+import { kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
 import useDeepEffect from "hooks/useDeepEffect";
@@ -57,6 +56,7 @@ interface IDataTableProps {
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   onSelectSingleRow?: (value: Row) => void;
+  onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
   renderFooter?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
@@ -97,6 +97,7 @@ const DataTable = ({
   searchQueryColumn,
   selectedDropdownFilter,
   onSelectSingleRow,
+  onClickRow,
   onResultsCountChange,
   renderFooter,
   renderPagination,
@@ -314,8 +315,8 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllPagesSelected, toggleAllRowsSelected]);
 
-  const onSingleRowClick = useCallback(
-    (row) => {
+  const onSelectRowClick = useCallback(
+    (row: any) => {
       if (disableMultiRowSelect) {
         row.toggleRowSelected();
         onSelectSingleRow && onSelectSingleRow(row);
@@ -326,16 +327,9 @@ const DataTable = ({
   );
 
   const renderColumnHeader = (column: IHeaderGroup) => {
-    // if there is a column filter, we want the `onClick` event listener attached
-    // just to the child title span so that clicking into the column filter input
-    // doesn't also sort the column
-    const spanProps = column.Filter
-      ? pick(column.getSortByToggleProps(), "onClick")
-      : {};
-
     return (
       <div className="column-header">
-        <span {...spanProps}>{column.render("Header")}</span>
+        {column.render("Header")}
         {column.Filter && column.render("Filter")}
       </div>
     );
@@ -454,46 +448,45 @@ const DataTable = ({
   return (
     <div className={baseClass}>
       {isLoading && (
-        <div className={"loading-overlay"}>
+        <div className="loading-overlay">
           <Spinner />
         </div>
       )}
-      <div className={"data-table data-table__wrapper"}>
+      <div className="data-table data-table__wrapper">
         <table className={tableStyles}>
           {Object.keys(selectedRowIds).length !== 0 && (
-            <thead className={"active-selection"}>
+            <thead className="active-selection">
               <tr {...headerGroups[0].getHeaderGroupProps()}>
                 <th
-                  className={"active-selection__checkbox"}
+                  className="active-selection__checkbox"
                   {...headerGroups[0].headers[0].getHeaderProps(
-                    headerGroups[0].headers[0].getSortByToggleProps()
+                    headerGroups[0].headers[0].getSortByToggleProps({
+                      title: null,
+                    })
                   )}
                 >
                   {headerGroups[0].headers[0].render("Header")}
                 </th>
-                <th className={"active-selection__container"}>
-                  <div className={"active-selection__inner"}>
+                <th className="active-selection__container">
+                  <div className="active-selection__inner">
                     {renderSelectedCount()}
-                    <div className={"active-selection__inner-left"}>
+                    <div className="active-selection__inner-left">
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
-                    <div className={"active-selection__inner-right"}>
+                    <div className="active-selection__inner-right">
                       {primarySelectAction && renderPrimarySelectAction()}
                     </div>
                     {toggleAllPagesSelected && renderAreAllSelected()}
                     {shouldRenderToggleAllPages && (
                       <Button
                         onClick={onToggleAllPagesClick}
-                        variant={"text-link"}
-                        className={"light-text"}
+                        variant="text-link"
+                        className="light-text"
                       >
                         <>Select all matching {resultsTitle}</>
                       </Button>
                     )}
-                    <Button
-                      onClick={onClearSelectionClick}
-                      variant={"text-link"}
-                    >
+                    <Button onClick={onClearSelectionClick} variant="text-link">
                       Clear selection
                     </Button>
                   </div>
@@ -505,21 +498,12 @@ const DataTable = ({
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map((column) => {
-                  let thProps = column.getSortByToggleProps({
-                    title: undefined,
-                  });
-                  if (column.Filter) {
-                    // if there is a column filter, we want the `onClick` event listener attached
-                    // just to the child title span so that clicking into the column filter input
-                    // doesn't also sort the column
-                    thProps = omit(thProps, "onClick");
-                  }
-
                   return (
                     <th
-                      key={column.id}
                       className={column.id ? `${column.id}__header` : ""}
-                      {...thProps}
+                      {...column.getHeaderProps(
+                        column.getSortByToggleProps({ title: null })
+                      )}
                     >
                       {renderColumnHeader(column)}
                     </th>
@@ -542,9 +526,10 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      onSingleRowClick &&
+                      (onSelectRowClick &&
                         disableMultiRowSelect &&
-                        onSingleRowClick(row);
+                        onSelectRowClick(row)) ||
+                        (onClickRow && onClickRow(row));
                     },
                   })}
                 >

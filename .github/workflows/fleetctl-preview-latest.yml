@@ -17,6 +17,7 @@ on:
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+      - 'tools/osquery/in-a-box'
   pull_request:
     paths:
       - 'cmd/fleetctl/**.go'
@@ -26,6 +27,7 @@ on:
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+      - 'tools/osquery/in-a-box'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -51,9 +53,14 @@ jobs:
         #   - Unattended installation of Docker on macOS fails. (see
         #   https://github.com/docker/for-mac/issues/6450)
         os: [ubuntu-latest]
-        go-version: ['1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ${{ matrix.os }}
     steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
 
     - name: Install Go
       uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
@@ -68,16 +75,22 @@ jobs:
 
     - name: Run fleetctl preview
       run: |
-        ./build/fleetctl preview --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+        ./build/fleetctl preview \
+          --preview-config-path ./tools/osquery/in-a-box \
+          --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
 
     - name: Get fleet logs
+      if: always()
       run: |
         FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
         # Copying logs, otherwise the upload-artifact action uploads the logs in a hidden folder (.fleet)
-        cp ~/.fleet/preview/orbit.log orbit.log
+        # Old location of orbit logs before v4.43.0
+        cp ~/.fleet/preview/orbit.log orbit.log || true
+        # New location of orbit logs since v4.43.0
+        cp ~/.fleet/preview/orbit/orbit.log orbit.log || true
         cp -r ~/.fleet/preview/logs osquery_result_status_logs
 
     - name: Upload logs

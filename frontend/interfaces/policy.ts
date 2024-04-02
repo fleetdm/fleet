@@ -40,15 +40,17 @@ export interface IPolicy {
   created_at: string;
   updated_at: string;
   critical: boolean;
+  calendar_events_enabled: boolean;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
 export interface IPolicyStats extends IPolicy {
   passing_host_count: number;
   failing_host_count: number;
+  host_count_updated_at: string;
   webhook: string;
   has_run: boolean;
-  osquery_policy_ms: number;
+  next_update_ms: number;
 }
 
 export interface IPolicyWebhookPreviewPayload {
@@ -89,6 +91,7 @@ export interface IPolicyFormData {
   query?: string | number | boolean | undefined;
   team_id?: number;
   id?: number;
+  calendar_events_enabled?: boolean;
 }
 
 export interface IPolicyNew {

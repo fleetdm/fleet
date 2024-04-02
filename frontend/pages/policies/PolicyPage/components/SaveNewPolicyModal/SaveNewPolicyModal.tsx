@@ -15,7 +15,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { COLORS } from "styles/var/colors";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -47,7 +47,7 @@ const SaveNewPolicyModal = ({
   platformSelector,
   isUpdatingPolicy,
 }: ISaveNewPolicyModalProps): JSX.Element => {
-  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -104,7 +104,7 @@ const SaveNewPolicyModal = ({
 
   return (
     <Modal
-      title={"Save policy"}
+      title="Save policy"
       onExit={() => setIsSaveNewPolicyModalOpen(false)}
     >
       <>
@@ -120,7 +120,7 @@ const SaveNewPolicyModal = ({
             error={errors.name}
             inputClassName={`${baseClass}__policy-save-modal-name`}
             label="Name"
-            hint="What yes or no question does your policy ask about your hosts?"
+            helpText="What yes or no question does your policy ask about your hosts?"
             autofocus
             ignore1password
           />
@@ -139,12 +139,11 @@ const SaveNewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
             label="Resolution"
             type="textarea"
-            hint="What steps should an end user take to resolve a host that fails this policy? (optional)"
+            helpText="What steps should an end user take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
           {isPremiumTier && (
             <div className="critical-checkbox-wrapper">
-              {isSandboxMode && <PremiumFeatureIconWithTooltip />}
               <Checkbox
                 name="critical-policy"
                 onChange={(value: boolean) => setCritical(value)}
@@ -186,7 +185,7 @@ const SaveNewPolicyModal = ({
                 place="bottom"
                 effect="solid"
                 id={`${baseClass}__button--modal-save-tooltip`}
-                backgroundColor="#3e4771"
+                backgroundColor={COLORS["tooltip-bg"]}
               >
                 Select the platform(s) this
                 <br />

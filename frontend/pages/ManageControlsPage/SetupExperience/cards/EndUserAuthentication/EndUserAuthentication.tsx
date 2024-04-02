@@ -1,16 +1,17 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
+import { useQuery } from "react-query";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { IConfig, IMdmConfig } from "interfaces/config";
+import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
-import EndUserExperiencePreview from "pages/ManageControlsPage/components/EndUserExperiencePreview";
-import { useQuery } from "react-query";
-import { ITeamConfig } from "interfaces/team";
 import Spinner from "components/Spinner";
+import EndUserExperiencePreview from "pages/ManageControlsPage/components/EndUserExperiencePreview";
+
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
 

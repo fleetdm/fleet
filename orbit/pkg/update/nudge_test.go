@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -55,8 +56,9 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	t := s.T()
 	tmpDir := t.TempDir()
 	updater := &Updater{
-		client: s.client,
-		opt:    Options{Targets: make(map[string]TargetInfo), RootDirectory: tmpDir},
+		client:  s.client,
+		opt:     Options{Targets: make(map[string]TargetInfo), RootDirectory: tmpDir},
+		retryer: retry.NewLimitedWithCooldown(3, 1*time.Second),
 	}
 	runner := &Runner{updater: updater, localHashes: make(map[string][]byte)}
 	interval := time.Second

@@ -63,7 +63,7 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 
 	bc.setServerCapabilities(response)
 
-	if responseDest != nil {
+	if responseDest != nil && response.StatusCode != http.StatusNoContent {
 		b, err := io.ReadAll(response.Body)
 		if err != nil {
 			return fmt.Errorf("reading response body: %w", err)

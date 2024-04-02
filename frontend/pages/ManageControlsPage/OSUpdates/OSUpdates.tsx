@@ -1,71 +1,143 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 
-import OperatingSystems from "pages/DashboardPage/cards/OperatingSystems";
-import useInfoCard from "pages/DashboardPage/components/InfoCard";
+import { IConfig } from "interfaces/config";
+import { ITeamConfig } from "interfaces/team";
+
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
 
-import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
+import CurrentVersionSection from "./components/CurrentVersionSection";
+import TargetSection from "./components/TargetSection";
+import { generateKey } from "./components/TargetSection/TargetSection";
+
+export type OSUpdatesSupportedPlatform = "darwin" | "windows";
 
 const baseClass = "os-updates";
 
+const getSelectedPlatform = (
+  appConfig: IConfig | null
+): OSUpdatesSupportedPlatform => {
+  // We dont have the data ready yet so we default to mac.
+  // This is usually when the users first comes to this page.
+  if (appConfig === null) return "darwin";
+
+  // if the mac mdm is enable and configured we check the app config to see if
+  // the mdm for mac is enabled. If it is, it does not matter if windows is
+  // enabled and configured and we will always return "mac".
+  return appConfig.mdm.enabled_and_configured ? "darwin" : "windows";
+};
+
 interface IOSUpdates {
   router: InjectedRouter;
-  teamIdForApi: number;
+  teamIdForApi?: number;
 }
 
 const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, setConfig } = useContext(AppContext);
 
-  const OperatingSystemCard = useInfoCard({
-    title: "macOS versions",
-    children: (
-      <OperatingSystems
-        currentTeamId={teamIdForApi}
-        selectedPlatform="darwin"
-        showTitle
-        showDescription={false}
-        includeNameColumn={false}
-        setShowTitle={() => {
-          return null;
-        }}
-      />
-    ),
+  const [
+    selectedPlatformTab,
+    setSelectedPlatformTab,
+  ] = useState<OSUpdatesSupportedPlatform | null>(null);
+
+  // FIXME: We're calling this endpoint twice on mount because it also gets called in App.tsx
+  // whenever the pathname changes. We should find a way to avoid this.
+  const {
+    data: config,
+    isError: isErrorConfig,
+    isFetching: isFetchingConfig,
+    isLoading: isLoadingConfig,
+    refetch: refetchAppConfig,
+  } = useQuery<IConfig, Error>(["config"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => setConfig(data), // update the app context with the fetched config
   });
 
-  if (!config?.mdm.enabled_and_configured) {
+  const {
+    data: teamConfig,
+    isError: isErrorTeamConfig,
+    isFetching: isFetchingTeamConfig,
+    isLoading: isLoadingTeam,
+    refetch: refetchTeamConfig,
+  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["team-config", teamIdForApi],
+    () => teamsAPI.load(teamIdForApi),
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!teamIdForApi,
+      select: (data) => data.team,
+    }
+  );
+
+  // Not premium shows premium message
+  if (!isPremiumTier) {
+    return (
+      <PremiumFeatureMessage
+        className={`${baseClass}__premium-feature-message`}
+      />
+    );
+  }
+
+  // FIXME: Are these checks still necessary?
+  if (config === null || teamIdForApi === undefined) return null;
+
+  if (isLoadingConfig || isLoadingTeam) return <Spinner />;
+
+  // FIXME: Handle error states for app config and team config (need specifications for this).
+
+  // mdm is not enabled for mac or windows.
+  if (
+    !config?.mdm.enabled_and_configured &&
+    !config?.mdm.windows_enabled_and_configured
+  ) {
     return <TurnOnMdmMessage router={router} />;
   }
 
-  return isPremiumTier ? (
+  // If the user has not selected a platform yet, we default to the platform that
+  // is enabled and configured.
+  const selectedPlatform = selectedPlatformTab || getSelectedPlatform(config);
+
+  return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely encourage the installation of macOS updates on hosts assigned
-        to this team.
+        Remotely encourage the installation of software updates on hosts
+        assigned to this team.
       </p>
       <div className={`${baseClass}__content`}>
-        <div className={`${baseClass}__form-table-content`}>
-          <div className={`${baseClass}__os-versions-card`}>
-            {OperatingSystemCard}
-          </div>
-          <div className={`${baseClass}__os-version-form`}>
-            <OsMinVersionForm currentTeamId={teamIdForApi} key={teamIdForApi} />
-          </div>
+        <div className={`${baseClass}__current-version-container`}>
+          <CurrentVersionSection currentTeamId={teamIdForApi} />
+        </div>
+        <div className={`${baseClass}__taget-container`}>
+          <TargetSection
+            key={generateKey({
+              currentTeamId: teamIdForApi,
+              appConfig: config,
+              teamConfig,
+            })} // FIXME: Find a better way to trigger re-rendering if these change (see FIXME above regarding refetching)
+            appConfig={config}
+            currentTeamId={teamIdForApi}
+            isFetching={isFetchingConfig || isFetchingTeamConfig}
+            selectedPlatform={selectedPlatform}
+            teamConfig={teamConfig}
+            onSelectPlatform={setSelectedPlatformTab}
+            refetchAppConfig={refetchAppConfig}
+            refetchTeamConfig={refetchTeamConfig}
+          />
         </div>
         <div className={`${baseClass}__nudge-preview`}>
-          <NudgePreview />
+          <NudgePreview platform={selectedPlatform} />
         </div>
       </div>
     </div>
-  ) : (
-    <PremiumFeatureMessage
-      className={`${baseClass}__premium-feature-message`}
-    />
   );
 };
 

@@ -30,8 +30,6 @@ export default {
   load: ({ id, sortBy }: ILoadQueryReportOptions) => {
     const sortParams = getSortParams(sortBy);
 
-    const { QUERIES } = endpoints;
-
     const queryParams = {
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
@@ -39,8 +37,7 @@ export default {
 
     const queryString = buildQueryStringFromParams(queryParams);
 
-    const endpoint = `${QUERIES}/${id}/report`;
-    const path = `${endpoint}?${queryString}`;
+    const path = `${endpoints.QUERY_REPORT(id)}?${queryString}`;
     return sendRequest("GET", path);
   },
 };

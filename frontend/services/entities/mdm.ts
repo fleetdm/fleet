@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { DiskEncryptionStatus, MdmProfileStatus } from "interfaces/mdm";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import {
+  DiskEncryptionStatus,
+  IHostMdmProfile,
+  IMdmProfile,
+  MdmProfileStatus,
+} from "interfaces/mdm";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -23,37 +28,42 @@ export type IDiskEncryptionSummaryResponse = Record<
   IDiskEncryptionStatusAggregate
 >;
 
-// This function combines the profile status summary and the disk encryption summary
-// to generate the aggregate profile status summary. We are doing this as a temporary
-// solution until we have the API that will return the aggregate profile status summary
-// from one call.
-// TODO: API INTEGRATION: remove when API is implemented that returns windows
-// data in the aggregate profile status summary.
-const generateCombinedProfileStatusSummary = (
-  profileStatuses: ProfileStatusSummaryResponse,
-  diskEncryptionSummary: IDiskEncryptionSummaryResponse
-): ProfileStatusSummaryResponse => {
-  const { verified, verifying, failed, pending } = profileStatuses;
-  const {
-    verified: verifiedDiskEncryption,
-    verifying: verifyingDiskEncryption,
-    failed: failedDiskEncryption,
-    action_required: actionRequiredDiskEncryption,
-    enforcing: enforcingDiskEncryption,
-    removing_enforcement: removingEnforcementDiskEncryption,
-  } = diskEncryptionSummary;
+export interface IGetProfilesApiParams {
+  page?: number;
+  per_page?: number;
+  team_id?: number;
+}
 
-  return {
-    verified: verified + verifiedDiskEncryption.windows,
-    verifying: verifying + verifyingDiskEncryption.windows,
-    failed: failed + failedDiskEncryption.windows,
-    pending:
-      pending +
-      actionRequiredDiskEncryption.windows +
-      enforcingDiskEncryption.windows +
-      removingEnforcementDiskEncryption.windows,
+export interface IMdmProfilesResponse {
+  profiles: IMdmProfile[] | null;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
   };
+}
+
+export interface IUploadProfileApiParams {
+  file: File;
+  teamId?: number;
+  labels?: string[];
+}
+
+export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
+  return profile.profile_uuid.startsWith("d");
 };
+
+interface IUpdateSetupExperienceBody {
+  team_id?: number;
+  enable_release_device_manually: boolean;
+}
+
+export interface IAppleSetupEnrollmentProfileResponse {
+  team_id: number | null;
+  name: string;
+  uploaded_at: string;
+  // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
+  enrollment_profile: Record<string, any>;
+}
 
 const mdmService = {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
@@ -83,15 +93,18 @@ const mdmService = {
     });
   },
 
-  getProfiles: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
-    const path = `${endpoints.MDM_PROFILES}?${buildQueryStringFromParams({
-      team_id: teamId,
+  getProfiles: (
+    params: IGetProfilesApiParams
+  ): Promise<IMdmProfilesResponse> => {
+    const { MDM_PROFILES } = endpoints;
+    const path = `${MDM_PROFILES}?${buildQueryStringFromParams({
+      ...params,
     })}`;
 
     return sendRequest("GET", path);
   },
 
-  uploadProfile: (file: File, teamId?: number) => {
+  uploadProfile: ({ file, teamId, labels }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
     const formData = new FormData();
@@ -101,50 +114,33 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
+    labels?.forEach((label) => {
+      formData.append("labels", label);
+    });
+
     return sendRequest("POST", MDM_PROFILES, formData);
   },
 
-  downloadProfile: (profileId: number) => {
+  downloadProfile: (profileId: string) => {
     const { MDM_PROFILE } = endpoints;
-    return sendRequest("GET", MDM_PROFILE(profileId));
+    const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
+    return sendRequest("GET", path);
   },
 
-  deleteProfile: (profileId: number) => {
+  deleteProfile: (profileId: string) => {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
-  // TODO: API INTEGRATION: we need to rework this when we create API call that
-  // will return the aggregate statuses for windows included in the response.
-  // Currently to get windows data included we will need to make a separate call.
-  // We will likely change this to go back to single "getProfileStatusSummary" API call.
-  getAggregateProfileStatuses: async (
-    teamId = APP_CONTEXT_NO_TEAM_ID,
-    // TODO: WINDOWS FEATURE FLAG: remove when we windows feature is released.
-    includeWindows: boolean
-  ) => {
-    // if we are not including windows we can just call the existing profile summary API
-    if (!includeWindows) {
-      return mdmService.getProfileStatusSummary(teamId);
+  getProfilesStatusSummary: (teamId: number) => {
+    let { MDM_PROFILES_STATUS_SUMMARY: path } = endpoints;
+
+    if (teamId) {
+      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
 
-    // otherwise we have to make two calls and combine the results.
-    return mdmService
-      .getAggregateProfileStatusesWithWindows(teamId)
-      .then((res) => generateCombinedProfileStatusSummary(...res));
-  },
-
-  getAggregateProfileStatusesWithWindows: async (teamId: number) => {
-    return Promise.all([
-      mdmService.getProfileStatusSummary(teamId),
-      mdmService.getDiskEncryptionSummary(teamId),
-    ]);
-  },
-
-  getProfileStatusSummary: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
-    const path = `${
-      endpoints.MDM_PROFILES_AGGREGATE_STATUSES
-    }?${buildQueryStringFromParams({ team_id: teamId })}`;
     return sendRequest("GET", path);
   },
 
@@ -248,6 +244,68 @@ const mdmService = {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
     });
+  },
+
+  updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP_EXPERIENCE } = endpoints;
+
+    const body: IUpdateSetupExperienceBody = {
+      enable_release_device_manually: isEnabled,
+    };
+
+    if (teamId !== API_NO_TEAM_ID) {
+      body.team_id = teamId;
+    }
+
+    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
+  },
+  getSetupEnrollmentProfile: (teamId?: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    if (!teamId || teamId === API_NO_TEAM_ID) {
+      return sendRequest("GET", MDM_APPLE_SETUP_ENROLLMENT_PROFILE);
+    }
+
+    const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
+      { team_id: teamId }
+    )}`;
+    return sendRequest("GET", path);
+  },
+  uploadSetupEnrollmentProfile: (file: File, teamId: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+
+    const reader = new FileReader();
+    reader.readAsText(file);
+
+    return new Promise((resolve, reject) => {
+      reader.addEventListener("load", () => {
+        try {
+          const body: Record<string, any> = {
+            name: file.name,
+            enrollment_profile: JSON.parse(reader.result as string),
+          };
+          if (teamId !== API_NO_TEAM_ID) {
+            body.team_id = teamId;
+          }
+          resolve(
+            sendRequest("POST", MDM_APPLE_SETUP_ENROLLMENT_PROFILE, body)
+          );
+        } catch {
+          // catches invalid JSON
+          reject("Couldn’t upload. The file should include valid JSON.");
+        }
+      });
+    });
+  },
+  deleteSetupEnrollmentProfile: (teamId: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    if (teamId === API_NO_TEAM_ID) {
+      return sendRequest("DELETE", MDM_APPLE_SETUP_ENROLLMENT_PROFILE);
+    }
+
+    const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
+      { team_id: teamId }
+    )}`;
+    return sendRequest("DELETE", path);
   },
 };
 

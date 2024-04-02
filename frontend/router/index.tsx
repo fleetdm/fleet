@@ -29,7 +29,6 @@ import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
-import ManageSoftwarePage from "pages/software/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
@@ -43,14 +42,13 @@ import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
 import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
-import SoftwareDetailsPage from "pages/software/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
-import UserSettingsPage from "pages/UserSettingsPage";
+import AccountPage from "pages/AccountPage";
 import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
-import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
+import UsersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import OSUpdates from "pages/ManageControlsPage/OSUpdates";
 import OSSettings from "pages/ManageControlsPage/OSSettings";
@@ -59,6 +57,16 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
+import HostQueryReport from "pages/hosts/details/HostQueryReport";
+import SoftwarePage from "pages/SoftwarePage";
+import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
+import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
+import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
+import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
+import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
+import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
+import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
+import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -151,11 +159,13 @@ const routes = (
               component={WindowsAutomaticEnrollmentPage}
             />
             <Route path="teams" component={TeamDetailsWrapper}>
-              <Route path="members" component={MembersPage} />
+              <Redirect from="members" to="users" />
+              <Route path="users" component={UsersPage} />
               <Route path="options" component={AgentOptionsPage} />
+              <Route path="settings" component={TeamSettings} />
             </Route>
             <Redirect from="teams/:team_id" to="teams" />
-            <Redirect from="teams/:team_id/members" to="teams" />
+            <Redirect from="teams/:team_id/users" to="teams" />
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
@@ -176,18 +186,21 @@ const routes = (
               path="manage/:active_label/labels/:label_id"
               component={ManageHostsPage}
             />
-
-            <IndexRedirect to=":host_id" />
-            <Route component={HostDetailsPage}>
-              <Route path=":host_id" component={HostDetailsPage}>
-                <Route path="scripts" component={HostDetailsPage} />
-                <Route path="software" component={HostDetailsPage} />
-                <Route path="schedule" component={HostDetailsPage} />
-                <Route path="policies" component={HostDetailsPage} />
-              </Route>
+            <Route path=":host_id" component={HostDetailsPage}>
+              <Redirect from="schedule" to="queries" />
+              <Route path="scripts" component={HostDetailsPage} />
+              <Route path="software" component={HostDetailsPage} />
+              <Route path="queries" component={HostDetailsPage} />
+              <Route path=":query_id" component={HostQueryReport} />
+              <Route path="policies" component={HostDetailsPage} />
             </Route>
-          </Route>
 
+            <Route
+              // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
+              path=":host_id/queries/:query_id"
+              component={HostQueryReport}
+            />
+          </Route>
           <Route component={ExcludeInSandboxRoutes}>
             <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
               <IndexRedirect to="os-updates" />
@@ -204,11 +217,26 @@ const routes = (
               </Route>
             </Route>
           </Route>
-
           <Route path="software">
-            <IndexRedirect to="manage" />
-            <Route path="manage" component={ManageSoftwarePage} />
-            <Route path=":software_id" component={SoftwareDetailsPage} />
+            <IndexRedirect to="titles" />
+            <Route component={SoftwarePage}>
+              <Route path="titles" component={SoftwareTitles} />
+              <Route path="versions" component={SoftwareTitles} />
+              <Route path="os" component={SoftwareOS} />
+              <Route
+                path="vulnerabilities"
+                component={SoftwareVulnerabilities}
+              />
+              {/* This redirect keeps the old software/:id working */}
+              <Redirect from=":id" to="versions/:id" />
+            </Route>
+            <Route
+              path="vulnerabilities/:cve"
+              component={SoftwareVulnerabilityDetailsPage}
+            />
+            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
+            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">
@@ -244,10 +272,8 @@ const routes = (
             </Route>
             <Route path=":id" component={PolicyPage} />
           </Route>
-          <Route
-            path="profile"
-            component={UserSettingsPage as RouteComponent}
-          />
+          <Redirect from="profile" to="account" /> {/* deprecated URL */}
+          <Route path="account" component={AccountPage} />
         </Route>
       </Route>
       <Route path="device">

@@ -137,7 +137,14 @@ func (dc *DeviceClient) BrowserDeviceURL(token string) string {
 // CheckToken checks if a token is valid by making an authenticated request to
 // the server
 func (dc *DeviceClient) CheckToken(token string) error {
-	_, err := dc.DesktopSummary(token)
+	verb, path := "HEAD", "/api/latest/fleet/device/%s/ping"
+	err := dc.request(verb, path, token, "", nil, nil)
+
+	if errors.As(err, &notFoundErr{}) {
+		// notFound is ok, it means an old server without the auth ping endpoint,
+		// so we fall back to previously-used endpoint
+		_, err = dc.DesktopSummary(token)
+	}
 	return err
 }
 

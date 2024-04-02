@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
@@ -302,6 +303,15 @@ func TestPreassignProfileValidation(t *testing.T) {
 				Profile:                generateProfile("p1", mobileconfig.FleetFileVaultPayloadIdentifier, "Configuration", "p1"),
 			},
 			"payload identifier com.fleetdm.fleet.mdm.filevault is not allowed",
+		},
+		{
+			"invalid payload name",
+			fleet.MDMApplePreassignProfilePayload{
+				ExternalHostIdentifier: "abcd",
+				HostUUID:               "1234",
+				Profile:                generateProfile(mdm.FleetFileVaultProfileName, "p1", "Configuration", "p1"),
+			},
+			"payload display name Disk encryption is not allowed",
 		},
 		{
 			"valid",

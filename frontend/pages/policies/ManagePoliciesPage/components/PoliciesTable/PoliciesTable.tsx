@@ -7,7 +7,6 @@ import { ITeamSummary } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
@@ -76,37 +75,13 @@ const PoliciesTable = ({
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
       graphicName: "empty-policies",
-      header: (
-        <>
-          Ask yes or no questions about{" "}
-          <a href={PATHS.MANAGE_HOSTS}>all your hosts</a>
-        </>
-      ),
+      header: <>You don&apos;t have any policies</>,
       info: (
         <>
-          - Verify whether or not your hosts have security features turned on.
-          <br />- Track your efforts to keep installed software up to date on
-          your hosts.
-          <br />- Provide owners with a list of hosts that still need changes.
+          Add policies to detect device health issues and trigger automations.
         </>
       ),
     };
-
-    if (currentTeam) {
-      emptyPolicies.header = (
-        <>
-          Ask yes or no questions about hosts assigned to{" "}
-          <a
-            href={
-              PATHS.MANAGE_HOSTS +
-              TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
-            }
-          >
-            {currentTeam.name}
-          </a>
-        </>
-      );
-    }
     if (canAddOrDeletePolicy) {
       emptyPolicies.primaryButton = (
         <Button
@@ -114,7 +89,7 @@ const PoliciesTable = ({
           className={`${baseClass}__select-policy-button`}
           onClick={onAddPolicyClick}
         >
-          Add a policy
+          Add policy
         </Button>
       );
     }
@@ -139,12 +114,13 @@ const PoliciesTable = ({
     >
       <TableContainer
         resultsTitle="policies"
-        columns={generateTableHeaders(
+        columnConfigs={generateTableHeaders(
           {
             selectedTeamId: currentTeam?.id,
             canAddOrDeletePolicy,
             tableType,
           },
+          policiesList,
           isPremiumTier,
           isSandboxMode
         )}

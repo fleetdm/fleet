@@ -17,10 +17,10 @@ func TestService_ListSoftware(t *testing.T) {
 
 	var calledWithTeamID *uint
 	var calledWithOpt fleet.SoftwareListOptions
-	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 		calledWithTeamID = opt.TeamID
 		calledWithOpt = opt
-		return []fleet.Software{}, nil
+		return []fleet.Software{}, &fleet.PaginationMetadata{}, nil
 	}
 
 	user := &fleet.User{
@@ -32,7 +32,7 @@ func TestService_ListSoftware(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	_, err := svc.ListSoftware(ctx, fleet.SoftwareListOptions{TeamID: ptr.Uint(42), ListOptions: fleet.ListOptions{PerPage: 77, Page: 4}})
+	_, _, err := svc.ListSoftware(ctx, fleet.SoftwareListOptions{TeamID: ptr.Uint(42), ListOptions: fleet.ListOptions{PerPage: 77, Page: 4}})
 	require.NoError(t, err)
 
 	assert.True(t, ds.ListSoftwareFuncInvoked)
@@ -43,7 +43,7 @@ func TestService_ListSoftware(t *testing.T) {
 
 	// call again, this time with an explicit sort
 	ds.ListSoftwareFuncInvoked = false
-	_, err = svc.ListSoftware(ctx, fleet.SoftwareListOptions{TeamID: nil, ListOptions: fleet.ListOptions{PerPage: 11, Page: 2, OrderKey: "id", OrderDirection: fleet.OrderAscending}})
+	_, _, err = svc.ListSoftware(ctx, fleet.SoftwareListOptions{TeamID: nil, ListOptions: fleet.ListOptions{PerPage: 11, Page: 2, OrderKey: "id", OrderDirection: fleet.OrderAscending}})
 	require.NoError(t, err)
 
 	assert.True(t, ds.ListSoftwareFuncInvoked)
@@ -55,12 +55,16 @@ func TestService_ListSoftware(t *testing.T) {
 func TestServiceSoftwareInventoryAuth(t *testing.T) {
 	ds := new(mock.Store)
 
-	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-		return []fleet.Software{}, nil
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+		return []fleet.Software{}, &fleet.PaginationMetadata{}, nil
 	}
 	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
 		return 0, nil
 	}
+	ds.SoftwareByIDFunc = func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
+		return &fleet.Software{}, nil
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	for _, tc := range []struct {
@@ -173,7 +177,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tc.user})
 
 			// List all software.
-			_, err := svc.ListSoftware(ctx, fleet.SoftwareListOptions{})
+			_, _, err := svc.ListSoftware(ctx, fleet.SoftwareListOptions{})
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
 			// Count all software.
@@ -181,7 +185,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
 			// List software for a team.
-			_, err = svc.ListSoftware(ctx, fleet.SoftwareListOptions{
+			_, _, err = svc.ListSoftware(ctx, fleet.SoftwareListOptions{
 				TeamID: ptr.Uint(1),
 			})
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
@@ -190,6 +194,9 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			_, err = svc.CountSoftware(ctx, fleet.SoftwareListOptions{
 				TeamID: ptr.Uint(1),
 			})
+			checkAuthErr(t, tc.shouldFailTeamRead, err)
+
+			_, err = svc.SoftwareByID(ctx, 1, ptr.Uint(1), false)
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 		})
 	}

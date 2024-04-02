@@ -1,0 +1,35 @@
+name: windows_updates
+description: Returns information about Windows updates that are available for installation.
+evented: false
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - windows
+columns:
+  - name: locale
+    description: Location of the update.
+    required: false
+    type: text
+  - name: is_default
+    description: Whether or not the update is the default.
+    required: false
+    type: text
+  - name: key
+    description: A specific item that describes the update.
+    type: text
+    required: false
+  - name: value
+    description: The value for the specified key.
+    type: text
+    required: false
+  - name: fullkey
+    description: The expanded name of the specific item that describes the update.
+    type: text
+    required: false
+  - name: parent
+    description: The key's parent.
+    type: text
+    required: false
+  - name: query
+    description: The query is printed in this column.
+    type: text
+    required: false

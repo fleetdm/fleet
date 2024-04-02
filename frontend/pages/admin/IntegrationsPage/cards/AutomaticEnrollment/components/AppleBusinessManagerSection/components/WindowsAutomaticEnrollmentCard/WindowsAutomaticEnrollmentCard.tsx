@@ -23,7 +23,11 @@ const WindowsAutomaticEnrollmentCard = ({
           you need to connect Fleet to Azure AD first.
         </p>
       </div>
-      <Button onClick={viewDetails} variant="text-icon">
+      <Button
+        className="windows-details-button"
+        onClick={viewDetails}
+        variant="text-icon"
+      >
         Details <Icon name="chevron-right" color="core-fleet-blue" />
       </Button>
     </Card>

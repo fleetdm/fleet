@@ -2,7 +2,12 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import { millisecondsToHours, millisecondsToMinutes, isAfter } from "date-fns";
+import {
+  formatDistanceToNowStrict,
+  isAfter,
+  millisecondsToHours,
+  millisecondsToMinutes,
+} from "date-fns";
 import ReactTooltip from "react-tooltip";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -99,11 +104,28 @@ const generateTableHeaders = (
     canAddOrDeletePolicy?: boolean;
     tableType?: string;
   },
-
+  policiesList: IPolicyStats[] = [],
   isPremiumTier?: boolean,
   isSandboxMode?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
+
+  // Figure the time since the host counts were updated.
+  // First, find first policy item with host_count_updated_at.
+  const updatedAt =
+    policiesList.find((p) => !!p.host_count_updated_at)
+      ?.host_count_updated_at || "";
+  let timeSinceHostCountUpdate = "";
+  if (updatedAt) {
+    try {
+      timeSinceHostCountUpdate = formatDistanceToNowStrict(
+        new Date(updatedAt),
+        { addSuffix: true }
+      );
+    } catch (e) {
+      // Do nothing.
+    }
+  }
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -162,7 +184,12 @@ const generateTableHeaders = (
     },
     {
       title: "Yes",
-      Header: () => <PassingColumnHeader isPassing />,
+      Header: () => (
+        <PassingColumnHeader
+          isPassing
+          timeSinceHostCountUpdate={timeSinceHostCountUpdate}
+        />
+      ),
       disableSortBy: true,
       accessor: "passing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
@@ -192,11 +219,11 @@ const generateTableHeaders = (
             <ReactTooltip
               place="bottom"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`passing_${cellProps.row.original.id.toString()}`}
               data-html
             >
-              {getTooltip(cellProps.row.original.osquery_policy_ms)}
+              {getTooltip(cellProps.row.original.next_update_ms)}
             </ReactTooltip>
           </>
         );
@@ -206,7 +233,12 @@ const generateTableHeaders = (
       title: "No",
       Header: (cellProps) => (
         <HeaderCell
-          value={<PassingColumnHeader isPassing={false} />}
+          value={
+            <PassingColumnHeader
+              isPassing={false}
+              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
+            />
+          }
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -238,11 +270,11 @@ const generateTableHeaders = (
             <ReactTooltip
               place="bottom"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`failing_${cellProps.row.original.id.toString()}`}
               data-html
             >
-              {getTooltip(cellProps.row.original.osquery_policy_ms)}
+              {getTooltip(cellProps.row.original.next_update_ms)}
             </ReactTooltip>
           </>
         );
@@ -252,16 +284,6 @@ const generateTableHeaders = (
   ];
 
   if (tableType !== "inheritedPolicies") {
-    tableHeaders.push({
-      title: "Automations",
-      Header: "Automations",
-      disableSortBy: true,
-      accessor: "webhook",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <StatusIndicator value={cellProps.cell.value} />
-      ),
-    });
-
     if (!canAddOrDeletePolicy) {
       return tableHeaders;
     }
@@ -292,6 +314,23 @@ const generateTableHeaders = (
   return tableHeaders;
 };
 
+// The next update will match the next host count update, unless extra time is needed for hosts to send in their policy results.
+const nextPolicyUpdateMs = (
+  policyItemUpdatedAtMs: Date,
+  nextHostCountUpdateMs: number,
+  hostCountUpdateIntervalMs: number,
+  osqueryPolicyMs: number
+) => {
+  let timeFromPolicyItemUpdateToNextHostCountUpdateMs =
+    Date.now() - policyItemUpdatedAtMs.getTime() + nextHostCountUpdateMs;
+  let additionalUpdateTimeMs = 0;
+  while (timeFromPolicyItemUpdateToNextHostCountUpdateMs <= osqueryPolicyMs) {
+    additionalUpdateTimeMs += hostCountUpdateIntervalMs;
+    timeFromPolicyItemUpdateToNextHostCountUpdateMs += hostCountUpdateIntervalMs;
+  }
+  return nextHostCountUpdateMs + additionalUpdateTimeMs;
+};
+
 const generateDataSet = (
   policiesList: IPolicyStats[] = [],
   currentAutomatedPolicies?: number[],
@@ -300,14 +339,40 @@ const generateDataSet = (
   policiesList = policiesList.sort((a, b) =>
     sortUtils.caseInsensitiveAsc(a.name, b.name)
   );
+  // To figure out if the policy has run for all the targeted hosts, we need to do the following calculation:
+  // Each host asynchronously updates its own policy result every `osquery_policy` nanoseconds.
+  // Then, the host count is updated by a cron job on the server every 1 hour (this is hardcoded on the server in `cron.go`).
+  // So, we need to add `osquery_policy` to the time of the cron update.
   let policiesLastRun: Date;
-  let osqueryPolicyMs: number;
-
+  let osqueryPolicyMs = 0;
+  const policiesThatHaveRunHostCountUpdatedAt =
+    // host counts of all policies that have run are updated at the same time, and are therefore
+    // identical, so we can use the first one. Those that haven't run will be `null`.
+    policiesList.find((p) => !!p.host_count_updated_at)
+      ?.host_count_updated_at || "";
+  // If host_count_updated_at is not present, we assume the worst case.
+  const hostCountUpdateIntervalMs = 60 * 60 * 1000; // 1 hour (from server's `cron.go`)
+  const hostCountUpdatedAtDate = policiesThatHaveRunHostCountUpdatedAt
+    ? new Date(policiesThatHaveRunHostCountUpdatedAt)
+    : new Date(Date.now() - hostCountUpdateIntervalMs);
   if (osquery_policy) {
-    osqueryPolicyMs = osquery_policy / 1000000;
     // Convert from nanosecond to milliseconds
-    policiesLastRun = new Date(Date.now() - osqueryPolicyMs);
+    osqueryPolicyMs = osquery_policy / 1000000;
+    policiesLastRun = new Date(
+      hostCountUpdatedAtDate.getTime() - osqueryPolicyMs
+    );
+  } else {
+    // temporarily unused - will restore use with upcoming DB update
+    policiesLastRun = hostCountUpdatedAtDate;
   }
+  // Now we figure out when the next host count update will be.
+  // The % (mod) is used below in case server was restarted and previously scheduled host count update was skipped.
+  const nextHostCountUpdateMs =
+    hostCountUpdateIntervalMs -
+    (policiesThatHaveRunHostCountUpdatedAt
+      ? (Date.now() - hostCountUpdatedAtDate.getTime()) %
+        hostCountUpdateIntervalMs
+      : 0);
 
   policiesList.forEach((policyItem) => {
     policyItem.webhook =
@@ -316,17 +381,28 @@ const generateDataSet = (
         ? "On"
         : "Off";
 
-    // Define policy has_run based on updated_at compared againist last time policies ran as
-    // defined by osquery_policy.
-    policyItem.has_run = isAfter(
-      policiesLastRun,
-      new Date(policyItem.updated_at)
-    );
-    // Include osquery policy in item for reference in tooltip
-    policyItem.osquery_policy_ms = osqueryPolicyMs;
+    // Define policy has_run based on updated_at compared against last time policies ran.
+    const policyItemUpdatedAt = new Date(policyItem.updated_at);
+    // TODO: restore and update setting of policyItem.has_run based on upcoming custom
+    // `policy_membership_updated_at`(ish) DB column/API response field
+    // policyItem.has_run = isAfter(policiesLastRun, policyItemUpdatedAt);
+
+    // all of the policiess `has_run` will be either true (cron has run, so host_count_updated_at
+    // has a value that is the same for all such policies) or false (policy is new, wasn't included
+    // in last cron run, host_count_updated_at is `null`)
+    policyItem.has_run = !!policyItem.host_count_updated_at;
+    if (!policyItem.has_run) {
+      // Include time for next update for reference in tooltip, which is only present if policy has not run.
+      policyItem.next_update_ms = nextPolicyUpdateMs(
+        policyItemUpdatedAt,
+        nextHostCountUpdateMs,
+        hostCountUpdateIntervalMs,
+        osqueryPolicyMs
+      );
+    }
   });
 
   return policiesList;
 };
 
-export { generateTableHeaders, generateDataSet };
+export { generateTableHeaders, generateDataSet, nextPolicyUpdateMs };

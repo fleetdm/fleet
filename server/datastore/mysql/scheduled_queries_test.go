@@ -107,7 +107,8 @@ func testScheduledQueriesListInPackWithStats(t *testing.T, ds *Datastore) {
 
 	_, err = ds.writer(context.Background()).Exec(
 		`INSERT INTO aggregated_stats(id,global_stats,type,json_value) VALUES (?,?,?,?)`,
-		idWithAgg, false, aggregatedStatsTypeScheduledQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+		idWithAgg, false, fleet.AggregatedStatsTypeScheduledQuery,
+		`{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
 	)
 	require.NoError(t, err)
 
@@ -508,7 +509,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 		for hid, stats := range m {
 			for _, st := range stats {
 				ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-					var got int
+					var got uint64
 					err := sqlx.GetContext(ctx, tx, &got, `SELECT executions FROM scheduled_query_stats WHERE host_id = ? AND scheduled_query_id = ?`, hid, st.ScheduledQueryID)
 					if err != nil {
 						return err

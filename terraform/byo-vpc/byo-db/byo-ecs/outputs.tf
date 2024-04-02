@@ -2,6 +2,10 @@ output "service" {
   value = aws_ecs_service.fleet
 }
 
+output "appautoscaling_target" {
+  value = aws_appautoscaling_target.ecs_target
+}
+
 output "task_definition" {
   value = aws_ecs_task_definition.backend
 }
@@ -29,4 +33,8 @@ output "non_circular" {
     "security_groups" = var.fleet_config.networking.security_groups == null ? aws_security_group.main.*.id : var.fleet_config.networking.security_groups,
     "subnets"         = var.fleet_config.networking.subnets,
   }
+}
+
+output "fleet_config" {
+  value = var.fleet_config
 }

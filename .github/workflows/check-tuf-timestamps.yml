@@ -1,0 +1,70 @@
+name: Check TUF timestamps
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/check-tuf-timestamps.yml'
+  workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 10 * * *'
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  test-go:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
+    - name: Check remote timestamp.json file
+      run: |
+        expires=$(curl -s http://tuf.fleetctl.com/timestamp.json | jq -r '.signed.expires' | cut -c 1-10)
+        today=$(date "+%Y-%m-%d")
+        warning_at=$(date -d "$today + 2 day" "+%Y-%m-%d")
+        expires_sec=$(date -d "$expires" "+%s")
+        warning_at_sec=$(date -d "$warning_at" "+%s")
+        
+        if [ "$expires_sec" -le "$warning_at_sec" ]; then
+            exit 1
+        else
+            exit 0
+        fi
+
+    - name: Slack Notification
+      if: failure()
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "⚠️ TUF timestamp.json is about to expire or has already expired\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

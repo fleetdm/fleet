@@ -7,12 +7,12 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/groob/plist"
-	"github.com/micromdm/nanomdm/mdm"
-	nanomdm_push "github.com/micromdm/nanomdm/push"
-	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 )
 
 // commandPayload is the common structure all MDM commands use
@@ -28,12 +28,12 @@ type commandPayload struct {
 // in crons and other services, leaving authentication/permission handling to
 // the caller.
 type MDMAppleCommander struct {
-	storage nanomdm_storage.AllStorage
+	storage fleet.MDMAppleStore
 	pusher  nanomdm_push.Pusher
 }
 
 // NewMDMAppleCommander creates a new commander instance.
-func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
+func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
 	return &MDMAppleCommander{
 		storage: mdmStorage,
 		pusher:  mdmPushService,
@@ -84,7 +84,7 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
-func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error {
+func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, uuid string) error {
 	pin := GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -101,10 +101,24 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string
     </dict>
   </dict>
 </plist>`, uuid, pin)
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+
+	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, pin); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceLock")
+	}
+
+	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for DeviceLock")
+	}
+
+	return nil
 }
 
-func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error {
+func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
 	pin := GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -118,10 +132,26 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []strin
       <string>EraseDevice</string>
       <key>PIN</key>
       <string>%s</string>
+      <key>ObliterationBehavior</key>
+      <string>Default</string>
     </dict>
   </dict>
 </plist>`, uuid, pin)
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+
+	if err := svc.storage.EnqueueDeviceWipeCommand(ctx, host, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceWipe")
+	}
+
+	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for DeviceWipe")
+	}
+
+	return nil
 }
 
 func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error {
@@ -196,6 +226,46 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
+// DeclarativeManagement sends the homonym [command][1] to the device to enable DDM or start a new DDM session.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand
+func (svc *MDMAppleCommander) DeclarativeManagement(ctx context.Context, hostUUIDs []string, uuid string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+ <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+ <plist version="1.0">
+   <dict>
+     <key>Command</key>
+     <dict>
+       <key>RequestType</key>
+       <string>DeclarativeManagement</string>
+     </dict>
+
+     <key>CommandUUID</key>
+     <string>%s</string>
+   </dict>
+ </plist>`, uuid)
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
+func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>DeviceConfigured</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, cmdUUID)
+
+	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
+}
+
 // EnqueueCommand takes care of enqueuing the commands and sending push
 // notifications to the devices.
 //
@@ -205,15 +275,21 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []string, rawCommand string) error {
 	cmd, err := mdm.DecodeCommand([]byte(rawCommand))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "commander enqueue")
+		return ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	// MySQL implementation always returns nil for the first parameter
-	_, err = svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "commander enqueue")
+	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 
+	if err := svc.sendNotifications(ctx, hostUUIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications")
+	}
+
+	return nil
+}
+
+func (svc *MDMAppleCommander) sendNotifications(ctx context.Context, hostUUIDs []string) error {
 	apnsResponses, err := svc.pusher.Push(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "commander push")
@@ -242,7 +318,7 @@ type APNSDeliveryError struct {
 }
 
 func (e *APNSDeliveryError) Error() string {
-	return fmt.Sprintf("APNS delivery failed with: %e, for UUIDs: %v", e.Err, e.FailedUUIDs)
+	return fmt.Sprintf("APNS delivery failed with: %s, for UUIDs: %v", e.Err, e.FailedUUIDs)
 }
 
 func (e *APNSDeliveryError) Unwrap() error { return e.Err }

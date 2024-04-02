@@ -74,7 +74,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.40.0")
+    image                        = optional(string, "fleetdm/fleet:v4.47.3")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -260,5 +260,6 @@ variable "alb_config" {
     extra_target_groups  = optional(any, [])
     https_listener_rules = optional(any, [])
     tls_policy           = optional(string, "ELBSecurityPolicy-TLS-1-2-2017-01")
+    idle_timeout         = optional(number, 60)
   })
 }

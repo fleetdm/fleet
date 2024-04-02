@@ -1,50 +1,5 @@
 .edit-query-page {
-  .help-text {
-    margin-top: $pad-small;
-    margin-bottom: $pad-large;
-    font-weight: $regular;
-    font-size: $xx-small;
-    color: $ui-fleet-black-75;
-  }
-
-  .fleet-checkbox {
-    display: flex;
-    align-items: center;
-  }
-
-  .form-field {
-    &--frequency {
-      margin-bottom: 0;
-    }
-    &--platform {
-      margin-bottom: 0;
-      margin-top: $pad-large;
-    }
-  }
-
-  .advanced-options-toggle {
-    font-weight: $xbold;
-  }
-
-  .body-wrap {
-    min-width: 0;
-  }
-
-  &__warning {
-    padding: $pad-medium;
-    font-size: $x-small;
-    color: $core-fleet-black;
-    background-color: #fff0b9;
-    border: 1px solid #f2c94c;
-    border-radius: $border-radius;
-    margin: 0;
-    margin-top: $pad-large;
-
-    p {
-      margin: 0;
-      line-height: 20px;
-    }
-  }
+  @include page;
 
   .ace_content {
     min-height: 500px !important;

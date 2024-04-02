@@ -5,6 +5,8 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import {
   addGravatarUrlToResource,
+  formatScriptNameForActivityItem,
+  getPerformanceImpactDescription,
   internationalTimeFormat,
 } from "utilities/helpers";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
@@ -13,6 +15,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "activity-item";
 
@@ -32,16 +35,18 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
+  platform: "darwin" | "windows",
   teamName?: string | null
 ) => {
-  let messageSuffix = <>all macOS hosts</>;
+  const platformDisplayName = platform === "darwin" ? "macOS" : "Windows";
+  let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        macOS hosts assigned to the <b>{teamName}</b> team
+        {platformDisplayName} hosts assigned to the <b>{teamName}</b> team
       </>
     ) : (
-      <>macOS hosts with no team</>
+      <>{platformDisplayName} hosts with no team</>
     );
   }
   return messageSuffix;
@@ -86,27 +91,40 @@ const TAGGED_TEMPLATES = {
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
-    const count = activity.details?.targets_count;
-    const queryName = activity.details?.query_name;
-    const querySql = activity.details?.query_sql;
+    const {
+      targets_count: count,
+      query_name: queryName,
+      query_sql: querySql,
+      stats,
+    } = activity.details || {};
 
-    const savedQueryName = queryName ? (
+    const impactDescription = stats
+      ? getPerformanceImpactDescription(stats)
+      : undefined;
+
+    const queryNameCopy = queryName ? (
       <>
-        the <b>{queryName}</b> query as
+        the <b>{queryName}</b> query
       </>
     ) : (
-      <></>
+      <>a live query</>
     );
 
-    const hostCount =
+    const impactCopy =
+      impactDescription && impactDescription !== "Undetermined" ? (
+        <>with {impactDescription.toLowerCase()} performance impact</>
+      ) : (
+        <></>
+      );
+    const hostCountCopy =
       count !== undefined
         ? ` on ${count} ${count === 1 ? "host" : "hosts"}`
         : "";
 
     return (
       <>
-        <span>
-          ran {savedQueryName} a live query {hostCount}.
+        <span className={`${baseClass}__details-content`}>
+          ran {queryNameCopy} {impactCopy} {hostCountCopy}.
         </span>
         {querySql && (
           <>
@@ -116,6 +134,7 @@ const TAGGED_TEMPLATES = {
               onClick={() =>
                 onDetailsClick?.(ActivityType.LiveQuery, {
                   query_sql: querySql,
+                  stats,
                 })
               }
             >
@@ -173,7 +192,9 @@ const TAGGED_TEMPLATES = {
     );
   },
   userCreated: (activity: IActivity) => {
-    return (
+    return activity.actor_id === activity.details?.user_id ? (
+      <>activated their account.</>
+    ) : (
       <>
         created a user <b> {activity.details?.user_email}</b>.
       </>
@@ -187,10 +208,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    const { actor_id } = activity;
+    const { user_id, user_email, role } = activity.details || {};
+
+    if (actor_id === user_id) {
+      // this is the case when SSO user is crated via JIT provisioning
+      // should only be possible for premium tier, but check anyway
+      return (
+        <>
+          was assigned the <b>{role}</b> role{isPremiumTier && " for all teams"}
+          .
+        </>
+      );
+    }
     return (
       <>
-        changed <b>{activity.details?.user_email}</b> to{" "}
-        <b>{activity.details?.role}</b>
+        changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
         {isPremiumTier && " for all teams"}.
       </>
     );
@@ -205,11 +238,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedTeamRole: (activity: IActivity) => {
+    const { actor_id } = activity;
+    const { user_id, user_email, role, team_name } = activity.details || {};
+
+    const varText =
+      actor_id === user_id ? (
+        <>
+          was assigned the <b>{role}</b> role
+        </>
+      ) : (
+        <>
+          changed <b>{user_email}</b> to <b>{role}</b>
+        </>
+      );
     return (
       <>
-        changed <b>{activity.details?.user_email}</b> to{" "}
-        <b>{activity.details?.role}</b> for the{" "}
-        <b>{activity.details?.team_name}</b> team.
+        {varText} for the <b>{team_name}</b> team.
       </>
     );
   },
@@ -293,7 +337,6 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-
   createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -301,16 +344,22 @@ const TAGGED_TEMPLATES = {
         {" "}
         added{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
         .
       </>
     );
   },
-
   deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -318,16 +367,22 @@ const TAGGED_TEMPLATES = {
         {" "}
         deleted{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
-
   editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
@@ -335,19 +390,80 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
+          "darwin",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
       </>
     );
   },
-  enableMacDiskEncryption: (activity: IActivity) => {
-    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
-    return <> enforced disk encryption for macOS hosts {suffix}.</>;
+  createWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
   },
-  disableMacDiskEncryption: (activity: IActivity) => {
+  deleteWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  enabledDiskEncryption: (activity: IActivity) => {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
-    return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
+    return <> enforced disk encryption for hosts {suffix}.</>;
+  },
+  disabledEncryption: (activity: IActivity) => {
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
   changedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(
@@ -370,7 +486,7 @@ const TAGGED_TEMPLATES = {
 
     const activityType = lowerCase(activity.type).replace(" saved", "");
 
-    return !entityName ? (
+    return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
     ) : (
       <>
@@ -495,20 +611,26 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: (activity: IActivity) => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  // TODO: Combine ranScript template with host details page templates
+  // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
+  // frontend/pages/hosts/details/cards/Activity/UpcomingActivity/UpcomingActivity.tsx
   ranScript: (
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
+    const { script_name, host_display_name, script_execution_id } =
+      activity.details || {};
     return (
       <>
         {" "}
-        ran a script on {activity.details?.host_display_name}.{" "}
+        ran {formatScriptNameForActivityItem(script_name)} on{" "}
+        <b>{host_display_name}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
           onClick={() =>
             onDetailsClick?.(ActivityType.RanScript, {
-              script_execution_id: activity.details?.script_execution_id,
+              script_execution_id,
             })
           }
         >
@@ -579,6 +701,110 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team"
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  editedWindowsUpdates: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        updated the Windows OS update options (
+        <b>
+          Deadline: {activity.details?.deadline_days} days / Grace period:{" "}
+          {activity.details?.grace_period_days} days
+        </b>
+        ) on hosts assigned to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  deletedMultipleSavedQuery: (activity: IActivity) => {
+    return <> deleted multiple queries.</>;
+  },
+  lockedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        locked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  unlockedHost: (activity: IActivity) => {
+    if (activity.details?.host_platform === "darwin") {
+      return (
+        <>
+          {" "}
+          viewed the six-digit unlock PIN for{" "}
+          <b>{activity.details?.host_display_name}</b>.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        unlocked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  wipedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        wiped <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        added declaration (DDM) profile <b>
+          {activity.details?.profile_name}
+        </b>{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        removed declaration (DDM) profile{" "}
+        <b>{activity.details?.profile_name}</b> from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited declaration (DDM) profiles{" "}
+        <b>{activity.details?.profile_name}</b> for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
         )}{" "}
         via fleetctl.
       </>
@@ -664,11 +890,26 @@ const getDetail = (
     case ActivityType.EditedMacOSProfile: {
       return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
     }
-    case ActivityType.EnabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
+    case ActivityType.CreatedWindowsProfile: {
+      return TAGGED_TEMPLATES.createWindowsProfile(activity, isPremiumTier);
     }
+    case ActivityType.DeletedWindowsProfile: {
+      return TAGGED_TEMPLATES.deleteWindowsProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedWindowsProfile: {
+      return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
+    }
+    // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
+    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+    case ActivityType.EnabledDiskEncryption:
+    case ActivityType.EnabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
+    }
+    // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
+    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+    case ActivityType.DisabledDiskEncryption:
     case ActivityType.DisabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
+      return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
     case ActivityType.AddedBootstrapPackage: {
       return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
@@ -709,6 +950,37 @@ const getDetail = (
     case ActivityType.EditedScript: {
       return TAGGED_TEMPLATES.editedScript(activity);
     }
+    case ActivityType.EditedWindowsUpdates: {
+      return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
+    }
+    case ActivityType.DeletedMultipleSavedQuery: {
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
+    }
+    case ActivityType.LockedHost: {
+      return TAGGED_TEMPLATES.lockedHost(activity);
+    }
+    case ActivityType.UnlockedHost: {
+      return TAGGED_TEMPLATES.unlockedHost(activity);
+    }
+    case ActivityType.WipedHost: {
+      return TAGGED_TEMPLATES.wipedHost(activity);
+    }
+    case ActivityType.CreatedDeclarationProfile: {
+      return TAGGED_TEMPLATES.createdDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.DeletedDeclarationProfile: {
+      return TAGGED_TEMPLATES.deletedDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.EditedDeclarationProfile: {
+      return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
+    }
+
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -745,6 +1017,19 @@ const ActivityItem = ({
   const indicatePremiumFeature =
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
+  const renderActivityPrefix = () => {
+    if (activity.type === ActivityType.UserLoggedIn) {
+      return <b>{activity.actor_email} </b>;
+    }
+    if (
+      (activity.type === ActivityType.UserChangedGlobalRole ||
+        activity.type === ActivityType.UserChangedTeamRole) &&
+      activity.actor_id === activity.details?.user_id
+    ) {
+      return <b>{activity.details?.user_email} </b>;
+    }
+    return <b>{activity.actor_full_name} </b>;
+  };
   return (
     <div className={baseClass}>
       <Avatar
@@ -754,14 +1039,10 @@ const ActivityItem = ({
         hasWhiteBackground
       />
       <div className={`${baseClass}__details-wrapper`}>
-        <div className={"activity-details"}>
+        <div className="activity-details">
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
-            {activity.type === ActivityType.UserLoggedIn ? (
-              <b>{activity.actor_email} </b>
-            ) : (
-              <b>{activity.actor_full_name} </b>
-            )}
+            {renderActivityPrefix()}
             {getDetail(activity, isPremiumTier, onDetailsClick)}
           </span>
           <br />
@@ -780,7 +1061,7 @@ const ActivityItem = ({
             type="dark"
             effect="solid"
             id={`activity-${activity.id}`}
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>

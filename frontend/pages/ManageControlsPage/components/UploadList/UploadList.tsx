@@ -3,6 +3,8 @@ import React from "react";
 const baseClass = "upload-list";
 
 interface IUploadListProps {
+  /** The attribute name that is used for the react key for each list item */
+  keyAttribute: string;
   listItems: any[]; // TODO: typings
   HeadingComponent?: (props: any) => JSX.Element; // TODO: Typings
   ListItemComponent: (props: { listItem: any }) => JSX.Element; // TODO: types
@@ -10,6 +12,7 @@ interface IUploadListProps {
 }
 
 const UploadList = ({
+  keyAttribute,
   listItems,
   HeadingComponent,
   ListItemComponent,
@@ -17,7 +20,10 @@ const UploadList = ({
 }: IUploadListProps) => {
   const items = listItems.map((listItem) => {
     return (
-      <li key={`${listItem.id}`} className={`${baseClass}__list-item`}>
+      <li
+        key={`${listItem[keyAttribute]}`}
+        className={`${baseClass}__list-item`}
+      >
         <ListItemComponent listItem={listItem} />
       </li>
     );

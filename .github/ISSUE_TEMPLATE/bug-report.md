@@ -2,7 +2,7 @@
 name: 🦟  Bug report
 about: Report a bug to help us improve.
 title: ''
-labels: 'bug,:reproduce'
+labels: 'bug,:reproduce,:incoming'
 assignees: ''
 
 ---
@@ -29,5 +29,5 @@ N/A
 
 <!-- If this is a performance issue, follow these steps to generate and attach a debug archive: https://fleetdm.com/docs/using-fleet/monitoring-fleet#debugging-performance-issues -->
 
-<!-- ### 🛠️ To fix ### -->
+<!-- ### 🛠️ To fix -->
 <!-- If this bug requires additional product design work, uncomment the heading above and add instructions to fix, Figma link, etc. here once design changes are settled. -->

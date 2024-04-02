@@ -87,7 +87,7 @@ module.exports = {
         categoryDescription = '';
         break;
       case 'articles':
-        articleCategoryTitle = 'Fleet blog | Fleet for osquery';
+        articleCategoryTitle = 'Fleet blog | Fleet';
         categoryDescription = 'Read all articles from Fleet\'s blog.';
     }
 

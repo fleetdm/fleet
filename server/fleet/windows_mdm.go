@@ -2,14 +2,15 @@ package fleet
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
-	"github.com/beevik/etree"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
 // MDMWindowsBitLockerSummary reports the number of Windows hosts being managed by Fleet with
@@ -29,12 +30,15 @@ type MDMWindowsBitLockerSummary struct {
 
 // MDMWindowsConfigProfile represents a Windows MDM profile in Fleet.
 type MDMWindowsConfigProfile struct {
-	ProfileUUID string    `db:"profile_uuid" json:"profile_uuid"`
-	TeamID      *uint     `db:"team_id" json:"team_id"`
-	Name        string    `db:"name" json:"name"`
-	SyncML      []byte    `db:"syncml" json:"-"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	// ProfileUUID is the unique identifier of the configuration profile in
+	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
+	ProfileUUID string                      `db:"profile_uuid" json:"profile_uuid"`
+	TeamID      *uint                       `db:"team_id" json:"team_id"`
+	Name        string                      `db:"name" json:"name"`
+	SyncML      []byte                      `db:"syncml" json:"-"`
+	Labels      []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
+	CreatedAt   time.Time                   `db:"created_at" json:"created_at"`
+	UploadedAt  time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
 // ValidateUserProvided ensures that the SyncML content in the profile is valid
@@ -43,47 +47,94 @@ type MDMWindowsConfigProfile struct {
 // It checks that all top-level elements are <Replace> and none of the <LocURI>
 // elements within <Target> are reserved URIs.
 //
+// It also performs basic checks for XML well-formedness as defined in the [W3C
+// Recommendation section 2.8][1], as required by the [MS-MDM spec][2].
+//
+// Note that we only need to check for well-formedness, but validation is not required.
+//
 // Returns an error if these conditions are not met.
+//
+// [1]: http://www.w3.org/TR/2006/REC-xml-20060816
+// [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
-	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
-		// it doesn't start with <Replace>, check if it is still valid XML.
-		if len(bytes.TrimSpace(m.SyncML)) == 0 {
-			return errors.New("The file should include valid XML.")
-		}
-		doc := etree.NewDocument()
-		if err := doc.ReadFromBytes(m.SyncML); err != nil {
-			return fmt.Errorf("The file should include valid XML: %w", err)
-		}
-		// valid xml, but does not start with <Replace>
-		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+	if len(bytes.TrimSpace(m.SyncML)) == 0 {
+		return errors.New("The file should include valid XML.")
+	}
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[m.Name]; ok {
+		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
-	doc := etree.NewDocument()
-	if err := doc.ReadFromBytes(m.SyncML); err != nil {
-		return fmt.Errorf("The file should include valid XML: %w", err)
-	}
+	dec := xml.NewDecoder(bytes.NewReader(m.SyncML))
+	// use strict mode to check for a variety of common mistakes like
+	// unclosed tags, etc.
+	dec.Strict = true
 
-	for _, element := range doc.ChildElements() {
-		if element.Tag != CmdReplace {
-			return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+	// keep track of certain elements to perform Fleet-validations.
+	//
+	// NOTE: since we're only checking for well-formedness
+	// we don't need to validate the required nesting
+	// structure (Target>Item>LocURI) so we don't need to track all the tags.
+	var inValidNode bool
+	var inLocURI bool
+
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			if err != io.EOF {
+				return fmt.Errorf("The file should include valid XML: %w", err)
+			}
+			// EOF means no more tokens to process
+			break
 		}
 
-		for _, target := range element.FindElements("Target") {
-			locURI := target.FindElement("LocURI")
-			if locURI != nil {
-				if err := validateFleetProvidedLocURI(locURI.Text()); err != nil {
+		switch t := tok.(type) {
+		// no processing instructions allowed (<?target inst?>)
+		// see #16316 for details
+		case xml.ProcInst:
+			return errors.New("The file should include valid XML: processing instructions are not allowed.")
+
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "Replace", "Add":
+				inValidNode = true
+			case "LocURI":
+				if !inValidNode {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+				}
+				inLocURI = true
+
+			default:
+				if !inValidNode {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+				}
+			}
+
+		case xml.EndElement:
+			switch t.Name.Local {
+			case "Replace", "Add":
+				inValidNode = false
+			case "LocURI":
+				inLocURI = false
+			}
+
+		case xml.CharData:
+			if inLocURI {
+				if err := validateFleetProvidedLocURI(string(t)); err != nil {
 					return err
 				}
 			}
+
 		}
+
 	}
 
 	return nil
 }
 
 var fleetProvidedLocURIValidationMap = map[string][2]string{
-	microsoft_mdm.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
-	microsoft_mdm.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
+	syncml.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
+	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
 func validateFleetProvidedLocURI(locURI string) error {
@@ -105,6 +156,7 @@ type MDMWindowsProfilePayload struct {
 	OperationType MDMOperationType   `db:"operation_type"`
 	Detail        string             `db:"detail"`
 	CommandUUID   string             `db:"command_uuid"`
+	Retries       int                `db:"retries"`
 }
 
 type MDMWindowsBulkUpsertHostProfilePayload struct {

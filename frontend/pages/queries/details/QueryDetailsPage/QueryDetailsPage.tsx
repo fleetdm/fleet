@@ -17,6 +17,11 @@ import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
+import {
+  isGlobalObserver,
+  isTeamObserver,
+} from "utilities/permissions/permissions";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -28,6 +33,7 @@ import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
@@ -55,6 +61,9 @@ const QueryDetailsPage = ({
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
+  if (isNaN(queryId)) {
+    router.push(PATHS.MANAGE_QUERIES);
+  }
   const queryParams = location.query;
   const teamId = location.query.team_id
     ? parseInt(location.query.team_id, 10)
@@ -72,6 +81,7 @@ const QueryDetailsPage = ({
 
   const handlePageError = useErrorHandler();
   const {
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
@@ -81,11 +91,11 @@ const QueryDetailsPage = ({
     filteredQueriesPath,
     availableTeams,
     setCurrentTeam,
-    currentTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
+    lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryDiscardData,
     lastEditedQueryLoggingType,
@@ -101,9 +111,7 @@ const QueryDetailsPage = ({
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
 
-  // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
-  document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
-
+  const [showQueryModal, setShowQueryModal] = useState(false);
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
   useEffect(() => {
@@ -169,6 +177,20 @@ const QueryDetailsPage = ({
     }
   }, [storedQuery]);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
+  }, [location.pathname, storedQuery?.name]);
+
+  const onShowQueryModal = () => {
+    setShowQueryModal(!showQueryModal);
+  };
+
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
@@ -201,6 +223,13 @@ const QueryDetailsPage = ({
                 </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  className={`${baseClass}__show-query-btn`}
+                  onClick={onShowQueryModal}
+                  variant="text-icon"
+                >
+                  Show query
+                </Button>
                 {canEditQuery && (
                   <Button
                     onClick={() => {
@@ -217,7 +246,7 @@ const QueryDetailsPage = ({
                   isAnyTeamObserverPlus ||
                   canEditQuery) && (
                   <div
-                    className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+                    className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
                     <div
                       data-tip
@@ -298,8 +327,15 @@ const QueryDetailsPage = ({
     >
       <div>
         <b>Report clipped.</b> A sample of this query&apos;s results is included
-        below. You can still use query automations to complete this report in
-        your log destination.
+        below.
+        {
+          // Exclude below message for global and team observers/observer+s
+          !(
+            (currentUser && isGlobalObserver(currentUser)) ||
+            isTeamObserver(currentUser, teamId ?? null)
+          ) &&
+            " You can still use query automations to complete this report in your log destination."
+        }
       </div>
     </InfoBanner>
   );
@@ -321,7 +357,7 @@ const QueryDetailsPage = ({
     }
 
     // Empty state with varying messages explaining why there's no results
-    if (emptyCache) {
+    if (emptyCache || lastEditedQueryDiscardData) {
       return (
         <NoResults
           queryInterval={storedQuery?.interval}
@@ -342,6 +378,12 @@ const QueryDetailsPage = ({
         {renderHeader()}
         {isClipped && renderClippedBanner()}
         {renderReport()}
+        {showQueryModal && (
+          <ShowQueryModal
+            query={lastEditedQueryBody}
+            onCancel={onShowQueryModal}
+          />
+        )}
       </div>
     </MainContent>
   );

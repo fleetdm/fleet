@@ -69,12 +69,12 @@ const Munki = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={tableHeaders}
+                  columnConfigs={tableHeaders}
                   data={munkiIssuesData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"Munki"}
+                  resultsTitle="Munki"
                   emptyComponent={() => (
                     <EmptyTable
                       header="No Munki issues detected"
@@ -96,12 +96,12 @@ const Munki = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={munkiVersionsTableHeaders}
+                  columnConfigs={munkiVersionsTableHeaders}
                   data={munkiVersionsData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"Munki"}
+                  resultsTitle="Munki"
                   emptyComponent={() => (
                     <EmptyTable
                       header="Unable to detect Munki versions"

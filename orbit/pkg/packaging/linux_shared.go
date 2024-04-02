@@ -3,6 +3,7 @@ package packaging
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -217,6 +218,10 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		filename = filepath.Join("build", filename)
 	}
 
+	if err := os.Remove(filename); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("removing existing file: %w", err)
+	}
+
 	out, err := secure.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)
 	if err != nil {
 		return "", fmt.Errorf("open output file: %w", err)
@@ -288,6 +293,8 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
 {{ if .Debug }}ORBIT_DEBUG=true{{ end }}
 {{ if .EnableScripts }}ORBIT_ENABLE_SCRIPTS=true{{ end }}
+{{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}ORBIT_HOST_IDENTIFIER={{.HostIdentifier}}{{ end }}
+{{ if .OsqueryDB }}ORBIT_OSQUERY_DB={{.OsqueryDB}}{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {

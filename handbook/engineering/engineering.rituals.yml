@@ -25,23 +25,23 @@
   task: "Vulnerability alerts (fleetdm.com)"
   startedOn: "2023-08-09" 
   frequency: "Weekly"
-  description: "Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub."
-  moreInfoUrl: 
+  description: "Review and remediate or dismiss vulnerability alerts for the fleetdm.com codebase on GitHub."
+  moreInfoUrl: "https://github.com/fleetdm/fleet/security"
   dri: "eashaw"
 - 
   task: "Vulnerability alerts (frontend)"
   startedOn: "2023-08-09" 
   frequency: "Weekly"
-  description: "Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub."
-  moreInfoUrl: 
-  dri: "zwass"
+  description: "Review and remediate or dismiss vulnerability alerts for the Fleet frontend codebase (and related JS) on GitHub."
+  moreInfoUrl: "https://github.com/fleetdm/fleet/security"
+  dri: "lukeheath"
 - 
   task: "Vulnerability alerts (backend)"
   startedOn: "2023-08-09" 
   frequency: "Weekly"
-  description: "Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub."
-  moreInfoUrl: 
-  dri: "zwass"
+  description: "Review and remediate or dismiss vulnerability alerts for the Fleet backend codebase (and all Go code) on GitHub."
+  moreInfoUrl: "https://github.com/fleetdm/fleet/security"
+  dri: "lukeheath"
 - 
   task: "Freeze ritual"
   startedOn: "2023-08-09" 
@@ -68,7 +68,7 @@
   startedOn: "2023-08-09" 
   frequency: "Weekly"
   description: "Review bugs that are in QA's inbox."
-  moreInfoUrl:
+  moreInfoUrl: "https://www.fleetdm.com/handbook/company/product-groups#inbox"
   dri: "xpkoala"
 - 
   task: "QA report"
@@ -81,16 +81,9 @@
   task: "Release QA"
   startedOn: "2023-08-09" 
   frequency: "Triweekly"
-  description: "Every release cycle, by end of day Friday of release week, all issues move to Ready for release on the #g-mdm and #g-cx sprint boards."
+  description: "Every release cycle, by end of day Friday of release week, all issues move to Ready for release on the #g-mdm and #g-endpoint-ops sprint boards."
   moreInfoUrl:
   dri: "xpkoala"
-- 
-  task: "Check osquery Slack invitation"
-  startedOn: "2023-11-10" 
-  frequency: "Monthly"
-  description: "Check the osquery Slack invitation that is linked to from Fleet and the Fleet website to make sure it is valid."
-  moreInfoUrl: "https://fleetdm.com/slack"
-  dri: "eashaw"
 
 
 

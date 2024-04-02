@@ -19,6 +19,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -28,6 +31,8 @@ import (
 type DetailQuery struct {
 	// Query is the SQL query string.
 	Query string
+	// QueryFunc is optionally used to dynamically build a query.
+	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) string
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
@@ -167,12 +172,24 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
+		// display_version is not available in some versions of
+		// Windows (Server 2019). By including it using a JOIN it can
+		// return no rows and the query will still succeed
 		Query: `
-	SELECT
-		os.name,
-		os.version
-	FROM
-		os_version os`,
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		)
+		SELECT
+			os.name,
+			COALESCE(d.display_version, '') AS display_version,
+			k.version
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -181,17 +198,11 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["version"]
-			if version == "" {
-				level.Debug(logger).Log(
-					"msg", "unable to identify windows version",
-					"host", host.Hostname,
-				)
-			}
-
-			s := fmt.Sprintf("%v %v", rows[0]["name"], version)
+			s := fmt.Sprintf("%s %s", rows[0]["name"], rows[0]["display_version"])
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
+			s = strings.TrimSpace(s)
+			s += " " + rows[0]["version"]
 			host.OSVersion = s
 
 			return nil
@@ -328,7 +339,8 @@ var hostDetailQueries = map[string]DetailQuery{
 	"disk_space_unix": {
 		Query: `
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
+       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
 FROM mounts WHERE path = '/' LIMIT 1;`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
@@ -337,7 +349,8 @@ FROM mounts WHERE path = '/' LIMIT 1;`,
 	"disk_space_windows": {
 		Query: `
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
-       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available
+       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available,
+       ROUND(sum(size)       * 10e-10) AS gigs_total_disk_space
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskSpace,
@@ -350,10 +363,6 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
-func isPublicIP(ip net.IP) bool {
-	return !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsPrivate()
-}
-
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	logger = log.With(logger,
 		"component", "service",
@@ -362,6 +371,22 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		"platform", host.Platform,
 	)
 
+	// Attempt to extract public IP from the HTTP request.
+	// NOTE: We are executing the IP extraction first to not depend on the network
+	// interface query succeeding and returning results.
+	ipStr := publicip.FromContext(ctx)
+	// First set host.PublicIP to empty to not hide an infrastructure change that
+	// misses to set or sets an invalid value in the expected HTTP headers.
+	host.PublicIP = ""
+	if ipStr != "" {
+		ip := net.ParseIP(ipStr)
+		if ip != nil {
+			host.PublicIP = ipStr
+		} else {
+			logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
+		}
+	}
+
 	if len(rows) != 1 {
 		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
@@ -369,20 +394,6 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 
 	host.PrimaryIP = rows[0]["address"]
 	host.PrimaryMac = rows[0]["mac"]
-
-	// Attempt to extract public IP from the HTTP request.
-	ipStr := publicip.FromContext(ctx)
-	ip := net.ParseIP(ipStr)
-	if ip != nil {
-		if isPublicIP(ip) {
-			host.PublicIP = ipStr
-		} else {
-			level.Debug(logger).Log("err", "IP is not public, ignoring", "ip", ipStr)
-			host.PublicIP = ""
-		}
-	} else {
-		logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
-	}
 
 	return nil
 }
@@ -402,8 +413,12 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 	if err != nil {
 		return err
 	}
+	gigsTotal, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_total_disk_space"]), 64)
+	if err != nil {
+		return err
+	}
 
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal)
 }
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -434,31 +449,65 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("mdm"),
 	},
 	"mdm_windows": {
+		// we get most of the MDM information for Windows from the
+		// `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%`
+		// registry keys. A computer might many different folders under
+		// that path, for different enrollments, so we need to group by
+		// enrollment (key in this case) and try to grab the most
+		// likely candiate to be an MDM solution.
+		//
+		// The best way I have found, is to filter by groups of entries
+		// with an UPN value, and pick the first one.
+		//
+		// An example of a host having more than one entry: when
+		// the `mdm_bridge` table is used, the `mdmlocalmanagement.dll`
+		// registers an MDM with ProviderID = `Local_Management`
+		//
+		// Entries also need to be filtered by their enrollment status, described [here][1]
+		//
+		//   Member        Value  Description
+		//   unknown       0      Device enrollment state is unknown
+		//   enrolled      1      Device is Enrolled.
+		//   pendingReset  2      Enrolled but it's enrolled via enrollment profile and the enrolled profile is different from the assigned profile.
+		//   failed        3      Not enrolled and there is enrollment failure record.
+		//   notContacted  4      Device is imported but not enrolled.
+		//   blocked       5      Device is enrolled as userless, but is blocked from moving to user enrollment because the app failed to install.
+		//
+		// [1]: https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate
 		Query: `
-			SELECT * FROM (
-				SELECT "provider_id" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "discovery_service_url" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "installation_type" AS "key", data as "value" FROM registry
-				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-				LIMIT 1
-			)
-			;
+                    WITH registry_keys AS (
+                        SELECT *
+                        FROM registry
+                        WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+                    ),
+                    enrollment_info AS (
+                        SELECT
+                            MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                            MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+                        FROM registry_keys
+                        GROUP BY key
+                    ),
+                    installation_info AS (
+                        SELECT data AS installation_type
+                        FROM registry
+                        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                        LIMIT 1
+                    )
+                    SELECT
+                        e.aad_resource_id,
+                        e.discovery_service_url,
+                        e.provider_id,
+                        i.installation_type
+                    FROM installation_info i
+                    LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+		    -- coalesce to 'unknown' and keep that state in the list
+		    -- in order to account for hosts that might not have this
+		    -- key, and servers
+                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+                    LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -492,16 +541,29 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
+		//
+		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
+		// To prevent the query from failing in those cases, we join
+		// the values in when they exist, alternatively the column is
+		// just empty.
 		Query: `
+	WITH display_version_table AS (
+		SELECT data as display_version
+		FROM registry
+		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	)
 	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version
+		os.version,
+		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
-		kernel_info k`,
+		kernel_info k
+	LEFT JOIN
+		display_version_table d`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -584,6 +646,12 @@ var mdmQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMacOSProfiles,
 		Discovery:        discoveryTable("macos_profiles"),
+	},
+	"mdm_config_profiles_windows": {
+		QueryFunc:        buildConfigProfilesWindowsQuery,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestWindowsProfiles,
+		Discovery:        discoveryTable("mdm_bridge"),
 	},
 	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
 	// extension tables are discovered on the agent. The preferred query uses the newer custom
@@ -670,7 +738,10 @@ SELECT
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'apps' AS source,
+  '' AS vendor,
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
@@ -680,7 +751,10 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM python_packages
@@ -690,7 +764,10 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
@@ -700,7 +777,10 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
@@ -710,7 +790,10 @@ SELECT
   version AS version,
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'safari_extensions' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
@@ -718,25 +801,42 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  '' AS bundle_identifier,
-  'atom_packages' AS source,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'homebrew_packages' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM homebrew_packages;
 `),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
+}
+
+// softwareVSCodeExtensions collects VSCode extensions on a separate query for two reasons:
+//   - vscode_extensions is not available in osquery < 5.11.0.
+//   - Avoid growing the main `software_{macos|windows|linux}` queries
+//     (having big queries can cause performance issues or be denylisted).
+var softwareVSCodeExtensions = DetailQuery{
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+SELECT
+  name,
+  version,
+  'IDE extension (VS Code)' AS type,
+  '' AS bundle_identifier,
+  uuid AS extension_id,
+  '' AS browser,
+  'vscode_extensions' AS source,
+  publisher AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("vscode_extensions"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
 }
 
 var scheduledQueryStats = DetailQuery{
@@ -753,6 +853,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (deb)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -765,6 +867,8 @@ SELECT
   package AS name,
   version AS version,
   'Package (Portage)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -776,6 +880,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (RPM)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -787,6 +893,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (NPM)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -798,6 +906,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -809,6 +919,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
@@ -819,18 +931,9 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Python)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -848,6 +951,8 @@ SELECT
   name AS name,
   version AS version,
   'Program (Windows)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path
@@ -857,6 +962,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
   '' AS vendor,
   path AS installed_path
@@ -866,6 +973,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (IE)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -875,6 +984,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -884,6 +995,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path
@@ -893,19 +1006,12 @@ SELECT
   name AS name,
   version AS version,
   'Package (Chocolatey)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path
 FROM chocolatey_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
@@ -915,6 +1021,8 @@ var softwareChrome = DetailQuery{
 	Query: `SELECT
   name AS name,
   version AS version,
+  identifier AS extension_id,
+  browser_type AS browser,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
@@ -964,16 +1072,14 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Arch:          rows[0]["arch"],
 		KernelVersion: rows[0]["kernel_version"],
 		Platform:      rows[0]["platform"],
+		Version:       rows[0]["kernel_version"],
 	}
 
-	version := rows[0]["version"]
-	if version == "" {
-		level.Debug(logger).Log(
-			"msg", "unable to identify windows version",
-			"host", host.Hostname,
-		)
+	displayVersion := rows[0]["display_version"]
+	if displayVersion != "" {
+		hostOS.Name += " " + displayVersion
+		hostOS.DisplayVersion = displayVersion
 	}
-	hostOS.Version = version
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
@@ -1041,10 +1147,10 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 		mapping = append(mapping, &fleet.HostDeviceMapping{
 			HostID: host.ID,
 			Email:  row["email"],
-			Source: "google_chrome_profiles",
+			Source: fleet.DeviceMappingGoogleChromeProfiles,
 		})
 	}
-	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingGoogleChromeProfiles)
 }
 
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1084,7 +1190,9 @@ func directIngestWindowsUpdateHistory(
 	for _, row := range rows {
 		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
 		if err != nil {
-			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
+			// If the update failed to parse then we log a debug error and ignore it.
+			// E.g. we've seen KB updates with titles like "Logitech - Image - 1.4.40.0".
+			level.Debug(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
 			continue
 		}
 
@@ -1121,6 +1229,17 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			continue
 		}
 
+		// Do not save stats without executions so that we do not overwrite existing stats.
+		// It is normal for host to have no executions when the query just got scheduled.
+		executions := cast.ToUint64(row["executions"])
+		if executions == 0 {
+			level.Debug(logger).Log(
+				"msg", "host reported scheduled query with no executions",
+				"host", host.Hostname,
+			)
+			continue
+		}
+
 		// Split with a limit of 2 in case query name includes the
 		// delimiter. Not much we can do if pack name includes the
 		// delimiter.
@@ -1137,19 +1256,27 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		}
 		packName, scheduledName := parts[0], parts[1]
 
+		// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
+		wallTimeMs := cast.ToUint64(row["wall_time_ms"])
+		if wallTimeMs == 0 {
+			wallTime := cast.ToUint64(row["wall_time"])
+			if wallTime != 0 {
+				wallTimeMs = wallTime * 1000
+			}
+		}
 		stats := fleet.ScheduledQueryStats{
 			ScheduledQueryName: scheduledName,
 			PackName:           packName,
-			AverageMemory:      cast.ToInt(row["average_memory"]),
+			AverageMemory:      cast.ToUint64(row["average_memory"]),
 			Denylisted:         cast.ToBool(row["denylisted"]),
-			Executions:         cast.ToInt(row["executions"]),
+			Executions:         executions,
 			Interval:           cast.ToInt(row["interval"]),
 			// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
 			LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),
-			OutputSize:   cast.ToInt(row["output_size"]),
-			SystemTime:   cast.ToInt(row["system_time"]),
-			UserTime:     cast.ToInt(row["user_time"]),
-			WallTime:     cast.ToInt(row["wall_time"]),
+			OutputSize:   cast.ToUint64(row["output_size"]),
+			SystemTime:   cast.ToUint64(row["system_time"]),
+			UserTime:     cast.ToUint64(row["user_time"]),
+			WallTimeMs:   wallTimeMs,
 		}
 		packs[packName] = append(packs[packName], stats)
 	}
@@ -1194,6 +1321,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["release"],
 			row["arch"],
 			row["bundle_identifier"],
+			row["extension_id"],
+			row["browser"],
 			row["last_opened_at"],
 		)
 		if err != nil {
@@ -1207,6 +1336,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		}
 
 		sanitizeSoftware(host, s, logger)
+
+		if shouldRemoveSoftware(host, s) {
+			continue
+		}
 
 		software = append(software, *s)
 
@@ -1232,7 +1365,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	return nil
 }
 
-var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+var (
+	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
+)
 
 // sanitizeSoftware performs any sanitization required to the ingested software fields.
 //
@@ -1245,10 +1381,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
 		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
-		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed
+		// to `1.6.00.22155` || s.Name == "Microsoft Teams (work or school).app".
+
+		// Note: in December 2023, Microsoft released "New Teams" for MacOS. This new version of
+		// Teams uses a completely different versioning scheme, which is documented at the URL
+		// above. Existing versions of Teams on MacOS were renamed to "Microsoft Teams Classic" and still use
+		// the same versioning scheme discussed above.
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
 			mutateSoftware: func(s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
@@ -1281,6 +1423,41 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
 			},
 		},
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+
+				if len(parts[0]) > 2 {
+					// then the versioning is correct, so no need to change
+					return
+				}
+
+				part1, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				part2, err := strconv.Atoi(parts[1])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				newFirstPart := part1*100 + part2
+				newFirstStr := strconv.Itoa(newFirstPart)
+				newParts := []string{newFirstStr}
+				newParts = append(newParts, parts[2:]...)
+				s.Version = strings.Join(newParts, ".")
+			},
+		},
 	}
 
 	for _, softwareSanitizer := range softwareSanitizers {
@@ -1289,6 +1466,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			return
 		}
 	}
+}
+
+// shouldRemoveSoftware returns whether or not we should remove the given Software item from this
+// host's software list.
+func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
+	// Parallels is a common VM software for MacOS. Parallels makes the VM's applications
+	// visible in the host as MacOS applications, which leads to confusing output (e.g. a MacOS
+	// host reporting that it has Notepad installed when this is just an app from the Windows VM
+	// under Parallels). We want to filter out those "applications" to avoid confusion.
+	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
 }
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1336,6 +1523,12 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		logger.Log("component", "service", "method", "ingestMDM", "warn",
 			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 	}
+
+	if host.RefetchCriticalQueriesUntil != nil {
+		level.Debug(logger).Log("msg", "ingesting macos mdm data during refetch critical queries window", "host_id", host.ID,
+			"data", fmt.Sprintf("%+v", rows))
+	}
+
 	enrolledVal := rows[0]["enrolled"]
 	if enrolledVal == "" {
 		return ctxerr.Wrap(ctx, fmt.Errorf("missing mdm.enrolled value: %d", host.ID))
@@ -1364,6 +1557,26 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing server_url")
 	}
+
+	// if the MDM solution is Fleet, we need to extract the enrollment reference from the URL and
+	// upsert host emails based on the MDM IdP account associated with the enrollment reference
+	var fleetEnrollRef string
+	if mdmSolutionName == fleet.WellKnownMDMFleet {
+		fleetEnrollRef = serverURL.Query().Get(mobileconfig.FleetEnrollReferenceKey)
+		if fleetEnrollRef == "" {
+			// TODO: We have some inconsistencies where we use enroll_reference sometimes and
+			// enrollment_reference other times. It really should be the same everywhere, but
+			// it seems to be working now because the values are matching where they need to match.
+			// We should clean this up at some point, but for now we'll just check both.
+			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
+		}
+		if fleetEnrollRef != "" {
+			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+			}
+		}
+	}
+
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
@@ -1374,6 +1587,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		serverURL.String(),
 		installedFromDep,
 		mdmSolutionName,
+		fleetEnrollRef,
 	)
 }
 
@@ -1391,23 +1605,33 @@ func deduceMDMNameWindows(data map[string]string) string {
 	if serverURL == "" {
 		return ""
 	}
-	if name := data["provider_id"]; name != "" {
+
+	if name := data["provider_id"]; name == fleet.WellKnownMDMFleet {
 		return name
 	}
+
 	return fleet.MDMNameFromServerURL(serverURL)
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	data := make(map[string]string, len(rows))
-	for _, r := range rows {
-		data[r["key"]] = r["value"]
+	if len(rows) == 0 {
+		// no mdm information in the registry
+		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "")
 	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+		// assume the extension is not there
+		return nil
+	}
+
+	data := rows[0]
 	var enrolled bool
 	var automatic bool
 	serverURL := data["discovery_service_url"]
 	if serverURL != "" {
 		enrolled = true
-		if isFederated := data["is_federated"]; isFederated == "1" {
+		if data["aad_resource_id"] != "" {
 			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
@@ -1423,13 +1647,14 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		serverURL,
 		automatic,
 		deduceMDMNameWindows(data),
+		"",
 	)
 }
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
-		// assume the extension is not there
-		return nil
+		// munki is not there, and we need to mark it deleted if it was there before
+		return ds.SetOrUpdateMunkiInfo(ctx, host.ID, "", []string{}, []string{})
 	}
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",
@@ -1497,9 +1722,16 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		return nil
 	}
 
-	// it's okay if the key comes empty, this can happen and if the disk is
-	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
+	// at this point we know that the disk is encrypted, if the key is
+	// empty then the disk is not decryptable. For example an user might
+	// have removed the `/var/db/FileVaultPRK.dat` or the computer might
+	// have been encrypted without FV escrow enabled.
+	var decryptable *bool
+	base64Key := rows[0]["filevault_key"]
+	if base64Key == "" {
+		decryptable = ptr.Bool(false)
+	}
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1548,9 +1780,17 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		return ctxerr.Wrap(ctx, err, "decoding hex string")
 	}
 
-	// it's okay if the key comes empty, this can happen and if the disk is
-	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
+	// at this point we know that the disk is encrypted, if the key is
+	// empty then the disk is not decryptable. For example an user might
+	// have removed the `/var/db/FileVaultPRK.dat` or the computer might
+	// have been encrypted without FV escrow enabled.
+	var decryptable *bool
+	base64Key := base64.StdEncoding.EncodeToString(b)
+	if base64Key == "" {
+		decryptable = ptr.Bool(false)
+	}
+
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
 }
 
 func directIngestMacOSProfiles(
@@ -1617,7 +1857,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
-// go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,
@@ -1638,6 +1878,7 @@ func GetDetailQueries(
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
+		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 	}
 
 	if features != nil && features.EnableHostUsers {
@@ -1653,7 +1894,7 @@ func GetDetailQueries(
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured {
+	if appConfig != nil && (appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured) {
 		for key, query := range mdmQueries {
 			if slices.Equal(query.Platforms, []string{"windows"}) && !appConfig.MDM.WindowsEnabledAndConfigured {
 				continue
@@ -1697,4 +1938,70 @@ func splitCleanSemicolonSeparated(s string) []string {
 		}
 	}
 	return cleaned
+}
+
+func buildConfigProfilesWindowsQuery(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+) string {
+	var sb strings.Builder
+	sb.WriteString("<SyncBody>")
+	gotProfiles := false
+	err := microsoft_mdm.LoopHostMDMLocURIs(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+		// Per the [docs][1], to `<Get>` configurations you must
+		// replace `/Policy/Config` with `Policy/Result`
+		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
+		locURI = strings.Replace(locURI, "/Policy/Config", "/Policy/Result", 1)
+		sb.WriteString(
+			// NOTE: intentionally building the xml as a one-liner
+			// to prevent any errors in the query.
+			fmt.Sprintf(
+				"<Get><CmdID>%s</CmdID><Item><Target><LocURI>%s</LocURI></Target></Item></Get>",
+				hash,
+				locURI,
+			))
+		gotProfiles = true
+	})
+	if err != nil {
+		logger.Log(
+			"component", "service",
+			"method", "QueryFunc - windows config profiles",
+			"err", err,
+		)
+		return ""
+	}
+	if !gotProfiles {
+		logger.Log(
+			"component", "service",
+			"method", "QueryFunc - windows config profiles",
+			"info", "host doesn't have profiles to check",
+		)
+		return ""
+	}
+	sb.WriteString("</SyncBody>")
+	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String())
+}
+
+func directIngestWindowsProfiles(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	if len(rows) > 1 {
+		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles invalid number of rows: %d", len(rows))
+	}
+
+	rawResponse := []byte(rows[0]["raw_mdm_command_output"])
+	if len(rawResponse) == 0 {
+		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
+	}
+	return microsoft_mdm.VerifyHostMDMProfiles(ctx, ds, host, rawResponse)
 }

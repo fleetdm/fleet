@@ -2,14 +2,15 @@ import { IHost } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
-  profile_id: 1,
+  profile_uuid: "123-abc",
   name: "Test Profile",
   operation_type: "install",
+  platform: "darwin",
   status: "verified",
   detail: "This is verified",
 };
 
-export const createMockHostMacMdmProfile = (
+export const createMockHostMdmProfile = (
   overrides?: Partial<IHostMdmProfile>
 ): IHostMdmProfile => {
   return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
@@ -69,6 +70,8 @@ const DEFAULT_HOST_MOCK: IHost = {
       details: "",
       bootstrap_package_name: "",
     },
+    device_status: "unlocked",
+    pending_action: "",
   },
   public_ip: "",
   primary_ip: "172.23.0.3",
@@ -91,6 +94,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   software: [],
   users: [],
   policies: [],
+  device_mapping: [],
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {

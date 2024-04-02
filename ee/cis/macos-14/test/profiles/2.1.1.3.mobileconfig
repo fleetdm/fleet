@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.1.1.3.check</string>
+			<key>PayloadUUID</key>
+			<string>5F0EF767-200C-4E10-A43D-04204A4A8E06</string>
+			<key>allowCloudDesktopAndDocuments</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure iCloud Drive Document and Desktop Sync Is Disabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-2.1.1.3</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>2EAF168E-3DC9-4375-AA37-501EDB3C8422</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -3,19 +3,17 @@
   border-radius: $border-radius;
   background-color: $ui-off-white;
   padding: $pad-medium;
+  box-sizing: border-box;
+  // custom form field gap
+  gap: 0.25rem;
 
   &__team-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: $pad-xsmall;
 
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    .form-field {
-      margin-bottom: 0;
+    .form-field--dropdown {
+      width: auto;
     }
   }
 

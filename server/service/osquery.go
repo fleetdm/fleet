@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,7 +30,7 @@ import (
 type osqueryError struct {
 	message     string
 	nodeInvalid bool
-
+	statusCode  int
 	fleet.ErrorWithUUID
 }
 
@@ -44,6 +45,10 @@ func (e *osqueryError) Error() string {
 // should contain the node_invalid property.
 func (e *osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
+}
+
+func (e *osqueryError) Status() int {
+	return e.statusCode
 }
 
 func newOsqueryErrorWithInvalidNode(msg string) *osqueryError {
@@ -654,7 +659,19 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	//
 	// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
 	// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
-	for name := range queries {
+	for name, query := range queries {
+		// there's a bug somewhere (Fleet, osquery or both?)
+		// that causes hosts to check-in in a loop if you send
+		// an empty query string.
+		//
+		// we previously fixed this for detail query overrides (see
+		// #14286, #14296) but I'm also adding this here as a safeguard
+		// for issues like #15524
+		if query == "" {
+			delete(queries, name)
+			delete(discovery, name)
+			continue
+		}
 		discoveryQuery := discovery[name]
 		if discoveryQuery == "" {
 			discoveryQuery = alwaysTrueQuery
@@ -709,6 +726,9 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
 			queries[queryName] = query.Query
+			if query.QueryFunc != nil && query.Query == "" {
+				queries[queryName] = query.QueryFunc(ctx, svc.logger, host, svc.ds)
+			}
 			discoveryQuery := query.Discovery
 			if discoveryQuery == "" {
 				discoveryQuery = alwaysTrueQuery
@@ -801,6 +821,7 @@ type submitDistributedQueryResultsRequestShim struct {
 	Results  map[string]json.RawMessage `json:"queries"`
 	Statuses map[string]interface{}     `json:"statuses"`
 	Messages map[string]string          `json:"messages"`
+	Stats    map[string]*fleet.Stats    `json:"stats"`
 }
 
 func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
@@ -842,6 +863,7 @@ func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Cont
 		Results:  results,
 		Statuses: statuses,
 		Messages: shim.Messages,
+		Stats:    shim.Stats,
 	}, nil
 }
 
@@ -850,6 +872,7 @@ type SubmitDistributedQueryResultsRequest struct {
 	Results  fleet.OsqueryDistributedQueryResults `json:"queries"`
 	Statuses map[string]fleet.OsqueryStatus       `json:"statuses"`
 	Messages map[string]string                    `json:"messages"`
+	Stats    map[string]*fleet.Stats              `json:"stats"`
 }
 
 type submitDistributedQueryResultsResponse struct {
@@ -865,7 +888,7 @@ func submitDistributedQueryResultsEndpoint(ctx context.Context, request interfac
 		return submitDistributedQueryResultsResponse{Err: err}, nil
 	}
 
-	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages)
+	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages, req.Stats)
 	if err != nil {
 		return submitDistributedQueryResultsResponse{Err: err}, nil
 	}
@@ -910,6 +933,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
+	stats map[string]*fleet.Stats,
 ) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -926,7 +950,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 	policyResults := map[uint]*bool{}
 	refetchCriticalSet := host.RefetchCriticalQueriesUntil != nil
 
-	svc.maybeDebugHost(ctx, host, results, statuses, messages)
+	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
+
+	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -948,9 +974,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
+		queryStats, _ := stats[query]
 
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
-			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults,
+			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
 		)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
@@ -974,9 +1001,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	if len(policyResults) > 0 {
 
+		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		// filter policy results for webhooks
 		var policyIDs []uint
-		if ac.WebhookSettings.FailingPoliciesWebhook.Enable {
+		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
@@ -985,7 +1016,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			if err != nil {
 				logging.WithErr(ctx, err)
 			} else {
-				if team.Config.WebhookSettings.FailingPoliciesWebhook.Enable {
+				if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
 					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 				}
 			}
@@ -1044,6 +1075,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		host.RefetchRequested = false
 	}
 	refetchCriticalCleared := refetchCriticalSet && host.RefetchCriticalQueriesUntil == nil
+	if refetchCriticalSet {
+		level.Debug(svc.logger).Log("msg", "refetch critical status on submit distributed query results", "host_id", host.ID, "refetch_requested", refetchRequested, "refetch_critical_queries_until", host.RefetchCriticalQueriesUntil, "refetch_critical_cleared", refetchCriticalCleared)
+	}
 
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		appConfig, err := svc.ds.AppConfig(ctx)
@@ -1063,6 +1097,205 @@ func (svc *Service) SubmitDistributedQueryResults(
 	return nil
 }
 
+func processCalendarPolicies(
+	ctx context.Context,
+	ds fleet.Datastore,
+	appConfig *fleet.AppConfig,
+	host *fleet.Host,
+	policyResults map[uint]*bool,
+	logger log.Logger,
+) error {
+	if len(appConfig.Integrations.GoogleCalendar) == 0 || host.TeamID == nil {
+		return nil
+	}
+
+	team, err := ds.Team(ctx, *host.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load host team")
+	}
+
+	if team.Config.Integrations.GoogleCalendar == nil || !team.Config.Integrations.GoogleCalendar.Enable {
+		return nil
+	}
+
+	hostCalendarEvent, calendarEvent, err := ds.GetHostCalendarEvent(ctx, host.ID)
+	switch {
+	case err == nil:
+		if hostCalendarEvent.WebhookStatus != fleet.CalendarWebhookStatusPending {
+			return nil
+		}
+	case fleet.IsNotFound(err):
+		return nil
+	default:
+		return ctxerr.Wrap(ctx, err, "get host calendar event")
+	}
+
+	now := time.Now()
+	if now.Before(calendarEvent.StartTime) {
+		level.Warn(logger).Log("msg", "results came too early", "now", now, "start_time", calendarEvent.StartTime)
+		return nil
+	}
+
+	//
+	// TODO(lucas): Discuss.
+	//
+	const allowedTimeBeforeEndTime = 5 * time.Minute // up to 5 minutes before the end_time
+
+	if now.After(calendarEvent.EndTime.Add(-allowedTimeBeforeEndTime)) {
+		level.Warn(logger).Log("msg", "results came too late", "now", now, "end_time", calendarEvent.EndTime)
+		return nil
+	}
+
+	calendarPolicies, err := ds.GetCalendarPolicies(ctx, *host.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get calendar policy ids")
+	}
+	if len(calendarPolicies) == 0 {
+		return nil
+	}
+
+	failingCalendarPolicies := getFailingCalendarPolicies(policyResults, calendarPolicies)
+	if len(failingCalendarPolicies) == 0 {
+		return nil
+	}
+
+	go func() {
+		if err := fleet.FireCalendarWebhook(
+			team.Config.Integrations.GoogleCalendar.WebhookURL,
+			host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
+		); err != nil {
+			level.Error(logger).Log("msg", "fire webhook", "err", err)
+			return
+		}
+		if err := ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusSent); err != nil {
+			level.Error(logger).Log("msg", "mark fired webhook as sent", "err", err)
+		}
+	}()
+
+	return nil
+}
+
+func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies []fleet.PolicyCalendarData) []fleet.PolicyCalendarData {
+	var failingPolicies []fleet.PolicyCalendarData
+	for _, calendarPolicy := range calendarPolicies {
+		result, ok := policyResults[calendarPolicy.ID]
+		if !ok || // ignore result of a policy that's not configured for calendar.
+			result == nil { // ignore policies that failed to execute.
+			continue
+		}
+		if !*result {
+			failingPolicies = append(failingPolicies, calendarPolicy)
+		}
+	}
+	return failingPolicies
+}
+
+// preProcessSoftwareResults will run pre-processing on the responses of the software queries.
+// It will move the results from the software extra queries (e.g. software_vscode_extensions)
+// into the main software query results (software_{macos|linux|windows}).
+// We do this to not grow the main software queries and to ingest
+// all software together (one direct ingest function for all software).
+func preProcessSoftwareResults(
+	hostID uint,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	logger log.Logger,
+) {
+	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, logger)
+}
+
+func preProcessSoftwareExtraResults(
+	softwareExtraQuery string,
+	hostID uint,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	logger log.Logger,
+) {
+	// We always remove the extra query and its results
+	// in case the main or extra software query failed to execute.
+	defer delete(*results, softwareExtraQuery)
+
+	status, ok := (*statuses)[softwareExtraQuery]
+	if !ok {
+		return // query did not execute, e.g. the table does not exist.
+	}
+	failed := status != fleet.StatusOK
+	if failed {
+		// extra query executed but with errors, so we return without changing anything.
+		level.Error(logger).Log(
+			"query", softwareExtraQuery,
+			"message", (*messages)[softwareExtraQuery],
+			"hostID", hostID,
+		)
+		return
+	}
+
+	// Extract the results of the extra query.
+	softwareExtraRows, _ := (*results)[softwareExtraQuery]
+	if len(softwareExtraRows) == 0 {
+		return
+	}
+
+	// Append the results of the extra query to the main query.
+	for _, query := range []string{
+		// Only one of these execute in each host.
+		hostDetailQueryPrefix + "software_macos",
+		hostDetailQueryPrefix + "software_windows",
+		hostDetailQueryPrefix + "software_linux",
+	} {
+		if _, ok := (*results)[query]; !ok {
+			continue
+		}
+		if status, ok := (*statuses)[query]; ok && status != fleet.StatusOK {
+			// Do not append results if the main query failed to run.
+			continue
+		}
+		(*results)[query] = append((*results)[query], softwareExtraRows...)
+		return
+	}
+}
+
+// globalPolicyAutomationsEnabled returns true if any of the global policy automations are enabled.
+// globalPolicyAutomationsEnabled and teamPolicyAutomationsEnabled are effectively identical.
+// We could not use Go generics because Go generics does not support accessing common struct fields right now.
+// The umbrella Go issue tracking this: https://github.com/golang/go/issues/63940
+func globalPolicyAutomationsEnabled(webhookSettings fleet.WebhookSettings, integrations fleet.Integrations) bool {
+	if webhookSettings.FailingPoliciesWebhook.Enable {
+		return true
+	}
+	for _, j := range integrations.Jira {
+		if j.EnableFailingPolicies {
+			return true
+		}
+	}
+	for _, z := range integrations.Zendesk {
+		if z.EnableFailingPolicies {
+			return true
+		}
+	}
+	return false
+}
+
+func teamPolicyAutomationsEnabled(webhookSettings fleet.TeamWebhookSettings, integrations fleet.TeamIntegrations) bool {
+	if webhookSettings.FailingPoliciesWebhook.Enable {
+		return true
+	}
+	for _, j := range integrations.Jira {
+		if j.EnableFailingPolicies {
+			return true
+		}
+	}
+	for _, z := range integrations.Zendesk {
+		if z.EnableFailingPolicies {
+			return true
+		}
+	}
+	return false
+}
+
 func (svc *Service) ingestQueryResults(
 	ctx context.Context,
 	query string,
@@ -1073,6 +1306,7 @@ func (svc *Service) ingestQueryResults(
 	policyResults map[uint]*bool,
 	labelResults map[uint]*bool,
 	additionalResults fleet.OsqueryDistributedQueryResults,
+	stats *fleet.Stats,
 ) (bool, bool, error) {
 	var detailUpdated, additionalUpdated bool
 
@@ -1084,7 +1318,7 @@ func (svc *Service) ingestQueryResults(
 	var err error
 	switch {
 	case strings.HasPrefix(query, hostDistributedQueryPrefix):
-		err = svc.ingestDistributedQuery(ctx, *host, query, rows, messages[query])
+		err = svc.ingestDistributedQuery(ctx, *host, query, rows, messages[query], stats)
 	case strings.HasPrefix(query, hostPolicyQueryPrefix):
 		err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
 	case strings.HasPrefix(query, hostLabelQueryPrefix):
@@ -1152,7 +1386,9 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
 // provided fleet.Host appropriately.
-func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, errMsg string) error {
+func (svc *Service) ingestDistributedQuery(
+	ctx context.Context, host fleet.Host, name string, rows []map[string]string, errMsg string, stats *fleet.Stats,
+) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
@@ -1168,7 +1404,8 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 			Hostname:    host.Hostname,
 			DisplayName: host.DisplayName(),
 		},
-		Rows: rows,
+		Rows:  rows,
+		Stats: stats,
 	}
 	if errMsg != "" {
 		res.Error = &errMsg
@@ -1325,6 +1562,7 @@ func (svc *Service) maybeDebugHost(
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
+	stats map[string]*fleet.Stats,
 ) {
 	if svc.debugEnabledForHost(ctx, host.ID) {
 		hlogger := log.With(svc.logger, "host-id", host.ID)
@@ -1333,6 +1571,7 @@ func (svc *Service) maybeDebugHost(
 		logJSON(hlogger, results, "results")
 		logJSON(hlogger, statuses, "statuses")
 		logJSON(hlogger, messages, "messages")
+		logJSON(hlogger, stats, "stats")
 	}
 }
 
@@ -1385,6 +1624,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			err = newOsqueryError("unmarshalling result logs: " + err.Error())
 			break
 		}
+		logging.WithExtras(ctx, "results", len(results))
 
 		// We currently return errors to osqueryd if there are any issues submitting results
 		// to the configured external destinations.
@@ -1399,15 +1639,44 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return submitLogsResponse{Err: err}, nil
 }
 
-func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults []json.RawMessage, queryReportsDisabled bool) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+// preProcessOsqueryResults will attempt to unmarshal `osqueryResults` and will return:
+//   - `unmarshaledResults` with each result unmarshaled to `fleet.ScheduledQueryResult`s, where if an item is `nil` it means the corresponding
+//     `osqueryResults` item could not be unmarshaled.
+//   - queriesDBData has the corresponding DB query to each unmarshalled result in `osqueryResults`.
+//
+// If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
+func (svc *Service) preProcessOsqueryResults(
+	ctx context.Context,
+	osqueryResults []json.RawMessage,
+	queryReportsDisabled bool,
+) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	lograw := func(raw json.RawMessage) string {
+		logr := raw
+		if len(raw) >= 64 {
+			logr = raw[:64]
+		}
+		return string(logr)
+	}
 
 	for _, raw := range osqueryResults {
 		var result *fleet.ScheduledQueryResult
 		if err := json.Unmarshal(raw, &result); err != nil {
-			level.Error(svc.logger).Log("msg", "unmarshalling result", "err", err)
-			// Note we store a nil item if the result could not be unmarshaled.
+			level.Debug(svc.logger).Log("msg", "unmarshalling result", "err", err, "result", lograw(raw))
+			// Note that if err != nil we have two scenarios:
+			// 	- result == nil: which means the result could not be unmarshalled, e.g. not JSON.
+			//	- result != nil: which means that the result was (partially) unmarshalled but some specific
+			// 	field could not be unmarshalled.
+			//
+			// In both scenarios we want to add `result` to `unmarshaledResults`.
+		} else {
+			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
+			if result != nil && result.QueryName == "" {
+				level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
+				result = nil
+			}
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
 	}
@@ -1424,7 +1693,7 @@ func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
+			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
 		if _, ok := queriesDBData[queryResult.QueryName]; ok {
@@ -1446,7 +1715,10 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	svc.authz.SkipAuthorization(ctx)
 
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
-		return newOsqueryError("error writing status logs: " + err.Error())
+		osqueryErr := newOsqueryError("error writing status logs: " + err.Error())
+		// Attempting to write a large amount of data is the most likely explanation for this error.
+		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		return osqueryErr
 	}
 	return nil
 }
@@ -1459,6 +1731,9 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// We do not return errors to osqueryd when processing results because
 	// otherwise the results will never clear from its local DB and
 	// will keep retrying forever.
+	//
+	// We do return errors if we fail to write to the external logging destination,
+	// so that the logs are not lost and osquery retries on its next log interval.
 	//
 
 	var queryReportsDisabled bool
@@ -1483,32 +1758,35 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			// Ignore results that could not be unmarshaled.
 			continue
 		}
+
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs
-			// to the logging destination without any extra processing.
+			// If query_reports_disabled=true we write the logs to the logging destination without any extra processing.
 			//
-			// If a query has automations_enabled = 0 we may still write the results for it here.
-			// Eventually the query will be removed from the host schedule and thus Fleet
-			// won't receive any further results anymore (/api/v1/osquery/config).
+			// If a query was recently configured with automations_enabled = 0 we may still write
+			// the results for it here. Eventually the query will be removed from the host schedule
+			// and thus Fleet won't receive any further results anymore.
 			filteredLogs = append(filteredLogs, logs[i])
 			continue
 		}
 
-		//
-		// If query_reports_disabled=false then we need to filter
-		// the queries that have automations_enabled=false because
-		// the query might have been scheduled because of discard_data=false.
-		//
-
 		dbQuery, ok := queriesDBData[unmarshaledResult.QueryName]
 		if !ok {
-			// Ignore results for unknown queries.
+			// If Fleet doesn't know of the query we write the logs to the logging destination
+			// without any extra processing. This is to support osquery nodes that load their
+			// config from elsewhere (e.g. using `--config_plugin=filesystem`).
+			//
+			// If a query was configured from Fleet but was recently removed, we may still write
+			// the results for it here. Eventually the query will be removed from the host schedule
+			// and thus Fleet won't receive any further results anymore.
+			filteredLogs = append(filteredLogs, logs[i])
 			continue
 		}
+
 		if !dbQuery.AutomationsEnabled {
 			// Ignore results for queries that have automations disabled.
 			continue
 		}
+
 		filteredLogs = append(filteredLogs, logs[i])
 	}
 
@@ -1517,7 +1795,14 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	}
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
-		return newOsqueryError("error writing result logs: " + err.Error())
+		osqueryErr := newOsqueryError(
+			"error writing result logs " +
+				"(if the logging destination is down, you can reduce frequency/size of osquery logs by " +
+				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
+		)
+		// Attempting to write a large amount of data is the most likely explanation for this error.
+		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		return osqueryErr
 	}
 	return nil
 }
@@ -1540,11 +1825,6 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 	filtered := getMostRecentResults(unmarshaledResults)
 
 	for _, result := range filtered {
-		// Discard result if there is no snapshot
-		if len(result.Snapshot) == 0 {
-			continue
-		}
-
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
 			// Means the query does not exist with such name anymore. Thus we ignore its result.
@@ -1583,6 +1863,18 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
+
+	// If the snapshot is empty, we still want to save a row with a null value
+	// to capture LastFetched.
+	if len(result.Snapshot) == 0 {
+		rows = append(rows, &fleet.ScheduledQueryResultRow{
+			QueryID:     queryID,
+			HostID:      hostID,
+			Data:        nil,
+			LastFetched: fetchTime,
+		})
+	}
+
 	for _, snapshotItem := range result.Snapshot {
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
@@ -1631,40 +1923,68 @@ func getMostRecentResults(results []*fleet.ScheduledQueryResult) []*fleet.Schedu
 	return filteredResults
 }
 
-// Query names recieved from osqueryd are prefixed by teamID so we need
-// to pull them out to match the query name and team ID in the database
+// findPackDelimiterString attempts to find the `pack_delimiter` string in the scheduled
+// query name reported by osquery (note that `pack_delimiter` can contain multiple characters).
+//
+// The expected format for s is "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
+//
+// Returns "" if it failed to parse the pack_delimiter.
+func findPackDelimiterString(scheduledQueryName string) string {
+	// Go's regexp doesn't support backreferences so we have to perform some manual work.
+	scheduledQueryName = scheduledQueryName[4:] // always starts with "pack"
+	for l := 1; l < len(scheduledQueryName); l++ {
+		sep := scheduledQueryName[:l]
+		rest := scheduledQueryName[l:]
+		pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
+		matched, _ := regexp.MatchString(pattern, rest)
+		if matched {
+			return sep
+		}
+	}
+	return ""
+}
+
+// getQueryNameAndTeamIDFromResult attempts to parse the scheduled query name reported by osquery.
+//
+// The expected format of query names managed by Fleet is:
+// "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
 func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
+	if !strings.HasPrefix(path, "pack") || len(path) <= 4 {
+		return nil, "", fmt.Errorf("unknown format: %q", path)
+	}
+
+	sep := findPackDelimiterString(path)
+	if sep == "" {
+		// If a pack_delimiter could not be parsed we return an error.
+		//
+		// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
+		// considered unknown format (they are not considered global or team
+		// scheduled queries).
+		return nil, "", fmt.Errorf("unknown format: %q", path)
+	}
+
 	// For pattern: pack/Global/Name
-	if strings.HasPrefix(path, "pack/Global/") {
-		return nil, strings.TrimPrefix(path, "pack/Global/"), nil
+	globalPattern := "pack" + sep + "Global" + sep
+	if strings.HasPrefix(path, globalPattern) {
+		return nil, strings.TrimPrefix(path, globalPattern), nil
 	}
 
 	// For pattern: pack/team-<ID>/Name
-	if strings.HasPrefix(path, "pack/team-") {
-		parts := strings.SplitN(path, "/", 3)
-		if len(parts) != 3 {
-			return nil, "", fmt.Errorf("unknown format: %s", path)
+	teamPattern := "pack" + sep + "team-"
+	if strings.HasPrefix(path, teamPattern) {
+		teamIDAndRest := strings.TrimPrefix(path, teamPattern)
+		teamIDAndQueryNameParts := strings.SplitN(teamIDAndRest, sep, 2)
+		if len(teamIDAndQueryNameParts) != 2 {
+			return nil, "", fmt.Errorf("parsing team number part: %s", path)
 		}
-
-		teamNumberStr := strings.TrimPrefix(parts[1], "team-")
-		teamNumberUint, err := strconv.ParseUint(teamNumberStr, 10, 32)
+		teamNumberUint, err := strconv.ParseUint(teamIDAndQueryNameParts[0], 10, 32)
 		if err != nil {
 			return nil, "", fmt.Errorf("parsing team number: %w", err)
 		}
-
 		teamNumber := uint(teamNumberUint)
-		return &teamNumber, parts[2], nil
-	}
-
-	// For pattern: pack/PackName/Query (legacy pack)
-	if strings.HasPrefix(path, "pack/") {
-		parts := strings.SplitN(path, "/", 3)
-		if len(parts) != 3 {
-			return nil, "", fmt.Errorf("unknown format: %s", path)
-		}
-		return nil, parts[2], nil
+		return &teamNumber, teamIDAndQueryNameParts[1], nil
 	}
 
 	// If none of the above patterns match, return error
-	return nil, "", fmt.Errorf("unknown format: %s", path)
+	return nil, "", fmt.Errorf("unknown format: %q", path)
 }

@@ -242,7 +242,7 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 	var sqStat fleet.ScheduledQueryStats
 	err = json.Unmarshal([]byte(res["p1\x00sq1"]), &sqStat)
 	require.NoError(t, err)
-	require.Equal(t, 1, sqStat.Executions, res["p1\x00sq1"])
+	require.Equal(t, uint64(1), sqStat.Executions, res["p1\x00sq1"])
 
 	count, err := redigo.Int(conn.Do("ZCARD", scheduledQueryStatsHostIDsKey))
 	require.NoError(t, err)

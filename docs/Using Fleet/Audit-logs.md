@@ -610,6 +610,27 @@ This activity contains the following fields:
 }
 ```
 
+## edited_windows_updates
+
+Generated when the Windows OS updates deadline or grace period is modified.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
+- "deadline_days": The number of days before updates are installed, `null` if the requirement was removed.
+- "grace_period_days": The number of days after the deadline before the host is forced to restart, `null` if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "deadline_days": 5,
+  "grace_period_days": 2
+}
+```
+
 ## read_host_disk_encryption_key
 
 Generated when a user reads the disk encryption key for a host.
@@ -832,13 +853,13 @@ This activity contains the following fields:
 
 ## enabled_windows_mdm
 
-Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).
+Generated when a user turns on MDM features for all Windows hosts (servers excluded).
 
 This activity does not contain any detail fields.
 
 ## disabled_windows_mdm
 
-Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.
+Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 
@@ -850,6 +871,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
 
 #### Example
@@ -858,6 +880,7 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "async": false
 }
@@ -918,7 +941,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `created_windows_profile`
+## created_windows_profile
 
 Generated when a user adds a new Windows profile to a team (or no team).
 
@@ -937,7 +960,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `deleted_windows_profile`
+## deleted_windows_profile
 
 Generated when a user deletes a Windows profile from a team (or no team).
 
@@ -956,7 +979,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `edited_windows_profile`
+## edited_windows_profile
 
 Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.
 
@@ -970,6 +993,59 @@ This activity contains the following fields:
 {
   "team_id": 123,
   "team_name": "Workstations"
+}
+```
+
+## locked_host
+
+Generated when a user sends a request to lock a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## unlocked_host
+
+Generated when a user sends a request to unlock a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
+}
+```
+
+## wiped_host
+
+Generated when a user sends a request to wipe a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 

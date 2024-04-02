@@ -1,6 +1,6 @@
 import EmptyQueries from "./EmptyQueries";
 import EmptyIntegrations from "./EmptyIntegrations";
-import EmptyMembers from "./EmptyMembers";
+import EmptyUsers from "./EmptyUsers";
 import EmptyPolicies from "./EmptyPolicies";
 import EmptySoftware from "./EmptySoftware";
 import FileConfigurationProfile from "./FileConfigurationProfile";
@@ -17,12 +17,13 @@ import EmptyTeams from "./EmptyTeams";
 import EmptyPacks from "./EmptyPacks";
 import EmptySchedule from "./EmptySchedule";
 import CollectingResults from "./CollectingResults";
+import CalendarEventPreview from "./CalendarEventPreview";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
   "empty-queries": EmptyQueries,
   "empty-integrations": EmptyIntegrations,
-  "empty-members": EmptyMembers,
+  "empty-users": EmptyUsers,
   "empty-policies": EmptyPolicies,
   "empty-software": EmptySoftware,
   "empty-hosts": EmptyHosts,
@@ -41,6 +42,7 @@ export const GRAPHIC_MAP = {
   "file-pem": FilePem,
   // Other graphics
   "collecting-results": CollectingResults,
+  "calendar-event-preview": CalendarEventPreview,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;

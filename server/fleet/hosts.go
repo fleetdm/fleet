@@ -39,6 +39,15 @@ const (
 	OnlineIntervalBuffer = 60
 )
 
+func (s HostStatus) IsValid() bool {
+	switch s {
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
+		return true
+	default:
+		return false
+	}
+}
+
 // MDMEnrollStatus defines the possible MDM enrollment statuses.
 type MDMEnrollStatus string
 
@@ -126,11 +135,22 @@ type HostListOptions struct {
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
 
+	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
+	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
+	// instead.
 	SoftwareIDFilter *uint
+	// SoftwareVersionIDFilter filters the hosts by the software version ID that
+	// they use. This identifies a specific version of a "software title".
+	SoftwareVersionIDFilter *uint
+	// SoftwareTitleIDFilter filers the hosts by the software title ID that they
+	// use. This identifies a "software title" independent of the specific
+	// version.
+	SoftwareTitleIDFilter *uint
 
-	OSIDFilter      *uint
-	OSNameFilter    *string
-	OSVersionFilter *string
+	OSIDFilter        *uint
+	OSNameFilter      *string
+	OSVersionFilter   *string
+	OSVersionIDFilter *uint
 
 	DisableFailingPolicies bool
 
@@ -167,6 +187,15 @@ type HostListOptions struct {
 	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
 	// disable it).
 	LowDiskSpaceFilter *int
+
+	// PopulateSoftware adds the `Software` field to all Hosts returned.
+	PopulateSoftware bool
+
+	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
+	PopulatePolicies bool
+
+	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
+	VulnerabilityFilter *string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -179,6 +208,8 @@ func (h HostListOptions) Empty() bool {
 		h.PolicyIDFilter == nil &&
 		h.PolicyResponseFilter == nil &&
 		h.SoftwareIDFilter == nil &&
+		h.SoftwareVersionIDFilter == nil &&
+		h.SoftwareTitleIDFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
@@ -266,6 +297,7 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
+	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -318,7 +350,26 @@ type Host struct {
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
-	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at"`
+	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
+
+	// Policies is the list of policies and whether it passes for the host
+	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+}
+
+// HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
+// the same name, see the comments/docs for the Host field above.
+type HostHealth struct {
+	UpdatedAt             time.Time           `json:"updated_at,omitempty" db:"updated_at"`
+	OsVersion             string              `json:"os_version,omitempty" db:"os_version"`
+	DiskEncryptionEnabled *bool               `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
+	VulnerableSoftware    []HostSoftwareEntry `json:"vulnerable_software,omitempty"`
+	FailingPolicies       []*HostPolicy       `json:"failing_policies,omitempty"`
+	Platform              string              `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                *uint               `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+}
+
+func (hh HostHealth) AuthzType() string {
+	return "host_health"
 }
 
 type MDMHostData struct {
@@ -328,6 +379,10 @@ type MDMHostData struct {
 	// EnrollmentStatus is a string representation of state derived from
 	// booleans stored in the host_mdm table, loaded by JOIN in datastore
 	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
+	// DEPProfileError is a boolean representing whether Fleet received a "FAILED" response when
+	// attempting to assign a DEP profile for the host.
+	// See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse
+	DEPProfileError bool `json:"dep_profile_error" db:"dep_profile_error" csv:"mdm.dep_profile_error"`
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
 	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
@@ -357,7 +412,7 @@ type MDMHostData struct {
 	// It is a pointer to a slice so that when set, it gets marhsaled even
 	// if the slice is empty, but when unset, it doesn't get marshaled
 	// (e.g. we don't return that information for the List Hosts endpoint).
-	Profiles *[]HostMDMAppleProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
+	Profiles *[]HostMDMProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
 
 	// MacOSSettings indicates macOS-specific MDM settings for the host, such
 	// as disk encryption status and whether any user action is required to
@@ -371,6 +426,13 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+
+	// The DeviceStatus and PendingAction fields are not stored in the database
+	// directly, they are read from the GetHostLockWipeStatus datastore method
+	// and determined from those results. They are not filled by all
+	// host-returning methods.
+	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
+	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
@@ -462,10 +524,10 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
-					switch {
-					case *fvprof.Status == MDMDeliveryVerifying:
+					switch *fvprof.Status {
+					case MDMDeliveryVerifying:
 						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
-					case *fvprof.Status == MDMDeliveryVerified:
+					case MDMDeliveryVerified:
 						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
 					}
 				} else if d.rawDecryptable != nil {
@@ -482,7 +544,12 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 					// if [a FileVault profile is pending to be installed or] the
 					// matching row in host_disk_encryption_keys has a field decryptable
 					// = NULL
-					settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+					switch *fvprof.Status {
+					case MDMDeliveryVerifying, MDMDeliveryVerified:
+						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
+					case MDMDeliveryPending:
+						settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+					}
 				}
 
 			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
@@ -632,21 +699,25 @@ func (h *Host) IsEligibleForBitLockerEncryption() bool {
 		(needsEncryption || encryptedWithoutKey)
 }
 
-// DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
+// HostDisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
 // string.
-func (h *Host) DisplayName() string {
+func HostDisplayName(ComputerName string, Hostname string, HardwareModel string, HardwareSerial string) string {
 	switch {
-	case h.ComputerName != "":
-		return h.ComputerName
-	case h.Hostname != "":
-		return h.Hostname
-	case h.HardwareModel != "" && h.HardwareSerial != "":
-		return fmt.Sprintf("%s (%s)", h.HardwareModel, h.HardwareSerial)
+	case ComputerName != "":
+		return ComputerName
+	case Hostname != "":
+		return Hostname
+	case HardwareModel != "" && HardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", HardwareModel, HardwareSerial)
 	default:
 		return ""
 	}
+}
+
+func (h *Host) DisplayName() string {
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
 type HostIssues struct {
@@ -666,8 +737,6 @@ type HostDetail struct {
 	Labels []*Label `json:"labels"`
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
-	// Policies is the list of policies and whether it passes for the host
-	Policies *[]*HostPolicy `json:"policies,omitempty"`
 	// Batteries is the list of batteries for the host. It is a pointer to a
 	// slice so that when set, it gets marhsaled even if the slice is empty,
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
@@ -801,6 +870,18 @@ func ExpandPlatform(platform string) []string {
 	}
 }
 
+// List of valid sources for HostDeviceMapping (host_emails table in the
+// database).
+const (
+	DeviceMappingGoogleChromeProfiles = "google_chrome_profiles"
+	DeviceMappingMDMIdpAccounts       = "mdm_idp_accounts"
+	DeviceMappingCustomInstaller      = "custom_installer" // set by fleetd via device-authenticated API
+	DeviceMappingCustomOverride       = "custom_override"  // set by user via user-authenticated API
+
+	DeviceMappingCustomPrefix      = "custom_" // if host_emails.source starts with this, replace with DeviceMappingCustomReplacement
+	DeviceMappingCustomReplacement = "custom"  // replaces a source that starts with CustomPrefix - in the UI, we want to display those as only "custom"
+)
+
 // HostDeviceMapping represents a mapping of a user email address to a host,
 // as reported by the specified source (e.g. Google Chrome Profiles).
 type HostDeviceMapping struct {
@@ -916,6 +997,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"jamf":      WellKnownMDMJamf,
 	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
+	"awmdm":     WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
 	"fleetdm":   WellKnownMDMFleet,
@@ -978,6 +1060,7 @@ func (h *HostMDM) UnmarshalJSON(b []byte) error {
 // HostBattery represents a host's battery, as reported by the osquery battery
 // table.
 type HostBattery struct {
+	ID           uint   `json:"-" db:"id"`
 	HostID       uint   `json:"-" db:"host_id"`
 	SerialNumber string `json:"-" db:"serial_number"`
 	CycleCount   int    `json:"cycle_count" db:"cycle_count"`
@@ -1068,7 +1151,16 @@ type OSVersions struct {
 	OSVersions      []OSVersion `json:"os_versions"`
 }
 
+type VulnerableOS struct {
+	OSVersion
+	ResolvedInVersion *string `json:"resolved_in_version"`
+}
+
 type OSVersion struct {
+	// ID is the unique id of the operating system.
+	ID uint `json:"id,omitempty"`
+	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
 	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
@@ -1081,8 +1173,12 @@ type OSVersion struct {
 	Version string `json:"version"`
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
-	// ID is the unique id of the operating system.
-	ID uint `json:"os_id,omitempty"`
+	// GeneratedCPE is the Common Platform Enumeration (CPE) name for the operating system.
+	// It is currently only generated for Operating Systems scanned for vulnerabilities
+	// in NVD (macOS only)
+	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
+	// Vulnerabilities are the vulnerabilities associated with the operating system.
+	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 }
 
 type HostDetailOptions struct {
@@ -1098,11 +1194,13 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
-	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
-	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
-	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" db:"team_id"`
-	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	HardwareSerial        string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP      bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName           string `json:"display_name" db:"display_name"`
+	TeamID                uint   `json:"team_id" db:"team_id"`
+	DEPAssignedToFleet    bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled       bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
 }
 
 type HostDiskEncryptionKey struct {
@@ -1134,4 +1232,18 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+// HostLite contains a subset of Host fields.
+type HostLite struct {
+	ID                  uint      `db:"id"`
+	TeamID              *uint     `db:"team_id"`
+	Hostname            string    `db:"hostname"`
+	OsqueryHostID       string    `db:"osquery_host_id"`
+	NodeKey             string    `db:"node_key"`
+	UUID                string    `db:"uuid"`
+	HardwareSerial      string    `db:"hardware_serial"`
+	SeenTime            time.Time `db:"seen_time"`
+	DistributedInterval uint      `db:"distributed_interval"`
+	ConfigTLSRefresh    uint      `db:"config_tls_refresh"`
 }

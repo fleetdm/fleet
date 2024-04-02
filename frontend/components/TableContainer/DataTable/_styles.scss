@@ -211,6 +211,10 @@ $shadow-transition-width: 10px;
         max-width: 500px;
         word-wrap: break-word;
 
+        &.linkToFilteredHosts__cell {
+          text-align: right;
+        }
+
         &.selection__cell {
           width: 0px;
           padding: 0 $pad-medium;
@@ -319,7 +323,7 @@ $shadow-transition-width: 10px;
           font-size: 0.6rem;
           font-weight: $bold;
           position: relative;
-          top: -2px;
+          top: -1px;
         }
       }
 
@@ -330,7 +334,7 @@ $shadow-transition-width: 10px;
           font-size: 0.6rem;
           font-weight: $bold;
           position: relative;
-          top: -2px;
+          top: -1px;
         }
       }
     }

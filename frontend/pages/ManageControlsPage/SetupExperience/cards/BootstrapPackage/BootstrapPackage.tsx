@@ -8,6 +8,8 @@ import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
+
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
@@ -65,7 +67,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
 
   return (
     <div className={baseClass}>
-      <h2>Bootstrap package</h2>
+      <SectionHeader title="Bootstrap package" />
       {isLoading ? (
         <Spinner />
       ) : (

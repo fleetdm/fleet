@@ -1,7 +1,7 @@
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 data "aws_kms_alias" "s3" {
-  name = "aws/s3"
+  name = "alias/aws/s3"
 }
 
 resource "aws_s3_bucket" "destination" {
@@ -14,11 +14,6 @@ resource "aws_s3_bucket_public_access_block" "destination" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_acl" "destination" {
-  bucket = aws_s3_bucket.destination.id
-  acl    = "private"
 }
 
 // Objects in S3 are now encrypted by default https://aws.amazon.com/blogs/aws/amazon-s3-encrypts-new-objects-by-default/

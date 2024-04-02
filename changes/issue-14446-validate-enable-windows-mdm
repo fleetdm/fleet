@@ -1,1 +1,0 @@
-* Added a validation that the WSTEP certificate and key pair is configured before allowing the user to enable Windows MDM.

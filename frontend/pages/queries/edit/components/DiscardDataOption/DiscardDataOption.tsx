@@ -46,7 +46,7 @@ const DiscardDataOption = ({
             {"globally disabled."}
           </TooltipWrapper>{" "}
           <Link
-            to={""}
+            to=""
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               setForceEditDiscardData(true);
@@ -83,19 +83,17 @@ const DiscardDataOption = ({
           </>
         </InfoBanner>
       )}
-      <div className="form-field-with-help-text">
-        <Checkbox
-          name="discardData"
-          onChange={setDiscardData}
-          value={discardData}
-          wrapperClassName={
-            disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
-          }
-        >
-          <b>Discard data</b>
-        </Checkbox>
-        {renderHelpText()}
-      </div>
+      <Checkbox
+        name="discardData"
+        onChange={setDiscardData}
+        value={discardData}
+        wrapperClassName={
+          disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
+        }
+        helpText={renderHelpText()}
+      >
+        Discard data
+      </Checkbox>
     </div>
   );
 };

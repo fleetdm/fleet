@@ -1,20 +1,4 @@
 .yaml-ace {
-  &__label {
-    font-size: $small;
-    font-weight: $bold;
-    font-style: normal;
-    font-stretch: normal;
-    letter-spacing: -0.5px;
-    color: $core-fleet-black;
-    display: block;
-    margin: 0 0 $pad-xsmall;
-    min-height: 25px;
-
-    &--error {
-      color: $ui-error;
-    }
-  }
-
   &__wrapper {
     &--error {
       .ace-fleet {

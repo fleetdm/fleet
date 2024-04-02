@@ -30,7 +30,6 @@ Our query runs as expected when `osqueryi` is run as a normal user, but returns 
 
 This same issue manifests on many tables that include a `uid` column:
 
-- `atom_packages`
 - `authorized_keys`
 - `chrome_extension_content_scripts`
 - `chrome_extensions`
