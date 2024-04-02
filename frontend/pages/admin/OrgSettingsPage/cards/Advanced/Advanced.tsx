@@ -226,8 +226,7 @@ const Advanced = ({
               <>
                 When enabled, allows automatic cleanup of audit logs older than
                 the number of days specified in the{" "}
-                <em>Audit log retention window</em>
-                setting.
+                <em>Audit log retention window</em> setting.
                 <em>
                   (Default: <strong>Off</strong>)
                 </em>
