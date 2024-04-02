@@ -895,6 +895,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 func (s *integrationTestSuite) TestGlobalPolicies() {
 	t := s.T()
 
+	// create 3 hosts
 	for i := 0; i < 3; i++ {
 		_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -918,6 +919,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	})
 	require.NoError(t, err)
 
+	// create a global policy
 	gpParams := globalPolicyRequest{
 		QueryID:    &qr.ID,
 		Resolution: "some global resolution",
@@ -931,6 +933,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	require.NotNil(t, gpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution", *gpResp.Policy.Resolution)
 
+	// list global policies
 	policiesResponse := listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
@@ -969,6 +972,27 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 1)
 
+	// count global policies
+	cGPRes := countGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes)
+	assert.Equal(t, 1, cGPRes.Count)
+
+	// count global policies with matching search query
+	cGPRes = countGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", "estQue")
+	assert.Equal(t, 1, cGPRes.Count)
+
+	// count global policies with matching search query containing leading/trailing whitespace
+	cGPRes = countGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", " estQue    ")
+	assert.Equal(t, 1, cGPRes.Count)
+
+	// count global policies with non-matching search query
+	cGPRes = countGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &cGPRes, "query", "Query4")
+	assert.Equal(t, 0, cGPRes.Count)
+
+	// delete the policy
 	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
 	deletePolicyResp := deleteGlobalPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
