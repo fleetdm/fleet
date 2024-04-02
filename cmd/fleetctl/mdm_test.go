@@ -101,8 +101,10 @@ func TestMDMRunCommand(t *testing.T) {
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
 	}
 	hostByUUID := make(map[string]*fleet.Host)
+	hostByID := make(map[uint]*fleet.Host)
 	for _, h := range []*fleet.Host{macEnrolled, winEnrolled, macUnenrolled, winUnenrolled, linuxUnenrolled, macEnrolled2, winEnrolled2, macNonFleetEnrolled, winNonFleetEnrolled, macPending, winPending} {
 		hostByUUID[h.UUID] = h
+		hostByID[h.ID] = h
 	}
 
 	// define some files to use in the tests
@@ -221,6 +223,15 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 				return &fleet.HostMDMDiskEncryption{}, nil
 			}
+			ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+				h, ok := hostByID[hostID]
+				require.True(t, ok)
+				if h.MDMInfo == nil {
+					return nil, &notFoundError{}
+				}
+				return h.MDMInfo, nil
+			}
+
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 				return map[string]error{}, nil
 			}
@@ -467,6 +478,15 @@ func TestMDMLockCommand(t *testing.T) {
 		return nil
 	}
 
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		h, ok := hostsByID[hostID]
+		if !ok || h.MDMInfo == nil {
+			return nil, &notFoundError{}
+		}
+
+		return h.MDMInfo, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -699,6 +719,15 @@ func TestMDMUnlockCommand(t *testing.T) {
 	}
 	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, platform string, ts time.Time) error {
 		return nil
+	}
+
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		h, ok := hostsByID[hostID]
+		if !ok || h.MDMInfo == nil {
+			return nil, &notFoundError{}
+		}
+
+		return h.MDMInfo, nil
 	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
@@ -999,6 +1028,15 @@ func TestMDMWipeCommand(t *testing.T) {
 
 	ds.WipeHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 		return nil
+	}
+
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		h, ok := hostsByID[hostID]
+		if !ok || h.MDMInfo == nil {
+			return nil, &notFoundError{}
+		}
+
+		return h.MDMInfo, nil
 	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()

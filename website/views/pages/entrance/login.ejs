@@ -2,17 +2,19 @@
   <div :purpose="[showCustomerLogin ? 'customer-login-container' : 'login-container']" class="container-fluid pb-5 px-lg-0 px-3">
     <div purpose="page-heading" v-if="showCustomerLogin">
       <h1>Welcome to Fleet</h1>
-      <p class="pb-2">We just need a few details in order to get started.</p>
+      <p class="mb-0">We just need a few details in order to get started.</p>
     </div>
     <div purpose="page-heading" v-else>
       <h1>Welcome to Fleet</h1>
-      <p class="pb-2">Sign in to your Fleet account.</p>
+      <p class="mb-0">Sign in to your Fleet account.</p>
     </div>
-    <div purpose="customer-portal-form"  class="card card-body">
+    <div purpose="customer-portal-form"  class="card card-body mb-5">
+      <div purpose="register-link" v-if="showCustomerLogin">
+        <a href="/register">Create an account</a>
+      </div>
       <ajax-form class="customers-login" action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
         <div class="form-group">
           <label for="email">Email</label>
-          <span style="float: right" class="text-right small" v-if="showCustomerLogin"><a href="/register">Create an account</a></span>
           <input type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
           <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
         </div>
@@ -30,6 +32,7 @@
       </ajax-form>
       <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>
     </div>
+    <logo-carousel></logo-carousel>
   </div>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

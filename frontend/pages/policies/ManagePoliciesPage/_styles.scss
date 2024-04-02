@@ -42,6 +42,15 @@
           font-style: normal;
           text-align: center;
         }
+
+        // arrow styles directly from react-tooltip-5 css
+        .tooltip-arrow {
+          width: 8px;
+          height: 8px;
+        }
+        [class*="react-tooltip__place-left"] > .tooltip-arrow {
+          transform: rotate(315deg);
+        }
       }
     }
     .Select-control {
