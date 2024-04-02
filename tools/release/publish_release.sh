@@ -357,15 +357,15 @@ if [ -z "$open_api_key" ]; then
     fi
 fi
 
-if [ -n "$SLACK_GENERAL_TOKEN" ]; then
+if [ -z "$SLACK_GENERAL_TOKEN" ]; then
     echo "Error: No SLACK_GENERAL_TOKEN environment variable." >&2
     exit 1
 fi
-if [ -n "$SLACK_HELP_INFRA_TOKEN" ]; then
+if [ -z "$SLACK_HELP_INFRA_TOKEN" ]; then
     echo "Error: No SLACK_HELP_INFRA_TOKEN environment variable." >&2
     exit 1
 fi
-if [ -n "$SLACK_HELP_ENG_TOKEN" ]; then
+if [ -z "$SLACK_HELP_ENG_TOKEN" ]; then
     echo "Error: No SLACK_HELP_ENG_TOKEN environment variable." >&2
     exit 1
 fi
@@ -429,17 +429,17 @@ if [ "$force" = "false" ]; then
 fi
 # 4.47.2
 start_milestone="${start_version:1}"
-# 4.47.3
+# 4.48.0
 target_milestone="${next_ver:1}"
 # 79
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
-# patch-fleet-v4.47.3
+# patch-fleet-v4.48.0
 target_patch_branch="patch-fleet-$next_ver"
 if [[ "$main_release" == "true" ]]; then
     target_patch_branch="prepare-fleet-$next_ver"
 fi
 
-# fleet-v4.47.3
+# fleet-v4.48.0
 next_tag="fleet-$next_ver"
 
 if [ "$print_info" = "true" ]; then
@@ -600,7 +600,7 @@ if [[ "$failed" == "false" ]]; then
     if [ "$dry_run" = "false" ]; then
         make changelog
         git diff CHANGELOG.md | $GREP_CMD '^+' | sed 's/^+//g' | $GREP_CMD -v CHANGELOG.md > new_changelog
-        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
+        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Put features and improvement under a list called "Features" and bug fixes under a list called "Bug fixes". 6. Output in markdown format.'
         content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
         question="${prompt}\n\n${content}"
 
