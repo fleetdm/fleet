@@ -143,7 +143,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	contents := files.Contents{
 		&files.Content{
 			Source:      filepath.Join(rootDir, "**"),
-			Destination: "/**",
+			Destination: "/",
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
@@ -166,13 +166,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	// Add empty folders to be created.
-	const defaultUmask = 0o022
 	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
 		contents = append(contents, (&files.Content{
 			Destination: emptyFolder,
 			Type:        "dir",
-		}).WithFileInfoDefaults(defaultUmask),
-		)
+		}).WithFileInfoDefaults())
 	}
 
 	if varLibSymlink {
@@ -188,7 +186,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			})
 	}
 
-	contents, err = files.PrepareForPackager(contents, defaultUmask, "", false)
+	contents, err = files.ExpandContentGlobs(contents, false)
 	if err != nil {
 		return "", fmt.Errorf("glob contents: %w", err)
 	}
