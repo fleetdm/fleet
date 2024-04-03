@@ -265,11 +265,15 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			return fleet.OrbitConfig{}, err
 		}
 
-		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
-		if err != nil {
-			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "get orbit config")
+		var hostOS *fleet.OperatingSystem
+		if host.ID != 0 {
+			hostOS, err = svc.ds.GetHostOperatingSystem(ctx, host.ID)
+			if err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "get orbit config")
+			}
+		} else {
+			hostOS = &fleet.OperatingSystem{}
 		}
-
 
 		var macOsVersionFloat float32
 		if hostOS.Platform == "darwin" {
