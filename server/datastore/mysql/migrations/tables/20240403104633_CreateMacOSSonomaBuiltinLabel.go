@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,10 +22,14 @@ func Up_20240403104633(tx *sql.Tx) error {
 			query,
 			platform,
 			label_type,
-			label_membership_type
-		) VALUES (?, ?, ?, ?, ?, ?)
+			label_membership_type,
+			created_at,
+			updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
+	// hard-coded timestamps are used so that schema.sql is stable
+	ts := time.Date(2024, 4, 3, 0, 0, 0, 0, time.UTC)
 	_, err := tx.Exec(
 		stmt,
 		fleet.BuiltinMacOS14PlusLabelName,
@@ -33,6 +38,8 @@ func Up_20240403104633(tx *sql.Tx) error {
 		"darwin",
 		fleet.LabelTypeBuiltIn,
 		fleet.LabelMembershipTypeDynamic,
+		ts,
+		ts,
 	)
 	if err != nil {
 		if driverErr, ok := err.(*mysql.MySQLError); ok {
