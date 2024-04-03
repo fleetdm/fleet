@@ -58,7 +58,14 @@ const FlashMessage = ({
     }
 
     return undefined; // No cleanup when we don't set a timeout.
-  }, [notification, alertType, isVisible, setHide]);
+  }, [
+    notification,
+    alertType,
+    isVisible,
+    setHide,
+    isPersistent,
+    onRemoveFlash,
+  ]);
 
   if (hide || !isVisible) {
     return null;

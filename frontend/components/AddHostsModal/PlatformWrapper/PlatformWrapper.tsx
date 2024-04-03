@@ -55,9 +55,9 @@ const platformSubNav: IPlatformSubNav[] = [
 interface IPlatformWrapperProps {
   enrollSecret: string;
   onCancel: () => void;
-  certificate: any;
+  certificate?: string;
   isFetchingCertificate: boolean;
-  fetchCertificateError: any;
+  fetchCertificateError: string | null;
   config: IConfig | null;
 }
 

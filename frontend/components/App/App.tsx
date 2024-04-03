@@ -1,4 +1,4 @@
-import React, { FC, ReactNode, useContext, useEffect, useState } from "react";
+import React, { FC, useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
 import {
   QueryClient,
@@ -152,7 +152,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         setEnrollSecret(spec.secrets);
       } catch (error) {
         console.error(error);
-        return false;
       }
     };
 
