@@ -8,6 +8,7 @@
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
+  var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
   
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
@@ -217,7 +218,9 @@
                       <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
                     </div>
                   <%}%>
-                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact">Talk to us</a>
+                  <%if(!hideGetStartedButton){%>
+                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/register">Start now</a>
+                  <% }%>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
@@ -264,7 +267,9 @@
                   <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
                   allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
                 </span>
-                <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact">Talk to us</a>
+                <%if(!hideGetStartedButton){%>
+                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register">Start now</a>
+                <% }%>
                 <% if(_.has(me, 'id')) {%>
                 <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
                 <% }%>
