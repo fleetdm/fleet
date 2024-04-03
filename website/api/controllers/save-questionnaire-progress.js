@@ -10,7 +10,20 @@ module.exports = {
   inputs: {
     currentStep: {
       type: 'string',
-      description: 'The step of the get started questionnaire that is being saved.'
+      description: 'The step of the get started questionnaire that is being saved.',
+      isIn: [
+        'start',
+        'what-are-you-using-fleet-for',
+        'have-you-ever-used-fleet',
+        'how-many-hosts',
+        'will-you-be-self-hosting',
+        'what-are-you-working-on-eo-security',
+        'is-it-any-good',
+        'what-did-you-think',
+        'deploy-fleet-in-your-environment',
+        'managed-cloud-for-growing-deployments',
+        'self-hosted-deploy',
+      ]
     },
     formData: {
       type: {},
@@ -27,6 +40,9 @@ module.exports = {
   fn: async function ({currentStep, formData}) {
     // find this user's DB record.
     let userRecord = await User.findOne({id: this.req.me.id});
+    if(!userRecord){
+      throw new Error(`Consistency violation: when trying to save a user's progress in the get started questionnaire, a User record with the ID ${this.req.me.id} could not be found.`);
+    }
     let questionnaireProgress;
     // If this user doesn't have a currentGetStartedQuestionnarieStep or getStartedQuestionnarieAnswers
     if(!userRecord.currentGetStartedQuestionnarieStep || _.isEmpty(userRecord.getStartedQuestionnarieAnswers)) {
@@ -34,6 +50,7 @@ module.exports = {
     } else {// other wise clone it from the user record.
       questionnaireProgress = _.clone(userRecord.getStartedQuestionnarieAnswers);
     }
+    // When the 'what-are-you-using-fleet-for' is completed, update this user's record to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
       let primaryBuyingSituation = formData.primaryBuyingSituation;
       await User.updateOne({id: this.req.me.id}).set({primaryBuyingSituation});
