@@ -106,19 +106,19 @@
 
           <div class="form-group" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']">
             <label purpose="form-option" class="form-control">
-              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="1 to 100" @input="clickClearOneFormError('numberOfHosts')">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="1-100" @input="clickClearOneFormError('numberOfHosts')">
               1 to 100
             </label>
             <label purpose="form-option" class="form-control">
-              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="100 to 700" @input="clickClearOneFormError('numberOfHosts')">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="100-700" @input="clickClearOneFormError('numberOfHosts')">
               100 to 700
             </label>
             <label purpose="form-option" class="form-control">
-              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="700 to 1000" @input="clickClearOneFormError('numberOfHosts')">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="700-1000" @input="clickClearOneFormError('numberOfHosts')">
               700 to 1000
             </label>
             <label purpose="form-option" class="form-control">
-              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="over 1000" @input="clickClearOneFormError('numberOfHosts')">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="1000+" @input="clickClearOneFormError('numberOfHosts')">
               More than 1000
             </label>
             <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please select an option</div>
@@ -172,7 +172,7 @@
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>What are you working on, mainly?</h2>
-      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-are-you-working-on-eo-security']" :form-rules="endpointOpsSecurityWorkinOnFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-are-you-working-on-eo-security']" :form-rules="endpointOpsSecurityWorkingOnFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div class="form-group">
 
           <div class="form-group" :class="[formErrors.endpointOpsSecurityUseCase ? 'is-invalid' : '']">
@@ -254,10 +254,10 @@
       <p>Now that you’ve seen what Fleet can do, what do you want to do next?</p>
       <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-did-you-think']" :form-rules="endpointOpsSecurityWhatDidYouThinkFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div class="form-group" :class="[formErrors.whatDidYouThink ? 'is-invalid' : '']">
-          <label purpose="form-option" class="form-control" @click="clickGoToContactPage()">
+          <div purpose="form-option" class="form-control" @click.stop.prevent="clickGoToContactPage()">
             <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="Id like you to host Fleet for me">
             I’d like you to host Fleet for me
-          </label>
+          </div>
           <label purpose="form-option" class="form-control">
             <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="deploy-fleet-in-environemnt" @input="clickClearOneFormError('whatDidYouThink')">
             I’d like to deploy Fleet in my environment

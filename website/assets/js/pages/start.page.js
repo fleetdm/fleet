@@ -14,7 +14,6 @@ parasails.registerPage('start', {
       'have-you-ever-used-fleet': {},
       'how-many-hosts': {},
       'will-you-be-self-hosting': {},
-      'what-are-you-working-on': {},
       'what-are-you-working-on-eo-security': {},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
@@ -36,7 +35,7 @@ parasails.registerPage('start', {
     hostingFleetFormRules: {
       willSelfHost: {required: true}
     },
-    endpointOpsSecurityWorkinOnFormRules: {
+    endpointOpsSecurityWorkingOnFormRules: {
       endpointOpsSecurityUseCase: {required: true}
     },
     endpointOpsSecurityIsItAnyGoodFormRules: {
