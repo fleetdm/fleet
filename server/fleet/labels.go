@@ -111,6 +111,8 @@ func (l Label) AuthzType() string {
 
 const (
 	LabelKind = "label"
+
+	BuiltinMacOS14PlusLabelName = "macOS 14+ (Sonoma+)"
 )
 
 type LabelQueryExecution struct {

@@ -303,6 +303,20 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 	return nil
 }
 
+func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error {
+	const stmt = `DELETE FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`
+
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTmID, name)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	return nil
+}
+
 func (ds *Datastore) deleteMDMAppleDeclaration(ctx context.Context, uuid string) error {
 	stmt := `DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?`
 

@@ -25,10 +25,9 @@ func Up_20240403104633(tx *sql.Tx) error {
 		) VALUES (?, ?, ?, ?, ?, ?)
 `
 
-	const labelName = "macOS 14+ (Sonoma+)"
 	_, err := tx.Exec(
 		stmt,
-		labelName,
+		fleet.BuiltinMacOS14PlusLabelName,
 		"macOS hosts with version 14 and above",
 		`select 1 from os_version where platform = 'darwin' and major >= 14;`,
 		"darwin",
@@ -43,7 +42,7 @@ func Up_20240403104633(tx *sql.Tx) error {
 				// across built-in and regular. (I don't think we've done anything
 				// special before, but this seems a bit nicer/clearer as to why the
 				// migration may have failed and how to fix it)
-				return fmt.Errorf("a label with the name %q already exists, please rename it before applying this migration: %w", labelName, err)
+				return fmt.Errorf("a label with the name %q already exists, please rename it before applying this migration: %w", fleet.BuiltinMacOS14PlusLabelName, err)
 			}
 		}
 		return err

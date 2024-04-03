@@ -1060,10 +1060,21 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 	// should not be created?
 
 	if updates.MinimumVersion.Value == "" {
-		// TODO: OS updates disabled, remove the profile
+		// OS updates disabled, remove the profile
+		if err := svc.ds.DeleteMDMAppleDeclarationByName(ctx, teamID, mdm.FleetMacOSUpdatesProfileName); err != nil {
+			return err
+		}
+		var globalOrTeamID uint
+		if teamID != nil {
+			globalOrTeamID = *teamID
+		}
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{globalOrTeamID}, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
 		return nil
 	}
-	// TODO: OS updates enabled and modified, create or update the profile
+
+	// OS updates enabled, create or update the profile with the current settings
 
 	const macOSSoftwareUpdateType = `com.apple.configuration.softwareupdate.enforcement.specific`
 	ident := uuid.NewString()
@@ -1077,13 +1088,23 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 	}
 }`, ident, macOSSoftwareUpdateType, updates.MinimumVersion.Value))
 	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, mdm.FleetMacOSUpdatesProfileName, macOSSoftwareUpdateType, ident)
-	// TODO(mna): create hidden label targeting macOS >= 14
-	//d.Labels = validatedLabels
+
+	// associate the profile with the built-in label that ensures the host is on
+	// macOS 14+ to receive that profile
+	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{fleet.BuiltinMacOS14PlusLabelName})
+	if err != nil {
+		return err
+	}
+	d.Labels = []fleet.ConfigurationProfileLabel{
+		{LabelName: fleet.BuiltinMacOS14PlusLabelName, LabelID: lblIDs[fleet.BuiltinMacOS14PlusLabelName]},
+	}
+
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
 	if err != nil {
 		return err
 	}
 
+	// mark all hosts affected by that profile as pending
 	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
 	}
