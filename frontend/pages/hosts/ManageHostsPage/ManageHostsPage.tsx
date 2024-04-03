@@ -393,7 +393,6 @@ const ManageHostsPage = ({
   >(
     [
       {
-        // Order matches rest-api.md > List hosts parameters
         scope: "hosts",
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
