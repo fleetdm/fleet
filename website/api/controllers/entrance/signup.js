@@ -152,7 +152,6 @@ the account verification message.)`,
       signupReason,
       password: await sails.helpers.passwords.hashPassword(password),
       stripeCustomerId,
-      primaryBuyingSituation,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
@@ -172,7 +171,6 @@ the account verification message.)`,
         lastName,
         organization,
         signupReason,
-        primaryBuyingSituation,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
       }
     })
