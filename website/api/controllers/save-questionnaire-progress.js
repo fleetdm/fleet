@@ -50,10 +50,12 @@ module.exports = {
     } else {// other wise clone it from the user record.
       questionnaireProgress = _.clone(userRecord.getStartedQuestionnarieAnswers);
     }
-    // When the 'what-are-you-using-fleet-for' is completed, update this user's record to include their answer.
+    // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
       let primaryBuyingSituation = formData.primaryBuyingSituation;
       await User.updateOne({id: this.req.me.id}).set({primaryBuyingSituation});
+      // Set the primary buying situation in the user's session.
+      this.req.session.primaryBuyingSituation = primaryBuyingSituation;
     }
     // Set the user's answer to the current step.
     questionnaireProgress[currentStep] = formData;
