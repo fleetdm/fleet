@@ -2460,8 +2460,9 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	err = s.ds.AddHostsToTeam(context.Background(), &team1.ID, hosts)
 	require.NoError(t, err)
 
+	tpName := "TestPolicy3"
 	tpParams := teamPolicyRequest{
-		Name:        "TestQuery3",
+		Name:        tpName,
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
@@ -2471,7 +2472,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
-	assert.Equal(t, "TestQuery3", tpResp.Policy.Name)
+	assert.Equal(t, tpName, tpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery;", tpResp.Policy.Query)
 	assert.Equal(t, "Some description", tpResp.Policy.Description)
 	require.NotNil(t, tpResp.Policy.Resolution)
@@ -2480,9 +2481,10 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "Test Name admin1@example.com", tpResp.Policy.AuthorName)
 	assert.Equal(t, "admin1@example.com", tpResp.Policy.AuthorEmail)
 
+	tpNameNew := "TestPolicy4"
 	mtpParams := modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String("TestQuery4"),
+			Name:        ptr.String(tpNameNew),
 			Query:       ptr.String("select * from osquery_info;"),
 			Description: ptr.String("Some description updated"),
 			Resolution:  ptr.String("some team resolution updated"),
@@ -2491,7 +2493,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	mtpResp := modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), mtpParams, http.StatusOK, &mtpResp)
 	require.NotNil(t, mtpResp.Policy)
-	assert.Equal(t, "TestQuery4", mtpResp.Policy.Name)
+	assert.Equal(t, tpNameNew, mtpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", mtpResp.Policy.Query)
 	assert.Equal(t, "Some description updated", mtpResp.Policy.Description)
 	require.NotNil(t, mtpResp.Policy.Resolution)
@@ -2501,7 +2503,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	gtpResp := getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &gtpResp)
 	require.NotNil(t, gtpResp.Policy)
-	assert.Equal(t, "TestQuery4", gtpResp.Policy.Name)
+	assert.Equal(t, tpNameNew, gtpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", gtpResp.Policy.Query)
 	assert.Equal(t, "Some description updated", gtpResp.Policy.Description)
 	require.NotNil(t, gtpResp.Policy.Resolution)
@@ -2511,13 +2513,30 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	policiesResponse := listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
-	assert.Equal(t, "TestQuery4", policiesResponse.Policies[0].Name)
+	assert.Equal(t, tpNameNew, policiesResponse.Policies[0].Name)
 	assert.Equal(t, "select * from osquery_info;", policiesResponse.Policies[0].Query)
 	assert.Equal(t, "Some description updated", policiesResponse.Policies[0].Description)
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution updated", *policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
 	require.Len(t, policiesResponse.InheritedPolicies, 0)
+
+	// test team policy count endpoint
+	tpCountResp := countTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp)
+	assert.Equal(t, 1, tpCountResp.Count)
+
+	tpCountResp = countTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", tpNameNew)
+	assert.Equal(t, 1, tpCountResp.Count)
+
+	tpCountResp = countTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " "+tpNameNew+" ")
+	assert.Equal(t, 1, tpCountResp.Count)
+
+	tpCountResp = countTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " nomatch")
+	assert.Equal(t, 0, tpCountResp.Count)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
