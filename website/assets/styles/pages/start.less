@@ -84,6 +84,32 @@
     input {
       cursor: pointer;
       margin-right: 8px;
+      display: none;
+    }
+    [purpose='custom-radio']  {
+      margin-right: 8px;
+      display: flex;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid #E2E4EA;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      [purpose='custom-radio-selected'] {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background-color: @core-fleet-black;
+        border-color: @core-fleet-black;
+        display: none;
+      }
+    }
+    input[type="radio"]:checked + [purpose='custom-radio'] {
+      border-color: @core-fleet-black;
+      [purpose='custom-radio-selected'] {
+        display: block;
+      }
     }
     .form-control {
       height: 40px;

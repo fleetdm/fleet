@@ -29,18 +29,23 @@
         <div class="form-group" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" >
           <label purpose="form-option" class="form-control">
             <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-security" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             Endpoint ops for security engineers
           </label>
           <label purpose="form-option" class="form-control">
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-it" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             Endpoint ops for IT admins
           </label>
           <label purpose="form-option" class="form-control">
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             Device management (MDM)
           </label>
           <label purpose="form-option" class="form-control">
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="vm" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             Vulnerability management
           </label>
           <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
@@ -65,22 +70,27 @@
           <div class="form-group" :class="[formErrors.fleetUseStatus ? 'is-invalid' : '']">
             <label purpose="form-option" class="form-control">
               <input type="radio"  v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Yes, we actively use Fleet at work today
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-recently-deployed" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Yes, we deployed Fleet at work recently to try it out
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed-local" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Yes, but only in a local / homelab environment
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed-long-time" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Yes, but it's been a long time
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="no" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               No, not yet
             </label>
             <div class="invalid-feedback" v-if="formErrors.fleetUseStatus">Please select an option</div>
@@ -107,18 +117,22 @@
           <div class="form-group" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']">
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="1-100" @input="clickClearOneFormError('numberOfHosts')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               1 to 100
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="100-700" @input="clickClearOneFormError('numberOfHosts')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               100 to 700
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="700-1000" @input="clickClearOneFormError('numberOfHosts')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               700 to 1000
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="1000+" @input="clickClearOneFormError('numberOfHosts')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               More than 1000
             </label>
             <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please select an option</div>
@@ -145,10 +159,12 @@
           <div class="form-group" :class="[formErrors.willSelfHost ? 'is-invalid' : '']" >
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['will-you-be-self-hosting'].willSelfHost" value="true" @input="clickClearOneFormError('willSelfHost')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Yes, self hosted
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['will-you-be-self-hosting'].willSelfHost" value="false" @input="clickClearOneFormError('willSelfHost')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               I'd prefer not to
             </label>
             <div class="invalid-feedback" v-if="formErrors.willSelfHost">Please select an option</div>
@@ -178,26 +194,32 @@
           <div class="form-group" :class="[formErrors.endpointOpsSecurityUseCase ? 'is-invalid' : '']">
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="detection-and-response" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Detection and response
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="production-infrastructure-security" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Production infrastructure / security
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="identity-and-access-management-endpoint-security" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Identity and access management (IAM) / endpoint security
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="cyber-threat-intelligence" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Cyber-threat intelligence (CTI)
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="risk-grc" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Risk (GRC)
             </label>
             <label purpose="form-option" class="form-control">
               <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="ot-ics-iot-security" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               OT / ICS / IoT security
             </label>
             <div class="invalid-feedback" v-if="formErrors.endpointOpsSecurityUseCase">Please select an option</div>
@@ -256,14 +278,17 @@
         <div class="form-group" :class="[formErrors.whatDidYouThink ? 'is-invalid' : '']">
           <div purpose="form-option" class="form-control" @click.stop.prevent="clickGoToContactPage()">
             <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="Id like you to host Fleet for me">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             I’d like you to host Fleet for me
           </div>
           <label purpose="form-option" class="form-control">
             <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="deploy-fleet-in-environemnt" @input="clickClearOneFormError('whatDidYouThink')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             I’d like to deploy Fleet in my environment
           </label>
           <label purpose="form-option" class="form-control">
             <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="let-me-think-about-it" @input="clickClearOneFormError('whatDidYouThink')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             Let me think about it
           </label>
           <div class="invalid-feedback" v-if="formErrors.whatDidYouThink">Please select an option</div>
