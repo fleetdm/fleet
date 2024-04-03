@@ -17,14 +17,15 @@ module.exports = {
 
 
   fn: async function () {
-    let currentStep = 'start';
-    let previouslyAnsweredQuestions;
     if(this.req.me.currentGetStartedQuestionnarieStep && this.req.me.getStartedQuestionnarieAnswers){
-      currentStep = this.req.me.currentGetStartedQuestionnarieStep;
-      previouslyAnsweredQuestions = this.req.me.getStartedQuestionnarieAnswers;
+      let currentStep = this.req.me.currentGetStartedQuestionnarieStep;
+      let previouslyAnsweredQuestions = this.req.me.getStartedQuestionnarieAnswers;
+      // Respond with view.
+      return {currentStep, previouslyAnsweredQuestions};
+    } else {
+      // Respond with view.
+      return;
     }
-    // Respond with view.
-    return {currentStep, previouslyAnsweredQuestions};
 
   }
 

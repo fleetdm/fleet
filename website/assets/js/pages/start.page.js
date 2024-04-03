@@ -48,7 +48,8 @@ parasails.registerPage('start', {
       whatDidYouThink: {required: true}
     },
     previouslyAnsweredQuestions: {},
-    // Server error state for the form
+
+    // Server error state for the forms
     cloudError: '',
 
     // Success state when form has been submitted
@@ -177,10 +178,15 @@ parasails.registerPage('start', {
     clickGoToContactPage: function() {
       window.location = `/contact?talk-to-us`;
     },
+    clickClearOneFormError: function(field) {
+      if(this.formErrors[field]){
+        this.formErrors = _.omit(this.formErrors, field);
+      }
+    },
     prefillPreviousAnswers: function() {
       if(!_.isEmpty(this.previouslyAnsweredQuestions)){
-        for(let formKey in this.previouslyAnsweredQuestions){
-          this.formData[formKey] = this.previouslyAnsweredQuestions[formKey];
+        for(let step in this.previouslyAnsweredQuestions){
+          this.formData[step] = this.previouslyAnsweredQuestions[step];
         }
         this.currentStep = this.getNextStep();
       }
