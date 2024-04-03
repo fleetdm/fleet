@@ -9,7 +9,7 @@
         <h2>Let’s get started</h2>
         <p>To see whether Fleet’s right for your team, let's have a look at your hosts and what you're trying to do.</p>
         <p>You can come back at any time and pick up where you left off.</p>
-        <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['start']" :form-rules="formLessStepRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['start']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div purpose="form-buttons">
           <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Start</ajax-button>
         </div>
@@ -214,7 +214,7 @@
       //  │└─┐  │ │   ├─┤│││└┬┘  │ ┬│ ││ │ ││
       //  ┴└─┘  ┴ ┴   ┴ ┴┘└┘ ┴   └─┘└─┘└─┘─┴┘%>
     <div v-if="currentStep === 'is-it-any-good'">
-      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['is-it-any-good']" :form-rules="formLessStepRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['is-it-any-good']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div purpose="progress-bar-container">
           <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
           <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
