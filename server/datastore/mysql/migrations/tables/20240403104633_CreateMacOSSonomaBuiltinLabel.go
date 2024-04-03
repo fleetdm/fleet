@@ -22,7 +22,7 @@ func Up_20240403104633(tx *sql.Tx) error {
 			platform,
 			label_type,
 			label_membership_type
-		) VALUES (?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?)
 `
 
 	const labelName = "macOS 14+ (Sonoma+)"
