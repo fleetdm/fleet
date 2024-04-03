@@ -76,7 +76,6 @@ parasails.registerComponent('ajaxForm', {
     }
 
     if (this.handleParsing === undefined && this.formData === undefined) {
-      console.log(this.formRules);
       throw new Error('Neither `:form-data` nor `:handle-parsing` was passed in to <ajax-form>, but one or the other must be provided.');
     } else if (this.handleParsing !== undefined && this.formData !== undefined) {
       throw new Error('Both `:form-data` AND `:handle-parsing` were passed in to <ajax-form>, but only one or the other should be provided.');

@@ -23,8 +23,6 @@ module.exports = {
       currentStep = this.req.me.currentGetStartedQuestionnarieStep;
       previouslyAnsweredQuestions = this.req.me.getStartedQuestionnarieAnswers;
     }
-    console.log(this.req.me.currentGetStartedQuestionnarieStep);
-    console.log(this.req.me.getStartedQuestionnarieAnswers);
     // Respond with view.
     return {currentStep, previouslyAnsweredQuestions};
 

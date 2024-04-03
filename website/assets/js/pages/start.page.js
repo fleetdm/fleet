@@ -29,27 +29,21 @@ parasails.registerPage('start', {
     primaryBuyingSituationFormRules: {
       primaryBuyingSituation: {required: true}
     },
-
     isUsingFleetFormRules: {
       fleetUseStatus: {required: true}
     },
-
     numberOfHostsFormRules: {
       numberOfHosts: {required: true}
     },
-
     hostingFleetFormRules: {
       willSelfHost: {required: true}
     },
-
     endpointOpsSecurityWorkinOnFormRules: {
       endpointOpsSecurityUseCase: {required: true}
     },
-
     endpointOpsSecurityIsItAnyGoodFormRules: {
       isItAnyGood: {required: true}
     },
-
     endpointOpsSecurityWhatDidYouThinkFormRules: {
       whatDidYouThink: {required: true}
     },
@@ -90,7 +84,6 @@ parasails.registerPage('start', {
       this.currentStep = nextStep;
     },
     clickGoToPreviousStep: async function() {
-      console.log(this.currentStep);
       switch(this.currentStep) {
         case 'have-you-ever-used-fleet':
           this.currentStep = 'what-are-you-using-fleet-for';
@@ -185,12 +178,10 @@ parasails.registerPage('start', {
       window.location = `/contact?talk-to-us`;
     },
     prefillPreviousAnswers: function() {
-      for(let formKey in this.previouslyAnsweredQuestions){
-        this.formData[formKey] = this.previouslyAnsweredQuestions[formKey];
-      }
-      if(this.previouslyAnsweredQuestions){
-        console.log(this.currentStep);
-        console.log(this.previouslyAnsweredQuestions);
+      if(!_.isEmpty(this.previouslyAnsweredQuestions)){
+        for(let formKey in this.previouslyAnsweredQuestions){
+          this.formData[formKey] = this.previouslyAnsweredQuestions[formKey];
+        }
         this.currentStep = this.getNextStep();
       }
     },
