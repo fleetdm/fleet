@@ -287,7 +287,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		// Newer versions of macOS have a builtin version update
 		// notifyer and don't require nudge, so we don't produce a
 		// nudge config
-		macOsRequiresNudge := hostOS.Platform == "darwin" && macOsVersionFloat < 14
+		macOsRequiresNudge := macOsVersionFloat < 14
 
 		var nudgeConfig *fleet.NudgeConfig
 		if appConfig.MDM.EnabledAndConfigured &&
