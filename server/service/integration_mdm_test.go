@@ -12187,12 +12187,29 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	ctx := context.Background()
 
 	checkMacProfs := func(teamID *uint, names ...string) {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tid uint
+			if teamID != nil {
+				tid = *teamID
+			}
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tid)
+		})
+		require.Equal(t, len(names), count)
 		for _, n := range names {
 			s.assertMacOSConfigProfilesByName(teamID, n, true)
 		}
 	}
 
 	checkWinProfs := func(teamID *uint, names ...string) {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tid uint
+			if teamID != nil {
+				tid = *teamID
+			}
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid)
+		})
 		for _, n := range names {
 			s.assertWindowsConfigProfilesByName(teamID, n, true)
 		}
