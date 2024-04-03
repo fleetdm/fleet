@@ -27,9 +27,7 @@ module.exports = {
       if(this.req.me.isSuperAdmin){
         throw {redirect: '/admin/generate-license'};
       } else if(this.req.me.hasBillingCard) {
-        throw {redirect: '/customers/new-license'};
-      } else {
-        throw {redirect: '/try-fleet/sandbox'};
+        throw {redirect: '/start'};
       }
     }
 
