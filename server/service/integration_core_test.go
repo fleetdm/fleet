@@ -6610,6 +6610,30 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, nil, time.Time{}, "", expectedVulnVersionsCount)
 
+	// /software/versions  filtered by name, version, cve (`/software` is deprecated)
+	// TODO(jacob) use `assertVersionsResp`
+	versionsResp := listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", sws[0].Name)
+	require.Len(t, versionsResp.Software, 1)
+	require.True(t, versionsResp.Count == 1)
+	require.Equal(t, sws[0].Name, versionsResp.Software[0].Name)
+	// TODO(jacob) - with whitespace
+
+	versionsResp = listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", sws[0].Version)
+	require.Len(t, versionsResp.Software, 1)
+	require.True(t, versionsResp.Count == 1)
+	require.Equal(t, sws[0].Version, versionsResp.Software[0].Version)
+	// TODO(jacob) - with whitespace
+
+	versionsResp = listSoftwareVersionsResponse{}
+	// "cve-123-123 is the prefix for all 10 CVEs added to the first 10 software, so should return all
+	// 10 vulnerable software versions"
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", "cve-123-123")
+	require.Len(t, versionsResp.Software, 10)
+	require.True(t, versionsResp.Count == 10)
+	// TODO(jacob) - with whitespace
+
 	// filter by the team, 2 by page
 	lsResp = listSoftwareResponse{}
 	s.DoJSON(
