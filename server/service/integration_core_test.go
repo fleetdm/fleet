@@ -1667,10 +1667,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	})
 	require.Greater(t, osID, uint(0))
 
-	host2OS, err := s.ds.GetHostOperatingSystem(context.Background(), host2.ID)
-	require.NoError(t, err)
-	require.Equal(t, testOS, host2OS)
-
 	// generate aggregated stats
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 

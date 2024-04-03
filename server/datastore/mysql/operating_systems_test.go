@@ -295,10 +295,17 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	_, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
+	_, err = ds.GetHostOperatingSystem(ctx, testHostID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
 	// insert test host and os id
 	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[0].ID)
 	require.NoError(t, err)
 	os, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[0], *os)
+
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[0], *os)
 
@@ -309,10 +316,18 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
 
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[1], *os)
+
 	// no change
 	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[1].ID)
 	require.NoError(t, err)
 	os, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[1], *os)
+
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
 }
