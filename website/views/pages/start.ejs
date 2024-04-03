@@ -214,7 +214,7 @@
       //  │└─┐  │ │   ├─┤│││└┬┘  │ ┬│ ││ │ ││
       //  ┴└─┘  ┴ ┴   ┴ ┴┘└┘ ┴   └─┘└─┘└─┘─┴┘%>
     <div v-if="currentStep === 'is-it-any-good'">
-      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-are-you-working-on-eo-security']" :form-rules="formLessStepRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['is-it-any-good']" :form-rules="formLessStepRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div purpose="progress-bar-container">
           <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
           <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
@@ -418,7 +418,7 @@
       </div>
       <div class="mx-auto">
         <h2>Deploy Fleet in your environment</h2>
-        <p>Learn how to deploy and rollout Fleet in your environment, get a Fleet Premium license, or both. You can back back in any time to upgrade.</p>
+        <p>Learn how to deploy and rollout Fleet in your environment, get a Fleet Premium license, or both. You can come back in any time to upgrade.</p>
       </div>
       <div purpose="start-cards">
         <a purpose="card" href="/docs/deploy">
