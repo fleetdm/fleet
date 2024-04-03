@@ -14,6 +14,7 @@ columns:
   - name: fullkey
     description: Key including any parent keys.
     type: text
+    required: false
   - name: parent
     description: Parent key when keys are nested in the document.
     required: false
