@@ -3632,9 +3632,13 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
 	assert.Len(t, summaryResp.Labels, builtInsCount+1)
 
-	// next page is empty
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "page", "1", "query", t.Name())
-	assert.Len(t, listResp.Labels, 0)
+	// next page is empty (note that the "query" parameter is ignored for "list labels")
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "page", "1")
+	if !assert.Len(t, listResp.Labels, 0) {
+		for _, lbl := range listResp.Labels {
+			t.Logf("label: %v", lbl)
+		}
+	}
 
 	// create another label
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String(strings.ReplaceAll(t.Name(), "/", "_")), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
