@@ -270,11 +270,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "get orbit config")
 		}
 
+
 		var macOsVersionFloat float32
 		if hostOS.Platform == "darwin" {
 			versionFloat, err := strconv.ParseFloat(hostOS.Version, 32)
 			macOsVersionFloat = float32(versionFloat)
-			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "parsing macos version float")
+			if err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "parsing macos version float")
+			}
 		}
 
 		// Newer versions of macOS have a builtin version update
