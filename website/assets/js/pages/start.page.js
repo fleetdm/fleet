@@ -132,13 +132,15 @@ parasails.registerPage('start', {
           break;
         case 'have-you-ever-used-fleet':
           let fleetUseStatus = this.formData['have-you-ever-used-fleet'].fleetUseStatus;
+          let primaryBuyingSituation = this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation;
           if(fleetUseStatus === 'yes-recently-deployed' || fleetUseStatus === 'yes-deployed') {
             nextStepInForm = 'how-many-hosts';
-          } else if((fleetUseStatus === 'no' && this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security') ||
-            (fleetUseStatus === 'yes-deployed-long-time' && this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security')) {
-            nextStepInForm = 'what-are-you-working-on-eo-security';
           } else {
-            nextStepInForm = 'welcome-to-fleet';
+            if(primaryBuyingSituation === 'eo-security'){
+              nextStepInForm = 'what-are-you-working-on-eo-security';
+            } else {
+              nextStepInForm = 'welcome-to-fleet';
+            }
           }
           break;
         case 'how-many-hosts':
