@@ -102,13 +102,14 @@
         border-radius: 50%;
         background-color: @core-fleet-black;
         border-color: @core-fleet-black;
-        display: none;
+        transform: scale(0);
+        transition: 180ms transform ease-in-out;
       }
     }
     input[type="radio"]:checked + [purpose='custom-radio'] {
       border-color: @core-fleet-black;
       [purpose='custom-radio-selected'] {
-        display: block;
+        transform: scale(1);
       }
     }
     .form-control {
