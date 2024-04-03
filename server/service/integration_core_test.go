@@ -3060,6 +3060,20 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	require.Len(t, listQryResp.Queries, 1)
 	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
 
+	// listing with matching name returns that query
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", query.Name)
+	require.Len(t, listQryResp.Queries, 1)
+	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+
+	// listing with matching name plus whitespace returns that query
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", "  "+query.Name+" ")
+	require.Len(t, listQryResp.Queries, 1)
+	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+
+	// listing with non-matching name returns nothing
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", "  nomatch")
+	require.Len(t, listQryResp.Queries, 0)
+
 	// Return that query by name
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries?query=%s", query.Name), nil, http.StatusOK, &listQryResp)
 	require.Len(t, listQryResp.Queries, 1)
