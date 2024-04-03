@@ -198,7 +198,7 @@ const FleetAce = ({
     onLoad && onLoad(editor);
   };
 
-  const onBlurHandler = (event: unknown, editor?: IAceEditor): void => {
+  const onBlurHandler = (event: any, editor?: IAceEditor): void => {
     onBlur && onBlur(editor);
   };
 
