@@ -89,30 +89,9 @@ export interface IPaginateHostOptions extends IBaseHostsOptions {
   sortBy: ISortOption[];
 }
 
-export interface IActionByFilter {
-  // Order matches rest-api.md > List hosts parameters
+export interface IActionByFilter
+  extends Omit<IBaseHostsOptions, "deviceMapping" | "selectedLabels"> {
   transferTeamId?: number | null;
-  query: string;
-  status: string;
-  labelId?: number;
-  teamId?: number | null;
-  policyId?: number | null;
-  policyResponse?: PolicyResponse;
-  softwareId?: number | null;
-  softwareTitleId?: number | null;
-  softwareVersionId?: number | null;
-  osName?: string;
-  osVersion?: string;
-  osVersionId?: number | null;
-  macSettingsStatus?: MacSettingsStatusQueryParam;
-  bootstrapPackageStatus?: BootstrapPackageStatus;
-  mdmId?: number | null;
-  mdmEnrollmentStatus?: MdmEnrollmentStatus;
-  munkiIssueId?: number | null;
-  lowDiskSpaceHosts?: number | null;
-  osSettings?: MdmProfileStatus;
-  diskEncryptionStatus?: DiskEncryptionStatus;
-  vulnerability?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";

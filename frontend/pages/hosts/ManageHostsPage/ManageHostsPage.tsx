@@ -258,8 +258,8 @@ const ManageHostsPage = ({
     queryParams?.[PARAMS.DISK_ENCRYPTION];
 
   // ========= routeParams
+  // TODO: Find out if where and how activeLabel is being use
   const { active_label: activeLabel, label_id: labelID } = routeParams;
-  console.log("activeLabel", activeLabel);
   const selectedFilters = useMemo(() => {
     const filters: string[] = [];
     labelID && filters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
