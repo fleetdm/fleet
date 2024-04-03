@@ -1133,16 +1133,22 @@ func processCalendarPolicies(
 	now := time.Now()
 	if now.Before(calendarEvent.StartTime) {
 		level.Warn(logger).Log("msg", "results came too early", "now", now, "start_time", calendarEvent.StartTime)
+		if err = ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusError); err != nil {
+			level.Error(logger).Log("msg", "mark webhook as errored early", "err", err)
+		}
 		return nil
 	}
 
 	//
 	// TODO(lucas): Discuss.
 	//
-	const allowedTimeBeforeEndTime = 5 * time.Minute // up to 5 minutes before the end_time
+	const allowedTimeRelativeToEndTime = 5 * time.Minute // up to 5 minutes after the end_time to allow for short (0-time) event times
 
-	if now.After(calendarEvent.EndTime.Add(-allowedTimeBeforeEndTime)) {
+	if now.After(calendarEvent.EndTime.Add(allowedTimeRelativeToEndTime)) {
 		level.Warn(logger).Log("msg", "results came too late", "now", now, "end_time", calendarEvent.EndTime)
+		if err = ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusError); err != nil {
+			level.Error(logger).Log("msg", "mark webhook as errored late", "err", err)
+		}
 		return nil
 	}
 

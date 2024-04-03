@@ -7373,10 +7373,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Run live script](#run-live-script)
-- [Upload a script](#upload-a-script)
-- [Delete a script](#delete-a-script)
+- [Add script](#add-script)
+- [Delete script](#delete-script)
 - [List scripts](#list-scripts)
-- [Get or download a script](#get-or-download-a-script)
+- [Get or download script](#get-or-download-script)
 - [Get script details by host](#get-script-details-by-host)
 
 ### Run script
@@ -7488,7 +7488,7 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 }
 ```
 
-### Upload a script
+### Add script
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
@@ -7538,7 +7538,7 @@ echo "hello"
 }
 ```
 
-### Delete a script
+### Delete script
 
 Deletes an existing script.
 
@@ -7566,6 +7566,7 @@ Deletes an existing script.
 
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team to filter scripts by. If not specified, it will filter only scripts that are available to hosts with no team. |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 
@@ -7603,7 +7604,7 @@ Deletes an existing script.
 
 ```
 
-### Get or download a script
+### Get or download script
 
 `GET /api/v1/fleet/scripts/:id`
 
@@ -7614,7 +7615,7 @@ Deletes an existing script.
 | id   | integer | path  | **Required.** The desired script's ID.                            |
 | alt  | string  | query | If specified and set to "media", downloads the script's contents. |
 
-#### Example (get a script)
+#### Example (get script)
 
 `GET /api/v1/fleet/scripts/123`
 
@@ -7633,7 +7634,7 @@ Deletes an existing script.
 
 ```
 
-#### Example (download a script's contents)
+#### Example (download script)
 
 `GET /api/v1/fleet/scripts/123?alt=media`
 

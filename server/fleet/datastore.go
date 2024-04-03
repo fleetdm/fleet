@@ -1173,7 +1173,7 @@ type Datastore interface {
 	UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error
 
 	// InsertMDMAppleDDMRequest inserts a DDM request.
-	InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType, rawJSON string) error
+	InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType string, rawJSON json.RawMessage) error
 
 	// MDMAppleDDMDeclarationsToken returns the token used to synchronize declarations for the
 	// specified host UUID.
@@ -1191,9 +1191,10 @@ type Datastore interface {
 	// It also takes care of cleaning up all host declarations that are
 	// pending removal.
 	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*MDMAppleHostDeclaration) error
-	// MDMAppleSetDeclarationsAsVerifying updates all
-	// ("pending", "install") declarations for a host to be ("verifying", "install")
-	MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error
+	// MDMAppleSetPendingDeclarationsAs updates all ("pending", "install")
+	// declarations for a host to be ("verifying", status), where status is
+	// the provided value.
+	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
