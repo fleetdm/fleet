@@ -182,6 +182,33 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
+	var hostOS *fleet.OperatingSystem
+	if host.ID != 0 {
+		hostOS, err = svc.ds.GetHostOperatingSystem(ctx, host.ID)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "get orbit config")
+		}
+	} else {
+		hostOS = &fleet.OperatingSystem{}
+	}
+
+	var macOsVersionFloat float32
+	if hostOS.Platform == "darwin" {
+		versionFloat, err := strconv.ParseFloat(hostOS.Version, 32)
+		macOsVersionFloat = float32(versionFloat)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "parsing macos version float")
+		}
+	}
+
+	fmt.Printf("==== hostOS: %+v\n", hostOS)
+	fmt.Printf("==== macOsVersionFloat: %v\n", macOsVersionFloat)
+
+	// Newer versions of macOS have a builtin version update
+	// notifyer and don't require nudge, so we don't produce a
+	// nudge config
+	macOsRequiresNudge := hostOS.Platform == "darwin" && macOsVersionFloat < 14
+
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
 	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
@@ -265,30 +292,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			return fleet.OrbitConfig{}, err
 		}
 
-		var hostOS *fleet.OperatingSystem
-		if host.ID != 0 {
-			hostOS, err = svc.ds.GetHostOperatingSystem(ctx, host.ID)
-			if err != nil {
-				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "get orbit config")
-			}
-		} else {
-			hostOS = &fleet.OperatingSystem{}
-		}
-
-		var macOsVersionFloat float32
-		if hostOS.Platform == "darwin" {
-			versionFloat, err := strconv.ParseFloat(hostOS.Version, 32)
-			macOsVersionFloat = float32(versionFloat)
-			if err != nil {
-				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "parsing macos version float")
-			}
-		}
-
-		// Newer versions of macOS have a builtin version update
-		// notifyer and don't require nudge, so we don't produce a
-		// nudge config
-		macOsRequiresNudge := macOsVersionFloat < 14
-
 		var nudgeConfig *fleet.NudgeConfig
 		if appConfig.MDM.EnabledAndConfigured &&
 			mdmConfig != nil &&
@@ -338,7 +341,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	var nudgeConfig *fleet.NudgeConfig
 	if appConfig.MDM.EnabledAndConfigured &&
-		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
+		appConfig.MDM.MacOSUpdates.EnabledForHost(host) &&
+		macOsRequiresNudge {
 		nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
 		if err != nil {
 			return fleet.OrbitConfig{}, err
