@@ -168,7 +168,7 @@ FROM (
 	WHERE
 		team_id = ? AND
 		name NOT IN (?)
-	
+
 	UNION
 
 	SELECT
@@ -184,6 +184,8 @@ FROM (
 	WHERE team_id = ?
 ) as combined_profiles
 `
+
+	// TODO(mna): filter-out the reserved OS updates DDM
 
 	var globalOrTeamID uint
 	if teamID != nil {
@@ -268,7 +270,7 @@ FROM
 WHERE
 	mcpl.apple_profile_uuid IN (?) OR
 	mcpl.windows_profile_uuid IN (?)
-UNION ALL 
+UNION ALL
 SELECT
 	apple_declaration_uuid as profile_uuid,
 	label_name,

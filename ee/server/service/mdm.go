@@ -1056,17 +1056,37 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint, updates fleet.MacOSUpdates) error {
-	// TODO: must do the equivalent, more or less, of svc.NewMDMAppleDeclaration
-	// (avoiding the validation that prevents the declaration type, and without
-	// the activity as we want to leave this Software Updates profile hidden,
-	// like an internal implementation detail of how Fleet manages those update
-	// requirements).
+	// TODO: is there a notion of "DDM enabled" or not, where the DDM profile
+	// should not be created?
 
 	if updates.MinimumVersion.Value == "" {
 		// TODO: OS updates disabled, remove the profile
 		return nil
 	}
 	// TODO: OS updates enabled and modified, create or update the profile
+
+	const macOSSoftwareUpdateType = `com.apple.configuration.softwareupdate.enforcement.specific`
+	ident := uuid.NewString()
+	// TODO(mna): is that correct payload? Identifier is a uuid?
+	rawDecl := []byte(fmt.Sprintf(`{
+	"Identifier": %q,
+	"Type": %q,
+	"Payload": {
+		"TargetOSVersion": %q,
+		"TargetLocalDateTime ": "2024-03-01T12:00:00,"
+	}
+}`, ident, macOSSoftwareUpdateType, updates.MinimumVersion.Value))
+	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, mdm.FleetMacOSUpdatesProfileName, macOSSoftwareUpdateType, ident)
+	// TODO(mna): create hidden label targeting macOS >= 14
+	//d.Labels = validatedLabels
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
+	}
 	return nil
 }
 

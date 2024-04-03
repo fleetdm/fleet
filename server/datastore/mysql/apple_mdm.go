@@ -3379,6 +3379,8 @@ WHERE h.uuid = ?
 }
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, incomingDeclarations []*fleet.MDMAppleDeclaration) ([]*fleet.MDMAppleDeclaration, error) {
+	// TODO(mna): batch-set should not delete the reserved OS updates DDM.
+
 	const insertStmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
