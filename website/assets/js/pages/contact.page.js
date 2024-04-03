@@ -32,6 +32,8 @@ parasails.registerPage('contact', {
       message: {required: false},
     },
 
+    formDataToPrefillForLoggedInUsers: {},
+
     // Server error state for the form
     cloudError: '',
 
@@ -45,6 +47,17 @@ parasails.registerPage('contact', {
   beforeMount: function() {
     if(this.formToShow === 'contact'){
       this.formToDisplay = this.formToShow;
+    }
+    if(this.prefillFormDataFromUserRecord){
+      this.formDataToPrefillForLoggedInUsers.emailAddress = this.me.emailAddress;
+      this.formDataToPrefillForLoggedInUsers.firstName = this.me.firstName;
+      this.formDataToPrefillForLoggedInUsers.lastName = this.me.lastName;
+      this.formDataToPrefillForLoggedInUsers.organization = this.me.organization;
+      // Only prefil this information if the user has this value set.
+      if(this.me.primaryBuyingSituation) {
+        this.formDataToPrefillForLoggedInUsers.primaryBuyingSituation = this.me.primaryBuyingSituation;
+      }
+      this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
     }
     if(window.location.search){
       window.history.replaceState({}, document.title, '/contact' );
@@ -78,7 +91,11 @@ parasails.registerPage('contact', {
     },
 
     clickSwitchForms: function(form) {
-      this.formData = {};
+      if(this.prefillFormDataFromUserRecord){
+        this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
+      } else {
+        this.formData = {};
+      }
       this.formErrors = {};
       this.cloudError = '';
       this.formToDisplay = form;

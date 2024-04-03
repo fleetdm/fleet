@@ -141,8 +141,8 @@ parasails.registerPage('start', {
           }
           break;
         case 'how-many-hosts':
-          if(this.formData['how-many-hosts'].numberOfHosts === '1 to 100' ||
-            this.formData['how-many-hosts'].numberOfHosts === '100 to 700') {
+          if(this.formData['how-many-hosts'].numberOfHosts === '1-100' ||
+            this.formData['how-many-hosts'].numberOfHosts === '100-700') {
             nextStepInForm = 'will-you-be-self-hosting';
           } else {
             nextStepInForm = 'lets-talk-to-your-team';
@@ -175,7 +175,7 @@ parasails.registerPage('start', {
       window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`;
     },
     clickGoToContactPage: function() {
-      window.location = `/contact?talk-to-us`;
+      window.location = `/contact?prefillFormDataFromUserRecord`;
     },
     clickClearOneFormError: function(field) {
       if(this.formErrors[field]){
