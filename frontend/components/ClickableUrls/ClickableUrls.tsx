@@ -31,7 +31,6 @@ const ClickableUrls = ({ text, className }: IClickableUrls): JSX.Element => {
   const textWithLinks = (
     <div
       className={clickableUrlClasses}
-      // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: sanitizedResolutionContent }}
     />
   );

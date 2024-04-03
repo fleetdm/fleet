@@ -12,7 +12,7 @@ const meta: Meta<typeof FileUploader> = {
     accept: ".pdf",
     isLoading: false,
     onFileUpload: () => {
-      console.log("File uploaded!");
+      alert("File uploaded!");
     },
   },
 };
