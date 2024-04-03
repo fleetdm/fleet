@@ -73,6 +73,7 @@ usage() {
     echo "  -d, --dry_run          Perform a trial run with no changes made"
     echo "  -f, --force            Skip all confirmations"
     echo "  -h, --help             Display this help message and exit"
+    echo "  -g, --tag              Run the tag step"
     echo "  -m, --minor            Increment to a minor version instead of patch (Required if including non-bugs"
     echo "  -o, --open_api_key     Set the Open API key for calling out to ChatGPT"
     echo "  -p, --print            If the release is already drafted then print out the helpful info"
@@ -179,6 +180,113 @@ validate_and_format_date() {
     echo "Validated and formatted date: $target_date"
 }
 
+attempt_cherry_pick() {
+}
+
+build_changelog() {
+    make changelog
+
+    git diff CHANGELOG.md | $GREP_CMD '^+' | sed 's/^+//g' | $GREP_CMD -v CHANGELOG.md > new_changelog
+    prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
+    if [[ "$main_release" == "true" ]]; then
+        # Place to make a main targeted prompt
+        #prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
+    fi
+
+    content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
+    question="${prompt}\n\n${content}"
+
+    # API endpoint for ChatGPT
+    api_endpoint="https://api.openai.com/v1/chat/completions"
+    output="null"
+
+    while [[ "$output" == "null" ]]; do
+        data_payload=$(jq -n \
+                          --arg prompt "$question" \
+                          --arg model "gpt-3.5-turbo" \
+                          '{model: $model, messages: [{"role": "user", "content": $prompt}]}')
+
+        response=$(curl -s -X POST $api_endpoint \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer $open_api_key" \
+           --data "$data_payload")
+
+        output=`echo $response | jq -r .choices[0].message.content`
+        echo "${output}"
+    done
+
+    git checkout CHANGELOG.md
+    if [[ "$target_date" == "" ]]; then
+        tartget_date=`date +"%b %d, %Y"`
+    fi
+    echo "## Fleet $target_milestone ($tartget_date)" > temp_changelog
+    echo "" >> temp_changelog
+    echo "### Bug fixes" >> temp_changelog
+    echo "" >> temp_changelog
+    echo -e "${output}" >> temp_changelog
+    echo "" >> temp_changelog
+    cp CHANGELOG.md old_changelog
+    cat temp_changelog
+    echo
+    echo "About to write changelog"
+    if [ "$force" = "false" ]; then
+        read -r -p "Does the above changelog look good (edit temp_changelog now to make changes) (n exits)? [y/N] " response
+        case "$response" in
+            [yY][eE][sS]|[yY])
+                echo
+                ;;
+            *)
+                exit 1
+                ;;
+        esac
+    fi
+    cat temp_changelog > CHANGELOG.md
+    cat old_changelog >> CHANGELOG.md
+    rm -f old_changelog
+    cp CHANGELOG.md /tmp
+}
+
+changelog_and_versions() {
+    branch_for_changelog=$1
+    source_branch=$2
+
+    local_exists=`git branch | $GREP_CMD $branch_for_changelog`
+    if [[ $local_exists != "" ]]; then
+        # Clear previous
+        git branch -D $branch_for_changelog
+    fi
+    git checkout -b $branch_for_changelog
+    cp /tmp/CHANGELOG.md .
+    git add CHANGELOG.md
+    escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
+    version_files=`ack -l --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
+    unameOut="$(uname -s)"
+    case "${unameOut}" in
+        Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";;
+        Darwin*)    echo "$version_files" | xargs sed -i '' "s/$escaped_start_version/$target_milestone/g";;
+        *)          echo "unknown distro to parse version"
+    esac
+    git add terraform charts infrastructure tools
+    git commit -m "Adding changes for patch $target_milestone"
+    git push origin $branch_for_changelog -f
+    gh pr create -f -B $source_branch
+}
+
+create_qa_issue() {
+    if [ "$dry_run" = "false" ]; then
+        # Check for QA issue
+        found=$(gh issue list --search "Release QA: $target_milestone in:title" --json number | jq length)
+        if [[ "$found" == "0" ]]; then
+            cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
+            gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
+                --assignee "sabrinabuckets" --assignee "xpkoala" --label ":release" --label "#g-mdm" --label "#g-endpoint-ops"
+            rm -f temp_qa_issue_file
+        fi
+    else
+        echo "DRYRUN: Would have searched for and created if not found QA release ticket"
+    fi
+}
+
 print_announce_info() {
     qa_ticket=`gh issue list --search "Release QA: $target_milestone in:title" --json url | jq -r .[0].url`
     docker_deploy=`gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch --limit 100 | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
@@ -232,7 +340,57 @@ update_release_notes() {
     fi
 }
 
+tag() {
+    if [ "$dry_run" = "false" ]; then
+        current_branch=`git rev-parse --abbrev-ref HEAD`
+        if [[ "$main_release" == "true" && "$current_branch" != "main" ]]; then
+            echo "Can't tag main release if you aren't on 'main'"
+            exit 1
+        fi
+        if [[ "$main_release" == "true" ]]; then
+            # in main
+            found_version=`cat CHANGELOG.md | $GREP_CMD $target_milestone`
+            if [[ "$found_version" == "" ]]; then
+                echo "Can't tag main if CHANGELOG pr has not been merged yet"
+                exit 1
+            fi
+        else
+            # patch release
+            if [[ "$current_branch" != "$target_patch_branch" ]]; then
+                echo "Can't tag patch release if you aren't on '$target_patch_branch'"
+                exit 1
+            fi
+        fi
+
+        # Officially tag and push
+        git tag $next_tag
+        git push origin $next_tag
+
+        # This lets us wait for github actions to trigger
+        # we are specifically waiting for goreleaser to start
+        # off the `tag` branch ie: fleet-v4.47.2 to watch until it completes
+        # The last step of goreleaser is the create the draft release for us to modify later
+        show_spinner 200
+    else
+        echo "DRYRUN: Would have tagged and pushed $next_tag"
+    fi
+
+    if [ "$dry_run" = "false" ]; then
+        releaser_out=`gh run list --workflow goreleaser-fleet.yaml --json databaseID,event,headBranch,url | jq "[.[]|select(.headBranch==\"$next_tag\")[0]`
+        echo "Releaser running " `echo $releaser_out | jq -r ".url"`
+
+        gh run watch `echo $releaser_out | jq -r ".databaseID"`
+    else
+        echo "DRYRUN: Would found goreleaser action and waited for it to complete"
+    fi
+
+    # Update draft release notes w/ changelog / notes / checksums
+    update_release_notes
+}
+
+
 publish() {
+    # TODO more checks to validate we are ready to publish
     gh release edit --draft=false --latest $next_tag
     gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
     show_spinner 200
@@ -284,6 +442,7 @@ target_version=""
 print_info=false
 publish_release=false
 release_notes=false
+do_tag=false
 main_release=false
 
 # Parse long options manually
@@ -301,6 +460,7 @@ for arg in "$@"; do
     "--publish_release") set -- "$@" "-u" ;;
     "--release_notes") set -- "$@" "-r" ;;
     "--start_version") set -- "$@" "-s" ;;
+    "--tag") set -- "$@" "-g" ;;
     "--target_date") set -- "$@" "-t" ;;
     "--target_version") set -- "$@" "-v" ;;
     *)        set -- "$@" "$arg"
@@ -308,13 +468,14 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "acdfhmo:prs:t:uv:" opt; do
+while getopts "acdfhgmo:prs:t:uv:" opt; do
     case "$opt" in
         a) main_release=true ;;
         c) cherry_pick_resolved=true ;;
         d) dry_run=true ;;
         f) force=true ;;
         h) usage; exit 0 ;;
+        g) do_tag=true ;;
         m) minor=true ;;
         o) open_api_key=$OPTARG ;;
         p) print_info=true ;;
@@ -394,6 +555,11 @@ if [ -z "$start_version" ]; then
     fi
 fi
 
+if [[ "$main_release" == "true" ]]; then
+    # Main releases are always minor releases
+    minor=true
+fi
+
 if [[ $start_version != v* ]]; then
     start_version=`echo "v$start_version"`
 fi
@@ -446,8 +612,20 @@ fi
 # fleet-v4.47.3
 next_tag="fleet-$next_ver"
 
+if [[ "$target_milestone_number" == "" ]]; then
+    echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
+    exit 1
+fi
+echo "Found milestone $target_milestone with number $target_milestone_number"
+
+
 if [ "$print_info" = "true" ]; then
     print_announce_info
+    exit 0
+fi
+
+if [ "$do_tag" = "true" ]; then
+    tag
     exit 0
 fi
 
@@ -455,12 +633,6 @@ if [ "$release_notes" = "true" ]; then
     update_release_notes
     exit 0
 fi
-
-if [[ "$target_milestone_number" == "" ]]; then
-    echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
-    exit 1
-fi
-echo "Found milestone $target_milestone with number $target_milestone_number"
 
 if [ "$publish_release" = "true" ]; then
     publish
@@ -603,126 +775,28 @@ fi
 if [[ "$failed" == "false" ]]; then
 
     if [ "$dry_run" = "false" ]; then
-        make changelog
-        git diff CHANGELOG.md | $GREP_CMD '^+' | sed 's/^+//g' | $GREP_CMD -v CHANGELOG.md > new_changelog
-        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
-        content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
-        question="${prompt}\n\n${content}"
+        build_changelog
 
-        # API endpoint for ChatGPT
-        api_endpoint="https://api.openai.com/v1/chat/completions"
-        output="null"
-
-        while [[ "$output" == "null" ]]; do
-            data_payload=$(jq -n \
-                              --arg prompt "$question" \
-                              --arg model "gpt-3.5-turbo" \
-                              '{model: $model, messages: [{"role": "user", "content": $prompt}]}')
-
-            response=$(curl -s -X POST $api_endpoint \
-               -H "Content-Type: application/json" \
-               -H "Authorization: Bearer $open_api_key" \
-               --data "$data_payload")
-
-            output=`echo $response | jq -r .choices[0].message.content`
-            echo "${output}"
-        done
-    else
-        echo "DRYRUN: Would have run make changelog and sent to ChatGPT to format"
-    fi
-
-    if [ "$dry_run" = "false" ]; then
-        git checkout CHANGELOG.md
-        if [[ "$target_date" == "" ]]; then
-            tartget_date=`date +"%b %d, %Y"`
+        if [[ "$main_release" == "false" ]]; then
+            # Create PR for changelog and version to patch
+            update_changelog_patch_branch="update-changelog-pb-$target_milestone"
+            changelog_and_versions $update_changelog_patch_branch $target_patch_branch
         fi
-        echo "## Fleet $target_milestone ($tartget_date)" > temp_changelog
-        echo "" >> temp_changelog
-        echo "### Bug fixes" >> temp_changelog
-        echo "" >> temp_changelog
-        echo -e "${output}" >> temp_changelog
-        echo "" >> temp_changelog
-        cp CHANGELOG.md old_changelog
-        cat temp_changelog
-        echo
-        echo "About to write changelog"
-        if [ "$force" = "false" ]; then
-            read -r -p "Does the above changelog look good (edit temp_changelog now to make changes) (n exits)? [y/N] " response
-            case "$response" in
-                [yY][eE][sS]|[yY])
-                    echo
-                    ;;
-                *)
-                    exit 1
-                    ;;
-            esac
-        fi
-        cat temp_changelog > CHANGELOG.md
-        cat old_changelog >> CHANGELOG.md
-        rm -f old_changelog
-        update_changelog_patch_branch="update-changelog-pb-$target_milestone"
-        local_exists=`git branch | $GREP_CMD $update_changelog_patch_branch`
-        if [[ $local_exists != "" ]]; then
-            # Clear previous
-            git branch -D $update_changelog_patch_branch
-        fi
-        git checkout -b $update_changelog_patch_branch
-        git add CHANGELOG.md
-        escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
-        version_files=`ack -l --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
-        unameOut="$(uname -s)"
-        case "${unameOut}" in
-            Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";;
-            Darwin*)    echo "$version_files" | xargs sed -i '' "s/$escaped_start_version/$target_milestone/g";;
-            *)          echo "unknown distro to parse version"
-        esac
-        git add terraform charts infrastructure tools
-        git commit -m "Adding changes for patch $target_milestone"
-        git push origin $update_changelog_patch_branch -f
-        gh pr create -f -B $target_patch_branch
 
-        cp CHANGELOG.md /tmp
+        # Create PR for changelog and version to main
         git checkout main 
         git pull origin main
         update_changelog_branch="update-changelog-$target_milestone"
-        local_exists=`git branch | $GREP_CMD $update_changelog_branch`
-        if [[ $local_exists != "" ]]; then
-            # Clear previous
-            git branch -D $update_changelog_branch
-        fi
-        git checkout -b $update_changelog_branch
-        cp /tmp/CHANGELOG.md .
-        git add CHANGELOG.md
-        escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
-        version_files=`ack -l --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
-        unameOut="$(uname -s)"
-        case "${unameOut}" in
-            Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";;
-            Darwin*)    echo "$version_files" | xargs sed -i '' "s/$escaped_start_version/$target_milestone/g";;
-            *)          echo "unknown distro to parse version"
-        esac
-        git add terraform charts infrastructure tools
-        git commit -m "Updating changelog for $target_milestone"
-        git push origin $update_changelog_branch -f
-        gh pr create -f
+        changelog_and_versions $update_changelog_branch main
 
+        # Back on patch / prepare
         git checkout $target_patch_branch
     else
         echo "DRYRUN: Would have formatted changelog and created PR on main"
     fi
 
     # Check for QA issue
-    if [ "$dry_run" = "false" ]; then
-        found=$(gh issue list --search "Release QA: $target_milestone in:title" --json number | jq length)
-        if [[ "$found" == "0" ]]; then
-            cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
-            gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "sabrinabuckets" --assignee "xpkoala" --label ":release" --label "#g-mdm" --label "#g-endpoint-ops"
-            rm -f temp_qa_issue_file
-        fi
-    else
-        echo "DRYRUN: Would have searched for and created if not found QA release ticket"
-    fi
+    create_qa_issue
 
     if [ "$dry_run" = "false" ]; then
         echo "Waiting for github actions to propogate..."
@@ -732,54 +806,6 @@ if [[ "$failed" == "false" ]]; then
     else
         echo "DRYRUN: Would have printed announce in #help-engineering text w/ qa ticket, deploy to docker link, and milestone issue list link"
     fi
-
-    if [ "$dry_run" = "false" ]; then
-        echo "waiting for Changelog PR to merge..."
-        echo `gh pr view $update_changelog_patch_branch --json url | jq -r .url`
-        echo
-        waiting=true
-        while $waiting; do
-            pr_state=`gh pr view $update_changelog_patch_branch --json state | jq -r .state`
-            if [[ "$pr_state" == "MERGED" ]]; then
-                waiting=false
-            else
-                show_spinner 50
-            fi
-        done
-        git pull origin $target_patch_branch
-
-
-        echo "About to tag to $next_tag"
-        if [ "$force" = "false" ]; then
-            read -r -p "Did all steps succeed and is the tag ready to push? [y/N] " response
-            case "$response" in
-                [yY][eE][sS]|[yY])
-                    echo
-                    ;;
-                *)
-                    exit 1
-                    ;;
-            esac
-        fi
-        git tag $next_tag
-        git push origin $next_tag
-
-        show_spinner 200
-    else
-        echo "DRYRUN: Would have tagged and pushed $next_tag"
-    fi
-
-    if [ "$dry_run" = "false" ]; then
-        releaser_out=`gh run list --workflow goreleaser-fleet.yaml --json databaseID,event,headBranch,url | jq "[.[]|select(.headBranch==\"$next_tag\")[0]`
-        echo "Releaser running " `echo $releaser_out | jq -r ".url"`
-
-        gh run watch `echo $releaser_out | jq -r ".databaseID"`
-    else
-        echo "DRYRUN: Would found goreleaser action and waited for it to complete"
-    fi
-
-
-    update_release_notes
 else
     # TODO echo what to do
     echo "Placeholder, Cherry pick failed....figure out what to do..."

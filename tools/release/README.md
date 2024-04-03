@@ -30,20 +30,39 @@ For example no tickets still in Ready / In Progress should be in the milestone w
 
 example
 ```
-./tools/release/publish_release.sh -am
+# Build release candidate and changelogs and QA ticket
+./tools/release/publish_release.sh -a
+# Do QA until ready to release
+
+# QA is passed on all teams and ready for release
+
+# Tag main
+./tools/release/publish_release.sh -ag
+# Publish main
+./tools/release/publish_release.sh -au
+# Go update osquery-slack version
 ```
 
 ...
 TODO example output
 ...
 
-```
 
 ## Patch Release (end of week / critical)
 
 example
 ```
+# Build release candidate and changelogs and QA ticket
 ./tools/release/publish_release.sh
+# Do QA until ready to release
+
+# QA is passed on all teams and ready for release
+
+# Tag patch
+./tools/release/publish_release.sh -g
+# Publish patch
+./tools/release/publish_release.sh -u
+# Go update osquery-slack version
 ```
 
 ...
