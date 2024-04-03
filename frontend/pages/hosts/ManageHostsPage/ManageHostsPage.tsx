@@ -267,7 +267,7 @@ const ManageHostsPage = ({
     return filters;
   }, [activeLabel, labelID]);
 
-  // ========= sharedApiParams used for the following API calls:
+  // ========= hostsApiParams used for the following API calls:
   //  list hosts, hosts count, bulk transfer, bulk delete, export hosts
   // Order matches rest-api.md > List hosts parameters
   // TODO: Find out if where and how selectedFilters is being use
