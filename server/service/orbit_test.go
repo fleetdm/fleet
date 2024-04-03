@@ -24,7 +24,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		os := &fleet.OperatingSystem{
 			Platform: "darwin",
-			Version: "12.2",
+			Version:  "12.2",
 		}
 		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
 			return os, nil
@@ -34,7 +34,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		ctx = test.HostContext(ctx, &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
-			ID: 1,
+			ID:            1,
 			MDMInfo: &fleet.HostMDM{
 				IsServer:         false,
 				InstalledFromDep: true,
@@ -75,7 +75,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		os := &fleet.OperatingSystem{
 			Platform: "darwin",
-			Version: "12.2",
+			Version:  "12.2",
 		}
 		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
 			return os, nil
@@ -95,7 +95,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 
 		ctx = test.HostContext(ctx, &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
-			ID: 1,
+			ID:            1,
 			TeamID:        ptr.Uint(team.ID),
 			MDMInfo: &fleet.HostMDM{
 				IsServer:         false,
@@ -137,7 +137,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		os := &fleet.OperatingSystem{
 			Platform: "darwin",
-			Version: "12.2",
+			Version:  "12.2",
 		}
 		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
 			return os, nil
@@ -222,11 +222,11 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		os := &fleet.OperatingSystem{
 			Platform: "darwin",
-			Version: "12.2",
+			Version:  "12.2",
 		}
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
-			ID: 0,
+			ID:            0,
 			MDMInfo: &fleet.HostMDM{
 				IsServer:         false,
 				InstalledFromDep: true,
@@ -268,7 +268,6 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, cfg.NudgeConfig)
 		require.False(t, ds.GetHostOperatingSystemFuncInvoked)
-
 
 		// Version < 14 gets nudge
 		host.ID = 1
