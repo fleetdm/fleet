@@ -29,7 +29,7 @@ export default {
   ): Promise<IHostsCountResponse> => {
     // Order matches rest-api.md > List hosts parameters
     const status = options?.status;
-    const globalFilter = options?.globalFilter || "";
+    const query = options?.query || "";
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse;
     const teamId = options?.teamId;
@@ -51,7 +51,7 @@ export default {
     const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     const queryParams = {
-      query: globalFilter,
+      query,
       ...reconcileMutuallyInclusiveHostParams({
         teamId,
         macSettingsStatus,

@@ -58,7 +58,7 @@ export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
 and all code added should follow suit */
 export interface IBaseHostsOptions {
   status?: HostStatus;
-  globalFilter?: string;
+  query?: string;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
@@ -90,11 +90,11 @@ export interface IPaginateHostOptions extends IBaseHostsOptions {
 
 export interface IActionByFilter {
   // Order matches rest-api.md > List hosts parameters
-  teamId?: number | null;
+  transferTeamId?: number | null;
   query: string;
   status: string;
   labelId?: number;
-  currentTeam?: number | null;
+  teamId?: number | null;
   policyId?: number | null;
   policyResponse?: PolicyResponse;
   softwareId?: number | null;
@@ -223,7 +223,7 @@ export default {
     const visibleColumns = options?.visibleColumns;
     const sortBy = options.sortBy;
     const status = options?.status;
-    const globalFilter = options?.globalFilter || "";
+    const query = options?.query || "";
     const teamId = options?.teamId;
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
@@ -251,7 +251,7 @@ export default {
     const queryParams = {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
-      query: globalFilter,
+      query,
       ...reconcileMutuallyInclusiveHostParams({
         label,
         teamId,
@@ -297,7 +297,7 @@ export default {
     perPage = 100,
     sortBy,
     status,
-    globalFilter,
+    query,
     teamId,
     policyId,
     policyResponse = "passing",
@@ -325,7 +325,7 @@ export default {
     const queryParams = {
       page,
       per_page: perPage,
-      query: globalFilter,
+      query,
       device_mapping: deviceMapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
@@ -401,11 +401,11 @@ export default {
 
   // TODO confirm interplay with policies
   transferToTeamByFilter: ({
-    teamId,
+    transferTeamId,
     query,
     status,
     labelId,
-    currentTeam,
+    teamId,
     policyId,
     policyResponse,
     softwareId,
@@ -426,12 +426,12 @@ export default {
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
-      team_id: teamId,
+      team_id: transferTeamId,
       filters: {
         query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
-        team_id: currentTeam,
+        team_id: teamId,
         policy_id: policyId,
         policy_response: policyResponse,
         software_id: softwareId,

@@ -266,6 +266,33 @@ const ManageHostsPage = ({
     return filters;
   }, [activeLabel, labelID]);
 
+  // TODO: Clean up selectedFilters vs. selectedLabels
+  // ========= sharedApiParams used for the following API calls:
+  //  list host, host count, bulk transfer, bulk delete, export hosts
+  // Order matches rest-api.md > List hosts parameters
+  const hostsApiParams = {
+    status,
+    query: searchQuery,
+    teamId: teamIdForApi,
+    policyId,
+    policyResponse,
+    softwareId,
+    softwareVersionId,
+    softwareTitleId,
+    osVersionId,
+    osName,
+    osVersion,
+    vulnerability,
+    mdmId,
+    mdmEnrollmentStatus,
+    macSettingsStatus,
+    munkiIssueId,
+    lowDiskSpaceHosts,
+    bootstrapPackageStatus,
+    osSettings: osSettingsStatus,
+    diskEncryptionStatus,
+  };
+
   // ========= derived permissions
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -371,28 +398,9 @@ const ManageHostsPage = ({
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         sortBy,
+        ...hostsApiParams,
         selectedLabels: selectedFilters,
-        status,
-        globalFilter: searchQuery,
-        teamId: teamIdForApi,
-        policyId,
-        policyResponse,
-        softwareId,
-        softwareTitleId,
-        softwareVersionId,
-        osName,
-        osVersionId,
-        osVersion,
-        vulnerability,
         deviceMapping: true,
-        mdmId,
-        mdmEnrollmentStatus,
-        macSettingsStatus,
-        munkiIssueId,
-        lowDiskSpaceHosts,
-        bootstrapPackageStatus,
-        osSettings: osSettingsStatus,
-        diskEncryptionStatus,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -411,29 +419,9 @@ const ManageHostsPage = ({
   } = useQuery<IHostsCountResponse, Error, number, IHostsCountQueryKey[]>(
     [
       {
-        // Order matches rest-api.md > List hosts parameters
         scope: "hosts_count",
-        status,
-        globalFilter: searchQuery,
-        teamId: teamIdForApi,
-        policyId,
-        policyResponse,
-        softwareId,
-        softwareTitleId,
-        softwareVersionId,
         selectedLabels: selectedFilters,
-        osName,
-        osVersionId,
-        osVersion,
-        vulnerability,
-        mdmId,
-        mdmEnrollmentStatus,
-        macSettingsStatus,
-        munkiIssueId,
-        lowDiskSpaceHosts,
-        bootstrapPackageStatus,
-        osSettings: osSettingsStatus,
-        diskEncryptionStatus,
+        ...hostsApiParams,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
@@ -1037,41 +1025,22 @@ const ManageHostsPage = ({
   const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
 
-    const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
+    const transferTeamId =
+      typeof transferTeam.id === "number" ? transferTeam.id : null;
 
     const action = isAllMatchingHostsSelected
       ? hostsAPI.transferToTeamByFilter({
-          // Order matches rest-api.md > List hosts parameters
-          status,
-          teamId,
-          query: searchQuery,
-          currentTeam: teamIdForApi,
-          policyId,
-          policyResponse,
-          softwareId,
-          softwareTitleId,
-          softwareVersionId,
+          transferTeamId,
           labelId: selectedLabel?.id,
-          osName,
-          osVersionId,
-          osVersion,
-          vulnerability,
-          mdmId,
-          mdmEnrollmentStatus,
-          macSettingsStatus,
-          munkiIssueId,
-          lowDiskSpaceHosts,
-          bootstrapPackageStatus,
-          osSettings: osSettingsStatus,
-          diskEncryptionStatus,
+          ...hostsApiParams,
         })
-      : hostsAPI.transferToTeam(teamId, selectedHostIds);
+      : hostsAPI.transferToTeam(transferTeamId, selectedHostIds);
 
     try {
       await action;
 
       const successMessage =
-        teamId === null
+        transferTeamId === null
           ? `Hosts successfully removed from teams.`
           : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
@@ -1095,28 +1064,8 @@ const ManageHostsPage = ({
     try {
       await (isAllMatchingHostsSelected
         ? hostsAPI.destroyByFilter({
-            // Order matches rest-api.md > List hosts parameters
-            status,
-            query: searchQuery,
-            teamId: teamIdForApi,
-            policyId,
-            policyResponse,
-            softwareId,
-            softwareTitleId,
-            softwareVersionId,
             labelId: selectedLabel?.id,
-            osName,
-            osVersionId,
-            osVersion,
-            vulnerability,
-            mdmId,
-            mdmEnrollmentStatus,
-            macSettingsStatus,
-            munkiIssueId,
-            lowDiskSpaceHosts,
-            bootstrapPackageStatus,
-            osSettings: osSettingsStatus,
-            diskEncryptionStatus,
+            ...hostsApiParams,
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
@@ -1305,34 +1254,11 @@ const ManageHostsPage = ({
       visibleColumns = columnIds.join(",");
     }
 
-    let options = {
+    const options = {
       visibleColumns,
       sortBy,
       selectedLabels: selectedFilters,
-      globalFilter: searchQuery,
-      teamId: teamIdForApi,
-      policyId,
-      policyResponse,
-      macSettingsStatus,
-      softwareId,
-      softwareTitleId,
-      softwareVersionId,
-      status,
-      mdmId,
-      mdmEnrollmentStatus,
-      lowDiskSpaceHosts,
-      osName,
-      osVersionId,
-      osVersion,
-      osSettings: osSettingsStatus,
-      bootstrapPackageStatus,
-      vulnerability,
-      diskEncryptionStatus,
-    };
-
-    options = {
-      ...options,
-      teamId: teamIdForApi,
+      ...hostsApiParams,
     };
 
     if (queryParams.team_id) {
