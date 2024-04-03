@@ -216,12 +216,12 @@ without necessarily having a billing card.`
 
     currentGetStartedQuestionnarieStep: {
       type: 'string',
-      description: 'This users progress in the get started form.'
+      description: 'The last step the user reached in the get started form.'
     },
 
     getStartedQuestionnarieAnswers: {
       type: 'json',
-      description: 'This users progress in the get started form.'
+      description: 'This answers the user provided when they filled out the get started form.',
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
