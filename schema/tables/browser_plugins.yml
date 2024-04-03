@@ -10,3 +10,4 @@ examples: >-
   SELECT bp.name, bp.identifier, bp.version FROM browser_plugins bp JOIN users u on bp.uid = u.uid ;
 
   ```
+notes: Querying this table requires joining against the `users` table.

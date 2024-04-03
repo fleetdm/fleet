@@ -8,6 +8,7 @@ examples: >-
   SELECT crash_path, identifier, responsible, exception_type FROM crashes;
 
   ```
+notes: Querying this table requires joining against the `users` table.
 columns:
   - name: uid
     requires_user_context: true

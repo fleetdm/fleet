@@ -4,4 +4,5 @@ columns:
   - name: uid
     requires_user_context: true
 notes: >-
+  - Querying this table requires joining against the `users` table.
   - Includes installed extensions for all system users.

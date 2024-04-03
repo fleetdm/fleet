@@ -1,4 +1,5 @@
 name: chrome_extension_content_scripts
+notes: Querying this table requires joining against the `users` table.
 columns:
   - name: uid
     requires_user_context: true

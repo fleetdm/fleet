@@ -14,6 +14,7 @@ examples: >-
   SELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';
 
   ```
+notes: Querying this table requires joining against the `users` table.
 columns:
   - name: uid
     requires_user_context: true

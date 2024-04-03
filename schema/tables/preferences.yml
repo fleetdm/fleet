@@ -9,6 +9,7 @@ examples: >-
 
   ```
 notes: >-
+  - Querying this table requires joining against the `users` table.
   - The `value` column will be empty for keys that contain binary data.
 columns:
   - name: username
