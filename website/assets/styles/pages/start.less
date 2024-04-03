@@ -227,6 +227,9 @@
     }
     [purpose='start-cards'] {
       flex-direction: column;
+      [purpose='card'] {
+        width: 100%;
+      }
     }
     [purpose='card']:first-of-type {
       margin-right: unset;
@@ -239,6 +242,7 @@
     }
     [purpose='form-option'] {
       white-space: unset;
+      width: unset;
     }
   }
   @media (max-width: 375px) {
