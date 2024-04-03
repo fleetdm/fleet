@@ -259,6 +259,7 @@ const ManageHostsPage = ({
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
+  console.log("activeLabel", activeLabel);
   const selectedFilters = useMemo(() => {
     const filters: string[] = [];
     labelID && filters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
@@ -266,10 +267,10 @@ const ManageHostsPage = ({
     return filters;
   }, [activeLabel, labelID]);
 
-  // TODO: Clean up selectedFilters vs. selectedLabels
   // ========= sharedApiParams used for the following API calls:
-  //  list host, host count, bulk transfer, bulk delete, export hosts
+  //  list hosts, hosts count, bulk transfer, bulk delete, export hosts
   // Order matches rest-api.md > List hosts parameters
+  // TODO: Find out if where and how selectedFilters is being use
   const hostsApiParams = {
     status,
     query: searchQuery,
@@ -283,6 +284,7 @@ const ManageHostsPage = ({
     osName,
     osVersion,
     vulnerability,
+    labelId: selectedLabel?.id,
     mdmId,
     mdmEnrollmentStatus,
     macSettingsStatus,
@@ -398,6 +400,7 @@ const ManageHostsPage = ({
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         sortBy,
         ...hostsApiParams,
+        // TODO: Find out if where and how selectedFilters is being use
         selectedLabels: selectedFilters,
         deviceMapping: true,
       },
@@ -419,6 +422,7 @@ const ManageHostsPage = ({
     [
       {
         scope: "hosts_count",
+        // TODO: Find out if where and how selectedFilters is being use
         selectedLabels: selectedFilters,
         ...hostsApiParams,
       },
@@ -1030,7 +1034,6 @@ const ManageHostsPage = ({
     const action = isAllMatchingHostsSelected
       ? hostsAPI.transferToTeamByFilter({
           transferTeamId,
-          labelId: selectedLabel?.id,
           ...hostsApiParams,
         })
       : hostsAPI.transferToTeam(transferTeamId, selectedHostIds);
@@ -1063,7 +1066,6 @@ const ManageHostsPage = ({
     try {
       await (isAllMatchingHostsSelected
         ? hostsAPI.destroyByFilter({
-            labelId: selectedLabel?.id,
             ...hostsApiParams,
           })
         : hostsAPI.destroyBulk(selectedHostIds));
@@ -1256,6 +1258,7 @@ const ManageHostsPage = ({
     const options = {
       visibleColumns,
       sortBy,
+      // TODO: Find out if where and how selectedFilters is being use
       selectedLabels: selectedFilters,
       ...hostsApiParams,
     };

@@ -36,6 +36,8 @@ export default {
     const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
+    const labelId = options?.labelId;
+    // TODO: Find out if where and how selectedFilters is being use
     const label = getLabelParam(options?.selectedLabels || []);
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
@@ -77,7 +79,7 @@ export default {
         diskEncryptionStatus,
         osSettings,
       }),
-      label_id: label,
+      label_id: labelId,
       status,
     };
 

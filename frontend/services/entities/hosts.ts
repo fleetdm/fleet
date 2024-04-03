@@ -70,6 +70,7 @@ export interface IBaseHostsOptions {
   osVersionId?: number;
   osVersion?: string;
   vulnerability?: string;
+  labelId?: number;
   deviceMapping?: boolean;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -123,17 +124,11 @@ const getLabel = (selectedLabels?: string[]) => {
   return selectedLabels.find((filter) => filter.includes(LABEL_PREFIX));
 };
 
-const getHostEndpoint = (selectedLabels?: string[]) => {
+const getHostEndpoint = (labelId?: number) => {
   const { HOSTS, LABEL_HOSTS } = endpoints;
-  if (selectedLabels === undefined) return HOSTS;
+  if (!labelId) return HOSTS;
 
-  const label = getLabel(selectedLabels);
-  if (label) {
-    const labelId = label.substr(LABEL_PREFIX.length);
-    return LABEL_HOSTS(parseInt(labelId, 10));
-  }
-
-  return HOSTS;
+  return LABEL_HOSTS(labelId);
 };
 
 const getSortParams = (sortOptions?: ISortOption[]) => {
@@ -233,6 +228,8 @@ export default {
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
     const osVersion = options?.osVersion;
+    const labelId = options?.labelId;
+    // TODO: Find out if where and how selectedFilters is being use
     const label = getLabelParam(options?.selectedLabels || []);
     const vulnerability = options?.vulnerability;
     const mdmId = options?.mdmId;
@@ -279,7 +276,7 @@ export default {
         osSettings,
       }),
       status,
-      label_id: label,
+      label_id: labelId,
       columns: visibleColumns,
       format: "csv",
     };
@@ -304,6 +301,7 @@ export default {
     softwareId,
     softwareTitleId,
     softwareVersionId,
+    labelId,
     selectedLabels,
     osName,
     osVersionId,
@@ -359,7 +357,7 @@ export default {
 
     const queryString = buildQueryStringFromParams(queryParams);
 
-    const endpoint = getHostEndpoint(selectedLabels);
+    const endpoint = getHostEndpoint(labelId);
     const path = `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
   },
