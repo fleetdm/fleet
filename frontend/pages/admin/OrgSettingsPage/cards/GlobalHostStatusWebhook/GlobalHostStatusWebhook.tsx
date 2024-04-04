@@ -9,8 +9,6 @@ import { getCustomDropdownOptions } from "utilities/helpers";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
-import { IConfigFormData } from "interfaces/config";
-
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -20,21 +18,20 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import {
-  IAppConfigFormProps,
-  IFormField,
-  IAppConfigFormErrors,
-} from "../constants";
+import { IAppConfigFormProps, IFormField } from "../constants";
+
+interface IGlobalHostStatusWebhookFormData {
+  enableHostStatusWebhook: boolean;
+  destination_url?: string;
+  hostStatusWebhookHostPercentage: number;
+  hostStatusWebhookWindow: number;
+}
+
+interface IGlobalHostStatusWebhookFormErrors {
+  destination_url?: string;
+}
 
 const baseClass = "app-config-form";
-
-export type IGlobalHostStatusWebhookFormData = Pick<
-  IConfigFormData,
-  | "enableHostStatusWebhook"
-  | "destination_url"
-  | "hostStatusWebhookHostPercentage"
-  | "hostStatusWebhookWindow"
->;
 
 const GlobalHostStatusWebhook = ({
   appConfig,
@@ -64,9 +61,10 @@ const GlobalHostStatusWebhook = ({
     hostStatusWebhookWindow,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<
-    Pick<IAppConfigFormErrors, "destination_url">
-  >({});
+  const [
+    formErrors,
+    setFormErrors,
+  ] = useState<IGlobalHostStatusWebhookFormErrors>({});
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
@@ -74,7 +72,7 @@ const GlobalHostStatusWebhook = ({
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: IGlobalHostStatusWebhookFormErrors = {};
 
     if (enableHostStatusWebhook) {
       if (!destination_url) {

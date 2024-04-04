@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 
-import { IConfigFormData } from "interfaces/config";
-
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -10,24 +8,21 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import {
-  IAppConfigFormProps,
-  IFormField,
-  IAppConfigFormErrors,
-} from "../constants";
+import { IAppConfigFormProps, IFormField } from "../constants";
 
-type IOrgInfoFormData = Pick<
-  IConfigFormData,
-  "orgName" | "orgLogoURL" | "orgLogoURLLightBackground" | "orgSupportURL"
->;
+interface IOrgInfoFormData {
+  orgLogoURL: string;
+  orgName: string;
+  orgLogoURLLightBackground: string;
+  orgSupportURL: string;
+}
 
-type IOrgInfoFormErrors = Pick<
-  IAppConfigFormErrors,
-  | "org_name"
-  | "org_logo_url"
-  | "org_logo_url_light_background"
-  | "org_support_url"
->;
+interface IOrgInfoFormErrors {
+  org_name?: string | null;
+  org_logo_url?: string | null;
+  org_logo_url_light_background?: string | null;
+  org_support_url?: string | null;
+}
 
 // TODO: change base classes to these cards to follow the same pattern as the
 // other components in the app.
@@ -63,7 +58,7 @@ const Info = ({
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: IOrgInfoFormErrors = {};
 
     if (!orgName) {
       errors.org_name = "Organization name must be present";

@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
 
-import { IConfigFormData } from "interfaces/config";
-
 import { AppContext } from "context/app";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -18,28 +16,29 @@ import SectionHeader from "components/SectionHeader";
 import {
   IAppConfigFormProps,
   IFormField,
-  IAppConfigFormErrors,
   authMethodOptions,
   authTypeOptions,
 } from "../constants";
 
-type ISmtpConfigFormData = Pick<
-  IConfigFormData,
-  | "enableSMTP"
-  | "smtpSenderAddress"
-  | "smtpServer"
-  | "smtpPort"
-  | "smtpEnableSSLTLS"
-  | "smtpAuthenticationType"
-  | "smtpUsername"
-  | "smtpPassword"
-  | "smtpAuthenticationMethod"
->;
+interface ISmtpConfigFormData {
+  enableSMTP: boolean;
+  smtpSenderAddress: string;
+  smtpServer: string;
+  smtpPort?: number;
+  smtpEnableSSLTLS: boolean;
+  smtpAuthenticationType: string;
+  smtpUsername: string;
+  smtpPassword: string;
+  smtpAuthenticationMethod: string;
+}
 
-type ISmtpConfigFormErrors = Pick<
-  IAppConfigFormErrors,
-  "sender_address" | "server" | "server_port" | "user_name" | "password"
->;
+interface ISmtpConfigFormErrors {
+  sender_address?: string | null;
+  server?: string | null;
+  server_port?: string | null;
+  user_name?: string | null;
+  password?: string | null;
+}
 
 const baseClass = "app-config-form";
 

@@ -1,18 +1,20 @@
 import React, { useState } from "react";
 
-import { IConfigFormData } from "interfaces/config";
-
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import {
-  IAppConfigFormProps,
-  IFormField,
-  IAppConfigFormErrors,
-} from "../constants";
+import { IAppConfigFormProps, IFormField } from "../constants";
+
+interface IWebAddressFormData {
+  serverURL: string;
+}
+
+interface IWebAddressFormErrors {
+  server_url?: string | null;
+}
 
 const baseClass = "app-config-form";
 
@@ -21,15 +23,13 @@ const WebAddress = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<Pick<IConfigFormData, "serverURL">>({
+  const [formData, setFormData] = useState<IWebAddressFormData>({
     serverURL: appConfig.server_settings.server_url || "",
   });
 
   const { serverURL } = formData;
 
-  const [formErrors, setFormErrors] = useState<
-    Pick<IAppConfigFormErrors, "server_url">
-  >({});
+  const [formErrors, setFormErrors] = useState<IWebAddressFormErrors>({});
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
@@ -37,7 +37,7 @@ const WebAddress = ({
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: IWebAddressFormErrors = {};
     if (!serverURL) {
       errors.server_url = "Fleet server URL must be present";
     } else if (!validUrl({ url: serverURL, protocols: ["http", "https"] })) {

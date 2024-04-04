@@ -65,48 +65,6 @@ export interface IFleetDesktopSettings {
   transparency_url: string;
 }
 
-export interface IConfigFormData {
-  smtpAuthenticationMethod: string;
-  smtpAuthenticationType: string;
-  domain: string;
-  smtpEnableSSLTLS: boolean;
-  enableStartTLS?: boolean;
-  serverURL: string;
-  orgLogoURL: string;
-  orgName: string;
-  orgLogoURLLightBackground: string;
-  orgSupportURL: string;
-  smtpPassword: string;
-  smtpPort?: number;
-  smtpSenderAddress: string;
-  smtpServer: string;
-  smtpUsername: string;
-  verifySSLCerts: boolean;
-  entityId: string;
-  idpImageUrl: string;
-  metadata: string;
-  metadataUrl: string;
-  idpName: string;
-  enableSso: boolean;
-  enableSsoIdpLogin: boolean;
-  enableSMTP: boolean;
-  enableHostExpiry: boolean;
-  hostExpiryWindow: number;
-  deleteActivities: boolean;
-  activityExpiryWindow: number;
-  disableLiveQuery: boolean;
-  agentOptions?: any;
-  enableHostStatusWebhook: boolean;
-  destination_url?: string;
-  hostStatusWebhookHostPercentage: number;
-  hostStatusWebhookWindow: number;
-  enableUsageStatistics: boolean;
-  transparencyUrl: string;
-  disableScripts: boolean;
-  disableQueryReports: boolean;
-  enableJitProvisioning: boolean;
-}
-
 export interface IConfigFeatures {
   enable_host_users: boolean;
   enable_software_inventory: boolean;
