@@ -307,6 +307,7 @@ export interface IHost {
   display_text: string;
   display_name: string;
   target_type?: string;
+  scripts_enabled?: boolean;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;

@@ -1,0 +1,28 @@
+.Select > .Select-menu-outer {
+  .is-disabled * {
+    color: $ui-fleet-black-25;
+    .disabled-dropdown-tooltip-wrapper {
+      width: 100%;
+    }
+    .disabled-dropdown-tooltip-wrapper__element {
+      // for broader tooltip activation area, equally increase padding and decrease margin
+      padding: 8px;
+      margin: -8px;
+      width: 100%;
+    }
+    .react-tooltip {
+      @include tooltip-text;
+      font-style: normal;
+      text-align: center;
+    }
+
+    // arrow styles directly from react-tooltip-5 css
+    .tooltip-arrow {
+      width: 8px;
+      height: 8px;
+    }
+    [class*="react-tooltip__place-left"] > .tooltip-arrow {
+      transform: rotate(315deg);
+    }
+  }
+}

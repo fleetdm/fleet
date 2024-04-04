@@ -6,6 +6,7 @@ import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import DisabledDropdownTooltipWrapper from "components/forms/fields/Dropdown/DisabledDropdownTooltipWrapper";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -79,6 +80,7 @@ interface IHostActionConfigOptions {
   doesStoreEncryptionKey: boolean;
   isSandboxMode: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
+  hostScriptsEnabled: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -284,11 +286,25 @@ const filterOutOptions = (
 
 const setOptionsAsDisabled = (
   options: IDropdownOption[],
-  { isHostOnline, isSandboxMode, hostMdmDeviceStatus }: IHostActionConfigOptions
+  {
+    isHostOnline,
+    isSandboxMode,
+    hostMdmDeviceStatus,
+    hostScriptsEnabled,
+  }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
       option.disabled = true;
+      if (option.value === "runScript") {
+        option.disabledTooltipContent = (
+          <>
+            To run scripts on this host, deploy the
+            <br />
+            fleetd agent with --enable-scripts
+          </>
+        );
+      }
     });
   };
 
@@ -303,6 +319,12 @@ const setOptionsAsDisabled = (
       options.filter(
         (option) => option.value === "query" || option.value === "mdmOff"
       )
+    );
+  }
+
+  if (!hostScriptsEnabled) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "runScript")
     );
   }
   if (isSandboxMode) {
