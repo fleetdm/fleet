@@ -493,7 +493,7 @@ You can learn more about how Fleet approaches security in the [security handbook
 
 
 ## Vendor questionnaires 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires) 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 ## Getting a contract signed
 If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
