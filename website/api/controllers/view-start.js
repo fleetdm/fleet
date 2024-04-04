@@ -17,7 +17,7 @@ module.exports = {
 
 
   fn: async function () {
-    if(this.req.me.lastSubmittedGetStartedQuestionnaireStep && this.req.me.getStartedQuestionnaireAnswers){
+    if(this.req.me.lastSubmittedGetStartedQuestionnaireStep && !_.isEmpty(this.req.me.getStartedQuestionnaireAnswers)){
       let currentStep = this.req.me.lastSubmittedGetStartedQuestionnaireStep;
       let previouslyAnsweredQuestions = this.req.me.getStartedQuestionnaireAnswers;
       // Respond with view.

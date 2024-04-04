@@ -222,6 +222,7 @@ without necessarily having a billing card.`
     getStartedQuestionnaireAnswers: {
       type: 'json',
       description: 'This answers the user provided when they filled out the get started form.',
+      defaultsTo: {},
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
