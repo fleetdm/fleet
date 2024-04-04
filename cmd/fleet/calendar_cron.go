@@ -222,7 +222,7 @@ func processCalendarFailingHosts(
 						// thus we skip this entry.
 						continue // continue with next host
 					}
-					if hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusPending {
+					if hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusPending || hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusRetry {
 						// This can happen if the host went offline (and never returned results)
 						// after setting the webhook as pending.
 						continue // continue with next host
