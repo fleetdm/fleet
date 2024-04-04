@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -90,6 +91,10 @@ func (s *CVE) lastModStartDateFilePath() string {
 	return filepath.Join(s.dbDir, "last_mod_start_date.txt")
 }
 
+func (s *CVE) lastVulnCheckModStartDateFilePath() string {
+	return filepath.Join(s.dbDir, "last_vuln_check_mod_start_date.txt")
+}
+
 // Do runs the synchronization from the NVD service to the local DB directory.
 func (s *CVE) Do(ctx context.Context) error {
 	ok, err := fileExists(s.lastModStartDateFilePath())
@@ -102,6 +107,11 @@ func (s *CVE) Do(ctx context.Context) error {
 	}
 	level.Debug(s.logger).Log("msg", "NVD CVE update")
 	return s.update(ctx)
+}
+
+func (s *CVE) DoVulnCheck(ctx context.Context) error {
+	level.Debug(s.logger).Log("msg", "initial VulnCheck CVE sync")
+	return s.initVulnCheckSync(ctx)
 }
 
 // initSync performs the initial synchronization (full download) of all CVEs.
@@ -119,6 +129,16 @@ func (s *CVE) initSync(ctx context.Context) error {
 
 	// Write the lastModStartDate to be used in the next sync.
 	if err := s.writeLastModStartDateFile(lastModStartDate); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *CVE) initVulnCheckSync(ctx context.Context) error {
+	// Perform the initial download of all CVE information.
+	err := s.vulnCheckSync(ctx)
+	if err != nil {
 		return err
 	}
 
@@ -217,6 +237,73 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 		return err
 	}
 	level.Debug(s.logger).Log("msg", "stored cves", "year", year, "duration", time.Since(storeStart))
+
+	return nil
+}
+
+func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE) error {
+	// The NVD legacy feed files start at year 2002.
+	// This is assumed by the facebookincubator/nvdtools package.
+	if year < 2002 {
+		year = 2002
+	}
+
+	// Read the CVE file for the year.
+	readStart := time.Now()
+	storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, year)
+	if err != nil {
+		return err
+	}
+	level.Debug(s.logger).Log("msg", "read cves", "year", year, "duration", time.Since(readStart))
+
+	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
+	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
+	for _, cve := range cves {
+		legacyCVE := convertVulnCheckCVEToLegacy(cve, s.logger)
+		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
+	}
+
+	// Update existing CVEs with the latest updates (e.g. NVD updated a CVSS metric on an existing CVE).
+	//
+	// This loop iterates the existing slice and, if there's an update for the item, it will
+	// update the item in place. The next for loop takes care of adding the newly reported CVEs.
+	updateStart := time.Now()
+	counter := 0
+	for i, storedCVE := range storedCVEFeed.CVEItems {
+		if newLegacyCVE, ok := newLegacyCVEs[storedCVE.CVE.CVEDataMeta.ID]; ok {
+			// Don't overwrite the configurations if they are already set.
+			if storedCVE.Configurations != nil && len(storedCVE.Configurations.Nodes) > 0 {
+				delete(newLegacyCVEs, storedCVE.CVE.CVEDataMeta.ID)
+				continue
+			}
+
+			if len(newLegacyCVE.Configurations.Nodes) > 0 {
+				storedCVEFeed.CVEItems[i].Configurations = newLegacyCVE.Configurations
+				// level.Debug(s.logger).Log("msg", "updated cve with vulncheck config", "year", year, "cve", storedCVE.CVE.CVEDataMeta.ID)
+				counter++
+			}
+
+			delete(newLegacyCVEs, storedCVE.CVE.CVEDataMeta.ID)
+		}
+	}
+	level.Debug(s.logger).Log("msg", "updated vulncheck cves", "year", year, "count", counter, "duration", time.Since(updateStart))
+
+	// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
+	//
+	// Any leftover items from the previous loop in newLegacyCVEs are new CVEs.
+	level.Debug(s.logger).Log("msg", "adding new vulncheck cves", "year", year, "count", len(newLegacyCVEs))
+	for _, cve := range newLegacyCVEs {
+		storedCVEFeed.CVEItems = append(storedCVEFeed.CVEItems, cve)
+		// level.Debug(s.logger).Log("msg", "added new vulncheck cve", "year", year, "cve", cve.CVE.CVEDataMeta.ID)
+	}
+	storedCVEFeed.CVEDataNumberOfCVEs = strconv.FormatInt(int64(len(storedCVEFeed.CVEItems)), 10)
+
+	// Store the file for the year.
+	storeStart := time.Now()
+	if err := storeCVEsInLegacyFormat(s.dbDir, year, storedCVEFeed); err != nil {
+		return err
+	}
+	level.Debug(s.logger).Log("msg", "stored updated cves", "year", year, "duration", time.Since(storeStart))
 
 	return nil
 }
@@ -392,6 +479,101 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	return newLastModStartDate, nil
 }
 
+func (s *CVE) vulnCheckSync(ctx context.Context) error {
+	var nextCursor string
+	cvesByYear := make(map[int][]VulnCheckCVE)
+	retryAttempts := 0
+
+	apiKey := os.Getenv("VULNCHECK_API_KEY")
+
+	if apiKey == "" {
+		return errors.New("VULNCHECK_API_KEY environment variable not set")
+	}
+
+	baseURL := "https://api.vulncheck.com/v3/index/nist-nvd2/cursor"
+
+	for {
+		params := url.Values{}
+		params.Add("lastModStartDate", "2024-02-01")
+		params.Add("limit", "500")
+
+		if nextCursor != "" {
+			params.Add("cursor", nextCursor)
+		}
+
+		parsedURL, err := url.Parse(baseURL)
+		if err != nil {
+			return err
+		}
+
+		parsedURL.RawQuery = params.Encode()
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+		if err != nil {
+			return err
+		}
+
+		req.Header.Add("Authorization", "Bearer "+apiKey)
+
+		resp, err := s.client.Do(req)
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			if retryAttempts > maxRetryAttempts {
+				return err
+			}
+			s.logger.Log("msg", "NVD request returned error", "err", err, "retry-in", waitTimeForRetry)
+			retryAttempts++
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(waitTimeForRetry):
+				continue
+			}
+		}
+
+		defer resp.Body.Close()
+
+		var vcResponse VulnCheckResponse
+
+		if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
+			return err
+		}
+
+		level.Debug(s.logger).Log("msg", "received vulncheck response", "cursor", derefPtr(vcResponse.Meta.NextCursor), "vulns", len(vcResponse.Vulnerabilities))
+
+		for _, vuln := range vcResponse.Vulnerabilities {
+
+			if vuln.CVE.ID == nil {
+				continue
+			}
+
+			id := *vuln.CVE.ID
+			year, err := strconv.Atoi(id[4:8])
+			if err != nil {
+				return err
+			}
+			cvesByYear[year] = append(cvesByYear[year], vuln)
+		}
+
+		fmt.Println("lastmod:", *vcResponse.Vulnerabilities[len(vcResponse.Vulnerabilities)-1].CVE.LastModified)
+
+		for year, cvesInYear := range cvesByYear {
+			if err := s.updateVulnCheckYearFile(year, cvesInYear); err != nil {
+				return err
+			}
+		}
+
+		if vcResponse.Meta.NextCursor == nil {
+			return nil
+		}
+
+		nextCursor = *vcResponse.Meta.NextCursor
+	}
+}
+
 // fileExists returns whether a file at path exists.
 func fileExists(path string) (bool, error) {
 	switch _, err := os.Stat(path); {
@@ -429,9 +611,61 @@ func storeCVEsInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJ
 	return nil
 }
 
+func storeVulnCheckInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJSON10) error {
+	sort.Slice(cveFeed.CVEItems, func(i, j int) bool {
+		return cveFeed.CVEItems[i].CVE.CVEDataMeta.ID < cveFeed.CVEItems[j].CVE.CVEDataMeta.ID
+	})
+
+	path := filepath.Join(dbDir, fmt.Sprintf("vulncheck-%d.json", year))
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	jsonEncoder := json.NewEncoder(file)
+	jsonEncoder.SetIndent("", "  ")
+	if err := jsonEncoder.Encode(cveFeed); err != nil {
+		return err
+	}
+
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // readCVEsLegacyFormat loads the CVEs stored in the legacy feed format.
 func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, error) {
 	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json", year))
+
+	file, err := os.Open(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return &schema.NVDCVEFeedJSON10{
+				CVEDataFormat:    "MITRE",
+				CVEDataTimestamp: time.Now().Format("2006-01-02T15:04:05Z"),
+				CVEDataType:      "CVE",
+				CVEDataVersion:   "4.0",
+			}, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+
+	var cveFeed schema.NVDCVEFeedJSON10
+	if err := json.NewDecoder(file).Decode(&cveFeed); err != nil {
+		return nil, err
+	}
+
+	if err := file.Close(); err != nil {
+		return nil, err
+	}
+	return &cveFeed, nil
+}
+
+func readVulnCheckLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, error) {
+	path := filepath.Join(dbDir, fmt.Sprintf("vulncheck-%d.json", year))
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -566,6 +800,278 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 					CPEMatch: cpeMatches,
 					Children: []*schema.NVDCVEFeedJSON10DefNode{},
 					Negate:   *node.Negate,
+					Operator: string(node.Operator),
+				})
+			}
+		}
+	}
+
+	var baseMetricV2 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV2
+	for _, cvssMetricV2 := range cve.CVE.Metrics.CVSSMetricV2 {
+		if cvssMetricV2.Type != "Primary" {
+			continue
+		}
+		baseMetricV2 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV2{
+			AcInsufInfo: *cvssMetricV2.ACInsufInfo,
+			CVSSV2: &schema.CVSSV20{
+				AccessComplexity:           derefPtr(cvssMetricV2.CVSSData.AccessComplexity),
+				AccessVector:               derefPtr(cvssMetricV2.CVSSData.AccessVector),
+				Authentication:             derefPtr(cvssMetricV2.CVSSData.Authentication),
+				AvailabilityImpact:         derefPtr(cvssMetricV2.CVSSData.AvailabilityImpact),
+				AvailabilityRequirement:    derefPtr(cvssMetricV2.CVSSData.AvailabilityRequirement),
+				BaseScore:                  cvssMetricV2.CVSSData.BaseScore,
+				CollateralDamagePotential:  derefPtr(cvssMetricV2.CVSSData.CollateralDamagePotential),
+				ConfidentialityImpact:      derefPtr(cvssMetricV2.CVSSData.ConfidentialityImpact),
+				ConfidentialityRequirement: derefPtr(cvssMetricV2.CVSSData.ConfidentialityRequirement),
+				EnvironmentalScore:         derefPtr(cvssMetricV2.CVSSData.EnvironmentalScore),
+				Exploitability:             derefPtr(cvssMetricV2.CVSSData.Exploitability),
+				IntegrityImpact:            derefPtr(cvssMetricV2.CVSSData.IntegrityImpact),
+				IntegrityRequirement:       derefPtr(cvssMetricV2.CVSSData.IntegrityRequirement),
+				RemediationLevel:           derefPtr(cvssMetricV2.CVSSData.RemediationLevel),
+				ReportConfidence:           derefPtr(cvssMetricV2.CVSSData.ReportConfidence),
+				TargetDistribution:         derefPtr(cvssMetricV2.CVSSData.TargetDistribution),
+				TemporalScore:              derefPtr(cvssMetricV2.CVSSData.TemporalScore),
+				VectorString:               cvssMetricV2.CVSSData.VectorString,
+				Version:                    cvssMetricV2.CVSSData.Version,
+			},
+			ExploitabilityScore:     derefPtr((*float64)(cvssMetricV2.ExploitabilityScore)),
+			ImpactScore:             derefPtr((*float64)(cvssMetricV2.ImpactScore)),
+			ObtainAllPrivilege:      derefPtr(cvssMetricV2.ObtainAllPrivilege),
+			ObtainOtherPrivilege:    derefPtr(cvssMetricV2.ObtainOtherPrivilege),
+			ObtainUserPrivilege:     derefPtr(cvssMetricV2.ObtainUserPrivilege),
+			Severity:                derefPtr(cvssMetricV2.BaseSeverity),
+			UserInteractionRequired: derefPtr(cvssMetricV2.UserInteractionRequired),
+		}
+	}
+
+	var baseMetricV3 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV3
+	for _, cvssMetricV30 := range cve.CVE.Metrics.CVSSMetricV30 {
+		if cvssMetricV30.Type != "Primary" {
+			continue
+		}
+		baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
+			CVSSV3: &schema.CVSSV30{
+				AttackComplexity:              derefPtr(cvssMetricV30.CVSSData.AttackComplexity),
+				AttackVector:                  derefPtr(cvssMetricV30.CVSSData.AttackVector),
+				AvailabilityImpact:            derefPtr(cvssMetricV30.CVSSData.AvailabilityImpact),
+				AvailabilityRequirement:       derefPtr(cvssMetricV30.CVSSData.AvailabilityRequirement),
+				BaseScore:                     cvssMetricV30.CVSSData.BaseScore,
+				BaseSeverity:                  cvssMetricV30.CVSSData.BaseSeverity,
+				ConfidentialityImpact:         derefPtr(cvssMetricV30.CVSSData.ConfidentialityImpact),
+				ConfidentialityRequirement:    derefPtr(cvssMetricV30.CVSSData.ConfidentialityRequirement),
+				EnvironmentalScore:            derefPtr(cvssMetricV30.CVSSData.EnvironmentalScore),
+				EnvironmentalSeverity:         derefPtr(cvssMetricV30.CVSSData.EnvironmentalSeverity),
+				ExploitCodeMaturity:           derefPtr(cvssMetricV30.CVSSData.ExploitCodeMaturity),
+				IntegrityImpact:               derefPtr(cvssMetricV30.CVSSData.IntegrityImpact),
+				IntegrityRequirement:          derefPtr(cvssMetricV30.CVSSData.IntegrityRequirement),
+				ModifiedAttackComplexity:      derefPtr(cvssMetricV30.CVSSData.ModifiedAttackComplexity),
+				ModifiedAttackVector:          derefPtr(cvssMetricV30.CVSSData.ModifiedAttackVector),
+				ModifiedAvailabilityImpact:    derefPtr(cvssMetricV30.CVSSData.ModifiedAvailabilityImpact),
+				ModifiedConfidentialityImpact: derefPtr(cvssMetricV30.CVSSData.ModifiedConfidentialityImpact),
+				ModifiedIntegrityImpact:       derefPtr(cvssMetricV30.CVSSData.ModifiedIntegrityImpact),
+				ModifiedPrivilegesRequired:    derefPtr(cvssMetricV30.CVSSData.ModifiedPrivilegesRequired),
+				ModifiedScope:                 derefPtr(cvssMetricV30.CVSSData.ModifiedScope),
+				ModifiedUserInteraction:       derefPtr(cvssMetricV30.CVSSData.ModifiedUserInteraction),
+				PrivilegesRequired:            derefPtr(cvssMetricV30.CVSSData.PrivilegesRequired),
+				RemediationLevel:              derefPtr(cvssMetricV30.CVSSData.RemediationLevel),
+				ReportConfidence:              derefPtr(cvssMetricV30.CVSSData.ReportConfidence),
+				Scope:                         derefPtr(cvssMetricV30.CVSSData.Scope),
+				TemporalScore:                 derefPtr(cvssMetricV30.CVSSData.TemporalScore),
+				TemporalSeverity:              derefPtr(cvssMetricV30.CVSSData.TemporalSeverity),
+				UserInteraction:               derefPtr(cvssMetricV30.CVSSData.UserInteraction),
+				VectorString:                  cvssMetricV30.CVSSData.VectorString,
+				Version:                       cvssMetricV30.CVSSData.Version,
+			},
+			ExploitabilityScore: derefPtr((*float64)(cvssMetricV30.ExploitabilityScore)),
+			ImpactScore:         derefPtr((*float64)(cvssMetricV30.ImpactScore)),
+		}
+	}
+	// Use CVSSMetricV31 if available (override CVSSMetricV30)
+	for _, cvssMetricV31 := range cve.CVE.Metrics.CVSSMetricV31 {
+		if cvssMetricV31.Type != "Primary" {
+			continue
+		}
+		baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
+			CVSSV3: &schema.CVSSV30{
+				AttackComplexity:              derefPtr(cvssMetricV31.CVSSData.AttackComplexity),
+				AttackVector:                  derefPtr(cvssMetricV31.CVSSData.AttackVector),
+				AvailabilityImpact:            derefPtr(cvssMetricV31.CVSSData.AvailabilityImpact),
+				AvailabilityRequirement:       derefPtr(cvssMetricV31.CVSSData.AvailabilityRequirement),
+				BaseScore:                     cvssMetricV31.CVSSData.BaseScore,
+				BaseSeverity:                  cvssMetricV31.CVSSData.BaseSeverity,
+				ConfidentialityImpact:         derefPtr(cvssMetricV31.CVSSData.ConfidentialityImpact),
+				ConfidentialityRequirement:    derefPtr(cvssMetricV31.CVSSData.ConfidentialityRequirement),
+				EnvironmentalScore:            derefPtr(cvssMetricV31.CVSSData.EnvironmentalScore),
+				EnvironmentalSeverity:         derefPtr(cvssMetricV31.CVSSData.EnvironmentalSeverity),
+				ExploitCodeMaturity:           derefPtr(cvssMetricV31.CVSSData.ExploitCodeMaturity),
+				IntegrityImpact:               derefPtr(cvssMetricV31.CVSSData.IntegrityImpact),
+				IntegrityRequirement:          derefPtr(cvssMetricV31.CVSSData.IntegrityRequirement),
+				ModifiedAttackComplexity:      derefPtr(cvssMetricV31.CVSSData.ModifiedAttackComplexity),
+				ModifiedAttackVector:          derefPtr(cvssMetricV31.CVSSData.ModifiedAttackVector),
+				ModifiedAvailabilityImpact:    derefPtr(cvssMetricV31.CVSSData.ModifiedAvailabilityImpact),
+				ModifiedConfidentialityImpact: derefPtr(cvssMetricV31.CVSSData.ModifiedConfidentialityImpact),
+				ModifiedIntegrityImpact:       derefPtr(cvssMetricV31.CVSSData.ModifiedIntegrityImpact),
+				ModifiedPrivilegesRequired:    derefPtr(cvssMetricV31.CVSSData.ModifiedPrivilegesRequired),
+				ModifiedScope:                 derefPtr(cvssMetricV31.CVSSData.ModifiedScope),
+				ModifiedUserInteraction:       derefPtr(cvssMetricV31.CVSSData.ModifiedUserInteraction),
+				PrivilegesRequired:            derefPtr(cvssMetricV31.CVSSData.PrivilegesRequired),
+				RemediationLevel:              derefPtr(cvssMetricV31.CVSSData.RemediationLevel),
+				ReportConfidence:              derefPtr(cvssMetricV31.CVSSData.ReportConfidence),
+				Scope:                         derefPtr(cvssMetricV31.CVSSData.Scope),
+				TemporalScore:                 derefPtr(cvssMetricV31.CVSSData.TemporalScore),
+				TemporalSeverity:              derefPtr(cvssMetricV31.CVSSData.TemporalSeverity),
+				UserInteraction:               derefPtr(cvssMetricV31.CVSSData.UserInteraction),
+				VectorString:                  cvssMetricV31.CVSSData.VectorString,
+				Version:                       cvssMetricV31.CVSSData.Version,
+			},
+			ExploitabilityScore: derefPtr((*float64)(cvssMetricV31.ExploitabilityScore)),
+			ImpactScore:         derefPtr((*float64)(cvssMetricV31.ImpactScore)),
+		}
+	}
+
+	lastModified, err := convertAPI20TimeToLegacy(cve.CVE.LastModified)
+	if err != nil {
+		logger.Log("msg", "failed to parse lastModified time", "err", err)
+	}
+	publishedDate, err := convertAPI20TimeToLegacy(cve.CVE.Published)
+	if err != nil {
+		logger.Log("msg", "failed to parse published time", "err", err)
+	}
+
+	return &schema.NVDCVEFeedJSON10DefCVEItem{
+		CVE: &schema.CVEJSON40{
+			Affects: nil, // Doesn't seem used.
+			CVEDataMeta: &schema.CVEJSON40CVEDataMeta{
+				ID:       *cve.CVE.ID,
+				ASSIGNER: derefPtr(cve.CVE.SourceIdentifier),
+				STATE:    "", // Doesn't seem used.
+			},
+			DataFormat:  "MITRE", // All entries seem to have this format string.
+			DataType:    "CVE",   // All entries seem to have this type string.
+			DataVersion: "4.0",   // All entries seem to have this version string.
+			Description: &schema.CVEJSON40Description{
+				DescriptionData: descriptions,
+			},
+			Problemtype: &schema.CVEJSON40Problemtype{
+				ProblemtypeData: problemtypeData,
+			},
+			References: &schema.CVEJSON40References{
+				ReferenceData: referenceData,
+			},
+		},
+		Configurations: &schema.NVDCVEFeedJSON10DefConfigurations{
+			CVEDataVersion: "4.0", // All entries seem to have this version string.
+			Nodes:          nodes,
+		},
+		Impact: &schema.NVDCVEFeedJSON10DefImpact{
+			BaseMetricV2: baseMetricV2,
+			BaseMetricV3: baseMetricV3,
+		},
+		LastModifiedDate: lastModified,
+		PublishedDate:    publishedDate,
+	}
+}
+
+func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NVDCVEFeedJSON10DefCVEItem {
+	logger = log.With(logger, "cve", cve.CVE.ID)
+
+	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.CVE.Descriptions))
+	for _, description := range cve.CVE.Descriptions {
+		// Keep only english descriptions to match the legacy.
+		if description.Lang != "en" {
+			continue
+		}
+		descriptions = append(descriptions, &schema.CVEJSON40LangString{
+			Lang:  description.Lang,
+			Value: description.Value,
+		})
+	}
+
+	problemtypeData := make([]*schema.CVEJSON40ProblemtypeProblemtypeData, 0, len(cve.CVE.Weaknesses))
+	if len(cve.CVE.Weaknesses) == 0 {
+		problemtypeData = append(problemtypeData, &schema.CVEJSON40ProblemtypeProblemtypeData{
+			Description: []*schema.CVEJSON40LangString{},
+		})
+	}
+	for _, weakness := range cve.CVE.Weaknesses {
+		if weakness.Type != "Primary" {
+			continue
+		}
+		descriptions := make([]*schema.CVEJSON40LangString, 0, len(weakness.Description))
+		for _, description := range weakness.Description {
+			descriptions = append(descriptions, &schema.CVEJSON40LangString{
+				Lang:  description.Lang,
+				Value: description.Value,
+			})
+		}
+		problemtypeData = append(problemtypeData, &schema.CVEJSON40ProblemtypeProblemtypeData{
+			Description: descriptions,
+		})
+	}
+
+	referenceData := make([]*schema.CVEJSON40Reference, 0, len(cve.CVE.References))
+	for _, reference := range cve.CVE.References {
+		tags := []string{} // Entries that have no tag set an empty list.
+		if len(reference.Tags) != 0 {
+			tags = reference.Tags
+		}
+		referenceData = append(referenceData, &schema.CVEJSON40Reference{
+			Name:      reference.URL, // Most entries have name set to the URL, and there's no name field on API 2.0.
+			Refsource: "",            // Not available on API 2.0.
+			Tags:      tags,
+			URL:       reference.URL,
+		})
+	}
+
+	nodes := []*schema.NVDCVEFeedJSON10DefNode{} // Legacy entries define an empty list if there are no nodes.
+	for _, configuration := range cve.VcConfigurations {
+		if configuration.Operator != nil {
+			children := make([]*schema.NVDCVEFeedJSON10DefNode, 0, len(configuration.Nodes))
+			for _, node := range configuration.Nodes {
+				cpeMatches := make([]*schema.NVDCVEFeedJSON10DefCPEMatch, 0, len(node.CPEMatch))
+				for _, cpeMatch := range node.CPEMatch {
+					cpeMatches = append(cpeMatches, &schema.NVDCVEFeedJSON10DefCPEMatch{
+						CPEName:               []*schema.NVDCVEFeedJSON10DefCPEName{}, // All entries have this field with an empty array.
+						Cpe23Uri:              cpeMatch.Criteria,                      // All entries are in CPE 2.3 format.
+						VersionEndExcluding:   derefPtr(cpeMatch.VersionEndExcluding),
+						VersionEndIncluding:   derefPtr(cpeMatch.VersionEndIncluding),
+						VersionStartExcluding: derefPtr(cpeMatch.VersionStartExcluding),
+						VersionStartIncluding: derefPtr(cpeMatch.VersionStartIncluding),
+						Vulnerable:            cpeMatch.Vulnerable,
+					})
+				}
+				children = append(children, &schema.NVDCVEFeedJSON10DefNode{
+					CPEMatch: cpeMatches,
+					Children: []*schema.NVDCVEFeedJSON10DefNode{},
+					Negate:   derefPtr(node.Negate),
+					Operator: string(node.Operator),
+				})
+			}
+			nodes = append(nodes, &schema.NVDCVEFeedJSON10DefNode{
+				CPEMatch: []*schema.NVDCVEFeedJSON10DefCPEMatch{},
+				Children: children,
+				Negate:   derefPtr(configuration.Negate),
+				Operator: string(*configuration.Operator),
+			})
+		} else {
+			for _, node := range configuration.Nodes {
+				cpeMatches := make([]*schema.NVDCVEFeedJSON10DefCPEMatch, 0, len(node.CPEMatch))
+				for _, cpeMatch := range node.CPEMatch {
+					cpeMatches = append(cpeMatches, &schema.NVDCVEFeedJSON10DefCPEMatch{
+						CPEName:               []*schema.NVDCVEFeedJSON10DefCPEName{}, // All entries have this field with an empty array.
+						Cpe23Uri:              cpeMatch.Criteria,                      // All entries are in CPE 2.3 format.
+						VersionEndExcluding:   derefPtr(cpeMatch.VersionEndExcluding),
+						VersionEndIncluding:   derefPtr(cpeMatch.VersionEndIncluding),
+						VersionStartExcluding: derefPtr(cpeMatch.VersionStartExcluding),
+						VersionStartIncluding: derefPtr(cpeMatch.VersionStartIncluding),
+						Vulnerable:            cpeMatch.Vulnerable,
+					})
+				}
+
+				nodes = append(nodes, &schema.NVDCVEFeedJSON10DefNode{
+					CPEMatch: cpeMatches,
+					Children: []*schema.NVDCVEFeedJSON10DefNode{},
+					Negate:   derefPtr(node.Negate),
 					Operator: string(node.Operator),
 				})
 			}

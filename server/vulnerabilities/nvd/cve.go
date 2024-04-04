@@ -56,6 +56,27 @@ func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, lo
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
+	if err := cveSyncer.DoVulnCheck(context.Background()); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
+	return nil
+}
+
+func DownloadVulnCheckFeed(vulnPath string, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
+	cveSyncer, err := nvdsync.NewCVE(
+		vulnPath,
+		nvdsync.WithLogger(logger),
+		nvdsync.WithDebug(debug),
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := cveSyncer.DoVulnCheck(context.Background()); err != nil {
+		return fmt.Errorf("download vulncheck cve feed: %w", err)
+	}
+
 	return nil
 }
 
