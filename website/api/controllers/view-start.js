@@ -17,8 +17,8 @@ module.exports = {
 
 
   fn: async function () {
-    if(this.req.me.currentGetStartedQuestionnarieStep && this.req.me.getStartedQuestionnarieAnswers){
-      let currentStep = this.req.me.currentGetStartedQuestionnarieStep;
+    if(this.req.me.lastSubmittedGetStartedQuestionnarieStep && this.req.me.getStartedQuestionnarieAnswers){
+      let currentStep = this.req.me.lastSubmittedGetStartedQuestionnarieStep;
       let previouslyAnsweredQuestions = this.req.me.getStartedQuestionnarieAnswers;
       // Respond with view.
       return {currentStep, previouslyAnsweredQuestions};
