@@ -389,7 +389,7 @@ tag() {
     fi
 
     if [ "$dry_run" = "false" ]; then
-        releaser_out=`gh run list --workflow goreleaser-fleet.yaml --json databaseId,event,headBranch,url | jq "[.[]|select(.headBranch==\"$next_tag\")][0]`
+        releaser_out=`gh run list --workflow goreleaser-fleet.yaml --json databaseId,event,headBranch,url | jq "[.[]|select(.headBranch==\"$next_tag\")][0]"`
         echo "Releaser running " `echo $releaser_out | jq -r ".url"`
 
         gh run watch `echo $releaser_out | jq -r ".databaseId"`
