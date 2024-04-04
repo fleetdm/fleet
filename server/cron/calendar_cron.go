@@ -671,7 +671,10 @@ func deleteCalendarEventsInParallel(
 			go func() {
 				defer wg.Done()
 				for calEvent := range calendarEventCh {
-					userCalendar := createUserCalendarFromConfig(ctx, calendarConfig, logger)
+					var userCalendar fleet.UserCalendar
+					if calendarConfig != nil {
+						userCalendar = createUserCalendarFromConfig(ctx, calendarConfig, logger)
+					}
 					if err := deleteCalendarEvent(ctx, ds, userCalendar, calEvent); err != nil {
 						level.Error(logger).Log("msg", "delete user calendar event", "err", err)
 						continue
