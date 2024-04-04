@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -367,7 +368,7 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 	assertDeletedHostOS := func(expectDeletedIDs []uint) {
 		for _, h := range testHosts {
 			os, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), h.ID)
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				require.Contains(t, expectDeletedIDs, h.ID)
 				return
 			}
