@@ -90,7 +90,7 @@ export interface IConfig {
   server_settings: IConfigServerSettings;
   smtp_settings?: {
     enable_smtp: boolean;
-    configured: boolean;
+    configured?: boolean;
     sender_address: string;
     server: string;
     port?: number;
@@ -117,14 +117,14 @@ export interface IConfig {
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
-    host_expiry_window: number;
+    host_expiry_window?: number;
   };
   activity_expiry_settings: {
     activity_expiry_enabled: boolean;
-    activity_expiry_window: number;
+    activity_expiry_window?: number;
   };
   features: IConfigFeatures;
-  agent_options: string;
+  agent_options: unknown; // Can pass empty object
   update_interval: {
     osquery_detail: number;
     osquery_policy: number;

@@ -6,7 +6,7 @@ export interface IAppConfigFormProps {
   appConfig: IConfig;
   isPremiumTier?: boolean;
   isUpdatingSettings?: boolean;
-  handleSubmit: any;
+  handleSubmit: (formUpdates: Partial<IConfig>) => false | undefined;
 }
 
 export interface IFormField {

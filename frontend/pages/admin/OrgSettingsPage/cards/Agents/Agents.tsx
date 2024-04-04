@@ -18,7 +18,7 @@ import { IAppConfigFormProps } from "../constants";
 const baseClass = "app-config-form";
 
 interface IAgentOptionsFormData {
-  agentOptions?: any;
+  agentOptions?: string;
 }
 
 interface IAgentOptionsFormErrors {
@@ -66,7 +66,7 @@ const Agents = ({
     evt.preventDefault();
 
     // Formatting of API not UI and allows empty agent options
-    const formDataToSubmit = agentOptions
+    const formDataToSubmit: any = agentOptions
       ? {
           agent_options: yaml.load(agentOptions),
         }

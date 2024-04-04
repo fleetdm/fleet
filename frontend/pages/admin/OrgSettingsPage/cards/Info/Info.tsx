@@ -52,7 +52,7 @@ const Info = ({
 
   const [formErrors, setFormErrors] = useState<IOrgInfoFormErrors>({});
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
@@ -99,7 +99,7 @@ const Info = ({
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Organization name"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="orgName"
             value={orgName}
             parseTarget
@@ -108,7 +108,7 @@ const Info = ({
           />
           <InputField
             label="Organization support URL"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="orgSupportURL"
             value={orgSupportURL}
             parseTarget
@@ -118,7 +118,7 @@ const Info = ({
           <div className={`${cardClass}__logo-field-set`}>
             <InputField
               label="Organization avatar URL (for dark backgrounds)"
-              onChange={handleInputChange}
+              onChange={onInputChange}
               name="orgLogoURL"
               value={orgLogoURL}
               parseTarget
@@ -140,7 +140,7 @@ const Info = ({
           <div className={`${cardClass}__logo-field-set`}>
             <InputField
               label="Organization avatar URL (for light backgrounds)"
-              onChange={handleInputChange}
+              onChange={onInputChange}
               name="orgLogoURLLightBackground"
               value={orgLogoURLLightBackground}
               parseTarget
