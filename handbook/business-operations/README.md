@@ -15,7 +15,7 @@ This handbook page details processes specific to working [with](#what-we-do) and
 
 
 ## Responsibilities
-The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
+The Business Operations department is directly responsible for finance + invoicing, people operations, legal + deal desk, and corporate information technology (IT). 
 
 ### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
@@ -24,10 +24,10 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Revenue Operations
+| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Business Operations
 | Sign-on bonus                | "Bonus" payroll              | Head of Business Operations
 | Performance bonus            | "Bonus" payroll              | Head of Business Operations     
-| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
+| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Business Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
 ### Reconcile monthly recurring expenses
@@ -109,7 +109,7 @@ For Fleet's US contractors, running payroll is a manual process:
 - Sync hours and run contractor payroll.
 
 
-### Grant role-specific license to a team member (RevOps)
+### Grant role-specific license to a team member
 Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
 
 | Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
@@ -123,6 +123,18 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 |   Other roles    | ❌ | ❌ | ❌ | ❌ | ✅
 
 > **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
+
+
+### Communicate the status of customer financial actions
+This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
+- Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
+- Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending. 
+```
+Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
+- Number accounts with outstanding balances = `todo`
+- Number of customers awaiting invoices = `todo`
+- Number of past-due renewals = `todo`
+```
 
 
 ### Add a seat to Salesforce
@@ -170,6 +182,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
+> Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
 
 ### Change a Fleetie's job title
 When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.

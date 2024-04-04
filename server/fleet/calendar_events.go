@@ -18,6 +18,7 @@ const (
 	CalendarWebhookStatusNone CalendarWebhookStatus = iota
 	CalendarWebhookStatusPending
 	CalendarWebhookStatusSent
+	CalendarWebhookStatusError
 )
 
 type HostCalendarEvent struct {
