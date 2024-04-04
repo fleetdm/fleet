@@ -3793,7 +3793,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Len(t, summaryResp.Labels, builtInsCount+1)
 
 	// next page is empty
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "page", "1", "query", t.Name())
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "page", "1")
 	assert.Len(t, listResp.Labels, 0)
 
 	// list labels with invalid query params
