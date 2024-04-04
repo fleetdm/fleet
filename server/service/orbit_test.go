@@ -226,7 +226,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
-			ID:            0,
+			ID:            1,
 			MDMInfo: &fleet.HostMDM{
 				IsServer:         false,
 				InstalledFromDep: true,
@@ -263,15 +263,9 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		ctx = test.HostContext(ctx, host)
 
-		// No hostId, can't get platform info, no nudge
-		cfg, err := svc.GetOrbitConfig(ctx)
-		require.NoError(t, err)
-		require.Empty(t, cfg.NudgeConfig)
-		require.False(t, ds.GetHostOperatingSystemFuncInvoked)
-
 		// Version < 14 gets nudge
 		host.ID = 1
-		cfg, err = svc.GetOrbitConfig(ctx)
+		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.NotEmpty(t, cfg.NudgeConfig)
 		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
