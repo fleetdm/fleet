@@ -1,0 +1,1 @@
+- Updated label endpoints to prevent creating, updating, or deleting built-in labels.
