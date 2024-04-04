@@ -27,7 +27,7 @@ interface IRunQueryPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_ids: string; team_id?: string };
+    query: { host_id: string; team_id?: string };
     search: string;
   };
 }
@@ -109,9 +109,9 @@ const RunQueryPage = ({
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
     () =>
-      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
+      hostAPI.loadHostDetails(parseInt(location.query.host_id as string, 10)),
     {
-      enabled: !!location.query.host_ids && !queryParamHostsAdded,
+      enabled: !!location.query.host_id && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
         setTargetedHosts((prevHosts) =>

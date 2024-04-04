@@ -341,6 +341,8 @@ export const HOST_SUMMARY_DATA = [
   "platform",
   "os_version",
   "osquery_version",
+  "orbit_version",
+  "fleet_desktop_version",
   "enroll_secret_name",
   "detail_updated_at",
   "percent_disk_space_available",
