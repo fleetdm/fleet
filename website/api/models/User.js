@@ -214,12 +214,12 @@ without necessarily having a billing card.`
       ]
     },
 
-    lastSubmittedGetStartedQuestionnarieStep: {
+    lastSubmittedGetStartedQuestionnaireStep: {
       type: 'string',
       description: 'The last step the user reached in the get started form.'
     },
 
-    getStartedQuestionnarieAnswers: {
+    getStartedQuestionnaireAnswers: {
       type: 'json',
       description: 'This answers the user provided when they filled out the get started form.',
     }

@@ -44,11 +44,11 @@ module.exports = {
       throw new Error(`Consistency violation: when trying to save a user's progress in the get started questionnaire, a User record with the ID ${this.req.me.id} could not be found.`);
     }
     let questionnaireProgress;
-    // If this user doesn't have a lastSubmittedGetStartedQuestionnarieStep or getStartedQuestionnarieAnswers, create an empty dictionary to store their answers.
-    if(!userRecord.lastSubmittedGetStartedQuestionnarieStep || _.isEmpty(userRecord.getStartedQuestionnarieAnswers)) {
+    // If this user doesn't have a lastSubmittedGetStartedQuestionnaireStep or getStartedQuestionnaireAnswers, create an empty dictionary to store their answers.
+    if(!userRecord.lastSubmittedGetStartedQuestionnaireStep || _.isEmpty(userRecord.getStartedQuestionnaireAnswers)) {
       questionnaireProgress = {};
     } else {// other wise clone it from the user record.
-      questionnaireProgress = _.clone(userRecord.getStartedQuestionnarieAnswers);
+      questionnaireProgress = _.clone(userRecord.getStartedQuestionnaireAnswers);
     }
     // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
@@ -62,7 +62,7 @@ module.exports = {
     // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
     let getStartedProgress = _.clone(questionnaireProgress);
     // Update the user's database model.
-    await User.updateOne({id: userRecord.id}).set({getStartedQuestionnarieAnswers: questionnaireProgress, lastSubmittedGetStartedQuestionnarieStep: currentStep});
+    await User.updateOne({id: userRecord.id}).set({getStartedQuestionnaireAnswers: questionnaireProgress, lastSubmittedGetStartedQuestionnaireStep: currentStep});
     // Return the JSON dictionary of form data submitted by this user.
     return getStartedProgress;
   }
