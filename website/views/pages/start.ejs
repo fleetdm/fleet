@@ -124,15 +124,15 @@
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               100 to 700
             </label>
-            <label purpose="form-option" class="form-control" :class="[formData['how-many-hosts'].numberOfHosts === '700-1000' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="700-1000" @input="clickClearOneFormError('numberOfHosts')">
+            <label purpose="form-option" class="form-control" :class="[formData['how-many-hosts'].numberOfHosts === '700-10000' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="700-10000" @input="clickClearOneFormError('numberOfHosts')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              700 to 1000
+              700 to 10,000
             </label>
-            <label purpose="form-option" class="form-control" :class="[formData['how-many-hosts'].numberOfHosts === '1000+' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="1000+" @input="clickClearOneFormError('numberOfHosts')">
+            <label purpose="form-option" class="form-control" :class="[formData['how-many-hosts'].numberOfHosts === '10000+' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="10000+" @input="clickClearOneFormError('numberOfHosts')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              More than 1000
+              More than 10,000
             </label>
             <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please select an option</div>
           </div>
