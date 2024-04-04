@@ -63,26 +63,30 @@
       - ➕ Bonus: Cybersecurity or IT background
 - jobTitle: 🐋 Customer Success Engineer
   department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+  hiringManagerName: Jason Lewis
+  hiringManagerGithubUsername: Patagonia121
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/jlewis0451/
   responsibilities: |
-    - ⏫ Own post-sales relationships with a portfolio of our customers and be responsible for advocating for their success 
-    - 📣 Manage multiple customer deployments and escalations simultaneously
-    - 🌡️ Work alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers
-    - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders
-    - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data and keep all information up to date for leadership reporting
-    - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks
-    - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention
-    - 💡 Excellent communication and collaboration skills, with the ability to partner with various teams and stakeholders to drive desired customer outcomes and key objectives
-    - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub
+    - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others. 
+    - 📣 Manage multiple customer deployments and escalations simultaneously with the ability to stay organized.
+    - 🚀 Deploy Fleet on your own to have a better understanding of the customer experience and how the product works.
+    - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
+    - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
+    - 🚀 Work collaboratively with product and engineering teams to facilitate bug resolution and feature development based on customer asks.
+    - ⏫ Work hand-in-hand with the customer success team by participating in ad-hoc calls with customers to discuss any support issues they may have.
+    - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
   experience: |
     - 💭 Cybersecurity or IT background, experience with cloud environments like AWS and Azure or device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
-    - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
-    - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
-    - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-    - 🧑‍🔬 Experience working with Enterprise customers to coordinate resolution of complex technical issues and project manage intricate deployment initiatives.
-    - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing. 
-    - 🦉 2-3 years of work experience managing relationships with enterprise customers in the cybersecurity or device management space. Experience with executing and tracking results tied to customer escalations, customer renewals, and customer expansion opportunities.
-    - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
-    - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq and open source projects. Experience working with IT, SRE,CPE, or SecOps teams 
+    - 💖 You know how to manage your time and priorities between customer support engagements, customer escalations, and other day-to-day responsibilities.
+    - 🧬 An excellent understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+    - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing.
+    - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience. 
+    - 🦉 2-3 years of work experience providing technical support to enterprise customers in the cybersecurity or device management space. Experience with executing and tracking results tied to customer escalations.
+    - 🛠️ You are personable, enjoy being customer facing, and have a passion for problem solving while assisting external and internal stakeholders.
+    - 🧪 Extensive experience with Slack, Google Suite, and GitHub.
+    -  ✍️ Familiarity with shell scripting, Python, Powershell, and using Terminal to execute commands or run scripts, and other line of business applications.
+    - 🟣 Openness: Speak freely. Interrupt and be interrupted. Give pointed and respectful feedback, even when you disagree.
+    - 🔴 Empathy: You should demonstrate empathy by keenly understanding and addressing customer concerns with genuine compassion.    
+    - ➕ Bonus: Familiarity with osquery, MYSql, GitOps workflows, Terraform, Tines/Torq and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
+
+    
