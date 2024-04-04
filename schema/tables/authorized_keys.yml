@@ -5,9 +5,9 @@ examples: >-
   SELECT * FROM users CROSS JOIN authorized_keys USING (uid);
 
   ```
-
 columns:
   - name: pid_with_namespace
     platforms:
       - linux
   - name: uid
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
