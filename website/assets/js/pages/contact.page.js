@@ -50,8 +50,6 @@ parasails.registerPage('contact', {
       window.history.replaceState({}, document.title, '/contact' );
     }
     if(this.primaryBuyingSituation){
-      console.log(this.primaryBuyingSituation);
-      // this.audience = this.primaryBuyingSituation;// FUTURE: I see why we did this but the extra variable might actually be more confusing.  Consider eliminating.  up to eric
       this.formData.primaryBuyingSituation = this.primaryBuyingSituation;// prefill form
     }
   },
