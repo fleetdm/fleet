@@ -318,36 +318,38 @@ print_announce_info() {
 }
 
 update_release_notes() {
-    if [ ! -f temp_changelog ]; then
-        echo "cannot find changelog to populate release notes"
-        exit 1
-    fi
-    cat temp_changelog | tail -n +3 > release_notes
-    echo "" >> release_notes
-    echo "### Upgrading" >> release_notes
-    echo "" >> release_notes
-    echo "Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions." >> release_notes
-    echo "" >> release_notes
-    echo "### Documentation" >> release_notes
-    echo "" >> release_notes
-    echo "Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs)." >> release_notes
-    echo "" >> release_notes
-    echo "### Binary Checksum" >> release_notes
-    echo "" >> release_notes
-    echo "**SHA256**" >> release_notes
-    echo "" >> release_notes
-    echo '```' >> release_notes
-    gh release download $next_tag -p checksums.txt --clobber
-    cat checksums.txt >> release_notes
-    echo '```' >> release_notes
-
-    echo
-    echo "============== Release Notes ========================"
-    cat release_notes
-    echo "============== Release Notes ========================"
-
     if [ "$dry_run" = "false" ]; then
+        if [ ! -f temp_changelog ]; then
+            echo "cannot find changelog to populate release notes"
+            exit 1
+        fi
+        cat temp_changelog | tail -n +3 > release_notes
+        echo "" >> release_notes
+        echo "### Upgrading" >> release_notes
+        echo "" >> release_notes
+        echo "Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions." >> release_notes
+        echo "" >> release_notes
+        echo "### Documentation" >> release_notes
+        echo "" >> release_notes
+        echo "Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs)." >> release_notes
+        echo "" >> release_notes
+        echo "### Binary Checksum" >> release_notes
+        echo "" >> release_notes
+        echo "**SHA256**" >> release_notes
+        echo "" >> release_notes
+        echo '```' >> release_notes
+        gh release download $next_tag -p checksums.txt --clobber
+        cat checksums.txt >> release_notes
+        echo '```' >> release_notes
+
+        echo
+        echo "============== Release Notes ========================"
+        cat release_notes
+        echo "============== Release Notes ========================"
+
         gh release edit --draft -F release_notes $next_tag
+    else
+        echo "DRYRUN: Would have created release notes based on temp_changelog"
     fi
 }
 
@@ -387,7 +389,7 @@ tag() {
     fi
 
     if [ "$dry_run" = "false" ]; then
-        releaser_out=`gh run list --workflow goreleaser-fleet.yaml --json databaseId,event,headBranch,url | jq "[.[]|select(.headBranch==\"$next_tag\")[0]`
+        releaser_out=`gh run list --workflow goreleaser-fleet.yaml --json databaseId,event,headBranch,url | jq "[.[]|select(.headBranch==\"$next_tag\")][0]`
         echo "Releaser running " `echo $releaser_out | jq -r ".url"`
 
         gh run watch `echo $releaser_out | jq -r ".databaseId"`
