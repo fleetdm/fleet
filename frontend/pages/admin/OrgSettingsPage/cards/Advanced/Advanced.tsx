@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 
-import { IConfigFormData } from "interfaces/config";
-
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -13,32 +11,26 @@ import Dropdown from "components/forms/fields/Dropdown";
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
 import { getCustomDropdownOptions } from "utilities/helpers";
 
-import {
-  IAppConfigFormProps,
-  IFormField,
-  IAppConfigFormErrors,
-} from "../constants";
+import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
 
-type IAdvancedConfigFormData = Pick<
-  IConfigFormData,
-  | "domain"
-  | "verifySSLCerts"
-  | "enableStartTLS"
-  | "enableHostExpiry"
-  | "hostExpiryWindow"
-  | "deleteActivities"
-  | "activityExpiryWindow"
-  | "disableLiveQuery"
-  | "disableScripts"
-  | "disableQueryReports"
->;
+interface IAdvancedConfigFormData {
+  domain: string;
+  verifySSLCerts: boolean;
+  enableStartTLS?: boolean;
+  enableHostExpiry: boolean;
+  hostExpiryWindow: number;
+  deleteActivities: boolean;
+  activityExpiryWindow: number;
+  disableLiveQuery: boolean;
+  disableScripts: boolean;
+  disableQueryReports: boolean;
+}
 
-type IAdvancedConfigFormErrors = Pick<
-  IAppConfigFormErrors,
-  "host_expiry_window"
->;
+interface IAdvancedConfigFormErrors {
+  host_expiry_window?: string | null;
+}
 
 const Advanced = ({
   appConfig,
@@ -103,7 +95,7 @@ const Advanced = ({
 
   useEffect(() => {
     // validate desired form fields
-    const errors: IAppConfigFormErrors = {};
+    const errors: IAdvancedConfigFormErrors = {};
 
     if (enableHostExpiry && (!hostExpiryWindow || hostExpiryWindow <= 0)) {
       errors.host_expiry_window =

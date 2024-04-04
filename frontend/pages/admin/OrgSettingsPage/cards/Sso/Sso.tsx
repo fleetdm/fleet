@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 
-import { IConfigFormData } from "interfaces/config";
-
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
@@ -10,30 +8,28 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import {
-  IAppConfigFormProps,
-  IFormField,
-  IAppConfigFormErrors,
-} from "../constants";
+import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
 
-type ISsoFormData = Pick<
-  IConfigFormData,
-  | "enableSso"
-  | "idpName"
-  | "entityId"
-  | "idpImageUrl"
-  | "metadata"
-  | "metadataUrl"
-  | "enableSsoIdpLogin"
-  | "enableJitProvisioning"
->;
+interface ISsoFormData {
+  idpName: string;
+  enableSso: boolean;
+  entityId: string;
+  idpImageUrl: string;
+  metadata: string;
+  metadataUrl: string;
+  enableSsoIdpLogin: boolean;
+  enableJitProvisioning: boolean;
+}
 
-type ISsoFormErrors = Pick<
-  IAppConfigFormErrors,
-  "idp_image_url" | "metadata" | "metadata_url" | "entity_id" | "idp_name"
->;
+interface ISsoFormErrors {
+  idp_image_url?: string | null;
+  metadata?: string | null;
+  metadata_url?: string | null;
+  entity_id?: string | null;
+  idp_name?: string | null;
+}
 
 const Sso = ({
   appConfig,
