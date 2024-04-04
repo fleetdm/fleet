@@ -43,7 +43,7 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
-import DisabledDropdownTooltipWrapper from "components/forms/fields/Dropdown/DisabledDropdownTooltipWrapper";
+import DisabledDropdownTooltipWrapper from "components/forms/fields/Dropdown/DisabledOptionTooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";

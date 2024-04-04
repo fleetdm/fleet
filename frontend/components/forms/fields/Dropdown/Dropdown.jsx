@@ -7,7 +7,7 @@ import Select from "react-select";
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
-import DisabledDropdownTooltipWrapper from "./DisabledDropdownTooltipWrapper";
+import DisabledDropdownTooltipWrapper from "./DisabledOptionTooltipWrapper";
 
 const baseClass = "dropdown";
 

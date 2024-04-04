@@ -4,42 +4,28 @@ import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 
 import { uniqueId } from "lodash";
 
-interface ITooltipWrapper {
+interface IDisabledOptionTooltipWrapper {
   children: React.ReactNode;
   isDelayed?: boolean;
-  // Below two props used here to maintain the API of the old TooltipWrapper
-  // A clearer system would be to use the 3 below commented props, which describe exactly where they
-  // will apply, `element` being the element this tooltip will wrap. Associated logic is commented
-  // out, but ready to be used.
   className?: string;
   tooltipClass?: string;
-  // wrapperCustomClass?: string;
-  // elementCustomClass?: string;
-  // tipCustomClass?: string;
   clickable?: boolean;
   tipContent: React.ReactNode;
 }
 
-const baseClass = "disabled-dropdown-tooltip-wrapper";
+const baseClass = "disabled-option-tooltip-wrapper";
 
-const TooltipWrapper = ({
-  // wrapperCustomClass,
-  // elementCustomClass,
-  // tipCustomClass,
+const DisabledOptionTooltipWrapper = ({
   children,
   tipContent,
   isDelayed,
   className,
   tooltipClass,
   clickable = true,
-}: ITooltipWrapper) => {
-  const wrapperClassNames = classnames(baseClass, className, {
-    // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
-  });
+}: IDisabledOptionTooltipWrapper) => {
+  const wrapperClassNames = classnames(baseClass, className);
 
-  const elementClassNames = classnames(`${baseClass}__element`, {
-    // [`${baseClass}__${elementCustomClass}`]: !!elementCustomClass,
-  });
+  const elementClassNames = classnames(`${baseClass}__element`);
 
   const tipClassNames = classnames(
     `${baseClass}__tip-text`,
@@ -73,4 +59,4 @@ const TooltipWrapper = ({
   );
 };
 
-export default TooltipWrapper;
+export default DisabledOptionTooltipWrapper;

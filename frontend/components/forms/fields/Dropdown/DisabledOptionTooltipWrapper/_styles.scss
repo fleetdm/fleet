@@ -1,10 +1,10 @@
 .Select > .Select-menu-outer {
   .is-disabled * {
     color: $ui-fleet-black-25;
-    .disabled-dropdown-tooltip-wrapper {
+    .disabled-option-tooltip-wrapper {
       width: 100%;
     }
-    .disabled-dropdown-tooltip-wrapper__element {
+    .disabled-option-tooltip-wrapper__element {
       // for broader tooltip activation area, equally increase padding and decrease margin
       padding: 8px;
       margin: -8px;

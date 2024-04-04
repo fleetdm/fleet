@@ -6,7 +6,7 @@ import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import DisabledDropdownTooltipWrapper from "components/forms/fields/Dropdown/DisabledDropdownTooltipWrapper";
+import DisabledDropdownTooltipWrapper from "components/forms/fields/Dropdown/DisabledOptionTooltipWrapper";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -293,18 +293,32 @@ const setOptionsAsDisabled = (
     hostScriptsEnabled,
   }: IHostActionConfigOptions
 ) => {
+  // Available tooltips for disabled options
+  const disabledTooltipContent = (value: string | number) => {
+    const tooltipAction: Record<string, string> = {
+      runScript: "run scripts on",
+      wipe: "wipe",
+      lock: "lock",
+      unlock: "unlock",
+    };
+    if (tooltipAction[value]) {
+      return (
+        <>
+          To {tooltipAction[value]} this host, deploy the
+          <br />
+          fleetd agent with --enable-scripts
+        </>
+      );
+    }
+    if (!isHostOnline && value === "query") {
+      return <>You can&apos;t query an offline host.</>;
+    }
+  };
+
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
       option.disabled = true;
-      if (option.value === "runScript") {
-        option.disabledTooltipContent = (
-          <>
-            To run scripts on this host, deploy the
-            <br />
-            fleetd agent with --enable-scripts
-          </>
-        );
-      }
+      option.disabledTooltipContent = disabledTooltipContent(option.value);
     });
   };
 
