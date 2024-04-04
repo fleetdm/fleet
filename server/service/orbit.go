@@ -201,9 +201,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	fmt.Printf("==== hostOS: %+v\n", hostOS)
-	fmt.Printf("==== macOsVersionFloat: %v\n", macOsVersionFloat)
-
 	// Newer versions of macOS have a builtin version update
 	// notifyer and don't require nudge, so we don't produce a
 	// nudge config
