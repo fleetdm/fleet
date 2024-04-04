@@ -675,7 +675,6 @@ if [ "$cherry_pick_resolved" = "false" ]; then
             git branch -D $target_patch_branch
         fi
         git checkout -b $target_patch_branch
-        git push origin $target_patch_branch -f
     else
         echo "DRYRUN: Would have cleared / checked out new branch $target_patch_branch"
     fi
@@ -784,6 +783,10 @@ if [ "$cherry_pick_resolved" = "false" ]; then
 fi
 
 if [[ "$failed" == "false" ]]; then
+    if [ "$dry_run" = "false" ]; then
+        # have to push so we can make the PR's back
+        git push origin $target_patch_branch -f
+    fi
 
     build_changelog
 
