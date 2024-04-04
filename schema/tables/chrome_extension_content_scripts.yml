@@ -1,5 +1,5 @@
 name: chrome_extension_content_scripts
-notes: Querying this table requires joining against the `users` table.
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
 columns:
   - name: uid
 examples: >-
@@ -8,6 +8,3 @@ examples: >-
   SELECT * FROM users CROSS JOIN chrome_extension_content_scripts USING (uid);
 
   ```
-
-notes: >-
-  - Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
