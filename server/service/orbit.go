@@ -270,7 +270,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			mdmConfig.MacOSUpdates.EnabledForHost(host) {
 			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 			if err != nil {
-				return fleet.OrbitConfig{}, err
+				// host os has not been collected yet (no details query)
+				hostOS = &fleet.OperatingSystem{}
 			}
 			requiresNudge, err := hostOS.RequiresNudge()
 			if err != nil {
@@ -326,7 +327,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
 		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 		if err != nil {
-			return fleet.OrbitConfig{}, err
+			// host os has not been collected yet (no details query)
+			hostOS = &fleet.OperatingSystem{}
 		}
 		requiresNudge, err := hostOS.RequiresNudge()
 		if err != nil {
