@@ -51,6 +51,11 @@ jobs:
     # Docker needs to be installed manually on macOS.
     # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
     # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
     - name: Install Docker
       timeout-minutes: 20
       if: matrix.os == 'macos-latest'
@@ -77,7 +82,17 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-    # It seems faster not to cache Go dependencies
+    - name: Install wine and wix
+      if: matrix.os == 'macos-latest'
+      run: |
+        ./scripts/macos-install-wine.sh
+        wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
+        mkdir wix
+        unzip wix.zip -d wix
+        rm -f wix.zip
+        echo wix installed at $(pwd)/wix
+
+      # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
       run: make deps-go
 
@@ -107,3 +122,7 @@ jobs:
 
     - name: Build PKG with Fleet Desktop
       run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+
+    - name: Build MSI (using local Wix)
+      if: matrix.os == 'macos-latest'
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix

@@ -50,28 +50,34 @@ describe("AddHostsModal", () => {
     await user.click(screen.getByRole("tab", { name: "macOS" }));
     const macOSText = screen.getByText(/--type=pkg/i);
     expect(macOSText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Windows" }));
     const windowsText = screen.getByText(/--type=msi/i);
     expect(windowsText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Linux (RPM)" }));
     const linuxRPMText = screen.getByText(/--type=rpm/i);
     expect(linuxRPMText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Linux (deb)" }));
     const linuxDebText = screen.getByText(/--type=deb/i);
     expect(linuxDebText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "ChromeOS" }));
     const extensionId = screen.getByDisplayValue(
       /fleeedmmihkfkeemmipgmhhjemlljidg/i
     );
     expect(extensionId).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     const advancedText = screen.getByText(/--type=YOUR_TYPE/i);
     expect(advancedText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByText(/Plain osquery/i));
     const downloadEnrollSecret = screen.getByText(
@@ -82,6 +88,7 @@ describe("AddHostsModal", () => {
       /osqueryd --flagfile=flagfile.txt --verbose/i
     );
     expect(osquerydCommand).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
   });
 
   it("renders installer with secret", async () => {
@@ -123,7 +130,7 @@ describe("AddHostsModal", () => {
     render(
       <AddHostsModal
         isAnyTeamSelected={false}
-        currentTeamName={"Apples"}
+        currentTeamName="Apples"
         isLoading={false}
         onCancel={noop}
         openEnrollSecretModal={noop}
@@ -172,5 +179,72 @@ describe("AddHostsModal", () => {
     await user.click(windowsText);
 
     expect(downloadButton).toBeEnabled();
+  });
+
+  it("excludes `--enable-scripts` flag if `config.server_settings.scripts-disabled` is `true`", async () => {
+    const mockConfig = createMockConfig();
+    mockConfig.server_settings.scripts_disabled = true;
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: mockConfig,
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "macOS" }));
+    const macOSText = screen.getByText(/--type=pkg/i);
+    expect(macOSText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Windows" }));
+    const windowsText = screen.getByText(/--type=msi/i);
+    expect(windowsText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Linux (RPM)" }));
+    const linuxRPMText = screen.getByText(/--type=rpm/i);
+    expect(linuxRPMText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Linux (deb)" }));
+    const linuxDebText = screen.getByText(/--type=deb/i);
+    expect(linuxDebText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "ChromeOS" }));
+    const extensionId = screen.getByDisplayValue(
+      /fleeedmmihkfkeemmipgmhhjemlljidg/i
+    );
+    expect(extensionId).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    const advancedText = screen.getByText(/--type=YOUR_TYPE/i);
+    expect(advancedText).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByText(/Plain osquery/i));
+    const downloadEnrollSecret = screen.getByText(
+      /Download your enroll secret/i
+    );
+    expect(downloadEnrollSecret).toBeInTheDocument();
+    const osquerydCommand = screen.getByDisplayValue(
+      /osqueryd --flagfile=flagfile.txt --verbose/i
+    );
+    expect(osquerydCommand).toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
   });
 });

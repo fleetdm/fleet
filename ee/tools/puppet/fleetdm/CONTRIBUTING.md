@@ -72,14 +72,30 @@ The only thing left to do is to add the `fleetdm/fleetdm` module to your server.
 ## Releasing
 
 1. Bump the module version in the [metadata.json](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/metadata.json) file.
-2. From the `ee/tools/puppet/fleetdm` directory, run `pdk build`. This will generate a `tar.gz` file in the `ee/tools/puppet/fleetdm/pkg/` directory.
-3. Login into the [Puppet Forge](https://forge.puppet.com/), credentials are in 1Password.
-4. Visit the [upload page](https://forge.puppet.com/upload) and upload the `tar.gz` file you generated.
+2. Ensure all new changes are documented in `./CHANGELOG.md`
+3. From the `ee/tools/puppet/fleetdm` directory, run `pdk build`. This will generate a `tar.gz` file in the `ee/tools/puppet/fleetdm/pkg/` directory.
+4. Perform a last sanity check running `pdk validate`
+5. Test the build by extracting the file you just created and executing a Puppet run:
+```
+# extract the build
+rm -rf /tmp/puppet-module/fleetdm
+mkdir -p /tmp/puppet-module/fleetdm
+tar -xzf pkg/fleetdm-fleetdm-0.2.4.tar.gz -C /tmp/puppet-module/fleetdm --strip-components=1
+
+# run Puppet
+puppet apply --debug --test --modulepath="/tmp/puppet-module" --reports=fleetdm  --hiera_config hiera.yaml examples/multiple-teams.pp
+```
+6. Login into the [Puppet Forge](https://forge.puppet.com/), credentials are in 1Password.
+7. Visit the [upload page](https://forge.puppet.com/upload) and upload the `tar.gz` file you generated.
 
 
 ## Development cheatsheet
 
-To trigger a puppet run using the same machine as the server and client:
+Add your environment info to `ee/tools/puppet/fleetdm/data/common.yaml`.
+
+Ensure that the computer you are using for development has MDM turned on in your Fleet instance.
+
+From the `ee/tools/puppet/fleetdm` directory, trigger a puppet run using the same machine as the server and client:
 
 ```
 puppet apply --debug --test --modulepath="$(pwd)/.." --reports=fleetdm  --hiera_config hiera.yaml examples/multiple-teams.pp
@@ -90,6 +106,12 @@ To trigger a puppet run to a remote server use:
 ```
 puppet agent --server puppet --serverport 8140 -t --debug
 ``` 
+
+Install pdk bundle dependencies required for linting, formatting, and testing:
+
+```
+pdk bundle install
+```
 
 To lint/fix Puppet (`.pp`) files, use:
 

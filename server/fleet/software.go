@@ -103,6 +103,17 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
+type VulnerableSoftware struct {
+	ID                uint    `json:"id" db:"id"`
+	Name              string  `json:"name" db:"name"`
+	Version           string  `json:"version" db:"version"`
+	Source            string  `json:"source" db:"source"`
+	Browser           string  `json:"browser" db:"browser"`
+	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
+	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
+	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
+}
+
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
@@ -137,7 +148,7 @@ type SoftwareTitle struct {
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
-	Browser string `json:"browser" db:"browser"`
+	Browser string `json:"browser,omitempty" db:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.

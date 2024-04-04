@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -365,6 +364,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 
@@ -378,6 +378,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	h3, err := db.NewHost(context.Background(), &fleet.Host{
@@ -389,6 +390,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "baz.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 
@@ -428,6 +430,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
+		Platform:        "darwin",
 	})
 	require.Nil(t, err)
 
@@ -441,6 +444,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
+		Platform:        "darwin",
 	})
 	require.Nil(t, err)
 
@@ -747,8 +751,7 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 
 	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"})
 	require.Nil(t, err)
-	sort.Slice(labels, func(i, j int) bool { return labels[i] < labels[j] })
-	assert.Equal(t, []uint{1, 2, 3}, labels)
+	assert.Equal(t, map[string]uint{"foo": 1, "bar": 2, "bing": 3}, labels)
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {

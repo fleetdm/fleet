@@ -19,29 +19,31 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-## Changes
-
-### Product
-- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma file describing all relevant changes. Remove this checkbox if there are no changes to the user interface. -->
-- [ ] CLI usage changes: TODO <!-- Specify what changes to the CLI usage are required. Remove this checkbox if there are no changes to the CLI. -->
-- [ ] REST API changes: TODO <!-- Specify what changes to the API are required.  Remove this checkbox if there are no changes necessary. The product manager may move this item to the engineering list below if they decide that engineering will design the API changes. -->
-- [ ] Permissions changes: TODO <!-- Specify what changes to the permissions are required.  Remove this checkbox if there are no changes necessary. -->
-- [ ] Outdated documentation changes: TODO <!-- Specify required documentation changes & redirects to add to /website/config/routes.js. -->
-- [ ] Changes to paid features or tiers: TODO  <!-- Specify "Fleet Free" or "Fleet Premium".  If only certain parts of the user story involve paid features, specify which parts.  Implementation of paid features should live in the `ee/` directory. -->
-- [ ] Scalability testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
-
-### Engineering
-- [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
-
-> ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
-
 ## Context
 - Requestor(s): _________________________ <!-- Who are the non-customer requestor(s) for this story, if any? Put their GitHub usernames here. They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead. -->
+- Product designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
+  
 <!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
 1. 
 2. 
 -->
+
+## Changes
+
+### Product
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the user interface. -->
+- [ ] CLI usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the CLI. -->
+- [ ] REST API changes: TODO <!-- Specify changes as a draft PR to the REST API doc page. Remove this checkbox if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
+- [ ] Permissions changes: TODO <!-- Specify changes as a draft PR to the Manage access doc page. If doc changes aren't necessary, explicitly mention no changes to the doc page. Remove this checkbox if there are no permissions changes. -->
+- [ ] Outdated documentation changes: TODO <!-- Specify required documentation changes (public-facing fleetdm.com/docs or contributors) & redirects to add to /website/config/routes.js. -->
+- [ ] Changes to paid features or tiers: TODO  <!-- Specify "Fleet Free" or "Fleet Premium".  If only certain parts of the user story involve paid features, specify which parts.  Implementation of paid features should live in the `ee/` directory. -->
+
+### Engineering
+- [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
+- [ ] Load testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
+
+> ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
 ## QA
 

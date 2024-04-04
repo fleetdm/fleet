@@ -172,12 +172,24 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
+		// display_version is not available in some versions of
+		// Windows (Server 2019). By including it using a JOIN it can
+		// return no rows and the query will still succeed
 		Query: `
-	SELECT
-		os.name,
-		os.version
-	FROM
-		os_version os`,
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		)
+		SELECT
+			os.name,
+			COALESCE(d.display_version, '') AS display_version,
+			k.version
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -186,17 +198,11 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["version"]
-			if version == "" {
-				level.Debug(logger).Log(
-					"msg", "unable to identify windows version",
-					"host", host.Hostname,
-				)
-			}
-
-			s := fmt.Sprintf("%v %v", rows[0]["name"], version)
+			s := fmt.Sprintf("%s %s", rows[0]["name"], rows[0]["display_version"])
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
+			s = strings.TrimSpace(s)
+			s += " " + rows[0]["version"]
 			host.OSVersion = s
 
 			return nil
@@ -357,10 +363,6 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
-func isPublicIP(ip net.IP) bool {
-	return !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsPrivate()
-}
-
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	logger = log.With(logger,
 		"component", "service",
@@ -369,6 +371,22 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		"platform", host.Platform,
 	)
 
+	// Attempt to extract public IP from the HTTP request.
+	// NOTE: We are executing the IP extraction first to not depend on the network
+	// interface query succeeding and returning results.
+	ipStr := publicip.FromContext(ctx)
+	// First set host.PublicIP to empty to not hide an infrastructure change that
+	// misses to set or sets an invalid value in the expected HTTP headers.
+	host.PublicIP = ""
+	if ipStr != "" {
+		ip := net.ParseIP(ipStr)
+		if ip != nil {
+			host.PublicIP = ipStr
+		} else {
+			logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
+		}
+	}
+
 	if len(rows) != 1 {
 		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
@@ -376,20 +394,6 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 
 	host.PrimaryIP = rows[0]["address"]
 	host.PrimaryMac = rows[0]["mac"]
-
-	// Attempt to extract public IP from the HTTP request.
-	ipStr := publicip.FromContext(ctx)
-	ip := net.ParseIP(ipStr)
-	if ip != nil {
-		if isPublicIP(ip) {
-			host.PublicIP = ipStr
-		} else {
-			level.Debug(logger).Log("err", "IP is not public, ignoring", "ip", ipStr)
-			host.PublicIP = ""
-		}
-	} else {
-		logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
-	}
 
 	return nil
 }
@@ -459,34 +463,51 @@ var extraDetailQueries = map[string]DetailQuery{
 		// the `mdm_bridge` table is used, the `mdmlocalmanagement.dll`
 		// registers an MDM with ProviderID = `Local_Management`
 		//
-		// For more information, refer to issue #15362
+		// Entries also need to be filtered by their enrollment status, described [here][1]
+		//
+		//   Member        Value  Description
+		//   unknown       0      Device enrollment state is unknown
+		//   enrolled      1      Device is Enrolled.
+		//   pendingReset  2      Enrolled but it's enrolled via enrollment profile and the enrolled profile is different from the assigned profile.
+		//   failed        3      Not enrolled and there is enrollment failure record.
+		//   notContacted  4      Device is imported but not enrolled.
+		//   blocked       5      Device is enrolled as userless, but is blocked from moving to user enrollment because the app failed to install.
+		//
+		// [1]: https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate
 		Query: `
-			WITH registry_keys AS (
-			    SELECT *
-			    FROM registry
-			    WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
-			),
-			enrollment_info AS (
-			    SELECT
-			        MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-			        MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
-			        MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-			        MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id
-			    FROM registry_keys
-			    GROUP BY key
-			)
-			SELECT
-			    e.is_federated,
-			    e.discovery_service_url,
-			    e.provider_id,
-			    (
-			        SELECT data
-			        FROM registry
-			        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-			    ) AS installation_type
-			FROM enrollment_info e
-			WHERE e.upn IS NOT NULL
-			LIMIT 1;
+                    WITH registry_keys AS (
+                        SELECT *
+                        FROM registry
+                        WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+                    ),
+                    enrollment_info AS (
+                        SELECT
+                            MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                            MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+                        FROM registry_keys
+                        GROUP BY key
+                    ),
+                    installation_info AS (
+                        SELECT data AS installation_type
+                        FROM registry
+                        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                        LIMIT 1
+                    )
+                    SELECT
+                        e.aad_resource_id,
+                        e.discovery_service_url,
+                        e.provider_id,
+                        i.installation_type
+                    FROM installation_info i
+                    LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+		    -- coalesce to 'unknown' and keep that state in the list
+		    -- in order to account for hosts that might not have this
+		    -- key, and servers
+                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+                    LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -520,16 +541,29 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
+		//
+		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
+		// To prevent the query from failing in those cases, we join
+		// the values in when they exist, alternatively the column is
+		// just empty.
 		Query: `
+	WITH display_version_table AS (
+		SELECT data as display_version
+		FROM registry
+		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	)
 	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version
+		os.version,
+		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
-		kernel_info k`,
+		kernel_info k
+	LEFT JOIN
+		display_version_table d`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -707,6 +741,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'apps' AS source,
+  '' AS vendor,
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
@@ -719,6 +754,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM python_packages
@@ -731,6 +767,7 @@ SELECT
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
@@ -743,6 +780,7 @@ SELECT
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
@@ -755,6 +793,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'safari_extensions' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
@@ -767,12 +806,37 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'homebrew_packages' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM homebrew_packages;
 `),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
+}
+
+// softwareVSCodeExtensions collects VSCode extensions on a separate query for two reasons:
+//   - vscode_extensions is not available in osquery < 5.11.0.
+//   - Avoid growing the main `software_{macos|windows|linux}` queries
+//     (having big queries can cause performance issues or be denylisted).
+var softwareVSCodeExtensions = DetailQuery{
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+SELECT
+  name,
+  version,
+  'IDE extension (VS Code)' AS type,
+  '' AS bundle_identifier,
+  uuid AS extension_id,
+  '' AS browser,
+  'vscode_extensions' AS source,
+  publisher AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("vscode_extensions"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
 }
 
 var scheduledQueryStats = DetailQuery{
@@ -1008,16 +1072,14 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Arch:          rows[0]["arch"],
 		KernelVersion: rows[0]["kernel_version"],
 		Platform:      rows[0]["platform"],
+		Version:       rows[0]["kernel_version"],
 	}
 
-	version := rows[0]["version"]
-	if version == "" {
-		level.Debug(logger).Log(
-			"msg", "unable to identify windows version",
-			"host", host.Hostname,
-		)
+	displayVersion := rows[0]["display_version"]
+	if displayVersion != "" {
+		hostOS.Name += " " + displayVersion
+		hostOS.DisplayVersion = displayVersion
 	}
-	hostOS.Version = version
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
@@ -1194,6 +1256,14 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		}
 		packName, scheduledName := parts[0], parts[1]
 
+		// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
+		wallTimeMs := cast.ToUint64(row["wall_time_ms"])
+		if wallTimeMs == 0 {
+			wallTime := cast.ToUint64(row["wall_time"])
+			if wallTime != 0 {
+				wallTimeMs = wallTime * 1000
+			}
+		}
 		stats := fleet.ScheduledQueryStats{
 			ScheduledQueryName: scheduledName,
 			PackName:           packName,
@@ -1206,7 +1276,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			OutputSize:   cast.ToUint64(row["output_size"]),
 			SystemTime:   cast.ToUint64(row["system_time"]),
 			UserTime:     cast.ToUint64(row["user_time"]),
-			WallTime:     cast.ToUint64(row["wall_time"]),
+			WallTimeMs:   wallTimeMs,
 		}
 		packs[packName] = append(packs[packName], stats)
 	}
@@ -1267,6 +1337,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 
 		sanitizeSoftware(host, s, logger)
 
+		if shouldRemoveSoftware(host, s) {
+			continue
+		}
+
 		software = append(software, *s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
@@ -1307,10 +1381,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
 		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
-		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed
+		// to `1.6.00.22155` || s.Name == "Microsoft Teams (work or school).app".
+
+		// Note: in December 2023, Microsoft released "New Teams" for MacOS. This new version of
+		// Teams uses a completely different versioning scheme, which is documented at the URL
+		// above. Existing versions of Teams on MacOS were renamed to "Microsoft Teams Classic" and still use
+		// the same versioning scheme discussed above.
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
 			mutateSoftware: func(s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
@@ -1388,6 +1468,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 	}
 }
 
+// shouldRemoveSoftware returns whether or not we should remove the given Software item from this
+// host's software list.
+func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
+	// Parallels is a common VM software for MacOS. Parallels makes the VM's applications
+	// visible in the host as MacOS applications, which leads to confusing output (e.g. a MacOS
+	// host reporting that it has Notepad installed when this is just an app from the Windows VM
+	// under Parallels). We want to filter out those "applications" to avoid confusion.
+	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
+}
+
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
 	for _, row := range rows {
@@ -1433,6 +1523,12 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		logger.Log("component", "service", "method", "ingestMDM", "warn",
 			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 	}
+
+	if host.RefetchCriticalQueriesUntil != nil {
+		level.Debug(logger).Log("msg", "ingesting macos mdm data during refetch critical queries window", "host_id", host.ID,
+			"data", fmt.Sprintf("%+v", rows))
+	}
+
 	enrolledVal := rows[0]["enrolled"]
 	if enrolledVal == "" {
 		return ctxerr.Wrap(ctx, fmt.Errorf("missing mdm.enrolled value: %d", host.ID))
@@ -1509,23 +1605,24 @@ func deduceMDMNameWindows(data map[string]string) string {
 	if serverURL == "" {
 		return ""
 	}
-	if name := data["provider_id"]; name != "" {
+
+	if name := data["provider_id"]; name == fleet.WellKnownMDMFleet {
 		return name
 	}
+
 	return fleet.MDMNameFromServerURL(serverURL)
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	if len(rows) != 1 {
+	if len(rows) == 0 {
+		// no mdm information in the registry
+		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "")
+	}
+	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
 			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 		// assume the extension is not there
 		return nil
-	}
-
-	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
-			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 	}
 
 	data := rows[0]
@@ -1534,7 +1631,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	serverURL := data["discovery_service_url"]
 	if serverURL != "" {
 		enrolled = true
-		if isFederated := data["is_federated"]; isFederated == "1" {
+		if data["aad_resource_id"] != "" {
 			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
@@ -1760,7 +1857,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
-// go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,
@@ -1781,6 +1878,7 @@ func GetDetailQueries(
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
+		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 	}
 
 	if features != nil && features.EnableHostUsers {

@@ -28,6 +28,7 @@ import (
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -42,6 +43,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
+	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -53,11 +59,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
-	"github.com/micromdm/nanomdm/cryptoutil"
-	"github.com/micromdm/nanomdm/push"
-	"github.com/micromdm/nanomdm/push/buford"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
-	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -462,6 +463,7 @@ the way that the Fleet server works.
 				mdmStorage                  *mysql.NanoMDMStorage
 				mdmPushService              push.Pusher
 				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
+				ddmService                  *service.MDMAppleDDMService
 				mdmPushCertTopic            string
 			)
 
@@ -546,6 +548,7 @@ the way that the Fleet server works.
 				}
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+				ddmService = service.NewMDMAppleDDMService(ds, logger)
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
@@ -680,9 +683,27 @@ the way that the Fleet server works.
 				}
 			}()
 
-			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS, &config)
-			}); err != nil {
+			if config.Server.FrequentCleanupsEnabled {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return newFrequentCleanupsSchedule(ctx, instanceID, ds, liveQueryStore, logger)
+					},
+				); err != nil {
+					initFatal(err, "failed to register frequent_cleanups schedule")
+				}
+			}
+
+			if err := cronSchedules.StartCronSchedule(
+				func() (fleet.CronSchedule, error) {
+					var commander *apple_mdm.MDMAppleCommander
+					if appCfg.MDM.EnabledAndConfigured {
+						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					}
+					return newCleanupsAndAggregationSchedule(
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander,
+					)
+				},
+			); err != nil {
 				initFatal(err, "failed to register cleanups_then_aggregations schedule")
 			}
 
@@ -747,6 +768,16 @@ the way that the Fleet server works.
 					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)
 				}); err != nil {
 					initFatal(err, "failed to register activities streaming schedule")
+				}
+			}
+
+			if license.IsPremium() {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, 5*time.Minute, logger)
+					},
+				); err != nil {
+					initFatal(err, "failed to register calendar schedule")
 				}
 			}
 
@@ -852,6 +883,7 @@ the way that the Fleet server works.
 					scepStorage,
 					logger,
 					mdmCheckinAndCommandService,
+					ddmService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

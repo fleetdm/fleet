@@ -1,7 +1,15 @@
 const API_VERSION = "latest";
 
 export default {
+  // activities
   ACTIVITIES: `/${API_VERSION}/fleet/activities`,
+  HOST_PAST_ACTIVITIES: (id: number): string => {
+    return `/${API_VERSION}/fleet/hosts/${id}/activities`;
+  },
+  HOST_UPCOMING_ACTIVITIES: (id: number): string => {
+    return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;
+  },
+
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
@@ -22,6 +30,8 @@ export default {
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
+
+  // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
   HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/queries/${queryId}`,
@@ -31,6 +41,10 @@ export default {
   HOSTS_REPORT: `/${API_VERSION}/fleet/hosts/report`,
   HOSTS_TRANSFER: `/${API_VERSION}/fleet/hosts/transfer`,
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
+  HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
+  HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
+  HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+
   INVITES: `/${API_VERSION}/fleet/invites`,
   LABELS: `/${API_VERSION}/fleet/labels`,
   LABEL_HOSTS: (id: number): string => {
@@ -65,15 +79,16 @@ export default {
     }
     return `/api/mdm/apple/enroll?${query}`;
   },
+  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
-    `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}/metadata`,
-  MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,
-  MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/apple/bootstrap/summary`,
+    `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
+  MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/bootstrap`,
+  MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
-  MDM_EULA: (token: string) =>
-    `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}`,
-  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/apple/setup/eula`,
-  MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/apple/setup/eula/metadata`,
+  MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
+  MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
+  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
+  MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_MDM_UNENROLL: (id: number) =>
     `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
@@ -81,7 +96,11 @@ export default {
     `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
 
   ME: `/${API_VERSION}/fleet/me`,
+
+  // OS Version endpoints
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
+  OS_VERSION: (id: number) => `/${API_VERSION}/fleet/os_versions/${id}`,
+
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
   PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
@@ -121,7 +140,7 @@ export default {
   TEAMS_ENROLL_SECRETS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/teams/${teamId}/secrets`;
   },
-  TEAMS_MEMBERS: (teamId: number): string => {
+  TEAM_USERS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/teams/${teamId}/users`;
   },
   TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
@@ -136,6 +155,11 @@ export default {
   USERS: `/${API_VERSION}/fleet/users`,
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
   VERSION: `/${API_VERSION}/fleet/version`,
+
+  // Vulnerabilities endpoints
+  VULNERABILITIES: `/${API_VERSION}/fleet/vulnerabilities`,
+  VULNERABILITY: (cve: string) =>
+    `/${API_VERSION}/fleet/vulnerabilities/${cve}`,
 
   // Script endpoints
   HOST_SCRIPTS: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/scripts`,

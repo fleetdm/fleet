@@ -11,7 +11,7 @@ import {
 import {
   IJiraIntegration,
   IZendeskIntegration,
-  IIntegrations,
+  IZendeskJiraIntegrations,
 } from "interfaces/integration";
 import { ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
@@ -20,13 +20,14 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
-import TeamsDropdown from "components/TeamsDropdown";
+import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
 
-import ManageAutomationsModal from "./components/ManageAutomationsModal";
+import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -39,13 +40,22 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_TITLES,
   },
   {
-    name: "Versions",
-    pathname: PATHS.SOFTWARE_VERSIONS,
+    name: "OS",
+    pathname: PATHS.SOFTWARE_OS,
+  },
+  {
+    name: "Vulnerabilities",
+    pathname: PATHS.SOFTWARE_VULNERABILITIES,
   },
 ];
 
 const getTabIndex = (path: string): number => {
   return softwareSubNav.findIndex((navItem) => {
+    // This check ensures that for software versions path we still
+    // highlight the software tab.
+    if (navItem.name === "Software" && PATHS.SOFTWARE_VERSIONS === path) {
+      return true;
+    }
     // tab stays highlighted for paths that start with same pathname
     return path.startsWith(navItem.pathname);
   });
@@ -82,6 +92,7 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
+      exploit?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -107,7 +118,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const queryParams = location.query;
 
   // initial values for query params used on this page
-  const query = queryParams && queryParams.query ? queryParams.query : "";
   const sortHeader =
     queryParams && queryParams.order_key
       ? queryParams.order_key
@@ -120,8 +130,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
+  // TODO: move these down into the Software Titles component.
+  const query = queryParams && queryParams.query ? queryParams.query : "";
   const showVulnerableSoftware =
     queryParams !== undefined && queryParams.vulnerable === "true";
+  const showExploitedVulnerabilitiesOnly =
+    queryParams !== undefined && queryParams.exploit === "true";
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -172,7 +186,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const vulnWebhookSettings =
     softwareConfig?.webhook_settings?.vulnerabilities_webhook;
   const isVulnWebhookEnabled = !!vulnWebhookSettings?.enable_vulnerabilities_webhook;
-  const isVulnIntegrationEnabled = (integrations?: IIntegrations) => {
+  const isVulnIntegrationEnabled = (
+    integrations?: IZendeskJiraIntegrations
+  ) => {
     return (
       !!integrations?.jira?.some((j) => j.enable_software_vulnerabilities) ||
       !!integrations?.zendesk?.some((z) => z.enable_software_vulnerabilities)
@@ -250,10 +266,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const navigateToNav = useCallback(
     (i: number): void => {
-      const navPath = softwareSubNav[i].pathname;
-      router.replace(
-        navPath.concat(location?.search || "").concat(location?.hash || "")
-      );
+      // Only query param to persist between tabs is team id
+      const teamIdParam = buildQueryStringFromParams({
+        team_id: location?.query.team_id,
+      });
+
+      const navPath = softwareSubNav[i].pathname.concat(`?${teamIdParam}`);
+
+      router.replace(navPath);
     },
     [location, router]
   );
@@ -262,20 +282,15 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     return (
       <>
         {isFreeTier && <h1>Software</h1>}
-        {isPremiumTier &&
-          userTeams &&
-          (userTeams.length > 1 || isOnGlobalTeam) && (
-            <TeamsDropdown
-              currentUserTeams={userTeams || []}
-              selectedTeamId={currentTeamId}
-              onChange={onTeamChange}
-              isSandboxMode={isSandboxMode}
-            />
-          )}
-        {isPremiumTier &&
-          !isOnGlobalTeam &&
-          userTeams &&
-          userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+        {isPremiumTier && (
+          <TeamsHeader
+            isOnGlobalTeam={isOnGlobalTeam}
+            currentTeamId={currentTeamId}
+            userTeams={userTeams}
+            onTeamChange={onTeamChange}
+            isSandboxMode={isSandboxMode}
+          />
+        )}
       </>
     );
   };
@@ -288,11 +303,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           (!isPremiumTier || !isAnyTeamSelected) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
-        <b>
-          {isPremiumTier && isAnyTeamSelected
-            ? "all hosts assigned to this team"
-            : "all of your hosts"}
-        </b>
+        {isPremiumTier && isAnyTeamSelected
+          ? "all hosts assigned to this team"
+          : "all of your hosts"}
         .
       </p>
     );
@@ -322,14 +335,15 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           isSoftwareEnabled: Boolean(
             softwareConfig?.features?.enable_software_inventory
           ),
-          query,
-          // NOTE: may move this lower in tree if we need different values for different pages
           perPage: DEFAULT_PAGE_SIZE,
           orderDirection: sortDirection,
           orderKey: sortHeader,
-          showVulnerableSoftware,
           currentPage: page,
           teamId: teamIdForApi,
+          // TODO: move down into the Software Titles component
+          query,
+          showVulnerableSoftware,
+          showExploitedVulnerabilitiesOnly,
         })}
       </div>
     );

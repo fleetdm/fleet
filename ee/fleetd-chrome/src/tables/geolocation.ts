@@ -5,6 +5,7 @@ export default class TableGeolocation extends Table {
   columns = ["ip", "city", "country", "region"];
 
   ensureString(val: unknown): string {
+    val = val ?? ""; // coerce undefined/null to empty string
     if (typeof val !== "string") {
       return val.toString();
     }

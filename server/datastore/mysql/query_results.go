@@ -146,3 +146,16 @@ func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID
 
 	return results, nil
 }
+
+func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
+	deleteStmt := `
+		DELETE FROM query_results 
+		WHERE query_id IN 
+			(SELECT id FROM queries WHERE discard_data = true)
+		`
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up discarded query results")
+	}
+	return nil
+}

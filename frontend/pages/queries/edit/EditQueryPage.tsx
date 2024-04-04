@@ -14,11 +14,14 @@ import {
   ICreateQueryRequestBody,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { IConfig } from "interfaces/config";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
+import BackLink from "components/BackLink";
+import InfoBanner from "components/InfoBanner";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -27,17 +30,16 @@ import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
+import { buildQueryStringFromParams } from "utilities/url";
 
-import BackLink from "components/BackLink";
-import EditQueryForm from "pages/queries/edit/components/EditQueryForm";
-import { IConfig } from "interfaces/config";
+import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: {
     pathname: string;
-    query: { host_ids: string; team_id?: string };
+    query: { host_id: string; team_id?: string };
     search: string;
   };
 }
@@ -50,9 +52,11 @@ const EditQueryPage = ({
   location,
 }: IEditQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+
   const {
     currentTeamName: teamNameForQuery,
     teamIdForApi: apiTeamIdForQuery,
+    currentTeamId,
   } = useTeamIdParam({
     location,
     router,
@@ -69,8 +73,10 @@ const EditQueryPage = ({
     isObserverPlus,
     isAnyTeamObserverPlus,
     config,
+    filteredQueriesPath,
   } = useContext(AppContext);
   const {
+    editingExistingQuery,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
     lastEditedQueryName,
@@ -127,7 +133,7 @@ const EditQueryPage = ({
     ["query", queryId],
     () => queryAPI.load(queryId as number),
     {
-      enabled: !!queryId,
+      enabled: !!queryId && !editingExistingQuery,
       refetchOnWindowFocus: false,
       select: (data) => data.query,
       onSuccess: (returnedQuery) => {
@@ -202,11 +208,11 @@ const EditQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Query details | Discover TLS certificates | Fleet for osquery
+    // e.g., Editing Discover TLS certificates | Queries | Fleet
     const storedQueryTitleCopy = storedQuery?.name
-      ? `${storedQuery.name} | `
+      ? `Editing ${storedQuery.name} | `
       : "";
-    document.title = `Edit query | ${storedQueryTitleCopy} ${DOCUMENT_TITLE_SUFFIX}`;
+    document.title = `${storedQueryTitleCopy}Queries | ${DOCUMENT_TITLE_SUFFIX}`;
     // }
   }, [location.pathname, storedQuery?.name]);
 
@@ -303,25 +309,29 @@ const EditQueryPage = ({
     }
 
     return (
-      <div className={`${baseClass}__warning`}>
-        <div className={`${baseClass}__message`}>
-          <p>
-            Fleet is unable to run a live query. Refresh the page or log in
-            again. If this keeps happening please{" "}
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new/choose"
-              text="file an issue"
-              newTab
-            />
-          </p>
-        </div>
-      </div>
+      <InfoBanner color="yellow">
+        Fleet is unable to run a live query. Refresh the page or log in again.
+        If this keeps happening please{" "}
+        <CustomLink
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="file an issue"
+          newTab
+        />
+      </InfoBanner>
     );
   };
 
   // Function instead of constant eliminates race condition
   const backToQueriesPath = () => {
-    return queryId ? PATHS.QUERY_DETAILS(queryId) : PATHS.MANAGE_QUERIES;
+    const manageQueryPage =
+      filteredQueriesPath ||
+      `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+        team_id: currentTeamId,
+      })}`;
+
+    return queryId
+      ? PATHS.QUERY_DETAILS(queryId, currentTeamId)
+      : manageQueryPage;
   };
 
   const showSidebar =
@@ -335,39 +345,38 @@ const EditQueryPage = ({
   return (
     <>
       <MainContent className={baseClass}>
-        <div className={`${baseClass}_wrapper`}>
-          <div className={`${baseClass}__form`}>
-            <div className={`${baseClass}__header-links`}>
-              <BackLink
-                text={queryId ? "Back to report" : "Back to queries"}
-                path={backToQueriesPath()}
-              />
-            </div>
-            <EditQueryForm
-              router={router}
-              onSubmitNewQuery={onSubmitNewQuery}
-              onOsqueryTableSelect={onOsqueryTableSelect}
-              onUpdate={onUpdateQuery}
-              storedQuery={storedQuery}
-              queryIdForEdit={queryId}
-              apiTeamIdForQuery={apiTeamIdForQuery}
-              teamNameForQuery={teamNameForQuery}
-              isStoredQueryLoading={isStoredQueryLoading}
-              showOpenSchemaActionText={showOpenSchemaActionText}
-              onOpenSchemaSidebar={onOpenSchemaSidebar}
-              renderLiveQueryWarning={renderLiveQueryWarning}
-              backendValidators={backendValidators}
-              isQuerySaving={isQuerySaving}
-              isQueryUpdating={isQueryUpdating}
-              hostId={parseInt(location.query.host_ids as string, 10)}
-              queryReportsDisabled={
-                appConfig?.server_settings.query_reports_disabled
-              }
-              showConfirmSaveChangesModal={showConfirmSaveChangesModal}
-              setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
+        <>
+          <div className={`${baseClass}__header-links`}>
+            <BackLink
+              text={queryId ? "Back to report" : "Back to queries"}
+              path={backToQueriesPath()}
             />
           </div>
-        </div>
+          <EditQueryForm
+            router={router}
+            onSubmitNewQuery={onSubmitNewQuery}
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            onUpdate={onUpdateQuery}
+            storedQuery={storedQuery}
+            queryIdForEdit={queryId}
+            apiTeamIdForQuery={apiTeamIdForQuery}
+            currentTeamId={currentTeamId}
+            teamNameForQuery={teamNameForQuery}
+            isStoredQueryLoading={isStoredQueryLoading}
+            showOpenSchemaActionText={showOpenSchemaActionText}
+            onOpenSchemaSidebar={onOpenSchemaSidebar}
+            renderLiveQueryWarning={renderLiveQueryWarning}
+            backendValidators={backendValidators}
+            isQuerySaving={isQuerySaving}
+            isQueryUpdating={isQueryUpdating}
+            hostId={parseInt(location.query.host_id as string, 10)}
+            queryReportsDisabled={
+              appConfig?.server_settings.query_reports_disabled
+            }
+            showConfirmSaveChangesModal={showConfirmSaveChangesModal}
+            setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
+          />
+        </>
       </MainContent>
       {showSidebar && (
         <SidePanelContent>

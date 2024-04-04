@@ -17,11 +17,13 @@ import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { buildQueryStringFromParams } from "utilities/url";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -33,6 +35,7 @@ import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
@@ -64,9 +67,13 @@ const QueryDetailsPage = ({
     router.push(PATHS.MANAGE_QUERIES);
   }
   const queryParams = location.query;
-  const teamId = location.query.team_id
-    ? parseInt(location.query.team_id, 10)
-    : undefined;
+
+  const { currentTeamId } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   // Functions to avoid race conditions
   const serverSortBy: ISortOption[] = (() => {
@@ -94,6 +101,7 @@ const QueryDetailsPage = ({
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
+    lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryDiscardData,
     lastEditedQueryLoggingType,
@@ -109,15 +117,7 @@ const QueryDetailsPage = ({
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
 
-  // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
-
-  useEffect(() => {
-    const queryNameCopy = lastEditedQueryName
-      ? `${lastEditedQueryName} | `
-      : "";
-    document.title = `Query details | ${queryNameCopy}${DOCUMENT_TITLE_SUFFIX}`;
-  }, [lastEditedQueryName]);
-
+  const [showQueryModal, setShowQueryModal] = useState(false);
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
   useEffect(() => {
@@ -183,6 +183,20 @@ const QueryDetailsPage = ({
     }
   }, [storedQuery]);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
+  }, [location.pathname, storedQuery?.name]);
+
+  const onShowQueryModal = () => {
+    setShowQueryModal(!showQueryModal);
+  };
+
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
@@ -195,7 +209,12 @@ const QueryDetailsPage = ({
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
-      return filteredQueriesPath || PATHS.MANAGE_QUERIES;
+      return (
+        filteredQueriesPath ||
+        `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+          team_id: currentTeamId,
+        })}`
+      );
     };
 
     return (
@@ -215,10 +234,18 @@ const QueryDetailsPage = ({
                 </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  className={`${baseClass}__show-query-btn`}
+                  onClick={onShowQueryModal}
+                  variant="text-icon"
+                >
+                  Show query
+                </Button>
                 {canEditQuery && (
                   <Button
                     onClick={() => {
-                      queryId && router.push(PATHS.EDIT_QUERY(queryId, teamId));
+                      queryId &&
+                        router.push(PATHS.EDIT_QUERY(queryId, currentTeamId));
                     }}
                     className={`${baseClass}__manage-automations button`}
                     variant="brand"
@@ -231,7 +258,7 @@ const QueryDetailsPage = ({
                   isAnyTeamObserverPlus ||
                   canEditQuery) && (
                   <div
-                    className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+                    className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
                     <div
                       data-tip
@@ -317,7 +344,7 @@ const QueryDetailsPage = ({
           // Exclude below message for global and team observers/observer+s
           !(
             (currentUser && isGlobalObserver(currentUser)) ||
-            isTeamObserver(currentUser, teamId ?? null)
+            isTeamObserver(currentUser, currentTeamId ?? null)
           ) &&
             " You can still use query automations to complete this report in your log destination."
         }
@@ -363,6 +390,12 @@ const QueryDetailsPage = ({
         {renderHeader()}
         {isClipped && renderClippedBanner()}
         {renderReport()}
+        {showQueryModal && (
+          <ShowQueryModal
+            query={lastEditedQueryBody}
+            onCancel={onShowQueryModal}
+          />
+        )}
       </div>
     </MainContent>
   );

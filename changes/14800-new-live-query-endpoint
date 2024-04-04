@@ -1,1 +1,0 @@
-Added a new synchronous live query endpoint: POST /api/v1/fleet/queries/:id/run

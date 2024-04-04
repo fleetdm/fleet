@@ -11,6 +11,8 @@ import { IMdmApple } from "interfaces/mdm";
 import PATHS from "router/paths";
 
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
+
 import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
 import WindowsMdmCard from "./components/WindowsMdmCard/WindowsMdmCard";
 import MacOSMdmCard from "./components/MacOSMdmCard/MacOSMdmCard";
@@ -51,12 +53,12 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
-        <h2>Mobile device management (MDM)</h2>
+      <div className={`${baseClass}__section`}>
+        <SectionHeader title="Mobile device management (MDM)" />
         {isLoadingMdmApple ? (
           <Spinner />
         ) : (
-          <>
+          <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
             <MacOSMdmCard
               appleAPNInfo={appleAPNInfo}
               errorData={errorMdmApple}
@@ -67,7 +69,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
               turnOnWindowsMdm={navigateToWindowsMdm}
               editWindowsMdm={navigateToWindowsMdm}
             />
-          </>
+          </div>
         )}
       </div>
       {isPremiumTier && appleAPNInfo && (

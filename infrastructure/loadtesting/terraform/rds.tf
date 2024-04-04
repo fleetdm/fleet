@@ -20,20 +20,26 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
   secret_string = random_password.database_password.result
 }
 
+
+
 module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryption tfsec:ignore:aws-rds-encrypt-cluster-storage-data tfsec:ignore:aws-vpc-add-description-to-security-group
   source  = "terraform-aws-modules/rds-aurora/aws"
-  version = "5.3.0"
+  version = "7.7.1"
 
   name                  = "${local.name}-mysql"
   engine                = "aurora-mysql"
-  engine_version        = "8.0.mysql_aurora.3.02.2"
-  instance_type         = var.db_instance_type
-  instance_type_replica = var.db_instance_type
+  engine_version        = "8.0.mysql_aurora.3.03.3"
+  instance_class         = var.db_instance_type
+
+  instances = {
+    one = {}
+    two = {}
+  }
 
   iam_database_authentication_enabled = true
   storage_encrypted                   = true
-  username                            = "fleet"
-  password                            = random_password.database_password.result
+  master_username                     = "fleet"
+  master_password                     = random_password.database_password.result
   create_random_password              = false
   database_name                       = "fleet"
   enable_http_endpoint                = false
@@ -47,9 +53,18 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   allowed_cidr_blocks    = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
   # Old Jump box?
   # allowed_security_groups = ["sg-0063a978193fdf7ee"]
+  create_db_cluster_parameter_group = true
+  db_cluster_parameter_group_family = "aurora-mysql8.0"
+  db_cluster_parameter_group_name   = "${local.name}-mysql-parameters"
+  db_cluster_parameter_group_parameters = [
+    {
+      name         = "innodb_print_all_deadlocks"
+      value        = "1"
+      apply_method = "immediate"
+    }
+  ]
 
-  replica_count       = 2
-  snapshot_identifier = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned"
+  snapshot_identifier = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned-8-0"
 
   monitoring_interval           = 60
   iam_role_name                 = "${local.name}-rds"

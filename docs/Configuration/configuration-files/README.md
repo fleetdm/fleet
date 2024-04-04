@@ -125,12 +125,6 @@ Currently enrolled hosts do not necessarily need enroll secrets updated, as the 
 
 Deploying a new enroll secret cannot be done centrally from Fleet.
 
-Osquery provides the enroll secret only during the enrollment process. Once a host is enrolled, the node key it receives remains valid for authentication independent from the enroll secret.
-
-Currently enrolled hosts do not necessarily need enroll secrets updated, as the existing enrollment will continue to be valid as long as the host is not deleted from Fleet and the osquery store on the host remains valid. Any newly enrolling hosts must have the new secret.
-
-Deploying a new enroll secret cannot be done centrally from Fleet.
-
 > Enroll secrets must be alphanumeric and should not contain special characters. 
 
 ### Multiple enroll secrets
@@ -246,19 +240,30 @@ spec:
         destination_url: ""
         enable_host_status_webhook: false
         host_percentage: 0
+    host_expiry_settings: 
+      host_expiry_enabled: true 
+      host_expiry_window: 14
     mdm:
       macos_updates:
         minimum_version: "12.3.1"
         deadline: "2022-01-04"
       macos_settings:
         custom_settings:
-          - path/to/profile1.mobileconfig
-          - path/to/profile2.mobileconfig
+          - path: '/path/to/profile1.mobileconfig'
+            labels:
+              - Label name 1
+          - path: '/path/to/profile2.mobileconfig'
+          - path: '/path/to/profile3.mobileconfig'
+            labels:
+              - Label name 2
+              - Label name 3
         enable_disk_encryption: true
       windows_settings:
         custom_settings:
-          - path/to/profile3.xml
-          - path/to/profile4.xml
+          - path: '/path/to/profile4.xml'
+            labels:
+              - Label name 4
+          - path: '/path/to/profile5.xml'
     scripts:
         - path/to/script1.sh
         - path/to/script2.sh
@@ -409,6 +414,7 @@ spec:
     enable_analytics: true
     live_query_disabled: false
     query_reports_disabled: false
+    scripts_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain
@@ -467,13 +473,21 @@ spec:
       deadline: ""
     macos_settings:
       custom_settings:
-        - path/to/profile1.mobileconfig
-        - path/to/profile2.mobileconfig
+        - path: '/path/to/profile1.mobileconfig'
+          labels:
+            - Label name 1
+        - path: '/path/to/profile2.mobileconfig'
+        - path: '/path/to/profile3.mobileconfig'
+          labels:
+            - Label name 2
+            - Label name 3
       enable_disk_encryption: true
     windows_settings:
       custom_settings:
-        - path/to/profile3.xml
-        - path/to/profile4.xml
+        - path: '/path/to/profile4.xml'
+          labels:
+            - Label name 4
+        - path: '/path/to/profile5.xml'
 ```
 
 ### Settings
@@ -1129,8 +1143,6 @@ Set name of default team to use with Apple Business Manager.
 
 ##### mdm.windows_enabled_and_configured
 
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
-
 Enables or disables Windows MDM support.
 
 - Default value: false
@@ -1144,11 +1156,9 @@ Enables or disables Windows MDM support.
 
 **Applies only to Fleet Premium**.
 
-The following options allow configuring the behavior of Nudge for macOS hosts that belong to no team and are enrolled into Fleet's MDM.
+The following options allow configuring OS updates for macOS hosts.
 
 ##### mdm.macos_updates.minimum_version
-
-Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.
 
 Requires `mdm.macos_updates.deadline` to be set.
 
@@ -1164,8 +1174,6 @@ Requires `mdm.macos_updates.deadline` to be set.
 
 A deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8).
 
-Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
-
 Requires `mdm.macos_updates.minimum_version` to be set.
 
 - Default value: ""
@@ -1174,6 +1182,36 @@ Requires `mdm.macos_updates.minimum_version` to be set.
   mdm:
     macos_updates:
       deadline: "2022-01-01"
+  ```
+
+##### mdm.windows_updates
+
+**Applies only to Fleet Premium**.
+
+The following options allow configuring OS updates for Windows hosts.
+
+##### mdm.windows_updates.deadline
+
+A deadline in days.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    windows_updates:
+      deadline_days: "5"
+  ```
+
+##### mdm.windows_updates.grace_period
+
+A grace period in days.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    windows_updates:
+      grace_period_days: "2"
   ```
 
 ##### mdm.macos_settings
@@ -1194,8 +1232,14 @@ If you're using Fleet Premium, these profiles apply to all hosts assigned to no 
   mdm:
     macos_settings:
       custom_settings:
-        - path/to/profile1.mobileconfig
-        - path/to/profile2.mobileconfig
+        - path: '/path/to/profile1.mobileconfig'
+          labels:
+            - Label name 1
+        - path: '/path/to/profile2.mobileconfig'
+        - path: '/path/to/profile3.mobileconfig'
+          labels:
+            - Label name 2
+            - Label name 3
   ```
 
 ##### mdm.macos_settings.enable_disk_encryption
@@ -1234,8 +1278,10 @@ If you're using Fleet Premium, these profiles apply to all hosts assigned to no 
   mdm:
     windows_settings:
       custom_settings:
-        - path/to/profile1.xml
-        - path/to/profile2.xml
+        - path: '/path/to/profile1.xml'
+          labels:
+            - Label name 1
+        - path: '/path/to/profile2.xml'
   ```
 
 #### Scripts 

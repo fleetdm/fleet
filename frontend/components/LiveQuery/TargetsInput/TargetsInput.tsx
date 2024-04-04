@@ -7,7 +7,7 @@ import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
 
 import DataError from "components/DataError";
 // @ts-ignore
-import Input from "components/forms/fields/InputFieldWithIcon";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
 
@@ -20,7 +20,7 @@ interface ITargetsInputProps {
   targetedHosts: IHost[];
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row) => void;
-  handleRowRemove: (value: Row) => void;
+  handleRowRemove: (value: Row<IHost>) => void;
 }
 
 const baseClass = "targets-input";
@@ -47,7 +47,7 @@ const TargetsInput = ({
   return (
     <div>
       <div className={baseClass}>
-        <Input
+        <InputFieldWithIcon
           autofocus
           type="search"
           iconSvg="search"

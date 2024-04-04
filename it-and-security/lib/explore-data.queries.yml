@@ -1,0 +1,3210 @@
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - account_policy_data'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM account_policy_data;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ad_config'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ad_config;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - alf'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM alf;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - alf_exceptions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM alf_exceptions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - alf_explicit_auths'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM alf_explicit_auths;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - apfs_physical_stores'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM apfs_physical_stores;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - apfs_volumes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM apfs_volumes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - app_icons'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM app_icons;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - app_schemes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM app_schemes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - apparmor_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM apparmor_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - apparmor_profiles'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM apparmor_profiles;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - appcompat_shims'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM appcompat_shims;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - apps'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM apps;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - apt_sources'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM apt_sources;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - arp_cache'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM arp_cache;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - asl'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM asl;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - atom_packages'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM atom_packages;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - augeas'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM augeas;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - authdb'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM authdb;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - authenticode'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM authenticode;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - authorization_mechanisms'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM authorization_mechanisms;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - authorizations'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM authorizations;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - authorized_keys'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM authorized_keys;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - autoexec'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM autoexec;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - azure_instance_metadata'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM azure_instance_metadata;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - azure_instance_tags'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM azure_instance_tags;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - background_activities_moderator'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM background_activities_moderator;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - battery'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM battery;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - bitlocker_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM bitlocker_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - block_devices'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM block_devices;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - bpf_process_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM bpf_process_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - bpf_socket_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM bpf_socket_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - carbon_black_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM carbon_black_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - carves'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM carves;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - certificates'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM certificates;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - chassis_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM chassis_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - chocolatey_packages'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM chocolatey_packages;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - chrome_extension_content_scripts'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM chrome_extension_content_scripts;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - chrome_extensions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM chrome_extensions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - cis_audit'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM cis_audit;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - connected_displays'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM connected_displays;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - connectivity'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM connectivity;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - corestorage_logical_volume_families'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM corestorage_logical_volume_families;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - corestorage_logical_volumes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM corestorage_logical_volumes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - cpu_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM cpu_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - cpu_time'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM cpu_time;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - cpuid'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM cpuid;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - crashes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM crashes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - crontab'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM crontab;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - cryptoinfo'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM cryptoinfo;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - cryptsetup_status'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM cryptsetup_status;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - csrutil_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM csrutil_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - cups_destinations'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM cups_destinations;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - cups_jobs'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM cups_jobs;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - curl'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM curl;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - curl_certificate'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM curl_certificate;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - deb_packages'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM deb_packages;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - default_environment'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM default_environment;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - device_file'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM device_file;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - device_firmware'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM device_firmware;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - device_hash'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM device_hash;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - device_partitions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM device_partitions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - disk_encryption'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM disk_encryption;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - disk_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM disk_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - disk_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM disk_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - dns_cache'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM dns_cache;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - dns_resolvers'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM dns_resolvers;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_container_envs'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_container_envs;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_container_fs_changes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_container_fs_changes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_container_labels'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_container_labels;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_container_mounts'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_container_mounts;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_container_networks'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_container_networks;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_container_ports'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_container_ports;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_container_processes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_container_processes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_container_stats'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_container_stats;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_containers'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_containers;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_image_history'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_image_history;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_image_labels'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_image_labels;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_image_layers'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_image_layers;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_images'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_images;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_network_labels'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_network_labels;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_networks'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_networks;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_version'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_version;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_volume_labels'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_volume_labels;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - docker_volumes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM docker_volumes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - drivers'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM drivers;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - dscl'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM dscl;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ec2_instance_metadata'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ec2_instance_metadata;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ec2_instance_tags'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ec2_instance_tags;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - es_process_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM es_process_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - es_process_file_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM es_process_file_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - etc_hosts'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM etc_hosts;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - etc_protocols'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM etc_protocols;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - etc_services'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM etc_services;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - event_taps'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM event_taps;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - extended_attributes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM extended_attributes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - falcon_kernel_check'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM falcon_kernel_check;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - falconctl_options'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM falconctl_options;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - fan_speed_sensors'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM fan_speed_sensors;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - file'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM file;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - file_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM file_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - file_lines'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM file_lines;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - filevault_prk'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM filevault_prk;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - filevault_status'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM filevault_status;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - filevault_users'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM filevault_users;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - find_cmd'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM find_cmd;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - firefox_addons'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM firefox_addons;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - firefox_preferences'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM firefox_preferences;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - firmware_eficheck_integrity_check'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM firmware_eficheck_integrity_check;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - firmwarepasswd'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM firmwarepasswd;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - gatekeeper'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM gatekeeper;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - gatekeeper_approved_apps'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM gatekeeper_approved_apps;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - geolocation'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM geolocation;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - google_chrome_profiles'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM google_chrome_profiles;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - groups'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM groups;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - hardware_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM hardware_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - hash'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM hash;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - homebrew_packages'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM homebrew_packages;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - hvci_status'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM hvci_status;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ibridge_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ibridge_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - icloud_private_relay'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM icloud_private_relay;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ie_extensions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ie_extensions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - intel_me_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM intel_me_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - interface_addresses'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM interface_addresses;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - interface_details'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM interface_details;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - interface_ipv6'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM interface_ipv6;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - iokit_devicetree'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM iokit_devicetree;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - iokit_registry'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM iokit_registry;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ioreg'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ioreg;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - kernel_extensions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kernel_extensions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - kernel_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kernel_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - kernel_keys'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kernel_keys;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - kernel_modules'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kernel_modules;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - kernel_panics'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kernel_panics;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - keychain_acls'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM keychain_acls;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - keychain_items'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM keychain_items;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - known_hosts'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM known_hosts;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - kva_speculative_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kva_speculative_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - last'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM last;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - launchd'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM launchd;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - launchd_overrides'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM launchd_overrides;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - listening_ports'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM listening_ports;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - load_average'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM load_average;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - location_services'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM location_services;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - logged_in_users'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM logged_in_users;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - logical_drives'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM logical_drives;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - logon_sessions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM logon_sessions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_certificates'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_certificates;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_cluster'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_cluster;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_cluster_members'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_cluster_members;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_images'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_images;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_instance_config'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_instance_config;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_instance_devices'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_instance_devices;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_instances'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_instances;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_networks'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_networks;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - lxd_storage_pools'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM lxd_storage_pools;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - macadmins_unified_log'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM macadmins_unified_log;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - macos_profiles'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM macos_profiles;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - macos_rsr'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM macos_rsr;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - magic'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM magic;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - managed_policies'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM managed_policies;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - md_devices'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM md_devices;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - md_drives'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM md_drives;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - md_personalities'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM md_personalities;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - mdfind'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM mdfind;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - mdls'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM mdls;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - mdm'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM mdm;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - mdm_bridge'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM mdm_bridge;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - memory_array_mapped_addresses'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM memory_array_mapped_addresses;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - memory_arrays'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM memory_arrays;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - memory_device_mapped_addresses'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM memory_device_mapped_addresses;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - memory_devices'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM memory_devices;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - memory_error_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM memory_error_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - memory_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM memory_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - memory_map'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM memory_map;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - mounts'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM mounts;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - msr'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM msr;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - munki_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM munki_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - munki_installs'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM munki_installs;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - network_interfaces'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM network_interfaces;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - nfs_shares'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM nfs_shares;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - npm_packages'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM npm_packages;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ntdomains'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ntdomains;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ntfs_acl_permissions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ntfs_acl_permissions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ntfs_journal_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ntfs_journal_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - nvram'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM nvram;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - nvram_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM nvram_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - oem_strings'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM oem_strings;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - office_mru'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM office_mru;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - orbit_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM orbit_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - os_version'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM os_version;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - osquery_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM osquery_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - osquery_extensions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM osquery_extensions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - osquery_flags'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM osquery_flags;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - osquery_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM osquery_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - osquery_packs'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM osquery_packs;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - osquery_registry'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM osquery_registry;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - osquery_schedule'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM osquery_schedule;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - package_bom'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM package_bom;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - package_install_history'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM package_install_history;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - package_receipts'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM package_receipts;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - password_policy'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM password_policy;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - patches'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM patches;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - pci_devices'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM pci_devices;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - physical_disk_performance'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM physical_disk_performance;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - pipes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM pipes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - platform_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM platform_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - plist'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM plist;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - pmset'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM pmset;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - portage_keywords'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM portage_keywords;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - portage_packages'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM portage_packages;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - portage_use'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM portage_use;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - power_sensors'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM power_sensors;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - powershell_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM powershell_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - preferences'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM preferences;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - prefetch'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM prefetch;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - privacy_preferences'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM privacy_preferences;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_envs'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_envs;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_etw_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_etw_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_file_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_file_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_memory_map'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_memory_map;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_namespaces'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_namespaces;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_open_files'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_open_files;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_open_pipes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_open_pipes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - process_open_sockets'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM process_open_sockets;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - processes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM processes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - programs'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM programs;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - prometheus_metrics'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM prometheus_metrics;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - puppet_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM puppet_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - puppet_logs'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM puppet_logs;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - puppet_state'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM puppet_state;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - pwd_policy'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM pwd_policy;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - python_packages'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM python_packages;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - quicklook_cache'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM quicklook_cache;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - registry'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM registry;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - routes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM routes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - rpm_package_files'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM rpm_package_files;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - rpm_packages'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM rpm_packages;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - running_apps'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM running_apps;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - safari_extensions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM safari_extensions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - sandboxes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM sandboxes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - scheduled_tasks'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM scheduled_tasks;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - screenlock'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM screenlock;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - seccomp_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM seccomp_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - secureboot'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM secureboot;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - security_profile_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM security_profile_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - selinux_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM selinux_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - selinux_settings'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM selinux_settings;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - services'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM services;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - shadow'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM shadow;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - shared_folders'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM shared_folders;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - shared_memory'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM shared_memory;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - shared_resources'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM shared_resources;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - sharing_preferences'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM sharing_preferences;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - shell_history'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM shell_history;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - shellbags'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM shellbags;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - shimcache'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM shimcache;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - signature'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM signature;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - sip_config'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM sip_config;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - smbios_tables'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM smbios_tables;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - smc_keys'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM smc_keys;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - sntp_request'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM sntp_request;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - socket_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM socket_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - software_update'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM software_update;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ssh_configs'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ssh_configs;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - startup_items'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM startup_items;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - sudo_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM sudo_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - sudoers'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM sudoers;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - suid_bin'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM suid_bin;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - syslog_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM syslog_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - system_controls'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM system_controls;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - system_extensions'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM system_extensions;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - system_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM system_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - system_state'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM system_state;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - systemd_units'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM systemd_units;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - temperature_sensors'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM temperature_sensors;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - time'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM time;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - time_machine_backups'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM time_machine_backups;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - time_machine_destinations'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM time_machine_destinations;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - tpm_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM tpm_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ulimit_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ulimit_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - unified_log'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM unified_log;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - uptime'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM uptime;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - usb_devices'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM usb_devices;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - user_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM user_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - user_groups'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM user_groups;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - user_interaction_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM user_interaction_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - user_login_settings'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM user_login_settings;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - user_ssh_keys'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM user_ssh_keys;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - userassist'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM userassist;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - users'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM users;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - video_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM video_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - virtual_memory_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM virtual_memory_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - wifi_networks'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM wifi_networks;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - wifi_status'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM wifi_status;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - wifi_survey'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM wifi_survey;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - winbaseobj'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM winbaseobj;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_crashes'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_crashes;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_eventlog'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_eventlog;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_firewall_rules'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_firewall_rules;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_optional_features'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_optional_features;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_search'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_search;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_security_center'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_security_center;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_security_products'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_security_products;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_update_history'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_update_history;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - windows_updates'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM windows_updates;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - wmi_bios_info'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM wmi_bios_info;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - wmi_cli_event_consumers'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM wmi_cli_event_consumers;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - wmi_event_filters'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM wmi_event_filters;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - wmi_filter_consumer_binding'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM wmi_filter_consumer_binding;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - wmi_script_event_consumers'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM wmi_script_event_consumers;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - xprotect_entries'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM xprotect_entries;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - xprotect_meta'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM xprotect_meta;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - xprotect_reports'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM xprotect_reports;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - yara'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM yara;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - yara_events'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM yara_events;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - ycloud_instance_metadata'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM ycloud_instance_metadata;
+- automations_enabled: true
+  description: ""
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: '[Explore data] - yum_sources'
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM yum_sources;

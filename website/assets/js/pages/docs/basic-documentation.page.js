@@ -184,6 +184,12 @@ parasails.registerPage('basic-documentation', {
       });
     })();
 
+    // Set counters for items in ordered lists to be the value of their "start" attribute.
+    document.querySelectorAll('ol[start]').forEach((ol)=> {
+      let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
+      ol.style.counterReset = 'custom-counter ' + startValue;
+    });
+
     // Adding event handlers to the links nested in headings on the page, allowing users to copy links by clicking on the link icon next to the heading.
     let headingsOnThisPage = $('#body-content').find(':header');
     for(let key in Object.values(headingsOnThisPage)){
@@ -216,11 +222,6 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    clickOpenChatWidget: function() {
-      if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open();
-      }
-    },
     clickCTA: function (slug) {
       window.location = slug;
     },

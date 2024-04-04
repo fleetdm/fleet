@@ -4,7 +4,7 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
 } from "interfaces/webhook";
-import { IIntegrations } from "./integration";
+import { IGlobalIntegrations } from "./integration";
 
 export interface ILicense {
   tier: string;
@@ -48,6 +48,7 @@ export interface IMdmConfig {
     bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
     macos_setup_assistant: string | null;
+    enable_release_device_manually: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
@@ -104,6 +105,15 @@ export interface IConfigFeatures {
   enable_software_inventory: boolean;
 }
 
+export interface IConfigServerSettings {
+  server_url: string;
+  live_query_disabled: boolean;
+  enable_analytics: boolean;
+  deferred_save_host: boolean;
+  query_reports_disabled: boolean;
+  scripts_disabled: boolean;
+}
+
 export interface IConfig {
   org_info: {
     org_name: string;
@@ -112,15 +122,8 @@ export interface IConfig {
     contact_url: string;
   };
   sandbox_enabled: boolean;
-  server_settings: {
-    server_url: string;
-    live_query_disabled: boolean;
-    enable_analytics: boolean;
-    deferred_save_host: boolean;
-    query_reports_disabled: boolean;
-    scripts_disabled: boolean;
-  };
-  smtp_settings: {
+  server_settings: IConfigServerSettings;
+  smtp_settings?: {
     enable_smtp: boolean;
     configured: boolean;
     sender_address: string;
@@ -173,7 +176,7 @@ export interface IConfig {
   //   databases_path: string;
   // };
   webhook_settings: IWebhookSettings;
-  integrations: IIntegrations;
+  integrations: IGlobalIntegrations;
   logging: {
     debug: boolean;
     json: boolean;
@@ -212,7 +215,7 @@ export interface IConfig {
 
 export interface IWebhookSettings {
   failing_policies_webhook: IWebhookFailingPolicies;
-  host_status_webhook: IWebhookHostStatus;
+  host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
 }
 

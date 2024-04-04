@@ -6,10 +6,10 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITextCellProps {
   value?: string | number | boolean | { timeString: string } | null;
-  formatter?: (val: any) => JSX.Element | string; // string, number, or null
+  formatter?: (val: any) => React.ReactNode; // string, number, or null
   greyed?: boolean;
   classes?: string;
-  emptyCellTooltipText?: JSX.Element | string;
+  emptyCellTooltipText?: React.ReactNode;
 }
 
 const TextCell = ({

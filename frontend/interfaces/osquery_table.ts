@@ -19,7 +19,9 @@ export type ColumnType =
   | "bigint"
   | "double"
   | "text"
-  | "unsigned_bigint";
+  | "unsigned_bigint"
+  | "STRING"
+  | "string"; // TODO: Why do we have type string, STRING, and text in schema.json?
 
 export interface IQueryTableColumn {
   name: string;

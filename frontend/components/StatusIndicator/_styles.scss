@@ -13,7 +13,7 @@
     display: inline-block;
     margin-right: $pad-small;
     height: 8px;
-    width: 8px;
+    min-width: 8px;
   }
 
   // host status

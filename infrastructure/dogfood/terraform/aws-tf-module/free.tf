@@ -15,7 +15,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.7.1"
+  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.8.1"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -86,6 +86,7 @@ module "free" {
       prefix  = local.customer_free
       enabled = true
     }
+    idle_timeout = 300
   }
 }
 
@@ -121,20 +122,17 @@ module "ses-free" {
   domain  = "free.fleetdm.com"
 }
 
-module "waf-free" {
-  source = "github.com/fleetdm/fleet//terraform/addons/waf-alb?ref=tf-mod-addon-waf-alb-v1.0.0"
-  name   = local.customer_free
-  lb_arn = module.free.byo-db.alb.lb_arn
-}
-
 module "migrations_free" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
+  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v2.0.0"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision
   subnets                  = module.free.byo-db.byo-ecs.service.network_configuration[0].subnets
   security_groups          = module.free.byo-db.byo-ecs.service.network_configuration[0].security_groups
+  ecs_service              = module.free.byo-db.byo-ecs.service.name
+  desired_count            = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  min_capacity             = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
 }

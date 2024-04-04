@@ -69,7 +69,7 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	log.Debug().Msg("running nudge config fetcher middleware")
 	cfg, err := n.Fetcher.GetConfig()
 	if err != nil {
-		log.Info().Err(err).Msg("calling GetConfig from NudgeConfigFetcher")
+		log.Debug().Err(err).Msg("calling GetConfig from NudgeConfigFetcher")
 		return nil, err
 	}
 

@@ -205,6 +205,10 @@ a.text-danger:hover, a.text-danger:focus {
   }
 }
 
+.border-bottom {
+  border-bottom: 1px solid #C5C7D1 !important; //lesshint-disable-line importantRule
+}
+
 .card {
   box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.05);
 }
@@ -247,7 +251,7 @@ a.text-danger:hover, a.text-danger:focus {
   .collapse.show {
     opacity: 1;
     pointer-events: auto;
-    z-index: 3;
+    z-index: 300;
     overflow-y: auto;
   }
   .collapse {
@@ -320,12 +324,14 @@ textarea.form-control {
 }
 
 .tooltip {
+  max-width: 326px;
   font-weight: 400;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 12px;
   font-size: 12px;
   background-color: @core-fleet-black-75;
   opacity: 1.0;
+  margin-bottom: 4px;
   .arrow {
     display: none;
   }
@@ -333,10 +339,14 @@ textarea.form-control {
 .tooltip-inner {
   background: none;
   padding: 0;
+  text-align: left;
   p {
     margin-bottom: 0px;
-    text-align: left;
     line-height: 16px;
+  }
+  a {
+    color: #FFF;
+    text-decoration: underline;
   }
 }
 .tooltip.show {

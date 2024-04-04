@@ -30,13 +30,17 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 	return p7.Decrypt(cert, key)
 }
 
+func prefixMatches(val []byte, prefix string) bool {
+	return len(val) >= len(prefix) &&
+		bytes.EqualFold([]byte(prefix), val[:len(prefix)])
+}
+
 // GetRawProfilePlatform identifies the platform type of a profile bytes by
 // examining its initial content:
 //
 //   - Returns "darwin" if the profile starts with "<?xml", typical of Darwin
 //     platform profiles.
-//   - Returns "windows" if the profile begins with "<replace", as we only accept
-//     replaces directives for profiles.
+//   - Returns "windows" if the profile begins with "<replace" or "<add",
 //   - Returns an empty string for profiles that are either unrecognized or
 //     empty.
 func GetRawProfilePlatform(profile []byte) string {
@@ -46,17 +50,35 @@ func GetRawProfilePlatform(profile []byte) string {
 		return ""
 	}
 
-	darwinPrefix := []byte("<?xml")
-	if len(trimmedProfile) >= len(darwinPrefix) && bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
+	if prefixMatches(trimmedProfile, "<?xml") || prefixMatches(trimmedProfile, `{`) {
 		return "darwin"
 	}
 
-	windowsPrefix := []byte("<replace")
-	if len(trimmedProfile) >= len(windowsPrefix) && bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
+	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") {
 		return "windows"
 	}
 
 	return ""
+}
+
+// GuessProfileExtension determines the likely file extension of a profile
+// based on its content.
+//
+// It returns a string representing the determined file extension ("xml",
+// "json", or "") based on the profile's content.
+func GuessProfileExtension(profile []byte) string {
+	trimmedProfile := bytes.TrimSpace(profile)
+
+	switch {
+	case prefixMatches(trimmedProfile, "<?xml"),
+		prefixMatches(trimmedProfile, "<replace"),
+		prefixMatches(trimmedProfile, "<add"):
+		return "xml"
+	case prefixMatches(trimmedProfile, "{"):
+		return "json"
+	default:
+		return ""
+	}
 }
 
 const (
@@ -79,4 +101,10 @@ func FleetReservedProfileNames() map[string]struct{} {
 		FleetFileVaultProfileName:        {},
 		FleetWindowsOSUpdatesProfileName: {},
 	}
+}
+
+// ListFleetReservedWindowsProfileNames returns a list of PayloadDisplayName strings
+// that are reserved by Fleet for Windows.
+func ListFleetReservedWindowsProfileNames() []string {
+	return []string{FleetWindowsOSUpdatesProfileName}
 }

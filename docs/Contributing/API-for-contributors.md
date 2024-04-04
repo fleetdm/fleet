@@ -529,7 +529,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
-- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
+- [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
@@ -586,24 +586,25 @@ Note that the response fields are base64 encoded and should be decoded before wr
 Once base64-decoded, they are PEM-encoded certificate and keys.
 
 
-### Batch-apply Apple MDM custom settings
+### Batch-apply MDM custom settings
 
-`POST /api/v1/fleet/mdm/apple/profiles/batch`
+`POST /api/v1/fleet/mdm/profiles/batch`
 
 #### Parameters
 
 | Name      | Type   | In    | Description                                                                                                                       |
 | --------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
-| team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of team_name/team_id can be provided.          |
-| team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of team_name/team_id can be provided. |
+| team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of `team_name`/`team_id` can be provided.          |
+| team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
-| profiles  | json   | body  | An array of strings, the base64-encoded .mobileconfig files to apply.                                                             |
+| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig (macOS) or XML (Windows) file, `labels` array of strings (label names), and `name` display name (only for Windows configuration profiles).                                        |
 
-If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not part of a team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
+
+If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not assigned to any team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier (macOS) as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/profiles/batch`
+`POST /api/v1/fleet/mdm/profiles/batch`
 
 ##### Default response
 
@@ -1280,11 +1281,11 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files to apply to hosts that belong to this team.                                                                                                                                                         |
+| mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig file and `labels` list of label names.                                                                                                                                                         |
+| mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
+| mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels` list of label names.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
-| mdm.windows_settings                      | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                  |
-| mdm.windows_settings.custom_settings      | list   | body  | The list of .xml files to apply to hosts that belong to this team.                                                                                                                                                                  |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
 
@@ -1342,11 +1343,17 @@ If the `name` is not already associated with an existing team, this API route cr
           "deadline": "2023-12-01"
         },
         "macos_settings": {
-          "custom_settings": ["path/to/profile1.mobileconfig"],
+          "custom_settings": {
+            "path": "path/to/profile1.mobileconfig"
+            "labels": ["Label 1", "Label 2"]
+          },
           "enable_disk_encryption": true
         },
         "windows_settings": {
-          "custom_settings": ["path/to/profile2.xml"],
+          "custom_settings": {
+            "path": "path/to/profile1.xml"
+            "labels": ["Label 1", "Label 2"]
+          },
         }
       },
       "scripts": ["path/to/script.sh"],
@@ -1729,7 +1736,7 @@ Counts the number of online and offline hosts included in a given set of selecte
 | Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | -------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles determine which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| selected | object  | body | The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and team IDs (`selected.teams`). When provided, builtin label IDs, custom label IDs and team IDs become `AND` filters. Within each selector, selecting two or more teams, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.teams`). See examples below. |
+| selected | object  | body | The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and team IDs (`selected.teams`). When provided, builtin label IDs, custom label IDs and team IDs become `AND` filters. Within each selector, selecting two or more teams, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.teams`). Use `0` team ID to filter by hosts assigned to "No team". See examples below. |
 
 #### Example
 
@@ -1772,7 +1779,7 @@ After you initiate the query, [get results via WebSocket](#retrieve-live-query-r
 | -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL if using a custom query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| selected | object  | body | **Required.** The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and team IDs (`selected.teams`). When provided, builtin label IDs, custom label IDs and team IDs become `AND` filters. Within each selector, selecting two or more teams, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.teams`). See examples below. |
+| selected | object  | body | **Required.** The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and team IDs (`selected.teams`). When provided, builtin label IDs, custom label IDs and team IDs become `AND` filters. Within each selector, selecting two or more teams, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.teams`). Use `0` team ID to filter by hosts assigned to "No team". See examples below. |
 
 One of `query` and `query_id` must be specified.
 
@@ -2253,7 +2260,7 @@ currently pending.
 | Name | Type   | In    | Description                               |
 | ---- | ------ | ----- | ----------------------------------------- |
 | name | string | query | The name of the cron schedule to trigger. Supported trigger names are `apple_mdm_dep_profile_assigner`, `automations`, `cleanups_then_aggregation`, `integrations`, `mdm_apple_profile_manager`, `usage_statistics`, and `vulnerabilities`|
- 
+
 
 #### Example
 
@@ -2277,7 +2284,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger FileVault key escrow](#trigger-filevault-key-escrow) 
+- [Trigger FileVault key escrow](#trigger-filevault-key-escrow)
 - [Report an agent error](#report-an-agent-error)
 
 #### Refetch device's host
@@ -2571,7 +2578,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 - The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
 - The server consistently replies with a `500` status code, which can serve as a signal to activate an alarm through a monitoring tool.
 
-> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors#fleet_enable_post_client_debug_errors)
+> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors)
 
 `POST /api/v1/fleet/device/{token}/debug/errors`
 
@@ -2726,39 +2733,6 @@ If the Fleet instance is provided required parameters to complete setup.
 
 ## Scripts
 
-### Run script asynchronously
-
-_Available in Fleet Premium_
-
-Creates a script execution request and returns the execution identifier to retrieve results at a later time.
-
-`POST /api/v1/fleet/scripts/run`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                                                                    |
-| ----            | ------- | ---- | --------------------------------------------                                                   |
-| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run`
-
-##### Default response
-
-`Status: 202`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
-
 ### Batch-apply scripts 
 
 _Available in Fleet Premium_
@@ -2769,8 +2743,8 @@ _Available in Fleet Premium_
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. 
-| team_name | string | query | The name of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`.
+| team_name | string | query | The name of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`.
 | dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
 | scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
 

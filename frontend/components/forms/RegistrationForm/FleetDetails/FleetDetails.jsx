@@ -40,21 +40,19 @@ class FleetDetails extends Component {
 
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">
-        <div className="registration-fields">
-          <InputField
-            {...fields.server_url}
-            label="Fleet web address"
-            tabIndex={tabIndex}
-            hint={[
-              "Don’t include ",
-              <code key="hint">/latest</code>,
-              " or any other path.",
-            ]}
-            ref={(input) => {
-              this.firstInput = input;
-            }}
-          />
-        </div>
+        <InputField
+          {...fields.server_url}
+          label="Fleet web address"
+          tabIndex={tabIndex}
+          helpText={[
+            "Don’t include ",
+            <code key="helpText">/latest</code>,
+            " or any other path.",
+          ]}
+          ref={(input) => {
+            this.firstInput = input;
+          }}
+        />
         <Button
           type="submit"
           tabIndex={tabIndex}

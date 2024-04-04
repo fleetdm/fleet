@@ -2,7 +2,7 @@
 name: 🦟  Bug report
 about: Report a bug to help us improve.
 title: ''
-labels: 'bug,:reproduce'
+labels: 'bug,:reproduce,:incoming'
 assignees: ''
 
 ---

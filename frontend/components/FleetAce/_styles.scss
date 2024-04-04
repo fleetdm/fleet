@@ -1,12 +1,7 @@
 .fleet-ace {
   &__label {
-    height: 25px;
-    margin-bottom: $pad-xsmall;
-    display: flex;
-    align-items: center;
     font-size: $x-small;
     font-weight: $bold;
-    color: $core-fleet-black;
 
     &--error {
       color: $ui-error;
@@ -28,10 +23,8 @@
     }
   }
 
-  &__hint {
-    font-size: $x-small;
-    font-weight: $regular;
-    color: $core-fleet-blue;
+  &__help-text {
+    @include help-text;
 
     code {
       color: $core-vibrant-blue;

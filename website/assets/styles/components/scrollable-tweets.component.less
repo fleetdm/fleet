@@ -9,9 +9,46 @@
   font-size: 13px;
   line-height: 20px;
 
+  position: relative;
 
   [purpose='tweets']::-webkit-scrollbar {
     display: none;
+  }
+
+  [purpose='previous-page-indicator'] {
+    display: none;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 30;
+    position: absolute;
+    transition: transform 1s, opacity 0.25s  ease-in;
+    transform: scale(0.5);
+    bottom: 50%;
+    left: 10px;
+    width: 48px;
+    height: 48px;
+    img {
+      width: 48px;
+      height: 48px;
+    }
+  }
+
+  [purpose='next-page-indicator'] {
+    display: none;
+    opacity: 0;
+    cursor: pointer;
+    position: absolute;
+    transition: transform 1s, opacity 0.25s ease-in;
+    transform: scale(0.5);
+    bottom: 50%;
+    z-index: 30;
+    right: 10px;
+    width: 48px;
+    height: 48px;
+    img {
+      width: 48px;
+      height: 48px;
+    }
   }
 
   [purpose='tweets'] {
@@ -20,22 +57,58 @@
     padding-left: 120px;
     padding-right: 120px;
     margin-top: 80px;
-    padding-bottom: 16px;
+    margin-bottom: 80px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    &:hover {
+      [purpose='previous-page-indicator'] {
+        opacity: 1;
+        transform: scale(1.0);
+      }
+      [purpose='next-page-indicator'] {
+        opacity: 1;
+        transform: scale(1.0);
+      }
+    }
   }
 
-  [purpose='video-link'] {
-    cursor: pointer;
-    color: @core-vibrant-blue;
-  }
 
   [purpose='tweet-card'] {
-    img {
-      max-height: 38px;
+    box-shadow: none;
+    background-color: #FFF;
+    [purpose='logo'] {
+      img {
+        max-height: 32px;
+      }
+      min-height: 0;
+      margin-bottom: 24px;
     }
-    max-width: 367px;
-    min-width: 367px;
+    [purpose='quote'] {
+      margin-bottom: 24px;
+    }
+    [purpose='quote-author-info'] {
+      [purpose='job-title'] {
+        font-size: 12px !important;//lesshint-disable-line importantRule,duplicateProperty
+        line-height: 18px !important;//lesshint-disable-line importantRule,duplicateProperty
+      }
+      [purpose='name'] {
+        color: @core-fleet-black !important;//lesshint-disable-line importantRule,duplicateProperty
+      }
+      [purpose='profile-picture'] {
+        margin-right: 16px;
+        img {
+          height: 48px;
+          width: 48px;
+        }
+      }
+    }
+    [purpose='video-link'] {
+      cursor: pointer;
+      color: @core-vibrant-blue;
+    }
+    height: fit-content;
+    max-width: 360px;
+    min-width: 360px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -47,34 +120,11 @@
     padding: 40px;
     border: 1px solid @core-vibrant-blue-15;
     box-sizing: border-box;
-    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
     border-radius: 16px;
-  }
-
-  [purpose='page-indictator-container'] {
-    margin-bottom: 80px;
-    padding-left: 120px;
-    padding-right: 120px;
-  }
-  [purpose='page-indicator'] {
-    cursor: pointer;
-    padding: 4px;
-    height: 16px;
-    width: 16px;
-    border-radius: 100%;
-    margin-right: 8px;
-
-    background-color: @core-vibrant-blue-15;
-    &.selected {
-      background-color: @core-fleet-black-50;
-    }
-
-
-  }
-  [purpose='tweets-page-indicator'] {
-    li {
-    }
-    li.selected {
+    &:hover {
+      text-decoration: none;
+      pointer: cursor;
+      box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
     }
   }
   [purpose='video-modal'] {
@@ -111,12 +161,17 @@
   }
 
 
+  @media(hover) {
+    [purpose='previous-page-indicator'] {
+      display: flex;
+    }
+    [purpose='next-page-indicator'] {
+      display: flex;
+    }
+  }
+
   @media (max-width: 991px) {
     [purpose='tweets'] {
-      padding-left: 80px;
-      padding-right: 80px;
-    }
-    [purpose='page-indictator-container'] {
       padding-left: 80px;
       padding-right: 80px;
     }
@@ -124,10 +179,6 @@
 
   @media (max-width: 768px) {
     [purpose='tweets'] {
-      padding-left: 40px;
-      padding-right: 40px;
-    }
-    [purpose='page-indictator-container'] {
       padding-left: 40px;
       padding-right: 40px;
     }
@@ -151,18 +202,10 @@
       padding-left: 20px;
       padding-right: 20px;
     }
-    [purpose='page-indictator-container'] {
-      padding-left: 20px;
-      padding-right: 20px;
-    }
     [purpose='tweet-card'] {
       min-width: 280px;
       padding: 20px;
       border-radius: 16px;
-    }
-    [purpose='page-indicator'] {
-      padding: 12px;
-      margin-bottom: 8px;
     }
     [purpose='video-modal'] {
       [purpose='modal-content'] {

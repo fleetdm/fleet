@@ -12,7 +12,7 @@ import { IEditPackFormData } from "interfaces/pack";
 import { getErrorReason } from "interfaces/errors";
 import packsAPI from "services/entities/packs";
 
-import PackForm from "components/forms/packs/PackForm";
+import NewPackForm from "components/forms/packs/NewPackForm";
 // @ts-ignore
 import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
 import MainContent from "components/MainContent";
@@ -75,7 +75,7 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   return (
     <>
       <MainContent className={baseClass}>
-        <PackForm
+        <NewPackForm
           className={`${baseClass}__pack-form`}
           handleSubmit={handleSubmit}
           onFetchTargets={onFetchTargets}

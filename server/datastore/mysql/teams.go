@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -15,7 +17,11 @@ import (
 
 var teamSearchColumns = []string{"name"}
 
+const teamColumns = `id, created_at, name, description, config`
+
 func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	team.Name = norm.NFC.String(team.Name)
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		query := `
     INSERT INTO teams (
@@ -52,7 +58,7 @@ func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
 	stmt := `
-		SELECT * FROM teams
+		SELECT ` + teamColumns + ` FROM teams
 			WHERE id = ?
 	`
 	team := &fleet.Team{}
@@ -111,20 +117,27 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting mdm_windows_configuration_profiles for team %d", tid)
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_apple_declarations WHERE team_id=?`, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_declarations for team %d", tid)
+		}
+
 		return nil
 	})
 }
 
 func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	nameUnicode := norm.NFC.String(name)
 	stmt := `
-		SELECT * FROM teams
+		SELECT ` + teamColumns + ` FROM teams
 			WHERE name = ?
 	`
 	team := &fleet.Team{}
 
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, name); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, nameUnicode); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Team").WithName(name))
+			return nil, ctxerr.Wrap(ctx, notFound("Team").WithName(nameUnicode))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
@@ -214,6 +227,8 @@ func saveUsersForTeamDB(ctx context.Context, exec sqlx.ExecerContext, team *flee
 }
 
 func (ds *Datastore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	team.Name = norm.NFC.String(team.Name)
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		query := `
 UPDATE teams
@@ -244,7 +259,7 @@ WHERE
 // fleet.ListOptions
 func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	query := fmt.Sprintf(`
-			SELECT *,
+			SELECT `+teamColumns+`,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
 				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
 			FROM teams t
@@ -252,7 +267,9 @@ func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt
 		`,
 		ds.whereFilterTeams(filter, "t"),
 	)
-	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	matchQuery := norm.NFC.String(opt.MatchQuery)
+	query, params := searchLike(query, nil, matchQuery, teamSearchColumns...)
 	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, query, params...); err != nil {
@@ -283,17 +300,29 @@ func (ds *Datastore) TeamsSummary(ctx context.Context) ([]*fleet.TeamSummary, er
 	return teamsSummary, nil
 }
 
+func (ds *Datastore) TeamExists(ctx context.Context, teamID uint) (bool, error) {
+	var exists bool
+	err := ds.writer(ctx).GetContext(ctx, &exists, "SELECT EXISTS(SELECT 1 FROM teams WHERE id = ?)", teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "team exists")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	sql := fmt.Sprintf(`
-			SELECT *,
+			SELECT %s,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
 				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
 			FROM teams t
 			WHERE %s AND %s
 		`,
+		teamColumns,
 		ds.whereOmitIDs("t.id", omit),
 		ds.whereFilterTeams(filter, "t"),
 	)
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	matchQuery = norm.NFC.String(matchQuery)
 	sql, params := searchLike(sql, nil, matchQuery, teamSearchColumns...)
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, sql, params...); err != nil {

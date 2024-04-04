@@ -58,6 +58,26 @@ export interface ISoftwareCountQueryKey
   scope: "softwareCount";
 }
 
+export interface IGetSoftwareTitleQueryParams {
+  softwareId: number;
+  teamId?: number;
+}
+
+export interface IGetSoftwareTitleQueryKey
+  extends IGetSoftwareTitleQueryParams {
+  scope: "softwareById";
+}
+
+export interface IGetSoftwareVersionQueryParams {
+  versionId: number;
+  teamId?: number;
+}
+
+export interface IGetSoftwareVersionQueryKey
+  extends IGetSoftwareVersionQueryParams {
+  scope: "softwareVersion";
+}
+
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
@@ -142,9 +162,11 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getSoftwareTitle: (id: number) => {
-    const { SOFTWARE_TITLE } = endpoints;
-    return sendRequest("GET", SOFTWARE_TITLE(id));
+  getSoftwareTitle: ({ softwareId, teamId }: IGetSoftwareTitleQueryParams) => {
+    const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
+    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+
+    return sendRequest("GET", path);
   },
 
   getSoftwareVersions: (params: ISoftwareApiParams) => {
@@ -155,8 +177,13 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getSoftwareVersion: (id: number) => {
-    const { SOFTWARE_VERSION } = endpoints;
-    return sendRequest("GET", SOFTWARE_VERSION(id));
+  getSoftwareVersion: ({
+    versionId,
+    teamId,
+  }: IGetSoftwareVersionQueryParams) => {
+    const endpoint = endpoints.SOFTWARE_VERSION(versionId);
+    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+
+    return sendRequest("GET", path);
   },
 };

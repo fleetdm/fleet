@@ -26,6 +26,10 @@
     border-radius: $border-radius;
     height: 40px;
 
+    :hover {
+      cursor: pointer;
+    }
+
     &--is-focused,
     &--menu-is-open,
     &:hover {
@@ -69,7 +73,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    @media (max-width: 1150px) {
+    @media (max-width: $table-controls-break) {
       width: auto;
     }
   }
@@ -149,9 +153,9 @@
   }
 }
 
-@media (min-width: 1150px) {
+@media (min-width: $table-controls-break) {
   .label-filter-select {
-    width: 220px;
+    min-width: 220px;
 
     &__single-value {
       max-width: 135px !important; // Must override default styling of .css-qc6sy-singleValue

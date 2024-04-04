@@ -47,6 +47,8 @@ const RunQuery = ({
     DEFAULT_CAMPAIGN_STATE
   );
 
+  const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
+
   const ws = useRef(null);
   const runQueryInterval = useRef<any>(null);
   const globalSocket = useRef<any>(null);
@@ -168,8 +170,6 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
-
       const returnedCampaign = await queryAPI.run({
         query: lastEditedQueryBody,
         queryId: isStoredQueryEdited ? null : queryId, // we treat edited SQL as a new query

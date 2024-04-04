@@ -1,1 +1,0 @@
-* Add a conditional check in the %postun script to prevent file deletion during RPM upgrade. The check ensures that files and directories are only removed during a full uninstall ( equals 0), safeguarding necessary files from unintended deletion during an upgrade.

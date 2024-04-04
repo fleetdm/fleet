@@ -41,9 +41,12 @@
     "config_tls_refresh": 0,
     "logger_tls_period": 0,
     "mdm": {
+      "dep_profile_error": false,
+      "device_status": "unlocked",
       "encryption_key_available": false,
       "enrollment_status": null,
       "name": "",
+      "pending_action": "",
       "server_url": null
     },
     "team_id": null,
@@ -73,7 +76,8 @@
         "team_id": 1,
         "updated_at": "0001-01-01T00:00:00Z",
         "created_at": "0001-01-01T00:00:00Z",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": true
       },
       {
         "id": 2,
@@ -88,7 +92,8 @@
         "team_id": null,
         "updated_at": "0001-01-01T00:00:00Z",
         "created_at": "0001-01-01T00:00:00Z",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false
       }
     ],
     "status": "offline",

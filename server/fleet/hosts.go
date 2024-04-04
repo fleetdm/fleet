@@ -39,6 +39,15 @@ const (
 	OnlineIntervalBuffer = 60
 )
 
+func (s HostStatus) IsValid() bool {
+	switch s {
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
+		return true
+	default:
+		return false
+	}
+}
+
 // MDMEnrollStatus defines the possible MDM enrollment statuses.
 type MDMEnrollStatus string
 
@@ -138,9 +147,10 @@ type HostListOptions struct {
 	// version.
 	SoftwareTitleIDFilter *uint
 
-	OSIDFilter      *uint
-	OSNameFilter    *string
-	OSVersionFilter *string
+	OSIDFilter        *uint
+	OSNameFilter      *string
+	OSVersionFilter   *string
+	OSVersionIDFilter *uint
 
 	DisableFailingPolicies bool
 
@@ -180,6 +190,12 @@ type HostListOptions struct {
 
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
+
+	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
+	PopulatePolicies bool
+
+	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
+	VulnerabilityFilter *string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -335,6 +351,9 @@ type Host struct {
 
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
+
+	// Policies is the list of policies and whether it passes for the host
+	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
 }
 
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
@@ -360,6 +379,10 @@ type MDMHostData struct {
 	// EnrollmentStatus is a string representation of state derived from
 	// booleans stored in the host_mdm table, loaded by JOIN in datastore
 	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
+	// DEPProfileError is a boolean representing whether Fleet received a "FAILED" response when
+	// attempting to assign a DEP profile for the host.
+	// See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse
+	DEPProfileError bool `json:"dep_profile_error" db:"dep_profile_error" csv:"mdm.dep_profile_error"`
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
 	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
@@ -403,6 +426,13 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+
+	// The DeviceStatus and PendingAction fields are not stored in the database
+	// directly, they are read from the GetHostLockWipeStatus datastore method
+	// and determined from those results. They are not filled by all
+	// host-returning methods.
+	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
+	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
@@ -494,10 +524,10 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
-					switch {
-					case *fvprof.Status == MDMDeliveryVerifying:
+					switch *fvprof.Status {
+					case MDMDeliveryVerifying:
 						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
-					case *fvprof.Status == MDMDeliveryVerified:
+					case MDMDeliveryVerified:
 						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
 					}
 				} else if d.rawDecryptable != nil {
@@ -514,7 +544,12 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 					// if [a FileVault profile is pending to be installed or] the
 					// matching row in host_disk_encryption_keys has a field decryptable
 					// = NULL
-					settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+					switch *fvprof.Status {
+					case MDMDeliveryVerifying, MDMDeliveryVerified:
+						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
+					case MDMDeliveryPending:
+						settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+					}
 				}
 
 			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
@@ -702,8 +737,6 @@ type HostDetail struct {
 	Labels []*Label `json:"labels"`
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
-	// Policies is the list of policies and whether it passes for the host
-	Policies *[]*HostPolicy `json:"policies,omitempty"`
 	// Batteries is the list of batteries for the host. It is a pointer to a
 	// slice so that when set, it gets marhsaled even if the slice is empty,
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
@@ -964,6 +997,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"jamf":      WellKnownMDMJamf,
 	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
+	"awmdm":     WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
 	"fleetdm":   WellKnownMDMFleet,
@@ -1117,7 +1151,16 @@ type OSVersions struct {
 	OSVersions      []OSVersion `json:"os_versions"`
 }
 
+type VulnerableOS struct {
+	OSVersion
+	ResolvedInVersion *string `json:"resolved_in_version"`
+}
+
 type OSVersion struct {
+	// ID is the unique id of the operating system.
+	ID uint `json:"id,omitempty"`
+	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
 	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
@@ -1130,8 +1173,12 @@ type OSVersion struct {
 	Version string `json:"version"`
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
-	// ID is the unique id of the operating system.
-	ID uint `json:"os_id,omitempty"`
+	// GeneratedCPE is the Common Platform Enumeration (CPE) name for the operating system.
+	// It is currently only generated for Operating Systems scanned for vulnerabilities
+	// in NVD (macOS only)
+	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
+	// Vulnerabilities are the vulnerabilities associated with the operating system.
+	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 }
 
 type HostDetailOptions struct {
@@ -1147,12 +1194,13 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
-	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
-	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
-	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" db:"team_id"`
-	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
-	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	HardwareSerial        string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP      bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName           string `json:"display_name" db:"display_name"`
+	TeamID                uint   `json:"team_id" db:"team_id"`
+	DEPAssignedToFleet    bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled       bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
 }
 
 type HostDiskEncryptionKey struct {
@@ -1184,4 +1232,18 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+// HostLite contains a subset of Host fields.
+type HostLite struct {
+	ID                  uint      `db:"id"`
+	TeamID              *uint     `db:"team_id"`
+	Hostname            string    `db:"hostname"`
+	OsqueryHostID       string    `db:"osquery_host_id"`
+	NodeKey             string    `db:"node_key"`
+	UUID                string    `db:"uuid"`
+	HardwareSerial      string    `db:"hardware_serial"`
+	SeenTime            time.Time `db:"seen_time"`
+	DistributedInterval uint      `db:"distributed_interval"`
+	ConfigTLSRefresh    uint      `db:"config_tls_refresh"`
 }

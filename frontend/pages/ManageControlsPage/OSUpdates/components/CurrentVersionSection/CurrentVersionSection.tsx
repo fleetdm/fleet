@@ -50,23 +50,24 @@ const CurrentVersionSection = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data?.counts_updated_at}
-        whatToRetrieve={"operating systems"}
+        whatToRetrieve="operating systems"
       />
     );
   };
-
-  if (!data) {
-    return null;
-  }
 
   const renderTable = () => {
     if (isError) {
       return (
         <DataError
+          className={`${baseClass}__error`}
           description="Refresh the page to try again."
           excludeIssueLink
         />
       );
+    }
+
+    if (!data) {
+      return null;
     }
 
     if (!data.os_versions) {
@@ -94,6 +95,7 @@ const CurrentVersionSection = ({
       <SectionHeader
         title="Current versions"
         subTitle={generateSubTitleText()}
+        className={`${baseClass}__header`}
       />
       {renderTable()}
     </div>

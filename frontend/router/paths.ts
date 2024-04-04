@@ -14,6 +14,7 @@ export default {
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
+  CONTROLS_SETUP_ASSITANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
 
   DASHBOARD: `${URL_PREFIX}/dashboard`,
@@ -23,6 +24,7 @@ export default {
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
 
   // Admin pages
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
@@ -31,6 +33,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
+  ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_ORGANIZATION: `${URL_PREFIX}/settings/organization`,
   ADMIN_ORGANIZATION_INFO: `${URL_PREFIX}/settings/organization/info`,
@@ -44,13 +47,22 @@ export default {
   ADMIN_ORGANIZATION_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
 
   // Software pages
+  SOFTWARE: `${URL_PREFIX}/software`,
   SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
+  SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },
   SOFTWARE_VERSION_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/versions/${id}`;
+  },
+  SOFTWARE_OS_DETAILS: (id: number): string => {
+    return `${URL_PREFIX}/software/os/${id}`;
+  },
+  SOFTWARE_VULNERABILITIES: `${URL_PREFIX}/software/vulnerabilities`,
+  SOFTWARE_VULNERABILITY_DETAILS: (cve: string): string => {
+    return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
   },
 
   EDIT_PACK: (packId: number): string => {
@@ -115,7 +127,7 @@ export default {
   },
   HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>
     `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
-  DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
+  DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
@@ -125,15 +137,21 @@ export default {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
 
-  TEAM_DETAILS_MEMBERS: (teamId?: number): string => {
+  TEAM_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/members?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/users?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
   TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
       return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
+  },
+  TEAM_DETAILS_SETTINGS: (teamId?: number) => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/settings?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
@@ -151,6 +169,6 @@ export default {
     `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
-  USER_SETTINGS: `${URL_PREFIX}/profile`,
+  ACCOUNT: `${URL_PREFIX}/account`,
   URL_PREFIX,
 };

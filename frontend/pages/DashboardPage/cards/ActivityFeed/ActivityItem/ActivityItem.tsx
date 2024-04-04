@@ -5,6 +5,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import {
   addGravatarUrlToResource,
+  formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
   internationalTimeFormat,
 } from "utilities/helpers";
@@ -456,13 +457,13 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  enableMacDiskEncryption: (activity: IActivity) => {
+  enabledDiskEncryption: (activity: IActivity) => {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
-    return <> enforced disk encryption for macOS hosts {suffix}.</>;
+    return <> enforced disk encryption for hosts {suffix}.</>;
   },
-  disableMacDiskEncryption: (activity: IActivity) => {
+  disabledEncryption: (activity: IActivity) => {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
-    return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
+    return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
   changedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(
@@ -485,7 +486,7 @@ const TAGGED_TEMPLATES = {
 
     const activityType = lowerCase(activity.type).replace(" saved", "");
 
-    return !entityName ? (
+    return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
     ) : (
       <>
@@ -610,20 +611,26 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: (activity: IActivity) => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  // TODO: Combine ranScript template with host details page templates
+  // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
+  // frontend/pages/hosts/details/cards/Activity/UpcomingActivity/UpcomingActivity.tsx
   ranScript: (
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
+    const { script_name, host_display_name, script_execution_id } =
+      activity.details || {};
     return (
       <>
         {" "}
-        ran a script on {activity.details?.host_display_name}.{" "}
+        ran {formatScriptNameForActivityItem(script_name)} on{" "}
+        <b>{host_display_name}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
           onClick={() =>
             onDetailsClick?.(ActivityType.RanScript, {
-              script_execution_id: activity.details?.script_execution_id,
+              script_execution_id,
             })
           }
         >
@@ -723,6 +730,86 @@ const TAGGED_TEMPLATES = {
   deletedMultipleSavedQuery: (activity: IActivity) => {
     return <> deleted multiple queries.</>;
   },
+  lockedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        locked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  unlockedHost: (activity: IActivity) => {
+    if (activity.details?.host_platform === "darwin") {
+      return (
+        <>
+          {" "}
+          viewed the six-digit unlock PIN for{" "}
+          <b>{activity.details?.host_display_name}</b>.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        unlocked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  wipedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        wiped <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        added declaration (DDM) profile <b>
+          {activity.details?.profile_name}
+        </b>{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        removed declaration (DDM) profile{" "}
+        <b>{activity.details?.profile_name}</b> from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited declaration (DDM) profiles{" "}
+        <b>{activity.details?.profile_name}</b> for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -812,11 +899,17 @@ const getDetail = (
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
     }
+    // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
+    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+    case ActivityType.EnabledDiskEncryption:
     case ActivityType.EnabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
+      return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
     }
+    // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
+    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+    case ActivityType.DisabledDiskEncryption:
     case ActivityType.DisabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
+      return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
     case ActivityType.AddedBootstrapPackage: {
       return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
@@ -863,6 +956,31 @@ const getDetail = (
     case ActivityType.DeletedMultipleSavedQuery: {
       return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
     }
+    case ActivityType.LockedHost: {
+      return TAGGED_TEMPLATES.lockedHost(activity);
+    }
+    case ActivityType.UnlockedHost: {
+      return TAGGED_TEMPLATES.unlockedHost(activity);
+    }
+    case ActivityType.WipedHost: {
+      return TAGGED_TEMPLATES.wipedHost(activity);
+    }
+    case ActivityType.CreatedDeclarationProfile: {
+      return TAGGED_TEMPLATES.createdDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.DeletedDeclarationProfile: {
+      return TAGGED_TEMPLATES.deletedDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.EditedDeclarationProfile: {
+      return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
+    }
+
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -921,7 +1039,7 @@ const ActivityItem = ({
         hasWhiteBackground
       />
       <div className={`${baseClass}__details-wrapper`}>
-        <div className={"activity-details"}>
+        <div className="activity-details">
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {renderActivityPrefix()}

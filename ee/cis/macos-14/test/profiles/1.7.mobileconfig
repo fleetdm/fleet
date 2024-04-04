@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-1.7.check</string>
+			<key>PayloadUUID</key>
+			<string>123FD592-D1C3-41FD-BC41-F91F3E1E2CF4</string>
+			<key>enforcedSoftwareUpdateDelay</key>
+			<integer>29</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure Software Update Deferment Is Less Than or Equal to 30 Days</string>
+	<key>PayloadIdentifier</key>
+	<string>com.zwass.cis-1.7</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>385A0C13-2472-41B3-851C-1311FA12EB49</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

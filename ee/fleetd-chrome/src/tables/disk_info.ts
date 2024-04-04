@@ -10,7 +10,7 @@ export default class TableDiskInfo extends Table {
     for (let d of disks) {
       rows.push({
         capacity: d.capacity.toString(),
-        id: d.id,
+        id: d.id.toString(),
         name: d.name,
         type: d.type,
       });

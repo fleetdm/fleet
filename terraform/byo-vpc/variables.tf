@@ -25,6 +25,7 @@ variable "rds_config" {
     master_username                 = optional(string, "fleet")
     snapshot_identifier             = optional(string)
     cluster_tags                    = optional(map(string), {})
+    preferred_maintenance_window    = optional(string, "thu:23:00-fri:00:00")
   })
   default = {
     name                            = "fleet"
@@ -43,6 +44,7 @@ variable "rds_config" {
     master_username                 = "fleet"
     snapshot_identifier             = null
     cluster_tags                    = {}
+    preferred_maintenance_window    = "thu:23:00-fri:00:00"
   }
   description = "The config for the terraform-aws-modules/rds-aurora/aws module"
   nullable    = false
@@ -165,7 +167,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.42.0")
+    image                        = optional(string, "fleetdm/fleet:v4.48.0")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])

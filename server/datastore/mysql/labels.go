@@ -584,16 +584,23 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		params = append(params, *opt.LowDiskSpaceFilter)
 	}
 
+	var err error
 	query, params = filterHostsByStatus(ds.clock.Now(), query, opt, params)
 	query, params = filterHostsByTeam(query, opt, params)
 	query, params = filterHostsByMDM(query, opt, params)
-	query, params = filterHostsByMacOSSettingsStatus(query, opt, params)
+	query, params, err = filterHostsByMacOSSettingsStatus(query, opt, params)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
+	}
 	query, params = filterHostsByMacOSDiskEncryptionStatus(query, opt, params)
 	query, params = filterHostsByMDMBootstrapPackageStatus(query, opt, params)
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		query, params = ds.filterHostsByOSSettingsStatus(query, opt, params, enableDiskEncryption)
+		query, params, err = ds.filterHostsByOSSettingsStatus(query, opt, params, enableDiskEncryption)
+		if err != nil {
+			return "", nil, err
+		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, params, enableDiskEncryption)
 	}
@@ -858,27 +865,32 @@ func (ds *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, 
 	return matches, nil
 }
 
-func (ds *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint, error) {
-	if len(labels) == 0 {
-		return []uint{}, nil
+func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string) (map[string]uint, error) {
+	if len(names) == 0 {
+		return map[string]uint{}, nil
 	}
 
 	sqlStatement := `
-		SELECT id FROM labels
+		SELECT id, name FROM labels
 		WHERE name IN (?)
 	`
 
-	sql, args, err := sqlx.In(sqlStatement, labels)
+	sql, args, err := sqlx.In(sqlStatement, names)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
 	}
 
-	var labelIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelIDs, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get label IDs")
+	var labels []fleet.Label
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get label ids by name")
 	}
 
-	return labelIDs, nil
+	result := make(map[string]uint, len(labels))
+	for _, label := range labels {
+		result[label.Name] = label.ID
+	}
+
+	return result, nil
 }
 
 // AsyncBatchInsertLabelMembership inserts into the label_membership table the

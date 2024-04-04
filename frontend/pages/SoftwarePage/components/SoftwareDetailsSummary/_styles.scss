@@ -7,15 +7,16 @@
   display: flex;
   gap: $pad-medium;
 
-  &__icon {
+  .software-icon {
     width: 96px;
     height: 96px;
-    border: 1px solid #E2E4EA;
+    border: 1px solid $ui-fleet-black-10;
     border-radius: 8px;
   }
 
   &__info {
     flex-grow: 1;
+    align-self: center;
   }
 
   h1 {
@@ -24,17 +25,8 @@
     margin-bottom: $pad-medium;
   }
 
-
   &__description-list {
     display: flex;
     gap: $pad-xxlarge;
-  }
-
-  &__data-set {
-    font-size: $x-small;
-
-    dt {
-      font-weight: $bold;
-    }
   }
 }

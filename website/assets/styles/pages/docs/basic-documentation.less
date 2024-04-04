@@ -208,13 +208,13 @@
       position: relative;
     }
 
-    [purpose='edit-button'] {
+    [purpose='edit-button'], [purpose='faq-edit-button'] {
       color: @core-vibrant-blue;
-      opacity: 0;
+
       font-size: 12px;
       position: absolute;
       right: 230px;
-      top: 34px;
+      top: 27px;
       cursor: pointer;
       border: 1px solid @core-vibrant-blue;
       border-radius: 4px;
@@ -228,12 +228,11 @@
         color: @accent-white;
         text-decoration: none;
       }
-    } &:hover {
-      [purpose='edit-button'] {
-        opacity: 1;
-      }
-
     }
+    [purpose='faq-edit-button'] {
+      right: 48px;
+    }
+
 
     [purpose='search'] {
 
@@ -265,9 +264,16 @@
         &.active {
           color: @core-vibrant-blue;
         }
+        &:hover {
+          color: @core-vibrant-blue;
+        }
 
       }
 
+      [purpose='mobile-docs-nav-other-links'] {
+        border-top: 1px solid #C5C7D1;
+
+      }
       [purpose='docs-nav-button'] {
         color: @core-fleet-black;
         background-color: transparent;
@@ -276,6 +282,7 @@
         padding: 0;
         padding-top: 12px;
         padding-bottom: 12px;
+        cursor: pointer;
 
         &:focus {
             box-shadow: none;
@@ -608,16 +615,59 @@
       ul {
         list-style-type: disc;
         padding-left: 32px;
+        padding-inline-start: 16px;
+        padding: 0 0 0 32px;
+        margin-top: 16px;
+        margin-bottom: 20px;
         pre {
           margin: 0px 0px 16px;
         }
       }
 
-      ol, ul {
+      ol {
+        counter-reset: custom-counter;
+        list-style-type: none;
+        padding-inline-start: 0px;
+        padding: 0;
         margin-top: 16px;
         margin-bottom: 20px;
-        padding-inline-start: 16px;
-        padding: 0 0 0 40px;
+        ul > li {
+          text-indent: 0px;
+          margin-left: 0px;
+        }
+        > li {
+          counter-increment: custom-counter;
+          margin-left: 36px;
+          text-indent: -36px;
+          padding-left: 0px;
+          margin-bottom: 16px;
+          code:not(.nohighlight):not(.mermaid) {
+            display: inline;
+          }
+          > pre {
+            text-indent: 0px;
+          }
+          p {
+            display: inline;
+            margin-bottom: 0px;
+          }
+          blockquote {
+            text-indent: 0px;
+          }
+        }
+        > li::before {
+          content: counter(custom-counter);
+          background-color: #E2E4EA;
+          width: 24px;
+          font-size: 13px;
+          display: inline-block;
+          border-radius: 50%;
+          margin-right: 10px;
+          padding: 2px 4px;
+          text-align: center;
+          line-height: 20px;
+          text-indent: 0px;
+        }
       }
 
       li {
@@ -871,9 +921,9 @@
         display: none;
       }
 
-      [purpose='edit-button'] {
-        top: -61px;
-        right: 15px;
+      [purpose='edit-button'], [purpose='faq-edit-button'] {
+        top: -55px;
+        right: 0px;
       }
 
       [purpose='right-sidebar'] {
@@ -911,7 +961,7 @@
     [purpose='docs-template'] {
 
       [purpose='edit-button'] {
-        top: -2px;
+        top: 0px;
         right: 0px;
       }
     }
@@ -925,7 +975,18 @@
     }
 
   }
-
+  @media(hover) {
+    [purpose='docs-template'] {
+      [purpose='edit-button'], [purpose='faq-edit-button'] {
+        opacity: 0;
+      }
+    }
+    [purpose='docs-template']:hover {
+      [purpose='edit-button'], [purpose='faq-edit-button'] {
+        opacity: 1;
+      }
+    }
+  }
 
   @import 'code-blocks.less'; // styles for code blocks and hljs
 

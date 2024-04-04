@@ -120,7 +120,6 @@ const TargetPillSelector = ({
     >
       <Icon name={isSelected ? "check" : "plus"} />
       <span className="selector-name">{displayText()}</span>
-      {/* <span className="selector-count">{entity.count}</span> */}
     </button>
   );
 };
@@ -317,8 +316,8 @@ const SelectTargets = ({
     }
   };
 
-  const handleRowRemove = (row: Row) => {
-    const removedHost = row.original as IHost;
+  const handleRowRemove = (row: Row<IHost>) => {
+    const removedHost = row.original;
     setTargetedHosts((prevHosts) =>
       prevHosts.filter((h) => h.id !== removedHost.id)
     );
@@ -358,7 +357,7 @@ const SelectTargets = ({
       return (
         <>
           <Spinner
-            size={"x-small"}
+            size="x-small"
             includeContainer={false}
             centered={false}
             className={`${baseClass}__count-spinner`}
@@ -395,8 +394,9 @@ const SelectTargets = ({
 
     return (
       <>
-        <b>{total.toLocaleString()}</b>&nbsp;host{total > 1 ? `s` : ``}{" "}
-        targeted&nbsp; ({onlinePercentage()}
+        <b>{total.toLocaleString()}</b>&nbsp;host
+        {total > 1 || total === 0 ? `s` : ``} targeted&nbsp; (
+        {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
           tipContent={
@@ -416,7 +416,7 @@ const SelectTargets = ({
 
   if (isLoadingLabels || (isPremiumTier && isLoadingTeams)) {
     return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
+      <div className={`${baseClass}__wrapper`}>
         <h1>Select targets</h1>
         <div className={`${baseClass}__page-loading`}>
           <Spinner />
@@ -427,7 +427,7 @@ const SelectTargets = ({
 
   if (errorLabels || errorTeams) {
     return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
+      <div className={`${baseClass}__wrapper`}>
         <h1>Select targets</h1>
         <PageError />
       </div>
@@ -442,7 +442,11 @@ const SelectTargets = ({
           renderTargetEntityList("", labels.allHosts)}
         {!!labels?.platforms?.length &&
           renderTargetEntityList("Platforms", labels.platforms)}
-        {!!teams?.length && renderTargetEntityList("Teams", teams)}
+        {!!teams?.length &&
+          renderTargetEntityList("Teams", [
+            { id: 0, name: "No team" },
+            ...teams,
+          ])}
         {!!labels?.other?.length &&
           renderTargetEntityList("Labels", labels.other)}
       </div>

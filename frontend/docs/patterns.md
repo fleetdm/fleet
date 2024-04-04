@@ -138,6 +138,24 @@ We tend to use explicit assignment of prop values, instead of object spread synt
 ```
 <ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
+
+### Naming handlers
+When defining component props for handlers, we prefer naming with a more general `onAction`. When
+naming the handler passed into that prop or used in the same component it's defined, we prefer
+either the same `onAction` or, if useful, a more specific `onMoreSpecifiedAction`. E.g.:
+
+```tsx
+<BigSecretComponent
+  onSubmit={onSubmit} 
+/>
+```
+or
+```tsx
+<BigSecretComponent
+  onSubmit={onUpdateBigSecret}
+/>
+```
+
 ### Page component pattern
 
 When creating a **top level page** (e.g. dashboard page, hosts page, policies page)
@@ -325,16 +343,6 @@ Below are a few need-to-knows about what's available in Fleet's CSS:
 1) When creating a form, **not** in a modal, use the class `${baseClass}__button-wrap` for the
    action buttons (cancel, save, delete, etc.) and proceed to style as needed.
 
-## Other
-
-### Local states
-
-Our first line of defense for state management is local states (i.e. `useState`). We
-use local states to keep pages/components separate from one another and easy to
-maintain. If states need to be passed to direct children, then prop-drilling should
-suffice as long as we do not go more than two levels deep. Otherwise, if states need
-to be used across multiple unrelated components or 3+ levels from a parent,
-then the [app's context](#react-context) should be used.
 
 ## Icons and Images
 
@@ -364,3 +372,20 @@ The icon should now be available to use with the `Icon` component from the given
 
 The recommend line limit per page/component is 500 lines. This is only a recommendation.
 Larger files are to be split into multiple files if possible.
+
+## Other
+
+### Local states
+
+Our first line of defense for state management is local states (i.e. `useState`). We
+use local states to keep pages/components separate from one another and easy to
+maintain. If states need to be passed to direct children, then prop-drilling should
+suffice as long as we do not go more than two levels deep. Otherwise, if states need
+to be used across multiple unrelated components or 3+ levels from a parent,
+then the [app's context](#react-context) should be used.
+
+### Reading and updating configs
+
+If you are dealing with a page that *updates* any kind of config, you'll want to access that config
+with a fresh API call to be sure you have the updated values. Otherwise, that is, you are dealing
+with a page that is only *reading* config values, get them from context.

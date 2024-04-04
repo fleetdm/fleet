@@ -156,15 +156,15 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		}
 	}
 
-	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "run query")
-	}
-
 	// Metrics are used for total hosts targeted for the activity feed.
 	campaign.Metrics, err = svc.ds.CountHostsInTargets(ctx, filter, targets, time.Now())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
+	}
+
+	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
 
 	return campaign, nil
@@ -206,9 +206,14 @@ func (svc *Service) NewDistributedQueryCampaignByNames(ctx context.Context, quer
 		return nil, ctxerr.Wrap(ctx, err, "finding host IDs")
 	}
 
-	labelIDs, err := svc.ds.LabelIDsByName(ctx, labels)
+	labelMap, err := svc.ds.LabelIDsByName(ctx, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
+	}
+
+	var labelIDs []uint
+	for _, labelID := range labelMap {
+		labelIDs = append(labelIDs, labelID)
 	}
 
 	targets := fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}
