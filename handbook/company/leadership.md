@@ -184,13 +184,7 @@ This section is about creating a core team member role, and the hiring process f
 
 #### Creating a new position
 
-Want to hire?  Here's how to open up a new position on the core team:
-
-> Use these steps to hire a [fleetie, not a consultant](https://fleetdm.com/handbook/business-operations#who-isnt-a-consultant).
-
-<!--
-> If you think this job posting may need to stay temporarily classified (¶¶) and not shared company-wide or publicly yet, for any reason, then stop here and send a Slack DM with your proposal to the CEO instead of modifying ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit) (which is visible company-wide) or submitting a draft pull request to "Open positions" (which is public).
--->
+Want to hire? Use these steps to hire a [fleetie, not a consultant](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant). Here's how to  open up a new position on the core team:
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
@@ -334,7 +328,7 @@ After receiving the interview packet, the Head of Business Operations uses the f
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team).
 3. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
-   - Cc: Zach Wasserman and Head of Business Operations _(neither participate in the email thread until after the offer is accepted)_
+   - Cc: Head of Business Operations _(BizOps will participate in the email thread after the offer is accepted)_
    - Subject: "Full time?"
    - Body: _Copy the offer email verbatim from the Google doc into Gmail as the body of the message, formatting and all, then:_
      - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_

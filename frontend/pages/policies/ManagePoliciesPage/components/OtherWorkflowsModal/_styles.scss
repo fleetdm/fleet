@@ -1,0 +1,26 @@
+.other-workflows-modal {
+  pre,
+  code {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    padding: 7px $pad-medium;
+  }
+
+  &__error {
+    color: $ui-error;
+  }
+
+  &__policy-automations {
+    &__disabled {
+      @include disabled;
+    }
+  }
+
+  &__no-integrations a {
+    display: block;
+  }
+
+  &__help-text {
+    @include help-text;
+  }
+}

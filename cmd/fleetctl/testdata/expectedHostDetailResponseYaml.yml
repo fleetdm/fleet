@@ -62,6 +62,7 @@ spec:
       created_at: "0001-01-01T00:00:00Z"
       updated_at: "0001-01-01T00:00:00Z"
       critical: false
+      calendar_events_enabled: true
     - author_email: "alice@example.com"
       author_id: 1
       author_name: Alice
@@ -75,6 +76,7 @@ spec:
       created_at: "0001-01-01T00:00:00Z"
       updated_at: "0001-01-01T00:00:00Z"
       critical: false
+      calendar_events_enabled: false
   policy_updated_at: "0001-01-01T00:00:00Z"
   public_ip: ""
   primary_ip: ""

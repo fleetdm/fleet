@@ -1,2 +1,0 @@
-- Fixes a bug that caused Windows hosts to show up in results when filtering hosts by bootstrap
-  package status.

@@ -4,11 +4,9 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -409,6 +407,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetMDMWindowsBitLockerStatusFuncInvoked = false
 		ds.GetHostMDMAppleProfilesFuncInvoked = false
 		ds.GetHostMDMWindowsProfilesFuncInvoked = false
+		ds.GetHostMDMFuncInvoked = false
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
@@ -424,6 +423,10 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		}
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 			return nil, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
+			return &hmdm, nil
 		}
 	}
 
@@ -444,6 +447,11 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			switch c.host.Platform {
 			case "windows":
 				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				if c.licenseTier == fleet.TierPremium {
+					require.True(t, ds.GetHostMDMFuncInvoked)
+				} else {
+					require.False(t, ds.GetHostMDMFuncInvoked)
+				}
 				if c.wantStatus != "" {
 					require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 					require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
@@ -502,6 +510,10 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
+		return &hmdm, nil
+	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), &fleet.Host{ID: 42, Platform: "windows"}, fleet.HostDetailOptions{
@@ -512,6 +524,7 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	require.NotNil(t, hostDetail)
 	require.True(t, ds.AppConfigFuncInvoked)
 	require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+	require.True(t, ds.GetHostMDMFuncInvoked)
 	require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 	require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
@@ -725,16 +738,17 @@ func TestHostAuth(t *testing.T) {
 			err = svc.DeleteHost(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			err = svc.DeleteHosts(ctx, []uint{1}, nil, nil)
+			err = svc.DeleteHosts(ctx, []uint{1}, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			err = svc.DeleteHosts(ctx, []uint{2}, &fleet.HostListOptions{}, nil)
+			err = svc.DeleteHosts(ctx, []uint{2}, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), &fleet.HostListOptions{}, nil)
+			emptyFilter := make(map[string]interface{})
+			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), &emptyFilter)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.RefetchHost(ctx, 1)
@@ -857,7 +871,9 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, &fleet.HostListOptions{}, nil))
+	emptyRequest := &map[string]interface{}{}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, emptyRequest))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -868,10 +884,10 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 
 	expectedHostIDs := []uint{6}
 	expectedTeam := ptr.Uint(1)
-	expectedLabel := ptr.Uint(2)
+	expectedLabel := float64(2)
 
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-		assert.Equal(t, *expectedLabel, lid)
+		assert.Equal(t, uint(expectedLabel), lid)
 		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {
 			hosts = append(hosts, &fleet.Host{ID: id})
@@ -895,7 +911,9 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, &fleet.HostListOptions{}, expectedLabel))
+	filter := &map[string]interface{}{"label_id": expectedLabel}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, filter))
 	assert.True(t, ds.ListHostsInLabelFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -914,7 +932,9 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, &fleet.HostListOptions{}, nil))
+	emptyFilter := &map[string]interface{}{}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, emptyFilter))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.False(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -989,26 +1009,19 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 
 	testVersions := []fleet.OSVersion{{HostsCount: 1, Name: "macOS 12.1", Platform: "darwin"}}
 
-	ds.TeamFunc = func(ctx context.Context, teamID uint) (*fleet.Team, error) {
-		if teamID == 1 {
-			return &fleet.Team{
-				Name: "team1",
-			}, nil
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		if teamID == 3 {
+			return false, nil
 		}
-		if teamID == 2 {
-			return &fleet.Team{
-				Name: "team2",
-			}, nil
-		}
-
-		return nil, newNotFoundError()
+		return true, nil
 	}
-
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
-		if *teamID == 1 {
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		if *teamFilter.TeamID == 1 {
 			return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 		}
-		if *teamID == 4 {
+		if *teamFilter.TeamID == 4 {
 			return nil, errors.New("some unknown error")
 		}
 
@@ -1032,7 +1045,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	// team does not exist
 	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.Error(t, err)
-	require.Equal(t, "not found", fmt.Sprint(err))
+	require.Contains(t, fmt.Sprint(err), "does not exist")
 
 	// some unknown error
 	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
@@ -1053,7 +1066,9 @@ func TestOSVersionsListOptions(t *testing.T) {
 		{HostsCount: 6, NameOnly: "Ubuntu 21.04", Platform: "ubuntu"},
 	}
 
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 	}
 
@@ -1500,7 +1515,6 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		if hostID == teamHostID {
 			return teamHost, nil
 		}
-
 		return globalHost, nil
 	}
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
@@ -1631,219 +1645,158 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 }
 
-func TestValidateAndPopulateHostListOptionsFilters(t *testing.T) {
-	cases := []struct {
-		name        string
-		jsonBody    string
-		expected    *fleet.HostListOptions
-		has400Error bool
+func TestBulkOperationFilterValidation(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	viewerCtx := test.UserContext(ctx, test.UserAdmin)
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
+	}
+
+	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
+	}
+
+	tc := []struct {
+		name      string
+		filters   *map[string]interface{}
+		has400Err bool
 	}{
 		{
-			name: "no filter",
-			jsonBody: `{
-					"somevalue": "somevalue"
-				}`,
-			expected: nil,
-		},
-		{
-			name: "empty filter",
-			jsonBody: `{
-					"somevalue": "somevalue",
-					"filter": {}
-				}`,
-			expected: &fleet.HostListOptions{},
-		},
-		{
-			name: "all valid filters",
-			jsonBody: `{
-					"somevalue": "somevalue",
-					"filter": {
-						"query": "foo",
-						"status": "new",
-						"team_id": 1,
-						"policy_id": 2,
-						"policy_response": "passing",
-						"os_name": "macOS",
-						"os_version": "11.1",
-						"os_version_id": 3,
-						"os_settings": "pending",
-						"os_settings_disk_encryption": "failed",
-						"bootstrap_package": "installed",
-						"munki_issue_id": 4,
-						"vulnerability": "CVE-2021-1234",
-						"mdm_id": 4,
-						"mdm_name": "mdm_name",
-						"mdm_enrollment_status": "automatic",
-						"low_disk_space": 99
-					}
-				}`,
-			expected: &fleet.HostListOptions{
-				ListOptions: fleet.ListOptions{
-					MatchQuery: "foo",
-				},
-				StatusFilter:                   fleet.StatusNew,
-				TeamFilter:                     ptr.Uint(1),
-				PolicyIDFilter:                 ptr.Uint(2),
-				PolicyResponseFilter:           ptr.Bool(true),
-				PolicyResponseFilterRequest:    ptr.String("passing"),
-				OSNameFilter:                   ptr.String("macOS"),
-				OSVersionFilter:                ptr.String("11.1"),
-				OSVersionIDFilter:              ptr.Uint(3),
-				OSSettingsFilter:               fleet.OSSettingsPending,
-				OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed,
-				MDMBootstrapPackageFilter:      (*fleet.MDMBootstrapPackageStatus)(ptr.String(string(fleet.MDMBootstrapPackageInstalled))),
-				MunkiIssueIDFilter:             ptr.Uint(4),
-				VulnerabilityFilter:            ptr.String("CVE-2021-1234"),
-				MDMIDFilter:                    ptr.Uint(4),
-				MDMNameFilter:                  ptr.String("mdm_name"),
-				MDMEnrollmentStatusFilter:      fleet.MDMEnrollStatusAutomatic,
-				LowDiskSpaceFilter:             ptr.Int(99),
+			name: "valid status filter",
+			filters: &map[string]interface{}{
+				"status": "new",
 			},
+		},
+		{
+			name: "invalid status",
+			filters: &map[string]interface{}{
+				"status": "invalid",
+			},
+			has400Err: true,
+		},
+		{
+			name: "empty status is invalid",
+			filters: &map[string]interface{}{
+				"status": "",
+			},
+			has400Err: true,
 		},
 
 		{
-			name: "filter with invalid status",
-			jsonBody: `{
-					"filter": {
-						"status": "invalid"
-					}
-				}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "valid team filter",
+			filters: &map[string]interface{}{
+				"team_id": float64(1), // json unmarshals to float64
+			},
 		},
 		{
-			name: "policy ID must be provided with policy response",
-			jsonBody: `{
-					"filter": {
-						"policy_response": "passing"
-					}
-				}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "invalid team_id type",
+			filters: &map[string]interface{}{
+				"team_id": "invalid",
+			},
+			has400Err: true,
 		},
 		{
-			name: "invalid policy response",
-			jsonBody: `{
-				"filter": {
-					"policy_id": 1,
-					"policy_response": "invalid"
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "valid label_id filter",
+			filters: &map[string]interface{}{
+				"label_id": float64(1),
+			},
 		},
 		{
-			name: "software title and versionID cannot be used together",
-			jsonBody: `{
-				"filter": {
-					"software_title_id": 2,
-					"software_version_id": 1
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "invalid label_id type",
+			filters: &map[string]interface{}{
+				"label_id": "invalid",
+			},
+			has400Err: true,
+		},
+
+		{
+			name: "invalid status type",
+			filters: &map[string]interface{}{
+				"status": float64(1),
+			},
+			has400Err: true,
 		},
 		{
-			name: "os version must be provided with os name",
-			jsonBody: `{
-				"filter": {
-					"os_version": "11.1"
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name:    "empty filter",
+			filters: &map[string]interface{}{},
 		},
 		{
-			name: "os name must be provided with os version",
-			jsonBody: `{
-				"filter": {
-					"os_name": "macOS"
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "valid query filter",
+			filters: &map[string]interface{}{
+				"query": "test",
+			},
 		},
 		{
-			name: "invalid mdm enrollment status",
-			jsonBody: `{
-				"filter": {
-					"mdm_enrollment_status": "invalid"
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "invalid query type",
+			filters: &map[string]interface{}{
+				"query": float64(1),
+			},
+			has400Err: true,
 		},
 		{
-			name: "invalid os settings",
-			jsonBody: `{
-				"filter": {
-					"os_settings": "invalid"
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "empty query is invalid",
+			filters: &map[string]interface{}{
+				"query": "",
+			},
+			has400Err: true,
 		},
 		{
-			name: "invalid os settings disk encryption",
-			jsonBody: `{
-				"filter": {
-					"os_settings_disk_encryption": "invalid"
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "multiple valid filters",
+			filters: &map[string]interface{}{
+				"status":  "new",
+				"team_id": float64(1),
+				"query":   "test",
+			},
 		},
 		{
-			name: "invalid mdm bootstrap package",
-			jsonBody: `{
-				"filter": {
-					"bootstrap_package": "invalid"
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "mixed valid and invalid filters",
+			filters: &map[string]interface{}{
+				"status":  "new",
+				"team_id": "invalid",
+			},
+			has400Err: true,
 		},
 		{
-			name: "low disk space is too low",
-			jsonBody: `{
-				"filter": {
-					"low_disk_space": 0
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "mixed invalid filters and valid filters (different order)",
+			filters: &map[string]interface{}{
+				"status":  "invalid",
+				"team_id": 1,
+			},
+			has400Err: true,
 		},
 		{
-			name: "low disk space is too high",
-			jsonBody: `{
-				"filter": {
-					"low_disk_space": 101
-				}
-			}`,
-			expected:    &fleet.HostListOptions{},
-			has400Error: true,
+			name: "mixed valid and unknown filters",
+			filters: &map[string]interface{}{
+				"status":  "new",
+				"unknown": "filter",
+			},
+			has400Err: true,
+		},
+		{
+			name: "unknown filter",
+			filters: &map[string]interface{}{
+				"unknown": "filter",
+			},
+			has400Err: true,
 		},
 	}
 
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			type request struct {
-				Somevalue string                 `json:"somevalue"`
-				Filter    *fleet.HostListOptions `json:"filter"`
-			}
-			var in request
-			err := json.NewDecoder(strings.NewReader(tt.jsonBody)).Decode(&in)
+	checkErr := func(t *testing.T, err error, has400Err bool) {
+		if has400Err {
+			require.Error(t, err)
+			var be *fleet.BadRequestError
+			require.ErrorAs(t, err, &be)
+		} else {
 			require.NoError(t, err)
+		}
+	}
 
-			opts, err := validateAndPopulateHostListOptionsFilters(context.Background(), in.Filter)
-			if tt.has400Error {
-				require.Error(t, err)
-				var be *fleet.BadRequestError
-				require.ErrorAs(t, err, &be)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tt.expected, opts)
-			}
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err)
+			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err)
 		})
 	}
 }

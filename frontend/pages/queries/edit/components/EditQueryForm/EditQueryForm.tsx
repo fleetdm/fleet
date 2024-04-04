@@ -4,6 +4,7 @@ import React, {
   useEffect,
   KeyboardEvent,
   useCallback,
+  useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
 import { pull, size } from "lodash";
@@ -17,6 +18,7 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import {
   addGravatarUrlToResource,
+  getCustomDropdownOptions,
   secondsToDhms,
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
@@ -61,6 +63,7 @@ interface IEditQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
+  currentTeamId?: number;
   teamNameForQuery?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
@@ -91,26 +94,11 @@ const validateQuerySQL = (query: string) => {
   return { valid, errors };
 };
 
-// Includes a custom frequency set through fleetctl at top of frequency dropdown
-const customFrequencyOptions = (frequency: number) => {
-  if (
-    !FREQUENCY_DROPDOWN_OPTIONS.some((option) => option.value === frequency)
-  ) {
-    return [
-      {
-        value: frequency,
-        label: `Every ${secondsToDhms(frequency)}`,
-      },
-      ...FREQUENCY_DROPDOWN_OPTIONS,
-    ];
-  }
-  return FREQUENCY_DROPDOWN_OPTIONS;
-};
-
 const EditQueryForm = ({
   router,
   queryIdForEdit,
   apiTeamIdForQuery,
+  currentTeamId,
   teamNameForQuery,
   showOpenSchemaActionText,
   storedQuery,
@@ -180,10 +168,6 @@ const EditQueryForm = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
-  const [frequencyOptions, setFrequencyOptions] = useState(
-    FREQUENCY_DROPDOWN_OPTIONS
-  );
-  const [isInitialFrequency, setIsInitialFrequency] = useState(true);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
@@ -205,13 +189,6 @@ const EditQueryForm = ({
     }
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
-
-  // Creates custom frequency options when initializing and not when toggling
-  useEffect(() => {
-    if (isInitialFrequency) {
-      setFrequencyOptions(customFrequencyOptions(lastEditedQueryFrequency));
-    }
-  }, [lastEditedQueryFrequency, isInitialFrequency]);
 
   const toggleSaveQueryModal = () => {
     setShowSaveQueryModal(!showSaveQueryModal);
@@ -252,11 +229,22 @@ const EditQueryForm = ({
       setIsEditingDescription(false);
     }
   };
+  const frequencyOptions = useMemo(
+    () =>
+      getCustomDropdownOptions(
+        FREQUENCY_DROPDOWN_OPTIONS,
+        lastEditedQueryFrequency,
+        // it's safe to assume that frequency is a number
+        (frequency) => `Every ${secondsToDhms(frequency as number)}`
+      ),
+    // intentionally leave lastEditedQueryFrequency out of the dependencies, so that the custom
+    // options are maintained even if the user changes the frequency in the UI
+    []
+  );
 
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
       setLastEditedQueryFrequency(value);
-      setIsInitialFrequency(false);
     },
     [setLastEditedQueryFrequency]
   );
@@ -615,7 +603,7 @@ const EditQueryForm = ({
               onClick={() => {
                 router.push(
                   PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
                 );
               }}
               disabled={disabledLiveQuery}
@@ -652,12 +640,32 @@ const EditQueryForm = ({
     "differential_ignore_removals",
   ].includes(lastEditedQueryLoggingType);
 
+  // Note: The backend is not resetting the query reports with equivalent platform strings
+  // so we are not showing a warning unless the platform combinations differ
+  const formatPlatformEquivalences = (platforms?: string) => {
+    // Remove white spaces allowed by API and format into a sorted string converted from a sorted array
+    return platforms?.replace(/\s/g, "").split(",").sort().toString();
+  };
+
+  const changedPlatforms =
+    storedQuery &&
+    formatPlatformEquivalences(lastEditedQueryPlatforms) !==
+      formatPlatformEquivalences(storedQuery?.platform);
+
+  const changedMinOsqueryVersion =
+    storedQuery &&
+    lastEditedQueryMinOsqueryVersion !== storedQuery.min_osquery_version;
+
   const enabledDiscardData =
     storedQuery && lastEditedQueryDiscardData && !storedQuery.discard_data;
 
   const confirmChanges =
     currentlySavingQueryResults &&
-    (changedSQL || changedLoggingToDifferential || enabledDiscardData);
+    (changedSQL ||
+      changedLoggingToDifferential ||
+      enabledDiscardData ||
+      changedPlatforms ||
+      changedMinOsqueryVersion);
 
   const showChangedSQLCopy =
     changedSQL && !changedLoggingToDifferential && !enabledDiscardData;
@@ -738,7 +746,7 @@ const EditQueryForm = ({
                     placeholder="Select"
                     label="Platform"
                     onChange={onChangeSelectPlatformOptions}
-                    value={lastEditedQueryPlatforms}
+                    value={lastEditedQueryPlatforms.replace(/\s/g, "")} // NOTE: FE requires no whitespace to render UI
                     multi
                     wrapperClassName={`${baseClass}__form-field form-field--platform`}
                     helpText="By default, your query collects data on all compatible platforms."
@@ -839,7 +847,7 @@ const EditQueryForm = ({
                   setEditingExistingQuery(true); // Persists edited query data through live query flow
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
                   );
                 }}
                 disabled={disabledLiveQuery}

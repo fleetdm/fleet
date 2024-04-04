@@ -1000,7 +1000,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: &fleet.HostListOptions{TeamFilter: ptr.Uint(team1.ID)},
+		Filters: &map[string]interface{}{"team_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1037,7 +1037,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: &fleet.HostListOptions{LabelID: ptr.Uint(label.ID)},
+		Filters: &map[string]interface{}{"label_id": float64(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1120,7 +1120,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
 
 	// All hosts should be deleted when an empty filter is specified
 	req := deleteHostsRequest{
-		Filters: &fleet.HostListOptions{},
+		Filters: &map[string]interface{}{},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1163,7 +1163,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 
 	req := deleteHostsRequest{
 		IDs:     []uint{hosts[0].ID, hosts[1].ID},
-		Filters: &fleet.HostListOptions{LabelID: ptr.Uint(1)},
+		Filters: &map[string]interface{}{"label_id": float64(1)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
@@ -2814,8 +2814,11 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// assign host to team 2 with filter
 	var addfResp addHostsToTeamByFilterResponse
-	req := addHostsToTeamByFilterRequest{TeamID: &tm2.ID, Filters: &fleet.HostListOptions{}}
-	req.Filters.MatchQuery = hosts[2].Hostname
+	req := addHostsToTeamByFilterRequest{
+		TeamID:  &tm2.ID,
+		Filters: &map[string]interface{}{"query": hosts[2].Hostname},
+	}
+
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
@@ -5168,6 +5171,204 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Len(t, config.Integrations.Zendesk, 0)
 }
 
+func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
+	t := s.T()
+	email := "service-account@example.com"
+	privateKey := "-----BEGIN PRIVATE KEY-----\nXXXXX\n-----END"
+	domain := "example.com"
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q
+			}]
+		}
+	}`, email, privateKey, domain,
+		)), http.StatusOK,
+	)
+
+	appConfig := s.getConfig()
+	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
+	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
+	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
+	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
+
+	// Add 2nd config -- not allowed at this time
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q
+			},
+			{
+				"api_key_json": {
+					"client_email": "bozo@example.com",
+					"private_key": "abc"
+				},
+				"domain": "example.com"
+			}]
+		}
+	}`, email, privateKey, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+
+	// Make an unrelated config change, should not remove the integrations
+	var appCfgResp appConfigResponse
+	s.DoJSON(
+		"PATCH", "/api/v1/fleet/config", json.RawMessage(
+			`{
+		"org_info": {
+			"org_name": "test-google-calendar-integrations"
+		}
+	}`,
+		), http.StatusOK, &appCfgResp,
+	)
+	require.Equal(t, "test-google-calendar-integrations", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.GoogleCalendar, 1)
+
+	// Update calendar config
+	domain = "new.com"
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q
+			}]
+		}
+	}`, email, privateKey, domain,
+		)), http.StatusOK,
+	)
+	appConfig = s.getConfig()
+	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
+	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
+	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
+	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
+
+	// Clearing other integrations does not clear Google Calendar integration
+	appCfgResp = appConfigResponse{}
+	s.DoJSON(
+		"PATCH", "/api/v1/fleet/config", json.RawMessage(
+			`{
+		"integrations": {
+			"jira": [],
+			"zendesk": []
+		}
+	}`,
+		), http.StatusOK, &appCfgResp,
+	)
+	require.Len(t, appCfgResp.Integrations.GoogleCalendar, 1)
+
+	// Clearing Google Calendar integration
+	appCfgResp = appConfigResponse{}
+	s.DoJSON(
+		"PATCH", "/api/v1/fleet/config", json.RawMessage(
+			`{
+		"integrations": {
+			"google_calendar": []
+		}
+	}`,
+		), http.StatusOK, &appCfgResp,
+	)
+	assert.Empty(t, appCfgResp.Integrations.GoogleCalendar)
+
+	// Try adding Google Calendar integration without sending private key -- not allowed
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q
+				},
+				"domain": %q
+			}]
+		}
+	}`, email, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+
+	// Empty email -- not allowed
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": " ",
+					"private_key": %q
+				},
+				"domain": %q
+			}]
+		}
+	}`, privateKey, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+
+	// Empty domain -- not allowed
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": ""
+			}]
+		}
+	}`, email, privateKey,
+		)), http.StatusUnprocessableEntity,
+	)
+
+	// Unknown fields fails as bad request
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q,
+				"foo": "bar"
+			}]
+		}
+	}`, email, privateKey, domain,
+		)), http.StatusBadRequest,
+	)
+
+	// Null api_key_json -- fails validation
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": null,
+				"domain": %q
+			}]
+		}
+	}`, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+}
+
 func (s *integrationTestSuite) TestQueriesBadRequests() {
 	t := s.T()
 
@@ -5368,8 +5569,8 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Fleet MDM is not configured")
 
-	// update MDM settings, the endpoint returns an error if MDM is not enabled
-	res = s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
+	// update MDM disk encryption, the endpoint returns an error if MDM is not enabled
+	res = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
@@ -5399,6 +5600,19 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
+
+	// try to update the enable_release_device_manually setting, requires premium
+	// (but /setup_experience catches the error of the MDM middleware check, so not
+	// StatusPaymentRequired)
+	res = s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+
+	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+	}`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "missing or invalid license")
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
@@ -6651,7 +6865,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "r1",
 		Data:      []byte("p1."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id does not match expected block (0): 1")
 
 	// sending a block with valid payload, block 0
@@ -6680,7 +6894,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "r1",
 		Data:      []byte("p2."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id does not match expected block (2): 1")
 
 	// sending final block with too many bytes
@@ -6690,7 +6904,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "r1",
 		Data:      []byte("p3extra"),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "exceeded declared block size 3: 7")
 
 	// sending actual final block
@@ -6710,7 +6924,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "r1",
 		Data:      []byte("p4."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id exceeds expected max (2): 3")
 }
 
@@ -6780,6 +6994,74 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	require.NotNil(t, activity.Details)
 	err = json.Unmarshal(*activity.Details, &fleet.ActivityTypeUserLoggedIn{})
 	require.NoError(t, err)
+}
+
+func (s *integrationTestSuite) TestChangePassword() {
+	t := s.T()
+
+	endpoint := "/api/latest/fleet/change_password"
+	// also the default password for the default logged in admin user
+	startPwd := test.GoodPassword
+
+	testCases := []struct {
+		oldPw          string
+		newPw          string
+		expectedStatus int
+	}{
+		// valid changes – 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).
+		{startPwd, "password123$", http.StatusOK},
+		{"password123$", "Password$321", http.StatusOK},
+
+		// invalid changes
+		// empty old
+		{"", "PassworD$321", http.StatusUnprocessableEntity},
+		// empty new
+		{"password123$", "", http.StatusUnprocessableEntity},
+		// too short
+		{"password123$", "Password$21", http.StatusUnprocessableEntity},
+		// too long
+		{"password123$", "Password$321Password$321Password$321Password$321Password$321", http.StatusUnprocessableEntity},
+		// no numbers
+		{"password123$", "Password$!@#", http.StatusUnprocessableEntity},
+		// no symbols
+		{"password123$", "Password4321", http.StatusUnprocessableEntity},
+		// new pw is same as old
+		{"password123$", "password123$", http.StatusUnprocessableEntity},
+		// wrong old pw
+		{"passgord123$", "Password$321", http.StatusUnprocessableEntity},
+	}
+
+	runTestCases := func(name string) {
+		for _, tc := range testCases {
+			t.Run(name, func(t *testing.T) {
+				var changePwResp changePasswordResponse
+				s.DoJSON("POST", endpoint, changePasswordRequest{OldPassword: tc.oldPw, NewPassword: tc.newPw}, tc.expectedStatus, &changePwResp)
+			})
+		}
+	}
+
+	runTestCases("test change passwords as admin")
+
+	// create a new user
+	testUserEmail := "changepwd@example.com"
+	var createResp createUserResponse
+	params := fleet.UserPayload{
+		Name:                     ptr.String("Test Change Password"),
+		Email:                    ptr.String(testUserEmail),
+		Password:                 ptr.String(startPwd),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+
+	// schedule cleanup with admin user's token before changing it
+	oldToken := s.token
+	t.Cleanup(func() { s.token = oldToken })
+
+	// login and run the change password tests as the user
+	s.token = s.getTestToken(testUserEmail, startPwd)
+	runTestCases("test change passwords as user")
 }
 
 func (s *integrationTestSuite) TestPasswordReset() {
@@ -7832,7 +8114,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
 
 	// invalid id
-	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusOK, &osVersionResp)
+	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
@@ -9733,10 +10016,146 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 2)
 
-	// now cause deletions and verify that results are deleted
+	// now update the query and verify that results are deleted
 	updatedQuery := "SELECT * FROM some_new_table;"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{Query: &updatedQuery}}, http.StatusOK, &modifyQueryResp)
 	require.Equal(t, updatedQuery, modifyQueryResp.Query.Query)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the platform and verify that results are deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			Platform: ptr.String("linux"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "linux", modifyQueryResp.Query.Platform)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the platform to the same value and verify that results are not deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			Platform: ptr.String("linux"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "linux", modifyQueryResp.Query.Platform)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the min_osquery_version and verify that results are deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			MinOsqueryVersion: ptr.String("5.9.1"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "5.9.1", modifyQueryResp.Query.MinOsqueryVersion)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the min_osquery_version to another value and verify that results are deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			MinOsqueryVersion: ptr.String("5.11.0"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "5.11.0", modifyQueryResp.Query.MinOsqueryVersion)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the min_osquery_version to the same value and verify that results are not deleted
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
+		ID: osqueryInfoQuery.ID,
+		QueryPayload: fleet.QueryPayload{
+			MinOsqueryVersion: ptr.String("5.11.0"),
+		},
+	},
+		http.StatusOK,
+		&modifyQueryResp,
+	)
+	require.Equal(t, "5.11.0", modifyQueryResp.Query.MinOsqueryVersion)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the query via specs and change the min_osquery_version, results should be deleted.
+	osqueryInfoQuerySpec := &fleet.QuerySpec{
+		Name:               osqueryInfoQuery.Name,
+		Description:        osqueryInfoQuery.Description,
+		Query:              osqueryInfoQuery.Query,
+		Interval:           osqueryInfoQuery.Interval,
+		ObserverCanRun:     osqueryInfoQuery.ObserverCanRun,
+		Platform:           osqueryInfoQuery.Platform,
+		MinOsqueryVersion:  osqueryInfoQuery.MinOsqueryVersion,
+		AutomationsEnabled: osqueryInfoQuery.AutomationsEnabled,
+		Logging:            osqueryInfoQuery.Logging,
+		DiscardData:        osqueryInfoQuery.DiscardData,
+	}
+	osqueryInfoQuerySpec.MinOsqueryVersion = "5.12.0"
+	var applyResp applyQuerySpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{osqueryInfoQuerySpec},
+	}, http.StatusOK, &applyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// don't change platform or min_osquery_version and results should not be deleted
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{osqueryInfoQuerySpec},
+	}, http.StatusOK, &applyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	// now update the platform and results should be deleted.
+	osqueryInfoQuerySpec.Platform = "darwin"
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{osqueryInfoQuerySpec},
+	}, http.StatusOK, &applyResp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 

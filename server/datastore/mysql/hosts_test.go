@@ -2554,7 +2554,6 @@ func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	h, err = ds.HostLiteByID(context.Background(), 0)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Nil(t, h)
-
 }
 
 func testHostsAddToTeam(t *testing.T, ds *Datastore) {
@@ -2795,7 +2794,6 @@ func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, total)
 	require.Len(t, unseen, 1)
 	assert.Equal(t, host3.ID, unseen[0])
-
 }
 
 func testHostsListByPolicy(t *testing.T, ds *Datastore) {
@@ -6275,7 +6273,8 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.Equal(t, &expected[0], osVersion)
 
 	// team 1
-	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil, nil, nil)
+	userAdmin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: &team1.ID, User: userAdmin}, nil, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
@@ -6284,16 +6283,25 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 5, &team1.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 5, &fleet.TeamFilter{TeamID: &team1.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[0], osVersion)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team1.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team1.ID, User: userAdmin})
+	require.NoError(t, err)
+	require.Equal(t, &expected[1], osVersion)
+
+	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
+	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{User: userTeam1}, nil, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{User: userTeam1})
 	require.NoError(t, err)
 	require.Equal(t, &expected[1], osVersion)
 
 	// team 2
-	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil, nil, nil)
+	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: &team2.ID}, nil, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
@@ -6302,26 +6310,30 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team2.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team2.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[0], osVersion)
 
-	osVersion, _, err = ds.OSVersion(ctx, 3, &team2.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 3, &fleet.TeamFilter{TeamID: &team2.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[1], osVersion)
 
+	// Wrong team
+	_, _, err = ds.OSVersion(ctx, 3, &fleet.TeamFilter{User: userTeam1})
+	require.True(t, fleet.IsNotFound(err))
+
 	// team 3 (no hosts assigned to team)
-	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil, nil, nil)
+	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: &team3.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	expected = []fleet.OSVersion{}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team3.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team3.ID})
 	require.Error(t, err)
 	require.Nil(t, osVersion)
 
 	// non-existent team
-	_, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)
+	_, err = ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: ptr.Uint(404)}, nil, nil, nil)
 	require.Error(t, err)
 
 	// new host with arm64
@@ -6546,6 +6558,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid)
+          VALUES (?, uuid())
+	`, host.UUID)
+	require.NoError(t, err)
+
 	err = ds.NewActivity( // automatically creates the host_activities entry
 		context.Background(),
 		user1,
@@ -6561,6 +6579,23 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
           INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref)
           VALUES (?, uuid(), uuid())
 	`, host.ID)
+	require.NoError(t, err)
+
+	// Add a calendar event for the host.
+	_, err = ds.writer(context.Background()).Exec(`
+		          INSERT INTO calendar_events (email, start_time, end_time, event)
+		          VALUES ('foobar@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '{}');
+			`)
+	require.NoError(t, err)
+	var calendarEventID int
+	err = ds.writer(context.Background()).Get(&calendarEventID, `
+		          SELECT id FROM calendar_events WHERE email = 'foobar@example.com';
+			`)
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(`
+		          INSERT INTO host_calendar_events (host_id, calendar_event_id, webhook_status)
+		          VALUES (?, ?, 1);
+			`, host.ID, calendarEventID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

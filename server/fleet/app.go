@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -380,6 +381,7 @@ type MacOSSetup struct {
 	BootstrapPackage            optjson.String `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
 	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.
@@ -566,6 +568,15 @@ func (c *AppConfig) Copy() *AppConfig {
 		for i, z := range c.Integrations.Zendesk {
 			zd := *z
 			clone.Integrations.Zendesk[i] = &zd
+		}
+	}
+	if len(c.Integrations.GoogleCalendar) > 0 {
+		clone.Integrations.GoogleCalendar = make([]*GoogleCalendarIntegration, len(c.Integrations.GoogleCalendar))
+		for i, g := range c.Integrations.GoogleCalendar {
+			gCal := *g
+			clone.Integrations.GoogleCalendar[i] = &gCal
+			clone.Integrations.GoogleCalendar[i].ApiKey = make(map[string]string, len(g.ApiKey))
+			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
 
@@ -809,6 +820,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
 	}
+	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
@@ -970,7 +984,7 @@ type ListOptions struct {
 	// MatchQuery is the query string to match against columns of the entity
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
-	MatchQuery string `query:"query,optional" json:"query,omitempty"`
+	MatchQuery string `query:"query,optional"`
 	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
