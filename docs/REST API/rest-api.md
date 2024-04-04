@@ -1082,62 +1082,62 @@ Modifies the Fleet's configuration with the supplied information.
 #### The `organization_information` object
 
 
-| Name                              | Type    | In    | Description   |
-| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| org_name                          | string  | body  | _Organization information_. The organization name.                                                                                                                                     |
-| org_logo_url                      | string  | body  | _Organization information_. The URL for the organization logo.                                                                                                                         |
-| org_logo_url_light_background     | string  | body  | _Organization information_. The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
-| contact_url                       | string  | body  | _Organization information_. A URL that can be used by end users to contact the organization.                                                                                          |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| org_name                          | string  | The organization name.                                                                                                                                     |
+| org_logo_url                      | string  | The URL for the organization logo.                                                                                                                         |
+| org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
+| contact_url                       | string  | A URL that can be used by end users to contact the organization.                                                                                          |
 
 #### The `server_settings` object
 
-| Name                              | Type    | In    | Description   |
-| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
-| live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
-| query_reports_disabled            | boolean | body  | _Server settings_. Whether query report capabilities are disabled.                                                                                                                   |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| server_url                        | string  | The Fleet server URL.                                                                                                                                               |
+| live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                                                                                                   |
+| query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
 
 #### The `smtp_settings` object
 
-| Name                              | Type    | In    | Description   |
-| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_smtp                       | boolean | body  | Whether SMTP is enabled for the Fleet app.                                                                                                                            |
-| sender_address                    | string  | body  | The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
-| server                            | string  | body  | The SMTP server for the Fleet app.                                                                                                                                    |
-| port                              | integer | body  | The SMTP port for the Fleet app.                                                                                                                                      |
-| authentication_type               | string  | body  | The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
-| username_name                     | string  | body  | The username used to authenticate requests made to the SMTP server.                                                                                                   |
-| password                          | string  | body  | The password used to authenticate requests made to the SMTP server.                                                                                                   |
-| enable_ssl_tls                    | boolean | body  | Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
-| authentication_method             | string  | body  | The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
-| domain                            | string  | body  | The domain for the SMTP server.                                                                                                                                       |
-| verify_ssl_certs                  | boolean | body  | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
-| enabled_start_tls                 | boolean | body  | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_smtp                       | boolean | Whether SMTP is enabled for the Fleet app.                                                                                                                            |
+| sender_address                    | string  | The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
+| server                            | string  | The SMTP server for the Fleet app.                                                                                                                                    |
+| port                              | integer | The SMTP port for the Fleet app.                                                                                                                                      |
+| authentication_type               | string  | The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
+| username_name                     | string  | The username used to authenticate requests made to the SMTP server.                                                                                                   |
+| password                          | string  | The password used to authenticate requests made to the SMTP server.                                                                                                   |
+| enable_ssl_tls                    | boolean | Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
+| authentication_method             | string  | The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
+| domain                            | string  | The domain for the SMTP server.                                                                                                                                       |
+| verify_ssl_certs                  | boolean | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
+| enabled_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
 
 #### The `sso_settings` object
 
-| Name                              | Type    | In    | Description   |
-| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enabled_sso                       | boolean | body  | Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
-| entity_id                         | string  | body  | The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
-| issuer_uri                        | string  | body  | The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
-| idp_image_url                     | string  | body  | An optional link to an image such as a logo for the identity provider.                                                                                                 |
-| metadata                          | string  | body  | Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
-| metadata_url                      | string  | body  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enabled_sso                       | boolean | Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
+| entity_id                         | string  | The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
+| issuer_uri                        | string  | The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
+| idp_image_url                     | string  | An optional link to an image such as a logo for the identity provider.                                                                                                 |
+| metadata                          | string  | Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
+| metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
 
 #### The `host_expiry_settings` object
 
-| Name                              | Type    | In    | Description   |
-| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| host_expiry_enabled               | boolean | body  | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
-| host_expiry_window                | integer | body  | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| host_expiry_enabled               | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
+| host_expiry_window                | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 
 
 #### The `fleet_desktop` object
 
-| Name                              | Type    | In    | Description   |
-| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| transparency_url                  | string  | body  | The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
 
 
 
