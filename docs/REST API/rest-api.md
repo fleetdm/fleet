@@ -8150,14 +8150,8 @@ Returns information about the specified software. By default, `versions` are sor
       "installer": "FalconSensor-6.44.pkg",
       "version": "6.44",
       "uploaded_at": "2024-04-01T14:22:58Z",
-      "profile_before_install": {
-        "profile_name": "Falcon settings",
-        "profile_uuid": "111bb781-53ae-41d6-84dd-5b2b501fb4c5",
-      },
-      "script_after_install": {
-        "profile_name": "falcon-agent-pre-install-settings.sh",
-        "script_id": "133",
-      },
+      "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+      "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "status": {
         "installed": 3,
         "pending": 1,
