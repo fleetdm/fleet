@@ -212,6 +212,17 @@ without necessarily having a billing card.`
         'mdm',
         'vm',
       ]
+    },
+
+    lastSubmittedGetStartedQuestionnaireStep: {
+      type: 'string',
+      description: 'The last step the user reached in the get started form.'
+    },
+
+    getStartedQuestionnaireAnswers: {
+      type: 'json',
+      description: 'This answers the user provided when they filled out the get started form.',
+      defaultsTo: {},
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

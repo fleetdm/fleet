@@ -87,6 +87,7 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeCreatedDeclarationProfile{},
 	ActivityTypeDeletedDeclarationProfile{},
+	ActivityTypeEditedDeclarationProfile{},
 }
 
 type ActivityDetails interface {
@@ -1365,6 +1366,25 @@ func (a ActivityTypeDeletedDeclarationProfile) Documentation() (activity string,
 - "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedDeclarationProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
+	return "edited_declaration_profile"
+}
+
+func (a ActivityTypeEditedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`

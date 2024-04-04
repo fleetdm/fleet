@@ -27,7 +27,7 @@ const GOOGLE_WORKSPACE_DOMAINS =
 const DOMAIN_WIDE_DELEGATION =
   "https://www.fleetdm.com/learn-more-about/domain-wide-delegation";
 const ENABLING_CALENDAR_API =
-  "fleetdm.com/learn-more-about/enabling-calendar-api";
+  "https://www.fleetdm.com/learn-more-about/enabling-calendar-api";
 const OAUTH_SCOPES =
   "https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/calendar.settings.readonly";
 
@@ -112,10 +112,10 @@ const Calendars = (): JSX.Element => {
 
     // Must set all keys or no keys at all
     if (!curFormData.apiKeyJson && !!curFormData.domain) {
-      errors.apiKeyJson = "API key JSON must be present";
+      errors.apiKeyJson = "API key JSON must be completed";
     }
     if (!curFormData.domain && !!curFormData.apiKeyJson) {
-      errors.domain = "Domain must be present";
+      errors.domain = "Domain must be completed";
     }
     if (curFormData.apiKeyJson) {
       try {
@@ -167,11 +167,11 @@ const Calendars = (): JSX.Element => {
       await configAPI.update({ integrations: destination });
       renderFlash(
         "success",
-        "Successfully saved calendar integration settings"
+        "Successfully saved calendar integration settings."
       );
       refetchConfig();
     } catch (e) {
-      renderFlash("error", "Could not save calendar integration settings");
+      renderFlash("error", "Could not save calendar integration settings.");
     } finally {
       setIsUpdatingSettings(false);
     }
@@ -286,7 +286,7 @@ const Calendars = (): JSX.Element => {
           </p>
           <p className={`${baseClass}__configuration`}>
             5. Configure your service account integration in Fleet using the
-            form below:
+            form below.
             <ul>
               <li>
                 Paste the full contents of the JSON file downloaded when

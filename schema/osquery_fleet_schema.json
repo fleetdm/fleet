@@ -14,7 +14,7 @@
       {
         "name": "uid",
         "description": "[User ID](https://superuser.com/a/1108201)",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -70,7 +70,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -572,7 +571,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "type",
@@ -1800,7 +1798,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -2461,7 +2458,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "tid",
@@ -2630,7 +2626,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "tid",
@@ -3626,7 +3621,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -3970,7 +3964,7 @@
       {
         "name": "path",
         "description": "Path to extension folder. Defaults to '' on ChromeOS",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -4067,7 +4061,7 @@
       {
         "name": "state",
         "description": "1 if this extension is enabled",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -4167,7 +4161,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -4746,7 +4739,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device_id",
@@ -5975,7 +5967,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -6113,7 +6104,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "variable",
@@ -6157,7 +6147,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6351,7 +6340,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6422,7 +6410,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6805,7 +6792,7 @@
       {
         "name": "type",
         "description": "The interface type of the disk.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6814,7 +6801,7 @@
       {
         "name": "id",
         "description": "The unique identifier of the drive on the system.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6835,7 +6822,7 @@
       {
         "name": "disk_size",
         "description": "Size of the disk.",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6868,7 +6855,7 @@
       {
         "name": "name",
         "description": "The label of the disk object.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -9350,7 +9337,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -9609,7 +9595,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -9773,7 +9758,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -9948,7 +9932,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -10059,7 +10042,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "fan",
@@ -10492,7 +10474,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_path",
@@ -11099,7 +11080,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -11321,7 +11301,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -11582,7 +11561,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -11643,7 +11621,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "boot_uuid",
@@ -11714,7 +11691,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -11766,7 +11742,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -12578,7 +12553,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "filter_name",
@@ -12984,7 +12958,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -13775,7 +13748,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "label",
@@ -15355,7 +15327,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -15485,7 +15456,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device_name",
@@ -15780,7 +15750,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "md_device_name",
@@ -15832,7 +15801,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -16078,7 +16046,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16140,7 +16107,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16220,7 +16186,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16310,7 +16275,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16507,7 +16471,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16595,7 +16558,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "memory_total",
@@ -16701,7 +16663,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -16859,7 +16820,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "processor_number",
@@ -17344,7 +17304,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -17405,7 +17364,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -17600,7 +17558,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -18830,6 +18787,186 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/package_receipts.yml"
   },
   {
+    "name": "parse_ini",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Parse a file as INI configuration.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "fullkey",
+        "description": "Key including any parent keys.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "JSON key or array index.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "JSON value",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/parse_ini",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/parse_ini.yml"
+  },
+  {
+    "name": "parse_json",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Parses an entire file as JSON. See `parse_jsonl` where multiple JSON documents are supported.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "fullkey",
+        "description": "Same as `key` in this table. See `parse_jsonl` where multiple JSON documents are supported.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "JSON key or array index.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "JSON value",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/parse_json",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/parse_json.yml"
+  },
+  {
+    "name": "parse_jsonl",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Parses each line of a file as a separate JSON document. See `parse_json` to treat an entire file as a single JSON document.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "fullkey",
+        "description": "Key including any parent keys or document indices.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "INI key",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "INI value",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/parse_jsonl",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/parse_jsonl.yml"
+  },
+  {
+    "name": "parse_xml",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Parses a file as an XML document.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "fullkey",
+        "description": "Key including any parent keys.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "XML key",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "XML value",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/parse_xml",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/parse_xml.yml"
+  },
+  {
     "name": "password_policy",
     "description": "Password Policies for macOS.",
     "url": "https://fleetdm.com/tables/password_policy",
@@ -18844,7 +18981,7 @@
       {
         "name": "uid",
         "description": "User ID for the policy. Returns `-1` if the policy applies to all users.",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18853,7 +18990,7 @@
       {
         "name": "policy_identifier",
         "description": "Policy identifier, such as `ProfilePayload:1d33ef8c-da1c-4534-8458-95a4d43d849e:minLength`.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18862,7 +18999,7 @@
       {
         "name": "policy_content",
         "description": "Policy content, such as `policyAttributePassword matches '.{10,}'`.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18871,7 +19008,7 @@
       {
         "name": "policy_description",
         "description": "Policy description, such as `Contain at least 10 characters.`",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -19141,7 +19278,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -19512,7 +19648,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19573,7 +19708,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19661,7 +19795,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -20419,7 +20552,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "pid",
@@ -20731,12 +20863,11 @@
     "evented": true,
     "cacheable": false,
     "notes": "This table will only include events for changes and files in directories that existed before the fleetd agent starts.",
-    "examples": [],
     "columns": [
       {
         "name": "operation",
         "description": "Operation type",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20745,7 +20876,7 @@
       {
         "name": "pid",
         "description": "Process ID",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20754,7 +20885,7 @@
       {
         "name": "ppid",
         "description": "Parent process ID",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20763,7 +20894,7 @@
       {
         "name": "time",
         "description": "Time of execution in UNIX time",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20772,7 +20903,7 @@
       {
         "name": "executable",
         "description": "The executable path",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20781,7 +20912,7 @@
       {
         "name": "partial",
         "description": "True if this is a partial event (i.e.: this process existed before we started osquery)",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20790,7 +20921,7 @@
       {
         "name": "cwd",
         "description": "The current working directory of the process",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20799,7 +20930,7 @@
       {
         "name": "path",
         "description": "The path associated with the event",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20808,7 +20939,7 @@
       {
         "name": "dest_path",
         "description": "The canonical path associated with the event",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20817,7 +20948,7 @@
       {
         "name": "uid",
         "description": "The uid of the process performing the action",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20826,7 +20957,7 @@
       {
         "name": "gid",
         "description": "The gid of the process performing the action",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20835,7 +20966,7 @@
       {
         "name": "auid",
         "description": "Audit user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20844,7 +20975,7 @@
       {
         "name": "euid",
         "description": "Effective user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20853,7 +20984,7 @@
       {
         "name": "egid",
         "description": "Effective group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20862,7 +20993,7 @@
       {
         "name": "fsuid",
         "description": "Filesystem user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20871,7 +21002,7 @@
       {
         "name": "fsgid",
         "description": "Filesystem group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20880,7 +21011,7 @@
       {
         "name": "suid",
         "description": "Saved user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20889,7 +21020,7 @@
       {
         "name": "sgid",
         "description": "Saved group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20898,7 +21029,7 @@
       {
         "name": "uptime",
         "description": "Time of execution in system uptime",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20907,7 +21038,7 @@
       {
         "name": "eid",
         "description": "Event ID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": true,
         "required": false,
@@ -21881,7 +22012,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_name",
@@ -22332,7 +22462,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -22637,7 +22766,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -22716,7 +22844,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -23029,7 +23156,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "label",
@@ -23206,7 +23332,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n- For ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- For ChromeOS, this table is only available for Chrome 73+.\n",
-    "examples": [],
     "columns": [
       {
         "name": "enabled",
@@ -23239,7 +23364,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -23477,7 +23601,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "minimum_password_age",
@@ -23700,7 +23823,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "type",
@@ -24067,7 +24189,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "shmid",
@@ -24895,7 +25016,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -25343,7 +25463,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -25617,7 +25736,7 @@
       {
         "name": "hostname",
         "description": "Network hostname including domain. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25635,7 +25754,7 @@
       {
         "name": "cpu_type",
         "description": "CPU type",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25658,7 +25777,7 @@
       {
         "name": "cpu_brand",
         "description": "CPU brand string, contains vendor and model",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25718,7 +25837,7 @@
       {
         "name": "physical_memory",
         "description": "Total physical memory in bytes",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25727,7 +25846,7 @@
       {
         "name": "hardware_vendor",
         "description": "Hardware vendor. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25736,7 +25855,7 @@
       {
         "name": "hardware_model",
         "description": "Hardware model. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25759,7 +25878,7 @@
       {
         "name": "hardware_serial",
         "description": "The device's serial number. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25824,7 +25943,7 @@
       {
         "name": "computer_name",
         "description": "Friendly computer name (optional). For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25877,7 +25996,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "id",
@@ -26787,7 +26905,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "uid",
@@ -26904,7 +27021,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "uid",
@@ -26938,7 +27054,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -27273,7 +27388,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "color_depth",
@@ -27581,7 +27695,7 @@
       {
         "name": "name",
         "description": "Extension Name",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27590,7 +27704,7 @@
       {
         "name": "uuid",
         "description": "Extension UUID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27599,7 +27713,7 @@
       {
         "name": "version",
         "description": "Extension version",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27608,7 +27722,7 @@
       {
         "name": "path",
         "description": "Extension path",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27617,7 +27731,7 @@
       {
         "name": "publisher",
         "description": "Publisher Name",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27626,7 +27740,7 @@
       {
         "name": "publisher_id",
         "description": "Publisher ID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27635,7 +27749,7 @@
       {
         "name": "installed_at",
         "description": "Installed Timestamp",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27644,7 +27758,7 @@
       {
         "name": "prerelease",
         "description": "Pre release version",
-        "type": "INTEGER",
+        "type": "integer",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27653,7 +27767,7 @@
       {
         "name": "uid",
         "description": "The local user that owns the plugin",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -29831,7 +29945,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_path",

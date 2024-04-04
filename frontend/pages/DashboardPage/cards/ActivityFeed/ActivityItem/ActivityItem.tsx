@@ -799,10 +799,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited declaration (DDM) profile <b>
-          {activity.details?.profile_name}
-        </b>{" "}
-        for{" "}
+        edited declaration (DDM) profiles{" "}
+        <b>{activity.details?.profile_name}</b> for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
           "darwin",

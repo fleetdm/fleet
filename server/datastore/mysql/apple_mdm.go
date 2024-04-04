@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -269,6 +270,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Conte
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
+	// TODO(roberto): this seems confusing to me, we should have a separate datastore method.
 	if strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
 		return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
 	}
@@ -322,7 +324,6 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 		teamID = ptr.Uint(0)
 	}
 
-	// TODO: add deletion of declarations here or separate method?
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`, teamID, profileIdentifier)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -3688,10 +3689,10 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	md5((count(0) + group_concat(hex(mad.checksum)
+	COALESCE(MD5((count(0) + GROUP_CONCAT(HEX(mad.checksum)
 		ORDER BY
-			mad.uploaded_at DESC separator ''))) AS checksum,
-	max(mad.created_at) AS latest_created_timestamp
+			mad.uploaded_at DESC separator ''))), '') AS checksum,
+	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
@@ -3947,10 +3948,12 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "updating host declarations")
 }
 
-func (ds *Datastore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
 	stmt := `
   UPDATE host_mdm_apple_declarations
-  SET status = ?
+  SET
+    status = ?,
+    detail = ?
   WHERE
     operation_type = ?
     AND status = ?
@@ -3958,13 +3961,16 @@ func (ds *Datastore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hos
   `
 
 	_, err := ds.writer(ctx).ExecContext(
-		ctx, stmt, fleet.MDMDeliveryVerifying,
+		ctx, stmt,
+		// SET ...
+		status, detail,
+		// WHERE ...
 		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending, hostUUID,
 	)
 	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
 }
 
-func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType, rawJSON string) error {
+func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType string, rawJSON json.RawMessage) error {
 	const stmt = `
 INSERT INTO
     mdm_apple_declarative_requests (

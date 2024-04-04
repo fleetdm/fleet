@@ -124,15 +124,14 @@ module.exports.custom = {
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
-    'website': 'mikermcneil',// (catch-all)
+    'website': 'eashaw',// (catch-all)
     'website/assets': 'eashaw', // « Eric is DRI for website frontend code
     'website/views': 'eashaw',
-    'website/api': 'mikermcneil',//« Website backend, scripts, deps
-    'website/api/controllers/webhooks/receive-from-github.js': 'mikermcneil',// github bot (webhook)
-    'website/api/controllers/imagine': 'eashaw',// landing pages
-    'website/config': 'mikermcneil',
+    'website/api': 'eashaw',//« Website backend, scripts, deps
+    'website/api/controllers/webhooks/receive-from-github.js': 'eashaw',// github bot (webhook)
+    'website/config': 'eashaw',
     'website/config/routes.js': 'eashaw',//« Website redirects and URLs
-    'website/scripts': 'mikermcneil',
+    'website/scripts': 'eashaw',
     'website/package.json': 'eashaw',
 
     // 🫧 Vulnerability dashboard
@@ -204,7 +203,7 @@ module.exports.custom = {
     'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
-    'website': 'mikermcneil',// (default for website)
+    'website': ['mikermcneil', 'eashaw'],// (default for website)
     'website/views': 'eashaw',
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
@@ -244,6 +243,7 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
+    'handbook/company/open-positions.yml': ['@sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
     'handbook/business-operations': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
@@ -251,7 +251,6 @@ module.exports.custom = {
     'handbook/sales': ['sampfluger88','mikermcneil'],
     'handbook/demand': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
-
     '/handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
 
     // GitHub issue templates
