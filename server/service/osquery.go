@@ -1195,7 +1195,6 @@ func processCalendarPolicies(
 		if err != nil {
 			level.Error(logger).Log("msg", "fire webhook", "err", err)
 			nextStatus = fleet.CalendarWebhookStatusError
-			return
 		}
 		if err := ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, nextStatus); err != nil {
 			level.Error(logger).Log("msg", fmt.Sprintf("mark fired webhook as %v", nextStatus), "err", err)
