@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -269,9 +270,11 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			mdmConfig != nil &&
 			mdmConfig.MacOSUpdates.EnabledForHost(host) {
 			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
-			if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
 				// host os has not been collected yet (no details query)
 				hostOS = &fleet.OperatingSystem{}
+			} else if err != nil {
+				return fleet.OrbitConfig{}, err
 			}
 			requiresNudge, err := hostOS.RequiresNudge()
 			if err != nil {
@@ -326,9 +329,11 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if appConfig.MDM.EnabledAndConfigured &&
 		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
 		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
-		if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			// host os has not been collected yet (no details query)
 			hostOS = &fleet.OperatingSystem{}
+		} else if err != nil {
+			return fleet.OrbitConfig{}, err
 		}
 		requiresNudge, err := hostOS.RequiresNudge()
 		if err != nil {
