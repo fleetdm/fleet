@@ -86,14 +86,13 @@
       margin-right: 8px;
       display: none;
     }
-    [purpose='custom-radio']  {
+    [purpose='custom-radio'] {
       margin-right: 8px;
       display: flex;
       min-width: 18px;
       min-height: 18px;
       border-radius: 50%;
       border: 1px solid #E2E4EA;
-      display: flex;
       justify-content: center;
       align-items: center;
       [purpose='custom-radio-selected'] {
@@ -105,7 +104,7 @@
         transition: 180ms transform ease-in-out;
       }
     }
-    input[type="radio"]:checked + [purpose='custom-radio'] {
+    input[type='radio']:checked + [purpose='custom-radio'] {
       [purpose='custom-radio-selected'] {
         transform: scale(1);
       }
