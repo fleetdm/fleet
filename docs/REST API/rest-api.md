@@ -1030,12 +1030,12 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | In    | Description   |
 | ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| organization_information          | object  | body  | See [the `organization_information` object](#the-organization_information-object) |
-| server_settings         | object  | body    | See [the `server_settings` object](#the-server_settings-object) |
-| smtp_settings         | object  | body    | See [the `smtp_settings` object](#the-smtp_settings-object) |
-| sso_settings         | object  | body    | See [the `sso_settings` object](#the-sso_settings-object) |
+| organization_information          | object  | body  | See [the `organization_information` object](#organization_information-object) |
+| server_settings         | object  | body    | See [the `server_settings` object](#server_settings-object) |
+| smtp_settings         | object  | body    | See [the `smtp_settings` object](#smtp_settings-object) |
+| sso_settings         | object  | body    | See [the `sso_settings` object](#sso_settings-object) |
 | agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| fleet_desktop         | object  | body    | See [the `fleet_desktop` object](#the-fleet_desktop-object) |
+| fleet_desktop         | object  | body    | See [the `fleet_desktop` object](#fleet_desktop-object) |
 | enable_host_status_webhook        | boolean | body  | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
 | destination_url                   | string  | body  | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
 | host_percentage                   | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
@@ -1079,7 +1079,7 @@ Modifies the Fleet's configuration with the supplied information.
 
                                                                                                                                                                          |
 
-#### The `organization_information` object
+#### `organization_information` object
 
 
 | Name                              | Type    | Description   |
@@ -1089,7 +1089,7 @@ Modifies the Fleet's configuration with the supplied information.
 | org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
 | contact_url                       | string  | A URL that can be used by end users to contact the organization.                                                                                          |
 
-#### The `server_settings` object
+#### `server_settings` object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1097,7 +1097,7 @@ Modifies the Fleet's configuration with the supplied information.
 | live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                                                                                                   |
 | query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
 
-#### The `smtp_settings` object
+#### `smtp_settings` object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1114,7 +1114,7 @@ Modifies the Fleet's configuration with the supplied information.
 | verify_ssl_certs                  | boolean | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
 | enabled_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
 
-#### The `sso_settings` object
+#### `sso_settings` object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1125,7 +1125,7 @@ Modifies the Fleet's configuration with the supplied information.
 | metadata                          | string  | Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
 
-#### The `host_expiry_settings` object
+#### `host_expiry_settings` object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1133,7 +1133,7 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_window                | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 
 
-#### The `fleet_desktop` object
+#### `fleet_desktop` object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
