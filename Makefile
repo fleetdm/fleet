@@ -128,6 +128,7 @@ fleetctl-dev: fleetctl
 
 lint-js:
 	yarn lint
+	yarn audit
 
 lint-go:
 	golangci-lint run --skip-dirs ./node_modules --timeout 15m
