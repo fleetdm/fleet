@@ -24,10 +24,10 @@ func TestOperatingSystemIsWindows(t *testing.T) {
 
 func TestOperatingSystemRequiresNudge(t *testing.T) {
 	testCases := []struct {
-		platform  string
-		version string
+		platform      string
+		version       string
 		requiresNudge bool
-		parseError bool
+		parseError    bool
 	}{
 		{platform: "chrome"},
 		{platform: "chrome", version: "12.1"},
