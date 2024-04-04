@@ -263,7 +263,7 @@ module.exports.routes = {
     action: 'view-support',
     locals: {
       pageTitleForMeta: 'Support | Fleet',
-      pageDescriptionForMeta: 'Ask a question, chat with other engineers, or get in touch with the Fleet team.',
+      pageDescriptionForMeta: 'Ask a question, chat with engineers, or get in touch with the Fleet team.',
       currentSection: 'documentation',
     }
   },
