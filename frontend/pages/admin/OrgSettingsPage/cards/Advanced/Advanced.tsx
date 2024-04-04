@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -82,16 +82,9 @@ const Advanced = ({
     [deleteActivities]
   );
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
-
-  const onChangeSelectActivityExpiryWindow = useCallback(
-    (option: { value: number; name: string }) => {
-      setFormData({ ...formData, activityExpiryWindow: option.value });
-    },
-    [formData]
-  );
 
   useEffect(() => {
     // validate desired form fields
@@ -114,19 +107,20 @@ const Advanced = ({
         live_query_disabled: disableLiveQuery,
         query_reports_disabled: disableQueryReports,
         scripts_disabled: disableScripts,
+        deferred_save_host: appConfig.server_settings.deferred_save_host,
       },
       smtp_settings: {
         domain,
         verify_ssl_certs: verifySSLCerts,
-        enable_start_tls: enableStartTLS,
+        enable_start_tls: enableStartTLS || false,
       },
       host_expiry_settings: {
         host_expiry_enabled: enableHostExpiry,
-        host_expiry_window: Number(hostExpiryWindow),
+        host_expiry_window: hostExpiryWindow || undefined,
       },
       activity_expiry_settings: {
         activity_expiry_enabled: deleteActivities,
-        activity_expiry_window: Number(activityExpiryWindow),
+        activity_expiry_window: activityExpiryWindow || undefined,
       },
     };
 
@@ -143,7 +137,7 @@ const Advanced = ({
           </p>
           <InputField
             label="Domain"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="domain"
             value={domain}
             parseTarget
@@ -158,7 +152,7 @@ const Advanced = ({
             }
           />
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="verifySSLCerts"
             value={verifySSLCerts}
             parseTarget
@@ -176,7 +170,7 @@ const Advanced = ({
             Verify SSL certs
           </Checkbox>
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="enableStartTLS"
             value={enableStartTLS}
             parseTarget
@@ -194,7 +188,7 @@ const Advanced = ({
             Enable STARTTLS
           </Checkbox>
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="enableHostExpiry"
             value={enableHostExpiry}
             parseTarget
@@ -223,7 +217,7 @@ const Advanced = ({
             <InputField
               label="Host expiry window"
               type="number"
-              onChange={handleInputChange}
+              onChange={onInputChange}
               name="hostExpiryWindow"
               value={hostExpiryWindow}
               parseTarget
@@ -231,7 +225,7 @@ const Advanced = ({
             />
           )}
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="deleteActivities"
             value={deleteActivities}
             parseTarget
@@ -252,7 +246,7 @@ const Advanced = ({
             <Dropdown
               searchable={false}
               options={activityExpiryWindowOptions}
-              onChange={onChangeSelectActivityExpiryWindow}
+              onChange={onInputChange}
               placeholder="Select"
               value={activityExpiryWindow}
               label="Max activity age"
@@ -261,7 +255,7 @@ const Advanced = ({
             />
           )}
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="disableLiveQuery"
             value={disableLiveQuery}
             parseTarget
@@ -278,7 +272,7 @@ const Advanced = ({
             Disable live queries
           </Checkbox>
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="disableScripts"
             value={disableScripts}
             parseTarget
@@ -295,7 +289,7 @@ const Advanced = ({
             Disable scripts
           </Checkbox>
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="disableQueryReports"
             value={disableQueryReports}
             parseTarget

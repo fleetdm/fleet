@@ -62,7 +62,7 @@ const Sso = ({
 
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
 
@@ -117,6 +117,8 @@ const Sso = ({
         enable_sso: enableSso,
         enable_sso_idp_login: enableSsoIdpLogin,
         enable_jit_provisioning: enableJitProvisioning,
+        issuer_uri: appConfig.sso_settings.issuer_uri,
+        enable_jit_role_sync: appConfig.sso_settings.enable_jit_role_sync,
       },
     };
 
@@ -129,7 +131,7 @@ const Sso = ({
         <SectionHeader title="Single sign-on options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="enableSso"
             value={enableSso}
             parseTarget
@@ -138,7 +140,7 @@ const Sso = ({
           </Checkbox>
           <InputField
             label="Identity provider name"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="idpName"
             value={idpName}
             parseTarget
@@ -149,7 +151,7 @@ const Sso = ({
           <InputField
             label="Entity ID"
             helpText="The URI you provide here must exactly match the Entity ID field used in identity provider configuration."
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="entityId"
             value={entityId}
             parseTarget
@@ -159,7 +161,7 @@ const Sso = ({
           />
           <InputField
             label="IDP image URL"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="idpImageUrl"
             value={idpImageUrl}
             parseTarget
@@ -171,7 +173,7 @@ const Sso = ({
           <InputField
             label="Metadata"
             type="textarea"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="metadata"
             value={metadata}
             parseTarget
@@ -183,7 +185,7 @@ const Sso = ({
           <InputField
             label="Metadata URL"
             helpText="If available from the identity provider, this is the preferred means of providing metadata."
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="metadataUrl"
             value={metadataUrl}
             parseTarget
@@ -192,7 +194,7 @@ const Sso = ({
             tooltip="A URL that references the identity provider metadata."
           />
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="enableSsoIdpLogin"
             value={enableSsoIdpLogin}
             parseTarget
@@ -201,7 +203,7 @@ const Sso = ({
           </Checkbox>
           {isPremiumTier && (
             <Checkbox
-              onChange={handleInputChange}
+              onChange={onInputChange}
               name="enableJitProvisioning"
               value={enableJitProvisioning}
               parseTarget

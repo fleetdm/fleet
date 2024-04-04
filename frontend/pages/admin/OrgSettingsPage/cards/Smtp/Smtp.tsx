@@ -78,7 +78,7 @@ const Smtp = ({
 
   const sesConfigured = appConfig.email?.backend === "ses" || false;
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
 
@@ -150,7 +150,7 @@ const Smtp = ({
       <>
         <InputField
           label="SMTP username"
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpUsername"
           value={smtpUsername}
           parseTarget
@@ -161,7 +161,7 @@ const Smtp = ({
         <InputField
           label="SMTP password"
           type="password"
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpPassword"
           value={smtpPassword}
           parseTarget
@@ -173,7 +173,7 @@ const Smtp = ({
           label="Auth method"
           options={authMethodOptions}
           placeholder=""
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpAuthenticationMethod"
           value={smtpAuthenticationMethod}
           parseTarget
@@ -205,7 +205,7 @@ const Smtp = ({
     return (
       <form onSubmit={onFormSubmit} autoComplete="off">
         <Checkbox
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="enableSMTP"
           value={enableSMTP}
           parseTarget
@@ -214,7 +214,7 @@ const Smtp = ({
         </Checkbox>
         <InputField
           label="Sender address"
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpSenderAddress"
           value={smtpSenderAddress}
           parseTarget
@@ -225,7 +225,7 @@ const Smtp = ({
         <div className="smtp-server-inputs">
           <InputField
             label="SMTP server"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="smtpServer"
             value={smtpServer}
             parseTarget
@@ -236,7 +236,7 @@ const Smtp = ({
           <InputField
             label="&nbsp;"
             type="number"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="smtpPort"
             value={smtpPort}
             parseTarget
@@ -245,7 +245,7 @@ const Smtp = ({
           />
         </div>
         <Checkbox
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpEnableSSLTLS"
           value={smtpEnableSSLTLS}
           parseTarget
@@ -255,7 +255,7 @@ const Smtp = ({
         <Dropdown
           label="Authentication type"
           options={authTypeOptions}
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpAuthenticationType"
           value={smtpAuthenticationType}
           parseTarget
