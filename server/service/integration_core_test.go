@@ -6397,10 +6397,11 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+	testCvePrefix := "cve-123-123"
 	for i, sw := range hosts[0].Software[:10] {
 		inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
 			SoftwareID: sw.ID,
-			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
+			CVE:        fmt.Sprintf(testCvePrefix+"-%03d", i),
 		}, fleet.NVDSource)
 		require.NoError(t, err)
 		require.True(t, inserted)
@@ -6618,25 +6619,30 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	// TODO(jacob) use `assertVersionsResp`
 	versionsResp := listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", sws[0].Name)
-	require.Len(t, versionsResp.Software, 1)
-	require.True(t, versionsResp.Count == 1)
-	require.Equal(t, sws[0].Name, versionsResp.Software[0].Name)
-	// TODO(jacob) - with whitespace
+	assertVersionsResp(versionsResp, []fleet.Software{sws[0]}, hostsCountTs, "", 1, 1)
+	// with whitespace
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", " "+sws[0].Name+"\n")
+	assertVersionsResp(versionsResp, []fleet.Software{sws[0]}, hostsCountTs, "", 1, 1)
 
-	versionsResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", sws[0].Version)
-	require.Len(t, versionsResp.Software, 1)
-	require.True(t, versionsResp.Count == 1)
-	require.Equal(t, sws[0].Version, versionsResp.Software[0].Version)
-	// TODO(jacob) - with whitespace
+	assertVersionsResp(versionsResp, []fleet.Software{sws[0]}, hostsCountTs, "", 1, 1)
+	// with whitespace
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", "\n"+sws[0].Version+"  ")
+	assertVersionsResp(versionsResp, []fleet.Software{sws[0]}, hostsCountTs, "", 1, 1)
 
-	versionsResp = listSoftwareVersionsResponse{}
-	// "cve-123-123 is the prefix for all 10 CVEs added to the first 10 software, so should return all
-	// 10 vulnerable software versions"
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", "cve-123-123")
+	// All 10 CVEs added to the first 10 software have the same cvePrefix, so should return all
+	// 10 vulnerable software versions
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", testCvePrefix)
 	require.Len(t, versionsResp.Software, 10)
-	require.True(t, versionsResp.Count == 10)
-	// TODO(jacob) - with whitespace
+	require.Equal(t, 10, versionsResp.Count)
+	// TODO(jacob) use `assertVersionsResp`
+	// assertVersionsResp(versionsResp, sws[:10], hostsCountTs, "", 10, 1)
+	// with whitespace
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", "  "+testCvePrefix+"\n")
+	require.Len(t, versionsResp.Software, 10)
+	require.Equal(t, 10, versionsResp.Count)
+	// TODO(jacob) use `assertVersionsResp`
+	// assertVersionsResp(versionsResp, sws[:10], hostsCountTs, "", 10, 1)
 
 	// filter by the team, 2 by page
 	lsResp = listSoftwareResponse{}
