@@ -214,15 +214,15 @@ If you need to track content from a Slack channel (ie. #g-sales), you can automa
 
 **Fleet Free:**
 
-| Impact Level | Definition | Preferred Contact | Response Time |
+| Impact level | Definition | Preferred contact | Response time |
 |:---|:---|:---|:---|
-| All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
+| All inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
 
 > **Note:** If you're using Fleet Free, you can also access community support by [opening a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) in the [Fleet GitHub](https://github.com/fleetdm/fleet/) repository.
 
 **Fleet Premium:**
 
-| Impact Level | Definition | Preferred Contact | Response Time |
+| Impact level | Definition | Preferred contact | Response time |
 |:-----|:----|:----|:-----|
 | Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
 | High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
