@@ -36,7 +36,7 @@ const FleetDesktop = ({
 
   const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
 
-  const handleInputChange = ({ value }: IFormField) => {
+  const onInputChange = ({ value }: IFormField) => {
     setFormData({ transparencyUrl: value.toString() });
     setFormErrors({});
   };
@@ -75,7 +75,7 @@ const FleetDesktop = ({
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Custom transparency URL"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="transparency_url"
             value={formData.transparencyUrl}
             parseTarget

@@ -31,7 +31,7 @@ const WebAddress = ({
 
   const [formErrors, setFormErrors] = useState<IWebAddressFormErrors>({});
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
@@ -72,7 +72,7 @@ const WebAddress = ({
                 Include base path only (eg. no <code>/latest</code>)
               </>
             }
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="serverURL"
             value={serverURL}
             parseTarget

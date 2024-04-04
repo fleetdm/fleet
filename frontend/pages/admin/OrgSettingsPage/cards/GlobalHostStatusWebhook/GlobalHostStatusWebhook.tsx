@@ -66,7 +66,7 @@ const GlobalHostStatusWebhook = ({
     setFormErrors,
   ] = useState<IGlobalHostStatusWebhookFormErrors>({});
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
@@ -106,6 +106,10 @@ const GlobalHostStatusWebhook = ({
           host_percentage: hostStatusWebhookHostPercentage,
           days_count: hostStatusWebhookWindow,
         },
+        failing_policies_webhook:
+          appConfig.webhook_settings.failing_policies_webhook,
+        vulnerabilities_webhook:
+          appConfig.webhook_settings.vulnerabilities_webhook,
       },
     };
 
@@ -142,7 +146,7 @@ const GlobalHostStatusWebhook = ({
             Send an alert if a portion of your hosts go offline.
           </p>
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="enableHostStatusWebhook"
             value={enableHostStatusWebhook}
             parseTarget
@@ -168,7 +172,7 @@ const GlobalHostStatusWebhook = ({
               <InputField
                 placeholder="https://server.com/example"
                 label="Destination URL"
-                onChange={handleInputChange}
+                onChange={onInputChange}
                 name="destination_url"
                 value={destination_url}
                 parseTarget
@@ -184,7 +188,7 @@ const GlobalHostStatusWebhook = ({
               <Dropdown
                 label="Percentage of hosts"
                 options={percentageHostsOptions}
-                onChange={handleInputChange}
+                onChange={onInputChange}
                 name="hostStatusWebhookHostPercentage"
                 value={hostStatusWebhookHostPercentage}
                 parseTarget
@@ -203,7 +207,7 @@ const GlobalHostStatusWebhook = ({
               <Dropdown
                 label="Number of days"
                 options={windowOptions}
-                onChange={handleInputChange}
+                onChange={onInputChange}
                 name="hostStatusWebhookWindow"
                 value={hostStatusWebhookWindow}
                 parseTarget
