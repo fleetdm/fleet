@@ -26,7 +26,7 @@ module.exports = {
     if (this.req.me) {
       if(this.req.me.isSuperAdmin){
         throw {redirect: '/admin/generate-license'};
-      } else if(this.req.me.hasBillingCard) {
+      } else {
         throw {redirect: '/start'};
       }
     }
