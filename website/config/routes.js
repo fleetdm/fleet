@@ -287,40 +287,6 @@ module.exports.routes = {
     }
   },
 
-
-  //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
-  //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
-  //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
-  'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
-  'GET /imagine/higher-education': {
-    action: 'imagine/view-higher-education',
-    locals: {
-      pageTitleForMeta: 'Fleet for higher education',
-      pageDescriptionForMeta: 'Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.',
-    }
-  },
-  'GET /imagine/rapid-7-alternative': {
-    action: 'imagine/view-rapid-7-alternative',
-    locals: {
-      pageTitleForMeta: 'An open-source alternative to Rapid7',
-      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
-    }
-  },
-  'GET /imagine/defcon-31': {
-    action: 'imagine/view-defcon-31',
-    locals: {
-      pageTitleForMeta: 'Fleet at DefCon 31',
-      pageDescriptionForMeta: 'Find Fleet at DefCon and get a custom tee shirt.',
-    }
-  },
-  'GET /imagine/jamf-alternative': {
-    action: 'imagine/view-jamf-alternative',
-    locals: {
-      pageTitleForMeta: 'An open-source alternative to Jamf',
-      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
-    }
-  },
-
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
