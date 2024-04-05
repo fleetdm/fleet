@@ -52,7 +52,6 @@ import {
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
-import { createMockHostMdmProfile } from "__mocks__/hostMock";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -930,9 +929,11 @@ const HostDetailsPage = ({
         )}
         {showOSSettingsModal && (
           <OSSettingsModal
+            hostId={host.id}
             platform={host?.platform}
             hostMDMData={host?.mdm}
             onClose={toggleOSSettingsModal}
+            onProfileResent={refetchHostDetails}
           />
         )}
         {showUnenrollMdmModal && !!host && (

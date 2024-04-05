@@ -7,17 +7,21 @@ import OSSettingsTable from "./OSSettingsTable";
 import { generateTableData } from "./OSSettingsTable/OSSettingsTableConfig";
 
 interface IOSSettingsModalProps {
+  hostId?: number;
   platform?: string;
   hostMDMData?: IHostMdmData;
   onClose: () => void;
+  onProfileResent?: () => void;
 }
 
 const baseClass = "os-settings-modal";
 
 const OSSettingsModal = ({
+  hostId,
   platform,
   hostMDMData,
   onClose,
+  onProfileResent,
 }: IOSSettingsModalProps) => {
   // the caller should ensure that hostMDMData is not undefined and that platform is "windows" or
   // "darwin", otherwise we will allow an empty modal will be rendered.
@@ -36,7 +40,11 @@ const OSSettingsModal = ({
       width="large"
     >
       <>
-        <OSSettingsTable tableData={memoizedTableData || []} />
+        <OSSettingsTable
+          hostId={hostId}
+          tableData={memoizedTableData || []}
+          onProfileResent={onProfileResent}
+        />
         <div className="modal-cta-wrap">
           <Button variant="brand" onClick={onClose}>
             Done

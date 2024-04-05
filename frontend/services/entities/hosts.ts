@@ -512,4 +512,10 @@ export default {
     const { HOST_WIPE } = endpoints;
     return sendRequest("POST", HOST_WIPE(id));
   },
+
+  resendProfile: (hostId: number, profileUUID: string) => {
+    const { HOST_RESEND_PROFILE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
+  },
 };
