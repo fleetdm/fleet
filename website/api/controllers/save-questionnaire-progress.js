@@ -20,7 +20,7 @@ module.exports = {
         'what-are-you-working-on-eo-security',
         'what-does-your-team-manage-eo-it',
         'what-does-your-team-manage-vm',
-        'what-does-your-team-manage-mdm',
+        'what-do-you-manage-mdm',
         'is-it-any-good',
         'what-did-you-think',
         'deploy-fleet-in-your-environment',

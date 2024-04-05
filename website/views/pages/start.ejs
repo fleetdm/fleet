@@ -339,28 +339,28 @@
       //  ┌┬┐┌┬┐┌┬┐
       //  │││ │││││
       //  ┴ ┴─┴┘┴ ┴%>
-    <div v-if="currentStep === 'what-does-your-team-manage-mdm'">
+    <div v-if="currentStep === 'what-do-you-manage-mdm'">
       <div purpose="progress-bar-container">
         <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
-      <h2>What does your team manage?</h2>
-      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-does-your-team-manage-mdm']" :form-rules="mdmUseCaseFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+      <h2>What do you manage?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-do-you-manage-mdm']" :form-rules="mdmUseCaseFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div class="form-group">
 
           <div class="form-group" :class="[formErrors.mdmUseCase ? 'is-invalid' : '']">
-            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-mdm'].mdmUseCase === 'mostly-macs' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formData['what-does-your-team-manage-mdm'].mdmUseCase" value="mostly-macs" @input="clickClearOneFormError('mdmUseCase')">
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'mostly-macs' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="mostly-macs" @input="clickClearOneFormError('mdmUseCase')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Mostly Macs
             </label>
-            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-mdm'].mdmUseCase === 'mostly-windows' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formData['what-does-your-team-manage-mdm'].mdmUseCase" value="mostly-windows" @input="clickClearOneFormError('mdmUseCase')">
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'mostly-windows' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="mostly-windows" @input="clickClearOneFormError('mdmUseCase')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Mostly Windows
             </label>
-            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-mdm'].mdmUseCase === 'about-half-and-half' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formData['what-does-your-team-manage-mdm'].mdmUseCase" value="about-half-and-half" @input="clickClearOneFormError('mdmUseCase')">
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'about-half-and-half' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="about-half-and-half" @input="clickClearOneFormError('mdmUseCase')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               About half and half
             </label>

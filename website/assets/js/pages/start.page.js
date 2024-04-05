@@ -17,7 +17,7 @@ parasails.registerPage('start', {
       'what-are-you-working-on-eo-security': {},
       'what-does-your-team-manage-eo-it': {},
       'what-does-your-team-manage-vm': {},
-      'what-does-your-team-manage-mdm': {},
+      'what-do-you-manage-mdm': {},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
     },
@@ -126,7 +126,7 @@ parasails.registerPage('start', {
           } else if(primaryBuyingSituation === 'vm') {
             this.currentStep = 'what-does-your-team-manage-vm';
           } else if(primaryBuyingSituation === 'mdm') {
-            this.currentStep = 'what-does-your-team-manage-mdm';
+            this.currentStep = 'what-do-you-manage-mdm';
           }
           break;
         case 'lets-talk-to-your-team':
@@ -147,7 +147,7 @@ parasails.registerPage('start', {
         case 'what-does-your-team-manage-vm':
           this.currentStep = 'have-you-ever-used-fleet';
           break;
-        case 'what-does-your-team-manage-mdm':
+        case 'what-do-you-manage-mdm':
           this.currentStep = 'have-you-ever-used-fleet';
           break;
       }
@@ -174,7 +174,7 @@ parasails.registerPage('start', {
             } else if(primaryBuyingSituation === 'vm') {
               nextStepInForm = 'what-does-your-team-manage-vm';
             } else if(primaryBuyingSituation === 'mdm') {
-              nextStepInForm = 'what-does-your-team-manage-mdm';
+              nextStepInForm = 'what-do-you-manage-mdm';
             }
           }
           break;
@@ -202,7 +202,7 @@ parasails.registerPage('start', {
         case 'what-does-your-team-manage-vm':
           nextStepInForm = 'is-it-any-good';
           break;
-        case 'what-does-your-team-manage-mdm':
+        case 'what-do-you-manage-mdm':
           nextStepInForm = 'is-it-any-good';
           break;
         case 'is-it-any-good':
