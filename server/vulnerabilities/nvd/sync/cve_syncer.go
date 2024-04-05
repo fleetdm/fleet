@@ -4,10 +4,13 @@
 package nvdsync
 
 import (
+	"archive/zip"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -139,7 +142,7 @@ func (s *CVE) initVulnCheckSync(ctx context.Context) error {
 	// Perform the initial download of all CVE information.
 	err := s.vulnCheckSync(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("error syncing vulncheck: %w", err)
 	}
 
 	return nil
@@ -241,7 +244,7 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	return nil
 }
 
-func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE) error {
+func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, addCount *int) error {
 	// The NVD legacy feed files start at year 2002.
 	// This is assumed by the facebookincubator/nvdtools package.
 	if year < 2002 {
@@ -249,12 +252,12 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE) error {
 	}
 
 	// Read the CVE file for the year.
-	readStart := time.Now()
+	// readStart := time.Now()
 	storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, year)
 	if err != nil {
 		return err
 	}
-	level.Debug(s.logger).Log("msg", "read cves", "year", year, "duration", time.Since(readStart))
+	// level.Debug(s.logger).Log("msg", "read cves", "year", year, "duration", time.Since(readStart))
 
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
@@ -286,12 +289,14 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE) error {
 			delete(newLegacyCVEs, storedCVE.CVE.CVEDataMeta.ID)
 		}
 	}
-	level.Debug(s.logger).Log("msg", "updated vulncheck cves", "year", year, "count", counter, "duration", time.Since(updateStart))
+	*modCount += counter
+	level.Debug(s.logger).Log("msg", "updating vulncheck cves", "year", year, "count", counter, "duration", time.Since(updateStart))
 
 	// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
 	//
 	// Any leftover items from the previous loop in newLegacyCVEs are new CVEs.
 	level.Debug(s.logger).Log("msg", "adding new vulncheck cves", "year", year, "count", len(newLegacyCVEs))
+	*addCount += len(newLegacyCVEs)
 	for _, cve := range newLegacyCVEs {
 		storedCVEFeed.CVEItems = append(storedCVEFeed.CVEItems, cve)
 		// level.Debug(s.logger).Log("msg", "added new vulncheck cve", "year", year, "cve", cve.CVE.CVEDataMeta.ID)
@@ -299,11 +304,11 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE) error {
 	storedCVEFeed.CVEDataNumberOfCVEs = strconv.FormatInt(int64(len(storedCVEFeed.CVEItems)), 10)
 
 	// Store the file for the year.
-	storeStart := time.Now()
+	// storeStart := time.Now()
 	if err := storeCVEsInLegacyFormat(s.dbDir, year, storedCVEFeed); err != nil {
 		return err
 	}
-	level.Debug(s.logger).Log("msg", "stored updated cves", "year", year, "duration", time.Since(storeStart))
+	// level.Debug(s.logger).Log("msg", "stored updated cves", "year", year, "duration", time.Since(storeStart))
 
 	return nil
 }
@@ -480,9 +485,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 }
 
 func (s *CVE) vulnCheckSync(ctx context.Context) error {
-	var nextCursor string
 	cvesByYear := make(map[int][]VulnCheckCVE)
-	retryAttempts := 0
 
 	apiKey := os.Getenv("VULNCHECK_API_KEY")
 
@@ -490,88 +493,215 @@ func (s *CVE) vulnCheckSync(ctx context.Context) error {
 		return errors.New("VULNCHECK_API_KEY environment variable not set")
 	}
 
-	baseURL := "https://api.vulncheck.com/v3/index/nist-nvd2/cursor"
+	baseURL := "https://api.vulncheck.com/v3/backup/nist-nvd2"
 
-	for {
-		params := url.Values{}
-		params.Add("lastModStartDate", "2024-02-01")
-		params.Add("limit", "500")
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		return err
+	}
 
-		if nextCursor != "" {
-			params.Add("cursor", nextCursor)
-		}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+	if err != nil {
+		return err
+	}
 
-		parsedURL, err := url.Parse(baseURL)
+	req.Header.Add("Authorization", "Bearer "+apiKey)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	// if resp.StatusCode != http.StatusOK {
+	// 	if retryAttempts > maxRetryAttempts {
+	// 		return err
+	// 	}
+	// 	s.logger.Log("msg", "NVD request returned error", "err", err, "retry-in", waitTimeForRetry)
+	// 	retryAttempts++
+	// 	select {
+	// 	case <-ctx.Done():
+	// 		return ctx.Err()
+	// 	case <-time.After(waitTimeForRetry):
+	// 		continue
+	// 	}
+	// }
+
+	var vcResponse VulnCheckBackupResponse
+
+	if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
+		return err
+	}
+
+	var downloadURL string
+	if len(vcResponse.Data) > 0 {
+		downloadURL = vcResponse.Data[0].URL
+	}
+
+	if downloadURL == "" {
+		return errors.New("no download URL found")
+	}
+
+	parsedURL, err = url.Parse(downloadURL)
+	if err != nil {
+		return err
+	}
+
+	// Download the file
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err = s.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	out, err := os.Create(filepath.Join(s.dbDir, "vulncheck.zip"))
+	if err != nil {
+		return err
+	}
+
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	// unzip the file to a temporary directory
+	// err = unzipFile(filepath.Join(s.dbDir, "vulncheck.zip"), filepath.Join(s.dbDir, "vulncheck"))
+	zipReader, err := zip.OpenReader(filepath.Join(s.dbDir, "vulncheck.zip"))
+	if err != nil {
+		return err
+	}
+	defer zipReader.Close()
+
+	// files, err := os.ReadDir(filepath.Join(s.dbDir, "./vulncheck"))
+	// if err != nil {
+	// 	return err
+	// }
+
+	sort.Slice(zipReader.File, func(i, j int) bool {
+		return zipReader.File[i].Name > zipReader.File[j].Name
+	})
+
+	var data VulnCheckBackupDataFile
+
+	var found bool
+
+	// read,  unmarshal, and process the JSON files in reverse alpha order until the mod date is
+	// older than 2024-02-01
+	var addCount int
+	var modCount int
+	for _, file := range zipReader.File {
+
+		gzFile, err := file.Open()
 		if err != nil {
-			return err
+			return fmt.Errorf("error opening file %s: %w", file.Name, err)
 		}
+		defer gzFile.Close()
 
-		parsedURL.RawQuery = params.Encode()
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+		gReader, err := gzip.NewReader(gzFile)
 		if err != nil {
-			return err
+			return fmt.Errorf("error creating gzip reader for file %s: %w", file.Name, err)
+		}
+		defer gReader.Close()
+
+		if err := json.NewDecoder(gReader).Decode(&data); err != nil {
+			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
 		}
 
-		req.Header.Add("Authorization", "Bearer "+apiKey)
+		var startDate time.Time = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
 
-		resp, err := s.client.Do(req)
-		if err != nil {
-			return err
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			if retryAttempts > maxRetryAttempts {
-				return err
-			}
-			s.logger.Log("msg", "NVD request returned error", "err", err, "retry-in", waitTimeForRetry)
-			retryAttempts++
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(waitTimeForRetry):
+		for _, cve := range data.Vulnerabilities {
+			if cve.Item.CVE.LastModified == nil {
 				continue
 			}
-		}
-
-		defer resp.Body.Close()
-
-		var vcResponse VulnCheckResponse
-
-		if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
-			return err
-		}
-
-		level.Debug(s.logger).Log("msg", "received vulncheck response", "cursor", derefPtr(vcResponse.Meta.NextCursor), "vulns", len(vcResponse.Vulnerabilities))
-
-		for _, vuln := range vcResponse.Vulnerabilities {
-
-			if vuln.CVE.ID == nil {
+			lastMod, err := time.Parse("2006-01-02T15:04:05.999", *cve.Item.CVE.LastModified)
+			if err != nil {
+				return fmt.Errorf("error parsing last modified date for %s: %w", *cve.Item.ID, err)
+			}
+			if lastMod.Before(startDate) {
+				found = true
 				continue
 			}
 
-			id := *vuln.CVE.ID
-			year, err := strconv.Atoi(id[4:8])
+			year, err := strconv.Atoi((*cve.Item.CVE.ID)[4:8])
 			if err != nil {
 				return err
 			}
-			cvesByYear[year] = append(cvesByYear[year], vuln)
+
+			cvesByYear[year] = append(cvesByYear[year], cve.Item)
 		}
 
-		fmt.Println("lastmod:", *vcResponse.Vulnerabilities[len(vcResponse.Vulnerabilities)-1].CVE.LastModified)
+		level.Debug(s.logger).Log("msg", "read vulncheck file", "file", file.Name)
 
 		for year, cvesInYear := range cvesByYear {
-			if err := s.updateVulnCheckYearFile(year, cvesInYear); err != nil {
+			// start := time.Now()
+			if err := s.updateVulnCheckYearFile(year, cvesInYear, &modCount, &addCount); err != nil {
 				return err
 			}
+			// level.Debug(s.logger).Log("msg", "updated file", "year", year, "duration", time.Since(start), "vulns", len(cvesInYear))
 		}
 
-		if vcResponse.Meta.NextCursor == nil {
-			return nil
+		if found {
+			break
 		}
-
-		nextCursor = *vcResponse.Meta.NextCursor
 	}
+
+	level.Debug(s.logger).Log("total updated", modCount, "total added", addCount)
+
+	return nil
+}
+
+func unzipFile(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+
+	defer r.Close()
+
+	if err = os.MkdirAll(dest, os.ModePerm); err != nil {
+		return err
+	}
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		defer rc.Close()
+
+		path := filepath.Join(dest, f.Name)
+
+		if f.FileInfo().IsDir() {
+			if err := os.MkdirAll(path, f.Mode()); err != nil {
+				return err
+			}
+			continue
+		}
+
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			return err
+		}
+
+		defer file.Close()
+
+		if _, err = io.Copy(file, file); err != nil {
+			return err
+		}
+
+	}
+
+	return nil
 }
 
 // fileExists returns whether a file at path exists.
