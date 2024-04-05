@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -426,11 +427,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			return ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name)
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", spec.Name)))
+			return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", spec.Name), http.StatusUnprocessableEntity)
 		}
 		for name := range fleet.ReservedLabelNames() {
 			if spec.Name == name {
-				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot modify built-in label '%s'", name)))
+				return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", name), http.StatusUnprocessableEntity)
 			}
 		}
 	}
