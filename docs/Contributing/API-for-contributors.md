@@ -2287,6 +2287,8 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Refetch device's host](#refetch-devices-host)
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
+- [Get Fleet Desktop information](#get-fleet-desktop-information)
+- [Get device's software](#get-devices-software)
 - [Get device's policies](#get-devices-policies)
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
