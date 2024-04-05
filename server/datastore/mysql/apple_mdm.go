@@ -987,8 +987,7 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  added_at = CURRENT_TIMESTAMP,
-		  deleted_at = NULL,
-		  assign_profile_response = NULL`
+		  deleted_at = NULL`
 
 	args := []interface{}{}
 	values := []string{}

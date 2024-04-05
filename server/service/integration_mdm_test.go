@@ -5448,6 +5448,20 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 				},
 			})
 			require.NoError(t, err)
+
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = map[string]string{
+				prof.Devices[0]: string(fleet.DEPAssignProfileResponseSuccess),
+			}
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
 		}
 	}))
 	s.runDEPSchedule()
@@ -5562,6 +5576,19 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhookErrors() {
 					},
 				},
 			})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = map[string]string{
+				prof.Devices[0]: string(fleet.DEPAssignProfileResponseSuccess),
+			}
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(resp)
 			require.NoError(t, err)
 		}
 	}))
@@ -7158,6 +7185,18 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			}
 		}))
 
+		cleanAssignmentStatus := func() {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				stmt := `UPDATE host_dep_assignments
+					 SET assign_profile_response = NULL,
+					     response_updated_at = NULL,
+					     profile_uuid = NULL
+					 WHERE host_id = ?`
+				_, err := q.ExecContext(context.Background(), stmt, host.ID)
+				return err
+			})
+		}
+
 		// simulate that the device is enrolled in a third-party MDM and DEP capable
 		err := s.ds.SetOrUpdateMDMData(
 			ctx,
@@ -7189,6 +7228,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+		cleanAssignmentStatus()
 
 		// simulate a "FAILED" JSON profile assignment
 		profileAssignmentStatusResponse = fleet.DEPAssignProfileResponseFailed
@@ -7204,6 +7244,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
 		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+		cleanAssignmentStatus()
 
 		// simulate a "NOT_ACCESSIBLE" JSON profile assignment
 		profileAssignmentStatusResponse = fleet.DEPAssignProfileResponseNotAccessible
@@ -7218,6 +7259,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
 		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+		cleanAssignmentStatus()
 
 		// simulate a "SUCCESS" JSON profile assignment
 		profileAssignmentStatusResponse = fleet.DEPAssignProfileResponseSuccess
@@ -7231,6 +7273,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.True(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+		cleanAssignmentStatus()
 
 		// simulate that the device needs to be enrolled in fleet, DEP capable
 		err = s.ds.SetOrUpdateMDMData(
