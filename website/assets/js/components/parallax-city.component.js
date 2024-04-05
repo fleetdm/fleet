@@ -37,9 +37,7 @@ parasails.registerComponent('parallaxCity', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div>
-    <div purpose="static-cloud-city" v-if="disableAnimation">
-    </div>
-    <div purpose="parallax-city-container" v-else>
+    <div purpose="parallax-city-container" v-if="enableAnimation">
       <div class="parallax-layer" purpose="background-cloud-2" scroll-amount="4"></div>
       <div class="parallax-layer" purpose="background-cloud-1" scroll-amount="6"></div>
       <div class="parallax-layer" purpose="small-island-2" scroll-amount="16"></div>
@@ -47,6 +45,8 @@ parasails.registerComponent('parallaxCity', {
       <div class="parallax-layer" purpose="large-island" scroll-amount="24"></div>
       <div class="parallax-layer" purpose="foreground-cloud-2" scroll-amount="32"></div>
       <div class="parallax-layer" purpose="foreground-cloud-1" scroll-amount="40"></div>
+    </div>
+    <div purpose="static-cloud-city" v-else>
     </div>
   </div>
   `,
