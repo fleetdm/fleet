@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
@@ -92,10 +93,6 @@ func NewCVE(dbDir string, opts ...CVEOption) (*CVE, error) {
 
 func (s *CVE) lastModStartDateFilePath() string {
 	return filepath.Join(s.dbDir, "last_mod_start_date.txt")
-}
-
-func (s *CVE) lastVulnCheckModStartDateFilePath() string {
-	return filepath.Join(s.dbDir, "last_vuln_check_mod_start_date.txt")
 }
 
 // Do runs the synchronization from the NVD service to the local DB directory.
@@ -575,7 +572,12 @@ func (s *CVE) vulnCheckSync(ctx context.Context) error {
 
 	// unzip the file to a temporary directory
 	// err = unzipFile(filepath.Join(s.dbDir, "vulncheck.zip"), filepath.Join(s.dbDir, "vulncheck"))
-	zipReader, err := zip.OpenReader(filepath.Join(s.dbDir, "vulncheck.zip"))
+	sanitizedPath, err := sanitizeArchivePath(s.dbDir, "vulncheck.zip")
+	if err != nil {
+		return fmt.Errorf("error sanitizing archive path: %w", err)
+	}
+
+	zipReader, err := zip.OpenReader(sanitizedPath)
 	if err != nil {
 		return err
 	}
@@ -616,7 +618,7 @@ func (s *CVE) vulnCheckSync(ctx context.Context) error {
 			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
 		}
 
-		var startDate time.Time = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
+		startDate := time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
 
 		for _, cve := range data.Vulnerabilities {
 			if cve.Item.CVE.LastModified == nil {
@@ -659,49 +661,14 @@ func (s *CVE) vulnCheckSync(ctx context.Context) error {
 	return nil
 }
 
-func unzipFile(src, dest string) error {
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
+// Sanitize archive file pathing from "G305: Zip Slip vulnerability"
+func sanitizeArchivePath(d, t string) (v string, err error) {
+	v = filepath.Join(d, t)
+	if strings.HasPrefix(v, filepath.Clean(d)) {
+		return v, nil
 	}
 
-	defer r.Close()
-
-	if err = os.MkdirAll(dest, os.ModePerm); err != nil {
-		return err
-	}
-
-	for _, f := range r.File {
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-
-		defer rc.Close()
-
-		path := filepath.Join(dest, f.Name)
-
-		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(path, f.Mode()); err != nil {
-				return err
-			}
-			continue
-		}
-
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
-			return err
-		}
-
-		defer file.Close()
-
-		if _, err = io.Copy(file, file); err != nil {
-			return err
-		}
-
-	}
-
-	return nil
+	return "", fmt.Errorf("%s: %s", "content filepath is tainted", t)
 }
 
 // fileExists returns whether a file at path exists.
@@ -741,61 +708,9 @@ func storeCVEsInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJ
 	return nil
 }
 
-func storeVulnCheckInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJSON10) error {
-	sort.Slice(cveFeed.CVEItems, func(i, j int) bool {
-		return cveFeed.CVEItems[i].CVE.CVEDataMeta.ID < cveFeed.CVEItems[j].CVE.CVEDataMeta.ID
-	})
-
-	path := filepath.Join(dbDir, fmt.Sprintf("vulncheck-%d.json", year))
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	jsonEncoder := json.NewEncoder(file)
-	jsonEncoder.SetIndent("", "  ")
-	if err := jsonEncoder.Encode(cveFeed); err != nil {
-		return err
-	}
-
-	if err := file.Close(); err != nil {
-		return err
-	}
-	return nil
-}
-
 // readCVEsLegacyFormat loads the CVEs stored in the legacy feed format.
 func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, error) {
 	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json", year))
-
-	file, err := os.Open(path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return &schema.NVDCVEFeedJSON10{
-				CVEDataFormat:    "MITRE",
-				CVEDataTimestamp: time.Now().Format("2006-01-02T15:04:05Z"),
-				CVEDataType:      "CVE",
-				CVEDataVersion:   "4.0",
-			}, nil
-		}
-		return nil, err
-	}
-	defer file.Close()
-
-	var cveFeed schema.NVDCVEFeedJSON10
-	if err := json.NewDecoder(file).Decode(&cveFeed); err != nil {
-		return nil, err
-	}
-
-	if err := file.Close(); err != nil {
-		return nil, err
-	}
-	return &cveFeed, nil
-}
-
-func readVulnCheckLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, error) {
-	path := filepath.Join(dbDir, fmt.Sprintf("vulncheck-%d.json", year))
 
 	file, err := os.Open(path)
 	if err != nil {
