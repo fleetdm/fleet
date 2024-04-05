@@ -51,6 +51,7 @@ import {
   DEFAULT_GRAVATAR_LINK_DARK_FALLBACK,
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
+  isPlatformLabelNameFromAPI,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -220,10 +221,14 @@ export const formatFloatAsPercentage = (float?: number): string => {
 
 const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: ILabel) => {
+    let labelType = "custom";
+    if (isPlatformLabelNameFromAPI(label.display_text)) {
+      labelType = PLATFORM_LABEL_DISPLAY_TYPES[label.display_text];
+    }
     return {
       ...label,
       slug: labelSlug(label),
-      type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      type: labelType,
       target_type: "labels",
     };
   });
