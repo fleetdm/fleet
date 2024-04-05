@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
@@ -1166,15 +1168,36 @@ func processCalendarPolicies(
 	}
 
 	go func() {
-		if err := fleet.FireCalendarWebhook(
-			team.Config.Integrations.GoogleCalendar.WebhookURL,
-			host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
-		); err != nil {
+		retryStrategy := backoff.NewExponentialBackOff()
+		retryStrategy.MaxElapsedTime = 30 * time.Minute
+		err := backoff.Retry(
+			func() error {
+				if err := fleet.FireCalendarWebhook(
+					team.Config.Integrations.GoogleCalendar.WebhookURL,
+					host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
+				); err != nil {
+					var statusCoder kithttp.StatusCoder
+					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {
+						level.Debug(logger).Log("msg", "fire webhook", "err", err)
+						if err := ds.UpdateHostCalendarWebhookStatus(
+							context.Background(), host.ID, fleet.CalendarWebhookStatusRetry,
+						); err != nil {
+							level.Error(logger).Log("msg", "mark fired webhook as retry", "err", err)
+						}
+						return err
+					}
+					return backoff.Permanent(err)
+				}
+				return nil
+			}, retryStrategy,
+		)
+		nextStatus := fleet.CalendarWebhookStatusSent
+		if err != nil {
 			level.Error(logger).Log("msg", "fire webhook", "err", err)
-			return
+			nextStatus = fleet.CalendarWebhookStatusError
 		}
-		if err := ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusSent); err != nil {
-			level.Error(logger).Log("msg", "mark fired webhook as sent", "err", err)
+		if err := ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, nextStatus); err != nil {
+			level.Error(logger).Log("msg", fmt.Sprintf("mark fired webhook as %v", nextStatus), "err", err)
 		}
 	}()
 
