@@ -324,7 +324,7 @@ changelog-orbit:
 
 changelog-chrome:
 	sh -c "find ee/fleetd-chrome/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
-	sh -c "cat new-CHANGELOG.md orbit/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md"
+	sh -c "cat new-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md"
 	sh -c "git rm ee/fleetd-chrome/changes/*"
 
 # Updates the documentation for the currently released versions of fleetd components in Fleet's TUF.
