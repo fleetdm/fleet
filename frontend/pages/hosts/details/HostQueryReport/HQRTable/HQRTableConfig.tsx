@@ -47,7 +47,7 @@ const generateColumnConfigs = (rows: IWebSocketData[]): IHQRTTableColumn[] =>
         const val = cellProps?.cell?.value;
         return !!val?.length && val.length > 300
           ? internallyTruncateText(val)
-          : <>val</> ?? null;
+          : <>{val}</> ?? null;
       },
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",
