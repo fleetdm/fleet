@@ -37,6 +37,7 @@ module.exports = {
 
   exits: {
     success: {
+      outputDescription: 'All get started questionnaire answers accumulated so far by this user.',
       outputType: {}
     },
   },
@@ -44,10 +45,7 @@ module.exports = {
 
   fn: async function ({currentStep, formData}) {
     // find this user's DB record.
-    let userRecord = await User.findOne({id: this.req.me.id});
-    if(!userRecord){
-      throw new Error(`Consistency violation: when trying to save a user's progress in the get started questionnaire, a User record with the ID ${this.req.me.id} could not be found.`);
-    }
+    let userRecord = this.req.me;
     let questionnaireProgress;
     // If this user doesn't have a lastSubmittedGetStartedQuestionnaireStep or getStartedQuestionnaireAnswers, create an empty dictionary to store their answers.
     if(!userRecord.lastSubmittedGetStartedQuestionnaireStep || _.isEmpty(userRecord.getStartedQuestionnaireAnswers)) {
