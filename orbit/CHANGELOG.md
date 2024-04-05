@@ -1,4 +1,6 @@
-- Add `parse_json`, `parse_jsonl`, `parse_xml`, and `parse_ini` tables.
+## Orbit 1.23.0 (Apr 05, 2024)
+
+* Add `parse_json`, `parse_jsonl`, `parse_xml`, and `parse_ini` tables.
 
 * Add exponential backoff to orbit enroll retries.
 
