@@ -68,47 +68,9 @@
   }
 
   [purpose='hero-logos'] {
-    margin-bottom: 80px;
     max-width: 1200px;
     padding-left: 60px;
     padding-right: 60px;
-    overflow-x: hidden;
-    width: 100%;
-  }
-  [purpose='logo-carousel'] {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    position: relative;
-    width: 100%;
-    overflow: hidden;
-    div {
-      white-space: nowrap;
-      animation: scroll-horizontal 80s linear infinite;
-    }
-    img {
-      vertical-align: middle;
-      height: 32px;
-      margin-right: 64px;
-    }
-    [purpose='fade-left'] {
-      height: 32px;
-      width: 80px;
-      position: absolute;
-      left: 0px;
-      bottom: 0px;
-      animation: none;
-      background: linear-gradient(90deg, #FFF 0%, rgba(255, 255, 255, 0.00) 100%);
-    }
-    [purpose='fade-right'] {
-      height: 32px;
-      width: 80px;
-      position: absolute;
-      right: 0px;
-      bottom: 0px;
-      animation: none;
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
-    }
   }
 
 
@@ -1135,26 +1097,6 @@
         font-size: 16px;
       }
     }
-    [purpose='hero-logos'] {
-      [purpose='wayfair-logo'] {
-        margin-right: 0px;
-      }
-      [purpose='uber-logo'] {
-        margin-left: 0px;
-        margin-right: auto;
-      }
-      [purpose='atlassian-logo'] {
-        margin-left: auto;
-        margin-right: 0px;
-      }
-      [purpose='fastly-logo'] {
-        margin-left: auto;
-        margin-right: auto;
-      }
-      [purpose='gusto-logo'] {
-        margin-left: 0px;
-      }
-    }
     [purpose='platform-block'] {
       margin-bottom: 100px;
     }
@@ -1277,11 +1219,6 @@
       padding-left: 20px;
       padding-right: 20px;
     }
-    [purpose='logo-carousel'] {
-      img {
-        margin-right: 48px;
-      }
-    }
     [purpose='video-modal'] {
       [purpose='modal-content'] {
         width: 95vw;
@@ -1379,11 +1316,6 @@
       padding-right: 20px;
       padding-left: 20px;
     }
-    [purpose='hero-logos'] {
-      img {
-        display: inline;
-      }
-    }
     [purpose='platform-block'] {
       margin-bottom: 80px;
     }
@@ -1428,13 +1360,6 @@
   }
 
 
-  @keyframes scroll-horizontal {
-    0% {
-      transform: translateX(50%);
-    }
-    100% {
-      transform: translateX(-50%);
-    }
-  }
+
 
 }

@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -195,18 +197,29 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.Integrations != nil {
-		// the team integrations must reference an existing global config integration.
-		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
-			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
-		}
+		if payload.Integrations.Jira != nil || payload.Integrations.Zendesk != nil {
+			// the team integrations must reference an existing global config integration.
+			if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
 
-		// integrations must be unique
-		if err := payload.Integrations.Validate(); err != nil {
-			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
-		}
+			// integrations must be unique
+			if err := payload.Integrations.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
 
-		team.Config.Integrations.Jira = payload.Integrations.Jira
-		team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
+			team.Config.Integrations.Jira = payload.Integrations.Jira
+			team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
+		}
+		// Only update the calendar integration if it's not nil
+		if payload.Integrations.GoogleCalendar != nil {
+			invalid := &fleet.InvalidArgumentError{}
+			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, invalid)
+			if invalid.HasErrors() {
+				return nil, ctxerr.Wrap(ctx, invalid)
+			}
+			team.Config.Integrations.GoogleCalendar = payload.Integrations.GoogleCalendar
+		}
 	}
 
 	if payload.WebhookSettings != nil || payload.Integrations != nil {
@@ -856,12 +869,16 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 	macOSSetup := spec.MDM.MacOSSetup
-	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" {
+	if !macOSSetup.EnableReleaseDeviceManually.Valid {
+		macOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" || macOSSetup.EnableReleaseDeviceManually.Value {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
+
 	enableDiskEncryption := spec.MDM.EnableDiskEncryption.Value
 	if !spec.MDM.EnableDiskEncryption.Valid {
 		if de := macOSSettings.DeprecatedEnableDiskEncryption; de != nil {
@@ -993,8 +1010,11 @@ func (svc *Service) editTeamFromSpec(
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
 
+	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
-	var didUpdateSetupAssistant, didUpdateBootstrapPackage bool
+	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually bool
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
 		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
 		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
@@ -1003,12 +1023,17 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
 		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
 	}
+	if spec.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		didUpdateEnableReleaseManually = oldMacOSSetup.EnableReleaseDeviceManually.Value != spec.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = spec.MDM.MacOSSetup.EnableReleaseDeviceManually
+	}
 	// TODO(mna): doesn't look like we create an activity for macos updates when
 	// modified via spec? Doing the same for Windows, but should we?
 
 	if !appCfg.MDM.EnabledAndConfigured &&
 		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
-			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "")) {
+			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "") ||
+			(didUpdateEnableReleaseManually && team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 			`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
@@ -1068,6 +1093,15 @@ func (svc *Service) editTeamFromSpec(
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
+
+	if spec.Integrations.GoogleCalendar != nil {
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, invalid)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
+		}
+		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
+	}
+
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
@@ -1124,11 +1158,33 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if didUpdateMacOSEndUserAuth {
-		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
+		if err := svc.updateMacOSSetupEnableEndUserAuth(
+			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,
+		); err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (svc *Service) validateTeamCalendarIntegrations(
+	calendarIntegration *fleet.TeamGoogleCalendarIntegration,
+	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+) error {
+	if !calendarIntegration.Enable {
+		return nil
+	}
+	// Check that global configs exist
+	if len(appCfg.Integrations.GoogleCalendar) == 0 {
+		invalid.Append("integrations.google_calendar.enable_calendar_events", "global Google Calendar integration is not configured")
+	}
+	// Validate URL
+	if u, err := url.ParseRequestURI(calendarIntegration.WebhookURL); err != nil {
+		invalid.Append("integrations.google_calendar.webhook_url", err.Error())
+	} else if u.Scheme != "https" && u.Scheme != "http" {
+		invalid.Append("integrations.google_calendar.webhook_url", "webhook_url must be https or http")
+	}
 	return nil
 }
 
@@ -1234,6 +1290,13 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
 			didUpdate = true
 			didUpdateMacOSEndUserAuth = true
+		}
+	}
+
+	if payload.EnableReleaseDeviceManually != nil {
+		if tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
+			tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
+			didUpdate = true
 		}
 	}
 

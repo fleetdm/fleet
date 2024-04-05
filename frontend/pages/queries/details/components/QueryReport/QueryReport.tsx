@@ -8,6 +8,7 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
+import { getTableColumnsFromSql } from "utilities/helpers";
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 
 import Button from "components/buttons/Button";
@@ -52,9 +53,13 @@ const QueryReport = ({
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
+      const tableColumns = getTableColumnsFromSql(lastEditedQueryBody);
+
       const newColumnConfigs = generateReportColumnConfigsFromResults(
-        flattenResults(queryReport.results)
+        flattenResults(queryReport.results),
+        tableColumns
       );
+
       // Update tableHeaders if new headers are found
       if (newColumnConfigs !== columnConfigs) {
         setColumnConfigs(newColumnConfigs);

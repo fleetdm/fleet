@@ -304,21 +304,22 @@ html, body {
       }
     }
   }
-  [purpose='admin-nav'] {
-    justify-content: center;
-    a {
-      margin-left: 30px;
-      margin-right: 30px;
-      color: @core-fleet-black-75;
-      &:hover {
-        color: @core-fleet-black;
-      }
+}
+[purpose='admin-nav'] {
+  justify-content: center;
+
+  [purpose='admin-link'] {
+    margin-left: 30px;
+    margin-right: 30px;
+    color: @core-fleet-black-75;
+    &:hover {
+      color: @core-vibrant-blue;
     }
-    span {
-      color: @core-fleet-black;
-      font-weight: 600;
-      margin-right: 30px;
-    }
+  }
+  span {
+    color: @core-fleet-black;
+    font-weight: 600;
+    margin-right: 30px;
   }
 }
 

@@ -1003,6 +1003,7 @@ func RegisterAppleMDMProtocolServices(
 	scepStorage scep_depot.Depot,
 	logger kitlog.Logger,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
+	ddmService nanomdm_service.DeclarativeManagement,
 ) error {
 	scepCACerts, scepCAKey, err := scepStorage.CA([]byte{})
 	if err != nil {
@@ -1011,7 +1012,7 @@ func RegisterAppleMDMProtocolServices(
 	if err := registerSCEP(mux, scepConfig, scepCACerts[0], scepCAKey, scepStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, scepCACerts[0], mdmStorage, checkinAndCommandService, logger); err != nil {
+	if err := registerMDM(mux, scepCACerts[0], mdmStorage, checkinAndCommandService, ddmService, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -1085,6 +1086,7 @@ func registerMDM(
 	scepCACert *x509.Certificate,
 	mdmStorage nanomdm_storage.AllStorage,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
+	ddmService nanomdm_service.DeclarativeManagement,
 	logger kitlog.Logger,
 ) error {
 	certVerifier, err := certverify.NewPoolVerifier(
@@ -1104,7 +1106,7 @@ func registerMDM(
 	// enrollments and updates the Fleet hosts table accordingly with the UDID and serial number of
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
-	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
+	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService))
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to

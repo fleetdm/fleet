@@ -84,6 +84,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
+
+	ActivityTypeCreatedDeclarationProfile{},
+	ActivityTypeDeletedDeclarationProfile{},
+	ActivityTypeEditedDeclarationProfile{},
 }
 
 type ActivityDetails interface {
@@ -1314,6 +1318,75 @@ func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExampl
 - "host_display_name": Display name of the host.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeCreatedDeclarationProfile struct {
+	ProfileName string  `json:"profile_name"`
+	Identifier  string  `json:"identifier"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedDeclarationProfile) ActivityName() string {
+	return "created_declaration_profile"
+}
+
+func (a ActivityTypeCreatedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user adds a new macOS declaration to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedDeclarationProfile struct {
+	ProfileName string  `json:"profile_name"`
+	Identifier  string  `json:"identifier"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedDeclarationProfile) ActivityName() string {
+	return "deleted_declaration_profile"
+}
+
+func (a ActivityTypeDeletedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user removes a macOS declaration from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedDeclarationProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
+	return "edited_declaration_profile"
+}
+
+func (a ActivityTypeEditedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
 }`
 }
 

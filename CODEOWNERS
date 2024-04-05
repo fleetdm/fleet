@@ -68,13 +68,13 @@ go.mod @fleetdm/go
 /docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
-/docs/Deploy/kubernetes/ @dherder # « Kubernetes best practice
+/docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 ##############################################################################################
 # 🫧 Pricing and features
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
+/handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
 
 ##############################################################################################
 # 🦿 Repo automation and change control settings
