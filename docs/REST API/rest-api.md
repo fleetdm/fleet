@@ -7824,8 +7824,8 @@ Add managed software to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer file. PKG or DMG for macOS and MSI for Windows hosts.   |
 | team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
-| configuration_profile_uuid         | string | form | The UUID of the configuration profile. If specified, the software can't be installed if the specified profile doesn't have status `verified`. Only configuration profiles added to the specified `team_id` can be selected. |
-| script_id         | integer | form | The ID of the script. If specified, script will be installed after the software is installed. Only scripts added to the specified `team_id` can be selected. |
+| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 
 #### Example
 
@@ -7845,11 +7845,11 @@ Content-Type: multipart/form-data; boundary=------------------------d8c247122f59
 Content-Disposition: form-data; name="team_id"
 1
 --------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="configuration_profile_uuid"
-4b44d8b9-eed8-48e8-a470-4843bc59880c
+Content-Disposition: form-data; name="pre_install_query"
+SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
 --------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="script_id"
-148
+Content-Disposition: form-data; name="post_install_script"
+sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
 Content-Type: application/octet-stream
