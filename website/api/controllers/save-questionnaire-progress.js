@@ -31,12 +31,14 @@ module.exports = {
     formData: {
       type: {},
       description: 'The formdata that will be saved for this step of the get started questionnaire'
-    }
+    },
   },
 
 
   exits: {
-
+    success: {
+      outputType: {}
+    },
   },
 
 
@@ -56,7 +58,9 @@ module.exports = {
     // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
       let primaryBuyingSituation = formData.primaryBuyingSituation;
-      await User.updateOne({id: this.req.me.id}).set({primaryBuyingSituation});
+      await User.updateOne({id: this.req.me.id}).set({
+        primaryBuyingSituation
+      });
       // Set the primary buying situation in the user's session.
       this.req.session.primaryBuyingSituation = primaryBuyingSituation;
     }
@@ -65,7 +69,10 @@ module.exports = {
     // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
     let getStartedProgress = _.clone(questionnaireProgress);
     // Update the user's database model.
-    await User.updateOne({id: userRecord.id}).set({getStartedQuestionnaireAnswers: questionnaireProgress, lastSubmittedGetStartedQuestionnaireStep: currentStep});
+    await User.updateOne({id: userRecord.id}).set({
+      getStartedQuestionnaireAnswers: questionnaireProgress,
+      lastSubmittedGetStartedQuestionnaireStep: currentStep
+    });
     // Return the JSON dictionary of form data submitted by this user.
     return getStartedProgress;
   }
