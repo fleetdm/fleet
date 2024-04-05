@@ -45,7 +45,7 @@
 - Fixed `GET fleet/os_versions` and `GET fleet/os_versions/[id]` so team users no longer have access to os versions on hosts from other teams.
 - `fleetctl gitops` now batch processes queries and policies.
 - Fixed UI bug to render the query platform correctly for queries imported from the standard query library.
-- Fixed issue where microsoft edge was not reporting vulnerabilities.
+- Fixed issue where Microsoft Edge was not reporting vulnerabilities.
 - Fixed a bug where all Windows MDM enrollments were detected as automatic.
 - Fixed a bug where `null` or excluded `smtp_settings` caused a UI 500.
 - Fixed query reports so they reset when there is a change to the selected platform or selected minimum osquery version.
