@@ -36,8 +36,8 @@ module.exports = {
       formToShow = 'contact';
     }
     // If the prefillFormDataFromUserRecord flag was set to true, but this user is not logged in, set it to false.
-    if(prefillFormDataFromUserRecord && !this.req.me){
-      prefillFormDataFromUserRecord = false;
+    if(this.req.me){
+      prefillFormDataFromUserRecord = true;
     }
     // Respond with view.
     return {formToShow, prefillFormDataFromUserRecord};
