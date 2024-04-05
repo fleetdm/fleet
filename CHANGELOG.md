@@ -36,7 +36,7 @@
 - Fixed a bug where valid MDM enrollments would show up as unmanaged (EnrollmentState 3).
 - Fixed flash message from closing when a modal closes.
 - Fixed a bug where OS version information would not get detected on Windows Server 2019.
-- Fixed issue where getting host details failed when attempting to read the host's bitlocker status from the datastore.
+- Fixed issue where getting host details failed when attempting to read the host's BitLocker status from the datastore.
 - Fixed false negative vulnerabilities on macOS Homebrew python packages.
 - Fixed styling of live query disabled warning.
 - Fixed issue where Windows MDM profile processing was skipping `<Add>` commands.
