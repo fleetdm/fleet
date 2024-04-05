@@ -628,7 +628,12 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_windows": {
-		Query:            `SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;`,
+		Query: `
+     SELECT CASE WHEN (
+       SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1
+     ) THEN (
+       SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
+     ) ELSE (SELECT 0) END AS bitlocker_enabled;`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
@@ -1679,7 +1684,7 @@ func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, hos
 }
 
 func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	encrypted := len(rows) > 0
+	encrypted := rows[0]["bitlocker_enabled"] == "1"
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
