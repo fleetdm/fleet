@@ -620,7 +620,7 @@ start_milestone="${start_version:1}"
 target_milestone="${next_ver:1}"
 # 79
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
-# patch-fleet-v4.48.1
+# patch-fleet-v4.48.0
 target_patch_branch="patch-fleet-$next_ver"
 if [[ "$main_release" == "true" ]]; then
     target_patch_branch="prepare-fleet-$next_ver"
