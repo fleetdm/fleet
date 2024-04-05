@@ -1,3 +1,12 @@
+## Fleet 4.48.1 (Apr 05, 2024)
+
+### Bug fixes
+
+- Made block_id mismatch errors more informative as 400s instead of 500s
+- Calendar webhook will retry if it receives response 429 Too Many Requests. Webhook request will retry for 30 minutes with a 1 minute max delay between retries
+- Fixed a bug where values were not being rendered in host-specific query reports
+- Fixed potential server panic when events are created with calendar integration, but then global calendar integration is disabled
+
 ## Fleet 4.48.0 (Apr 03, 2024)
 
 ### Endpoint operations
