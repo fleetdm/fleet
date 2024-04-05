@@ -7,6 +7,9 @@ set -m
 # Fleet URL placed in $FLEET_URL
 # Optional VM name in $MACOS_ENROLLMENT_VM_NAME
 # Optional VM image in $MACOS_ENROLLMENT_VM_IMAGE
+#  For others see https://tart.run/quick-start/
+#  - ghcr.io/cirruslabs/macos-ventura-base:latest
+#  - ghcr.io/cirruslabs/macos-monterey-base:latest
 
 vm_name="${MACOS_ENROLLMENT_VM_NAME:-enrollment-test}"
 image_name="${MACOS_ENROLLMENT_VM_IMAGE:-ghcr.io/cirruslabs/macos-sonoma-base:latest}"
