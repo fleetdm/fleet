@@ -28,7 +28,7 @@ parasails.registerComponent('parallaxCity', {
       distanceFromTopOfPage: undefined, // Used to check if the image is within the user's viewport.
       distanceFromBottomOfPage: undefined, // Used to track the amount of distance between the bottom of the image, and the bottom of the page.
       parallaxLayersAreCurrentlyAnimating: false,
-      disableAnimation: false,// Whether or not to disable the parallax scrolling animation.
+      enableAnimation: true,// Whether or not to disable the parallax scrolling animation.
     };
   },
 
@@ -40,13 +40,13 @@ parasails.registerComponent('parallaxCity', {
     <div purpose="static-cloud-city" v-if="disableAnimation">
     </div>
     <div purpose="parallax-city-container" v-else>
-      <div class="parallax-layer" purpose="background-cloud-2" scroll-amount=4></div>
-      <div class="parallax-layer" purpose="background-cloud-1" scroll-amount=6></div>
-      <div class="parallax-layer" purpose="small-island-2" scroll-amount=16></div>
-      <div class="parallax-layer" purpose="small-island-1" scroll-amount=12></div>
-      <div class="parallax-layer" purpose="large-island" scroll-amount=24></div>
-      <div class="parallax-layer" purpose="foreground-cloud-2" scroll-amount=32></div>
-      <div class="parallax-layer" purpose="foreground-cloud-1" scroll-amount=40></div>
+      <div class="parallax-layer" purpose="background-cloud-2" scroll-amount="4"></div>
+      <div class="parallax-layer" purpose="background-cloud-1" scroll-amount="6"></div>
+      <div class="parallax-layer" purpose="small-island-2" scroll-amount="16"></div>
+      <div class="parallax-layer" purpose="small-island-1" scroll-amount="12"></div>
+      <div class="parallax-layer" purpose="large-island" scroll-amount="24"></div>
+      <div class="parallax-layer" purpose="foreground-cloud-2" scroll-amount="32"></div>
+      <div class="parallax-layer" purpose="foreground-cloud-1" scroll-amount="40"></div>
     </div>
   </div>
   `,
@@ -57,16 +57,17 @@ parasails.registerComponent('parallaxCity', {
   beforeMount: function() {
     // Disable animation on mobile devices.
     if(bowser.isMobile) {
-      this.disableAnimation = true;
+      this.enableAnimation = false;
     }
+    // Check for hardware/graphics acceleration.
     if(bowser.chrome || bowser.opera) {
-      this.disableAnimation = !this.isHardwareAccelerationEnabledOnChromiumBrowsers();
+      this.enableAnimation = this.isHardwareAccelerationEnabledOnChromiumBrowsers();
     } else if(bowser.firefox){
-      this.disableAnimation = !this.isHardwareAccelerationEnabledOnFirefox();
+      this.enableAnimation = this.isHardwareAccelerationEnabledOnFirefox();
     }
   },
   mounted: async function(){
-    if(!this.disableAnimation) {
+    if(!this.enableAnimation) {
       this.setupParallaxAnimation();
     }
   },
@@ -130,6 +131,7 @@ parasails.registerComponent('parallaxCity', {
     isHardwareAccelerationEnabledOnChromiumBrowsers: function() {
       let isHardwareAccelerationEnabled = true;
       // For Chromium based browsers, we'll check the vendor of the user's graphics card.
+      // See https://gist.github.com/cvan/042b2448fcecefafbb6a91469484cdf8 for more info about this method.
       let canvas = document.createElement('canvas');
       let webGLContext = canvas.getContext('webgl');
       if (!webGLContext) {
@@ -148,7 +150,8 @@ parasails.registerComponent('parallaxCity', {
     },
     isHardwareAccelerationEnabledOnFirefox: function() {
       // For Firefox, the method we use for chrome does not always work.
-      // Instead, we'll run two tests, (one with forced software rendering) and check to see if the results are the same.
+      // Instead, we'll run two tests, one with forced software rendering, and one without to see if the results are the same.
+      // See https://stackoverflow.com/a/77170999 for more info about this method.
       let canvas = document.createElement('canvas');
       let ctx = canvas.getContext('2d', { willReadFrequently: false });
       ctx.moveTo(0, 0);
