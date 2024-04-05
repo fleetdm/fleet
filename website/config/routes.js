@@ -238,7 +238,7 @@ module.exports.routes = {
     action: 'view-device-management',
     locals: {
       pageTitleForMeta: 'Device management (MDM) | Fleet',
-      pageDescriptionForMeta: 'Configure your devices with sensible defaults, or customize MDM features exactly how you want. Manage your IT infrastructure in any browser or use git to make changes as code.',
+      pageDescriptionForMeta: 'Manage your devices in any browser or use git to make changes as code.',
       currentSection: 'platform',
     }
   },
@@ -247,7 +247,7 @@ module.exports.routes = {
     action: 'view-endpoint-ops',
     locals: {
       pageTitleForMeta: 'Endpoint ops | Fleet',
-      pageDescriptionForMeta: 'Simplify your security tooling, ship data to any platform, and pulse check anything with Fleet.',
+      pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
     }
   },
 
@@ -255,7 +255,7 @@ module.exports.routes = {
     action: 'view-vulnerability-management',
     locals: {
       pageTitleForMeta: 'Vulnerability management | Fleet',
-      pageDescriptionForMeta: 'Instant, lightweight visibility down to the chipset of any endpoint. Consolidate your security stack and build the vulnerability program you actually want with Fleet.',
+      pageDescriptionForMeta: 'Report CVEs, software inventory, security posture, and other risks down to the chipset of any endpoint with Fleet.',
     }
   },
 
@@ -263,7 +263,7 @@ module.exports.routes = {
     action: 'view-support',
     locals: {
       pageTitleForMeta: 'Support | Fleet',
-      pageDescriptionForMeta: 'Ask a question, chat with other engineers, or get in touch with the Fleet team.',
+      pageDescriptionForMeta: 'Ask a question, chat with engineers, or get in touch with the Fleet team.',
       currentSection: 'documentation',
     }
   },
@@ -283,7 +283,7 @@ module.exports.routes = {
       hideFooterLinks: true,
       hideGetStartedButton: true,
       pageTitleForMeta: 'Start | Fleet',
-      pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your premium license key.',
+      pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
     }
   },
 
