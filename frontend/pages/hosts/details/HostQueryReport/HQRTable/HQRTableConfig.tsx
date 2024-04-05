@@ -1,10 +1,6 @@
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import {
-  IHeaderProps,
-  IStringCellProps,
-  IWebSocketData,
-} from "interfaces/datatable_config";
+import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
 import React from "react";
 
 import { CellProps, Column } from "react-table";
