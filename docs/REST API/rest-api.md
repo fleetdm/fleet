@@ -906,7 +906,8 @@ None.
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
-      "macos_setup_assistant": "path/to/config.json"
+      "macos_setup_assistant": "path/to/config.json",
+      "enable_release_device_manually": true
     }
   },
   "agent_options": {

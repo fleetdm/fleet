@@ -79,8 +79,8 @@
             <div class="selectbox">
             <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation">
               <option disabled hidden value="undefined">Choose an option</option>
-              <option value="eo-security">Endpoint operations for security engineers</option>
-              <option value="eo-it">Endpoint operations for IT admins</option>
+              <option value="eo-security">Endpoint operations for security engineering</option>
+              <option value="eo-it">Endpoint ops for identity engineers and IT admins</option>
               <option value="mdm">Device management (MDM)</option>
               <option value="vm">Vulnerability management</option>
             </select>
@@ -90,7 +90,11 @@
          <div class="form-group">
            <label for="number-of-hosts">How many <%= primaryBuyingSituation === 'mdm' ? 'devices' : 'hosts' %> do you have? *</label>
            <input class="form-control" id="number-of-hosts" name="number-of-hosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" min="1" v-model.trim="formData.numberOfHosts">
-           <p purpose="devices-note" class="mt-3 mb-0">Includes computers, servers, containers, and other hosts.</p>
+           <p purpose="devices-note" class="mt-3 mb-0" v-if="!primaryBuyingSituation">Includes computers, servers, containers, and other hosts.</p>
+           <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'eo-security'">Includes servers, containers, workstations, and other hosts.</p>
+           <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'eo-it'">Includes macOS, Windows, Linux workstations, Chromebooks, servers, and other hosts.</p>
+           <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'vm'">Includes computers, servers, OT/ICS, containers, and other hosts.</p>
+           <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'mdm'">Includes macOS, Windows, and most flavors of Linux.</p>
            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of <%= primaryBuyingSituation === 'mdm' ? 'devices' : 'hosts' %></div>
          </div>
          <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">

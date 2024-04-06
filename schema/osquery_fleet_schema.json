@@ -1715,8 +1715,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "List the SSH keys allowed to connect to this host.\n```\nSELECT key FROM authorized_keys;\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN authorized_keys USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -1725,8 +1725,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "algorithm",
@@ -2838,8 +2837,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See classic browser plugins (C/NPAPI) installed by users. These plugins have been deprecated for a long time, so this query will usually not return anything.\n```\nSELECT bp.name, bp.identifier, bp.version FROM browser_plugins bp JOIN users u on bp.uid = u.uid ;\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "See classic browser plugins (C/NPAPI) installed by users. These plugins have been deprecated for a long time, so this query will usually not return anything.\n```\nSELECT * FROM users CROSS JOIN browser_plugins USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -3691,8 +3690,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nSELECT chrome_extension_content_scripts.* FROM users JOIN chrome_extension_content_scripts USING (uid) GROUP BY identifier, match\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN chrome_extension_content_scripts USING (uid);\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -3710,8 +3709,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       },
       {
         "name": "identifier",
@@ -3791,8 +3789,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
-    "examples": "List Chrome extensions by user and profile which have full access to HTTPS browsing.\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "examples": "```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\nList Chrome extensions by user and profile which have full access to HTTPS browsing.\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -3815,8 +3813,7 @@
           "macOS",
           "Windows",
           "Linux"
-        ],
-        "requires_user_context": true
+        ]
       },
       {
         "name": "name",
@@ -5067,8 +5064,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See software responsible for crashes. This can be useful to detect what the most problematic software in your environment is.\n```\nSELECT crash_path, identifier, responsible, exception_type FROM crashes;\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN crashes USING (uid);\n```",
     "columns": [
       {
         "name": "type",
@@ -5149,8 +5146,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       },
       {
         "name": "datetime",
@@ -10781,8 +10777,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See Firefox extensions by user as well as information about their creator and automatic update status.\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN firefox_addons USING (uid);\n```\nSee Firefox extensions by user as well as information about their creator and automatic update status.\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
     "columns": [
       {
         "name": "uid",
@@ -10791,8 +10787,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "name",
@@ -13306,8 +13301,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect * from users join known_hosts using (uid)\n```",
+    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN known_hosts USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -13316,8 +13311,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       },
       {
         "name": "key",
@@ -19975,8 +19969,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- The `value` column will be empty for keys that contain binary data.",
-    "examples": "This table reads a huge amount of preferences, including on third-party apps. This query will show how many users are enrolled to TouchID.\n```\nSELECT * FROM preferences WHERE subkey='dailyEvents/2/enrolledUserCount';\n```",
+    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n- The `value` column will be empty for keys that contain binary data.",
+    "examples": "This table reads a huge amount of preferences, including on third-party apps.\n```\nSELECT * FROM users CROSS JOIN preferences USING (username);\n```",
     "columns": [
       {
         "name": "domain",
@@ -20030,8 +20024,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "host",
@@ -23022,8 +23015,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- Includes installed extensions for all system users.",
-    "examples": "```\nselect count(*) from users JOIN safari_extensions using (uid)\n```",
+    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table) - Includes installed extensions for all system users.",
+    "examples": "```\nSELECT * FROM users CROSS JOIN safari_extensions USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -23032,8 +23025,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       },
       {
         "name": "name",
@@ -24522,8 +24514,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See command line executions and related timestamps. Useful for threat hunting when a device is suspected of being compromised.\n```\nSELECT u.username, s.command, s.time FROM users u CROSS JOIN shell_history s USING (uid);\n```",
+    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN shell_history USING (uid);\n```\nSee command line executions and related timestamps. Useful for threat hunting when a device is suspected of being compromised.\n```\nSELECT u.username, s.command, s.time FROM users u CROSS JOIN shell_history s USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -24532,8 +24524,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "time",
@@ -25204,8 +25195,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "Identify SSH clients configured to send their locales to the server.\n```\nSELECT * FROM ssh_configs WHERE option='sendenv lang lc_*'; \n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN ssh_configs USING (uid);\n```\nIdentify SSH clients configured to send their locales to the server.\n```\nSELECT * FROM ssh_configs WHERE option='sendenv lang lc_*'; \n```",
     "columns": [
       {
         "name": "uid",
@@ -25214,8 +25205,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "block",
@@ -27098,8 +27088,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "Identify SSH keys stored in clear text in user directories\n```\nSELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN user_ssh_keys USING (uid);\n```\nIdentify SSH keys stored in clear text in user directories\n```\nSELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;\n```",
     "columns": [
       {
         "name": "uid",
@@ -27108,8 +27098,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "path",
@@ -27689,8 +27678,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "Querying this table requires joining against the `users` table.",
-    "examples": "List the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.\n```\nSELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN vscode_extensions USING (uid);\n```\n\nList the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.\n```\nSELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);\n```",
     "columns": [
       {
         "name": "name",
