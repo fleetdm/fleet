@@ -1091,6 +1091,23 @@ This activity contains the following fields:
 }
 ```
 
+## edited_declaration_profile
+
+Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
