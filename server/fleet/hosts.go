@@ -382,6 +382,8 @@ type MDMHostData struct {
 	// DEPProfileError is a boolean representing whether Fleet received a "FAILED" response when
 	// attempting to assign a DEP profile for the host.
 	// See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse
+	//
+	// It is not filled in by all host-returning datastore methods.
 	DEPProfileError bool `json:"dep_profile_error" db:"dep_profile_error" csv:"mdm.dep_profile_error"`
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
@@ -650,6 +652,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsEligibleForDEPMigration() bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo.HasJSONProfileAssigned() &&
 		h.MDMInfo.IsEnrolledInThirdPartyMDM()
 }
 
@@ -899,13 +902,14 @@ type HostMunkiInfo struct {
 // used by a host. Note that it uses a different JSON representation than its
 // struct - it implements a custom JSON marshaler.
 type HostMDM struct {
-	HostID           uint   `db:"host_id" json:"-" csv:"-"`
-	Enrolled         bool   `db:"enrolled" json:"-" csv:"-"`
-	ServerURL        string `db:"server_url" json:"-" csv:"-"`
-	InstalledFromDep bool   `db:"installed_from_dep" json:"-" csv:"-"`
-	IsServer         bool   `db:"is_server" json:"-" csv:"-"`
-	MDMID            *uint  `db:"mdm_id" json:"-" csv:"-"`
-	Name             string `db:"name" json:"-" csv:"-"`
+	HostID                 uint    `db:"host_id" json:"-" csv:"-"`
+	Enrolled               bool    `db:"enrolled" json:"-" csv:"-"`
+	ServerURL              string  `db:"server_url" json:"-" csv:"-"`
+	InstalledFromDep       bool    `db:"installed_from_dep" json:"-" csv:"-"`
+	IsServer               bool    `db:"is_server" json:"-" csv:"-"`
+	MDMID                  *uint   `db:"mdm_id" json:"-" csv:"-"`
+	Name                   string  `db:"name" json:"-" csv:"-"`
+	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
 }
 
 // IsPendingDEPFleetEnrollment returns true if the host's MDM information
@@ -927,6 +931,17 @@ func (h *HostMDM) IsEnrolledInThirdPartyMDM() bool {
 		return false
 	}
 	return h.Enrolled && h.Name != WellKnownMDMFleet
+}
+
+// HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON
+// profile to the host, and it'll be enrolled into Fleet the next time the host
+// performs automatic enrollment.
+func (h *HostMDM) HasJSONProfileAssigned() bool {
+	// TODO: get rid of h != nil with a better solution once we stablish
+	// the pattern for dealing with a nil HostMDM
+	return h != nil &&
+		h.DEPProfileAssignStatus != nil &&
+		*h.DEPProfileAssignStatus == string(DEPAssignProfileResponseSuccess)
 }
 
 // IsDEPCapable returns true if and only if the host's MDM information

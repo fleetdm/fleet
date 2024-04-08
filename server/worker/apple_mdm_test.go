@@ -75,15 +75,8 @@ func TestAppleMDM(t *testing.T) {
 			return err
 		})
 		if depAssignedToFleet {
-			mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `
-					INSERT INTO host_dep_assignments (host_hardware_serial)
-					VALUES (?)
-					ON DUPLICATE KEY UPDATE
-					  deleted_at = NULL
-				`, h.HardwareSerial)
-				return err
-			})
+			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			require.NoError(t, err)
 		}
 		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "")
 		require.NoError(t, err)

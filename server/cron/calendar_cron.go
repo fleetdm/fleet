@@ -1,4 +1,4 @@
-package main
+package cron
 
 import (
 	"context"
@@ -19,19 +19,19 @@ import (
 
 const calendarConsumers = 18
 
-func newCalendarSchedule(
+func NewCalendarSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	interval time.Duration,
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronCalendar)
-		defaultInterval = 5 * time.Minute
+		name = string(fleet.CronCalendar)
 	)
 	logger = kitlog.With(logger, "cron", name)
 	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
+		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithAltLockID("calendar"),
 		schedule.WithLogger(logger),
 		schedule.WithJob(
@@ -222,7 +222,7 @@ func processCalendarFailingHosts(
 						// thus we skip this entry.
 						continue // continue with next host
 					}
-					if hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusPending {
+					if hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusPending || hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusRetry {
 						// This can happen if the host went offline (and never returned results)
 						// after setting the webhook as pending.
 						continue // continue with next host
@@ -318,9 +318,6 @@ func processFailingHostExistingCalendarEvent(
 		}
 		// Even if fields haven't changed we want to update the calendar_events.updated_at below.
 		updated = true
-		//
-		// TODO(lucas): Check changing updatedEvent to UTC before consuming.
-		//
 	}
 
 	if updated {
@@ -367,8 +364,6 @@ func processFailingHostExistingCalendarEvent(
 		return fmt.Errorf("update host calendar webhook status: %w", err)
 	}
 
-	// TODO(lucas): If this doesn't work at scale, then implement a special refetch
-	// for policies only.
 	if err := ds.UpdateHostRefetchRequested(ctx, host.HostID, true); err != nil {
 		return fmt.Errorf("refetch host: %w", err)
 	}
@@ -676,7 +671,10 @@ func deleteCalendarEventsInParallel(
 			go func() {
 				defer wg.Done()
 				for calEvent := range calendarEventCh {
-					userCalendar := createUserCalendarFromConfig(ctx, calendarConfig, logger)
+					var userCalendar fleet.UserCalendar
+					if calendarConfig != nil {
+						userCalendar = createUserCalendarFromConfig(ctx, calendarConfig, logger)
+					}
 					if err := deleteCalendarEvent(ctx, ds, userCalendar, calEvent); err != nil {
 						level.Error(logger).Log("msg", "delete user calendar event", "err", err)
 						continue

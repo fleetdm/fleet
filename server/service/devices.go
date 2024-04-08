@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
-	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -176,7 +175,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return nil, err

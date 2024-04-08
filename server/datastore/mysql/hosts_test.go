@@ -7463,6 +7463,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
 	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
+	require.False(t, loadSimple.IsEligibleForDEPMigration())
 
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createOrbitHost("fleet")
@@ -7477,6 +7478,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.True(t, loadFleet.IsOsqueryEnrolled())
 	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
 	require.False(t, loadFleet.MDMInfo.IsServer)
+	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
+	require.False(t, loadFleet.IsEligibleForDEPMigration())
 
 	// force its is_server mdm field to NULL, should be same as false
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -7487,6 +7490,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, hFleet.ID, loadFleet.ID)
 	require.False(t, loadFleet.MDMInfo.IsServer)
+	require.False(t, loadFleet.IsEligibleForDEPMigration())
 
 	// fill in disk encryption information
 	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
@@ -7500,6 +7504,25 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, loadFleet.DiskEncryptionEnabled)
 	require.True(t, *loadFleet.DiskEncryptionEnabled)
+	require.False(t, loadFleet.IsEligibleForDEPMigration())
+	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
+
+	// simulate the device being assigned to Fleet in ABM
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleet})
+	require.NoError(t, err)
+	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
+
+	// simulate a failed JSON profile assignment
+	err = updateHostDEPAssignProfileResponses(
+		ctx, ds.writer(ctx), ds.logger,
+		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed),
+	)
+	require.NoError(t, err)
+	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	require.NoError(t, err)
+	require.EqualValues(t, *loadFleet.MDMInfo.DEPProfileAssignStatus, fleet.DEPAssignProfileResponseFailed)
 }
 
 func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expectedKey string, expectedDecryptable *bool) {

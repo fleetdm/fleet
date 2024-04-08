@@ -156,6 +156,9 @@ will be disabled and/or hidden in the UI.
               // FUTURE: Auto-redirect without the querystring after absorbtion to make it prettier in the URL bar.
               // (except this probably messes up analytics so before doing that, figure out how to solve that problem)
             }//ﬁ
+            if(req.param('utm_content') === 'clear'){
+              req.session.primaryBuyingSituation = undefined;
+            }
             if (req.method === 'GET' || req.method === 'HEAD') {
               // Include information about the primary buying situation
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
@@ -279,7 +282,6 @@ will be disabled and/or hidden in the UI.
               // Include information about the primary buying situation
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
-
             }//ﬁ
 
             return next();
