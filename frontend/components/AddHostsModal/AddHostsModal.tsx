@@ -39,7 +39,7 @@ const AddHostsModal = ({
     data: certificate,
     error: fetchCertificateError,
     isFetching: isFetchingCertificate,
-  } = useQuery<string, string>(
+  } = useQuery<string, Error>(
     ["certificate"],
     () => configAPI.loadCertificate(),
     {

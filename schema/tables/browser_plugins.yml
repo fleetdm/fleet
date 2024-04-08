@@ -7,6 +7,8 @@ examples: >-
 
   ```
 
-  SELECT bp.name, bp.identifier, bp.version FROM browser_plugins bp JOIN users u on bp.uid = u.uid ;
+  SELECT * FROM users CROSS JOIN browser_plugins USING (uid);
 
   ```
+
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

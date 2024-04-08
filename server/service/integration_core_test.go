@@ -5367,7 +5367,6 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 	}`, domain,
 		)), http.StatusUnprocessableEntity,
 	)
-
 }
 
 func (s *integrationTestSuite) TestQueriesBadRequests() {
@@ -6866,7 +6865,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "r1",
 		Data:      []byte("p1."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id does not match expected block (0): 1")
 
 	// sending a block with valid payload, block 0
@@ -6895,7 +6894,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "r1",
 		Data:      []byte("p2."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id does not match expected block (2): 1")
 
 	// sending final block with too many bytes
@@ -6905,7 +6904,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "r1",
 		Data:      []byte("p3extra"),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "exceeded declared block size 3: 7")
 
 	// sending actual final block
@@ -6925,7 +6924,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "r1",
 		Data:      []byte("p4."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id exceeds expected max (2): 3")
 }
 
