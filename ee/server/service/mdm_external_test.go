@@ -189,7 +189,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
 			require.Len(t, names, 1)
-			require.ElementsMatch(t, names, []string{fleet.BuiltinMacOS14PlusLabelName})
+			require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 			return map[string]uint{names[0]: 1}, nil
 		}
 		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {

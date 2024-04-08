@@ -1092,12 +1092,12 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 
 	// associate the profile with the built-in label that ensures the host is on
 	// macOS 14+ to receive that profile
-	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{fleet.BuiltinMacOS14PlusLabelName})
+	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{fleet.BuiltinLabelMacOS14Plus})
 	if err != nil {
 		return err
 	}
 	d.Labels = []fleet.ConfigurationProfileLabel{
-		{LabelName: fleet.BuiltinMacOS14PlusLabelName, LabelID: lblIDs[fleet.BuiltinMacOS14PlusLabelName]},
+		{LabelName: fleet.BuiltinLabelMacOS14Plus, LabelID: lblIDs[fleet.BuiltinLabelMacOS14Plus]},
 	}
 
 	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d)

@@ -32,7 +32,7 @@ func Up_20240403104633(tx *sql.Tx) error {
 	ts := time.Date(2024, 4, 3, 0, 0, 0, 0, time.UTC)
 	_, err := tx.Exec(
 		stmt,
-		fleet.BuiltinMacOS14PlusLabelName,
+		fleet.BuiltinLabelMacOS14Plus,
 		"macOS hosts with version 14 and above",
 		`select 1 from os_version where platform = 'darwin' and major >= 14;`,
 		"darwin",
@@ -49,7 +49,7 @@ func Up_20240403104633(tx *sql.Tx) error {
 				// across built-in and regular. (I don't think we've done anything
 				// special before, but this seems a bit nicer/clearer as to why the
 				// migration may have failed and how to fix it)
-				return fmt.Errorf("a label with the name %q already exists, please rename it before applying this migration: %w", fleet.BuiltinMacOS14PlusLabelName, err)
+				return fmt.Errorf("a label with the name %q already exists, please rename it before applying this migration: %w", fleet.BuiltinLabelMacOS14Plus, err)
 			}
 		}
 		return err
