@@ -40,7 +40,7 @@ type withDS struct {
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
 	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
-	test.AddAllHostsLabel(t, ts.ds)
+	test.AddBuiltinLabels(t, ts.ds)
 
 	// setup the required fields on AppConfig
 	appConf, err := ts.ds.AppConfig(context.Background())

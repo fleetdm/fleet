@@ -108,3 +108,9 @@ func FleetReservedProfileNames() map[string]struct{} {
 func ListFleetReservedWindowsProfileNames() []string {
 	return []string{FleetWindowsOSUpdatesProfileName}
 }
+
+// ListFleetReservedMacOSProfileNames returns a list of PayloadDisplayName strings
+// that are reserved by Fleet for macOS.
+func ListFleetReservedMacOSProfileNames() []string {
+	return []string{FleetFileVaultProfileName, FleetdConfigProfileName}
+}

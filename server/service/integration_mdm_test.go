@@ -6272,6 +6272,30 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 	return profile
 }
 
+func (s *integrationMDMTestSuite) assertMacOSConfigProfilesByName(teamID *uint, profileName string, exists bool) {
+	t := s.T()
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+	var cfgProfs []*fleet.MDMAppleConfigProfile
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT name FROM mdm_apple_configuration_profiles WHERE team_id = ?`, teamID)
+	})
+
+	label := "exist"
+	if !exists {
+		label = "not exist"
+	}
+	require.Condition(t, func() bool {
+		for _, p := range cfgProfs {
+			if p.Name == profileName {
+				return exists // success if we want it to exist, failure if we don't
+			}
+		}
+		return !exists
+	}, "a config profile must %s with name: %s", label, profileName)
+}
+
 func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint, profileName string, exists bool) {
 	t := s.T()
 	if teamID == nil {
@@ -12270,4 +12294,160 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &hr)
 	require.NotNil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
+}
+
+func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
+	t := s.T()
+	ctx := context.Background()
+
+	checkMacProfs := func(teamID *uint, names ...string) {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tid uint
+			if teamID != nil {
+				tid = *teamID
+			}
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tid)
+		})
+		require.Equal(t, len(names), count)
+		for _, n := range names {
+			s.assertMacOSConfigProfilesByName(teamID, n, true)
+		}
+	}
+
+	checkWinProfs := func(teamID *uint, names ...string) {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tid uint
+			if teamID != nil {
+				tid = *teamID
+			}
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid)
+		})
+		for _, n := range names {
+			s.assertWindowsConfigProfilesByName(teamID, n, true)
+		}
+	}
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EnabledAndConfigured)
+	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+
+	// ensures that the fleetd profile is created
+	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	if len(secrets) == 0 {
+		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	}
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
+
+	// turn on disk encryption and os updates
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"enable_disk_encryption": true,
+			"windows_updates": {
+				"deadline_days": 3,
+				"grace_period_days": 1
+			},
+			"macos_updates": {
+				"deadline": "2023-12-31",
+				"minimum_version": "13.3.7"
+			}
+		}
+	}`), http.StatusOK, &acResp)
+	checkMacProfs(nil, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
+
+	// batch set only windows profiles doesn't remove the reserved names
+	newWinProfile := syncml.ForTestWithData(map[string]string{"l1": "d1"})
+	var testProfiles []fleet.MDMProfileBatchPayload
+	testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
+		Name:     "n1",
+		Contents: newWinProfile,
+	})
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+	checkMacProfs(nil, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkWinProfs(nil, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
+
+	// batch set windows and mac profiles doesn't remove the reserved names
+	newMacProfile := mcBytesForTest("n2", "i2", uuid.NewString())
+	testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
+		Name:     "n2",
+		Contents: newMacProfile,
+	})
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+	checkMacProfs(nil, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkWinProfs(nil, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
+
+	// batch set only mac profiles doesn't remove the reserved names
+	testProfiles = []fleet.MDMProfileBatchPayload{{
+		Name:     "n2",
+		Contents: newMacProfile,
+	}}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+	checkMacProfs(nil, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
+
+	// create a team
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/v1/fleet/teams", map[string]string{"Name": t.Name()}, http.StatusOK, &tmResp)
+
+	// edit team mdm config to turn on disk encryption and os updates
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tmResp.Team.ID), modifyTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(t.Name()),
+			MDM: &fleet.TeamPayloadMDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+				WindowsUpdates: &fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(4),
+					GracePeriodDays: optjson.SetInt(1),
+				},
+				MacOSUpdates: &fleet.MacOSUpdates{
+					Deadline:       optjson.SetString("2023-12-31"),
+					MinimumVersion: optjson.SetString("13.3.8"),
+				},
+			},
+		},
+	}, http.StatusOK, &teamResponse{})
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d", tmResp.Team.ID), nil, http.StatusOK, &tmResp)
+	require.True(t, tmResp.Team.Config.MDM.EnableDiskEncryption)
+	require.Equal(t, 4, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 1, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
+	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
+
+	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
+
+	// batch set only windows profiles doesn't remove the reserved names
+	var testTeamProfiles []fleet.MDMProfileBatchPayload
+	testTeamProfiles = append(testTeamProfiles, fleet.MDMProfileBatchPayload{
+		Name:     "n1",
+		Contents: newWinProfile,
+	})
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
+
+	// batch set windows and mac profiles doesn't remove the reserved names
+	testTeamProfiles = append(testTeamProfiles, fleet.MDMProfileBatchPayload{
+		Name:     "n2",
+		Contents: newMacProfile,
+	})
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
+
+	// batch set only mac profiles doesn't remove the reserved names
+	testTeamProfiles = []fleet.MDMProfileBatchPayload{{
+		Name:     "n2",
+		Contents: newMacProfile,
+	}}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
 }
