@@ -1326,6 +1326,9 @@ type Datastore interface {
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
 
+	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
+	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 

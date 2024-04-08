@@ -177,6 +177,20 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinMacOS14PlusLabelName})
+		return map[string]uint{fleet.BuiltinMacOS14PlusLabelName: 1}, nil
+	}
+
+	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+
 	filename := writeTmpYml(t, `
 ---
 apiVersion: v1
@@ -563,6 +577,24 @@ func TestApplyAppConfig(t *testing.T) {
 
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
+		return nil
+	}
+
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
+		return nil
+	}
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinMacOS14PlusLabelName})
+		return map[string]uint{fleet.BuiltinMacOS14PlusLabelName: 1}, nil
+	}
+
+	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -1135,6 +1167,17 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil
 	}
 	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinMacOS14PlusLabelName})
+		return map[string]uint{fleet.BuiltinMacOS14PlusLabelName: 1}, nil
+	}
+	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 

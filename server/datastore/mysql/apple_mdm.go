@@ -3566,10 +3566,7 @@ WHERE
 }
 
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
-	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
-
-	stmt := `
+	const stmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
 	team_id,
@@ -3586,13 +3583,48 @@ INSERT INTO mdm_apple_declarations (
  	)
 )`
 
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
+}
+
+func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	const stmt = `
+INSERT INTO mdm_apple_declarations (
+	declaration_uuid,
+	team_id,
+	identifier,
+	name,
+	raw_json,
+	checksum,
+	uploaded_at)
+(SELECT ?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+	NOT EXISTS (
+ 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
+ 	) AND NOT EXISTS (
+ 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+ 	)
+)
+ON DUPLICATE KEY UPDATE
+	identifier = VALUES(identifier),
+	uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
+	raw_json = VALUES(raw_json),
+	checksum = VALUES(checksum)`
+
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
+}
+
+func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
+	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
+
 	var tmID uint
 	if declaration.TeamID != nil {
 		tmID = *declaration.TeamID
 	}
 
+	const reloadStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE name = ? AND team_id = ?`
+
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, stmt,
+		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
@@ -3610,6 +3642,10 @@ INSERT INTO mdm_apple_declarations (
 				Identifier:   declaration.Name,
 				TeamID:       declaration.TeamID,
 			}
+		}
+
+		if err := sqlx.GetContext(ctx, tx, &declUUID, reloadStmt, declaration.Name, tmID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reload apple mdm declaration")
 		}
 
 		for i := range declaration.Labels {

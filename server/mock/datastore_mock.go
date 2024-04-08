@@ -860,6 +860,8 @@ type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles [
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
+type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
+
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error)
@@ -2165,6 +2167,9 @@ type DataStore struct {
 
 	NewMDMAppleDeclarationFunc        NewMDMAppleDeclarationFunc
 	NewMDMAppleDeclarationFuncInvoked bool
+
+	SetOrUpdateMDMAppleDeclarationFunc        SetOrUpdateMDMAppleDeclarationFunc
+	SetOrUpdateMDMAppleDeclarationFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -5177,6 +5182,13 @@ func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fle
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMAppleDeclarationFunc(ctx, declaration)
+}
+
+func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.SetOrUpdateMDMAppleDeclarationFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateMDMAppleDeclarationFunc(ctx, declaration)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

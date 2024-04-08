@@ -42,7 +42,7 @@ func (ts *withDS) SetupSuite(dbName string) {
 	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
 	// remove any migration-created labels
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
+		_, err := q.ExecContext(context.Background(), `DELETE FROM labels WHERE label_type != ?`, fleet.LabelTypeBuiltIn)
 		return err
 	})
 	test.AddAllHostsLabel(t, ts.ds)

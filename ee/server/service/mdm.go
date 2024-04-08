@@ -1078,7 +1078,8 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 
 	const macOSSoftwareUpdateType = `com.apple.configuration.softwareupdate.enforcement.specific`
 	ident := uuid.NewString()
-	// TODO(mna): is that correct payload? Identifier is a uuid?
+	// TODO(mna): is that correct payload? Identifier is a uuid? Is it ok if it
+	// changes on every update?
 	rawDecl := []byte(fmt.Sprintf(`{
 	"Identifier": %q,
 	"Type": %q,
@@ -1099,7 +1100,7 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 		{LabelName: fleet.BuiltinMacOS14PlusLabelName, LabelID: lblIDs[fleet.BuiltinMacOS14PlusLabelName]},
 	}
 
-	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
+	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d)
 	if err != nil {
 		return err
 	}
