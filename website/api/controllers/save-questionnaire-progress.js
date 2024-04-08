@@ -59,6 +59,22 @@ module.exports = {
       await User.updateOne({id: this.req.me.id}).set({
         primaryBuyingSituation
       });
+      // Send a POST request to Zapier
+      await sails.helpers.http.post.with({
+        url: 'https://hooks.zapier.com/hooks/catch/3627242/3pl7yt1/',
+        data: {
+          primaryBuyingSituation,
+          emailAddress: this.req.me.emailAddress,
+          webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
+        }
+      })
+      .timeout(5000)
+      .tolerate(['non200Response', 'requestFailed'], (err)=>{
+        // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+        sails.log.warn(`When a user completed the 'What are you using Fleet for' questionnaire step, a lead/contact could not be updated in the CRM for this email address: ${this.req.me.emailAddress}. Raw error: ${err}`);
+        return;
+      });
+
       // Set the primary buying situation in the user's session.
       this.req.session.primaryBuyingSituation = primaryBuyingSituation;
     }
