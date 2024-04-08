@@ -15,6 +15,11 @@ import (
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO: do we want to allow on duplicate updating label_type or
+		// label_membership_type or should those always be immutable?
+		// are we ok depending solely on the caller to ensure that these fields
+		// are not changed?
+
 		sql := `
 		INSERT INTO labels (
 			name,
