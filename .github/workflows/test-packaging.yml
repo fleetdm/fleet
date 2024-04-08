@@ -85,7 +85,7 @@ jobs:
     - name: Install wine and wix
       if: matrix.os == 'macos-latest'
       run: |
-        ./scripts/macos-install-wine.sh
+        ./scripts/macos-install-wine.sh -n
         wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
         mkdir wix
         unzip wix.zip -d wix

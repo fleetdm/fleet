@@ -30,12 +30,12 @@
           <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security' ? 'selected' : '']">
             <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-security" @input="clickClearOneFormError('primaryBuyingSituation')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-            Endpoint ops for security engineers
+            Endpoint ops for security engineering
           </label>
           <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it' ? 'selected' : '']">
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-it" @input="clickClearOneFormError('primaryBuyingSituation')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-            Endpoint ops for IT admins
+            Endpoint ops for identity engineers and IT admins
           </label>
           <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm' ? 'selected' : '']">
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
@@ -109,7 +109,12 @@
         <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 70%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
-      <h2>How many hosts do you have:</h2>
+      <div purpose="form-header">
+        <h2>About how many hosts do you have?</h2>
+        <p v-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security'">Including servers, containers, workstations, and other hosts.</p>
+        <p v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it'">Including macOS, Windows, Linux workstations, Chromebooks, servers, and other hosts.</p>
+        <p v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm'">Including computers, servers, OT/ICS, containers, and other hosts.</p>
+      </div>
       <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['how-many-hosts']" :form-rules="numberOfHostsFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div class="form-group">
 
@@ -231,6 +236,144 @@
         </div>
       </ajax-form>
     </div>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌┬┐┌─┐┌─┐┌─┐  ┬ ┬┌─┐┬ ┬┬─┐  ┌┬┐┌─┐┌─┐┌┬┐  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐
+      //  │││├─┤├─┤ │    │││ │├┤ └─┐  └┬┘│ ││ │├┬┘   │ ├┤ ├─┤│││  │││├─┤│││├─┤│ ┬├┤
+      //  └┴┘┴ ┴┴ ┴ ┴   ─┴┘└─┘└─┘└─┘   ┴ └─┘└─┘┴└─   ┴ └─┘┴ ┴┴ ┴  ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘
+      //  ┌─┐┌─┐   ┬┌┬┐
+      //  ├┤ │ │───│ │
+      //  └─┘└─┘   ┴ ┴%>
+    <div v-if="currentStep === 'what-does-your-team-manage-eo-it'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What does your team manage?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-does-your-team-manage-eo-it']" :form-rules="endpointOpsItUseCaseFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group" :class="[formErrors.endpointOpsItUseCase ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase === 'employee-workstations' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase" value="employee-workstations" @input="clickClearOneFormError('endpointOpsItUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Employee workstations
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase === 'just-macos' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase" value="just-macos" @input="clickClearOneFormError('endpointOpsItUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Just macOS
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase === 'production-infrastructure' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase" value="production-infrastructure" @input="clickClearOneFormError('endpointOpsItUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Production infrastructure
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase === 'everything' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase" value="everything" @input="clickClearOneFormError('endpointOpsItUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Everything
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.endpointOpsItUseCase">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌┬┐┌─┐┌─┐┌─┐  ┬ ┬┌─┐┬ ┬┬─┐  ┌┬┐┌─┐┌─┐┌┬┐  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐
+      //  │││├─┤├─┤ │    │││ │├┤ └─┐  └┬┘│ ││ │├┬┘   │ ├┤ ├─┤│││  │││├─┤│││├─┤│ ┬├┤
+      //  └┴┘┴ ┴┴ ┴ ┴   ─┴┘└─┘└─┘└─┘   ┴ └─┘└─┘┴└─   ┴ └─┘┴ ┴┴ ┴  ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘
+      //  ┬  ┬┌┬┐
+      //  └┐┌┘│││
+      //   └┘ ┴ ┴%>
+    <div v-if="currentStep === 'what-does-your-team-manage-vm'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What does your team manage?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-does-your-team-manage-vm']" :form-rules="vmUseCaseFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group" :class="[formErrors.vmUseCase ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'ot-ics-iot-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="ot-ics-iot-security" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              OT / ICS / IoT security
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'compliance-grc' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="compliance-grc" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Compliance (GRC)
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'cyber-threat-intelligence-security-research' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="cyber-threat-intelligence-security-research" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Cyber-threat intelligence (CTI) / security research
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'infrastructure-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="infrastructure-security" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Infrastructure security
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'everything' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="everything" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Everything
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.vmUseCase">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌┬┐┌─┐  ┬ ┬┌─┐┬ ┬ ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐
+      //  │││├─┤├─┤ │    │││ │  └┬┘│ ││ │ │││├─┤│││├─┤│ ┬├┤
+      //  └┴┘┴ ┴┴ ┴ ┴   ─┴┘└─┘   ┴ └─┘└─┘ ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘
+      //  ┌┬┐┌┬┐┌┬┐
+      //  │││ │││││
+      //  ┴ ┴─┴┘┴ ┴%>
+    <div v-if="currentStep === 'what-do-you-manage-mdm'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What do you manage?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-do-you-manage-mdm']" :form-rules="mdmUseCaseFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group" :class="[formErrors.mdmUseCase ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'mostly-macs' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="mostly-macs" @input="clickClearOneFormError('mdmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Mostly Macs
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'mostly-windows' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="mostly-windows" @input="clickClearOneFormError('mdmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Mostly Windows
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'about-half-and-half' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="about-half-and-half" @input="clickClearOneFormError('mdmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              About half and half
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.mdmUseCase">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
     <%//  ┬┌─┐  ┬┌┬┐  ┌─┐┌┐┌┬ ┬  ┌─┐┌─┐┌─┐┌┬┐
       //  │└─┐  │ │   ├─┤│││└┬┘  │ ┬│ ││ │ ││
       //  ┴└─┘  ┴ ┴   ┴ ┴┘└┘ ┴   └─┘└─┘└─┘─┴┘%>
@@ -240,12 +383,13 @@
           <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
           <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
         </div>
-        <div class="mx-auto">
-          <h2>Is it any good?</h2>
-          <p class="mb-0">We don’t have a public sample environment, but you can try Fleet out locally on your computer.</p>
+        <h2>Is it any good?</h2>
+        <div purpose="form-header" class="mx-auto">
+          <p class="mb-3 pb-3">We don’t have a public sample environment, but you can try Fleet out locally on your computer.</p>
+          <p>Got questions? <a purpose="contact-link" href="/contact">Ask us anything</a>.</p>
         </div>
         <div purpose="start-cards">
-          <a purpose="card" href="/try-fleet">
+          <a purpose="card" href="/try-fleet?start">
             <img alt="Run a local demo of Fleet" src="/images/start-try-fleet-64x64@2x.png">
             <h2>Try Fleet yourself</h2>
             <p>Try Fleet locally on your device</p>
@@ -324,6 +468,7 @@
           </div>
         </div>
         <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm'">
+          <div purpose="logo" class="mb-4"><img height="32" alt="Rivian logo" src="/images/logo-rivian-dark-120x32@2x.png"></div>
           <p purpose="quote-text">
             The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
           </p>
@@ -496,7 +641,7 @@
         <p class="mb-0">Spin up a local demo or get your Fleet Premium license key.</p>
       </div>
       <div purpose="start-cards">
-        <a purpose="card" href="/try-fleet">
+        <a purpose="card" href="/try-fleet?start">
           <img alt="Run a local demo of Fleet" src="/images/start-try-fleet-64x64@2x.png">
           <h2>Try Fleet</h2>
           <p>Run a local demo of Fleet</p>

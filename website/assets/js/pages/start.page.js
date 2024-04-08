@@ -15,6 +15,9 @@ parasails.registerPage('start', {
       'how-many-hosts': {},
       'will-you-be-self-hosting': {},
       'what-are-you-working-on-eo-security': {},
+      'what-does-your-team-manage-eo-it': {},
+      'what-does-your-team-manage-vm': {},
+      'what-do-you-manage-mdm': {},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
     },
@@ -38,6 +41,15 @@ parasails.registerPage('start', {
     endpointOpsSecurityWorkingOnFormRules: {
       endpointOpsSecurityUseCase: {required: true}
     },
+    endpointOpsItUseCaseFormRules: {
+      endpointOpsItUseCase: {required: true}
+    },
+    vmUseCaseFormRules: {
+      vmUseCase: {required: true}
+    },
+    mdmUseCaseFormRules: {
+      mdmUseCase: {required: true}
+    },
     endpointOpsSecurityIsItAnyGoodFormRules: {
       isItAnyGood: {required: true}
     },
@@ -60,6 +72,10 @@ parasails.registerPage('start', {
     //…
     if(this.currentStep !== 'start'){
       this.prefillPreviousAnswers();
+    }
+    // If this user has not completed the 'what are you using fleet for' step, and has a primaryBuyingSituation set by an ad. prefill the formData for this step.
+    if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
+      this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation = _.clone(this.primaryBuyingSituation);
     }
   },
   mounted: async function() {
@@ -102,7 +118,16 @@ parasails.registerPage('start', {
           this.currentStep = 'have-you-ever-used-fleet';
           break;
         case 'is-it-any-good':
-          this.currentStep = 'what-are-you-working-on-eo-security';
+          let primaryBuyingSituation = this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation;
+          if(primaryBuyingSituation === 'eo-security'){
+            this.currentStep = 'what-are-you-working-on-eo-security';
+          } else if(primaryBuyingSituation === 'eo-it') {
+            this.currentStep = 'what-does-your-team-manage-eo-it';
+          } else if(primaryBuyingSituation === 'vm') {
+            this.currentStep = 'what-does-your-team-manage-vm';
+          } else if(primaryBuyingSituation === 'mdm') {
+            this.currentStep = 'what-do-you-manage-mdm';
+          }
           break;
         case 'lets-talk-to-your-team':
           this.currentStep = 'how-many-hosts';
@@ -115,6 +140,15 @@ parasails.registerPage('start', {
           break;
         case 'what-did-you-think':
           this.currentStep = 'is-it-any-good';
+          break;
+        case 'what-does-your-team-manage-eo-it':
+          this.currentStep = 'have-you-ever-used-fleet';
+          break;
+        case 'what-does-your-team-manage-vm':
+          this.currentStep = 'have-you-ever-used-fleet';
+          break;
+        case 'what-do-you-manage-mdm':
+          this.currentStep = 'have-you-ever-used-fleet';
           break;
       }
     },
@@ -135,8 +169,12 @@ parasails.registerPage('start', {
           } else {
             if(primaryBuyingSituation === 'eo-security'){
               nextStepInForm = 'what-are-you-working-on-eo-security';
-            } else {
-              nextStepInForm = 'welcome-to-fleet';
+            } else if(primaryBuyingSituation === 'eo-it') {
+              nextStepInForm = 'what-does-your-team-manage-eo-it';
+            } else if(primaryBuyingSituation === 'vm') {
+              nextStepInForm = 'what-does-your-team-manage-vm';
+            } else if(primaryBuyingSituation === 'mdm') {
+              nextStepInForm = 'what-do-you-manage-mdm';
             }
           }
           break;
@@ -156,6 +194,15 @@ parasails.registerPage('start', {
           }
           break;
         case 'what-are-you-working-on-eo-security':
+          nextStepInForm = 'is-it-any-good';
+          break;
+        case 'what-does-your-team-manage-eo-it':
+          nextStepInForm = 'is-it-any-good';
+          break;
+        case 'what-does-your-team-manage-vm':
+          nextStepInForm = 'is-it-any-good';
+          break;
+        case 'what-do-you-manage-mdm':
           nextStepInForm = 'is-it-any-good';
           break;
         case 'is-it-any-good':

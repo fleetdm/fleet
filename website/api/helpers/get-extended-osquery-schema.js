@@ -243,9 +243,6 @@ module.exports = {
               if(columnHasFleetOverrides.hidden !== true) { // If the overrides don't explicitly hide a column, we'll set the value to false to make sure the column is visible on fleetdm.com
                 fleetColumn.hidden = false;
               }
-              if(columnHasFleetOverrides.requires_user_context) {
-                fleetColumn.requires_user_context = true; // eslint-disable-line camelcase
-              }
               mergedTableColumns.push(fleetColumn);
             }
           }
