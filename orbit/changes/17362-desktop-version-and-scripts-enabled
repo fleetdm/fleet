@@ -1,0 +1,3 @@
+In orbit_info table, added the following fields:
+- desktop_version
+- scripts_enabled

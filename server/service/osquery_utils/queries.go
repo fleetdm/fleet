@@ -2,6 +2,7 @@ package osquery_utils
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -607,8 +608,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
 	"orbit_info": {
-		Query:            `SELECT version FROM orbit_info`,
+		Query:            `SELECT * FROM orbit_info`,
 		DirectIngestFunc: directIngestOrbitInfo,
+		Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"),
 		Discovery:        discoveryTable("orbit_info"),
 	},
 	"disk_encryption_darwin": {
@@ -1054,7 +1056,15 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 		return ctxerr.Errorf(ctx, "directIngestOrbitInfo invalid number of rows: %d", len(rows))
 	}
 	version := rows[0]["version"]
-	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version); err != nil {
+	var desktopVersion sql.NullString
+	desktopVersion.String, desktopVersion.Valid = rows[0]["desktop_version"]
+	var scriptsEnabled sql.NullBool
+	scriptsEnabledStr, ok := rows[0]["scripts_enabled"]
+	if ok {
+		scriptsEnabled.Bool = scriptsEnabledStr == "1"
+		scriptsEnabled.Valid = true
+	}
+	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version, desktopVersion, scriptsEnabled); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOrbitInfo update host orbit info")
 	}
 
