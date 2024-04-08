@@ -116,10 +116,16 @@ func ListFleetReservedWindowsProfileNames() []string {
 	return []string{FleetWindowsOSUpdatesProfileName}
 }
 
-// ListFleetReservedAppleDDMProfileNames returns a list of profile names that
-// are reserved by Fleet for Apple DDM declarations.
-func ListFleetReservedAppleDDMProfileNames() []string {
+// ListFleetReservedMacOSProfileNames returns a list of PayloadDisplayName strings
+// that are reserved by Fleet for macOS.
+func ListFleetReservedMacOSProfileNames() []string {
+	return []string{FleetFileVaultProfileName, FleetdConfigProfileName}
+}
+
+// ListFleetReservedMacOSDeclarationNames returns a list of declaration names
+// that are reserved by Fleet for Apple DDM declarations.
+func ListFleetReservedMacOSDeclarationNames() []string {
 	return []string{FleetMacOSUpdatesProfileName}
 	// TODO(mna): use this to filter-out those reserved profiles from status
-	// summaries/filters.
+	// summaries/filters. Reconcile with the previous func...
 }

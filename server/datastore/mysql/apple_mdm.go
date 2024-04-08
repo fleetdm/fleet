@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -3393,8 +3394,6 @@ WHERE h.uuid = ?
 }
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, incomingDeclarations []*fleet.MDMAppleDeclaration) ([]*fleet.MDMAppleDeclaration, error) {
-	// TODO(mna): batch-set should not delete the reserved OS updates DDM.
-
 	const insertStmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -3471,7 +3470,7 @@ WHERE
 	}
 
 	// figure out if we need to delete any declarations
-	keepIdents := make([]any, 0, len(incomingIdents))
+	keepIdents := make([]string, 0, len(incomingIdents))
 	for _, p := range existingDecls {
 		if newP := incomingDecls[p.Identifier]; newP != nil {
 			keepIdents = append(keepIdents, p.Identifier)
@@ -3486,7 +3485,7 @@ WHERE
 		delArgs = []any{declTeamID}
 	} else {
 		// delete the obsolete declarations (all those that are not in keepIdents)
-		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andIdentNotInList), declTeamID, keepIdents)
+		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andIdentNotInList), declTeamID, append(keepIdents, fleetmdm.ListFleetReservedMacOSDeclarationNames()...))
 		// if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
 		// 	if err == nil {
 		// 		err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
