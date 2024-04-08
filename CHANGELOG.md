@@ -1,3 +1,11 @@
+## Fleet 4.48.1 (Apr 08, 2024)
+
+### Bug fixes
+
+- Made block_id mismatch errors more informative as 400s instead of 500s
+- Fixed a bug where values were not being rendered in host-specific query reports
+- Fixed potential server panic when events are created with calendar integration, but then global calendar integration is disabled
+
 ## Fleet 4.48.0 (Apr 03, 2024)
 
 ### Endpoint operations
@@ -27,7 +35,7 @@
 - Fixed a bug where valid MDM enrollments would show up as unmanaged (EnrollmentState 3).
 - Fixed flash message from closing when a modal closes.
 - Fixed a bug where OS version information would not get detected on Windows Server 2019.
-- Fixed issue where getting host details failed when attempting to read the host's BitLocker status from the datastore.
+- Fixed issue where getting host details failed when attempting to read the host's bitlocker status from the datastore.
 - Fixed false negative vulnerabilities on macOS Homebrew python packages.
 - Fixed styling of live query disabled warning.
 - Fixed issue where Windows MDM profile processing was skipping `<Add>` commands.
@@ -36,11 +44,11 @@
 - Fixed `GET fleet/os_versions` and `GET fleet/os_versions/[id]` so team users no longer have access to os versions on hosts from other teams.
 - `fleetctl gitops` now batch processes queries and policies.
 - Fixed UI bug to render the query platform correctly for queries imported from the standard query library.
-- Fixed issue where Microsoft Edge was not reporting vulnerabilities.
+- Fixed issue where microsoft edge was not reporting vulnerabilities.
 - Fixed a bug where all Windows MDM enrollments were detected as automatic.
 - Fixed a bug where `null` or excluded `smtp_settings` caused a UI 500.
 - Fixed query reports so they reset when there is a change to the selected platform or selected minimum osquery version.
-- Fixed live query sort of SQL result sort for both string and numerical columns.
+- Fixed live query sort of sql result sort for both string and numerical columns.
 
 ## Fleet 4.47.3 (Mar 26, 2024)
 
