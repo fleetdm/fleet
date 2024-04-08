@@ -8253,11 +8253,8 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
 	// simulate ABM assignment
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		insertAppConfigQuery := `INSERT INTO host_dep_assignments (host_id) VALUES (?)`
-		_, err = q.ExecContext(context.Background(), insertAppConfigQuery, hFleetMDM.ID)
-		return err
-	})
+	err = s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleetMDM})
+	require.NoError(t, err)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "")
 	require.NoError(t, err)
 	resp = orbitGetConfigResponse{}
