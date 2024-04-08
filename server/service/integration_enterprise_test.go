@@ -5106,6 +5106,27 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.True(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptHostTimeoutErrMsg)
 
+	// Disable scripts on the host
+	scriptsEnabled := false
+	err = s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: scriptsEnabled, Valid: true},
+	)
+	require.NoError(t, err)
+	s.DoJSON(
+		"POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"},
+		http.StatusUnprocessableEntity, &runResp,
+	)
+	s.DoJSON(
+		"POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"},
+		http.StatusUnprocessableEntity, &runResp,
+	)
+	// Re-enable scripts on the host
+	scriptsEnabled = true
+	err = s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: scriptsEnabled, Valid: true},
+	)
+	require.NoError(t, err)
+
 	// make the host "offline"
 	err = s.ds.MarkHostsSeen(context.Background(), []uint{host.ID}, time.Now().Add(-time.Hour))
 	require.NoError(t, err)

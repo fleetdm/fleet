@@ -8438,6 +8438,10 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 		HardwareSerial: h.HardwareSerial,
 	}, orbitKey, nil)
 	require.NoError(t, err)
+	err = ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), h.ID, "1.22.0", sql.NullString{String: "42", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
 	h.OrbitNodeKey = &orbitKey
 	return h
 }
