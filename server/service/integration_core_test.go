@@ -4173,10 +4173,25 @@ func (s *integrationTestSuite) TestUsers() {
 
 	t := s.T()
 
+	// existing users:
+	// {ID: 1, Name: "Test Name admin1@example.com", Email: "admin1@example.com", ...}
+	// {ID: 2, Name: "Test Name user1@example.com", Email: "user1@example.com", ...}
+	// {ID: 3, Name: "Test Name user2@example.com", Email: "user2@example.com", ...}
+
 	// list existing users
 	var listResp listUsersResponse
 	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp)
 	assert.Len(t, listResp.Users, len(s.users))
+
+	// with non-matching query
+	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp, "query", "noone")
+	assert.Len(t, listResp.Users, 0)
+
+	// with matching query containing leading/trailing whitespaces
+	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp, "query", " user 	")
+	assert.Len(t, listResp.Users, 2)
+	assert.Equal(t, uint(2), listResp.Users[0].ID)
+	assert.Equal(t, uint(3), listResp.Users[1].ID)
 
 	// test available teams returned by `/me` endpoint for existing user
 	var getMeResp getUserResponse
