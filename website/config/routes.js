@@ -248,6 +248,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Endpoint ops | Fleet',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
+      currentSection: 'platform',
     }
   },
 
@@ -256,6 +257,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Vulnerability management | Fleet',
       pageDescriptionForMeta: 'Report CVEs, software inventory, security posture, and other risks down to the chipset of any endpoint with Fleet.',
+      currentSection: 'platform',
     }
   },
 
