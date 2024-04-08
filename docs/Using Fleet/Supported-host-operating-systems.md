@@ -19,10 +19,10 @@ Not all osquery tables are available for every OS. Please check out the [osquery
 If a table is not available for your host, Fleet will generally handle things behind the scenes for you. 
 
 ### M1 Macs
-The osquery installer generated for MacOS by `fleetctl package` does not include native support for M1 Macs. Some values returned may reflect the information returned by Rosetta rather than the system. For example, a CPU will show up as `i486`. 
+Fleet's agent (fleetd) generated for MacOS by `fleetctl package` does not include native support for M1 Macs. Some values returned may reflect the information returned by Rosetta rather than the system. For example, a CPU will show up as `i486`. 
 
 ### Linux
-The osquery installer will run on Linux distributions where `glibc` is >= 2.2 (there is ongoing work to make osquery work with `glibc` 2.12+).
+Fleet's agent (fleetd) will run on Linux distributions where `glibc` is >= 2.2 (there is ongoing work to make osquery work with `glibc` 2.12+).
 If you aren't sure what version of `glibc` your distribution is using, [DistroWatch](https://distrowatch.com/) is a great resource. 
 
 > On Linux, Fleet Desktop only supports $DISPLAY `:0`.

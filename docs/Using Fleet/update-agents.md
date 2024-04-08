@@ -134,7 +134,7 @@ This output is _not sensitive_ and will be shared in agent deployments to verify
 
 See the [Enroll hosts docs](https://fleetdm.com/docs/using-fleet/enroll-hosts) for instructions on generating the fleetd agent.
 
-You can use `fleetctl package` to generate installer packages of fleetd (Fleet's bundle of agents that includes a bootstrapped osquery wrapper) to integrate with your Fleet instance.
+You can use `fleetctl package` to generate installer packages of Fleet's agent (fleetd) to integrate with your Fleet instance.
 
 For example running `fleetctl package --type deb --fleet-url=<fleet url> --enroll-secret=<enroll secret>` will build a `.deb` installer with everything needed
 to communicate with your fleet instance.

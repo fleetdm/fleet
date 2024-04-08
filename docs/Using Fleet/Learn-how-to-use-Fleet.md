@@ -17,8 +17,8 @@ To add your device:
 
 1. Select **Add hosts**. In Fleet, devices are referred to as "hosts."
 2. Select your device's platform.
-3. Select **Download** to download your Fleet osquery installer. The download may take several seconds.
-4. Open the Fleet osquery installer and follow the installation steps.
+3. Select **Download** to download Fleet's agent (fleetd). The download may take several seconds.
+4. Open fleetd and follow the installation steps.
 
 > It may take several seconds for Fleet osquery to send your device's data to Fleet.
 

@@ -185,7 +185,7 @@ tables that require access to the [EndpointSecurity API](https://developer.apple
 
 If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
 
-On a system with osquery installed via the Fleet osquery installer (fleetd), obtain the
+On a system with osquery installed via Fleet's agent (fleetd), obtain the
 `CodeRequirement` of fleetd by running:
 
 ```sh
@@ -359,5 +359,5 @@ Applying the environmental variable `"FLEETD_SILENCE_ENROLL_ERROR"=1` on a host 
 This variable is read at launch and will require a restart of the Orbit service if it is not set before installing `fleetd` v1.15.1.
 
 <meta name="pageOrderInSection" value="500">
-<meta name="description" value="Learn how to generate installers and enroll hosts to Fleet using fleetd.">
+<meta name="description" value="Learn how to generate fleetd installers to enroll hosts to Fleet.">
 <meta name="navSection" value="The basics">

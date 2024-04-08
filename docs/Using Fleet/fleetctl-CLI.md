@@ -30,7 +30,7 @@ npm install -g fleetctl@latest
 ### Available commands
 
 
-Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate agent (fleetd) installers to add new hosts, get information about existing hosts, and more!
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate installers for Fleet's agent (fleetd) to add new hosts, get information about existing hosts, and more!
 
 To see the available commands you can run:
 
