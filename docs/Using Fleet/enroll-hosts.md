@@ -340,7 +340,7 @@ so:
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
 
->**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://github.com/fleetdm/fleet/blob/fleet-v4.44.0/scripts/macos-install-wine.sh).
+>**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://fleetdm.com/install-wine).
 
 ### Experimental features
 

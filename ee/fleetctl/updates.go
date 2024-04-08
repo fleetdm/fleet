@@ -764,8 +764,8 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 			continue
 		} else if len(keys) == 0 {
 			return fmt.Errorf("%s key not found", role)
-		} else {
-			return nil
 		}
+
+		return nil
 	}
 }

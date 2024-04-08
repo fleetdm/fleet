@@ -2,7 +2,6 @@
   "profile_name": "Fleet Device Management Inc.",
   "allow_pairing": true,
   "auto_advance_setup": false,
-  "await_device_configured": false,
   "department": "it@fleetdm.com",
   "is_supervised": false,
   "is_multi_user": false,
