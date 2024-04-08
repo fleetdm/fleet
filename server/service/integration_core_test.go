@@ -8125,7 +8125,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	// insert software vuln outside of host scope
 	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
 		SoftwareID: sw2.ID,
-		CVE:        "CVE-2021-1236",
+		CVE:        "CVE-2021-1246",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
@@ -8149,12 +8149,12 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 			Description:      "Test CVE 2021-1235",
 		},
 		{
-			CVE:              "CVE-2021-1236",
+			CVE:              "CVE-2021-1246",
 			CVSSScore:        ptr.Float64(5.4),
 			EPSSProbability:  ptr.Float64(0.6),
 			CISAKnownExploit: ptr.Bool(false),
 			Published:        ptr.Time(mockTime),
-			Description:      "Test CVE 2021-1236",
+			Description:      "Test CVE 2021-1246",
 		},
 	})
 	require.NoError(t, err)
@@ -8162,6 +8162,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
 	require.NoError(t, err)
 
+	// test list
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
 	require.Empty(t, resp.Err)
 	require.Len(s.T(), resp.Vulnerabilities, 3)
@@ -8183,9 +8184,9 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 			HostCount:   1,
 			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
 		},
-		"CVE-2021-1236": {
+		"CVE-2021-1246": {
 			HostCount:   1,
-			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1236",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1246",
 		},
 	}
 
@@ -8196,6 +8197,47 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
 		require.Empty(t, vuln.CVSSScore)
 	}
+
+	// test list with matching query containing leading/trailing whitespace
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "123")
+	require.Empty(t, resp.Err)
+	require.Len(s.T(), resp.Vulnerabilities, 2)
+	require.Equal(t, resp.Count, uint(2))
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+
+	expected = map[string]struct {
+		fleet.CVEMeta
+		HostCount   uint
+		DetailsLink string
+		Source      fleet.VulnerabilitySource
+	}{
+		"CVE-2021-1234": {
+			HostCount:   1,
+			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+		},
+		"CVE-2021-1235": {
+			HostCount:   1,
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
+		},
+		// ...1246 should not match the query
+	}
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Empty(t, vuln.CVSSScore)
+	}
+
+	// test list with non-matching query
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "CVB")
+	require.Empty(t, resp.Err)
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+	require.Equal(t, resp.Count, uint(0))
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
 
 	// Test Team Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
@@ -8229,7 +8271,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusNotFound, &gResp)
 
 	// Valid CVE but not in team scope
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNotFound, &gResp, "team_id", fmt.Sprintf("%d", team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusNotFound, &gResp, "team_id", fmt.Sprintf("%d", team.ID))
 
 	// Invalid TeamID
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusForbidden, &gResp, "team_id", "100")
