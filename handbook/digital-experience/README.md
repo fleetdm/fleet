@@ -8,6 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Head of Revenue Operations      | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
+| Apprentice                      | [Award Malisi](https://www.linkedin.com/in/award-malisi/) _([@Unearthlyglow](https://github.com/Unearthlyglow))_
 
 
 ## Contact us
@@ -31,6 +32,20 @@ Each PR to the website is manually checked for quality and tested before before 
 
 3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
+
+### Update the host count of a premium subscription
+
+When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
+
+To update the host count on a user's subscription:
+
+1. Log in to the [Stripe dashboard](https://dashboard.stripe.com/dashboard) and search for the customer's email address.
+2. Click on their subscription and select the "Update subscription" option in the "Actions" dropdown
+3. Update the quantity of the user's subscription to be their desired host count.
+4. Turn the "Proration charges" option on and select the "Charge proration amount immediately" option.
+5. Under "Payment" select "Email invoice to the customer", and set the payment due date to be 15 days, and make sure the "Invoice payment page" option is checked.
+6. Select "Update subscription" to send the user an updated invoice for their subscription. Once the customer pays their new invoice, the Fleet website will update the user's subscription and generate a new Fleet Premium license with an updated host count.
+7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
 ### Test fleetdm.com locally 
 When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
@@ -150,33 +165,6 @@ If the action fails, please complete the following steps:
 1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action. 
-
-
-### Grant role-specific license to a team member (RevOps)
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
-
-| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
-|:-----------------|:---|:---|:----|:---|:---|
-| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
-| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
-| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
-| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
-| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
-
-> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
-
-
-### Add a seat to Salesforce
-Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
-- Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
-- View contracts -> pick current contract.
-- Add the desired number of licenses.
-- Sign DocuSign sent to the email.
-- The order will be processed in ~30m.
-- Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
-- To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
 
 
 ### Refresh event calendar

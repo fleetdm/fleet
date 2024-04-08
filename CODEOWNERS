@@ -74,7 +74,7 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
+/handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
 
 ##############################################################################################
 # 🦿 Repo automation and change control settings

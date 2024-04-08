@@ -506,7 +506,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		    -- coalesce to 'unknown' and keep that state in the list
 		    -- in order to account for hosts that might not have this
 		    -- key, and servers
-                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2')
+                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
                     LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,

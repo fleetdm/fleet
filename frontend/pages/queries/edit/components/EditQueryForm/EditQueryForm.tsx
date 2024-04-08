@@ -63,6 +63,7 @@ interface IEditQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
+  currentTeamId?: number;
   teamNameForQuery?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
@@ -97,6 +98,7 @@ const EditQueryForm = ({
   router,
   queryIdForEdit,
   apiTeamIdForQuery,
+  currentTeamId,
   teamNameForQuery,
   showOpenSchemaActionText,
   storedQuery,
@@ -601,7 +603,7 @@ const EditQueryForm = ({
               onClick={() => {
                 router.push(
                   PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
                 );
               }}
               disabled={disabledLiveQuery}
@@ -638,12 +640,32 @@ const EditQueryForm = ({
     "differential_ignore_removals",
   ].includes(lastEditedQueryLoggingType);
 
+  // Note: The backend is not resetting the query reports with equivalent platform strings
+  // so we are not showing a warning unless the platform combinations differ
+  const formatPlatformEquivalences = (platforms?: string) => {
+    // Remove white spaces allowed by API and format into a sorted string converted from a sorted array
+    return platforms?.replace(/\s/g, "").split(",").sort().toString();
+  };
+
+  const changedPlatforms =
+    storedQuery &&
+    formatPlatformEquivalences(lastEditedQueryPlatforms) !==
+      formatPlatformEquivalences(storedQuery?.platform);
+
+  const changedMinOsqueryVersion =
+    storedQuery &&
+    lastEditedQueryMinOsqueryVersion !== storedQuery.min_osquery_version;
+
   const enabledDiscardData =
     storedQuery && lastEditedQueryDiscardData && !storedQuery.discard_data;
 
   const confirmChanges =
     currentlySavingQueryResults &&
-    (changedSQL || changedLoggingToDifferential || enabledDiscardData);
+    (changedSQL ||
+      changedLoggingToDifferential ||
+      enabledDiscardData ||
+      changedPlatforms ||
+      changedMinOsqueryVersion);
 
   const showChangedSQLCopy =
     changedSQL && !changedLoggingToDifferential && !enabledDiscardData;
@@ -825,7 +847,7 @@ const EditQueryForm = ({
                   setEditingExistingQuery(true); // Persists edited query data through live query flow
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
                   );
                 }}
                 disabled={disabledLiveQuery}
