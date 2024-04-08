@@ -126,6 +126,4 @@ func ListFleetReservedMacOSProfileNames() []string {
 // that are reserved by Fleet for Apple DDM declarations.
 func ListFleetReservedMacOSDeclarationNames() []string {
 	return []string{FleetMacOSUpdatesProfileName}
-	// TODO(mna): use this to filter-out those reserved profiles from status
-	// summaries/filters. Reconcile with the previous func...
 }
