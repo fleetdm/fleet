@@ -16,8 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1092,7 +1092,7 @@ func (ds *Datastore) applyHostFilters(
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{
-					Message:     fmt.Sprintf("team is invalid"),
+					Message:     "team is invalid",
 					InternalErr: err,
 				},
 			)
@@ -2090,6 +2090,7 @@ type hostWithMDMInfo struct {
 	MDMID                  *uint   `db:"mdm_id"`
 	Name                   *string `db:"name"`
 	EncryptionKeyAvailable *bool   `db:"encryption_key_available"`
+	DEPProfileAssignStatus *string `db:"dep_profile_assign_status"`
 }
 
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
@@ -2148,7 +2149,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       COALESCE(hdek.decryptable, false) as encryption_key_available,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
-      t.name as team_name
+      t.name as team_name,
+      hdep.assign_profile_response AS dep_profile_assign_status
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2158,7 +2160,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     LEFT OUTER JOIN
       host_dep_assignments hdep
     ON
-      hdep.host_id = h.id
+      hdep.host_id = h.id AND hdep.deleted_at IS NULL
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms
     ON
@@ -2185,13 +2187,14 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
 			host.MDMInfo = &fleet.HostMDM{
-				HostID:           *hostWithMDM.HostID,
-				Enrolled:         *hostWithMDM.Enrolled,
-				ServerURL:        *hostWithMDM.ServerURL,
-				InstalledFromDep: *hostWithMDM.InstalledFromDep,
-				IsServer:         *hostWithMDM.IsServer,
-				MDMID:            hostWithMDM.MDMID,
-				Name:             *hostWithMDM.Name,
+				HostID:                 *hostWithMDM.HostID,
+				Enrolled:               *hostWithMDM.Enrolled,
+				ServerURL:              *hostWithMDM.ServerURL,
+				InstalledFromDep:       *hostWithMDM.InstalledFromDep,
+				IsServer:               *hostWithMDM.IsServer,
+				MDMID:                  hostWithMDM.MDMID,
+				Name:                   *hostWithMDM.Name,
+				DEPProfileAssignStatus: hostWithMDM.DEPProfileAssignStatus,
 			}
 
 			host.MDM = fleet.MDMHostData{
@@ -2260,7 +2263,8 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      hdep.assign_profile_response AS dep_profile_assign_status
     FROM
       host_device_auth hda
     INNER JOIN
@@ -2272,7 +2276,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
     LEFT OUTER JOIN
       host_mdm hm  ON hm.host_id = h.id
     LEFT OUTER JOIN
-      host_dep_assignments hdep ON hdep.host_id = h.id
+      host_dep_assignments hdep ON hdep.host_id = h.id AND hdep.deleted_at IS NULL
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
     WHERE
@@ -2286,13 +2290,14 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
 			host.MDMInfo = &fleet.HostMDM{
-				HostID:           *hostWithMDM.HostID,
-				Enrolled:         *hostWithMDM.Enrolled,
-				ServerURL:        *hostWithMDM.ServerURL,
-				InstalledFromDep: *hostWithMDM.InstalledFromDep,
-				IsServer:         *hostWithMDM.IsServer,
-				MDMID:            hostWithMDM.MDMID,
-				Name:             *hostWithMDM.Name,
+				HostID:                 *hostWithMDM.HostID,
+				Enrolled:               *hostWithMDM.Enrolled,
+				ServerURL:              *hostWithMDM.ServerURL,
+				InstalledFromDep:       *hostWithMDM.InstalledFromDep,
+				IsServer:               *hostWithMDM.IsServer,
+				MDMID:                  hostWithMDM.MDMID,
+				Name:                   *hostWithMDM.Name,
+				DEPProfileAssignStatus: hostWithMDM.DEPProfileAssignStatus,
 			}
 		}
 		return &host, nil
