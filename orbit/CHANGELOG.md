@@ -1,3 +1,7 @@
+- Add `parse_json`, `parse_jsonl`, `parse_xml`, and `parse_ini` tables.
+
+* Add exponential backoff to orbit enroll retries.
+
 ## Orbit 1.22.0 (Feb 26, 2024)
 
 * Reduce error logs when orbit cannot connect to Fleet.
