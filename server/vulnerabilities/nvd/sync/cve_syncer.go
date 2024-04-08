@@ -109,11 +109,6 @@ func (s *CVE) Do(ctx context.Context) error {
 	return s.update(ctx)
 }
 
-func (s *CVE) DoVulnCheck(ctx context.Context) error {
-	level.Debug(s.logger).Log("msg", "initial VulnCheck CVE sync")
-	return s.initVulnCheckSync(ctx)
-}
-
 // initSync performs the initial synchronization (full download) of all CVEs.
 func (s *CVE) initSync(ctx context.Context) error {
 	// Remove any legacy feeds from previous versions of Fleet.
@@ -130,16 +125,6 @@ func (s *CVE) initSync(ctx context.Context) error {
 	// Write the lastModStartDate to be used in the next sync.
 	if err := s.writeLastModStartDateFile(lastModStartDate); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (s *CVE) initVulnCheckSync(ctx context.Context) error {
-	// Perform the initial download of all CVE information.
-	err := s.vulnCheckSync(ctx)
-	if err != nil {
-		return fmt.Errorf("error syncing vulncheck: %w", err)
 	}
 
 	return nil
@@ -481,9 +466,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	return newLastModStartDate, nil
 }
 
-func (s *CVE) vulnCheckSync(ctx context.Context) error {
-	cvesByYear := make(map[int][]VulnCheckCVE)
-
+func (s *CVE) DoVulnCheck(ctx context.Context) error {
 	apiKey := os.Getenv("VULNCHECK_API_KEY")
 
 	if apiKey == "" {
@@ -570,8 +553,14 @@ func (s *CVE) vulnCheckSync(ctx context.Context) error {
 		return err
 	}
 
-	// unzip the file to a temporary directory
-	// err = unzipFile(filepath.Join(s.dbDir, "vulncheck.zip"), filepath.Join(s.dbDir, "vulncheck"))
+	s.processVulnCheckFile()
+
+	return nil
+}
+
+func (s *CVE) processVulnCheckFile() error {
+	cvesByYear := make(map[int][]VulnCheckCVE)
+
 	sanitizedPath, err := sanitizeArchivePath(s.dbDir, "vulncheck.zip")
 	if err != nil {
 		return fmt.Errorf("error sanitizing archive path: %w", err)

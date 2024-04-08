@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -139,4 +140,78 @@ func sortChildren(children []*schema.NVDCVEFeedJSON10DefNode) {
 	sort.Slice(children, func(i, j int) bool {
 		return childrenHash(*children[i]) < childrenHash(*children[j])
 	})
+}
+
+func TestEnhanceNVDwithVulncheck(t *testing.T) {
+	// gzip the vulncheck data
+	testDataPath := filepath.Join("testdata", "cve", "vulncheck_test_data")
+	nvdFile := filepath.Join(testDataPath, "nvdcve-1.1-2024.json")
+	vulncheckFile := filepath.Join(testDataPath, "nvdcve-2.0-122.json")
+	gzipFile := filepath.Join(testDataPath, "nvdcve-2.0-122.json.gz")
+	zFile := filepath.Join(testDataPath, "vulncheck.zip")
+
+	// compress the vulncheck file to mimic the real data
+	CompressFile(vulncheckFile, gzipFile)
+	zipFile(gzipFile, zFile)
+
+	// backup the original data to new directory
+	backupPath := filepath.Join(testDataPath, "backup")
+	err := os.MkdirAll(backupPath, os.ModePerm)
+	require.NoError(t, err)
+
+	err = copyFile(nvdFile, filepath.Join(backupPath, "nvdcve-1.1-2024.json"))
+	require.NoError(t, err)
+
+	syncer, err := NewCVE(testDataPath)
+	require.NoError(t, err)
+
+	syncer.processVulnCheckFile()
+
+	// compare the enhanced data with the expected data
+	enhancedDataPath := filepath.Join(testDataPath, "nvdcve-1.1-2024.json")
+	expectedDataPath := filepath.Join(testDataPath, "nvdcve-1.1-2024-expected.json")
+	enhancedData, err := os.ReadFile(enhancedDataPath)
+	require.NoError(t, err)
+	expectedData, err := os.ReadFile(expectedDataPath)
+	require.NoError(t, err)
+
+	require.Equal(t, string(expectedData), string(enhancedData))
+
+	// restore the original data
+	err = copyFile(filepath.Join(backupPath, "nvdcve-1.1-2024.json"), filepath.Join(testDataPath, "nvdcve-1.1-2024.json"))
+	require.NoError(t, err)
+
+	err = os.RemoveAll(backupPath)
+	require.NoError(t, err)
+
+	err = os.Remove(gzipFile)
+	require.NoError(t, err)
+
+	err = os.Remove(zFile)
+	require.NoError(t, err)
+}
+
+func copyFile(src, dst string) error {
+	// Open the source file for reading
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	// Create the destination file with write and read permissions
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	// Copy the contents of the source file to the destination file
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that the copied contents are flushed to stable storage
+	return destFile.Sync()
 }
