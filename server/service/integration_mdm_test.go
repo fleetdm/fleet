@@ -719,6 +719,27 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host still verifying team profiles
+
+	// set OS updates settings for no-team and team, should not change the
+	// summaries as this profile is ignored.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"macos_updates": {
+				"deadline": "2023-12-31",
+				"minimum_version": "13.3.7"
+			}
+		}
+	}`), http.StatusOK)
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
+			},
+		},
+	}, http.StatusOK)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
 }
 
 func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
