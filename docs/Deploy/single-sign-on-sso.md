@@ -4,7 +4,7 @@ Fleet supports SAML SSO and just-in-time (JIT) user provisioning.
 
 Fleet supports both service (SP) initiated login and identify provider (IdP)initiated login.
 
-To configure SSO, follow steps for your IdP and then complete [Fleet configuration](#fleet-configuration)
+To configure SSO, follow steps for your IdP and then complete [Fleet configuration](#fleet-configuration).
 
 ## Okta
 
@@ -12,7 +12,7 @@ Create a new SAML app in Okta:
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
-If you're configuring [end user authentication](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the single sign on URL.
+If you're configuring [end user authentication](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the single sign on URL instead.
 
 Once configured, you will need to retrieve the Issuer URI from the `View Setup Instructions` and metadata URL from the `Identity Provider metadata` link within the application `Sign on` settings. See below for where to find them:
 
@@ -24,51 +24,39 @@ Once configured, you will need to retrieve the Issuer URI from the `View Setup I
 
 Create a new SAML app in Google Workspace:
 
-1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click _Add App -> Add custom SAML app_.
+1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click **Add App -> Add custom SAML app**.
 
   ![The Google Workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
 
-2. Enter `Fleet` for the _App name_ and click _Continue_.
+2. Enter `Fleet` for the **App name** and click **Continue**.
 
   ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
-3. Click _Download Metadata_, saving the metadata to your computer. Click _Continue_.
+3. Click **Download Metadata**, saving the metadata to your computer. Click **Continue**.
 
   ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
-4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign-on options_ section.
+5. Configure the **Service provider details**:
 
-  - Check the _Enable single sign-on_ checkbox.
-  - For _Identity provider name_, use `Google`.
-  - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Metadata_, paste the contents of the downloaded metadata XML from step three.
-  - All other fields can be left blank.
-
-  Click _Update settings_ at the bottom of the page.
-
-  ![Fleet's SAML single sign on options page](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-4.png)
-
-5. In Google Workspace, configure the _Service provider details_.
-
-  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+  - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
   - For Entity ID, use **the same unique identifier from step four** (e.g., `fleet.example.com`).
-  - For _Name ID format_, choose `EMAIL`.
-  - For _Name ID_, choose `Basic Information > Primary email`.
+  - For **Name ID format**, choose `EMAIL`.
+  - For **Name ID**, choose `Basic Information > Primary email`.
   - All other fields can be left blank.
 
-  Click _Continue_ at the bottom of the page.
+  Click **Continue** at the bottom of the page.
 
   ![Configuring the service provider details in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-5.png)
 
-6. Click _Finish_.
+6. Click **Finish**.
 
   ![Finish configuring the new SAML app in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-6.png)
 
-7. Click the down arrow on the _User access_ section of the app details page.
+7. Click the down arrow on the **User access** section of the app details page.
 
   ![The new SAML app's details page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-7.png)
 
-8. Check _ON for everyone_. Click _Save_.
+8. Check **ON for everyone**. Click **Save**.
 
   ![The new SAML app's service status page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-8.png)
 
@@ -78,13 +66,13 @@ Create a new SAML app in Google Workspace:
 
 IdPs generally requires the following information:
 
-- _Assertion Consumer Service_ - This is the call-back URL that the identity provider will use to send security assertions to Fleet. Use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring end user authentication, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+- Assertion Consumer Service - This is the call-back URL that the identity provider will use to send security assertions to Fleet. Use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring end user authentication, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
 
-- _Entity ID_ - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration.
+- Entity ID - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration.
 
-- _Name ID Format_ - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IdP setup to something like `email` or `EmailAddress`.
+- Name ID Format - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IdP setup to something like `email` or `EmailAddress`.
 
-- _Subject Type (Application username in Okta)_ - `email`.
+- Subject Type - `email`.
 
 After supplying the above information, your IdP will generate an issuer URI and metadata that will be used to configure Fleet as a service provider.
 
@@ -94,15 +82,15 @@ To configure SSO in Fleet head to **Settings > Organization settings > Single si
 
 If you're configuring end user authentication head to **Settings > Integrations > Automatic enrollment > End user authentication**.
 
-- _Identity provider name_ - A human-readable name of the IdP. This is rendered on the login page.
+- **Identity provider name** - A human-readable name of the IdP. This is rendered on the login page.
 
-- _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization requests (e.g., `fleet.example.com`). This must match the _Entity ID_ configured with the IdP.
+- **Entity ID** - A URI that identifies your Fleet instance as the issuer of authorization requests (e.g., `fleet.example.com`). This must match the Entity ID configured with the IdP.
 
-- _Metadata URL_ - Obtain this value from your IdP. and is used by Fleet to
+- **Metadata URL** - Obtain this value from your IdP. and is used by Fleet to
   issue authorization requests to the IdP.
 
-- _Metadata_ - If the IdP does not provide a metadata URL, the metadata must
-  be obtained from the IdP and entered.
+- **Metadata** - If the IdP does not provide a metadata URL, the metadata must
+  be obtained from the IdP and entered. Coming soon to end user authentication.
 
 ![Example SSO Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/sso-setup.png)
 
