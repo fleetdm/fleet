@@ -2218,7 +2218,8 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d1
 			WHERE
 				h.uuid = d1.host_uuid
-				AND d1.status = :failed) THEN
+				AND d1.status = :failed
+				AND d1.declaration_name NOT IN (:reserved_names)) THEN
 			'declarations_failed'
 		WHEN EXISTS (
 			SELECT
@@ -2229,6 +2230,7 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				h.uuid = d2.host_uuid
 				AND(d2.status IS NULL
 					OR d2.status = :pending)
+				AND d2.declaration_name NOT IN (:reserved_names)
 				AND NOT EXISTS (
 					SELECT
 						1
@@ -2236,7 +2238,8 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 						host_mdm_apple_declarations d3
 					WHERE
 						h.uuid = d3.host_uuid
-						AND d3.status = :failed)) THEN
+						AND d3.status = :failed
+						AND d3.declaration_name NOT IN (:reserved_names))) THEN
 			'declarations_pending'
 		WHEN EXISTS (
 			SELECT
@@ -2246,12 +2249,14 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 			WHERE
 				h.uuid = d4.host_uuid
 				AND d4.status = :verifying
+				AND d4.declaration_name NOT IN (:reserved_names)
 				AND NOT EXISTS (
 					SELECT
 						1
 					FROM
 						host_mdm_apple_declarations d5
 					WHERE (h.uuid = d5.host_uuid
+						AND d5.declaration_name NOT IN (:reserved_names)
 						AND(d5.status IS NULL
 							OR d5.status IN(:pending, :failed))))) THEN
 			'declarations_verifying'
@@ -2263,12 +2268,14 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 			WHERE
 				h.uuid = d6.host_uuid
 				AND d6.status = :verified
+				AND d6.declaration_name NOT IN (:reserved_names)
 				AND NOT EXISTS (
 					SELECT
 						1
 					FROM
 						host_mdm_apple_declarations d7
 					WHERE (h.uuid = d7.host_uuid
+						AND d7.declaration_name NOT IN (:reserved_names)
 						AND(d7.status IS NULL
 							OR d7.status IN(:pending, :failed, :verifying))))) THEN
 			'declarations_verified'
@@ -2280,10 +2287,11 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 	arg := map[string]any{
 		// "install":   fleet.MDMOperationTypeInstall,
 		// "remove":    fleet.MDMOperationTypeRemove,
-		"verifying": fleet.MDMDeliveryVerifying,
-		"failed":    fleet.MDMDeliveryFailed,
-		"verified":  fleet.MDMDeliveryVerified,
-		"pending":   fleet.MDMDeliveryPending,
+		"verifying":      fleet.MDMDeliveryVerifying,
+		"failed":         fleet.MDMDeliveryFailed,
+		"verified":       fleet.MDMDeliveryVerified,
+		"pending":        fleet.MDMDeliveryPending,
+		"reserved_names": fleetmdm.ListFleetReservedMacOSDeclarationNames(),
 	}
 	query, args, err := sqlx.Named(declNamedStmt, arg)
 	if err != nil {
