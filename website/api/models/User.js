@@ -216,7 +216,8 @@ without necessarily having a billing card.`
 
     lastSubmittedGetStartedQuestionnaireStep: {
       type: 'string',
-      description: 'The last step the user reached in the get started form.'
+      description: 'The last step the user reached in the get started form.',
+      defaultsTo: 'start',
     },
 
     getStartedQuestionnaireAnswers: {

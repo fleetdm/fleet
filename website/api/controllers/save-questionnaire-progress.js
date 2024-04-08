@@ -18,6 +18,9 @@ module.exports = {
         'how-many-hosts',
         'will-you-be-self-hosting',
         'what-are-you-working-on-eo-security',
+        'what-does-your-team-manage-eo-it',
+        'what-does-your-team-manage-vm',
+        'what-do-you-manage-mdm',
         'is-it-any-good',
         'what-did-you-think',
         'deploy-fleet-in-your-environment',
@@ -28,21 +31,21 @@ module.exports = {
     formData: {
       type: {},
       description: 'The formdata that will be saved for this step of the get started questionnaire'
-    }
+    },
   },
 
 
   exits: {
-
+    success: {
+      outputDescription: 'All get started questionnaire answers accumulated so far by this user.',
+      outputType: {}
+    },
   },
 
 
   fn: async function ({currentStep, formData}) {
     // find this user's DB record.
-    let userRecord = await User.findOne({id: this.req.me.id});
-    if(!userRecord){
-      throw new Error(`Consistency violation: when trying to save a user's progress in the get started questionnaire, a User record with the ID ${this.req.me.id} could not be found.`);
-    }
+    let userRecord = this.req.me;
     let questionnaireProgress;
     // If this user doesn't have a lastSubmittedGetStartedQuestionnaireStep or getStartedQuestionnaireAnswers, create an empty dictionary to store their answers.
     if(!userRecord.lastSubmittedGetStartedQuestionnaireStep || _.isEmpty(userRecord.getStartedQuestionnaireAnswers)) {
@@ -53,7 +56,9 @@ module.exports = {
     // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
       let primaryBuyingSituation = formData.primaryBuyingSituation;
-      await User.updateOne({id: this.req.me.id}).set({primaryBuyingSituation});
+      await User.updateOne({id: this.req.me.id}).set({
+        primaryBuyingSituation
+      });
       // Set the primary buying situation in the user's session.
       this.req.session.primaryBuyingSituation = primaryBuyingSituation;
     }
@@ -62,7 +67,10 @@ module.exports = {
     // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
     let getStartedProgress = _.clone(questionnaireProgress);
     // Update the user's database model.
-    await User.updateOne({id: userRecord.id}).set({getStartedQuestionnaireAnswers: questionnaireProgress, lastSubmittedGetStartedQuestionnaireStep: currentStep});
+    await User.updateOne({id: userRecord.id}).set({
+      getStartedQuestionnaireAnswers: questionnaireProgress,
+      lastSubmittedGetStartedQuestionnaireStep: currentStep
+    });
     // Return the JSON dictionary of form data submitted by this user.
     return getStartedProgress;
   }

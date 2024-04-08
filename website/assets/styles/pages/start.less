@@ -19,6 +19,15 @@
     margin-left: auto;
     margin-right: auto;
   }
+  [purpose='form-header'] {
+    margin-bottom: 32px;
+    h2 {
+      margin-bottom: 12px;
+    }
+    p {
+      margin-bottom: 0px;
+    }
+  }
   [purpose='form-container'] {
     width: 528px;
     margin-left: auto;
@@ -120,6 +129,10 @@
     }
   }
 
+  [purpose='contact-link'] {
+    text-decoration: underline;
+    text-underline-offset: 3.5px;
+  }
   [purpose='form-buttons'] {
     margin-top: 32px;
     display: flex;
@@ -192,7 +205,6 @@
   }
   [purpose='quote'] {
     display: flex;
-    min-height: 300px;
     padding: 32px;
     flex-direction: column;
     justify-content: center;
