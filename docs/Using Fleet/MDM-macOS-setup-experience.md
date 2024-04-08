@@ -18,7 +18,9 @@ MacOS setup features require connecting Fleet to Apple Business Manager (ABM). L
 
 Using Fleet, you can require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
-To configure end user authentication, head to the [single sign-on (SSO)](../Deploy/single-sign-on-sso.md) documentation. If you've already configured SSO in Fleet, create a new app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+First, configure end user authentication by configuring [single sign-on (SSO)](../Deploy/single-sign-on-sso.md). If you've already configured SSO, create a new app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+
+Next, enable end user authentication by heading to to **Controls > Setup experience End user authentication** or use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 To require a EULA, in Fleet, head to **Settings > Integrations > Automatic enrollment > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
