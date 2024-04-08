@@ -7206,8 +7206,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 					 SET assign_profile_response = NULL,
 					     response_updated_at = NULL,
 					     profile_uuid = NULL
-					 WHERE host_id = ?`
-				_, err := q.ExecContext(context.Background(), stmt, host.ID)
+					 WHERE host_hardware_serial = ?`
+				_, err := q.ExecContext(context.Background(), stmt, host.HardwareSerial)
 				return err
 			})
 		}
