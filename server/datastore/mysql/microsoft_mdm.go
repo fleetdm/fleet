@@ -1693,6 +1693,12 @@ ON DUPLICATE KEY UPDATE
 			keepNames = append(keepNames, p.Name)
 		}
 	}
+	for n := range mdm.FleetReservedProfileNames() {
+		if _, ok := incomingProfs[n]; !ok {
+			// always keep reserved profiles even if they're not incoming
+			keepNames = append(keepNames, n)
+		}
+	}
 
 	var (
 		stmt string

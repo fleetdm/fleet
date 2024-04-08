@@ -3581,25 +3581,36 @@ func (s *integrationTestSuite) TestLabels() {
 	t := s.T()
 
 	// list labels, has the built-in ones
+	builtinsMap := fleet.ReservedLabelNames()
 	var listResp listLabelsResponse
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
 	assert.True(t, len(listResp.Labels) > 0)
 	for _, lbl := range listResp.Labels {
+		_, ok := builtinsMap[lbl.Name]
+		assert.True(t, ok)
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
 	builtInsCount := len(listResp.Labels)
+	require.Equal(t, builtInsCount, len(builtinsMap))
 
 	// labels summary has the built-in ones
 	var summaryResp getLabelsSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
 	assert.Len(t, summaryResp.Labels, builtInsCount)
 	for _, lbl := range summaryResp.Labels {
+		_, ok := builtinsMap[lbl.Name]
+		assert.True(t, ok)
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
 
 	// create a label without name, an error
 	var createResp createLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Query: ptr.String("select 1")}, http.StatusUnprocessableEntity, &createResp)
+
+	// create invalid label, conflicts with builtin name
+	for n := range builtinsMap {
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String(n), Query: ptr.String("select 1")}, http.StatusUnprocessableEntity, &createResp)
+	}
 
 	// create a valid label
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String(t.Name()), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
@@ -3621,6 +3632,11 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, lbl1.ID, modResp.Label.ID)
 	assert.NotEqual(t, lbl1.Name, modResp.Label.Name)
 
+	// attempt to modify a label to a reserved name
+	for n := range builtinsMap {
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(n)}, http.StatusUnprocessableEntity, &modResp)
+	}
+
 	// modify a non-existing label
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID+1), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
 
@@ -3633,7 +3649,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Len(t, summaryResp.Labels, builtInsCount+1)
 
 	// next page is empty
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "page", "1", "query", t.Name())
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "page", "1", "query", t.Name())
 	assert.Len(t, listResp.Labels, 0)
 
 	// create another label
@@ -3734,15 +3750,22 @@ func (s *integrationTestSuite) TestLabels() {
 	// list labels, only the built-ins remain
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
 	assert.Len(t, listResp.Labels, builtInsCount)
+	idsByName := make(map[string]uint, len(listResp.Labels))
 	for _, lbl := range listResp.Labels {
+		_, ok := builtinsMap[lbl.Name]
+		assert.True(t, ok)
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+		idsByName[lbl.Name] = lbl.ID
 	}
 
 	// labels summary, only the built-ins remains
 	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
 	assert.Len(t, summaryResp.Labels, builtInsCount)
 	for _, lbl := range summaryResp.Labels {
+		_, ok := builtinsMap[lbl.Name]
+		assert.True(t, ok)
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+		assert.Equal(t, idsByName[lbl.Name], lbl.ID)
 	}
 
 	// host summary matches built-ins count
@@ -3750,7 +3773,22 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &hostSummaryResp)
 	assert.Len(t, hostSummaryResp.BuiltinLabels, builtInsCount)
 	for _, lbl := range hostSummaryResp.BuiltinLabels {
+		_, ok := builtinsMap[lbl.Name]
+		assert.True(t, ok)
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+		assert.Equal(t, idsByName[lbl.Name], lbl.ID)
+	}
+
+	require.Len(t, idsByName, len(builtinsMap))
+	for name := range builtinsMap {
+		id, ok := idsByName[name]
+		require.True(t, ok)
+
+		// attempt to delete by name
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(name)), nil, http.StatusUnprocessableEntity, &delResp)
+
+		// attempt to delete by id
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id), nil, http.StatusUnprocessableEntity, &delIDResp)
 	}
 }
 
@@ -3922,6 +3960,33 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			},
 		},
 	}, http.StatusInternalServerError, &applyResp)
+
+	// apply an invalid label spec - builtin label type
+	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                name,
+				Query:               "select 1",
+				Platform:            "linux",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				LabelType:           fleet.LabelTypeBuiltIn,
+			},
+		},
+	}, http.StatusUnprocessableEntity, &applyResp)
+
+	// apply an invalid label spec - builtin label name
+	for n := range fleet.ReservedLabelNames() {
+		s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                n,
+					Query:               "select 1",
+					Platform:            "linux",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				},
+			},
+		}, http.StatusUnprocessableEntity, &applyResp)
+	}
 
 	// apply a valid label spec
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
@@ -6477,16 +6542,20 @@ func (s *integrationTestSuite) TestSearchTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	var builtinNames []string
+	for name := range fleet.ReservedLabelNames() {
+		builtinNames = append(builtinNames, name)
+	}
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), builtinNames)
 	require.NoError(t, err)
-	require.Len(t, lblMap, 1)
+	require.Len(t, lblMap, len(builtinNames))
 
 	// no search criteria
 	var searchResp searchTargetsResponse
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
-	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Labels, len(lblMap))
 	require.Len(t, searchResp.Targets.Teams, 0)
 
 	var lblIDs []uint
@@ -6505,7 +6574,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(1), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
-	require.Len(t, searchResp.Targets.Labels, 1)           // labels have not been omitted
+	require.Len(t, searchResp.Targets.Labels, len(lblMap)) // labels have not been omitted
 	require.Len(t, searchResp.Targets.Teams, 0)
 
 	searchResp = searchTargetsResponse{}
