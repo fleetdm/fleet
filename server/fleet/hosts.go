@@ -201,7 +201,7 @@ type HostListOptions struct {
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
 func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() &&
-		h.DeviceMapping &&
+		h.DeviceMapping == false &&
 		len(h.AdditionalFilters) == 0 &&
 		h.StatusFilter == "" &&
 		h.TeamFilter == nil &&
@@ -213,7 +213,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
-		h.DisableFailingPolicies &&
+		h.DisableFailingPolicies == false &&
 		h.MacOSSettingsFilter == "" &&
 		h.MacOSSettingsDiskEncryptionFilter == "" &&
 		h.MDMBootstrapPackageFilter == nil &&
