@@ -12,7 +12,7 @@ Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy
 
 Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
 
-You can enroll servers and laptops using a simple installer or automatically deliver the agent using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
+You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
 
 By default, Fleet keeps agents up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
 

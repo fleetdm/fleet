@@ -3243,7 +3243,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 
 Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Retrieves a host's MDM enrollment status and MDM server URL.
 
@@ -3280,7 +3280,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 Retrieves MDM enrollment summary. Windows servers are excluded from the aggregated data.
 
@@ -3387,8 +3387,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 Currently supported only on macOS.
 
 
