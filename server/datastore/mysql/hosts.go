@@ -2147,7 +2147,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       COALESCE(mdms.name, ?) AS name,
       COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
-      (hdep.host_hardware_serial != '' AND hdep.deleted_at IS NULL) AS dep_assigned_to_fleet,
+      IF(hdep.host_hardware_serial != '' AND hdep.deleted_at IS NULL, true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       t.name as team_name,
       hdep.assign_profile_response AS dep_profile_assign_status
@@ -2263,7 +2263,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
-      (hdep.host_hardware_serial != '' AND hdep.deleted_at IS NULL) AS dep_assigned_to_fleet,
+      IF(hdep.host_hardware_serial != '' AND hdep.deleted_at IS NULL, true, false) AS dep_assigned_to_fleet,
       hdep.assign_profile_response AS dep_profile_assign_status
     FROM
       host_device_auth hda
