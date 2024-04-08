@@ -181,11 +181,10 @@ FROM (
 		created_at,
 		uploaded_at
 	FROM mdm_apple_declarations
-	WHERE team_id = ?
+	WHERE team_id = ? AND
+		name NOT IN (?)
 ) as combined_profiles
 `
-
-	// TODO(mna): filter-out the reserved OS updates DDM
 
 	var globalOrTeamID uint
 	if teamID != nil {
@@ -203,7 +202,7 @@ FROM (
 		fleetNames = append(fleetNames, k)
 	}
 
-	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID}
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
 	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
 
 	stmt, args, err := sqlx.In(stmt, args...)

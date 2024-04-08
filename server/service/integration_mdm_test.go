@@ -9154,6 +9154,22 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
 
+	// set OS Updates settings for team 1 for both macOS and Windows, should not
+	// be returned by the list profiles endpoint.
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
+			},
+			WindowsUpdates: &fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(5),
+				GracePeriodDays: optjson.SetInt(2),
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
 	// create 5 profiles for no team and team 1, names are A, B, C ... for global and
 	// tA, tB, tC ... for team 1. Alternate macOS and Windows profiles.
 	for i := 0; i < 5; i++ {
