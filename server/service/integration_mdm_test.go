@@ -12334,6 +12334,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 			}
 			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid)
 		})
+		require.Equal(t, len(names), count)
 		for _, n := range names {
 			s.assertWindowsConfigProfilesByName(teamID, n, true)
 		}
@@ -12361,8 +12362,8 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 				"grace_period_days": 1
 			},
 			"macos_updates": {
-				"deadline": "2023-12-31",
-				"minimum_version": "13.3.7"
+				"deadline": "2023-11-30",
+				"minimum_version": "13.3.8"
 			}
 		}
 	}`), http.StatusOK, &acResp)
@@ -12379,6 +12380,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	})
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 	checkMacProfs(nil, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkMacDecls(nil, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(nil, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
 	// batch set windows and mac profiles doesn't remove the reserved names
@@ -12389,15 +12391,27 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	})
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 	checkMacProfs(nil, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkMacDecls(nil, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(nil, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
-	// batch set only mac profiles doesn't remove the reserved names
+	// batch set only mac profiles and declaration doesn't remove the reserved names
+	newMacDecl := []byte(fmt.Sprintf(`{
+  "Type": "com.apple.configuration.foo",
+  "Payload": {
+    "Echo": "f1337"
+  },
+  "Identifier": "%s"
+}`, uuid.NewString()))
 	testProfiles = []fleet.MDMProfileBatchPayload{{
 		Name:     "n2",
 		Contents: newMacProfile,
+	}, {
+		Name:     "n3",
+		Contents: newMacDecl,
 	}}
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 	checkMacProfs(nil, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkMacDecls(nil, append(servermdm.ListFleetReservedMacOSDeclarationNames(), "n3")...)
 	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
 
 	// create a team
@@ -12416,7 +12430,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 				},
 				MacOSUpdates: &fleet.MacOSUpdates{
 					Deadline:       optjson.SetString("2023-12-31"),
-					MinimumVersion: optjson.SetString("13.3.8"),
+					MinimumVersion: optjson.SetString("13.3.9"),
 				},
 			},
 		},
@@ -12427,11 +12441,12 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, 4, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 1, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
 	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
-	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "13.3.9", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 
 	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkMacDecls(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
 
 	// batch set only windows profiles doesn't remove the reserved names
@@ -12442,6 +12457,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	})
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkMacDecls(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
 	// batch set windows and mac profiles doesn't remove the reserved names
@@ -12451,14 +12467,19 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	})
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
 	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkMacDecls(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
-	// batch set only mac profiles doesn't remove the reserved names
+	// batch set only mac profiles and declaration doesn't remove the reserved names
 	testTeamProfiles = []fleet.MDMProfileBatchPayload{{
 		Name:     "n2",
 		Contents: newMacProfile,
+	}, {
+		Name:     "n3",
+		Contents: newMacDecl,
 	}}
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
 	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkMacDecls(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSDeclarationNames(), "n3")...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
 }

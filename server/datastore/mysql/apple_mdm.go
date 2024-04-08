@@ -3419,6 +3419,7 @@ ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   checksum = VALUES(checksum),
   name = VALUES(name),
+	identifier = VALUES(identifier),
   raw_json = VALUES(raw_json)
 `
 
@@ -3428,18 +3429,18 @@ DELETE FROM
 WHERE
   team_id = ? AND %s
 `
-	andIdentNotInList := "identifier NOT IN (?)" // added to fmtDeleteStmt if needed
+	andNameNotInList := "name NOT IN (?)" // added to fmtDeleteStmt if needed
 
 	const loadExistingDecls = `
 SELECT
-  identifier,
+  name,
   declaration_uuid,
   raw_json
 FROM
   mdm_apple_declarations
 WHERE
   team_id = ? AND
-  identifier IN (?)
+  name IN (?)
 `
 
 	var declTeamID uint
@@ -3447,22 +3448,22 @@ WHERE
 		declTeamID = *tmID
 	}
 
-	// build a list of identifiers for the incoming declarations, will keep the
+	// build a list of names for the incoming declarations, will keep the
 	// existing ones if there's a match and no change
-	incomingIdents := make([]string, len(incomingDeclarations))
-	// at the same time, index the incoming declarations keyed by identifier for ease
+	incomingNames := make([]string, len(incomingDeclarations))
+	// at the same time, index the incoming declarations keyed by name for ease
 	// or processing
 	incomingDecls := make(map[string]*fleet.MDMAppleDeclaration, len(incomingDeclarations))
 	for i, p := range incomingDeclarations {
-		incomingIdents[i] = p.Identifier
-		incomingDecls[p.Identifier] = p
+		incomingNames[i] = p.Name
+		incomingDecls[p.Name] = p
 	}
 
 	var existingDecls []*fleet.MDMAppleDeclaration
 
-	if len(incomingIdents) > 0 {
-		// load existing declarations that match the incoming declarations by identifiers
-		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingIdents)
+	if len(incomingNames) > 0 {
+		// load existing declarations that match the incoming declarations by names
+		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
 		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
@@ -3478,28 +3479,23 @@ WHERE
 	}
 
 	// figure out if we need to delete any declarations
-	keepIdents := make([]string, 0, len(incomingIdents))
+	keepNames := make([]string, 0, len(incomingNames))
 	for _, p := range existingDecls {
-		if newP := incomingDecls[p.Identifier]; newP != nil {
-			keepIdents = append(keepIdents, p.Identifier)
+		if newP := incomingDecls[p.Name]; newP != nil {
+			keepNames = append(keepNames, p.Name)
 		}
 	}
+	keepNames = append(keepNames, fleetmdm.ListFleetReservedMacOSDeclarationNames()...)
 
 	var delArgs []any
 	var delStmt string
-	if len(keepIdents) == 0 {
+	if len(keepNames) == 0 {
 		// delete all declarations for the team
 		delStmt = fmt.Sprintf(fmtDeleteStmt, "TRUE")
 		delArgs = []any{declTeamID}
 	} else {
 		// delete the obsolete declarations (all those that are not in keepIdents)
-		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andIdentNotInList), declTeamID, append(keepIdents, fleetmdm.ListFleetReservedMacOSDeclarationNames()...))
-		// if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
-		// 	if err == nil {
-		// 		err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		// 	}
-		// 	return nil, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
-		// }
+		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andNameNotInList), declTeamID, keepNames)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
 		}
@@ -3532,7 +3528,7 @@ WHERE
 	}
 
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
-	if len(incomingIdents) > 0 {
+	if len(incomingNames) > 0 {
 		var newlyInsertedDecls []*fleet.MDMAppleDeclaration
 		// load current declarations (again) that match the incoming declarations by name to grab their uuids
 		// this is an easy way to grab the identifiers for both the existing declarations and the new ones we generated.
@@ -3541,7 +3537,7 @@ WHERE
 		// information without this extra request in the previous DB
 		// calls. Due to time constraints, I'm leaving that
 		// optimization for a later iteration.
-		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingIdents)
+		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build query to load newly inserted declarations")
 		}
@@ -3550,9 +3546,9 @@ WHERE
 		}
 
 		for _, newlyInsertedDecl := range newlyInsertedDecls {
-			incomingDecl, ok := incomingDecls[newlyInsertedDecl.Identifier]
+			incomingDecl, ok := incomingDecls[newlyInsertedDecl.Name]
 			if !ok {
-				return nil, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Identifier)
+				return nil, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Name)
 			}
 
 			for _, label := range incomingDecl.Labels {
