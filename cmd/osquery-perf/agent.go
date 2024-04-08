@@ -1967,6 +1967,7 @@ func rows(num int) string {
       "start_time": "1696502961",
       "uuid": "EF9595F0-CE81-493A-9B06-D8A9D2CCB95",
       "version": "5.9.2",
+	  "scripts_enabled": "1",
       "watcher": "3570"
     }`)
 		if i != num-1 {
