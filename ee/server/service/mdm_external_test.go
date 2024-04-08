@@ -135,7 +135,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.GetMDMAppleSetupAssistantFuncInvoked = false
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.LabelIDsByNameFuncInvoked = false
-		ds.NewMDMAppleDeclarationFuncInvoked = false
+		ds.SetOrUpdateMDMAppleDeclarationFuncInvoked = false
 		ds.BulkSetPendingMDMHostProfilesFuncInvoked = false
 	}
 	setupDS := func(t *testing.T) {
@@ -192,7 +192,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.ElementsMatch(t, names, []string{fleet.BuiltinMacOS14PlusLabelName})
 			return map[string]uint{names[0]: 1}, nil
 		}
-		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}
