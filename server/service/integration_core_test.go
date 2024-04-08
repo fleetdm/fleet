@@ -7395,14 +7395,14 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 51)         // total number of cols
+	assert.Len(t, rows[0], 54)         // total number of cols
 
 	const (
 		idCol        = 3
-		issuesCol    = 42
-		gigsDiskCol  = 39
-		pctDiskCol   = 40
-		gigsTotalCol = 41
+		issuesCol    = 45
+		gigsDiskCol  = 42
+		pctDiskCol   = 43
+		gigsTotalCol = 44
 	)
 
 	// find the row for hosts[1], it should have issues=1 (1 failing policy) and the expected disk space
@@ -9495,7 +9495,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 51)         // total number of cols
+	assert.Len(t, rows1[0], 54)         // total number of cols
 
 	var (
 		idIdx     int
@@ -9522,7 +9522,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 51)         // total number of cols
+	assert.Len(t, rows2[0], 54)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
