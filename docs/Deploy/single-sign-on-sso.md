@@ -1,8 +1,8 @@
 # Single sign-on (SSO)
 
-Fleet supports SAML SSO and just-in-time (JIT) user provisioning.
+Fleet supports SSO and just-in-time (JIT) user provisioning using any identity provider (IdP) that supports SAML.
 
-Fleet supports both service (SP) initiated login and identify provider (IdP)initiated login.
+Fleet supports both service (SP) initiated login and IdP initiated login.
 
 To configure SSO, follow steps for your IdP and then complete [Fleet configuration](#fleet-configuration).
 
