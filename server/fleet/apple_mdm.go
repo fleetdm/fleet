@@ -426,8 +426,8 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 
 // HostDEPAssignment represents a row in the host_dep_assignments table.
 type HostDEPAssignment struct {
-	// HostID is the id of the host in Fleet.
-	HostID uint `db:"host_id"`
+	// HostHardwareSerial is the serial number of the host in Fleet.
+	HostHardwareSerial string `db:"host_hardware_serial"`
 	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
 	// server in Apple Busines Manager (ABM).
 	AddedAt time.Time `db:"added_at"`
@@ -440,7 +440,7 @@ func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
 	if h == nil {
 		return false
 	}
-	return h.HostID > 0 && !h.AddedAt.IsZero() && h.DeletedAt == nil
+	return h.HostHardwareSerial != "" && !h.AddedAt.IsZero() && h.DeletedAt == nil
 }
 
 type DEPAssignProfileResponseStatus string

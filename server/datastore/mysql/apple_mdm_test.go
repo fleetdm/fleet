@@ -4137,9 +4137,9 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment is created when DEP device is ingested
-		depAssignment, err := ds.GetHostDEPAssignment(ctx, depHostID)
+		depAssignment, err := ds.GetHostDEPAssignment(ctx, depSerial)
 		require.NoError(t, err)
-		require.Equal(t, depHostID, depAssignment.HostID)
+		require.Equal(t, depSerial, depAssignment.HostHardwareSerial)
 		require.Nil(t, depAssignment.DeletedAt)
 		require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
 
@@ -4257,9 +4257,9 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, *h.DEPAssignedToFleet)
 
-		hdepa, err := ds.GetHostDEPAssignment(ctx, depHostID)
+		hdepa, err := ds.GetHostDEPAssignment(ctx, depSerial)
 		require.NoError(t, err)
-		require.Equal(t, depHostID, hdepa.HostID)
+		require.Equal(t, depSerial, hdepa.HostHardwareSerial)
 		require.Nil(t, hdepa.DeletedAt)
 		require.Equal(t, depAssignment.AddedAt, hdepa.AddedAt)
 	})
@@ -4288,7 +4288,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// check host DEP assignment not created for non-DEP host
-		hdepa, err := ds.GetHostDEPAssignment(ctx, manualHostID)
+		hdepa, err := ds.GetHostDEPAssignment(ctx, manualSerial)
 		require.ErrorIs(t, err, sql.ErrNoRows)
 		require.Nil(t, hdepa)
 
@@ -4445,10 +4445,10 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// add a record of the host DEP assignment
 	_, err = ds.writer(ctx).Exec(`
-		INSERT INTO host_dep_assignments (host_id)
+		INSERT INTO host_dep_assignments (host_hardware_serial)
 		VALUES (?)
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
-	`, host.ID)
+	`, host.HardwareSerial)
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "", "")
 	require.NoError(t, err)
@@ -4514,7 +4514,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 				return sqlx.SelectContext(
 					ctx, q, &got,
 					`SELECT hardware_serial FROM hosts h
-                                         JOIN host_dep_assignments hda ON hda.host_id = h.id
+                                         JOIN host_dep_assignments hda ON hda.host_hardware_serial = h.hardware_serial
                                          WHERE hda.deleted_at IS NULL`,
 				)
 			})
@@ -5192,24 +5192,20 @@ func TestRestorePendingDEPHost(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("DEP enrollment", func(t *testing.T) {
-		checkHostExistsInTable := func(t *testing.T, tableName string, hostID uint, expected bool, where ...string) {
-			stmt := "SELECT 1 FROM " + tableName + " WHERE host_id = ?"
-			if len(where) != 0 {
-				stmt += " AND " + strings.Join(where, " AND ")
-			}
+		checkHostExists := func(t *testing.T, stmt string, hostRef any, expected bool) {
 			var exists bool
-			err := sqlx.GetContext(ctx, ds.primary, &exists, stmt, hostID)
+			err := sqlx.GetContext(ctx, ds.primary, &exists, stmt, hostRef)
 			if expected {
-				require.NoError(t, err, tableName)
-				require.True(t, exists, tableName)
+				require.NoError(t, err, stmt)
+				require.True(t, exists, stmt)
 			} else {
-				require.ErrorIs(t, err, sql.ErrNoRows, tableName)
-				require.False(t, exists, tableName)
+				require.ErrorIs(t, err, sql.ErrNoRows, stmt)
+				require.False(t, exists, stmt)
 			}
 		}
 
-		checkStoredHost := func(t *testing.T, hostID uint, expectedHost *fleet.Host) {
-			h, err := ds.Host(ctx, hostID)
+		checkStoredHost := func(t *testing.T, host *fleet.Host, expectedHost *fleet.Host) {
+			h, err := ds.Host(ctx, host.ID)
 			if expectedHost != nil {
 				require.NoError(t, err)
 				require.NotNil(t, h)
@@ -5230,11 +5226,21 @@ func TestRestorePendingDEPHost(t *testing.T) {
 				"host_display_names",
 				// "label_membership", // TODO: uncomment this if/when we add the builtin labels to the mysql test setup
 			} {
-				checkHostExistsInTable(t, table, hostID, expectedHost != nil)
+				checkHostExists(
+					t,
+					"SELECT 1 FROM "+table+" WHERE host_id = ?",
+					host.ID,
+					expectedHost != nil,
+				)
 			}
 
 			// host DEP assignment row is NEVER deleted
-			checkHostExistsInTable(t, "host_dep_assignments", hostID, true, "deleted_at IS NULL")
+			checkHostExists(
+				t,
+				"SELECT 1 FROM host_dep_assignments WHERE host_hardware_serial = ? AND deleted_at IS NULL",
+				host.HardwareSerial,
+				true,
+			)
 		}
 
 		setupTestHost := func(t *testing.T) (pendingHost, mdmEnrolledHost *fleet.Host) {
@@ -5260,9 +5266,9 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			require.Nil(t, pendingHost.OsqueryHostID)
 
 			// host DEP assignment is created when DEP device is ingested
-			depAssignment, err := ds.GetHostDEPAssignment(ctx, depHostID)
+			depAssignment, err := ds.GetHostDEPAssignment(ctx, depSerial)
 			require.NoError(t, err)
-			require.Equal(t, depHostID, depAssignment.HostID)
+			require.Equal(t, depSerial, depAssignment.HostHardwareSerial)
 			require.Nil(t, depAssignment.DeletedAt)
 			require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
 
@@ -5293,12 +5299,12 @@ func TestRestorePendingDEPHost(t *testing.T) {
 
 		pendingHost, mdmEnrolledHost := setupTestHost(t)
 		require.Equal(t, pendingHost.ID, mdmEnrolledHost.ID)
-		checkStoredHost(t, mdmEnrolledHost.ID, mdmEnrolledHost)
+		checkStoredHost(t, mdmEnrolledHost, mdmEnrolledHost)
 
 		// delete the host from Fleet
 		err = ds.DeleteHost(ctx, mdmEnrolledHost.ID)
 		require.NoError(t, err)
-		checkStoredHost(t, mdmEnrolledHost.ID, nil)
+		checkStoredHost(t, mdmEnrolledHost, nil)
 
 		// host is restored
 		err = ds.RestoreMDMApplePendingDEPHost(ctx, mdmEnrolledHost)
@@ -5307,7 +5313,7 @@ func TestRestorePendingDEPHost(t *testing.T) {
 		// host uuid is preserved for restored hosts. It isn't available via DEP so the original
 		// pending host record did not include it so we add it to our expected host here.
 		expectedHost.UUID = mdmEnrolledHost.UUID
-		checkStoredHost(t, mdmEnrolledHost.ID, &expectedHost)
+		checkStoredHost(t, mdmEnrolledHost, &expectedHost)
 	})
 }
 

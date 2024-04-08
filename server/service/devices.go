@@ -182,7 +182,7 @@ func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) 
 			return nil, err
 		}
 	}
-	return svc.ds.GetHostDEPAssignment(ctx, host.ID)
+	return svc.ds.GetHostDEPAssignment(ctx, host.HardwareSerial)
 }
 
 // AuthenticateDevice returns the host identified by the device authentication

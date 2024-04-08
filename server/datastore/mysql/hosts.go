@@ -803,7 +803,7 @@ const hostMDMJoin = `
 	  LEFT JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
   ) hmdm ON hmdm.host_id = h.id
   LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
-  LEFT JOIN host_dep_assignments hdep ON hdep.host_id = h.id
+  LEFT JOIN host_dep_assignments hdep ON hdep.host_hardware_serial = h.hardware_serial
   `
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
@@ -2146,7 +2146,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       COALESCE(mdms.name, ?) AS name,
       COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      IF(hdep.host_hardware_serial AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       t.name as team_name
     FROM
@@ -2158,7 +2158,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     LEFT OUTER JOIN
       host_dep_assignments hdep
     ON
-      hdep.host_id = h.id
+      hdep.host_hardware_serial = h.hardware_serial
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms
     ON
@@ -2260,7 +2260,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+      IF(hdep.host_hardware_serial AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
     FROM
       host_device_auth hda
     INNER JOIN
@@ -2268,11 +2268,11 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
     ON
       hda.host_id = h.id
     LEFT OUTER JOIN
-      host_disks hd ON hd.host_id = hda.host_id
+      host_disks hd ON hd.host_id = h.id
     LEFT OUTER JOIN
       host_mdm hm  ON hm.host_id = h.id
     LEFT OUTER JOIN
-      host_dep_assignments hdep ON hdep.host_id = h.id
+      host_dep_assignments hdep ON hdep.host_hardware_serial = h.hardware_serial
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
     WHERE
@@ -3752,7 +3752,7 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
 			hd.display_name,
 			COALESCE(h.team_id, 0) as team_id,
-			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
+			hda.host_hardware_serial IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
 			h.node_key IS NOT NULL as osquery_enrolled,
 			ncaa.renew_command_uuid IS NOT NULL as scep_renewal_in_progress
 		FROM
@@ -3765,7 +3765,7 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		ON h.id = hd.host_id
 		LEFT JOIN
 			host_dep_assignments hda
-		ON h.id = hda.host_id
+		ON h.hardware_serial = hda.host_hardware_serial
 		LEFT JOIN
 			nano_cert_auth_associations ncaa
 		ON h.uuid = ncaa.id

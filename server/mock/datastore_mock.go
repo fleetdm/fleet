@@ -700,7 +700,7 @@ type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([
 
 type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uint) ([]string, error)
 
-type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error)
+type GetHostDEPAssignmentFunc func(ctx context.Context, serialNumber string) (*fleet.HostDEPAssignment, error)
 
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
@@ -4609,11 +4609,11 @@ func (s *DataStore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostIDs
 	return s.ListMDMAppleDEPSerialsInHostIDsFunc(ctx, hostIDs)
 }
 
-func (s *DataStore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+func (s *DataStore) GetHostDEPAssignment(ctx context.Context, serialNumber string) (*fleet.HostDEPAssignment, error) {
 	s.mu.Lock()
 	s.GetHostDEPAssignmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostDEPAssignmentFunc(ctx, hostID)
+	return s.GetHostDEPAssignmentFunc(ctx, serialNumber)
 }
 
 func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {

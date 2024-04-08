@@ -327,18 +327,18 @@ func TestHostDEPAssignment(t *testing.T) {
 		{
 			testName: "assigned to Fleet",
 			input: HostDEPAssignment{
-				HostID:    1,
-				AddedAt:   time.Now(),
-				DeletedAt: nil,
+				HostHardwareSerial: "foo",
+				AddedAt:            time.Now(),
+				DeletedAt:          nil,
 			},
 			expect: true,
 		},
 		{
 			testName: "was assigned Fleet but now deleted",
 			input: HostDEPAssignment{
-				HostID:    1,
-				AddedAt:   time.Now(),
-				DeletedAt: ptr.Time(time.Now()),
+				HostHardwareSerial: "foo",
+				AddedAt:            time.Now(),
+				DeletedAt:          ptr.Time(time.Now()),
 			},
 			expect: false,
 		},
@@ -350,7 +350,7 @@ func TestHostDEPAssignment(t *testing.T) {
 		{
 			testName: "empty added at",
 			input: HostDEPAssignment{
-				HostID: 1,
+				HostHardwareSerial: "foo",
 			},
 			expect: false,
 		},

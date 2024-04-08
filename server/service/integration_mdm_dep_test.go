@@ -417,7 +417,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	}
 
 	type hostDEPRow struct {
-		HostID                uint      `db:"host_id"`
+		HostHardwareSerial    string    `db:"host_hardware_serial"`
 		ProfileUUID           string    `db:"profile_uuid"`
 		AssignProfileResponse string    `db:"assign_profile_response"`
 		ResponseUpdatedAt     time.Time `db:"response_updated_at"`
@@ -428,7 +428,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		for _, deviceSerial := range deviceSerials {
 			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				var dest hostDEPRow
-				err := sqlx.GetContext(ctx, q, &dest, "SELECT host_id, assign_profile_response, profile_uuid, response_updated_at, retry_job_id FROM host_dep_assignments WHERE profile_uuid = ? AND host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)", expectedProfileUUID, deviceSerial)
+				err := sqlx.GetContext(ctx, q, &dest, "SELECT host_hardware_serial, assign_profile_response, profile_uuid, response_updated_at, retry_job_id FROM host_dep_assignments WHERE profile_uuid = ? AND host_hardware_serial = ?", expectedProfileUUID, deviceSerial)
 				require.NoError(t, err)
 				require.Equal(t, string(expectedStatus), dest.AssignProfileResponse)
 				bySerial[deviceSerial] = dest
@@ -497,7 +497,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	setAssignProfileResponseUpdatedAt := func(serial string, updatedAt time.Time) {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET response_updated_at = ? WHERE host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)`, updatedAt, serial)
+			_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET response_updated_at = ? WHERE host_hardware_serial = ?`, updatedAt, serial)
 			return err
 		})
 	}
@@ -568,7 +568,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		wantSerials = append(wantSerials, device.SerialNumber)
 		gotSerials = append(gotSerials, listHostsRes.Hosts[i].HardwareSerial)
 		// entries for all hosts should be created in the host_dep_assignments table
-		_, err := s.ds.GetHostDEPAssignment(ctx, listHostsRes.Hosts[i].ID)
+		_, err := s.ds.GetHostDEPAssignment(ctx, listHostsRes.Hosts[i].HardwareSerial)
 		require.NoError(t, err)
 	}
 	require.ElementsMatch(t, wantSerials, gotSerials)
@@ -684,16 +684,16 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	wantSerials = append(wantSerials, devices[3].SerialNumber, nonDEPHost.HardwareSerial)
 	require.Len(t, listHostsRes.Hosts, len(wantSerials))
 	gotSerials = []string{}
-	var deletedHostID uint
-	var addedHostID uint
+	var deletedHostSerial string
+	var addedHostSerial string
 	var mdmDeviceID uint
 	for _, device := range listHostsRes.Hosts {
 		gotSerials = append(gotSerials, device.HardwareSerial)
 		switch device.HardwareSerial {
 		case deletedSerial:
-			deletedHostID = device.ID
+			deletedHostSerial = device.HardwareSerial
 		case addedSerial:
-			addedHostID = device.ID
+			addedHostSerial = device.HardwareSerial
 		case mdmDevice.SerialNumber:
 			mdmDeviceID = device.ID
 		}
@@ -725,11 +725,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[ix1Device].Devices, profileAssignmentReqs[ix1Device].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 
 	// entries for all hosts except for the one with OpType = "deleted"
-	assignment, err := s.ds.GetHostDEPAssignment(ctx, deletedHostID)
+	assignment, err := s.ds.GetHostDEPAssignment(ctx, deletedHostSerial)
 	require.NoError(t, err)
 	require.NotZero(t, assignment.DeletedAt)
 
-	_, err = s.ds.GetHostDEPAssignment(ctx, addedHostID)
+	_, err = s.ds.GetHostDEPAssignment(ctx, addedHostSerial)
 	require.NoError(t, err)
 
 	// send a TokenUpdate command, it shouldn't re-send the post-enrollment commands

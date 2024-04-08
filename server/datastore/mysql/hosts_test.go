@@ -6531,7 +6531,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`, host.ID, 1, "some_path")
 	require.NoError(t, err)
 
-	_, err = ds.writer(context.Background()).Exec(`INSERT INTO host_dep_assignments (host_id) VALUES (?)`, host.ID)
+	_, err = ds.writer(context.Background()).Exec(`INSERT INTO host_dep_assignments (host_hardware_serial) VALUES (?)`, host.HardwareSerial)
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`

@@ -77,8 +77,11 @@ func TestAppleMDM(t *testing.T) {
 		if depAssignedToFleet {
 			mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(ctx, `
-					INSERT INTO host_dep_assignments (host_id) VALUES (?) ON DUPLICATE KEY UPDATE host_id = host_id, deleted_at = NULL
-				`, h.ID)
+					INSERT INTO host_dep_assignments (host_hardware_serial)
+					VALUES (?)
+					ON DUPLICATE KEY UPDATE
+					  deleted_at = NULL
+				`, h.HardwareSerial)
 				return err
 			})
 		}

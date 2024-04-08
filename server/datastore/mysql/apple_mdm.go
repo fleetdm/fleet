@@ -983,14 +983,14 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 	}
 
 	stmt := `
-		INSERT INTO host_dep_assignments (host_id)
+		INSERT INTO host_dep_assignments (host_hardware_serial)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL`
 
 	args := []interface{}{}
 	values := []string{}
 	for _, host := range hosts {
-		args = append(args, host.ID)
+		args = append(args, host.HardwareSerial)
 		values = append(values, "(?)")
 	}
 
@@ -1161,13 +1161,16 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 	return stmt, args
 }
 
-func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, serialNumber string) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT
+		  host_hardware_serial, added_at, deleted_at
+		FROM host_dep_assignments hdep
+		WHERE hdep.host_hardware_serial = ?`, serialNumber)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
+			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithMessage(serialNumber))
 		}
 		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments")
 	}
@@ -1186,9 +1189,7 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, serials []str
 	stmt, args, err := sqlx.In(`
           UPDATE host_dep_assignments
           SET deleted_at = NOW()
-          WHERE host_id IN (
-            SELECT id FROM hosts WHERE hardware_serial IN (?)
-          )`, args)
+          WHERE host_hardware_serial IN (?)`, args)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN statement")
 	}
@@ -3056,7 +3057,7 @@ SELECT
 	hardware_serial
 FROM
 	hosts h
-	JOIN host_dep_assignments hda ON hda.host_id = h.id
+	JOIN host_dep_assignments hda ON hda.host_hardware_serial = h.hardware_serial
 WHERE
 	h.hardware_serial != '' AND
 	-- team_id condition
@@ -3078,10 +3079,10 @@ func (ds *Datastore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostID
 
 	stmt := `
 SELECT
-	hardware_serial
+	h.hardware_serial
 FROM
 	hosts h
-	JOIN host_dep_assignments hda ON hda.host_id = h.id
+	JOIN host_dep_assignments hda ON hda.host_hardware_serial = h.hardware_serial
 WHERE
 	h.hardware_serial != '' AND
 	h.id IN (?) AND
@@ -3194,15 +3195,13 @@ func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext
 	stmt := `
 UPDATE
 	host_dep_assignments
-JOIN
-	hosts ON id = host_id
 SET
 	profile_uuid = ?,
 	assign_profile_response = ?,
 	response_updated_at = CURRENT_TIMESTAMP,
 	retry_job_id = 0
 WHERE
-	hardware_serial IN (?)
+	host_hardware_serial IN (?)
 `
 	stmt, args, err := sqlx.In(stmt, profileUUID, status, serials)
 	if err != nil {
@@ -3229,17 +3228,16 @@ func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Contex
 
 	stmt := `
 SELECT
-	CASE WHEN assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0) THEN
-		'skip'
-	ELSE
-		'assign'
+	CASE WHEN assign_profile_response = ? AND
+		  (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0)
+	THEN 'skip'
+	ELSE 'assign'
 	END AS status,
-	hardware_serial
+	host_hardware_serial as hardware_serial
 FROM
 	host_dep_assignments
-	JOIN hosts ON id = host_id
 WHERE
-	hardware_serial IN (?)
+	host_hardware_serial IN (?)
 `
 
 	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
@@ -3272,17 +3270,17 @@ WHERE
 func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
 	const stmt = `
 SELECT
-	COALESCE(team_id, 0) AS team_id,
-	hardware_serial
+	COALESCE(h.team_id, 0) AS team_id,
+	h.hardware_serial
 FROM
-	host_dep_assignments
-	JOIN hosts h ON h.id = host_id
+	host_dep_assignments hda
+	JOIN hosts h ON h.hardware_serial = hda.host_hardware_serial
 	LEFT JOIN jobs j ON j.id = retry_job_id
 WHERE
-	assign_profile_response = ?
+	hda.assign_profile_response = ?
 	AND(retry_job_id = 0 OR j.state = ?)
-	AND(response_updated_at IS NULL
-		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))`
+	AND(hda.response_updated_at IS NULL
+		OR hda.response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))`
 
 	var rows []struct {
 		TeamID         uint   `db:"team_id"`
@@ -3307,12 +3305,10 @@ func (ds *Datastore) UpdateDEPAssignProfileRetryPending(ctx context.Context, job
 	stmt := `
 UPDATE
 	host_dep_assignments
-JOIN
-	hosts ON id = host_id
 SET
 	retry_job_id = ?
 WHERE
-	hardware_serial IN (?)`
+	host_hardware_serial IN (?)`
 
 	stmt, args, err := sqlx.In(stmt, jobID, serials)
 	if err != nil {

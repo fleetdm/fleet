@@ -3069,7 +3069,7 @@ func (svc *Service) maybeRestorePendingDEPHost(ctx context.Context, host *fleet.
 		return nil
 	}
 
-	dep, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
+	dep, err := svc.ds.GetHostDEPAssignment(ctx, host.HardwareSerial)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get host dep assignment")
