@@ -5339,7 +5339,7 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 
 	assignment, err := ds.GetHostDEPAssignment(ctx, h.HardwareSerial)
 	require.NoError(t, err)
-	require.Equal(t, h.ID, assignment.HostHardwareSerial)
+	require.Equal(t, h.HardwareSerial, assignment.HostHardwareSerial)
 	require.Nil(t, assignment.DeletedAt)
 
 	err = ds.DeleteHostDEPAssignments(ctx, []string{h.HardwareSerial})
@@ -5347,14 +5347,14 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 
 	assignment, err = ds.GetHostDEPAssignment(ctx, h.HardwareSerial)
 	require.NoError(t, err)
-	require.Equal(t, h.ID, assignment.HostHardwareSerial)
+	require.Equal(t, h.HardwareSerial, assignment.HostHardwareSerial)
 	require.NotNil(t, assignment.DeletedAt)
 
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
 	require.NoError(t, err)
 	assignment, err = ds.GetHostDEPAssignment(ctx, h.HardwareSerial)
 	require.NoError(t, err)
-	require.Equal(t, h.ID, assignment.HostHardwareSerial)
+	require.Equal(t, h.HardwareSerial, assignment.HostHardwareSerial)
 	require.Nil(t, assignment.DeletedAt)
 }
 

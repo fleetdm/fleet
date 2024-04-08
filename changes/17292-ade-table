@@ -1,0 +1,1 @@
+* Fix issues with hosts deleted from Fleet not receiving post-enrollment commands if they're still asssigned to Fleet in ABM.
