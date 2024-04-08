@@ -61,14 +61,14 @@ parasails.registerComponent('parallaxCity', {
     }
     // Check for hardware/graphics acceleration.
     if(bowser.chrome || bowser.opera) {
-      this.enableAnimation = this.isHardwareAccelerationEnabledOnChromiumBrowsers();
+      this.enableAnimation = this._isHardwareAccelerationEnabledOnChromiumBrowsers();
     } else if(bowser.firefox){
-      this.enableAnimation = this.isHardwareAccelerationEnabledOnFirefox();
+      this.enableAnimation = this._isHardwareAccelerationEnabledOnFirefox();
     }
   },
   mounted: async function(){
-    if(!this.enableAnimation) {
-      this.setupParallaxAnimation();
+    if(this.enableAnimation) {
+      this._setupParallaxAnimation();
     }
   },
   beforeDestroy: function() {
@@ -79,13 +79,13 @@ parasails.registerComponent('parallaxCity', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    getElementPositions: function() {
+    _getElementPositions: function() {
       this.elementHeight = this.parallaxCityElement.clientHeight;
       this.distanceFromTopOfPage = this.parallaxCityElement.offsetTop;
       this.distanceFromBottomOfPage = document.body.scrollHeight - this.distanceFromTopOfPage - (this.elementHeight * .5);
       this.elementBottomPosition = this.elementHeight + this.distanceFromTopOfPage;
     },
-    setupParallaxAnimation: function() {
+    _setupParallaxAnimation: function() {
       // Store a reference to the parent container, we'll use this to determine the elements position relative to the user's viewport.
       this.parallaxCityElement = $('div[purpose="parallax-city-container"]')[0];
       // Build an array of parallax layers, and set the initial bottom position of each layer to be negative the layer's scroll amount.
@@ -95,15 +95,15 @@ parasails.registerComponent('parallaxCity', {
         this.parallaxLayers.push({element: layer, scrollAmount});
       }
       // Determine the parallax image's position on the page/user's viewport.
-      this.getElementPositions();
+      this._getElementPositions();
       // If the bottom of the element is within the user's viewport, update the positions of the layers.
       if(this.parallaxCityElement.getBoundingClientRect().bottom > this.parallaxCityElement.offsetTop) {
         this.scrollParallaxLayers();
       }
       // Add a scroll event listener
-      $(window).scroll(this.throttleParallaxScroll);
+      $(window).scroll(this._throttleParallaxScroll);
       // Add a resize event listener.
-      $(window).resize(this.getElementPositions);
+      $(window).resize(this._getElementPositions);
     },
     scrollParallaxLayers: function() {
       if(!this.parallaxLayersAreCurrentlyAnimating) {
@@ -122,13 +122,13 @@ parasails.registerComponent('parallaxCity', {
         }
       }
     },
-    throttleParallaxScroll: function() {
+    _throttleParallaxScroll: function() {
       this.scrollParallaxLayers();
       setTimeout(()=>{
         this.parallaxLayersAreCurrentlyAnimating = false;
       }, 100);
     },
-    isHardwareAccelerationEnabledOnChromiumBrowsers: function() {
+    _isHardwareAccelerationEnabledOnChromiumBrowsers: function() {
       let isHardwareAccelerationEnabled = true;
       // For Chromium based browsers, we'll check the vendor of the user's graphics card.
       // See https://gist.github.com/cvan/042b2448fcecefafbb6a91469484cdf8 for more info about this method.
@@ -148,7 +148,7 @@ parasails.registerComponent('parallaxCity', {
       }
       return isHardwareAccelerationEnabled;
     },
-    isHardwareAccelerationEnabledOnFirefox: function() {
+    _isHardwareAccelerationEnabledOnFirefox: function() {
       // For Firefox, the method we use for chrome does not always work.
       // Instead, we'll run two tests, one with forced software rendering, and one without to see if the results are the same.
       // See https://stackoverflow.com/a/77170999 for more info about this method.
