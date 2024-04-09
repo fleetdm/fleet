@@ -6479,11 +6479,12 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 
 func (s *integrationTestSuite) TestSearchTargets() {
 	t := s.T()
-	t.Skip("unclear how to fix with the new builtin labels")
-
+	ctx := context.Background()
 	hosts := s.createHosts(t)
 
-	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	allLbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	lblMap, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
 	require.NoError(t, err)
 	require.Len(t, lblMap, 1)
 
@@ -6492,7 +6493,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
-	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Labels, len(allLbls))
 	require.Len(t, searchResp.Targets.Teams, 0)
 
 	var lblIDs []uint
@@ -6503,22 +6504,22 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	searchResp = searchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
-	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
-	require.Len(t, searchResp.Targets.Labels, 0)         // labels have been omitted
+	require.Len(t, searchResp.Targets.Hosts, len(hosts))      // no omitted host id
+	require.Len(t, searchResp.Targets.Labels, len(allLbls)-1) // "All hosts" label has been omitted
 	require.Len(t, searchResp.Targets.Teams, 0)
 
 	searchResp = searchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(1), searchResp.TargetsCount)
-	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
-	require.Len(t, searchResp.Targets.Labels, 1)           // labels have not been omitted
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1)  // one omitted host id
+	require.Len(t, searchResp.Targets.Labels, len(allLbls)) // labels have not been omitted
 	require.Len(t, searchResp.Targets.Teams, 0)
 
 	searchResp = searchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, 1)
-	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Labels, 1) // with a match query, only matching label names and "All Hosts" can be returned (here, only all hosts)
 	require.Len(t, searchResp.Targets.Teams, 0)
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
 }
