@@ -1056,9 +1056,6 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint, updates fleet.MacOSUpdates) error {
-	// TODO: is there a notion of "DDM enabled" or not, where the DDM profile
-	// should not be created?
-
 	if updates.MinimumVersion.Value == "" {
 		// OS updates disabled, remove the profile
 		if err := svc.ds.DeleteMDMAppleDeclarationByName(ctx, teamID, mdm.FleetMacOSUpdatesProfileName); err != nil {
@@ -1076,19 +1073,19 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 
 	// OS updates enabled, create or update the profile with the current settings
 
-	const macOSSoftwareUpdateType = `com.apple.configuration.softwareupdate.enforcement.specific`
-	ident := uuid.NewString()
-	// TODO(mna): is that correct payload? Identifier is a uuid? Is it ok if it
-	// changes on every update?
+	const (
+		macOSSoftwareUpdateType  = `com.apple.configuration.softwareupdate.enforcement.specific`
+		macOSSoftwareUpdateIdent = `macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
+	)
 	rawDecl := []byte(fmt.Sprintf(`{
 	"Identifier": %q,
 	"Type": %q,
 	"Payload": {
 		"TargetOSVersion": %q,
-		"TargetLocalDateTime ": "2024-03-01T12:00:00,"
+		"TargetLocalDateTime ": "%sT12:00:00"
 	}
-}`, ident, macOSSoftwareUpdateType, updates.MinimumVersion.Value))
-	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, mdm.FleetMacOSUpdatesProfileName, macOSSoftwareUpdateType, ident)
+}`, macOSSoftwareUpdateIdent, macOSSoftwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
+	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, mdm.FleetMacOSUpdatesProfileName, macOSSoftwareUpdateType, macOSSoftwareUpdateIdent)
 
 	// associate the profile with the built-in label that ensures the host is on
 	// macOS 14+ to receive that profile
