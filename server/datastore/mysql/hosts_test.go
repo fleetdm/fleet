@@ -245,10 +245,18 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	err = updateHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
+	err = ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, orbitVersion, sql.NullString{Valid: false}, sql.NullBool{Valid: false},
+	)
+	require.NoError(t, err)
+
 	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.NotNil(t, host)
 	require.Nil(t, host.RefetchCriticalQueriesUntil)
+	assert.Equal(t, orbitVersion, *host.OrbitVersion)
+	assert.Nil(t, host.DesktopVersion)
+	assert.Nil(t, host.ScriptsEnabled)
 
 	p, err := ds.NewPack(context.Background(), &fleet.Pack{
 		Name:    t.Name(),

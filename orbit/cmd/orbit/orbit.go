@@ -495,6 +495,7 @@ func main() {
 			}
 
 			// Get current version of osquery
+			log.Info().Msgf("orbit version: %s", build.Version)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
 				log.Info().Err(err).Msg("Could not find local osqueryd executable")

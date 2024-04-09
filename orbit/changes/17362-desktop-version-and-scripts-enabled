@@ -1,3 +1,1 @@
-In orbit_info table, added the following fields:
-- desktop_version
-- scripts_enabled
+In orbit_info table, added desktop_version and scripts_enabled fields.

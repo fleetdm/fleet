@@ -1,8 +1,1 @@
-In GET fleet/hosts/:id response, added the following fields:
-- orbit_version
-  - `orbit_version == null` means this agent is not an orbit agent
-- fleet_desktop_version
-  - `fleet_desktop_version == null` means this agent is not an orbit agent or it is an older version which is not collecting the desktop version
-  - `fleet_desktop_version == ""` means this agent is an orbit agent but does not have fleet desktop
-- scripts_enabled
-  - `scripts_enabled == null` means this agent is not an orbit agent or it is an older version which is not collecting scripts_enabled
+In GET fleet/hosts/:id response, added orbit_version, fleet_desktop_version, and scripts_enabled fields.
