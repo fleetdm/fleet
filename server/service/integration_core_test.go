@@ -8214,7 +8214,8 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	}
 
 	// test list with matching query containing leading/trailing whitespace
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "123")
+	// TODO(jacob) - this may be another parsing bug
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "  123	")
 	require.Empty(t, resp.Err)
 	require.Len(s.T(), resp.Vulnerabilities, 2)
 	require.Equal(t, resp.Count, uint(2))
