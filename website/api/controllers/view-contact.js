@@ -31,7 +31,10 @@ module.exports = {
       formToShow = 'contact';
     }
     // Respond with view.
-    return {formToShow};
+    return {
+      formToShow,
+      prefillFormDataFromUserRecord: this.req.me ? true : false// FUTURE: move to frontend.
+    };
 
   }
 

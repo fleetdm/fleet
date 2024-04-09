@@ -100,12 +100,6 @@ policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
-  - name: chromeOS/macOS - Screenlock enabled
-    query: SELECT 1 FROM screenlock WHERE enabled = 1;
-    critical: false
-    description: ""
-    resolution: ""
-    platform: darwin,chrome
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-usb-devices.queries.yml

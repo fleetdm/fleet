@@ -1,0 +1,1 @@
+* Do not allow an MDM migration to start if the device doesn't have the right ADE JSON profile already assigned.
