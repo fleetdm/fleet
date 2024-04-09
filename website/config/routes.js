@@ -485,6 +485,7 @@ module.exports.routes = {
   'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
   'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',
   'GET /learn-more-about/enabling-calendar-api': 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
+  'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
 
   // Sitemap
   // =============================================================================================================
