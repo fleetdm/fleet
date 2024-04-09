@@ -64,7 +64,10 @@ func main() {
 		fileNameRaw := filepath.Join(*dbDir, fileFmt(suffix, "json", ""))
 		fileName := filepath.Join(*dbDir, fileFmt(suffix, "json", "gz"))
 		metaName := filepath.Join(*dbDir, fileFmt(suffix, "meta", ""))
-		nvdsync.CompressFile(fileNameRaw, fileName)
+		err := nvdsync.CompressFile(fileNameRaw, fileName)
+		if err != nil {
+			panic(err)
+		}
 		createMetadata(fileName, metaName)
 	}
 
