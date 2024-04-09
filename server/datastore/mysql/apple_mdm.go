@@ -2297,6 +2297,10 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("subqueryAppleDeclarationStatus: %w", err)
 	}
+	query, args, err = sqlx.In(query, args...)
+	if err != nil {
+		return "", nil, fmt.Errorf("subqueryAppleDeclarationStatus resolve IN: %w", err)
+	}
 
 	return query, args, nil
 }
