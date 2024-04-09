@@ -1,3 +1,10 @@
+## Fleet 4.48.2 (Apr 09, 2024)
+
+### Bug fixes
+
+* Fixed an issue with the `20240327115617_CreateTableNanoDDMRequests` database migration where it could fail if the database did not default to the `utf8mb4_unicode_ci` collation.
+* Fixed an issue with automatic release of the device after setup when a DDM profile is pending.
+
 ## Fleet 4.48.1 (Apr 08, 2024)
 
 ### Bug fixes
