@@ -3,10 +3,13 @@ package nvdsync
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sort"
@@ -186,7 +189,7 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	syncer, err := NewCVE(testDataPath)
 	require.NoError(t, err)
 
-	syncer.processVulnCheckFile()
+	syncer.processVulnCheckFile("vulncheck.zip")
 
 	// compare the enhanced data with the expected data
 	enhancedDataPath := filepath.Join(testDataPath, "nvdcve-1.1-2024.json")
@@ -222,4 +225,24 @@ func copyFile(src, dst string) error {
 
 	// Ensure that the copied contents are flushed to stable storage
 	return destFile.Sync()
+}
+
+func TestFetchVulnCheckDownloadURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": [{"url": "http://example.com/vulncheck.zip"}]}`))
+	}))
+	defer server.Close()
+
+	syncer, err := NewCVE("foo")
+	require.NoError(t, err)
+
+	if _, ok := os.LookupEnv("VULNCHECK_API_KEY"); !ok {
+		os.Setenv("VULNCHECK_API_KEY", "foo")
+	}
+
+	url, err := syncer.fetchVulnCheckDownloadURL(context.Background(), server.URL)
+	require.NoError(t, err)
+
+	require.Equal(t, "http://example.com/vulncheck.zip", url)
 }

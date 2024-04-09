@@ -24,6 +24,7 @@ import (
 	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -50,6 +51,8 @@ var (
 	maxRetryAttempts = 10
 	// waitTimeForRetry is the time to wait between retries.
 	waitTimeForRetry = 30 * time.Second
+	// vulnCheckStartDate is the earilest date to start processing the vulncheck data.
+	vulnCheckStartDate = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
 )
 
 // CVEOption allows configuring a CVE syncer.
@@ -467,51 +470,72 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 }
 
 func (s *CVE) DoVulnCheck(ctx context.Context) error {
+	vulnCheckArchive := "vulncheck.zip"
+	baseURL := "https://api.vulncheck.com/v3/backup/nist-nvd2"
+
+	downloadURL, err := s.fetchVulnCheckDownloadURL(ctx, baseURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "error fetching download URL")
+	}
+
+	err = s.downloadVulnCheckArchive(ctx, downloadURL, vulnCheckArchive)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "error downloading archive")
+	}
+
+	err = s.processVulnCheckFile(vulnCheckArchive)
+	if err != nil {
+		return fmt.Errorf("error processing VulnCheck file: %w", err)
+	}
+
+	return nil
+}
+
+// fetchVulnCheckDownloadURL fetches the download URL for the VulnCheck archive
+// from the VulnCheck API.
+func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (string, error) {
 	apiKey := os.Getenv("VULNCHECK_API_KEY")
 
 	if apiKey == "" {
-		return errors.New("VULNCHECK_API_KEY environment variable not set")
+		return "", fmt.Errorf("VULNCHECK_API_KEY environment variable not set")
 	}
-
-	baseURL := "https://api.vulncheck.com/v3/backup/nist-nvd2"
 
 	parsedURL, err := url.Parse(baseURL)
 	if err != nil {
-		return err
+		return "", ctxerr.Wrap(ctx, err, "error parsing URL")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
-	if err != nil {
-		return err
-	}
+	var resp *http.Response
+	for attempt := 0; attempt <= maxRetryAttempts; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "error creating request")
+		}
 
-	req.Header.Add("Authorization", "Bearer "+apiKey)
+		req.Header.Add("Authorization", "Bearer "+apiKey)
 
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return err
+		resp, err = s.client.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			break
+		}
+
+		if attempt == maxRetryAttempts {
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "error making request")
+			}
+			return "", ctxerr.New(ctx, "max retry attempts reached")
+		}
+
+		s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "status", resp.StatusCode, "retry-in", waitTimeForRetry)
+		time.Sleep(waitTimeForRetry)
 	}
 
 	defer resp.Body.Close()
 
-	// if resp.StatusCode != http.StatusOK {
-	// 	if retryAttempts > maxRetryAttempts {
-	// 		return err
-	// 	}
-	// 	s.logger.Log("msg", "NVD request returned error", "err", err, "retry-in", waitTimeForRetry)
-	// 	retryAttempts++
-	// 	select {
-	// 	case <-ctx.Done():
-	// 		return ctx.Err()
-	// 	case <-time.After(waitTimeForRetry):
-	// 		continue
-	// 	}
-	// }
-
 	var vcResponse VulnCheckBackupResponse
 
 	if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
-		return err
+		return "", ctxerr.Wrap(ctx, err, "error decoding response")
 	}
 
 	var downloadURL string
@@ -520,28 +544,33 @@ func (s *CVE) DoVulnCheck(ctx context.Context) error {
 	}
 
 	if downloadURL == "" {
-		return errors.New("no download URL found")
+		return "", ctxerr.New(ctx, "no download URL found")
 	}
 
-	parsedURL, err = url.Parse(downloadURL)
+	return downloadURL, nil
+}
+
+// downloadVulnCheckArchive downloads the VulnCheck archive from the provided URL
+// and saves it to the configured DB directory
+func (s *CVE) downloadVulnCheckArchive(ctx context.Context, downloadURL, outFile string) error {
+	parsedURL, err := url.Parse(downloadURL)
 	if err != nil {
 		return err
 	}
 
-	// Download the file
-	req, err = http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "error creating request")
 	}
 
-	resp, err = s.client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return err
 	}
 
 	defer resp.Body.Close()
 
-	out, err := os.Create(filepath.Join(s.dbDir, "vulncheck.zip"))
+	out, err := os.Create(filepath.Join(s.dbDir, outFile))
 	if err != nil {
 		return err
 	}
@@ -553,15 +582,13 @@ func (s *CVE) DoVulnCheck(ctx context.Context) error {
 		return err
 	}
 
-	s.processVulnCheckFile()
-
 	return nil
 }
 
-func (s *CVE) processVulnCheckFile() error {
+func (s *CVE) processVulnCheckFile(fileName string) error {
 	cvesByYear := make(map[int][]VulnCheckCVE)
 
-	sanitizedPath, err := sanitizeArchivePath(s.dbDir, "vulncheck.zip")
+	sanitizedPath, err := sanitizeArchivePath(s.dbDir, fileName)
 	if err != nil {
 		return fmt.Errorf("error sanitizing archive path: %w", err)
 	}
@@ -572,21 +599,16 @@ func (s *CVE) processVulnCheckFile() error {
 	}
 	defer zipReader.Close()
 
-	// files, err := os.ReadDir(filepath.Join(s.dbDir, "./vulncheck"))
-	// if err != nil {
-	// 	return err
-	// }
-
 	sort.Slice(zipReader.File, func(i, j int) bool {
 		return zipReader.File[i].Name > zipReader.File[j].Name
 	})
 
 	var data VulnCheckBackupDataFile
+	var stopProcessing bool
 
-	var found bool
-
-	// read,  unmarshal, and process the JSON files in reverse alpha order until the mod date is
-	// older than 2024-02-01
+	// files are in reverse chronological order by modification date
+	// so we can stop processing files once we find one that is older
+	// than the configured vulnCheckStartDate
 	var addCount int
 	var modCount int
 	for _, file := range zipReader.File {
@@ -607,8 +629,6 @@ func (s *CVE) processVulnCheckFile() error {
 			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
 		}
 
-		startDate := time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
-
 		for _, cve := range data.Vulnerabilities {
 			if cve.Item.CVE.LastModified == nil {
 				continue
@@ -617,8 +637,11 @@ func (s *CVE) processVulnCheckFile() error {
 			if err != nil {
 				return fmt.Errorf("error parsing last modified date for %s: %w", *cve.Item.ID, err)
 			}
-			if lastMod.Before(startDate) {
-				found = true
+
+			// Stop processing files if the last modified date is older than the vulncheck start
+			// date in order to avoid processing unnecessary files.
+			if lastMod.Before(vulnCheckStartDate) {
+				stopProcessing = true
 				continue
 			}
 
@@ -633,14 +656,12 @@ func (s *CVE) processVulnCheckFile() error {
 		level.Debug(s.logger).Log("msg", "read vulncheck file", "file", file.Name)
 
 		for year, cvesInYear := range cvesByYear {
-			// start := time.Now()
 			if err := s.updateVulnCheckYearFile(year, cvesInYear, &modCount, &addCount); err != nil {
 				return err
 			}
-			// level.Debug(s.logger).Log("msg", "updated file", "year", year, "duration", time.Since(start), "vulns", len(cvesInYear))
 		}
 
-		if found {
+		if stopProcessing {
 			break
 		}
 	}
@@ -651,8 +672,8 @@ func (s *CVE) processVulnCheckFile() error {
 }
 
 // Sanitize archive file pathing from "G305: Zip Slip vulnerability"
-func sanitizeArchivePath(d, t string) (v string, err error) {
-	v = filepath.Join(d, t)
+func sanitizeArchivePath(d, t string) (string, error) {
+	v := filepath.Join(d, t)
 	if strings.HasPrefix(v, filepath.Clean(d)) {
 		return v, nil
 	}
