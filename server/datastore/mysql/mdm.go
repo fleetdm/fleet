@@ -366,7 +366,7 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 		countProfUUIDs++
 	}
 	if countProfUUIDs > 1 {
-		return errors.New("profile uuids must all be Apple profiles, Apple declarations or Windows profiles")
+		return errors.New("profile uuids must be all Apple profiles, all Apple declarations, or all Windows profiles")
 	}
 
 	var (
