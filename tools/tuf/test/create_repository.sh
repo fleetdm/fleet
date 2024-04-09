@@ -82,7 +82,7 @@ for system in $SYSTEMS; do
        ORBIT_BINARY_PATH=$orbit_target \
        go run ./orbit/tools/build/build.go
     else
-      GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+      CGO_ENABLED=0 GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \
