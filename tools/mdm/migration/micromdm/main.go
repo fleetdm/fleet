@@ -20,9 +20,6 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-// overridden by -ldflags -X
-var version = "unknown"
-
 type Authenticate struct {
 	MessageType  string
 	UDID         string
@@ -52,23 +49,9 @@ type TokenUpdate struct {
 
 func main() {
 	var (
-		flDB      = flag.String("db", "/var/db/micromdm.db", "path to micromdm DB")
-		flVersion = flag.Bool("version", false, "print version")
-		flUDIDs   = flag.String("udids", "", "UDIDs to migrate (comma separated)")
+		flDB = flag.String("db", "/var/db/micromdm.db", "path to micromdm DB")
 	)
 	flag.Parse()
-
-	if *flVersion {
-		fmt.Println(version)
-		os.Exit(0)
-	}
-
-	udids := make(map[string]bool)
-	if *flUDIDs != "" {
-		for _, s := range strings.Split(*flUDIDs, ",") {
-			udids[s] = true
-		}
-	}
 
 	boltDB, err := bolt.Open(*flDB, 0600, nil)
 	if err != nil {
