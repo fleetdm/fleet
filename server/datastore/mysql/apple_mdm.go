@@ -3419,7 +3419,7 @@ ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   checksum = VALUES(checksum),
   name = VALUES(name),
-	identifier = VALUES(identifier),
+  identifier = VALUES(identifier),
   raw_json = VALUES(raw_json)
 `
 
@@ -3494,7 +3494,7 @@ WHERE
 		delStmt = fmt.Sprintf(fmtDeleteStmt, "TRUE")
 		delArgs = []any{declTeamID}
 	} else {
-		// delete the obsolete declarations (all those that are not in keepIdents)
+		// delete the obsolete declarations (all those that are not in keepNames)
 		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andNameNotInList), declTeamID, keepNames)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
