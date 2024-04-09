@@ -18,9 +18,17 @@ MacOS setup features require connecting Fleet to Apple Business Manager (ABM). L
 
 Using Fleet, you can require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
-First, configure end user authentication by configuring [single sign-on (SSO)](../Deploy/single-sign-on-sso.md). If you've already configured SSO, create a new app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+### End user authentication
 
-Next, enable end user authentication by heading to to **Controls > Setup experience End user authentication** or use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+To require end user authentication, first [configure single sign-on (SSO)](../Deploy/single-sign-on-sso.md). Next, enable end user authentication by heading to to **Controls > Setup experience End user authentication** or use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+
+If you've already configured SSO in Fleet, create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+
+In your IdP, make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
+
+In your IdP, set **Name ID** to email. Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
+
+### EULA
 
 To require a EULA, in Fleet, head to **Settings > Integrations > Automatic enrollment > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
