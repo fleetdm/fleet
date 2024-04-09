@@ -150,7 +150,7 @@ AWS_PROFILE=tuf \
 TUF_DIRECTORY=/Users/luk/tuf.fleetctl.com \
 COMPONENT=osqueryd \
 ACTION=release-to-edge \
-VERSION=5.12.0 \
+VERSION=5.12.1 \
 KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-TUF/keys \
 TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/TUF TARGETS/password" \
 SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/TUF SNAPSHOT/password" \
@@ -188,7 +188,7 @@ AWS_PROFILE=tuf \
 TUF_DIRECTORY=/Users/foobar/tuf.fleetctl.com \
 COMPONENT=osqueryd \
 ACTION=promote-edge-to-stable \
-VERSION=5.12.0 \
+VERSION=5.12.1 \
 KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-TUF/keys \
 TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/TUF TARGETS/password" \
 SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/TUF SNAPSHOT/password" \
@@ -212,7 +212,7 @@ make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
 fleetctl updates add --target /path/to/macos/swiftDialog.app.tar.gz --platform macos --name swiftDialog --version 2.2.1 -t edge
 ```
 
-#### Releasing nudge to `stable`
+#### Releasing `nudge` to `stable`
 
 > `releaser.sh` doesn't support `nudge` yet.
 > macOS only component
@@ -223,14 +223,6 @@ make nudge-app-tar-gz version=1.1.10.81462 out-path=.
 ```
 ```sh
 fleetctl updates add --target /path/to/macos/nudge.app.tar.gz --platform macos --name nudge --version 1.1.10.81462 -t edge
-```
-
-### Invalid timestamp.json version
-
-The following issue was solved by resigning the timestamp metadata `fleetctl updates timestamp` (executed three times to increase the version to `4175`)
-```sh
-2022-08-23T13:44:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
-2022-08-23T13:59:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
 ```
 
 ## Testing and improving the script
@@ -251,7 +243,7 @@ GIT_REPOSITORY_DIRECTORY=<SOME_DIRECTORY>
 - Create the pull requests automatically using `gh` or the Github API.
 - Support releasing `nudge` and `swiftDialog`. 
 
-## Misc TUF issues
+## Troubleshooting
 
 ### Removing Unused Targets
 
@@ -289,4 +281,12 @@ aws s3 sync ./repository s3://fleet-tuf-repo --delete --dryrun
 8. To upload the changes, perform a sync without the `--dryrun`:
 ```sh
 aws s3 sync ./repository s3://fleet-tuf-repo --delete
+```
+
+### Invalid timestamp.json version
+
+The following issue was solved by resigning the timestamp metadata `fleetctl updates timestamp` (executed three times to increase the version to `4175`)
+```sh
+2022-08-23T13:44:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
+2022-08-23T13:59:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
 ```
