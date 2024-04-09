@@ -545,6 +545,7 @@ const (
 	RunScriptHostTimeoutErrMsg             = "Fleet didn’t hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn’t know if the script ran because it didn’t receive the result. Please try again."
 	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
 	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
+	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
 	RunScriptScriptTimeoutErrMsg           = "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
 	RunScriptAsyncScriptEnqueuedErrMsg     = "Script is running or will run when the host comes online."
 	RunScripSavedMaxLenErrMsg              = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."

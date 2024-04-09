@@ -314,7 +314,9 @@ type runScriptsConfigFetcher struct {
 	mu sync.Mutex
 }
 
-func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsEnabled bool, scriptsClient scripts.Client) OrbitConfigFetcher {
+func ApplyRunScriptsConfigFetcherMiddleware(
+	fetcher OrbitConfigFetcher, scriptsEnabled bool, scriptsClient scripts.Client,
+) (OrbitConfigFetcher, func() bool) {
 	scriptsFetcher := &runScriptsConfigFetcher{
 		Fetcher:                            fetcher,
 		ScriptsExecutionEnabled:            scriptsEnabled,
@@ -323,7 +325,7 @@ func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsE
 	}
 	// start the dynamic check for scripts enabled if required
 	scriptsFetcher.runDynamicScriptsEnabledCheck()
-	return scriptsFetcher
+	return scriptsFetcher, scriptsFetcher.scriptsEnabled
 }
 
 func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
@@ -372,10 +374,7 @@ func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 			log.Debug().Msgf("received request to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
 
 			runner := &scripts.Runner{
-				// scripts are always enabled if the agent is started with the
-				// --scripts-enabled flag. If it is not started with this flag, then
-				// scripts are enabled only if the mdm profile says so.
-				ScriptExecutionEnabled: h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load(),
+				ScriptExecutionEnabled: h.scriptsEnabled(),
 				Client:                 h.ScriptsClient,
 			}
 			fn := runner.Run
@@ -397,6 +396,13 @@ func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 		}
 	}
 	return cfg, err
+}
+
+func (h *runScriptsConfigFetcher) scriptsEnabled() bool {
+	// scripts are always enabled if the agent is started with the
+	// --scripts-enabled flag. If it is not started with this flag, then
+	// scripts are enabled only if the mdm profile says so.
+	return h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load()
 }
 
 type DiskEncryptionKeySetter interface {
