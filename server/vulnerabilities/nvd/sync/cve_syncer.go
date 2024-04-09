@@ -1083,6 +1083,9 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 		if configuration.Operator != nil {
 			children := make([]*schema.NVDCVEFeedJSON10DefNode, 0, len(configuration.Nodes))
 			for _, node := range configuration.Nodes {
+				if node.Operator == "" {
+					node.Operator = nvdapi.OperatorOr // Default to OR operator if not set
+				}
 				cpeMatches := make([]*schema.NVDCVEFeedJSON10DefCPEMatch, 0, len(node.CPEMatch))
 				for _, cpeMatch := range node.CPEMatch {
 					cpeMatches = append(cpeMatches, &schema.NVDCVEFeedJSON10DefCPEMatch{
@@ -1111,6 +1114,9 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 		} else {
 			for _, node := range configuration.Nodes {
 				cpeMatches := make([]*schema.NVDCVEFeedJSON10DefCPEMatch, 0, len(node.CPEMatch))
+				if node.Operator == "" {
+					node.Operator = nvdapi.OperatorOr // Default to OR operator if not set
+				}
 				for _, cpeMatch := range node.CPEMatch {
 					cpeMatches = append(cpeMatches, &schema.NVDCVEFeedJSON10DefCPEMatch{
 						CPEName:               []*schema.NVDCVEFeedJSON10DefCPEName{}, // All entries have this field with an empty array.
