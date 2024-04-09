@@ -104,11 +104,11 @@
     </script>
     <% /* Snitcher analytics code */ %>
     <script>
-      !function(i,s,o,g,r,a,m){i.Ip2cObject=o;i[o]||(i[o]=function(){
-      (i[o].q=i[o].q||[]).push(arguments)});i[o].l=+new Date;r=s.createElement(g);
-      a=s.getElementsByTagName(g)[0];r.src='//reveal.ip2c.net/8416878.js';
-      a.parentNode.insertBefore(r,a)}(window,document,'ip2c','script');
-      ip2c('verify', '8416878');
+        !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
+        (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
+        h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8416878.js';
+        h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
+        snid('verify', '8416878');
     </script>
     <% /* HubSpot Embed Code  */ %>
     <script type="text/javascript" id="hs-script-loader" async defer src="//js-na1.hs-scripts.com/24385138.js"></script>
@@ -179,7 +179,7 @@
                   <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
                     <a purpose="mobile-dropdown-link" href="/docs">Docs</a>
                     <a purpose="mobile-dropdown-link" href="/docs/rest-api">REST API</a>
-                    <a purpose="mobile-dropdown-link" href="/queries">Built-in queries</a>
+                    <a purpose="mobile-dropdown-link" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
                     <a purpose="mobile-dropdown-link" href="/tables">Data tables</a>
                     <span>SUPPORT</span>
                     <div purpose="indented-mobile-links">
@@ -239,7 +239,7 @@
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" href="/docs">Docs</a>
                     <a class="dropdown-item" href="/docs/rest-api">REST API</a>
-                    <a class="dropdown-item" href="/queries">Built-in queries</a>
+                    <a class="dropdown-item" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
                     <a class="dropdown-item" href="/tables">Data tables</a>
                     <span class="muted dropdown-header">SUPPORT</span>
                     <a class="dropdown-item" href="/support">Chat</a>
