@@ -165,8 +165,11 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	require.NoError(t, err)
 
 	// compress the vulncheck file to mimic the real data
-	CompressFile(vulncheckFile, gzipFile)
-	zipFile(gzipFile, zFile)
+	err = CompressFile(vulncheckFile, gzipFile)
+	require.NoError(t, err)
+
+	err = zipFile(gzipFile, zFile)
+	require.NoError(t, err)
 
 	defer func() {
 		// restore the original data
@@ -189,7 +192,8 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	syncer, err := NewCVE(testDataPath)
 	require.NoError(t, err)
 
-	syncer.processVulnCheckFile("vulncheck.zip")
+	err = syncer.processVulnCheckFile("vulncheck.zip")
+	require.NoError(t, err)
 
 	// compare the enhanced data with the expected data
 	enhancedDataPath := filepath.Join(testDataPath, "nvdcve-1.1-2024.json")
@@ -200,6 +204,27 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, string(expectedData), string(enhancedData))
+}
+
+func TestFetchVulnCheckDownloadURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte(`{"data": [{"url": "http://example.com/vulncheck.zip"}]}`))
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	syncer, err := NewCVE("foo")
+	require.NoError(t, err)
+
+	if _, ok := os.LookupEnv("VULNCHECK_API_KEY"); !ok {
+		os.Setenv("VULNCHECK_API_KEY", "foo")
+	}
+
+	url, err := syncer.fetchVulnCheckDownloadURL(context.Background(), server.URL)
+	require.NoError(t, err)
+
+	require.Equal(t, "http://example.com/vulncheck.zip", url)
 }
 
 func copyFile(src, dst string) error {
@@ -225,24 +250,4 @@ func copyFile(src, dst string) error {
 
 	// Ensure that the copied contents are flushed to stable storage
 	return destFile.Sync()
-}
-
-func TestFetchVulnCheckDownloadURL(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": [{"url": "http://example.com/vulncheck.zip"}]}`))
-	}))
-	defer server.Close()
-
-	syncer, err := NewCVE("foo")
-	require.NoError(t, err)
-
-	if _, ok := os.LookupEnv("VULNCHECK_API_KEY"); !ok {
-		os.Setenv("VULNCHECK_API_KEY", "foo")
-	}
-
-	url, err := syncer.fetchVulnCheckDownloadURL(context.Background(), server.URL)
-	require.NoError(t, err)
-
-	require.Equal(t, "http://example.com/vulncheck.zip", url)
 }

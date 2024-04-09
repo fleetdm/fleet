@@ -497,7 +497,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 	apiKey := os.Getenv("VULNCHECK_API_KEY")
 
 	if apiKey == "" {
-		return "", fmt.Errorf("VULNCHECK_API_KEY environment variable not set")
+		return "", ctxerr.New(ctx, "VULNCHECK_API_KEY environment variable not set")
 	}
 
 	parsedURL, err := url.Parse(baseURL)

@@ -63,8 +63,6 @@ func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, lo
 	return nil
 }
 
-
-
 func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
 	if cveFeedPrefixURL == "" {
 		return errors.New("missing cve_feed_prefix_url")
