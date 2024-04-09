@@ -652,6 +652,8 @@ type DeleteMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, pro
 
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
+type DeleteMDMAppleDeclarationByNameFunc func(ctx context.Context, teamID *uint, name string) error
+
 type BulkDeleteMDMAppleHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error
 
 type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID *uint, profileIdentifier string) error
@@ -857,6 +859,8 @@ type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.M
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
+
+type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -1852,6 +1856,9 @@ type DataStore struct {
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
 
+	DeleteMDMAppleDeclarationByNameFunc        DeleteMDMAppleDeclarationByNameFunc
+	DeleteMDMAppleDeclarationByNameFuncInvoked bool
+
 	BulkDeleteMDMAppleHostsConfigProfilesFunc        BulkDeleteMDMAppleHostsConfigProfilesFunc
 	BulkDeleteMDMAppleHostsConfigProfilesFuncInvoked bool
 
@@ -2160,6 +2167,9 @@ type DataStore struct {
 
 	NewMDMAppleDeclarationFunc        NewMDMAppleDeclarationFunc
 	NewMDMAppleDeclarationFuncInvoked bool
+
+	SetOrUpdateMDMAppleDeclarationFunc        SetOrUpdateMDMAppleDeclarationFunc
+	SetOrUpdateMDMAppleDeclarationFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -4446,6 +4456,13 @@ func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 	return s.DeleteMDMAppleConfigProfileFunc(ctx, profileUUID)
 }
 
+func (s *DataStore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleDeclarationByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleDeclarationByNameFunc(ctx, teamID, name)
+}
+
 func (s *DataStore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
 	s.mu.Lock()
 	s.BulkDeleteMDMAppleHostsConfigProfilesFuncInvoked = true
@@ -5165,6 +5182,13 @@ func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fle
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMAppleDeclarationFunc(ctx, declaration)
+}
+
+func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.SetOrUpdateMDMAppleDeclarationFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateMDMAppleDeclarationFunc(ctx, declaration)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

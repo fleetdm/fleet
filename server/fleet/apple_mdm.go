@@ -451,8 +451,6 @@ const (
 	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
 )
 
-const MDMAppleDeclarationUUIDPrefix = "d"
-
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly
@@ -597,7 +595,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 
 	// Check against types we don't allow
 	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. OS updates coming soon!")
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
 	}
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {

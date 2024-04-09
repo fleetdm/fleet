@@ -249,6 +249,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 	if macOSMinVersionUpdated {
+		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
@@ -984,8 +988,10 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
+	var mdmMacOSUpdatesEdited bool
 	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+		mdmMacOSUpdatesEdited = true
 	}
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
@@ -1161,6 +1167,12 @@ func (svc *Service) editTeamFromSpec(
 		if err := svc.updateMacOSSetupEnableEndUserAuth(
 			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,
 		); err != nil {
+			return err
+		}
+	}
+
+	if mdmMacOSUpdatesEdited {
+		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
 			return err
 		}
 	}

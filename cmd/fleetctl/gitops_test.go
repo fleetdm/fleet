@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -173,6 +174,17 @@ func TestBasicTeamGitOps(t *testing.T) {
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
 		return team, nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
 	}
 
 	var enrolledSecrets []*fleet.EnrollSecret
@@ -420,6 +432,17 @@ func TestFullTeamGitOps(t *testing.T) {
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
 	}
 
 	// Team
