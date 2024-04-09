@@ -150,10 +150,6 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	gzipFile := filepath.Join(testDataPath, "nvdcve-2.0-122.json.gz")
 	zFile := filepath.Join(testDataPath, "vulncheck.zip")
 
-	// compress the vulncheck file to mimic the real data
-	CompressFile(vulncheckFile, gzipFile)
-	zipFile(gzipFile, zFile)
-
 	// backup the original data to new directory
 	backupPath := filepath.Join(testDataPath, "backup")
 	err := os.MkdirAll(backupPath, os.ModePerm)
@@ -161,6 +157,31 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 
 	err = copyFile(nvdFile, filepath.Join(backupPath, "nvdcve-1.1-2024.json"))
 	require.NoError(t, err)
+
+	err = copyFile(vulncheckFile, filepath.Join(backupPath, "nvdcve-2.0-122.json"))
+	require.NoError(t, err)
+
+	// compress the vulncheck file to mimic the real data
+	CompressFile(vulncheckFile, gzipFile)
+	zipFile(gzipFile, zFile)
+
+	defer func() {
+		// restore the original data
+		err := copyFile(filepath.Join(backupPath, "nvdcve-1.1-2024.json"), filepath.Join(testDataPath, "nvdcve-1.1-2024.json"))
+		require.NoError(t, err)
+
+		err = copyFile(filepath.Join(backupPath, "nvdcve-2.0-122.json"), filepath.Join(testDataPath, "nvdcve-2.0-122.json"))
+		require.NoError(t, err)
+
+		err = os.RemoveAll(backupPath)
+		require.NoError(t, err)
+
+		err = os.Remove(gzipFile)
+		require.NoError(t, err)
+
+		err = os.Remove(zFile)
+		require.NoError(t, err)
+	}()
 
 	syncer, err := NewCVE(testDataPath)
 	require.NoError(t, err)
@@ -176,19 +197,6 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, string(expectedData), string(enhancedData))
-
-	// restore the original data
-	err = copyFile(filepath.Join(backupPath, "nvdcve-1.1-2024.json"), filepath.Join(testDataPath, "nvdcve-1.1-2024.json"))
-	require.NoError(t, err)
-
-	err = os.RemoveAll(backupPath)
-	require.NoError(t, err)
-
-	err = os.Remove(gzipFile)
-	require.NoError(t, err)
-
-	err = os.Remove(zFile)
-	require.NoError(t, err)
 }
 
 func copyFile(src, dst string) error {
