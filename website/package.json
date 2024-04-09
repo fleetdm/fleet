@@ -6,16 +6,16 @@
   "keywords": [],
   "dependencies": {
     "@sailshq/connect-redis": "^6.1.3",
-    "@sailshq/lodash": "^3.10.3",
+    "@sailshq/lodash": "^3.10.5",
     "@sailshq/socket.io-redis": "^6.1.2",
-    "jsonwebtoken": "9.0.0",
+    "jsonwebtoken": "9.0.2",
     "moment": "2.29.4",
-    "sails": "^1.5.7",
-    "sails-hook-apianalytics": "^2.0.5",
+    "sails": "^1.5.9",
+    "sails-hook-apianalytics": "^2.0.6",
     "sails-hook-organics": "^2.2.2",
-    "sails-hook-orm": "^4.0.2",
+    "sails-hook-orm": "^4.0.3",
     "sails-hook-sockets": "^3.0.0",
-    "sails-postgresql": "^5.0.0"
+    "sails-postgresql": "^5.0.1"
   },
   "devDependencies": {
     "eslint": "5.16.0",
@@ -23,7 +23,7 @@
     "htmlhint": "0.11.0",
     "lesshint": "6.3.6",
     "marked": "4.0.10",
-    "sails-hook-grunt": "^4.0.0",
+    "sails-hook-grunt": "^5.0.0",
     "yaml": "1.10.2"
   },
   "scripts": {
