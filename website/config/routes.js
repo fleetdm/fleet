@@ -466,6 +466,7 @@ module.exports.routes = {
   'GET /try-fleet/waitlist':   '/try-fleet',
   'GET /mdm': '/device-management',// « alias for radio ad
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
+  'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json',
 
   // Fleet UI
   // =============================================================================================================
