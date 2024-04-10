@@ -1697,7 +1697,7 @@ func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, hos
 }
 
 func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	encrypted := rows[0]["encrypted"] == "1"
+	encrypted := len(rows) > 0 && rows[0]["encrypted"] == "1"
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
