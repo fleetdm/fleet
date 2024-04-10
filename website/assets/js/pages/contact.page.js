@@ -48,7 +48,11 @@ parasails.registerPage('contact', {
     if(this.formToShow === 'contact'){
       this.formToDisplay = this.formToShow;
     }
-    if(this.prefillFormDataFromUserRecord){
+    if(this.primaryBuyingSituation){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
+      // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
+      this.formData.primaryBuyingSituation = this.primaryBuyingSituation;
+    }
+    if(this.prefillFormDataFromUserRecord){// prefill from database
       this.formDataToPrefillForLoggedInUsers.emailAddress = this.me.emailAddress;
       this.formDataToPrefillForLoggedInUsers.firstName = this.me.firstName;
       this.formDataToPrefillForLoggedInUsers.lastName = this.me.lastName;
@@ -59,11 +63,8 @@ parasails.registerPage('contact', {
       }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
     }
-    if(window.location.search){
+    if(window.location.search){// auto-clear query string  (TODO: Document why we're doing this further.  I think this shouldn't exist in the frontend code, instead in the hook.  Because analytics corruption.)
       window.history.replaceState({}, document.title, '/contact' );
-    }
-    if(this.primaryBuyingSituation){
-      this.formData.primaryBuyingSituation = this.primaryBuyingSituation;// prefill form
     }
   },
   mounted: async function() {
