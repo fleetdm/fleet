@@ -12,10 +12,19 @@ type ModifyLabelPayload struct {
 }
 
 type LabelPayload struct {
-	Name        *string `json:"name"`
-	Query       *string `json:"query"`
-	Platform    *string `json:"platform"`
-	Description *string `json:"description"`
+	Name string `json:"name"`
+	// Query is the SQL query that defines the label. This defines a dynamic
+	// label, where the hosts that are part of the label are determined based on
+	// the query result. Must be empty for a manual label, must be provided for a
+	// dynamic one.
+	Query       string `json:"query"`
+	Platform    string `json:"platform"`
+	Description string `json:"description"`
+	// Hosts is the list of host identifier (serial, uuid, name, etc. as
+	// supported by HostByIdentifier) that are part of the label. This defines a
+	// manual label. Can be empty for a manual label that doesn't target any
+	// host. Must be empty for a dynamic label.
+	Hosts []string `json:"hosts"`
 }
 
 // LabelType is used to catagorize the kind of label

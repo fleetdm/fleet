@@ -46,25 +46,26 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, err
 	}
 
-	label := &fleet.Label{}
+	label := &fleet.Label{
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	}
 
-	if p.Name == nil {
+	if p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "missing required argument")
 	}
-	label.Name = *p.Name
+	label.Name = p.Name
 
-	if p.Query == nil {
-		return nil, fleet.NewInvalidArgumentError("query", "missing required argument")
+	if p.Query != "" && len(p.Hosts) > 0 {
+		return nil, fleet.NewInvalidArgumentError("query", `Only one of either "query" or "hosts" can be included in the request.`)
 	}
-	label.Query = *p.Query
+	label.Query = p.Query
+	if p.Query == "" {
+		label.LabelMembershipType = fleet.LabelMembershipTypeManual
+	}
 
-	if p.Platform != nil {
-		label.Platform = *p.Platform
-	}
-
-	if p.Description != nil {
-		label.Description = *p.Description
-	}
+	label.Platform = p.Platform
+	label.Description = p.Description
 
 	for name := range fleet.ReservedLabelNames() {
 		if label.Name == name {
@@ -72,11 +73,18 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		}
 	}
 
-	label, err := svc.ds.NewLabel(ctx, label)
-	if err != nil {
-		return nil, err
+	// TODO(mna): if membership type is manual, must use ApplyLabelSpecs,
+	// otherwise NewLabel works for dynamic membership. Must resolve the host
+	// identifiers (in batch) to hostname so that ApplySpecs can be used.
+
+	if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
+		label, err := svc.ds.NewLabel(ctx, label)
+		if err != nil {
+			return nil, err
+		}
+		return label, nil
 	}
-	return label, nil
+	panic("unimplemented")
 }
 
 ////////////////////////////////////////////////////////////////////////////////
