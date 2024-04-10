@@ -248,6 +248,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Endpoint ops | Fleet',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
+      currentSection: 'platform',
     }
   },
 
@@ -256,6 +257,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Vulnerability management | Fleet',
       pageDescriptionForMeta: 'Report CVEs, software inventory, security posture, and other risks down to the chipset of any endpoint with Fleet.',
+      currentSection: 'platform',
     }
   },
 
@@ -464,6 +466,7 @@ module.exports.routes = {
   'GET /try-fleet/waitlist':   '/try-fleet',
   'GET /mdm': '/device-management',// « alias for radio ad
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
+  'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json',
 
   // Fleet UI
   // =============================================================================================================

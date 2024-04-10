@@ -1049,6 +1049,65 @@ This activity contains the following fields:
 }
 ```
 
+## created_declaration_profile
+
+Generated when a user adds a new macOS declaration to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_declaration_profile
+
+Generated when a user removes a macOS declaration from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_declaration_profile
+
+Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
