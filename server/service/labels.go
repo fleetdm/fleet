@@ -167,6 +167,9 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if payload.Description != nil {
 		label.Description = *payload.Description
 	}
+	if len(payload.Hosts) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
+		return nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
+	}
 
 	// TODO(mna): if membership type is manual and the Hosts membership is
 	// provided, must use ApplyLabelSpecs (as SaveLabel does not update label
