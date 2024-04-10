@@ -690,6 +690,11 @@ func (s *integrationTestSuite) TestTranslator() {
 	require.Len(t, payload.List, 1)
 
 	assert.Equal(t, s.users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
+
+	// empty body
+	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{}, http.StatusBadRequest, &payload)
+
+	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{List: []fleet.TranslatePayload{{Type: "notavalidtype", Payload: fleet.StringIdentifierToIDPayload{}}}}, http.StatusBadRequest, &payload)
 }
 
 func (s *integrationTestSuite) TestVulnerableSoftware() {
