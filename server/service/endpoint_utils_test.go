@@ -138,6 +138,46 @@ func TestUniversalDecoderHandlersEmbeddedAndNot(t *testing.T) {
 	assert.Equal(t, uint(4), casted.Opts.Page)
 }
 
+func TestMakeDecoderWithEmbeddedStructAndTagShouldPanic(t *testing.T) {
+	// We use fleet.ListOptions on many request types.
+	//
+	// When using fleet.ListOptions as an embedded struct the struct tag will be
+	// ignored by our makeDecoder method (which only processes the inner fields).
+	type someRequestType struct {
+		fleet.ListOptions `url:"list_options"`
+	}
+	decoder := makeDecoder(someRequestType{})
+
+	req := httptest.NewRequest("POST", "/target?per_page=77&page=4&query=foobar", nil)
+	require.Panics(t, func() {
+		_, _ = decoder(context.Background(), req)
+	})
+
+	// The following should not panic (because it's not embedded)
+	type someOtherRequestType struct {
+		ListOptions fleet.ListOptions `url:"list_options"`
+	}
+	decoder = makeDecoder(someOtherRequestType{})
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4&query=foobar", nil)
+	decoded, err := decoder(context.Background(), req)
+	require.NoError(t, err)
+	casted, ok := decoded.(*someOtherRequestType)
+	require.True(t, ok)
+	require.Equal(t, "foobar", casted.ListOptions.MatchQuery)
+
+	// The following should not panic (because it doesn't have a struct tag)
+	type yetAnotherRequestType struct {
+		fleet.ListOptions
+	}
+	decoder = makeDecoder(yetAnotherRequestType{})
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4&query=foobar", nil)
+	decoded, err = decoder(context.Background(), req)
+	require.NoError(t, err)
+	casted2, ok := decoded.(*yetAnotherRequestType)
+	require.True(t, ok)
+	require.Equal(t, "foobar", casted2.ListOptions.MatchQuery)
+}
+
 func TestUniversalDecoderListOptions(t *testing.T) {
 	type universalStruct struct {
 		ID1  uint              `url:"some-id"`

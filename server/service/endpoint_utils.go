@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -68,6 +69,18 @@ func allFields(ifv reflect.Value) []fieldPair {
 		v := ifv.Field(i)
 
 		if v.Kind() == reflect.Struct && t.Field(i).Anonymous {
+			//
+			// Catch tags being defined on embedded structs (which will be ignored).
+			// Only panic when running `go test` mode.
+			//
+			if strings.HasSuffix(os.Args[0], ".test") {
+				t1, ok1 := t.Field(i).Tag.Lookup("json")
+				t2, ok2 := t.Field(i).Tag.Lookup("url")
+				t3, ok3 := t.Field(i).Tag.Lookup("query")
+				if (ok1 && t1 != "") || (ok2 && t2 != "") || (ok3 && t3 != "") {
+					panic(fmt.Sprintf("struct tag being ignored by makeDecoder: %s", ifv.Type()))
+				}
+			}
 			fields = append(fields, allFields(v)...)
 			continue
 		}
