@@ -86,7 +86,7 @@ const RunQueryPage = ({
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
     queryId
-      ? router.push(PATHS.QUERY_DETAILS(queryId))
+      ? router.push(PATHS.QUERY_DETAILS(queryId, currentTeamId))
       : router.push(PATHS.NEW_QUERY(currentTeamId));
   }
 
