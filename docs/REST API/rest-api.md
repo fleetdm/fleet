@@ -60,7 +60,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                   |
+| Name     | Type   | In   | Deion                                   |
 | -------- | ------ | ---- | --------------------------------------------- |
 | email    | string | body | **Required**. The user's email.               |
 | password | string | body | **Required**. The user's plain text password. |
@@ -163,7 +163,7 @@ Sends a password reset email to the specified email. Requires that SMTP or SES i
 
 #### Parameters
 
-| Name  | Type   | In   | Description                                                             |
+| Name  | Type   | In   | Deion                                                             |
 | ----- | ------ | ---- | ----------------------------------------------------------------------- |
 | email | string | body | **Required**. The email of the user requesting the reset password link. |
 
@@ -209,7 +209,7 @@ Changes the password for the authenticated user.
 
 #### Parameters
 
-| Name         | Type   | In   | Description                            |
+| Name         | Type   | In   | Deion                            |
 | ------------ | ------ | ---- | -------------------------------------- |
 | old_password | string | body | **Required**. The user's old password. |
 | new_password | string | body | **Required**. The user's new password. |
@@ -255,7 +255,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 #### Parameters
 
-| Name                      | Type   | In   | Description                                                               |
+| Name                      | Type   | In   | Deion                                                               |
 | ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
 | new_password              | string | body | **Required**. The new password.                                           |
 | new_password_confirmation | string | body | **Required**. Confirmation for the new password.                          |
@@ -390,7 +390,7 @@ Gets the current SSO configuration.
 
 #### Parameters
 
-| Name      | Type   | In   | Description                                                                 |
+| Name      | Type   | In   | Deion                                                                 |
 | --------- | ------ | ---- | --------------------------------------------------------------------------- |
 | relay_url | string | body | **Required**. The relative url to be navigated to after successful sign in. |
 
@@ -7373,22 +7373,20 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
-- [Run live script](#run-live-script)
 - [Add script](#add-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [Get or download script](#get-or-download-script)
 - [Get script details by host](#get-script-details-by-host)
 
-### Run script
+### Run scripts
 
-Run a script on a host.
+In Fleet there are 2 types of scripts:
 
-The script will be added to the host's list of upcoming activities.
+- Fleet UI Scripts - script files that have been uploaded.
+- "Live" Scripts - script files that have been uploaded, or, a script body included with a fleetctl command on the command line or in an API request to execute a script.
 
-The new script will run after other activities finish. Failure of one activity won't cancel other activities.
-
-`POST /api/v1/fleet/scripts/run`
+When a Fleet UI script is executed it will be added to the Host Activity queue. The script will run after other activities finish. Failure of one activity won't cancel other activities.
 
 #### Parameters
 
@@ -7412,6 +7410,42 @@ The new script will run after other activities finish. Failure of one activity w
 {
   "host_id": 1227,
   "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+Live scripts are executed on a host only if no other scripts are running. Live scripts cease execution after 5 minutes regardless of script contents.
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
+| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "message": "",
+  "runtime": 1,
+  "host_timeout": false,
+  "exit_code": 0
 }
 ```
 
@@ -7448,46 +7482,6 @@ Gets the result of a script that was executed.
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
-
-### Run live script
-
-Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
-| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
-| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
-
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "script_contents": "echo 'hello'",
-  "output": "hello",
-  "message": "",
-  "runtime": 1,
-  "host_timeout": false,
-  "exit_code": 0
-}
-```
 
 ### Add script
 
