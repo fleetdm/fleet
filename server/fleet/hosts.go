@@ -359,6 +359,7 @@ type Host struct {
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
 }
 
+// HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
 type HostOrbitInfo struct {
 	ScriptsEnabled *bool `json:"scripts_enabled" db:"scripts_enabled"`
 }
