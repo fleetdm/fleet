@@ -9,6 +9,11 @@ import (
 type ModifyLabelPayload struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
+	// Hosts is the new list of host identifiers to apply for this label, only
+	// valid for manual labels. If it is nil (not just len() == 0, but == nil),
+	// then the list of hosts is not modified. If it is not nil and len == 0,
+	// then all members are removed.
+	Hosts []string `json:"hosts"`
 }
 
 type LabelPayload struct {

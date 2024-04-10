@@ -73,9 +73,10 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		}
 	}
 
-	// TODO(mna): if membership type is manual, must use ApplyLabelSpecs,
-	// otherwise NewLabel works for dynamic membership. Must resolve the host
-	// identifiers (in batch) to hostname so that ApplySpecs can be used.
+	// if membership type is manual, must use ApplyLabelSpecs (as NewLabel does
+	// not create label memberships), otherwise NewLabel works for dynamic
+	// membership. Must resolve the host identifiers to hostname so that
+	// ApplySpecs can be used.
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
 		spec := fleet.LabelSpec{
 			Name:                label.Name,
@@ -100,6 +101,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 			return nil, err
 		}
 		label.ID = lblIDsByName[label.Name]
+		label.HostCount = len(hostnames)
 	} else {
 		newLbl, err := svc.ds.NewLabel(ctx, label)
 		if err != nil {
@@ -164,6 +166,32 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	}
 	if payload.Description != nil {
 		label.Description = *payload.Description
+	}
+
+	// TODO(mna): if membership type is manual and the Hosts membership is
+	// provided, must use ApplyLabelSpecs (as SaveLabel does not update label
+	// memberships), otherwise SaveLabel works for dynamic membership. Must
+	// resolve the host identifiers to hostname so that ApplySpecs can be used.
+	if label.LabelMembershipType == fleet.LabelMembershipTypeManual && payload.Hosts != nil {
+		spec := fleet.LabelSpec{
+			Name:                label.Name,
+			Description:         label.Description,
+			Query:               label.Query,
+			Platform:            label.Platform,
+			LabelType:           label.LabelType,
+			LabelMembershipType: label.LabelMembershipType,
+		}
+		hostnames, err := svc.ds.HostnamesByIdentifiers(ctx, payload.Hosts)
+		if err != nil {
+			return nil, err
+		}
+		spec.Hosts = hostnames
+		if err := svc.ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&spec}); err != nil {
+			return nil, err
+		}
+
+		// must reload it to get the host counts information
+		return svc.ds.Label(ctx, id)
 	}
 	return svc.ds.SaveLabel(ctx, label)
 }
