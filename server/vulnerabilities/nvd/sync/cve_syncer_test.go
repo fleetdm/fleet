@@ -56,7 +56,7 @@ func TestStoreCVEsLegacyFormat(t *testing.T) {
 			matched               = 0
 		)
 		for _, api20Vuln := range api20CVEs {
-			convertedLegacyVuln := convertAPI20CVEToLegacy(api20Vuln, log.NewNopLogger())
+			convertedLegacyVuln := convertAPI20CVEToLegacy(api20Vuln.CVE, log.NewNopLogger())
 			legacyVuln, ok := legacyVulns[*api20Vuln.CVE.ID]
 			if !ok {
 				vulnsNotFoundInLegacy = append(vulnsNotFoundInLegacy, *api20Vuln.CVE.ID)

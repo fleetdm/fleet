@@ -194,7 +194,7 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
-		legacyCVE := convertAPI20CVEToLegacy(cve, s.logger)
+		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
 
@@ -264,7 +264,6 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 
 			if len(newLegacyCVE.Configurations.Nodes) > 0 {
 				storedCVEFeed.CVEItems[i].Configurations = newLegacyCVE.Configurations
-				// level.Debug(s.logger).Log("msg", "updated cve with vulncheck config", "year", year, "cve", storedCVE.CVE.CVEDataMeta.ID)
 				counter++
 			}
 
@@ -281,16 +280,13 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 	*addCount += len(newLegacyCVEs)
 	for _, cve := range newLegacyCVEs {
 		storedCVEFeed.CVEItems = append(storedCVEFeed.CVEItems, cve)
-		// level.Debug(s.logger).Log("msg", "added new vulncheck cve", "year", year, "cve", cve.CVE.CVEDataMeta.ID)
 	}
 	storedCVEFeed.CVEDataNumberOfCVEs = strconv.FormatInt(int64(len(storedCVEFeed.CVEItems)), 10)
 
 	// Store the file for the year.
-	// storeStart := time.Now()
 	if err := storeCVEsInLegacyFormat(s.dbDir, year, storedCVEFeed); err != nil {
 		return err
 	}
-	// level.Debug(s.logger).Log("msg", "stored updated cves", "year", year, "duration", time.Since(storeStart))
 
 	return nil
 }
@@ -754,11 +750,11 @@ func derefPtr[T any](p *T) T {
 }
 
 // convertAPI20CVEToLegacy performs the conversion of a CVE in API 2.0 format to the legacy feed format.
-func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDCVEFeedJSON10DefCVEItem {
-	logger = log.With(logger, "cve", cve.CVE.ID)
+func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFeedJSON10DefCVEItem {
+	logger = log.With(logger, "cve", cve.ID)
 
-	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.CVE.Descriptions))
-	for _, description := range cve.CVE.Descriptions {
+	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
+	for _, description := range cve.Descriptions {
 		// Keep only english descriptions to match the legacy.
 		if description.Lang != "en" {
 			continue
@@ -769,13 +765,13 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 		})
 	}
 
-	problemtypeData := make([]*schema.CVEJSON40ProblemtypeProblemtypeData, 0, len(cve.CVE.Weaknesses))
-	if len(cve.CVE.Weaknesses) == 0 {
+	problemtypeData := make([]*schema.CVEJSON40ProblemtypeProblemtypeData, 0, len(cve.Weaknesses))
+	if len(cve.Weaknesses) == 0 {
 		problemtypeData = append(problemtypeData, &schema.CVEJSON40ProblemtypeProblemtypeData{
 			Description: []*schema.CVEJSON40LangString{},
 		})
 	}
-	for _, weakness := range cve.CVE.Weaknesses {
+	for _, weakness := range cve.Weaknesses {
 		if weakness.Type != "Primary" {
 			continue
 		}
@@ -791,8 +787,8 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 		})
 	}
 
-	referenceData := make([]*schema.CVEJSON40Reference, 0, len(cve.CVE.References))
-	for _, reference := range cve.CVE.References {
+	referenceData := make([]*schema.CVEJSON40Reference, 0, len(cve.References))
+	for _, reference := range cve.References {
 		tags := []string{} // Entries that have no tag set an empty list.
 		if len(reference.Tags) != 0 {
 			tags = reference.Tags
@@ -806,7 +802,7 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 	}
 
 	nodes := []*schema.NVDCVEFeedJSON10DefNode{} // Legacy entries define an empty list if there are no nodes.
-	for _, configuration := range cve.CVE.Configurations {
+	for _, configuration := range cve.Configurations {
 		if configuration.Operator != nil {
 			children := make([]*schema.NVDCVEFeedJSON10DefNode, 0, len(configuration.Nodes))
 			for _, node := range configuration.Nodes {
@@ -860,7 +856,7 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 	}
 
 	var baseMetricV2 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV2
-	for _, cvssMetricV2 := range cve.CVE.Metrics.CVSSMetricV2 {
+	for _, cvssMetricV2 := range cve.Metrics.CVSSMetricV2 {
 		if cvssMetricV2.Type != "Primary" {
 			continue
 		}
@@ -898,7 +894,7 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 	}
 
 	var baseMetricV3 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV3
-	for _, cvssMetricV30 := range cve.CVE.Metrics.CVSSMetricV30 {
+	for _, cvssMetricV30 := range cve.Metrics.CVSSMetricV30 {
 		if cvssMetricV30.Type != "Primary" {
 			continue
 		}
@@ -940,7 +936,7 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 		}
 	}
 	// Use CVSSMetricV31 if available (override CVSSMetricV30)
-	for _, cvssMetricV31 := range cve.CVE.Metrics.CVSSMetricV31 {
+	for _, cvssMetricV31 := range cve.Metrics.CVSSMetricV31 {
 		if cvssMetricV31.Type != "Primary" {
 			continue
 		}
@@ -982,11 +978,11 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 		}
 	}
 
-	lastModified, err := convertAPI20TimeToLegacy(cve.CVE.LastModified)
+	lastModified, err := convertAPI20TimeToLegacy(cve.LastModified)
 	if err != nil {
 		logger.Log("msg", "failed to parse lastModified time", "err", err)
 	}
-	publishedDate, err := convertAPI20TimeToLegacy(cve.CVE.Published)
+	publishedDate, err := convertAPI20TimeToLegacy(cve.Published)
 	if err != nil {
 		logger.Log("msg", "failed to parse published time", "err", err)
 	}
@@ -995,8 +991,8 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 		CVE: &schema.CVEJSON40{
 			Affects: nil, // Doesn't seem used.
 			CVEDataMeta: &schema.CVEJSON40CVEDataMeta{
-				ID:       *cve.CVE.ID,
-				ASSIGNER: derefPtr(cve.CVE.SourceIdentifier),
+				ID:       *cve.ID,
+				ASSIGNER: derefPtr(cve.SourceIdentifier),
 				STATE:    "", // Doesn't seem used.
 			},
 			DataFormat:  "MITRE", // All entries seem to have this format string.
@@ -1026,10 +1022,10 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVEItem, logger log.Logger) *schema.NVDC
 }
 
 func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NVDCVEFeedJSON10DefCVEItem {
-	logger = log.With(logger, "cve", cve.CVE.ID)
+	logger = log.With(logger, "cve", cve.ID)
 
-	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.CVE.Descriptions))
-	for _, description := range cve.CVE.Descriptions {
+	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
+	for _, description := range cve.Descriptions {
 		// Keep only english descriptions to match the legacy.
 		if description.Lang != "en" {
 			continue
@@ -1040,13 +1036,13 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 		})
 	}
 
-	problemtypeData := make([]*schema.CVEJSON40ProblemtypeProblemtypeData, 0, len(cve.CVE.Weaknesses))
-	if len(cve.CVE.Weaknesses) == 0 {
+	problemtypeData := make([]*schema.CVEJSON40ProblemtypeProblemtypeData, 0, len(cve.Weaknesses))
+	if len(cve.Weaknesses) == 0 {
 		problemtypeData = append(problemtypeData, &schema.CVEJSON40ProblemtypeProblemtypeData{
 			Description: []*schema.CVEJSON40LangString{},
 		})
 	}
-	for _, weakness := range cve.CVE.Weaknesses {
+	for _, weakness := range cve.Weaknesses {
 		if weakness.Type != "Primary" {
 			continue
 		}
@@ -1062,8 +1058,8 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 		})
 	}
 
-	referenceData := make([]*schema.CVEJSON40Reference, 0, len(cve.CVE.References))
-	for _, reference := range cve.CVE.References {
+	referenceData := make([]*schema.CVEJSON40Reference, 0, len(cve.References))
+	for _, reference := range cve.References {
 		tags := []string{} // Entries that have no tag set an empty list.
 		if len(reference.Tags) != 0 {
 			tags = reference.Tags
@@ -1138,7 +1134,7 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 	}
 
 	var baseMetricV2 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV2
-	for _, cvssMetricV2 := range cve.CVE.Metrics.CVSSMetricV2 {
+	for _, cvssMetricV2 := range cve.Metrics.CVSSMetricV2 {
 		if cvssMetricV2.Type != "Primary" {
 			continue
 		}
@@ -1176,7 +1172,7 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 	}
 
 	var baseMetricV3 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV3
-	for _, cvssMetricV30 := range cve.CVE.Metrics.CVSSMetricV30 {
+	for _, cvssMetricV30 := range cve.Metrics.CVSSMetricV30 {
 		if cvssMetricV30.Type != "Primary" {
 			continue
 		}
@@ -1218,7 +1214,7 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 		}
 	}
 	// Use CVSSMetricV31 if available (override CVSSMetricV30)
-	for _, cvssMetricV31 := range cve.CVE.Metrics.CVSSMetricV31 {
+	for _, cvssMetricV31 := range cve.Metrics.CVSSMetricV31 {
 		if cvssMetricV31.Type != "Primary" {
 			continue
 		}
@@ -1260,11 +1256,11 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 		}
 	}
 
-	lastModified, err := convertAPI20TimeToLegacy(cve.CVE.LastModified)
+	lastModified, err := convertAPI20TimeToLegacy(cve.LastModified)
 	if err != nil {
 		logger.Log("msg", "failed to parse lastModified time", "err", err)
 	}
-	publishedDate, err := convertAPI20TimeToLegacy(cve.CVE.Published)
+	publishedDate, err := convertAPI20TimeToLegacy(cve.Published)
 	if err != nil {
 		logger.Log("msg", "failed to parse published time", "err", err)
 	}
@@ -1273,8 +1269,8 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 		CVE: &schema.CVEJSON40{
 			Affects: nil, // Doesn't seem used.
 			CVEDataMeta: &schema.CVEJSON40CVEDataMeta{
-				ID:       *cve.CVE.ID,
-				ASSIGNER: derefPtr(cve.CVE.SourceIdentifier),
+				ID:       *cve.ID,
+				ASSIGNER: derefPtr(cve.SourceIdentifier),
 				STATE:    "", // Doesn't seem used.
 			},
 			DataFormat:  "MITRE", // All entries seem to have this format string.
