@@ -762,7 +762,7 @@ const hostMDMSelect = `,
 			ELSE NULL
 		END,
 		'dep_profile_error',
-		CASE 
+		CASE
 			WHEN hdep.assign_profile_response = '` + string(fleet.DEPAssignProfileResponseFailed) + `' THEN CAST(TRUE AS JSON)
 			ELSE CAST(FALSE AS JSON)
 		END,
@@ -5047,4 +5047,29 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 	}
 
 	return host, nil
+}
+
+// HostnamesByIdentifiers returns a list of hostnames (exactly the
+// "hosts.hostname" column) for the given identifiers as understood by
+// HostByIdentifier.
+func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error) {
+	const selectStmt = `
+		SELECT
+			h.hostname
+		FROM hosts h
+		WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
+`
+	if len(identifiers) == 0 {
+		return nil, nil
+	}
+
+	var hostnames []string
+	stmt, args, err := sqlx.In(selectStmt, identifiers)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build IN statement for hostnames by identifiers")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostnames, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hostnames by identifiers")
+	}
+	return hostnames, nil
 }

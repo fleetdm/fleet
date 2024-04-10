@@ -76,15 +76,38 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	// TODO(mna): if membership type is manual, must use ApplyLabelSpecs,
 	// otherwise NewLabel works for dynamic membership. Must resolve the host
 	// identifiers (in batch) to hostname so that ApplySpecs can be used.
-
-	if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
-		label, err := svc.ds.NewLabel(ctx, label)
+	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
+		spec := fleet.LabelSpec{
+			Name:                label.Name,
+			Description:         label.Description,
+			Query:               label.Query,
+			Platform:            label.Platform,
+			LabelType:           label.LabelType,
+			LabelMembershipType: label.LabelMembershipType,
+		}
+		hostnames, err := svc.ds.HostnamesByIdentifiers(ctx, p.Hosts)
 		if err != nil {
 			return nil, err
 		}
-		return label, nil
+		spec.Hosts = hostnames
+		if err := svc.ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&spec}); err != nil {
+			return nil, err
+		}
+
+		// must reload it to get the id
+		lblIDsByName, err := svc.ds.LabelIDsByName(ctx, []string{label.Name})
+		if err != nil {
+			return nil, err
+		}
+		label.ID = lblIDsByName[label.Name]
+	} else {
+		newLbl, err := svc.ds.NewLabel(ctx, label)
+		if err != nil {
+			return nil, err
+		}
+		label = newLbl
 	}
-	panic("unimplemented")
+	return label, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
