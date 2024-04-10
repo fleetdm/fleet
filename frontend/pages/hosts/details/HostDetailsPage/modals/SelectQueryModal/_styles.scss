@@ -8,7 +8,7 @@
     flex-direction: column;
     gap: $pad-large;
     height: 80%;
-    overflow: scroll;
+    overflow: auto;
   }
 
   &__no-queries {
