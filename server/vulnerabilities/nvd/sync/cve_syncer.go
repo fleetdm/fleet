@@ -236,13 +236,10 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 		year = 2002
 	}
 
-	// Read the CVE file for the year.
-	// readStart := time.Now()
 	storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, year)
 	if err != nil {
 		return err
 	}
-	// level.Debug(s.logger).Log("msg", "read cves", "year", year, "duration", time.Since(readStart))
 
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
@@ -515,6 +512,10 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 		req.Header.Add("Authorization", "Bearer "+apiKey)
 
 		resp, err = s.client.Do(req)
+		if resp != nil {
+			defer resp.Body.Close()
+		}
+
 		if err == nil && resp.StatusCode == http.StatusOK {
 			break
 		}
@@ -530,10 +531,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 		time.Sleep(waitTimeForRetry)
 	}
 
-	defer resp.Body.Close()
-
 	var vcResponse VulnCheckBackupResponse
-
 	if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "error decoding response")
 	}
