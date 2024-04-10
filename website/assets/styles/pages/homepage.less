@@ -76,6 +76,8 @@
 
   [purpose='homepage-content'] {
     max-width: 1200px;
+    padding-left: 0px;
+    padding-right: 0px;
   }
   [purpose='page-section'] {
     margin-bottom: 180px;
@@ -150,50 +152,53 @@
     }
   }
 
-
-  [purpose='category-switch'] {
-    width: 831px;
-    cursor: pointer;
-    border: 1px solid #E2E4EA;
-    border-radius: 28px;
-    background: @ui-off-white;
-    position: relative;
-    box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.10) inset;
-    margin-bottom: 80px;
-    margin-top: 100px;
-    color: @core-fleet-black;
-    [purpose='category-tier-switch'] {
-      position: absolute;
-      top: 0px;
-      left: -1px;
-      background: #fff;
-      border: 1px solid #E2E4EA;
-      border-radius: 28px;
-      height: 100%;
-      min-width: 140px;
-      z-index: 1;
-      transition: 0.3s all;
-      width: 277px;
-    }
-    [purpose='category-switch-option'] {
-      padding: 16px 40px;
+  [purpose='calendar-section'] {
+    padding: 40px 64px;
+    margin-bottom: 40px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  [purpose='calendar-card-body'] {
+    max-width: 720px;
+    padding-top: 60px;
+    padding-bottom: 24px;
+    text-align: center;
+    p {
       text-align: center;
-      cursor: pointer;
-      z-index: 3;
-      user-select: none;
-      white-space: nowrap;
-      width: 277px;
-    }
-    .selected {
-      font-weight: 700;
-    }
-    .endpoint-ops-selected {
-      transform: translateX(100%);
-    }
-    .vulnerability-management-selected {
-      transform: translateX(200%);
+      max-width: 720px;
+      margin-bottom: 24px;
     }
   }
+  [purpose='calendar-card'] {
+    border-radius: 24px;
+    border: 1px solid #E2E4EA;
+    background: linear-gradient(165deg, #F9FDFE 10.56%, #FFF 33.43%);
+    overflow: hidden;
+  }
+  [purpose='coming-soon-badge'] {
+    background-color: #0587FF;
+    padding: 4px 8px 3px 8px;
+    display: flex;
+    align-items: center;
+    border-radius: 14px;
+    color: #FFF;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  [purpose='calendar-image'] {
+    margin-top: 24px;
+    height: 420px;
+    overflow-x: hidden;
+    img {
+      height: 100%;
+      width: auto;
+    }
+  }
+
   [purpose='homepage-text-block'] {
     margin-top: 160px;
     margin-bottom: 120px;
@@ -591,7 +596,10 @@
       background-position: center bottom;
       background-repeat: no-repeat;
     }
+    [purpose='calendar-section'] {
+      padding: 40px;
 
+    }
     [purpose='homepage-hero'] {
       max-width: 1080px;
     }
@@ -641,6 +649,15 @@
 
     h1 {
       font-size: 48px;
+    }
+
+
+    [purpose='calendar-section'] {
+      padding: 40px 32px;
+    }
+
+    [purpose='calendar-card-body'] {
+      padding: 60px 24px 24px 24px;
     }
 
     [purpose='hero-background-image'] {
@@ -833,6 +850,10 @@
 
     h1 {
       font-size: 48px;
+    }
+
+    [purpose='calendar-section'] {
+      padding: 40px 24px;
     }
     [purpose='hero-background-image'] {
       background-size: auto 278px;
@@ -1085,6 +1106,12 @@
       font-size: 14px;
     }
 
+    [purpose='calendar-section'] {
+      padding: 40px 16px;
+    }
+    [purpose='calendar-image'] {
+      height: 287px;
+    }
     [purpose='homepage-hero'] {
       padding-top: 60px;
       padding-bottom: 270px;
@@ -1316,6 +1343,8 @@
       padding-right: 20px;
       padding-left: 20px;
     }
+
+
     [purpose='platform-block'] {
       margin-bottom: 80px;
     }
