@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { IConfig } from "interfaces/config";
+import { IConfig, IConfigFormData } from "interfaces/config";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -13,14 +13,9 @@ import {
   DEFAULT_TRANSPARENCY_URL,
   IAppConfigFormProps,
   IFormField,
+  IAppConfigFormErrors,
 } from "../constants";
 
-interface IFleetDesktopFormData {
-  transparencyUrl: string;
-}
-interface IFleetDesktopFormErrors {
-  transparency_url?: string | null;
-}
 const baseClass = "app-config-form";
 
 const FleetDesktop = ({
@@ -29,14 +24,16 @@ const FleetDesktop = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<IFleetDesktopFormData>({
+  const [formData, setFormData] = useState<
+    Pick<IConfigFormData, "transparencyUrl">
+  >({
     transparencyUrl:
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
   });
 
-  const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
-  const onInputChange = ({ value }: IFormField) => {
+  const handleInputChange = ({ value }: IFormField) => {
     setFormData({ transparencyUrl: value.toString() });
     setFormErrors({});
   };
@@ -44,7 +41,7 @@ const FleetDesktop = ({
   const validateForm = () => {
     const { transparencyUrl } = formData;
 
-    const errors: IFleetDesktopFormErrors = {};
+    const errors: IAppConfigFormErrors = {};
     if (transparencyUrl && !validUrl({ url: transparencyUrl })) {
       errors.transparency_url = `${transparencyUrl} is not a valid URL`;
     }
@@ -75,7 +72,7 @@ const FleetDesktop = ({
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Custom transparency URL"
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="transparency_url"
             value={formData.transparencyUrl}
             parseTarget
