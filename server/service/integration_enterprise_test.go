@@ -7244,6 +7244,28 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 
+	// Disable scripts on Linux host
+	err := s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), linuxHost.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: false, Valid: true},
+	)
+	require.NoError(t, err)
+	// try to lock/unlock/wipe the Linux host. Fails because scripts are not enabled.
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't lock host. To lock, deploy the fleetd agent with --enable-scripts")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't unlock host. To unlock, deploy the fleetd agent with --enable-scripts")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't wipe host. To wipe, deploy the fleetd agent with --enable-scripts")
+
+	// Enable scripts on Linux host
+	err = s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), linuxHost.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
+
 	// try to lock/unlock/wipe the Linux host succeeds, no MDM constraints
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusNoContent)
 

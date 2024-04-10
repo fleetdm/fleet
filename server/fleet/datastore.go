@@ -841,6 +841,8 @@ type Datastore interface {
 		ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
 	) error
 
+	GetHostOrbitInfo(ctx context.Context, hostID uint) (*HostOrbitInfo, error)
+
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping, source string) error
 
 	// ReplaceHostBatteries creates or updates the battery mappings of a host.
