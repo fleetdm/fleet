@@ -35,14 +35,7 @@ const Statistics = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       server_settings: {
-        server_url: appConfig.server_settings.server_url || "",
-        live_query_disabled:
-          appConfig.server_settings.live_query_disabled || false,
         enable_analytics: enableUsageStatistics,
-        deferred_save_host: appConfig.server_settings.deferred_save_host,
-        query_reports_disabled:
-          appConfig.server_settings.query_reports_disabled,
-        scripts_disabled: appConfig.server_settings.scripts_disabled,
       },
     };
 

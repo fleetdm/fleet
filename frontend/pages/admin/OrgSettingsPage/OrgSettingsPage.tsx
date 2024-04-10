@@ -60,7 +60,6 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
       const diff = deepDifference(formUpdates, appConfig);
       // send all formUpdates.agent_options because diff overrides all agent options
       diff.agent_options = formUpdates.agent_options;
-
       configAPI
         .update(diff)
         .then(() => {

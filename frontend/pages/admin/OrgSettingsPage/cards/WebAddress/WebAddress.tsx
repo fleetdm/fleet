@@ -54,12 +54,6 @@ const WebAddress = ({
     const formDataToSubmit = {
       server_settings: {
         server_url: serverURL,
-        live_query_disabled: appConfig.server_settings.live_query_disabled,
-        enable_analytics: appConfig.server_settings.enable_analytics,
-        deferred_save_host: appConfig.server_settings.deferred_save_host,
-        query_reports_disabled:
-          appConfig.server_settings.query_reports_disabled,
-        scripts_disabled: appConfig.server_settings.scripts_disabled,
       },
     };
 

@@ -104,24 +104,11 @@ const Advanced = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       server_settings: {
-        server_url: appConfig.server_settings.server_url || "",
         live_query_disabled: disableLiveQuery,
-        enable_analytics: appConfig.server_settings.enable_analytics,
         query_reports_disabled: disableQueryReports,
         scripts_disabled: disableScripts,
-        deferred_save_host: appConfig.server_settings.deferred_save_host,
       },
       smtp_settings: {
-        enable_smtp: appConfig.smtp_settings?.enable_smtp || false,
-        sender_address: appConfig.smtp_settings?.sender_address || "",
-        server: appConfig.smtp_settings?.server || "",
-        port: appConfig.smtp_settings?.port || undefined,
-        authentication_type: appConfig.smtp_settings?.authentication_type || "",
-        user_name: appConfig.smtp_settings?.user_name || "",
-        password: appConfig.smtp_settings?.password || "",
-        enable_ssl_tls: appConfig.smtp_settings?.enable_ssl_tls || false,
-        authentication_method:
-          appConfig.smtp_settings?.authentication_method || "",
         domain,
         verify_ssl_certs: verifySSLCerts,
         enable_start_tls: enableStartTLS || false,

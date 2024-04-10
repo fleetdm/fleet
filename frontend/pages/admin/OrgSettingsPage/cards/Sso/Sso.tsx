@@ -117,8 +117,6 @@ const Sso = ({
         enable_sso: enableSso,
         enable_sso_idp_login: enableSsoIdpLogin,
         enable_jit_provisioning: enableJitProvisioning,
-        issuer_uri: appConfig.sso_settings.issuer_uri,
-        enable_jit_role_sync: appConfig.sso_settings.enable_jit_role_sync,
       },
     };
 

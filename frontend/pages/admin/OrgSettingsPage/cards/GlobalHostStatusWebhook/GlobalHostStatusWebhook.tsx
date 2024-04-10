@@ -106,10 +106,6 @@ const GlobalHostStatusWebhook = ({
           host_percentage: hostStatusWebhookHostPercentage,
           days_count: hostStatusWebhookWindow,
         },
-        failing_policies_webhook:
-          appConfig.webhook_settings.failing_policies_webhook,
-        vulnerabilities_webhook:
-          appConfig.webhook_settings.vulnerabilities_webhook,
       },
     };
 
