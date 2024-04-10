@@ -105,7 +105,7 @@ Fleet is up and running, head to your public URL.
 
 You should be prompted with a setup page, where you can enter your name, email, and password. Run through those steps and you should have an empty hosts page waiting for you.
 
-You’ll find the enroll-secret after clicking “Add hosts”. This is a special secret the host will need to register to your Fleet instance. Once you have the enroll-secret you can use `fleetctl` to generate installers, which makes installing and updating osquery super simple.
+You’ll find the enroll-secret after clicking “Add hosts”. This is a special secret the host will need to register to your Fleet instance. Once you have the enroll-secret you can use `fleetctl` to generate Fleet's agent (fleetd), which makes installing and updating osquery super simple.
 
 To install `fleetctl`, which is the command line interface (CLI) used to communicate between your computer and Fleet, you either run `npm install -g fleetctl` or [download fleetctl](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.3.0) from Github. Once it's installed try the following command (Docker require) on your terminal:
 
