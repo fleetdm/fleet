@@ -740,6 +740,13 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	}, http.StatusOK)
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
+
+	// it should also not show up in the host's profiles list
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.NotEmpty(t, hostResp.Host.MDM.Profiles)
+	resProfiles = *hostResp.Host.MDM.Profiles
+	// one extra profile for the fleetd config
+	require.Len(t, resProfiles, len(wantTeamProfiles)+1)
 }
 
 func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
