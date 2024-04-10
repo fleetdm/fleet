@@ -167,6 +167,31 @@ If the action fails, please complete the following steps:
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action. 
 
 
+### Communicate Fleet's potential energy to stakeholders
+On the first business day of every month, the Apprentice will send an update to the stakeholders of Fleet using the following steps:
+1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
+
+```
+Hi investors and friends,
+
+Here’s a quick update on the numbers from last month:
+
+• Gross new ∆ARR (QTD): + TODO
+• Social media mentions (LinkedIn): 3.8 per day (Goal: 5) (Want to help?)
+• Current version: 4.48.0 (See what's new)
+• Next in-person event: Kansas City, (April 20) BSides KC
+• Next press release: 2024-04-30: "Stop nudging"
+"Stop installing updates and forcing restarts when your users are busy using their computers.  Fleet finds time in the calendar for a reboot and uses AI to explain why." 
+
+
+Thanks for your support,
+Mike and the Fleet team
+```
+
+2. Address the email to the executive team's Gmail.
+3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, collect all of the investor emails from previous funding rounds and add them to bcc of the email and send.
+
+
 ### Refresh event calendar
 Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
 1. Visit the latest website for each event.
