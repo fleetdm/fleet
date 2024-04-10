@@ -94,7 +94,7 @@ type bodyDecoder interface {
 // struct has at least 1 json tag it'll unmarshall the body. If the struct has
 // a `url` tag with value list_options it'll gather fleet.ListOptions from the
 // URL (similarly for host_options, carve_options, user_options that derive
-// from the common list_options).
+// from the common list_options). Note that these behaviors do not work for embedded structs.
 //
 // Finally, any other `url` tag will be treated as a path variable (of the form
 // /path/{name} in the route's path) from the URL path pattern, and it'll be
@@ -172,7 +172,6 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				if err != nil {
 					return nil, err
 				}
-
 				switch urlTagValue {
 				case "list_options":
 					opts, err := listOptionsFromRequest(r)
