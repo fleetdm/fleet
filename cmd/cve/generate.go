@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// Sync the CVE files
-	if err := nvd.DownloadNVDCVEFeed(*dbDir, "", *debug, logger); err != nil {
+	if err := nvd.GenerateCVEFeeds(*dbDir, *debug, logger); err != nil {
 		panic(err)
 	}
 
