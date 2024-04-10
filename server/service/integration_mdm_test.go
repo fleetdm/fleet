@@ -10550,6 +10550,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsProfilesMatch(host, globalProfiles)
 	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
+	// can't resend a profile while it is verifying
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusConflict)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
 	// create new label that includes host
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -10612,6 +10617,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Verifying: 0,
 	}, nil)
 
+	// can resend a profile after it has failed
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusNoContent)
+	verifyProfiles(mdmDevice, 1, false)                                                 // trigger a profile sync, device gets the profile resent
+	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so it back to verifying
+
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
 	require.NoError(t, err)
@@ -10638,6 +10648,16 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// check that we deleted the old profile in the DB
 	checkHostsProfilesMatch(host, teamProfiles)
 	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+
+	// can't resend a profile while it is verifying
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// can't resend a profile from the wrong team
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "profile does not belong to host's team")
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
@@ -10706,6 +10726,28 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Failed:    1,
 		Verifying: 0,
 	}, nil)
+
+	// can resend a profile after it has failed
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusNoContent)
+	verifyProfiles(mdmDevice, 1, false)                                               // trigger a profile sync, device gets the profile resent
+	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so it back to verifying
+
+	// add a macOS profile to the team
+	mcUUID := "a" + uuid.NewString()
+	prof := mcBytesForTest("name-"+mcUUID, "idenfifer-"+mcUUID, mcUUID)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, []byte("checksum-"+mcUUID))
+		return err
+	})
+
+	// trigger a profile sync, device doesn't get the macOS profile
+	verifyProfiles(mdmDevice, 0, false)
+
+	// can't resend a macOS profile to a Windows host
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "unable to match profile to host")
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {

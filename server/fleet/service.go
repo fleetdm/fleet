@@ -926,6 +926,9 @@ type Service interface {
 	// assigned to any team).
 	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
 
+	// ResendHostMDMProfile resends the MDM profile to the host.
+	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution
 

@@ -1980,3 +1980,113 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 	}
 	return svc.updateAppConfigMDMDiskEncryption(ctx, enableDiskEncryption)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}
+////////////////////////////////////////////////////////////////////////////////
+
+type resendHostMDMProfileRequest struct {
+	HostID      uint   `url:"host_id"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+type resendHostMDMProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resendHostMDMProfileResponse) error() error { return r.Err }
+
+// TODO: do we already have plumbing to allow for StatusAccepted (202) responses?
+func (r resendHostMDMProfileResponse) Status() int { return http.StatusNoContent }
+
+func resendHostMDMProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*resendHostMDMProfileRequest)
+
+	if err := svc.ResendHostMDMProfile(ctx, req.HostID, req.ProfileUUID); err != nil {
+		return resendHostMDMProfileResponse{Err: err}, nil
+	}
+
+	return resendHostMDMProfileResponse{}, nil
+}
+
+func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// now we can do a specific authz check based on team id of profile before we resend the profile
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: prescreen host platform against profile prefix?
+
+	// TODO: screen disk encryption profile? other reserved profiles?
+
+	var profileTeamID *uint
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix), strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
+		}
+		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting apple config profile")
+		}
+		profileTeamID = prof.TeamID
+
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
+		}
+		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting apple declaration")
+		}
+		profileTeamID = decl.TeamID
+
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check windows mdm enabled")
+		}
+		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting windows config profile")
+		}
+		profileTeamID = prof.TeamID
+
+	default:
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", "invalid profile UUID"), "invalid profile UUID")
+	}
+
+	// check again based on team id of profile before we resend the profile
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: profileTeamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	var hTID, pTID uint
+	if host.TeamID != nil {
+		hTID = *host.TeamID
+	}
+	if profileTeamID != nil {
+		pTID = *profileTeamID
+	}
+	if hTID != pTID {
+		// TODO: confirm error message? Should this be an auth error?
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", "profile does not belong to host's team"), "profile does not belong to host team")
+	}
+
+	if err := svc.ds.ResendHostMDMProfile(ctx, host.UUID, profileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resending host mdm profile")
+	}
+
+	// TODO: log activity?
+
+	return nil
+}

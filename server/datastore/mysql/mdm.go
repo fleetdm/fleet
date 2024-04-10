@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1097,4 +1098,68 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	}
 
 	return nil
+}
+
+func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	// determine the table and column based on the profile UUID prefix
+	var table, column string
+	switch {
+	case strings.HasPrefix(profUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		table = "host_mdm_apple_declarations"
+		column = "declaration_uuid"
+	case strings.HasPrefix(profUUID, fleet.MDMAppleProfileUUIDPrefix):
+		table = "host_mdm_apple_profiles"
+		column = "profile_uuid"
+	case strings.HasPrefix(profUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		table = "host_mdm_windows_profiles"
+		column = "profile_uuid"
+	default:
+		return ctxerr.Errorf(ctx, "unknown profile UUID prefix %s", profUUID)
+	}
+
+	// we need to first check if the profile is in a state that allows resending
+	selectStmt := fmt.Sprintf(`
+SELECT	
+	COALESCE(status, ?) as status
+	FROM
+	%s
+WHERE
+	host_uuid = ?
+	AND %s = ?
+`, table, column)
+
+	// then we can update the status to NULL to trigger resending on the next cron run
+	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL WHERE host_uuid = ? AND %s = ?`, table, column)
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// check if the profile is in a state that allows resending
+		var dest string
+		if err := sqlx.GetContext(ctx, tx, &dest, selectStmt, fleet.MDMDeliveryPending, hostUUID, profUUID); err != nil {
+			if err == sql.ErrNoRows {
+				// TODO: confirm this error
+				return fleet.NewInvalidArgumentError("profile_uuid", "unable to match profile to host")
+			}
+			return ctxerr.Wrap(ctx, err, "get MDM profile status")
+		}
+		status := fleet.MDMDeliveryStatus(dest)
+		if status == fleet.MDMDeliveryPending || status == fleet.MDMDeliveryVerifying {
+			return fleet.NewInvalidArgumentError("profile_status", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict)
+		}
+		if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified {
+			// this should never happen, but just in case
+			return ctxerr.Errorf(ctx, "unknown profile status %s", status)
+		}
+
+		// now we can update the status to NULL to allow resending
+		res, err := tx.ExecContext(ctx, updateStmt, hostUUID, profUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resending host MDM profile")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// this should never happen, log for debugging
+			level.Debug(ds.logger).Log("msg", "resend profile status not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+		}
+
+		return nil
+	})
 }
