@@ -629,24 +629,26 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 	"disk_encryption_windows": {
 		Query: `
-	SELECT CASE WHEN (
-	  -- In some versions of Windows (server?), bitlocker is optional.
-	  -- When bitlocker isn't installed, the bitlocker_info table query
-	  -- will crash and not return any results, so we have to be careful
-	  -- about when we query it.
-	  SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker'
-	) THEN (
-	  SELECT CASE WHEN (
-	    -- If it's optional, and it's enabled
-	    SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1
-	  ) THEN (
-	    -- Get bitlocker properties
-	    SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
-	  ) END
-	) ELSE (
-	  -- Bitlocker is not optional, and should be on the device
-	  SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
-	) END AS encrypted;`,
+WITH encrypted(enabled) AS (
+  SELECT CASE WHEN (
+    -- In some versions of Windows (server?), bitlocker is optional.
+    -- When bitlocker isn't installed, the bitlocker_info table query
+    -- will crash and not return any results, so we have to be careful
+    -- about when we query it.
+    SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker'
+  ) THEN (
+    SELECT CASE WHEN (
+      -- If it's optional, and it's enabled
+      SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1
+    ) THEN (
+      -- Get bitlocker properties
+      SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
+    ) END
+  ) ELSE (
+    -- Bitlocker is not optional, and should be on the device
+    SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
+  ) END
+  ) SELECT enabled FROM encrypted WHERE enabled IS NOT NULL;`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
@@ -1697,7 +1699,7 @@ func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, hos
 }
 
 func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	encrypted := len(rows) > 0 && rows[0]["encrypted"] == "1"
+	encrypted := len(rows) > 0
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
