@@ -17,6 +17,7 @@ export default {
   CONTROLS_SETUP_ASSITANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
 
+  // Dashboard pages
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
@@ -64,6 +65,11 @@ export default {
   SOFTWARE_VULNERABILITY_DETAILS: (cve: string): string => {
     return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
   },
+
+  // Label pages
+  LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
+  LABEL_NEW_MANUAL: `${URL_PREFIX}/labels/new/manual`,
+  LABEL_EDIT: (labelId: number) => `${URL_PREFIX}/labels/${labelId}`,
 
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
