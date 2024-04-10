@@ -64,8 +64,11 @@
               <h3>Tell employees why</h3>
               <p>No more “whitelisting” executives. Use AI to explain why your security policies matter, and install required updates en masse without the fuss.</p>
             <%}%>
-
+            <%if(!primaryBuyingSituation) {%>
             <a purpose="animated-arrow-button-red" href="https://kqphpqst851.typeform.com/to/WwAtAUdm" target="_blank">Let me know</a>
+            <% } else {%>
+            <a purpose="animated-arrow-button-red" href="https://kqphpqst851.typeform.com/to/WwAtAUdm#primarybuyingsituation=<%= encodeURIComponent(primaryBuyingSituation) %>" target="_blank">Let me know</a>
+            <% } %>
           </div>
           <div  purpose="calendar-image">
             <img alt="Fleet in your calendar" src="/images/homepage-calendar-1280x420@2x.png">
