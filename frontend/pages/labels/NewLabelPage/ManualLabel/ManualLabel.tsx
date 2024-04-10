@@ -1,14 +1,25 @@
-import ManualLabelForm from "pages/labels/components/ManualLabelForm";
 import React from "react";
+import { RouteComponentProps } from "react-router";
+
+import ManualLabelForm from "pages/labels/components/ManualLabelForm";
+import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
 
 const baseClass = "manual-label";
 
-interface IManualLabelProps {}
+type IManualLabelProps = RouteComponentProps<never, never>;
 
-const ManualLabel = ({}: IManualLabelProps) => {
+const ManualLabel = ({ router }: IManualLabelProps) => {
+  const onSaveNewLabel = (formData: IManualLabelFormData) => {
+    console.log("data", formData);
+  };
+
+  const onCancelLabel = () => {
+    router.goBack();
+  };
+
   return (
     <div className={baseClass}>
-      <ManualLabelForm />
+      <ManualLabelForm onSave={onSaveNewLabel} onCancel={onCancelLabel} />
     </div>
   );
 };

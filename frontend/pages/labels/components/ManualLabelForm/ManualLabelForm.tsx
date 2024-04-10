@@ -1,16 +1,39 @@
 import React from "react";
-import { noop } from "lodash";
 
 import LabelForm from "../LabelForm";
+import { ILabelFormData } from "../LabelForm/LabelForm";
 
 const baseClass = "ManualLabelForm";
 
-interface IManualLabelFormProps {}
+export interface IManualLabelFormData {
+  name: string;
+  description: string;
+  hosts: string[];
+}
 
-const ManualLabelForm = ({}: IManualLabelFormProps) => {
+interface IManualLabelFormProps {
+  defaultQuery?: string;
+  defaultPlatform?: string;
+  isEditing?: boolean;
+  onSave: (formData: IManualLabelFormData) => void;
+  onCancel: () => void;
+}
+
+const ManualLabelForm = ({ onSave, onCancel }: IManualLabelFormProps) => {
+  const onSaveNewLabel = (
+    formData: ILabelFormData,
+    labelFormDataValid: boolean
+  ) => {
+    console.log("data", formData);
+  };
+
   return (
     <div className={baseClass}>
-      <LabelForm onCancel={noop} onSave={noop} />
+      <LabelForm
+        onCancel={onCancel}
+        onSave={onSaveNewLabel}
+        additionalFields={<p>test</p>}
+      />
     </div>
   );
 };

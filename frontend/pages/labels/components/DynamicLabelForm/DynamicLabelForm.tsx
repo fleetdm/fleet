@@ -62,6 +62,7 @@ const DynamicLabelForm = ({
     if (error) {
       setQueryError(error);
     } else if (labelFormDataValid) {
+      // values from LabelForm component must be valid too
       onSave({ ...labelFormData, query, platform });
     }
   };
