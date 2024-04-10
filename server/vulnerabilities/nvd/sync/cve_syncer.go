@@ -244,7 +244,8 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
-		legacyCVE := convertVulnCheckCVEToLegacy(cve, s.logger)
+		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
+		updateWithVulnCheckConfigurations(legacyCVE, cve.VcConfigurations)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
 
@@ -1021,59 +1022,9 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 	}
 }
 
-func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NVDCVEFeedJSON10DefCVEItem {
-	logger = log.With(logger, "cve", cve.ID)
-
-	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
-	for _, description := range cve.Descriptions {
-		// Keep only english descriptions to match the legacy.
-		if description.Lang != "en" {
-			continue
-		}
-		descriptions = append(descriptions, &schema.CVEJSON40LangString{
-			Lang:  description.Lang,
-			Value: description.Value,
-		})
-	}
-
-	problemtypeData := make([]*schema.CVEJSON40ProblemtypeProblemtypeData, 0, len(cve.Weaknesses))
-	if len(cve.Weaknesses) == 0 {
-		problemtypeData = append(problemtypeData, &schema.CVEJSON40ProblemtypeProblemtypeData{
-			Description: []*schema.CVEJSON40LangString{},
-		})
-	}
-	for _, weakness := range cve.Weaknesses {
-		if weakness.Type != "Primary" {
-			continue
-		}
-		descriptions := make([]*schema.CVEJSON40LangString, 0, len(weakness.Description))
-		for _, description := range weakness.Description {
-			descriptions = append(descriptions, &schema.CVEJSON40LangString{
-				Lang:  description.Lang,
-				Value: description.Value,
-			})
-		}
-		problemtypeData = append(problemtypeData, &schema.CVEJSON40ProblemtypeProblemtypeData{
-			Description: descriptions,
-		})
-	}
-
-	referenceData := make([]*schema.CVEJSON40Reference, 0, len(cve.References))
-	for _, reference := range cve.References {
-		tags := []string{} // Entries that have no tag set an empty list.
-		if len(reference.Tags) != 0 {
-			tags = reference.Tags
-		}
-		referenceData = append(referenceData, &schema.CVEJSON40Reference{
-			Name:      reference.URL, // Most entries have name set to the URL, and there's no name field on API 2.0.
-			Refsource: "",            // Not available on API 2.0.
-			Tags:      tags,
-			URL:       reference.URL,
-		})
-	}
-
+func updateWithVulnCheckConfigurations(cve *schema.NVDCVEFeedJSON10DefCVEItem, vcConfigurations []nvdapi.Config) {
 	nodes := []*schema.NVDCVEFeedJSON10DefNode{} // Legacy entries define an empty list if there are no nodes.
-	for _, configuration := range cve.VcConfigurations {
+	for _, configuration := range vcConfigurations {
 		if configuration.Operator != nil {
 			children := make([]*schema.NVDCVEFeedJSON10DefNode, 0, len(configuration.Nodes))
 			for _, node := range configuration.Nodes {
@@ -1133,170 +1084,12 @@ func convertVulnCheckCVEToLegacy(cve VulnCheckCVE, logger log.Logger) *schema.NV
 		}
 	}
 
-	var baseMetricV2 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV2
-	for _, cvssMetricV2 := range cve.Metrics.CVSSMetricV2 {
-		if cvssMetricV2.Type != "Primary" {
-			continue
-		}
-		baseMetricV2 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV2{
-			AcInsufInfo: *cvssMetricV2.ACInsufInfo,
-			CVSSV2: &schema.CVSSV20{
-				AccessComplexity:           derefPtr(cvssMetricV2.CVSSData.AccessComplexity),
-				AccessVector:               derefPtr(cvssMetricV2.CVSSData.AccessVector),
-				Authentication:             derefPtr(cvssMetricV2.CVSSData.Authentication),
-				AvailabilityImpact:         derefPtr(cvssMetricV2.CVSSData.AvailabilityImpact),
-				AvailabilityRequirement:    derefPtr(cvssMetricV2.CVSSData.AvailabilityRequirement),
-				BaseScore:                  cvssMetricV2.CVSSData.BaseScore,
-				CollateralDamagePotential:  derefPtr(cvssMetricV2.CVSSData.CollateralDamagePotential),
-				ConfidentialityImpact:      derefPtr(cvssMetricV2.CVSSData.ConfidentialityImpact),
-				ConfidentialityRequirement: derefPtr(cvssMetricV2.CVSSData.ConfidentialityRequirement),
-				EnvironmentalScore:         derefPtr(cvssMetricV2.CVSSData.EnvironmentalScore),
-				Exploitability:             derefPtr(cvssMetricV2.CVSSData.Exploitability),
-				IntegrityImpact:            derefPtr(cvssMetricV2.CVSSData.IntegrityImpact),
-				IntegrityRequirement:       derefPtr(cvssMetricV2.CVSSData.IntegrityRequirement),
-				RemediationLevel:           derefPtr(cvssMetricV2.CVSSData.RemediationLevel),
-				ReportConfidence:           derefPtr(cvssMetricV2.CVSSData.ReportConfidence),
-				TargetDistribution:         derefPtr(cvssMetricV2.CVSSData.TargetDistribution),
-				TemporalScore:              derefPtr(cvssMetricV2.CVSSData.TemporalScore),
-				VectorString:               cvssMetricV2.CVSSData.VectorString,
-				Version:                    cvssMetricV2.CVSSData.Version,
-			},
-			ExploitabilityScore:     derefPtr((*float64)(cvssMetricV2.ExploitabilityScore)),
-			ImpactScore:             derefPtr((*float64)(cvssMetricV2.ImpactScore)),
-			ObtainAllPrivilege:      derefPtr(cvssMetricV2.ObtainAllPrivilege),
-			ObtainOtherPrivilege:    derefPtr(cvssMetricV2.ObtainOtherPrivilege),
-			ObtainUserPrivilege:     derefPtr(cvssMetricV2.ObtainUserPrivilege),
-			Severity:                derefPtr(cvssMetricV2.BaseSeverity),
-			UserInteractionRequired: derefPtr(cvssMetricV2.UserInteractionRequired),
-		}
+	cve.Configurations = &schema.NVDCVEFeedJSON10DefConfigurations{
+		CVEDataVersion: "4.0", // All entries seem to have this version string.
+		Nodes:          nodes,
 	}
 
-	var baseMetricV3 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV3
-	for _, cvssMetricV30 := range cve.Metrics.CVSSMetricV30 {
-		if cvssMetricV30.Type != "Primary" {
-			continue
-		}
-		baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
-			CVSSV3: &schema.CVSSV30{
-				AttackComplexity:              derefPtr(cvssMetricV30.CVSSData.AttackComplexity),
-				AttackVector:                  derefPtr(cvssMetricV30.CVSSData.AttackVector),
-				AvailabilityImpact:            derefPtr(cvssMetricV30.CVSSData.AvailabilityImpact),
-				AvailabilityRequirement:       derefPtr(cvssMetricV30.CVSSData.AvailabilityRequirement),
-				BaseScore:                     cvssMetricV30.CVSSData.BaseScore,
-				BaseSeverity:                  cvssMetricV30.CVSSData.BaseSeverity,
-				ConfidentialityImpact:         derefPtr(cvssMetricV30.CVSSData.ConfidentialityImpact),
-				ConfidentialityRequirement:    derefPtr(cvssMetricV30.CVSSData.ConfidentialityRequirement),
-				EnvironmentalScore:            derefPtr(cvssMetricV30.CVSSData.EnvironmentalScore),
-				EnvironmentalSeverity:         derefPtr(cvssMetricV30.CVSSData.EnvironmentalSeverity),
-				ExploitCodeMaturity:           derefPtr(cvssMetricV30.CVSSData.ExploitCodeMaturity),
-				IntegrityImpact:               derefPtr(cvssMetricV30.CVSSData.IntegrityImpact),
-				IntegrityRequirement:          derefPtr(cvssMetricV30.CVSSData.IntegrityRequirement),
-				ModifiedAttackComplexity:      derefPtr(cvssMetricV30.CVSSData.ModifiedAttackComplexity),
-				ModifiedAttackVector:          derefPtr(cvssMetricV30.CVSSData.ModifiedAttackVector),
-				ModifiedAvailabilityImpact:    derefPtr(cvssMetricV30.CVSSData.ModifiedAvailabilityImpact),
-				ModifiedConfidentialityImpact: derefPtr(cvssMetricV30.CVSSData.ModifiedConfidentialityImpact),
-				ModifiedIntegrityImpact:       derefPtr(cvssMetricV30.CVSSData.ModifiedIntegrityImpact),
-				ModifiedPrivilegesRequired:    derefPtr(cvssMetricV30.CVSSData.ModifiedPrivilegesRequired),
-				ModifiedScope:                 derefPtr(cvssMetricV30.CVSSData.ModifiedScope),
-				ModifiedUserInteraction:       derefPtr(cvssMetricV30.CVSSData.ModifiedUserInteraction),
-				PrivilegesRequired:            derefPtr(cvssMetricV30.CVSSData.PrivilegesRequired),
-				RemediationLevel:              derefPtr(cvssMetricV30.CVSSData.RemediationLevel),
-				ReportConfidence:              derefPtr(cvssMetricV30.CVSSData.ReportConfidence),
-				Scope:                         derefPtr(cvssMetricV30.CVSSData.Scope),
-				TemporalScore:                 derefPtr(cvssMetricV30.CVSSData.TemporalScore),
-				TemporalSeverity:              derefPtr(cvssMetricV30.CVSSData.TemporalSeverity),
-				UserInteraction:               derefPtr(cvssMetricV30.CVSSData.UserInteraction),
-				VectorString:                  cvssMetricV30.CVSSData.VectorString,
-				Version:                       cvssMetricV30.CVSSData.Version,
-			},
-			ExploitabilityScore: derefPtr((*float64)(cvssMetricV30.ExploitabilityScore)),
-			ImpactScore:         derefPtr((*float64)(cvssMetricV30.ImpactScore)),
-		}
-	}
-	// Use CVSSMetricV31 if available (override CVSSMetricV30)
-	for _, cvssMetricV31 := range cve.Metrics.CVSSMetricV31 {
-		if cvssMetricV31.Type != "Primary" {
-			continue
-		}
-		baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
-			CVSSV3: &schema.CVSSV30{
-				AttackComplexity:              derefPtr(cvssMetricV31.CVSSData.AttackComplexity),
-				AttackVector:                  derefPtr(cvssMetricV31.CVSSData.AttackVector),
-				AvailabilityImpact:            derefPtr(cvssMetricV31.CVSSData.AvailabilityImpact),
-				AvailabilityRequirement:       derefPtr(cvssMetricV31.CVSSData.AvailabilityRequirement),
-				BaseScore:                     cvssMetricV31.CVSSData.BaseScore,
-				BaseSeverity:                  cvssMetricV31.CVSSData.BaseSeverity,
-				ConfidentialityImpact:         derefPtr(cvssMetricV31.CVSSData.ConfidentialityImpact),
-				ConfidentialityRequirement:    derefPtr(cvssMetricV31.CVSSData.ConfidentialityRequirement),
-				EnvironmentalScore:            derefPtr(cvssMetricV31.CVSSData.EnvironmentalScore),
-				EnvironmentalSeverity:         derefPtr(cvssMetricV31.CVSSData.EnvironmentalSeverity),
-				ExploitCodeMaturity:           derefPtr(cvssMetricV31.CVSSData.ExploitCodeMaturity),
-				IntegrityImpact:               derefPtr(cvssMetricV31.CVSSData.IntegrityImpact),
-				IntegrityRequirement:          derefPtr(cvssMetricV31.CVSSData.IntegrityRequirement),
-				ModifiedAttackComplexity:      derefPtr(cvssMetricV31.CVSSData.ModifiedAttackComplexity),
-				ModifiedAttackVector:          derefPtr(cvssMetricV31.CVSSData.ModifiedAttackVector),
-				ModifiedAvailabilityImpact:    derefPtr(cvssMetricV31.CVSSData.ModifiedAvailabilityImpact),
-				ModifiedConfidentialityImpact: derefPtr(cvssMetricV31.CVSSData.ModifiedConfidentialityImpact),
-				ModifiedIntegrityImpact:       derefPtr(cvssMetricV31.CVSSData.ModifiedIntegrityImpact),
-				ModifiedPrivilegesRequired:    derefPtr(cvssMetricV31.CVSSData.ModifiedPrivilegesRequired),
-				ModifiedScope:                 derefPtr(cvssMetricV31.CVSSData.ModifiedScope),
-				ModifiedUserInteraction:       derefPtr(cvssMetricV31.CVSSData.ModifiedUserInteraction),
-				PrivilegesRequired:            derefPtr(cvssMetricV31.CVSSData.PrivilegesRequired),
-				RemediationLevel:              derefPtr(cvssMetricV31.CVSSData.RemediationLevel),
-				ReportConfidence:              derefPtr(cvssMetricV31.CVSSData.ReportConfidence),
-				Scope:                         derefPtr(cvssMetricV31.CVSSData.Scope),
-				TemporalScore:                 derefPtr(cvssMetricV31.CVSSData.TemporalScore),
-				TemporalSeverity:              derefPtr(cvssMetricV31.CVSSData.TemporalSeverity),
-				UserInteraction:               derefPtr(cvssMetricV31.CVSSData.UserInteraction),
-				VectorString:                  cvssMetricV31.CVSSData.VectorString,
-				Version:                       cvssMetricV31.CVSSData.Version,
-			},
-			ExploitabilityScore: derefPtr((*float64)(cvssMetricV31.ExploitabilityScore)),
-			ImpactScore:         derefPtr((*float64)(cvssMetricV31.ImpactScore)),
-		}
-	}
-
-	lastModified, err := convertAPI20TimeToLegacy(cve.LastModified)
-	if err != nil {
-		logger.Log("msg", "failed to parse lastModified time", "err", err)
-	}
-	publishedDate, err := convertAPI20TimeToLegacy(cve.Published)
-	if err != nil {
-		logger.Log("msg", "failed to parse published time", "err", err)
-	}
-
-	return &schema.NVDCVEFeedJSON10DefCVEItem{
-		CVE: &schema.CVEJSON40{
-			Affects: nil, // Doesn't seem used.
-			CVEDataMeta: &schema.CVEJSON40CVEDataMeta{
-				ID:       *cve.ID,
-				ASSIGNER: derefPtr(cve.SourceIdentifier),
-				STATE:    "", // Doesn't seem used.
-			},
-			DataFormat:  "MITRE", // All entries seem to have this format string.
-			DataType:    "CVE",   // All entries seem to have this type string.
-			DataVersion: "4.0",   // All entries seem to have this version string.
-			Description: &schema.CVEJSON40Description{
-				DescriptionData: descriptions,
-			},
-			Problemtype: &schema.CVEJSON40Problemtype{
-				ProblemtypeData: problemtypeData,
-			},
-			References: &schema.CVEJSON40References{
-				ReferenceData: referenceData,
-			},
-		},
-		Configurations: &schema.NVDCVEFeedJSON10DefConfigurations{
-			CVEDataVersion: "4.0", // All entries seem to have this version string.
-			Nodes:          nodes,
-		},
-		Impact: &schema.NVDCVEFeedJSON10DefImpact{
-			BaseMetricV2: baseMetricV2,
-			BaseMetricV3: baseMetricV3,
-		},
-		LastModifiedDate: lastModified,
-		PublishedDate:    publishedDate,
-	}
+	return
 }
 
 // convertAPI20TimeToLegacy converts the timestamps from API 2.0 format to the expected legacy feed time format.
