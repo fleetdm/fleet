@@ -8,27 +8,23 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import {
+  IAppConfigFormProps,
+  IFormField,
+  IAppConfigFormErrors,
+} from "../constants";
 
 const baseClass = "app-config-form";
 
 interface ISsoFormData {
-  idpName: string;
-  enableSso: boolean;
-  entityId: string;
-  idpImageUrl: string;
-  metadata: string;
-  metadataUrl: string;
-  enableSsoIdpLogin: boolean;
-  enableJitProvisioning: boolean;
-}
-
-interface ISsoFormErrors {
-  idp_image_url?: string | null;
-  metadata?: string | null;
-  metadata_url?: string | null;
-  entity_id?: string | null;
-  idp_name?: string | null;
+  enableSso?: boolean;
+  idpName?: string;
+  entityId?: string;
+  idpImageUrl?: string;
+  metadata?: string;
+  metadataUrl?: string;
+  enableSsoIdpLogin?: boolean;
+  enableJitProvisioning?: boolean;
 }
 
 const Sso = ({
@@ -60,14 +56,14 @@ const Sso = ({
     enableJitProvisioning,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
 
   const validateForm = () => {
-    const errors: ISsoFormErrors = {};
+    const errors: IAppConfigFormErrors = {};
 
     if (enableSso) {
       if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
@@ -129,7 +125,7 @@ const Sso = ({
         <SectionHeader title="Single sign-on options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <Checkbox
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="enableSso"
             value={enableSso}
             parseTarget
@@ -138,7 +134,7 @@ const Sso = ({
           </Checkbox>
           <InputField
             label="Identity provider name"
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="idpName"
             value={idpName}
             parseTarget
@@ -149,7 +145,7 @@ const Sso = ({
           <InputField
             label="Entity ID"
             helpText="The URI you provide here must exactly match the Entity ID field used in identity provider configuration."
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="entityId"
             value={entityId}
             parseTarget
@@ -159,7 +155,7 @@ const Sso = ({
           />
           <InputField
             label="IDP image URL"
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="idpImageUrl"
             value={idpImageUrl}
             parseTarget
@@ -171,7 +167,7 @@ const Sso = ({
           <InputField
             label="Metadata"
             type="textarea"
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="metadata"
             value={metadata}
             parseTarget
@@ -183,7 +179,7 @@ const Sso = ({
           <InputField
             label="Metadata URL"
             helpText="If available from the identity provider, this is the preferred means of providing metadata."
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="metadataUrl"
             value={metadataUrl}
             parseTarget
@@ -192,7 +188,7 @@ const Sso = ({
             tooltip="A URL that references the identity provider metadata."
           />
           <Checkbox
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="enableSsoIdpLogin"
             value={enableSsoIdpLogin}
             parseTarget
@@ -201,7 +197,7 @@ const Sso = ({
           </Checkbox>
           {isPremiumTier && (
             <Checkbox
-              onChange={onInputChange}
+              onChange={handleInputChange}
               name="enableJitProvisioning"
               value={enableJitProvisioning}
               parseTarget

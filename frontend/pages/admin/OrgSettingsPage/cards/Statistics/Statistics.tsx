@@ -9,23 +9,19 @@ import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
 
-interface IStatisticsFormData {
-  enableUsageStatistics: boolean;
-}
-
 const Statistics = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<IStatisticsFormData>({
+  const [formData, setFormData] = useState<any>({
     enableUsageStatistics: appConfig.server_settings.enable_analytics,
   });
 
   const { enableUsageStatistics } = formData;
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
 
@@ -64,7 +60,7 @@ const Statistics = ({
             />
           </p>
           <Checkbox
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="enableUsageStatistics"
             value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
             parseTarget

@@ -6,15 +6,11 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
-
-interface IWebAddressFormData {
-  serverURL: string;
-}
-
-interface IWebAddressFormErrors {
-  server_url?: string | null;
-}
+import {
+  IAppConfigFormProps,
+  IFormField,
+  IAppConfigFormErrors,
+} from "../constants";
 
 const baseClass = "app-config-form";
 
@@ -23,21 +19,21 @@ const WebAddress = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<IWebAddressFormData>({
+  const [formData, setFormData] = useState<any>({
     serverURL: appConfig.server_settings.server_url || "",
   });
 
   const { serverURL } = formData;
 
-  const [formErrors, setFormErrors] = useState<IWebAddressFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
 
   const validateForm = () => {
-    const errors: IWebAddressFormErrors = {};
+    const errors: IAppConfigFormErrors = {};
     if (!serverURL) {
       errors.server_url = "Fleet server URL must be present";
     } else if (!validUrl({ url: serverURL, protocol: "http" })) {
@@ -72,7 +68,7 @@ const WebAddress = ({
                 Include base path only (eg. no <code>/latest</code>)
               </>
             }
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="serverURL"
             value={serverURL}
             parseTarget

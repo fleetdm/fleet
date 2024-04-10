@@ -13,17 +13,9 @@ import YamlAce from "components/YamlAce";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 
-import { IAppConfigFormProps } from "../constants";
+import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
 
 const baseClass = "app-config-form";
-
-interface IAgentOptionsFormData {
-  agentOptions?: string;
-}
-
-interface IAgentOptionsFormErrors {
-  agent_options?: string | null;
-}
 
 const Agents = ({
   appConfig,
@@ -33,10 +25,10 @@ const Agents = ({
 }: IAppConfigFormProps): JSX.Element => {
   const { ADMIN_TEAMS } = paths;
 
-  const [formData, setFormData] = useState<IAgentOptionsFormData>({
+  const [formData, setFormData] = useState<any>({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),
   });
-  const [formErrors, setFormErrors] = useState<IAgentOptionsFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
   const { agentOptions } = formData;
 
@@ -45,7 +37,7 @@ const Agents = ({
   };
 
   const validateForm = () => {
-    const errors: IAgentOptionsFormErrors = {};
+    const errors: IAppConfigFormErrors = {};
 
     if (agentOptions) {
       const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
@@ -66,7 +58,7 @@ const Agents = ({
     evt.preventDefault();
 
     // Formatting of API not UI and allows empty agent options
-    const formDataToSubmit: any = agentOptions
+    const formDataToSubmit = agentOptions
       ? {
           agent_options: yaml.load(agentOptions),
         }
