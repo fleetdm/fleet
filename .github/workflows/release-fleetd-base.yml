@@ -1,0 +1,170 @@
+name: Upload fleetd base to https://download.fleetdm.com
+
+on:
+  pull_request: # for testing
+  workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 3 * * *' # Nightly 3AM UTC
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  check-for-fleetd-component-updates:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: https://download-testing.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
+    outputs:
+      update_needed: ${{ steps.check-for-fleetd-component-updates.outputs.update_needed }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: ${{ vars.GO_VERSION }}
+
+      - name: Checkout Code
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+        with:
+          fetch-depth: 0
+
+      - name: Check for fleetd component updates
+        id: check-for-fleetd-component-updates
+        run: |
+          go run tools/tuf/status/tuf-status.go channel-version -channel stable --components orbit,desktop,osqueryd --format json > latest-meta.json
+          curl -O $BASE_URL/meta.json
+          if diff latest-meta.json meta.json >/dev/null 2>&1
+          then
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Upload latest meta.json artifact
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        with:
+          name: latest-meta.json
+          path: latest-meta.json
+          retention-days: 5
+
+  update-fleetd-base-pkg:
+    needs: [check-for-fleetd-component-updates]
+    if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
+    runs-on: macos-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Build PKG
+        run: |
+          fleetctl package --type pkg --fleet-desktop --use-system-configuration
+          mv fleet-osquery*.pkg fleetd-base.pkg
+
+      - name: Upload package
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
+          R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
+          R2_BUCKET: download-testing # Production: download | Testing: download-testing
+        run: |
+          brew install rclone
+          mkdir -p ~/.config/rclone
+          echo "[r2]
+          type = s3
+          provider = Cloudflare
+          region = auto
+          no_check_bucket = true
+          access_key_id = $R2_ACCESS_KEY_ID
+          secret_access_key = $R2_ACCESS_KEY_SECRET
+          endpoint = $R2_ENDPOINT
+          " > ~/.config/rclone/rclone.conf
+          rclone copy fleetd-base.pkg r2:$R2_BUCKET/
+
+  update-fleetd-base-msi:
+    needs: [check-for-fleetd-component-updates]
+    if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Build MSI
+        run: |
+          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
+          mv fleet-osquery*.msi fleetd-base.msi
+
+      - name: Upload package
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
+          R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
+          R2_BUCKET: download-testing # Production: download | Testing: download-testing
+        run: |
+          sudo apt-get install rclone
+          mkdir -p ~/.config/rclone
+          echo "[r2]
+          type = s3
+          provider = Cloudflare
+          region = auto
+          no_check_bucket = true
+          access_key_id = $R2_ACCESS_KEY_ID
+          secret_access_key = $R2_ACCESS_KEY_SECRET
+          endpoint = $R2_ENDPOINT
+          " > ~/.config/rclone/rclone.conf
+          rclone copy fleetd-base.msi r2:$R2_BUCKET/
+
+  update-meta-json:
+    needs: [update-fleetd-base-pkg, update-fleetd-base-msi]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+      - name: Download latest-meta.json artifact
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        with:
+          name: latest-meta.json
+      - name: Upload meta.json to R2
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
+          R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
+          R2_BUCKET: download-testing # Production: download | Testing: download-testing
+        run: |
+          sudo apt-get install rclone
+          mkdir -p ~/.config/rclone
+          echo "[r2]
+          type = s3
+          provider = Cloudflare
+          region = auto
+          no_check_bucket = true
+          access_key_id = $R2_ACCESS_KEY_ID
+          secret_access_key = $R2_ACCESS_KEY_SECRET
+          endpoint = $R2_ENDPOINT
+          " > ~/.config/rclone/rclone.conf
+          mv latest-meta.json meta.json
+          rclone copy meta.json r2:$R2_BUCKET/
