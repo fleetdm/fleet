@@ -10,7 +10,7 @@
     "@sailshq/socket.io-redis": "^6.1.2",
     "jsonwebtoken": "9.0.2",
     "moment": "2.29.4",
-    "sails": "^1.5.9",
+    "sails": "^1.5.10",
     "sails-hook-apianalytics": "^2.0.6",
     "sails-hook-organics": "^2.2.2",
     "sails-hook-orm": "^4.0.3",

@@ -116,9 +116,6 @@ const Smtp = ({
         password: smtpPassword,
         enable_ssl_tls: smtpEnableSSLTLS,
         authentication_method: smtpAuthenticationMethod,
-        domain: appConfig.smtp_settings?.domain || "",
-        verify_ssl_certs: appConfig.smtp_settings?.verify_ssl_certs || false,
-        enable_start_tls: appConfig.smtp_settings?.enable_start_tls,
       },
     };
 

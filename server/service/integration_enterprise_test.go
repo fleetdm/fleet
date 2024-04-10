@@ -1009,13 +1009,23 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/teams", team4, http.StatusUnprocessableEntity, &tmResp)
 
-	// list teams
+	// list teams matching name of one team
 	var listResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
 	require.Len(t, listResp.Teams, 1)
 	assert.Equal(t, team.Name, listResp.Teams[0].Name)
 	assert.NotNil(t, listResp.Teams[0].Config.AgentOptions)
 	tm1ID := listResp.Teams[0].ID
+
+	// same as above, with leading/trailing whitespace
+	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", " "+name+" ", "per_page", "2")
+	require.Len(t, listResp.Teams, 1)
+	assert.Equal(t, team.Name, listResp.Teams[0].Name)
+	assert.NotNil(t, listResp.Teams[0].Config.AgentOptions)
+
+	// same as above, no match
+	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", " nope ", "per_page", "2")
+	require.Len(t, listResp.Teams, 0)
 
 	// get team
 	var getResp getTeamResponse
@@ -3666,6 +3676,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
+	t := s.T()
 	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
 
 	createPol1 := &globalPolicyResponse{}
@@ -3678,7 +3689,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 		Critical:    true,
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol1Req, http.StatusOK, &createPol1)
-	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
+	allEqual(t, createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &globalPolicyResponse{}
 	createPol2Req := &globalPolicyRequest{
@@ -3690,16 +3701,22 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 		Critical:    false,
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol2Req, http.StatusOK, &createPol2)
-	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
+	allEqual(t, createPol2Req, createPol2.Policy, fields...)
 
 	listPol := &listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
-	require.Len(s.T(), listPol.Policies, 2)
+	require.Len(t, listPol.Policies, 2)
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
 	})
-	require.Equal(s.T(), createPol1.Policy, listPol.Policies[0])
-	require.Equal(s.T(), createPol2.Policy, listPol.Policies[1])
+	require.Equal(t, createPol1.Policy, listPol.Policies[0])
+	require.Equal(t, createPol2.Policy, listPol.Policies[1])
+
+	// match policy by name with leading/trailing whitespace
+	listPolByName := &listGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPolByName, "query", " name1 ")
+	require.Len(t, listPolByName.Policies, 1)
+	require.Equal(t, listPolByName.Policies[0].Name, "name1")
 
 	patchPol1Req := &modifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -3713,7 +3730,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	patchPol1 := &modifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
-	allEqual(s.T(), patchPol1Req, patchPol1.Policy, fields...)
+	allEqual(t, patchPol1Req, patchPol1.Policy, fields...)
 
 	patchPol2Req := &modifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -3727,21 +3744,21 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	patchPol2 := &modifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
-	allEqual(s.T(), patchPol2Req, patchPol2.Policy, fields...)
+	allEqual(t, patchPol2Req, patchPol2.Policy, fields...)
 
 	listPol = &listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
-	require.Len(s.T(), listPol.Policies, 2)
+	require.Len(t, listPol.Policies, 2)
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
 	})
 	// not using require.Equal because "PATCH policies" returns the wrong updated timestamp.
-	allEqual(s.T(), patchPol1.Policy, listPol.Policies[0], fields...)
-	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
+	allEqual(t, patchPol1.Policy, listPol.Policies[0], fields...)
+	allEqual(t, patchPol2.Policy, listPol.Policies[1], fields...)
 
 	getPol2 := &getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), nil, http.StatusOK, getPol2)
-	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+	require.Equal(t, listPol.Policies[1], getPol2.Policy)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
@@ -7069,6 +7086,99 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		},
 	}, resp.SoftwareTitles)
 
+	// match software title by name with leading whitespace
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "  ba",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
+			},
+		},
+	}, resp.SoftwareTitles)
+
+	// match software title by name with trailing whitespace
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ba  ",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
+			},
+		},
+	}, resp.SoftwareTitles)
+
+	// match software title by name with leading and trailing whitespace
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "  ba  ",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
+			},
+		},
+	}, resp.SoftwareTitles)
+
 	// find the ID of "foo"
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -7243,6 +7353,28 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", winHost.ID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
+
+	// Disable scripts on Linux host
+	err := s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), linuxHost.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: false, Valid: true},
+	)
+	require.NoError(t, err)
+	// try to lock/unlock/wipe the Linux host. Fails because scripts are not enabled.
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't lock host. To lock, deploy the fleetd agent with --enable-scripts")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't unlock host. To unlock, deploy the fleetd agent with --enable-scripts")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't wipe host. To wipe, deploy the fleetd agent with --enable-scripts")
+
+	// Enable scripts on Linux host
+	err = s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), linuxHost.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
 
 	// try to lock/unlock/wipe the Linux host succeeds, no MDM constraints
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusNoContent)
