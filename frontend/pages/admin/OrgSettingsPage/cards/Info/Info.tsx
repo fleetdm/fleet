@@ -8,20 +8,17 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import {
+  IAppConfigFormProps,
+  IFormField,
+  IAppConfigFormErrors,
+} from "../constants";
 
 interface IOrgInfoFormData {
-  orgLogoURL: string;
   orgName: string;
+  orgLogoURL: string;
   orgLogoURLLightBackground: string;
   orgSupportURL: string;
-}
-
-interface IOrgInfoFormErrors {
-  org_name?: string | null;
-  org_logo_url?: string | null;
-  org_logo_url_light_background?: string | null;
-  org_support_url?: string | null;
 }
 
 // TODO: change base classes to these cards to follow the same pattern as the
@@ -50,15 +47,15 @@ const Info = ({
     orgSupportURL,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<IOrgInfoFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
 
   const validateForm = () => {
-    const errors: IOrgInfoFormErrors = {};
+    const errors: IAppConfigFormErrors = {};
 
     if (!orgName) {
       errors.org_name = "Organization name must be present";
@@ -99,7 +96,7 @@ const Info = ({
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Organization name"
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="orgName"
             value={orgName}
             parseTarget
@@ -108,7 +105,7 @@ const Info = ({
           />
           <InputField
             label="Organization support URL"
-            onChange={onInputChange}
+            onChange={handleInputChange}
             name="orgSupportURL"
             value={orgSupportURL}
             parseTarget
@@ -118,7 +115,7 @@ const Info = ({
           <div className={`${cardClass}__logo-field-set`}>
             <InputField
               label="Organization avatar URL (for dark backgrounds)"
-              onChange={onInputChange}
+              onChange={handleInputChange}
               name="orgLogoURL"
               value={orgLogoURL}
               parseTarget
@@ -140,7 +137,7 @@ const Info = ({
           <div className={`${cardClass}__logo-field-set`}>
             <InputField
               label="Organization avatar URL (for light backgrounds)"
-              onChange={onInputChange}
+              onChange={handleInputChange}
               name="orgLogoURLLightBackground"
               value={orgLogoURLLightBackground}
               parseTarget
