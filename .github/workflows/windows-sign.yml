@@ -27,7 +27,7 @@ jobs:
           echo "::set-output name=KEYPAIR_NAME::gt-standard-keypair"
           echo "::set-output name=CERTIFICATE_NAME::gt-certificate"
           echo "SM_HOST=${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}" >> "$GITHUB_ENV"
-          echo "SM_API_KEY=${{ secrets.DIGICERT_KEYLOCKER_API_KEY }}" >> "$GITHUB_ENV"
+          echo "SM_API_KEY=${{ secrets.DIGICERT_API_KEY }}" >> "$GITHUB_ENV"
           echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
           echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}" >> "$GITHUB_ENV"
           echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH
