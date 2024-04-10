@@ -359,6 +359,10 @@ type Host struct {
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
 }
 
+type HostOrbitInfo struct {
+	ScriptsEnabled *bool `json:"scripts_enabled" db:"scripts_enabled"`
+}
+
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
 // the same name, see the comments/docs for the Host field above.
 type HostHealth struct {
