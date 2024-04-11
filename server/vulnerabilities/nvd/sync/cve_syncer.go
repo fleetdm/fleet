@@ -672,7 +672,7 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 		if stopProcessing {
 			break
 		}
-		
+
 		gReader.Close()
 		gzFile.Close()
 	}
