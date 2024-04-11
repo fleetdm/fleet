@@ -102,14 +102,6 @@
       window.heap=window.heap||[],heap.load=function(e,t){window.heap.appid=e,window.heap.config=t=t||{};var r=document.createElement("script");r.type="text/javascript",r.async=!0,r.src="https://cdn.heapanalytics.com/js/heap-"+e+".js";var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(r,a);for(var n=function(e){return function(){heap.push([e].concat(Array.prototype.slice.call(arguments,0)))}},p=["addEventProperties","addUserProperties","clearEventProperties","identify","resetIdentity","removeEventProperty","setEventProperties","track","unsetEventProperty"],o=0;o<p.length;o++)heap[p[o]]=n(p[o])};
       heap.load("4175146533");
     </script>
-    <% /* Snitcher analytics code */ %>
-    <script>
-        !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
-        (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
-        h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8416878.js';
-        h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
-        snid('verify', '8416878');
-    </script>
     <% /* HubSpot Embed Code  */ %>
     <script type="text/javascript" id="hs-script-loader" async defer src="//js-na1.hs-scripts.com/24385138.js"></script>
     <% }

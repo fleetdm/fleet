@@ -202,6 +202,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptDisabledErrMsg), http.StatusUnprocessableEntity)
 	}
 
+	// If scripts are disabled (according to the last detail query), we return an error.
+	// host.ScriptsEnabled may be nil for older orbit versions.
+	if host.ScriptsEnabled != nil && !*host.ScriptsEnabled {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptsOrbitDisabledErrMsg), http.StatusUnprocessableEntity)
+	}
+
 	maxPending := maxPendingScripts
 
 	// authorize with the host's team and the script id provided, as both affect

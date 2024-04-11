@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"testing"
 	"time"
@@ -97,7 +98,11 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Create host_orbit_info record for test
-	require.NoError(t, ds.SetOrUpdateHostOrbitInfo(ctx, h1.ID, "1.1.0"))
+	require.NoError(
+		t, ds.SetOrUpdateHostOrbitInfo(
+			ctx, h1.ID, "1.1.0", sql.NullString{String: "1.1.0", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+		),
+	)
 
 	// Create two new users for test
 	u1, err := ds.NewUser(ctx, &fleet.User{

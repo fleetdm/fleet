@@ -2,11 +2,17 @@ import { IConfig } from "interfaces/config";
 
 export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
 
+export type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;
+
 export interface IAppConfigFormProps {
   appConfig: IConfig;
   isPremiumTier?: boolean;
   isUpdatingSettings?: boolean;
-  handleSubmit: any;
+  handleSubmit: (formUpdates: DeepPartial<IConfig>) => false | undefined;
 }
 
 export interface IFormField {

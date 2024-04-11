@@ -69,11 +69,11 @@ module.exports = {
           isItTimeToCreateANewIssue = true;
         } else {
           // Otherwise, get the number of milliseconds until the next issue for this ritual will be created.
-          let timeToNextRitualInMs = amountOfCycleRemainingTillNextRitual * ritualsFrequencyInMs;
+          let timeToNextRitualInMs = Math.floor(amountOfCycleRemainingTillNextRitual * ritualsFrequencyInMs);
           // Since this script runs once a day at the same time, we'll create issues we'll create issues for
           if(_.startsWith(ritual.frequency, 'Daily')) {// Using _.startsWith() to handle frequencies with emoji ("Daily ⏰") and with out ("Daily")
             isItTimeToCreateANewIssue = true;
-          } else if(timeToNextRitualInMs < 86400000) {
+          } else if(timeToNextRitualInMs <= 86400000) {
             // If the next occurance of this ritual is in less than 24 hours (before this script runs again), we'll create an issue for it.
             isItTimeToCreateANewIssue = true;
           }

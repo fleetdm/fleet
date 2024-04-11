@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1676,8 +1677,12 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
-	ds.SetOrUpdateHostOrbitInfoFunc = func(ctx context.Context, hostID uint, version string) error {
+	ds.SetOrUpdateHostOrbitInfoFunc = func(
+		ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
+	) error {
 		require.Equal(t, "42", version)
+		require.Equal(t, sql.NullString{String: "1.2.3", Valid: true}, desktopVersion)
+		require.Equal(t, sql.NullBool{Bool: true, Valid: true}, scriptsEnabled)
 		return nil
 	}
 	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
@@ -1851,7 +1856,9 @@ func TestDetailQueries(t *testing.T) {
 ],
 "fleet_detail_query_orbit_info": [
 	{
-		"version": "42"
+		"version": "42",
+		"desktop_version": "1.2.3",
+		"scripts_enabled": "1"
 	}
 ]
 }
