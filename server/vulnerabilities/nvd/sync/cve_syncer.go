@@ -849,7 +849,7 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 				nodes = append(nodes, &schema.NVDCVEFeedJSON10DefNode{
 					CPEMatch: cpeMatches,
 					Children: []*schema.NVDCVEFeedJSON10DefNode{},
-					Negate:   *node.Negate,
+					Negate:   derefPtr(node.Negate),
 					Operator: string(node.Operator),
 				})
 			}
