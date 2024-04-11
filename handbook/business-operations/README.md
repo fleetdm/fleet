@@ -392,7 +392,7 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
       - Order shirts based on the pre-determined number (~5% of total event attendees).
       - Submit the order. Ensure the address matches the expected receiving address.
 
-#### Stickers
+**To order stickers:**
 
   - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
   - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
