@@ -515,7 +515,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 		if err != nil {
 			s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "error", err)
 			if attempt == s.MaxTryAttempts {
-				return "", ctxerr.Wrap(ctx, err, "max retry attempts reached, final error")
+				return "", ctxerr.Wrap(ctx, err, "max retry attempts reached")
 			}
 			time.Sleep(s.WaitTimeForRetry)
 			continue
@@ -528,7 +528,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 		resp.Body.Close() // Close the body if we are going to retry or fail
 		s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "status", resp.StatusCode, "retry-in", s.WaitTimeForRetry)
 		if attempt == s.MaxTryAttempts {
-			return "", ctxerr.New(ctx, "max retry attempts reached without success")
+			return "", ctxerr.New(ctx, "max retry attempts reached")
 		}
 		time.Sleep(s.WaitTimeForRetry)
 	}
@@ -575,6 +575,10 @@ func (s *CVE) downloadVulnCheckArchive(ctx context.Context, downloadURL, outFile
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 
 	out, err := os.Create(filepath.Join(s.dbDir, outFile))
 	if err != nil {
@@ -623,13 +627,11 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 		if err != nil {
 			return fmt.Errorf("error opening file %s: %w", file.Name, err)
 		}
-		defer gzFile.Close()
 
 		gReader, err := gzip.NewReader(gzFile)
 		if err != nil {
 			return fmt.Errorf("error creating gzip reader for file %s: %w", file.Name, err)
 		}
-		defer gReader.Close()
 
 		if err := json.NewDecoder(gReader).Decode(&data); err != nil {
 			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
@@ -670,6 +672,9 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 		if stopProcessing {
 			break
 		}
+		
+		gReader.Close()
+		gzFile.Close()
 	}
 
 	level.Debug(s.logger).Log("total updated", modCount, "total added", addCount)
@@ -677,7 +682,7 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 	return nil
 }
 
-// Sanitize archive file pathing from "G305: Zip Slip vulnerability"
+// sanitizeArchivePath sanitizes the archive file pathing from "G305: Zip Slip vulnerability"
 func sanitizeArchivePath(d, t string) (string, error) {
 	v := filepath.Join(d, t)
 	if strings.HasPrefix(v, filepath.Clean(d)) {
