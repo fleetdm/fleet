@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
 	"github.com/go-kit/log"
@@ -225,6 +226,26 @@ func TestFetchVulnCheckDownloadURL(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "http://example.com/vulncheck.zip", url)
+}
+
+func TestFetchVulnCheckDownloadURLWithRetries(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	syncer, err := NewCVE("foo")
+	require.NoError(t, err)
+
+	syncer.MaxTryAttempts = 3
+	syncer.WaitTimeForRetry = 5 * time.Millisecond
+
+	if _, ok := os.LookupEnv("VULNCHECK_API_KEY"); !ok {
+		os.Setenv("VULNCHECK_API_KEY", "foo")
+	}
+
+	_, err = syncer.fetchVulnCheckDownloadURL(context.Background(), server.URL)
+	require.Error(t, err)
 }
 
 func copyFile(src, dst string) error {

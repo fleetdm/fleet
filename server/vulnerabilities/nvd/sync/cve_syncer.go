@@ -38,10 +38,12 @@ import (
 // the github.com/facebookincubator/nvdtools doesn't yet support parsing
 // the new API 2.0 JSON format.
 type CVE struct {
-	client *http.Client
-	dbDir  string
-	logger log.Logger
-	debug  bool
+	client           *http.Client
+	dbDir            string
+	logger           log.Logger
+	debug            bool
+	WaitTimeForRetry time.Duration
+	MaxTryAttempts   int
 }
 
 var (
@@ -51,7 +53,7 @@ var (
 	maxRetryAttempts = 10
 	// waitTimeForRetry is the time to wait between retries.
 	waitTimeForRetry = 30 * time.Second
-	// vulnCheckStartDate is the earilest date to start processing the vulncheck data.
+	// vulnCheckStartDate is the earliest date to start processing the vulncheck data.
 	vulnCheckStartDate = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
 )
 
@@ -84,9 +86,11 @@ func NewCVE(dbDir string, opts ...CVEOption) (*CVE, error) {
 		return nil, errors.New("directory not set")
 	}
 	s := CVE{
-		client: fleethttp.NewClient(),
-		dbDir:  dbDir,
-		logger: log.NewNopLogger(),
+		client:           fleethttp.NewClient(),
+		dbDir:            dbDir,
+		logger:           log.NewNopLogger(),
+		MaxTryAttempts:   maxRetryAttempts,
+		WaitTimeForRetry: waitTimeForRetry,
 	}
 	for _, fn := range opts {
 		fn(&s)
@@ -489,7 +493,6 @@ func (s *CVE) DoVulnCheck(ctx context.Context) error {
 // from the VulnCheck API.
 func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (string, error) {
 	apiKey := os.Getenv("VULNCHECK_API_KEY")
-
 	if apiKey == "" {
 		return "", ctxerr.New(ctx, "VULNCHECK_API_KEY environment variable not set")
 	}
@@ -500,7 +503,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 	}
 
 	var resp *http.Response
-	for attempt := 0; attempt <= maxRetryAttempts; attempt++ {
+	for attempt := 0; attempt <= s.MaxTryAttempts; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "error creating request")
@@ -509,24 +512,32 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 		req.Header.Add("Authorization", "Bearer "+apiKey)
 
 		resp, err = s.client.Do(req)
-		if resp != nil {
-			defer resp.Body.Close()
+		if err != nil {
+			s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "error", err)
+			if attempt == s.MaxTryAttempts {
+				return "", ctxerr.Wrap(ctx, err, "max retry attempts reached, final error")
+			}
+			time.Sleep(s.WaitTimeForRetry)
+			continue
 		}
 
-		if err == nil && resp.StatusCode == http.StatusOK {
+		if resp.StatusCode == http.StatusOK {
 			break
 		}
 
-		if attempt == maxRetryAttempts {
-			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "error making request")
-			}
-			return "", ctxerr.New(ctx, "max retry attempts reached")
+		resp.Body.Close() // Close the body if we are going to retry or fail
+		s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "status", resp.StatusCode, "retry-in", s.WaitTimeForRetry)
+		if attempt == s.MaxTryAttempts {
+			return "", ctxerr.New(ctx, "max retry attempts reached without success")
 		}
-
-		s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "status", resp.StatusCode, "retry-in", waitTimeForRetry)
-		time.Sleep(waitTimeForRetry)
+		time.Sleep(s.WaitTimeForRetry)
 	}
+
+	if resp == nil || resp.Body == nil {
+		return "", ctxerr.New(ctx, "no response or response body is nil")
+	}
+
+	defer resp.Body.Close()
 
 	var vcResponse VulnCheckBackupResponse
 	if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
