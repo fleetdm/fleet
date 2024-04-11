@@ -5,6 +5,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 import { DEFAULT_POLICY, DEFAULT_POLICIES } from "pages/policies/constants";
 
 import { IPolicyNew } from "interfaces/policy";
+import { SelectedPlatform } from "interfaces/platform";
 
 import { PolicyContext } from "context/policy";
 
@@ -102,7 +103,7 @@ const AddPolicyModal = ({
     teamId,
   ]);
 
-  const onPlatformFilterChange = (platformSelected: string) => {
+  const onPlatformFilterChange = (platformSelected: SelectedPlatform) => {
     if (platformSelected === "all") {
       setFilteredPolicies(DEFAULT_POLICIES);
     } else {
