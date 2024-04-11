@@ -379,6 +379,13 @@ Larger files are to be split into multiple files if possible.
 At a bare minimum, we make every effort to test that components that should render data are doing so
 as expected. For example: `HQRTable.tests.tsx` tests that the `HQRTable` component correctly renders
 data being passed to it.
+
+
+## Security considerations
+
+We make every effort to avoid using the `dangerouslySetInnerHTML` prop. When absolutely necessary to
+use this prop, we make sure to sanitize any user-defined input to it with `DOMPurify.sanitize`
+
 ## Other
 
 ### Local states
