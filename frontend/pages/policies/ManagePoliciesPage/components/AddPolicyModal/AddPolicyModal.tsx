@@ -21,7 +21,8 @@ export interface IAddPolicyModalProps {
   teamName?: string;
 }
 
-const CONTRIBUTE_TO_POLICIES = "https://www.fleetdm.com/contribute-to/policies";
+const CONTRIBUTE_TO_POLICIES_DOCS_URL =
+  "https://www.fleetdm.com/contribute-to/policies";
 
 const PLATFORM_FILTER_OPTIONS = [
   {
@@ -114,7 +115,7 @@ const AddPolicyModal = ({
     setPlatform(platformSelected);
   };
 
-  const policiesAvailable = filteredPolicies.map((policy: IPolicyNew) => {
+  const renderFilteredPolicies = filteredPolicies.map((policy: IPolicyNew) => {
     return (
       <Button
         key={policy.key}
@@ -135,18 +136,17 @@ const AddPolicyModal = ({
     );
   });
 
-  const renderNoResults = (): JSX.Element => {
-    return (
-      <>
-        There are no results that match your filters.{" "}
-        <CustomLink
-          text="Everyone can contribute"
-          url={CONTRIBUTE_TO_POLICIES}
-          newTab
-        />
-      </>
-    );
-  };
+  const renderNoResults: JSX.Element = (
+    <>
+      There are no results that match your filters.{" "}
+      <CustomLink
+        text="Everyone can contribute"
+        url={CONTRIBUTE_TO_POLICIES_DOCS_URL}
+        newTab
+      />
+    </>
+  );
+
   return (
     <Modal
       title="Add a policy"
@@ -171,7 +171,9 @@ const AddPolicyModal = ({
           tableFilterDropdown
         />
         <div className={`${baseClass}__policy-selection`}>
-          {filteredPolicies.length > 0 ? policiesAvailable : renderNoResults()}
+          {renderFilteredPolicies.length > 0
+            ? renderFilteredPolicies
+            : renderNoResults}
         </div>
       </>
     </Modal>
