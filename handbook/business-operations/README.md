@@ -406,9 +406,6 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
   - Email our sales representative Jake William (saved in 1Password) to order any of the following:
     - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
     - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
-
-#### Sticky note pads
-
   - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601)
   - Design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits)
 
