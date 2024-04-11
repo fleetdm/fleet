@@ -400,7 +400,7 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
   - Total sticker quantity should be ~10% of total event attendees.
   - Complete the checkout process. Ensure the address matches the expected receiving address.
 
-#### Pens
+**To order pens and sticky note pads**
 
   - Pens are ordered through Everything Branded.
   - Our sales representative is Jake William (saved in 1Password).
