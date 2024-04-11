@@ -373,6 +373,12 @@ The icon should now be available to use with the `Icon` component from the given
 The recommend line limit per page/component is 500 lines. This is only a recommendation.
 Larger files are to be split into multiple files if possible.
 
+
+## Testing
+
+At a bare minimum, we make every effort to test that components that should render data are doing so
+as expected. For example: `HQRTable.tests.tsx` tests that the `HQRTable` component correctly renders
+data being passed to it.
 ## Other
 
 ### Local states
