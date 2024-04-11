@@ -64,19 +64,14 @@ module.exports = {
         let nextIssueShouldBeCreatedAt = ritualStartedAt + ((Math.floor(howManyRitualsCycles) + 1) * ritualsFrequencyInMs);
         // Get the amount of this ritual's cycle remaining.
         let amountOfCycleRemainingTillNextRitual = (Math.floor(howManyRitualsCycles) - howManyRitualsCycles) + 1;
-        // If amountOfCycleRemainingTillNextRitual is 0, then it is time to create a new issue for this ritual (Note: This will probably never happen)
-        if(amountOfCycleRemainingTillNextRitual === 0 || amountOfCycleRemainingTillNextRitual === -0){
+        // Get the number of milliseconds until the next issue for this ritual will be created.
+        let timeToNextRitualInMs = amountOfCycleRemainingTillNextRitual * ritualsFrequencyInMs;
+        if(_.startsWith(ritual.frequency, 'Daily')) {// Using _.startsWith() to handle frequencies with emoji ("Daily ⏰") and with out ("Daily")
+          // Since this script runs once a day, we'll always create issues for daily rituals.
           isItTimeToCreateANewIssue = true;
-        } else {
-          // Otherwise, get the number of milliseconds until the next issue for this ritual will be created.
-          let timeToNextRitualInMs = Math.floor(amountOfCycleRemainingTillNextRitual * ritualsFrequencyInMs);
-          // Since this script runs once a day at the same time, we'll create issues we'll create issues for
-          if(_.startsWith(ritual.frequency, 'Daily')) {// Using _.startsWith() to handle frequencies with emoji ("Daily ⏰") and with out ("Daily")
-            isItTimeToCreateANewIssue = true;
-          } else if(timeToNextRitualInMs <= 86400000) {
-            // If the next occurance of this ritual is in less than 24 hours (before this script runs again), we'll create an issue for it.
-            isItTimeToCreateANewIssue = true;
-          }
+        } else if(timeToNextRitualInMs === ritualsFrequencyInMs) {
+          // For any other frequency, we'll check to see if the calculated timeToNextRitualInMs is the same as the rituals frequency.
+          isItTimeToCreateANewIssue = true;
         }
         // Skip to the next ritual if it isn't time yet.
         if (!isItTimeToCreateANewIssue) {
