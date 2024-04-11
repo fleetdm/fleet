@@ -379,7 +379,7 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
 
 ### Order SWAG
 
-#### T-shirts
+**To order T-shirts:**
 
   - Check [Postal](https://app.postal.io/items/postals) first and see if the warehouse has enough shirts.
   - Navigate to the [approved items page](https://app.postal.io/items/postals).
