@@ -71,13 +71,13 @@ export default class TablePrivacyPreferences extends Table {
             } else {
               propertyAPI.get({}, (details: ChromeSettingGetResultDetails) => {
                 if (property === "web_rtc_ip_handling_policy") {
-                  resolve({[property]: details.value});
+                  resolve({ [property]: details.value });
                 } else {
-                  // convert bool response to string binary flag
+                  // convert bool response to binary flag
                   if (details.value === true) {
-                    resolve({ [property]: "1" });
+                    resolve({ [property]: 1 });
                   } else {
-                    resolve({ [property]: "0" });
+                    resolve({ [property]: 0 });
                   }
                 }
               });
