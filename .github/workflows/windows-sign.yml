@@ -37,9 +37,9 @@ jobs:
 
       - name: Setup Keylocker KSP on windows
         run: |
-          curl -X GET  https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" -o Keylockertools-windows-x64.msi
+          curl -X GET https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" --verbose -o Keylockertools-windows-x64.msi
           dir
-          curl -X GET  https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:${{ secrets.DIGICERT_API_KEY }}" -o Keylockertools-windows-x64.msi
+          curl -X GET https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:${{ secrets.DIGICERT_API_KEY }}" --verbose -o Keylockertools-windows-x64.msi
           dir
           msiexec /i Keylockertools-windows-x64.msi /quiet /qn
           smksp_registrar.exe list
