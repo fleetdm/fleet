@@ -108,6 +108,10 @@
 //           setLabelValidator({
 //             name: "A label with this name already exists",
 //           });
+// } else if (updateError.data.errors[0].reason.includes("built-in")) {
+//   setLabelValidator({
+//     name: "A built-in label with this name already exists",
+//   });
 //         } else if (
 //           updateError.data.errors[0].reason.includes(
 //             "Data too long for column 'name'"
@@ -150,6 +154,10 @@
 //           setLabelValidator({
 //             name: "A label with this name already exists",
 //           });
+// } else if (updateError.data.errors[0].reason.includes("built-in")) {
+//   setLabelValidator({
+//     name: "A built-in label with this name already exists",
+//   });
 //         } else if (
 //           updateError.data.errors[0].reason.includes(
 //             "Data too long for column 'name'"
