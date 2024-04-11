@@ -12,7 +12,7 @@ interface IDisabledOptionTooltipWrapper {
   clickable?: boolean;
   tipContent: React.ReactNode;
   /** Location defaults to left */
-  place?: "right" | "top" | "bottom";
+  place?: "left" | "right" | "top" | "bottom";
   offset?: number;
 }
 
