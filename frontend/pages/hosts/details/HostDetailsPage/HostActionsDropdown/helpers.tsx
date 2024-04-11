@@ -79,7 +79,7 @@ interface IHostActionConfigOptions {
   doesStoreEncryptionKey: boolean;
   isSandboxMode: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
-  hostScriptsEnabled: boolean;
+  hostScriptsEnabled: boolean | null;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {

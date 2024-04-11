@@ -22,7 +22,7 @@ interface IHostActionsDropdownProps {
   mdmName?: string;
   hostPlatform?: string;
   onSelect: (value: string) => void;
-  hostScriptsEnabled?: boolean;
+  hostScriptsEnabled: boolean | null;
 }
 
 const HostActionsDropdown = ({
