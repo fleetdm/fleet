@@ -6,7 +6,6 @@ import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import DisabledDropdownTooltipWrapper from "components/forms/fields/Dropdown/DisabledOptionTooltipWrapper";
 
 import {
   HostMdmDeviceStatusUIState,

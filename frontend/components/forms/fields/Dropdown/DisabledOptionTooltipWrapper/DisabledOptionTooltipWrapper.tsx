@@ -11,6 +11,9 @@ interface IDisabledOptionTooltipWrapper {
   tooltipClass?: string;
   clickable?: boolean;
   tipContent: React.ReactNode;
+  /** Location defaults to left */
+  place?: "right" | "top" | "bottom";
+  offset?: number;
 }
 
 const baseClass = "disabled-option-tooltip-wrapper";
@@ -22,6 +25,8 @@ const DisabledOptionTooltipWrapper = ({
   className,
   tooltipClass,
   clickable = true,
+  place = "left",
+  offset = 24,
 }: IDisabledOptionTooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className);
 
@@ -45,11 +50,11 @@ const DisabledOptionTooltipWrapper = ({
         id={tipId}
         delayShow={isDelayed ? 500 : undefined}
         delayHide={isDelayed ? 500 : undefined}
-        place="left"
+        place={place}
         opacity={1}
         disableStyleInjection
         clickable={clickable}
-        offset={24}
+        offset={offset}
         positionStrategy="fixed"
         classNameArrow="tooltip-arrow"
       >

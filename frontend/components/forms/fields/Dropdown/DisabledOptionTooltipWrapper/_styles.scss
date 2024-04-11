@@ -21,7 +21,16 @@
       width: 8px;
       height: 8px;
     }
-    [class*="react-tooltip__place-left"] > .tooltip-arrow {
+    [class*="react-tooltip__place-top"] > .styles-module_arrow__K0L3T {
+      transform: rotate(45deg);
+    }
+    [class*="react-tooltip__place-right"] > .styles-module_arrow__K0L3T {
+      transform: rotate(135deg);
+    }
+    [class*="react-tooltip__place-bottom"] > .styles-module_arrow__K0L3T {
+      transform: rotate(225deg);
+    }
+    [class*="react-tooltip__place-left"] > .styles-module_arrow__K0L3T {
       transform: rotate(315deg);
     }
   }
