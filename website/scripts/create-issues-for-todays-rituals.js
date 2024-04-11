@@ -65,8 +65,7 @@ module.exports = {
         // Get the amount of this ritual's cycle remaining.
         let amountOfCycleRemainingTillNextRitual = (Math.floor(howManyRitualsCycles) - howManyRitualsCycles) + 1;
         // Get the number of milliseconds until the next issue for this ritual will be created.
-        let timeToNextRitualInMs = Math.floor(amountOfCycleRemainingTillNextRitual * ritualsFrequencyInMs);
-
+        let timeToNextRitualInMs = amountOfCycleRemainingTillNextRitual * ritualsFrequencyInMs;
         if(_.startsWith(ritual.frequency, 'Daily')) {// Using _.startsWith() to handle frequencies with emoji ("Daily ⏰") and with out ("Daily")
           // Since this script runs once a day, we'll always create issues for daily rituals.
           isItTimeToCreateANewIssue = true;
@@ -76,7 +75,7 @@ module.exports = {
         }
         // Skip to the next ritual if it isn't time yet.
         if (!isItTimeToCreateANewIssue) {
-          sails.log(`Next issue for ${ritual.task} (${ritual.autoIssue.labels.join(',')}) will be created on ${new Date(nextIssueShouldBeCreatedAt)} (Started on: ${ritual.startedOn}, frequency: ${ritual.frequency})`);
+          sails.log.verbose(`Next issue for ${ritual.task} (${ritual.autoIssue.labels.join(',')}) will be created on ${new Date(nextIssueShouldBeCreatedAt)} (Started on: ${ritual.startedOn}, frequency: ${ritual.frequency})`);
           continue;
         }
 
