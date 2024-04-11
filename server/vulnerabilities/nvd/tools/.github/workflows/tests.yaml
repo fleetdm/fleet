@@ -1,0 +1,61 @@
+on: [push, pull_request]
+name: Tests
+jobs:
+  # Run unit and integration tests
+  tests:
+    services:
+      # Starts a mysql docker image so we can run vulndb integration tests
+      # against it.
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: vulndb
+        ports:
+          - 3306:3306
+    env:
+      MYSQL_TEST_DSN: root@/vulndb
+    defaults:
+      run:
+        working-directory: ${{ github.repository }}
+    strategy:
+      matrix:
+        go-version: [1.14.x, 1.15.x]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.repository }}
+      - name: Download dependencies
+        run: go get -v -t -d ./...
+      - name: Unit Tests
+        run: go test -v ./...
+
+  # Run linters
+  golangci:
+    name: lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ github.repository }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: ${{ github.repository }}
+      - name: Download dependencies
+        run: go get -v -t -d ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          # The version of golangci-lint is required and must be specified
+          # without patch version: we always use the latest patch version.
+          version: v1.52
+          working-directory: ${{ github.repository }}
+          args: "--disable-all -E revive -E gosimple -E govet -E ineffassign -E staticcheck -E structcheck -E varcheck -e SA5011: -e SA1019:"

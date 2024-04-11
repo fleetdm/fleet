@@ -1,0 +1,13 @@
+Source: nvdtools
+Section: utils
+Priority: extra
+Maintainer: Alexandre Fiori <fiorix@fb.com>
+Build-Depends: debhelper (>=9)
+Standards-Version: 3.9.6
+Homepage: https://github.com/facebookincubator/nvdtools/
+
+Package: nvdtools
+Architecture: any
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: A set of tools to work with the feeds (vulnerabilities, CPE dictionary etc.) distributed by National Vulnerability Database (NVD).
