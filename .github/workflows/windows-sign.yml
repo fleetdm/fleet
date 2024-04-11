@@ -35,12 +35,13 @@ jobs:
           echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" >> $GITHUB_PATH
         shell: bash
 
-      - name: Setup Keylocker KSP on windows
+      - name: Download Keylocker KSP on windows
         run: |
           curl https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" --fail-with-body -o Keylockertools-windows-x64.msi
-          dir
-          curl https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:${{ secrets.DIGICERT_API_KEY }}" --fail-with-body -o Keylockertools-windows-x64.msi
-          dir
+        shell: cmd
+
+      - name: Install Keylocker KSP on windows
+        run: |
           msiexec /i Keylockertools-windows-x64.msi /quiet /qn
           smksp_registrar.exe list
           smctl.exe keypair ls
