@@ -116,7 +116,9 @@ const AddPolicyModal = ({
     setPlatform(platformSelected);
   };
 
-  const renderFilteredPolicies = filteredPolicies.map((policy: IPolicyNew) => {
+  const filteredPoliciesCount = filteredPolicies.length;
+
+  const filteredPoliciesList = filteredPolicies.map((policy: IPolicyNew) => {
     return (
       <Button
         key={policy.key}
@@ -137,16 +139,18 @@ const AddPolicyModal = ({
     );
   });
 
-  const renderNoResults: JSX.Element = (
-    <>
-      There are no results that match your filters.{" "}
-      <CustomLink
-        text="Everyone can contribute"
-        url={CONTRIBUTE_TO_POLICIES_DOCS_URL}
-        newTab
-      />
-    </>
-  );
+  const renderNoResults = () => {
+    return (
+      <>
+        There are no results that match your filters.{" "}
+        <CustomLink
+          text="Everyone can contribute"
+          url={CONTRIBUTE_TO_POLICIES_DOCS_URL}
+          newTab
+        />
+      </>
+    );
+  };
 
   return (
     <Modal
@@ -172,9 +176,7 @@ const AddPolicyModal = ({
           tableFilterDropdown
         />
         <div className={`${baseClass}__policy-selection`}>
-          {renderFilteredPolicies.length > 0
-            ? renderFilteredPolicies
-            : renderNoResults}
+          {filteredPoliciesCount > 0 ? filteredPoliciesList : renderNoResults()}
         </div>
       </>
     </Modal>
