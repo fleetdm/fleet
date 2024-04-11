@@ -1,0 +1,2 @@
+* Added the `enable_release_device_manually` configuration setting for a team and no team. **Note** that the macOS automatic enrollment profile cannot set the `await_device_configured` option anymore, this setting is controlled by Fleet via the new `enable_release_device_manually` option.
+* Automatically release a macOS DEP-enrolled device after enrollment commands and profiles have been delivered, unless `enable_release_device_manually` is set to `true`.

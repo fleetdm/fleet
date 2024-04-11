@@ -28,7 +28,7 @@ const baseClass = "app-config-form";
 
 export type IGlobalHostStatusWebhookFormData = {
   enableHostStatusWebhook: boolean;
-  hostStatusWebhookDestinationUrl: string;
+  destination_url: string;
   hostStatusWebhookHostPercentage: number;
   hostStatusWebhookWindow: number;
 };
@@ -45,18 +45,18 @@ const GlobalHostStatusWebhook = ({
   const [formData, setFormData] = useState<IGlobalHostStatusWebhookFormData>({
     enableHostStatusWebhook:
       appConfig.webhook_settings.host_status_webhook
-        .enable_host_status_webhook || false,
-    hostStatusWebhookDestinationUrl:
-      appConfig.webhook_settings.host_status_webhook.destination_url || "",
+        ?.enable_host_status_webhook || false,
+    destination_url:
+      appConfig.webhook_settings.host_status_webhook?.destination_url || "",
     hostStatusWebhookHostPercentage:
-      appConfig.webhook_settings.host_status_webhook.host_percentage || 1,
+      appConfig.webhook_settings.host_status_webhook?.host_percentage || 1,
     hostStatusWebhookWindow:
-      appConfig.webhook_settings.host_status_webhook.days_count || 1,
+      appConfig.webhook_settings.host_status_webhook?.days_count || 1,
   });
 
   const {
     enableHostStatusWebhook,
-    hostStatusWebhookDestinationUrl,
+    destination_url,
     hostStatusWebhookHostPercentage,
     hostStatusWebhookWindow,
   } = formData;
@@ -72,10 +72,10 @@ const GlobalHostStatusWebhook = ({
     const errors: IAppConfigFormErrors = {};
 
     if (enableHostStatusWebhook) {
-      if (!hostStatusWebhookDestinationUrl) {
+      if (!destination_url) {
         errors.destination_url = "Destination URL must be present";
-      } else if (!validUrl({ url: hostStatusWebhookDestinationUrl })) {
-        errors.server_url = `${hostStatusWebhookDestinationUrl} is not a valid URL`;
+      } else if (!validUrl({ url: destination_url })) {
+        errors.destination_url = `${destination_url} is not a valid URL`;
       }
     }
 
@@ -99,7 +99,7 @@ const GlobalHostStatusWebhook = ({
       webhook_settings: {
         host_status_webhook: {
           enable_host_status_webhook: enableHostStatusWebhook,
-          destination_url: hostStatusWebhookDestinationUrl,
+          destination_url,
           host_percentage: hostStatusWebhookHostPercentage,
           days_count: hostStatusWebhookWindow,
         },
@@ -166,8 +166,8 @@ const GlobalHostStatusWebhook = ({
                 placeholder="https://server.com/example"
                 label="Destination URL"
                 onChange={handleInputChange}
-                name="hostStatusWebhookDestinationUrl"
-                value={hostStatusWebhookDestinationUrl}
+                name="destination_url"
+                value={destination_url}
                 parseTarget
                 onBlur={validateForm}
                 error={formErrors.destination_url}

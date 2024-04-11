@@ -131,3 +131,29 @@ type LabelSpec struct {
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	Hosts               []string            `json:"hosts,omitempty"`
 }
+
+const (
+	BuiltinLabelNameAllHosts    = "All Hosts"
+	BuiltinLabelNameMacOS       = "macOS"
+	BuiltinLabelNameUbuntuLinux = "Ubuntu Linux"
+	BuiltinLabelNameCentOSLinux = "CentOS Linux"
+	BuiltinLabelNameWindows     = "MS Windows"
+	BuiltinLabelNameRedHatLinux = "Red Hat Linux"
+	BuiltinLabelNameAllLinux    = "All Linux"
+	BuiltinLabelNameChrome      = "chrome"
+)
+
+// ReservedLabelNames returns a map of label name strings
+// that are reserved by Fleet.
+func ReservedLabelNames() map[string]struct{} {
+	return map[string]struct{}{
+		BuiltinLabelNameAllHosts:    {},
+		BuiltinLabelNameMacOS:       {},
+		BuiltinLabelNameUbuntuLinux: {},
+		BuiltinLabelNameCentOSLinux: {},
+		BuiltinLabelNameWindows:     {},
+		BuiltinLabelNameRedHatLinux: {},
+		BuiltinLabelNameAllLinux:    {},
+		BuiltinLabelNameChrome:      {},
+	}
+}

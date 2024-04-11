@@ -15,7 +15,7 @@ import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
 
-interface IHQRTable {
+export interface IHQRTable {
   queryName?: string;
   queryDescription?: string;
   hostName?: string;
@@ -164,7 +164,7 @@ const HQRTable = ({
           customControl={renderTableButtons}
           setExportRows={setFilteredResults}
           emptyComponent={() => null}
-          defaultSortHeader={columnConfigs[0].title}
+          defaultSortHeader={columnConfigs[0].id}
           defaultSortDirection="asc"
         />
       )}

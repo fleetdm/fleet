@@ -2,6 +2,7 @@ import React from "react";
 import {
   isEmpty,
   flatMap,
+  find,
   omit,
   pick,
   size,
@@ -25,6 +26,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -39,6 +41,8 @@ import { UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
+import { checkTable } from "utilities/sql_tools";
+import { osqueryTables } from "utilities/osquery_tables";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -47,6 +51,7 @@ import {
   DEFAULT_GRAVATAR_LINK_DARK_FALLBACK,
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
+  isPlatformLabelNameFromAPI,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -216,10 +221,14 @@ export const formatFloatAsPercentage = (float?: number): string => {
 
 const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: ILabel) => {
+    let labelType = "custom";
+    if (isPlatformLabelNameFromAPI(label.display_text)) {
+      labelType = PLATFORM_LABEL_DISPLAY_TYPES[label.display_text];
+    }
     return {
       ...label,
       slug: labelSlug(label),
-      type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      type: labelType,
       target_type: "labels",
     };
   });
@@ -849,8 +858,13 @@ export const getSoftwareBundleTooltipJSX = (bundle: string) => (
 );
 
 export const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  queryByHostRoute: (hostId?: number | null, teamId?: number | null) => {
+    const queryString = buildQueryStringFromParams({
+      host_id: hostId || undefined,
+      team_id: teamId,
+    });
+
+    return queryString && `?${queryString}`;
   },
 };
 
@@ -858,14 +872,18 @@ export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
   suffixLength = 10
-) => (
+): JSX.Element => (
   <>
     {original.slice(0, prefixLength)}...
     {original.slice(original.length - suffixLength)} <em>(truncated)</em>
   </>
 );
 
-export const getUniqueColumnNamesFromRows = (rows: any[]) =>
+export const getUniqueColumnNamesFromRows = <
+  T extends Record<keyof T, unknown>
+>(
+  rows: T[]
+) =>
   // rows of type {col:val, col:val, ...}[]
   // cannot type more narrowly due to loose typing of websocket API and use of this function
   // by QueryResultsTableConfig, where results come from that API
@@ -873,16 +891,49 @@ export const getUniqueColumnNamesFromRows = (rows: any[]) =>
   Array.from(
     rows.reduce(
       (accOuter, row) =>
-        Object.keys(row).reduce(
-          (accInner, colNameInRow) => accInner.add(colNameInRow),
-          accOuter
-        ),
-      new Set()
+        Object.keys(row).reduce((accInner, colNameInRow) => {
+          return accInner.add(colNameInRow as keyof T);
+        }, accOuter),
+      new Set<keyof T>()
     )
   );
 
 // can allow additional dropdown value types in the future
 type DropdownOptionValue = IDropdownOption["value"];
+
+/** Generates the column schema for a sql query */
+export const getTableColumnsFromSql = (
+  sql: string
+): IQueryTableColumn[] | [] => {
+  const tableNames = (sql && checkTable(sql).tables) || [];
+
+  let sqlColumns: IQueryTableColumn[] | [] = [];
+  tableNames.forEach((tableName: string) => {
+    const tableColumns =
+      find(osqueryTables, { name: tableName })?.columns || [];
+    sqlColumns = [...sqlColumns, ...tableColumns];
+  });
+  // TODO: Edge case of tables sharing column names with different typing not considered
+
+  return sqlColumns;
+};
+
+/** Sorts sql results numerical columns correctly while perserving case insensitive sort for text columns */
+export const getSortTypeFromColumnType = (
+  colName: string | number | symbol,
+  tableColumns?: IQueryTableColumn[] | []
+) => {
+  if (typeof colName === "string") {
+    const numberTypes = ["integer", "bigint", "unsigned_bigint", "double"];
+
+    const type = find(tableColumns, { name: colName })?.type;
+
+    if (type && numberTypes.includes(type)) {
+      return "alphanumeric";
+    }
+  }
+  return "caseInsensitive";
+};
 
 export function getCustomDropdownOptions(
   defaultOptions: IDropdownOption[],
@@ -915,6 +966,8 @@ export default {
   generateRole,
   generateTeam,
   getUniqueColumnNamesFromRows,
+  getTableColumnsFromSql,
+  getSortTypeFromColumnType,
   getCustomDropdownOptions,
   greyCell,
   humanHostLastSeen,

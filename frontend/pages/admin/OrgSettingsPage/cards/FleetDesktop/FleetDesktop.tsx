@@ -52,7 +52,7 @@ const FleetDesktop = ({
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const formDataForAPI: Pick<IConfig, "fleet_desktop"> = {
+    const formDataForAPI = {
       fleet_desktop: {
         transparency_url: formData.transparencyUrl,
       },

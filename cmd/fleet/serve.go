@@ -28,6 +28,7 @@ import (
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -462,6 +463,7 @@ the way that the Fleet server works.
 				mdmStorage                  *mysql.NanoMDMStorage
 				mdmPushService              push.Pusher
 				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
+				ddmService                  *service.MDMAppleDDMService
 				mdmPushCertTopic            string
 			)
 
@@ -546,6 +548,7 @@ the way that the Fleet server works.
 				}
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+				ddmService = service.NewMDMAppleDDMService(ds, logger)
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
@@ -768,6 +771,16 @@ the way that the Fleet server works.
 				}
 			}
 
+			if license.IsPremium() {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, 5*time.Minute, logger)
+					},
+				); err != nil {
+					initFatal(err, "failed to register calendar schedule")
+				}
+			}
+
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
@@ -870,6 +883,7 @@ the way that the Fleet server works.
 					scepStorage,
 					logger,
 					mdmCheckinAndCommandService,
+					ddmService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

@@ -113,7 +113,7 @@ Ever wonder why there are 6 circles in the Fleet logo, but only 5 values?  Behol
 ## History
 
 ### 2014: Origins of osquery
-In 2014, our CTO Zach Wasserman, together with [Mike Arpaia](https://twitter.com/mikearpaia/status/1357455391588839424) and the rest of their team at Facebook, created an open source project called [osquery](https://osquery.io).
+In 2014, our Cofounder Zach Wasserman, together with [Mike Arpaia](https://twitter.com/mikearpaia/status/1357455391588839424) and the rest of their team at Facebook, created an open source project called [osquery](https://osquery.io).
 
 ### 2016: Origins of Fleet v1.0
 A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security) founded [Kolide](https://kolide.com) and created Fleet: an open source platform that made it easier and more productive to use osquery in an enterprise setting.
@@ -136,7 +136,7 @@ Fleet announces [support for Windows and Linux devices](https://fleetdm.com/anno
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and [every manager](https://fleetdm.com/handbook/company#management) has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
 - 🔦 [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for these traditional functions: People, Finance, tax, compliance, Legal, and IT.
-- 🏹 [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
+- 🌦️ [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 - 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
@@ -145,7 +145,7 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
-[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo).)
+[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/leadership#contact-the-ceo).)
 
 <!--
 #### Stubs

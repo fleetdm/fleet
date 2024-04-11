@@ -8,6 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Head of Revenue Operations      | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
+| Apprentice                      | [Award Malisi](https://www.linkedin.com/in/award-malisi/) _([@Unearthlyglow](https://github.com/Unearthlyglow))_
 
 
 ## Contact us
@@ -27,10 +28,24 @@ Each PR to the website is manually checked for quality and tested before before 
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
 
-2. [View the website locally](#test-changes-to-the-website) and follow the QA steps in the request ticket to test changes.
+2. [View the website locally](https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally) and follow the QA steps in the request ticket to test changes.
 
-3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
+3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
+
+### Update the host count of a premium subscription
+
+When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
+
+To update the host count on a user's subscription:
+
+1. Log in to the [Stripe dashboard](https://dashboard.stripe.com/dashboard) and search for the customer's email address.
+2. Click on their subscription and select the "Update subscription" option in the "Actions" dropdown
+3. Update the quantity of the user's subscription to be their desired host count.
+4. Turn the "Proration charges" option on and select the "Charge proration amount immediately" option.
+5. Under "Payment" select "Email invoice to the customer", and set the payment due date to be 15 days, and make sure the "Invoice payment page" option is checked.
+6. Select "Update subscription" to send the user an updated invoice for their subscription. Once the customer pays their new invoice, the Fleet website will update the user's subscription and generate a new Fleet Premium license with an updated host count.
+7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
 ### Test fleetdm.com locally 
 When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
@@ -65,15 +80,6 @@ Once you have the above follow these steps:
   > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
 
-### Edit a DNS record
-We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
-1. Log into your Cloudflare account and select the "Fleet" account.
-2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
-3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
-
-> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) Zach Wasserman in Slack for an invitation.
-
-
 ### Check production dependencies of fleetdm.com
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
@@ -94,7 +100,7 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
 - Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
 - Document any issues in GitHub as a [bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
-- If in doubt about anything regarding design or layout, please reach out to the [Head of Design](https://fleetdm.com/hanbook/digital-experience#team).
+- If in doubt about anything regarding design or layout, please reach out to the [Head of Design](https://fleetdm.com/handbook/digital-experience#team).
 
 
 ### Export an image for fleetdm.com
@@ -161,37 +167,47 @@ If the action fails, please complete the following steps:
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action. 
 
 
-### Grant role-specific license to a team member (RevOps)
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
+### Communicate Fleet's potential energy to stakeholders
+On the first business day of every month, the Apprentice will send an update to the stakeholders of Fleet using the following steps:
+1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
 
-| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
-|:-----------------|:---|:---|:----|:---|:---|
-| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
-| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
-| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
-| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
-| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
+```
+Hi investors and friends,
 
-> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
+Here’s a quick update on the numbers from last month:
+
+• Gross new ∆ARR (QTD): + TODO
+• Social media mentions (LinkedIn): 3.8 per day (Goal: 5) (Want to help?)
+• Current version: 4.48.0 (See what's new)
+• Next in-person event: Kansas City, (April 20) BSides KC
+• Next press release: 2024-04-30: "Stop nudging"
+"Stop installing updates and forcing restarts when your users are busy using their computers.  Fleet finds time in the calendar for a reboot and uses AI to explain why." 
 
 
-### Add a seat to Salesforce
-Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
-- Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
-- View contracts -> pick current contract.
-- Add the desired number of licenses.
-- Sign DocuSign sent to the email.
-- The order will be processed in ~30m.
-- Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
-- To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
+Thanks for your support,
+Mike and the Fleet team
+```
+
+2. Address the email to the executive team's Gmail.
+3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, collect all of the investor emails from previous funding rounds and add them to bcc of the email and send.
 
 
 ### Refresh event calendar
 Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
 1. Visit the latest website for each event.
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
+
+
+### Archive a document
+Follow these steps to archive any document:
+1. Create a copy of the document prefixed with the date using the format "`YYYY-MM-DD` Backup of `DOCUMENT_NAME`" (e.g. "2024-03-22 Backup of 🪂🗞️ Customer voice").
+2. Be sure to "Share it with the same people", "Copy comments and suggestions", and "Include resolved comments and suggestions" as shown below.
+
+<img width="455" alt="Screenshot 2024-03-23 at 12 14 00 PM" src="https://github.com/fleetdm/fleet/assets/108141731/1c773069-11a7-4ef4-ab43-8f7c626e4b10">
+
+3. Save this backup copy to the same location in Google Drive where the original is found.
+4. Link to the backup copy at the top of the original document. Be sure to use the full URL, no abbreviated pill links (e.g. "Notes from last time: URL_OF_MOST_RECENT_BACKUP_DOCUMENT").
+5. Delete all non-structural content from the original document, including past meeting notes and current answers to "evergreen" questions.
 
 
 ### Schedule CEO interview
@@ -348,7 +364,7 @@ Once the Business Operations department approves inventory to be shipped from Fl
 
 ### Prepare for the All hands
 - **Every month** the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
-  -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands - yyyy month name".
+  -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands".
   - Update "End of the quarter" slides to reflect the current countdown.
   - Download a copy of the previous month's keynote file and rename the copy pattern matching existing files.
   - Update the slides to reflect the current "All hands" date (e.g. cover slides month and the "You are here" slide)'
@@ -391,34 +407,16 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 
 ### Process and backup Sid agenda
 Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
-
-30 minutes After each meeting (to allow all parties to collect action items), the Apprentice makes a copy of the "💻 Sid : Mike(Fleet)" doc and renames it "YYYY-MM-DD Backup of 💻 Sid : Mike(Fleet)". Then moves the backup version into the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae)
-
-Then process the backup Sid agenda by:
-- Leaving google doc comments assigning all Fleet TODOs to correct Fleeties.
-- In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
-
-**Being sure to preserve agenda format**, process the 💻 Sid : Mike(Fleet) master doc by:
-- (Unless otherwise prefixed) Delete all agenda items, **being sure to leave 3 empty bullets in every section**.
+1. 30 minutes After each meeting [archive the "💻 Sid : Mike(Fleet)" agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document), moving it to the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae) folder in Google Drive.
+2. **In the backup copy**, leave Google Doc comments assigning all Fleet TODOs to the correct DRI.   
+3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
 ### Process and backup E-group agenda 
-Immediately after every e-group the Apprentice makes a copy of the E-group agenda doc and renames it "YYYY-MM-DD backup of E-group agenda". Then saves it to the [(¶¶) E-group archive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).
-
-Then process the backup E-group agenda by:  
-- Leaving google doc comments assigning all TODOs to correct individuals.  
-- In the E-group master doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
-
-**Being sure to preserve agenda format**, process the E-group master doc by:  
-- Clearing all bullets from the "Mike: Hear from each department" section.
-  - Delete the "Blockers" and "Last week" bullets from each department's section.
-  - Move contents from "This week" to "Last week".
-- (Unless otherwise prefixed) Delete all agenda items from the "Mike: This weeks focus" section. 
-- (Unless otherwise prefixed) Delete all agenda items from the "Today's other topics" section. 
-
-If it's the day of an All hands:
-  - Remove any spotlights that aren't a permanent staple (e.g. Mike: Every time: Pick a value, present on it.). 
-
+Follow these steps to process and backup the E-group agenda: 
+1. [Archive the E-group agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
+2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
+3. If the "All hands" meeting has happened today
 
 ### Check LinkedIn for unread messages 
 Once a day the Apprentice will confirm check LinkedIn for unread messages. 

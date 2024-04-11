@@ -407,6 +407,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetMDMWindowsBitLockerStatusFuncInvoked = false
 		ds.GetHostMDMAppleProfilesFuncInvoked = false
 		ds.GetHostMDMWindowsProfilesFuncInvoked = false
+		ds.GetHostMDMFuncInvoked = false
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
@@ -422,6 +423,10 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		}
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 			return nil, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
+			return &hmdm, nil
 		}
 	}
 
@@ -442,6 +447,11 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			switch c.host.Platform {
 			case "windows":
 				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				if c.licenseTier == fleet.TierPremium {
+					require.True(t, ds.GetHostMDMFuncInvoked)
+				} else {
+					require.False(t, ds.GetHostMDMFuncInvoked)
+				}
 				if c.wantStatus != "" {
 					require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 					require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
@@ -500,6 +510,10 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
+		return &hmdm, nil
+	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), &fleet.Host{ID: 42, Platform: "windows"}, fleet.HostDetailOptions{
@@ -510,6 +524,7 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	require.NotNil(t, hostDetail)
 	require.True(t, ds.AppConfigFuncInvoked)
 	require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+	require.True(t, ds.GetHostMDMFuncInvoked)
 	require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 	require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
@@ -994,26 +1009,19 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 
 	testVersions := []fleet.OSVersion{{HostsCount: 1, Name: "macOS 12.1", Platform: "darwin"}}
 
-	ds.TeamFunc = func(ctx context.Context, teamID uint) (*fleet.Team, error) {
-		if teamID == 1 {
-			return &fleet.Team{
-				Name: "team1",
-			}, nil
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		if teamID == 3 {
+			return false, nil
 		}
-		if teamID == 2 {
-			return &fleet.Team{
-				Name: "team2",
-			}, nil
-		}
-
-		return nil, newNotFoundError()
+		return true, nil
 	}
-
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
-		if *teamID == 1 {
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		if *teamFilter.TeamID == 1 {
 			return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 		}
-		if *teamID == 4 {
+		if *teamFilter.TeamID == 4 {
 			return nil, errors.New("some unknown error")
 		}
 
@@ -1037,7 +1045,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	// team does not exist
 	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.Error(t, err)
-	require.Equal(t, "not found", fmt.Sprint(err))
+	require.Contains(t, fmt.Sprint(err), "does not exist")
 
 	// some unknown error
 	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
@@ -1058,7 +1066,9 @@ func TestOSVersionsListOptions(t *testing.T) {
 		{HostsCount: 6, NameOnly: "Ubuntu 21.04", Platform: "ubuntu"},
 	}
 
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 	}
 
@@ -1505,7 +1515,6 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		if hostID == teamHostID {
 			return teamHost, nil
 		}
-
 		return globalHost, nil
 	}
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {

@@ -79,11 +79,13 @@ export default {
     }
     return `/api/mdm/apple/enroll?${query}`;
   },
+  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
+  MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
   MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
   MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,

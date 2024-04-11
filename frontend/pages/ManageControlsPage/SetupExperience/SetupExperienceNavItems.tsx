@@ -4,6 +4,7 @@ import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
 
 import EndUserAuthentication from "./cards/EndUserAuthentication/EndUserAuthentication";
 import BootstrapPackage from "./cards/BootstrapPackage";
+import SetupAssistant from "./cards/SetupAssistant";
 
 interface ISetupExperienceCardProps {
   currentTeamId?: number;
@@ -24,6 +25,12 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<
     urlSection: "bootstrap-package",
     path: PATHS.CONTROLS_BOOTSTRAP_PACKAGE,
     Card: BootstrapPackage,
+  },
+  {
+    title: "Setup assistant",
+    urlSection: "setup-assistant",
+    path: PATHS.CONTROLS_SETUP_ASSITANT,
+    Card: SetupAssistant,
   },
 ];
 

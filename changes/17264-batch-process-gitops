@@ -1,0 +1,1 @@
+- `fleetctl gitops` now batch processes queries and policies

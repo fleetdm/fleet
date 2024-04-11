@@ -20,7 +20,7 @@ func ReplaceFedoraOSVersion(version string) string {
 			"Red Hat Enterprise Linux 6.0.0": regexp.MustCompile(`Fedora Linux (12|13|14|15|16|17|18)\.`),
 			"Red Hat Enterprise Linux 7.0.0": regexp.MustCompile(`Fedora Linux (19|20|21|22|23|24|25|26|27)\.`),
 			"Red Hat Enterprise Linux 8.0.0": regexp.MustCompile(`Fedora Linux (28|29|30|31|32|33)\.`),
-			"Red Hat Enterprise Linux 9.0.0": regexp.MustCompile(`Fedora Linux (34|35|36)\.`),
+			"Red Hat Enterprise Linux 9.0.0": regexp.MustCompile(`Fedora Linux (34|35|36|37|38|39|40)\.`),
 		}
 		for rep, pattern := range rules {
 			if pattern.ReplaceAllString(version, rep) != version {
