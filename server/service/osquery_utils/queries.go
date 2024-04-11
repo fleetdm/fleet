@@ -628,31 +628,26 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_windows": {
+		// Bitlocker is an optional component on Windows Server and
+		// isn't guaranteed to be installed. If we try to query the
+		// bitlocker_info table when the bitlocker component isn't
+		// present, the query will crash and fail to report back to
+		// the server. Before querying bitlocke_info, we check if it's
+		// either:
+		// 1. both an optional component, and installed.
+		// OR
+		// 2. not optional, meaning it's built into the OS
 		Query: `
-WITH encrypted(enabled) AS (
-  SELECT CASE WHEN (
-    -- In some versions of Windows (server?), bitlocker is optional.
-    -- When bitlocker isn't installed, the bitlocker_info table query
-    -- will crash and not return any results, so we have to be careful
-    -- about when we query it.
-    SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker'
-  ) THEN (
-    SELECT CASE WHEN (
-      -- If it's optional, and it's enabled
-      SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1
-    ) THEN (
-      -- Get bitlocker properties
-      SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
-    ) END
-  ) ELSE (
-    -- Bitlocker is not optional, and should be on the device
-    SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
-  ) END
-  ) SELECT enabled FROM encrypted WHERE enabled IS NOT NULL;`,
+	WITH encrypted(enabled) AS (
+		SELECT CASE WHEN
+			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+			OR
+			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+	END)
+	SELECT enabled FROM encrypted WHERE enabled IS NOT NULL`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryption,
-		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
-		// osquery table on windows, it is always present.
 	},
 }
 
