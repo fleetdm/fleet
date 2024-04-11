@@ -403,9 +403,9 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
 **To order pens and sticky note pads**
 
   - Pens and sticky note pads are ordered through Everything Branded.
-  - Our sales representative is Jake William (saved in 1Password).
-  - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
-  - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
+  - Email our sales representative Jake William (saved in 1Password) to order any of the following:
+    - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
+    - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
 
 #### Sticky note pads
 
