@@ -124,7 +124,7 @@ How to unenroll a host from Fleet:
 ## Advanced
 
 - [Fleet agent (fleetd) components](#fleetd-components)
-- [Signing fleetd installer](#signing-fleetd-installer)
+- [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
 - [Using mTLS](#using-mtls)
 - [Specifying update channels](#specifying-update-channels)
@@ -153,11 +153,11 @@ graph LR;
     orbit -- "Auto Update (TLS)" --> tuf;
 ```
 
-### Signing fleetd installers
+### Signing fleetd
 
-  >**Note:** Currently, the `fleetctl package` command does not support signing Windows fleetd installers. Windows installers can be signed after building.
+  >**Note:** Currently, the `fleetctl package` command does not support signing Windows fleetd. Windows fleetd can be signed after building.
 
-The `fleetctl package` command supports signing and notarizing macOS osquery installers via the
+The `fleetctl package` command supports signing and notarizing macOS fleetd via the
 `--sign-identity` and `--notarize` flags.
 
 Check out the example below:
@@ -166,7 +166,7 @@ Check out the example below:
   AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
 
-The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd installers can only be done on macOS devices.
+The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd can only be done on macOS devices.
 
 Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
 
