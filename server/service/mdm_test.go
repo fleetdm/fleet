@@ -1702,6 +1702,9 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			TeamID:      &tid,
 		}, nil
 	}
+	ds.GetHostMDMProfileStatusFunc = func(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
+		return fleet.MDMDeliveryFailed, nil
+	}
 	ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {
 		return nil
 	}

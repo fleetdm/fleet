@@ -10657,7 +10657,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// can't resend a profile from the wrong team
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "profile does not belong to host's team")
+	require.Contains(t, errMsg, "Profile does not belong to host's team")
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
@@ -10747,7 +10747,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// can't resend a macOS profile to a Windows host
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "unable to match profile to host")
+	require.Contains(t, errMsg, "Unable to match profile to host")
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {

@@ -1263,6 +1263,9 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
+	// GetHostMDMProfileStatus returns the status of the profile for the host.
+	GetHostMDMProfileStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands
 

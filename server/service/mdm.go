@@ -2010,7 +2010,7 @@ func resendHostMDMProfileEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error {
-	// first we perform a perform basic authz check
+	// first we perform a perform basic authz check, we use selective list action to include gitops users
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -2020,16 +2020,15 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// now we can do a specific authz check based on team id of profile before we resend the profile
+	// now we can do a specific authz check based on team id of the host before proceeding
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
 	// TODO: prescreen host platform against profile prefix?
 
-	// TODO: screen disk encryption profile? other reserved profiles?
-
 	var profileTeamID *uint
+	var profileName string
 	switch {
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix), strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -2040,6 +2039,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 			return ctxerr.Wrap(ctx, err, "getting apple config profile")
 		}
 		profileTeamID = prof.TeamID
+		profileName = prof.Name
 
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -2050,6 +2050,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 			return ctxerr.Wrap(ctx, err, "getting apple declaration")
 		}
 		profileTeamID = decl.TeamID
+		profileName = decl.Name
 
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
@@ -2060,14 +2061,22 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 			return ctxerr.Wrap(ctx, err, "getting windows config profile")
 		}
 		profileTeamID = prof.TeamID
+		profileName = prof.Name
 
 	default:
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", "invalid profile UUID"), "invalid profile UUID")
+		// TODO: confirm error message?
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", "Invalid profile UUID prefix."))
 	}
 
-	// check again based on team id of profile before we resend the profile
+	// check again based on team id of profile before we proceeding
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: profileTeamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: specs say to screen disk encryption profile? what about other reserved profiles?
+	reservedNames := mdm.FleetReservedProfileNames()
+	if _, ok := reservedNames[profileName]; ok {
+		return fleet.NewInvalidArgumentError("profile_uuid", fmt.Sprintf("%s profile cannot be resent.", profileName))
 	}
 
 	var hTID, pTID uint
@@ -2078,8 +2087,24 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		pTID = *profileTeamID
 	}
 	if hTID != pTID {
-		// TODO: confirm error message? Should this be an auth error?
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", "profile does not belong to host's team"), "profile does not belong to host team")
+		// TODO: confirm error message? should this be an auth error?
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", "Profile does not belong to host's team."))
+	}
+
+	status, err := svc.ds.GetHostMDMProfileStatus(ctx, host.UUID, profileUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// TODO: confirm error message?
+			return fleet.NewInvalidArgumentError("profile_uuid", "Unable to match profile to host.")
+		}
+		return ctxerr.Wrap(ctx, err, "getting host mdm profile status")
+	}
+	if status == fleet.MDMDeliveryPending || status == fleet.MDMDeliveryVerifying {
+		return fleet.NewInvalidArgumentError("profile_status", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict)
+	}
+	if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified {
+		// this should never happen, but just in case
+		return ctxerr.Errorf(ctx, "unrecognized profile status %s", status)
 	}
 
 	if err := svc.ds.ResendHostMDMProfile(ctx, host.UUID, profileUUID); err != nil {
