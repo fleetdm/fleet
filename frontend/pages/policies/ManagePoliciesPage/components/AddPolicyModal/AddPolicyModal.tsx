@@ -69,7 +69,7 @@ const AddPolicyModal = ({
   } = useContext(PolicyContext);
 
   const [filteredPolicies, setFilteredPolicies] = useState(DEFAULT_POLICIES);
-  const [platform, setPlatform] = useState("all");
+  const [platform, setPlatform] = useState<SelectedPlatform>("all");
 
   const onAddPolicy = (selectedPolicy: IPolicyNew) => {
     setDefaultPolicy(true);
