@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -149,6 +150,7 @@ type Stats struct {
 	resultLogRequests      int
 	orbitErrors            int
 	mdmErrors              int
+	ddmErrors              int
 	desktopErrors          int
 	distributedReadErrors  int
 	distributedWriteErrors int
@@ -236,6 +238,12 @@ func (s *Stats) IncrementMDMErrors() {
 	s.mdmErrors++
 }
 
+func (s *Stats) IncrementDDMErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmErrors++
+}
+
 func (s *Stats) IncrementDesktopErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -274,7 +282,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logs: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, ddm errors: %d, buffered logs: %d",
 		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
@@ -293,6 +301,7 @@ func (s *Stats) Log() {
 		s.orbitErrors,
 		s.desktopErrors,
 		s.mdmErrors,
+		s.ddmErrors,
 		s.bufferedLogs,
 	)
 }
@@ -943,6 +952,79 @@ func (a *agent) runMacosMDMLoop() {
 				a.stats.IncrementMDMErrors()
 				break INNER_FOR_LOOP
 			}
+			if mdmCommandPayload != nil && mdmCommandPayload.Command.RequestType == "DeclarativeManagement" {
+				a.doDeclarativeManagement(mdmCommandPayload)
+			}
+		}
+	}
+}
+
+func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
+	// TODO: check tokens endpoint?
+	defer log.Printf("Exiting DeclarativeManagement for command %s", cmd.CommandUUID)
+
+	// get declaration-items endpoint
+	r, err := a.macMDMClient.DeclarativeManagement("declaration-items")
+	if err != nil {
+		log.Printf("DDM declaration-items request failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("DDM declaration-items read body failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return
+	}
+	var items fleet.MDMAppleDDMDeclarationItemsResponse
+	err = json.Unmarshal(body, &items)
+	if err != nil {
+		log.Printf("DDM declaration-items unmarshal failed: %s", err)
+		a.stats.IncrementMDMErrors()
+		return
+	}
+
+	// get declaration/configuration/:identifer endpoint
+	for _, d := range items.Declarations.Configurations {
+		path := fmt.Sprintf("declaration/%s/%s", "configuration", d.Identifier)
+		r, err := a.macMDMClient.DeclarativeManagement(path)
+		if err != nil {
+			log.Printf("DDM %s request failed: %s", path, err)
+			a.stats.IncrementMDMErrors()
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("DDM %s read body failed: %s", path, err)
+			a.stats.IncrementMDMErrors()
+			return
+		}
+		var decl fleet.MDMAppleDeclaration
+		err = json.Unmarshal(body, &decl)
+		if err != nil {
+			log.Printf("DDM %s unmarshal failed: %s", path, err)
+			a.stats.IncrementMDMErrors()
+			return
+		}
+	}
+
+	// sent status report
+	for _, d := range items.Declarations.Configurations {
+		report := fleet.MDMAppleDDMStatusReport{}
+		report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+			{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: d.Identifier, ServerToken: d.ServerToken},
+		}
+		r, err := a.macMDMClient.DeclarativeManagement("status", report)
+		if err != nil {
+			log.Printf("DDM %s status request failed: %s", d.Identifier, err)
+			a.stats.IncrementMDMErrors()
+			return
+		}
+		// if r.StatusCode != http.StatusNoContent {
+		if r.StatusCode != http.StatusOK && r.StatusCode != http.StatusNoContent {
+			log.Printf("DDM %s status response unexpected: %d", d.Identifier, r.StatusCode)
+			a.stats.IncrementMDMErrors()
+			return
 		}
 	}
 }
