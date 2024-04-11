@@ -15,12 +15,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
-	"github.com/facebookincubator/nvdtools/cvefeed"
-	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
+	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )

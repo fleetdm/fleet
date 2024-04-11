@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 // CPEMatchingRuleSpec allows you to match against a CPE. Version ranges are supported via SemVer constraints.
