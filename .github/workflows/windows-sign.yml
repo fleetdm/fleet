@@ -38,11 +38,17 @@ jobs:
       - name: Setup Keylocker KSP on windows
         run: |
           curl -X GET  https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" -o Keylockertools-windows-x64.msi 
-          msiexec /i Keylockertools-windows-x64.msi /quiet /qn
-          smksp_registrar.exe list 
-          smctl.exe keypair ls 
-          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+#          msiexec /i Keylockertools-windows-x64.msi /quiet /qn
+#          smksp_registrar.exe list
+#          smctl.exe keypair ls
+#          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
         shell: cmd
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v2
+        with:
+          name: windows-installer
+          path: ./Keylockertools-windows-x64.msi
 
       - name: Certificates Sync
         run: |
