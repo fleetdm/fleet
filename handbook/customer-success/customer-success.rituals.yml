@@ -49,14 +49,14 @@
   frequency: "Triweekly" 
   description: "Check-in before the 🗣️ Product Feature Requests meeting to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team." 
   moreInfoUrl: "" # TODO: add responsibility on customer-success readme starting point == "Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more."
-  dri: "patagonia121"
+  dri: "nonpunctual"
 -
   task: "Present customer requests at feature fest" 
   startedOn: "2024-02-15" 
   frequency: "Triweekly" 
   description: "Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective." 
   moreInfoUrl: "" # TODO: add responsibility on customer-success readme starting point == "Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more."
-  dri: "patagonia121"
+  dri: "nonpunctual"
 -
   task: "Communicate release notes to stakeholders" 
   startedOn: "2024-02-21" 
