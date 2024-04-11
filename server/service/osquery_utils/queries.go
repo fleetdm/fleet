@@ -645,7 +645,7 @@ var extraDetailQueries = map[string]DetailQuery{
 			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
 		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
 	END)
-	SELECT enabled FROM encrypted WHERE enabled IS NOT NULL`,
+	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryption,
 	},
