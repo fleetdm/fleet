@@ -1,6 +1,6 @@
 # Public IPs of devices
 
-Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by the osquery agent.
+Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by Fleet's agent (fleetd).
 
 The HTTP request headers are checked in the following order:
 1. If `True-Client-IP` header is set, then Fleet will extract its value.
