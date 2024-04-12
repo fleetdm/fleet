@@ -113,15 +113,18 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText("Query"));
 
       expect(
         screen.getByText("Query").parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      expect(
-        screen.getByText("You can't query an offline host.")
-      ).toBeInTheDocument();
+      await user.hover(screen.getByText(/Query/i));
+
+      const tooltipText = await screen.findByText(
+        /You can't query an offline host./i
+      );
+
+      expect(tooltipText).toBeInTheDocument();
     });
 
     it("renders the Query action as disabled when a host is locked", async () => {
@@ -146,13 +149,12 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText("Query"));
-
       expect(
         screen.getByText("Query").parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
     });
-    it("renders the Query action as disabled when a host is wiped", async () => {
+
+    it("renders the Query action as disabled when a host is updating", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -166,19 +168,16 @@ describe("Host Actions Dropdown", () => {
         <HostActionsDropdown
           hostTeamId={null}
           onSelect={noop}
-          hostStatus="offline"
+          hostStatus="online"
           hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="wiped"
+          hostMdmDeviceStatus="locking"
           hostScriptsEnabled
         />
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText("Query"));
 
-      expect(
-        screen.getByText("Query").parentNode?.parentNode?.parentNode
-      ).toHaveClass("is-disabled");
+      expect(screen.getByText("Query").parentNode).toHaveClass("is-disabled");
     });
   });
 
@@ -584,15 +583,18 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText("Lock"));
 
       expect(
         screen.getByText("Lock").parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      expect(
-        screen.getByText(/fleetd agent with --enable-scripts/i)
-      ).toBeInTheDocument();
+      await user.hover(screen.getByText("Lock"));
+
+      const tooltipText = await screen.findByText(
+        /fleetd agent with --enable-scripts/i
+      );
+
+      expect(tooltipText).toBeInTheDocument();
     });
 
     it("does not render when the host is not enrolled in mdm", async () => {
@@ -834,15 +836,18 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText("Unlock"));
 
       expect(
         screen.getByText("Unlock").parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      expect(
-        screen.getByText(/fleetd agent with --enable-scripts/i)
-      ).toBeInTheDocument();
+      await user.hover(screen.getByText(/Unlock/i));
+
+      const tooltipText = await screen.findByText(
+        /fleetd agent with --enable-scripts/i
+      );
+
+      expect(tooltipText).toBeInTheDocument();
     });
   });
 
@@ -965,15 +970,17 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText("Lock"));
+      await user.hover(screen.getByText(/Lock/i));
 
       expect(
-        screen.getByText("Wipe").parentNode?.parentNode?.parentNode
+        screen.getByText(/Wipe/i).parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      expect(
-        screen.getByText(/fleetd agent with --enable-scripts/i)
-      ).toBeInTheDocument();
+      const tooltipText = await screen.findByText(
+        /fleetd agent with --enable-scripts/i
+      );
+
+      expect(tooltipText).toBeInTheDocument();
     });
   });
 
@@ -1030,15 +1037,17 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText("Run script"));
+      await user.hover(screen.getByText(/Run script/i));
 
       expect(
         screen.getByText("Run script").parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      expect(
-        screen.getByText(/fleetd agent with --enable-scripts/i)
-      ).toBeInTheDocument();
+      const tooltipText = await screen.findByText(
+        /fleetd agent with --enable-scripts/i
+      );
+
+      expect(tooltipText).toBeInTheDocument();
     });
 
     it("does not render the Run script action for ChromeOS", async () => {
