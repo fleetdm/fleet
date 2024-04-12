@@ -78,7 +78,9 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
     <>
       <MainContent className={baseClass}>
         <h1>Add label</h1>
-        <p>{NEW_LABEL_DESCRIPTION}</p>
+        <p className={`${baseClass}__page-description`}>
+          {NEW_LABEL_DESCRIPTION}
+        </p>
         <TabsWrapper>
           <Tabs
             selectedIndex={getTabIndex(location?.pathname || "")}

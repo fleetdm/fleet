@@ -1,0 +1,11 @@
+.new-label-page {
+  h1 {
+    margin-bottom: $pad-xlarge;
+  }
+
+  &__page-description {
+    margin: 0;
+    color: $ui-fleet-black-75;
+    font-size: $xx-small;
+  }
+}
