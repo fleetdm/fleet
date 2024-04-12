@@ -985,7 +985,7 @@ None.
     "google_calendar": [
       {
         "domain": "example.com",
-        "private_key_json": {
+        "api_key_json": {
            "type": "service_account",
            "project_id": "fleet-in-your-calendar",
            "private_key_id": "<private key id>",
@@ -1295,9 +1295,8 @@ Note that when making changes to the `integrations` object, all integrations mus
     ],
     "google_calendar": [
       {
-        "email": "name@example.com",
-        "domain": "example.com",
-        "private_key": "abc123"
+        "domain": "",
+        "api_key_json": null
       }
     ]
   },
@@ -8499,8 +8498,7 @@ _Available in Fleet Premium_
     "integrations": {
       "google_calendar": {
         "enable_calendar_events": true,
-        "email": "name@example.com",
-        "policy_ids": [1, 2, 3]
+        "webhook_url": "https://server.com/example"
       }
     },
     "mdm": {
@@ -8650,8 +8648,7 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integration settings for this team.                                                                                                                                                                   |
 | &nbsp;&nbsp;google_calendar                             | object  | body | Google Calendar integration settings.                                                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_calendar_events          | boolean | body | Whether or not calendar events are enabled for this team.                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;email                           | string | body | The Google Workspace service account email to use. Service account must already be configured in organization settings.                            |
-| &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | list   | body | The IDs of policies that will trigger calendar events if failing on a host. Must all be policies for this team or global ("All teams") policies.                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;webhook_url                     | string | body | The URL to send a request to during calendar events, to trigger auto-remediation.                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team.                                                                                                                                                                         |
 | &nbsp;&nbsp;host_expiry_enabled                         | boolean | body | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
 | &nbsp;&nbsp;host_expiry_window                          | integer | body | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                                                             |
