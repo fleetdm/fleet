@@ -6,9 +6,16 @@ import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/
 
 const baseClass = "dynamic-label";
 
-type IDynamicLabelProps = RouteComponentProps<never, never>;
+type IDynamicLabelProps = RouteComponentProps<never, never> & {
+  showOpenSidebarButton: boolean;
+  onOpenSidebar: () => void;
+};
 
-const DynamicLabel = ({ router }: IDynamicLabelProps) => {
+const DynamicLabel = ({
+  showOpenSidebarButton,
+  router,
+  onOpenSidebar,
+}: IDynamicLabelProps) => {
   const onSaveNewLabel = (formData: IDynamicLabelFormData) => {
     console.log("data", formData);
   };
@@ -19,7 +26,12 @@ const DynamicLabel = ({ router }: IDynamicLabelProps) => {
 
   return (
     <div className={baseClass}>
-      <DynamicLabelForm onSave={onSaveNewLabel} onCancel={onCancelLabel} />
+      <DynamicLabelForm
+        showOpenSidebarButton={showOpenSidebarButton}
+        onOpenSidebar={onOpenSidebar}
+        onSave={onSaveNewLabel}
+        onCancel={onCancelLabel}
+      />
     </div>
   );
 };

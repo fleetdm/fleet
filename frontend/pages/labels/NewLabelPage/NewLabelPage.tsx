@@ -47,9 +47,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
   );
 
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
-  const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
-    false
-  );
+  const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
 
   const isDynamicLabel = location.pathname.includes("dynamic");
 
@@ -60,9 +58,14 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
     [router]
   );
 
-  const onCloseSchemaSidebar = () => {
+  const onCloseSidebar = () => {
     setSidePanelOpen(false);
-    setShowOpenSchemaActionText(true);
+    setShowOpenSidebarButton(true);
+  };
+
+  const onOpenSidebar = () => {
+    setSidePanelOpen(true);
+    setShowOpenSidebarButton(false);
   };
 
   const onOsqueryTableSelect = (tableName: string) => {
@@ -90,7 +93,8 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
           </Tabs>
         </TabsWrapper>
         {React.cloneElement(children, {
-          test: "test",
+          showOpenSidebarButton,
+          onOpenSidebar,
         })}
       </MainContent>
       {isDynamicLabel && isSidePanelOpen && (
@@ -99,7 +103,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
             key="query-side-panel"
             onOsqueryTableSelect={onOsqueryTableSelect}
             selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSchemaSidebar}
+            onClose={onCloseSidebar}
           />
         </SidePanelContent>
       )}

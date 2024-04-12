@@ -8,6 +8,8 @@ import FleetAce from "components/FleetAce";
 import LabelForm from "../LabelForm";
 import { ILabelFormData } from "../LabelForm/LabelForm";
 import PlatformField from "../PlatformField";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "dynamic-label-form";
 
@@ -22,17 +24,21 @@ export interface IDynamicLabelFormData {
 }
 
 interface IDynamicLabelFormProps {
+  showOpenSidebarButton: boolean;
   defaultQuery?: string;
   defaultPlatform?: string;
   isEditing?: boolean;
+  onOpenSidebar: () => void;
   onSave: (formData: IDynamicLabelFormData) => void;
   onCancel: () => void;
 }
 
 const DynamicLabelForm = ({
+  showOpenSidebarButton,
   defaultQuery = "",
   defaultPlatform = "allPlatforms",
   isEditing = false,
+  onOpenSidebar,
   onSave,
   onCancel,
 }: IDynamicLabelFormProps) => {
@@ -65,6 +71,19 @@ const DynamicLabelForm = ({
       // values from LabelForm component must be valid too
       onSave({ ...labelFormData, query, platform });
     }
+  };
+
+  const renderLabelComponent = (): JSX.Element | null => {
+    if (!showOpenSidebarButton) {
+      return null;
+    }
+
+    return (
+      <Button variant="text-icon" onClick={onOpenSidebar}>
+        <Icon name="info" size="small" />
+        <span>Show schema</span>
+      </Button>
+    );
   };
 
   // TODO: figure out if we need this on FleetAce component.
@@ -104,7 +123,7 @@ const DynamicLabelForm = ({
               onChange={onQueryChange}
               value={query}
               label="SQL"
-              // labelActionComponent={renderLabelComponent()}
+              labelActionComponent={renderLabelComponent()}
               readOnly={isEditing}
               wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
               helpText={isEditing ? IMMUTABLE_QUERY_HELP_TEXT : ""}
