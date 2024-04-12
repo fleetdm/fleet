@@ -1,6 +1,7 @@
 name: munki_installs
-notes: 
+notes: >-
   - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+  
   - Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).
 description: Software packages and other items [Munki](https://github.com/munki/munki) is managing.
 platforms: 
