@@ -415,7 +415,7 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 ## Skip-level 1:1 meetings 
 
 Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#performance-feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
-1. Create a copy of the ["Skip-level 1:1 agenda template"](https://docs.google.com/document/d/1AyZPGRdLtGXFU6TRndbTqs033rWSKy5dUvXU3d4LLZc/copy) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
+1. Create a copy of the ["Skip-level 1:1 agenda template"](https://docs.google.com/document/d/191wiy-_a9XBMndLlM97iOwUF6a-0PtkbboQ2FCUIy6w/copy) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
 2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager's supervisor and title the calendar event by copying your skip-level agenda title and appending "[no shadows]" to the end (this ensures the meeting won't be recorded).
 > **If you're scheduling with the CEO** please [get help](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo) before adding events to the calendar or send `@mikermcneil` a DM in Fleet Slack.
 
