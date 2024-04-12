@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -28,7 +29,7 @@ func TestMDMAppleCommander(t *testing.T) {
 		pushFactory,
 		stdlogfmt.New(),
 	)
-	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher, config.MDMConfig{})
 
 	// TODO(roberto): there's a data race in the mock when more
 	// than one host ID is provided because the pusher uses one

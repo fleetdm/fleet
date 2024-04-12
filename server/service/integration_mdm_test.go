@@ -128,7 +128,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		pushFactory,
 		NewNanoMDMLogger(pushLog),
 	)
-	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDMConfig{})
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 	s.withServer.lq = live_query_mock.New(s.T())
 
