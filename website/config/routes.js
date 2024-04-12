@@ -486,6 +486,7 @@ module.exports.routes = {
   'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',
   'GET /learn-more-about/enabling-calendar-api': 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
   'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
+  'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
 
   // Sitemap
   // =============================================================================================================
