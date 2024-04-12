@@ -47,8 +47,8 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
 func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
-	if svc.config.IsSigningSet() {
-		cert, _, _, err := svc.config.Signing()
+	if svc.config.IsAppleSCEPSet() {
+		cert, _, _, err := svc.config.AppleSCEP()
 		if err != nil {
 			return err
 		}

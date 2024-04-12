@@ -2901,43 +2901,6 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----END RSA PRIVATE KEY-----
   ```
 
-##### mdm.signing_cert_bytes
-
-The contents of a X.509 certificate, PEM-encoded that will be used to sign MDM-related features like profiles. 
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_SIGNING_CERT_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_signing_bytes: |
-      -----BEGIN CERTIFICATE-----
-      ... PEM-encoded content ...
-      -----END CERTIFICATE-----
-  ```
-
-To ensure successful installation on a macOS devices, signatures using the
-certificate must be recognized as trusted. This can be achieved by:
-
-1. Utilizing a publicly trusted signing certificate.
-1. Employing an Apple Developer certificate.
-1. Using any signing certificate that has been authenticated by a Certificate Authority already trusted by the device.
-
-##### mdm.signing_key_bytes
-
-The content of the PEM-encoded private key for the signing certificate.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_SIGNING_KEY_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_signing_bytes: |
-      -----BEGIN RSA PRIVATE KEY-----
-      ... PEM-encoded content ...
-      -----END RSA PRIVATE KEY-----
-  ```
-
 ## Managing osquery configurations
 
 We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Fleet have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).

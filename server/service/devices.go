@@ -511,8 +511,8 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	if svc.config.MDM.IsSigningSet() {
-		cert, _, _, err := svc.config.MDM.Signing()
+	if svc.config.MDM.IsAppleSCEPSet() {
+		cert, _, _, err := svc.config.MDM.AppleSCEP()
 		if err != nil {
 			return nil, err
 		}
