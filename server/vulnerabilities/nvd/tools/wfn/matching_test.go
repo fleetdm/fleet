@@ -16,7 +16,11 @@ package wfn
 
 import (
 	"fmt"
+	"os"
 	"testing"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 func TestHasWildcard(t *testing.T) {
@@ -121,10 +125,13 @@ func BenchmarkCompare(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to unbind WFN from FSB %q: %v", tgt, err)
 	}
+	logger := level.NewFilter(log.NewJSONLogger(os.Stdout), level.AllowInfo())
 	for i := 0; i < b.N; i++ {
 		// checking error and result adds about 10% of runtime to this benchmark on my machine
 		// and correctness is covered by tests, so skip it
-		Compare(srcAttr, tgtAttr)
+		if _, err = Compare(srcAttr, tgtAttr); err != nil {
+			logger.Log("msg", "BenchmarkCompare error: "+err.Error())
+		}
 	}
 }
 

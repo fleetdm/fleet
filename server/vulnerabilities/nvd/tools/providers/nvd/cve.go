@@ -35,6 +35,8 @@ import (
 
 	"github.com/facebookincubator/flog"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 // CVE defines the CVE data feed for synchronization.
@@ -229,6 +231,7 @@ func (cf cveFile) baseURL(src SourceConfig) (string, error) {
 }
 
 func (cf cveFile) Sync(ctx context.Context, src SourceConfig, localdir string) error {
+	logger := level.NewFilter(log.NewJSONLogger(os.Stdout), level.AllowInfo())
 	baseURL, err := cf.baseURL(src)
 	if err != nil {
 		return err
@@ -259,9 +262,13 @@ func (cf cveFile) Sync(ctx context.Context, src SourceConfig, localdir string) e
 	// write data file
 	dataFilename := filepath.Join(localdir, cf.DataFile)
 	bakDataFilename := dataFilename + ".bak"
-	xRename(dataFilename, bakDataFilename)
+	if err = xRename(dataFilename, bakDataFilename); err != nil {
+		logger.Log("msg", "xRename dataFilename error: "+err.Error())
+	}
 	if err = xRename(tempDataFilename, dataFilename); err != nil {
-		xRename(bakDataFilename, dataFilename)
+		if err2 := xRename(bakDataFilename, dataFilename); err2 != nil {
+			return err2
+		}
 		return err
 	}
 	os.Remove(bakDataFilename)
@@ -429,6 +436,7 @@ func (m metaFile) WriteTo(w io.Writer) (int64, error) {
 
 // WriteFile writes m to a file.
 func (m metaFile) WriteFile(name string) error {
+	logger := level.NewFilter(log.NewJSONLogger(os.Stdout), level.AllowInfo())
 	f, err := ioutil.TempFile("", "nvdsync-meta-")
 	if err != nil {
 		return err
@@ -439,9 +447,13 @@ func (m metaFile) WriteFile(name string) error {
 		return err
 	}
 	bak := name + ".bak"
-	xRename(name, bak)
+	if err = xRename(name, bak); err != nil {
+		logger.Log("msg", "xRename WriteFile name error: "+err.Error())
+	}
 	if err = xRename(f.Name(), name); err != nil {
-		xRename(bak, name)
+		if err2 := xRename(bak, name); err2 != nil {
+			return err2
+		}
 		return err
 	}
 	os.Remove(bak)

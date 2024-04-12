@@ -90,7 +90,7 @@ func StripSlashes(s string) string {
 				continue
 			}
 		}
-		out = append(out, byte(s[i]))
+		out = append(out, s[i])
 	}
 	return string(out)
 }

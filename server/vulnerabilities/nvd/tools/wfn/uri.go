@@ -140,7 +140,7 @@ func bindValueURI(s string) string {
 		return ""
 	}
 	for i := 0; i < len(s); i++ {
-		b := byte(s[i])
+		b := s[i]
 		if b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b == '_' {
 			// alnum + '_' pass untouched
 			out = append(out, b)
@@ -181,8 +181,8 @@ loop:
 			if i+3 > len(s) {
 				return "", i, fmt.Errorf("unbind URI attribute: illegal percent-encoded value at %d: %q", i, s[i:])
 			}
-			codeStr := string(s[i : i+3])
-			code, err := strconv.ParseInt(string(s[i+1:i+3]), 16, 8)
+			codeStr := s[i : i+3]
+			code, err := strconv.ParseInt(s[i+1:i+3], 16, 8)
 			if err != nil {
 				return "", i, fmt.Errorf("unbind URI attribute: illegal percent-encoded value at %d: %q", i, s[i+1:i+3])
 			}

@@ -16,7 +16,11 @@ package wfn
 
 import (
 	"fmt"
+	"os"
 	"testing"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 func TestUnbindURI(t *testing.T) {
@@ -82,8 +86,11 @@ func TestUnbindURI(t *testing.T) {
 }
 
 func BenchmarkUnbindURI(t *testing.B) {
+	logger := level.NewFilter(log.NewJSONLogger(os.Stdout), level.AllowInfo())
 	for i := 0; i < t.N; i++ {
-		UnbindURI("cpe:/a:hp:insight_diagnostics:7.4.0.1570::~~online~win2003~x64~")
+		if _, err := UnbindURI("cpe:/a:hp:insight_diagnostics:7.4.0.1570::~~online~win2003~x64~"); err != nil {
+			logger.Log("msg", "BenchmarkUnbindURI error: "+err.Error())
+		}
 	}
 }
 

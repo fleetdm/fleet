@@ -15,6 +15,7 @@
 package wfn
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -288,9 +289,11 @@ func Match(src, tgt *Attributes) bool {
 // ANY and NA are logical values as defined per [CPE23-N:5.3.1]
 // i and k are wildcard-free attribute-value strings that are not identical, e.g. i is "foo" and k is "bar"
 // m + w is attribute-value string containing a legal combination of unquoted question mark or asterisk wildcards
-//       at the beginning and/or the end of the string, e.g. "*b??"
-//   Enumeration of
-//   Attribute Comparison Set Relations
+//
+//	    at the beginning and/or the end of the string, e.g. "*b??"
+//	Enumeration of
+//	Attribute Comparison Set Relations
+//
 // +------------+------------+--------------+
 // | Source A-V | Target A-V | Relation     |
 // +------------+------------+--------------+
@@ -314,7 +317,7 @@ func Match(src, tgt *Attributes) bool {
 // +----------------------------------------+
 func CompareAttr(src, tgt string) (Relation, error) {
 	if src != NA && src != Any && HasWildcard(tgt) {
-		return Disjoint, fmt.Errorf("target attribute value cannot contain wildcard")
+		return Disjoint, errors.New("target attribute value cannot contain wildcard")
 	}
 	if src == tgt {
 		return Equal, nil
