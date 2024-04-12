@@ -1,23 +1,24 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
-import { noop } from "lodash";
 
+import PATHS from "router/paths";
 import labelsAPI, { IGetLabelResonse } from "services/entities/labels";
+import hostAPI from "services/entities/hosts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { ILabel } from "interfaces/label";
-import { QueryContext } from "context/query";
-import useToggleSidePanel from "hooks/useToggleSidePanel";
+import { IHost } from "interfaces/host";
+import { NotificationContext } from "context/notification";
 
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import SidePanelContent from "components/SidePanelContent";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
 import DynamicLabelForm from "../components/DynamicLabelForm";
 import ManualLabelForm from "../components/ManualLabelForm";
+import { IDynamicLabelFormData } from "../components/DynamicLabelForm/DynamicLabelForm";
+import { IManualLabelFormData } from "../components/ManualLabelForm/ManualLabelForm";
 
 const baseClass = "edit-label-page";
 
@@ -31,7 +32,8 @@ type IEditLabelPageProps = RouteComponentProps<
 >;
 
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
-  // GET LABEL
+  const { renderFlash } = useContext(NotificationContext);
+
   const labelId = parseInt(routeParams.label_id, 10);
 
   const {
@@ -47,37 +49,69 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     }
   );
 
+  // TODO: clean this up when API allows getting hosts by
+  // host ids in a single request. We need to make another request when
+  // the lable is manual to get the host data for the targeted hosts.
+  const {
+    data: targetedHosts,
+    isLoading: isLoadingHosts,
+    isError: isErrorHosts,
+  } = useQuery<{ host: IHost }[], AxiosError, IHost[]>(
+    ["hosts"],
+    () => {
+      return hostAPI.getHosts(label?.host_ids ?? []);
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (res) => res.map((host) => host.host),
+      enabled: label?.label_membership_type === "manual",
+    }
+  );
+
   const onCancelEdit = () => {
     router.goBack();
   };
 
+  const onUpdateLabel = async (
+    formData: IDynamicLabelFormData | IManualLabelFormData
+  ) => {
+    try {
+      const res = await labelsAPI.update(labelId, formData);
+      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+      renderFlash("success", "Label updated successfully.");
+    } catch {
+      renderFlash("error", "Couldn't edit label. Please try again.");
+    }
+  };
+
   const renderContent = () => {
-    if (isLoadingLabel) {
+    if (isLoadingLabel || isLoadingHosts) {
       return <Spinner />;
     }
 
     // TODO: new empty state
-    if (isErrorLabel) {
+    if (isErrorLabel || isErrorHosts) {
       return <DataError />;
     }
 
     if (label) {
-      return label.label_membership_type ? (
+      return label.label_membership_type === "dynamic" ? (
         <DynamicLabelForm
           defaultName={label.name}
           defaultDescription={label.description}
           defaultQuery={label.query}
           defaultPlatform={label.platform}
           isEditing
-          onSave={noop}
+          onSave={onUpdateLabel}
           onCancel={onCancelEdit}
         />
       ) : (
         <ManualLabelForm
+          key={targetedHosts?.toString()}
           defaultName={label.name}
           defaultDescription={label.description}
-          defaultTargetedHosts={[]}
-          onSave={noop}
+          defaultTargetedHosts={targetedHosts}
+          onSave={onUpdateLabel}
           onCancel={onCancelEdit}
         />
       );

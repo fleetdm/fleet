@@ -5,6 +5,10 @@ import helpers from "utilities/helpers";
 import { ILabel, ILabelSummary } from "interfaces/label";
 import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
 import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
+import {
+  createMockGetLabelResponse,
+  createMockLabel,
+} from "__mocks__/labelsMock";
 
 export interface ILabelsResponse {
   labels: ILabel[];
@@ -17,10 +21,8 @@ export interface ILabelsSummaryResponse {
 export interface ICreateLabelResponse {
   label: ILabel;
 }
-
-export interface IGetLabelResonse {
-  label: ILabel;
-}
+export type IUpdateLabelResponse = ICreateLabelResponse;
+export type IGetLabelResonse = ICreateLabelResponse;
 
 const isManualLabelFormData = (
   formData: IDynamicLabelFormData | IManualLabelFormData
@@ -42,15 +44,17 @@ const generateCreateLabelBody = (
   return formData;
 };
 
+const generateUpdateLabelBody = generateCreateLabelBody;
+
 export default {
   create: (
     formData: IDynamicLabelFormData | IManualLabelFormData
   ): Promise<ICreateLabelResponse> => {
     const { LABELS } = endpoints;
-
     const postBody = generateCreateLabelBody(formData);
     return sendRequest("POST", LABELS, postBody);
   },
+
   destroy: (label: ILabel) => {
     const { LABELS } = endpoints;
     const path = `${LABELS}/id/${label.id}`;
@@ -74,25 +78,16 @@ export default {
 
     return sendRequest("GET", LABELS_SUMMARY);
   },
-  update: async (label: ILabel, updatedAttrs: ILabel) => {
-    const { LABEL } = endpoints;
 
-    try {
-      const { label: updatedLabel } = await sendRequest(
-        "PATCH",
-        LABEL(label.id),
-        updatedAttrs
-      );
-      return {
-        ...updatedLabel,
-        slug: helpers.labelSlug(updatedLabel),
-        type: "custom",
-      };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+  update: async (
+    labelId: number,
+    formData: IDynamicLabelFormData | IManualLabelFormData
+  ): Promise<IUpdateLabelResponse> => {
+    const { LABEL } = endpoints;
+    const updateAttrs = generateUpdateLabelBody(formData);
+    return sendRequest("PATCH", LABEL(labelId), updateAttrs);
   },
+
   specByName: (labelName: string) => {
     const { LABEL_SPEC_BY_NAME } = endpoints;
     const path = LABEL_SPEC_BY_NAME(labelName);
