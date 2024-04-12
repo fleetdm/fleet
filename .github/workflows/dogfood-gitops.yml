@@ -52,7 +52,7 @@ jobs:
           FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
           FLEET_URL: https://dogfood.fleetdm.com
           FLEET_API_TOKEN: ${{ secrets.DOGFOOD_API_TOKEN }}
-          DOGFOOD_APPLE_BM_DEFAULT_TEAM: "💻Workstations"
+          DOGFOOD_APPLE_BM_DEFAULT_TEAM: "💻 Workstations"
           DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL: ${{ secrets.DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL }}
           DOGFOOD_GLOBAL_ENROLL_SECRET: ${{ secrets.DOGFOOD_GLOBAL_ENROLL_SECRET }}
           DOGFOOD_SSO_ISSUER_URI: ${{ secrets.DOGFOOD_SSO_ISSUER_URI }}
