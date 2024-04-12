@@ -34,7 +34,8 @@ const generateCreateLabelBody = (
   // we need to prepare the post body for only manual labels.
   if (isManualLabelFormData(formData)) {
     return {
-      ...formData,
+      name: formData.name,
+      description: formData.description,
       hosts: formData.targetedHosts.map((host) => host.id),
     };
   }
