@@ -269,8 +269,8 @@ export interface IHost {
   uuid: string;
   platform: string;
   osquery_version: string;
-  orbit_version?: string;
-  fleet_desktop_version?: string;
+  orbit_version: string | null;
+  fleet_desktop_version: string | null;
   os_version: string;
   build: string;
   platform_like: string; // TODO: replace with more specific union type
