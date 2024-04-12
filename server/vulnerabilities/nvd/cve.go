@@ -32,8 +32,7 @@ import (
 )
 
 const (
-	vulnOwner = "mostlikelee"
-	vulnRepo  = "vulnerabilities"
+	vulnRepo = "vulnerabilities"
 )
 
 // Define a regex pattern for semver (simplified)
@@ -89,7 +88,7 @@ func getGitHubCVEAssetPath() (string, error) {
 
 	releases, _, err := ghClient.Repositories.ListReleases(
 		context.Background(),
-		vulnOwner,
+		owner,
 		vulnRepo,
 		&github.ListOptions{Page: 0, PerPage: 10},
 	)
@@ -116,7 +115,7 @@ func getGitHubCVEAssetPath() (string, error) {
 		return "", errors.New("no CVE feed found")
 	}
 
-	return fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/", vulnOwner, vulnRepo, found), nil
+	return fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/", owner, vulnRepo, found), nil
 }
 
 func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
