@@ -18,13 +18,13 @@ import Icon from "components/Icon/Icon";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
 import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
 import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";
-import TooltipWrapper from "components/TooltipWrapper";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
