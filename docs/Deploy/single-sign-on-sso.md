@@ -14,7 +14,7 @@ Create a new SAML app in Okta:
 
 If you're configuring [end user authentication](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
-Once configured, you will need to retrieve the Issuer URI from the `View Setup Instructions` and metadata URL from the `Identity Provider metadata` link within the application `Sign on` settings. See below for where to find them:
+Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
 
 ![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
 
