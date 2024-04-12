@@ -4,12 +4,12 @@ import { useDebouncedCallback } from "use-debounce";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import FleetAce from "components/FleetAce";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 import LabelForm from "../LabelForm";
 import { ILabelFormData } from "../LabelForm/LabelForm";
 import PlatformField from "../PlatformField";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 const baseClass = "dynamic-label-form";
 

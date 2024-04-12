@@ -2,7 +2,9 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
-import { ILabel, ILabelFormData, ILabelSummary } from "interfaces/label";
+import { ILabel, ILabelSummary } from "interfaces/label";
+import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
+import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
 
 export interface ILabelsResponse {
   labels: ILabel[];
@@ -12,30 +14,41 @@ export interface ILabelsSummaryResponse {
   labels: ILabelSummary[];
 }
 
-export type IGetLabelResonse = {
+export interface ICreateLabelResponse {
   label: ILabel;
+}
+
+export interface IGetLabelResonse {
+  label: ILabel;
+}
+
+const isManualLabelFormData = (
+  formData: IDynamicLabelFormData | IManualLabelFormData
+): formData is IManualLabelFormData => {
+  return "targetedHosts" in formData;
+};
+
+const generateCreateLabelBody = (
+  formData: IDynamicLabelFormData | IManualLabelFormData
+) => {
+  // we need to prepare the post body for only manual labels.
+  if (isManualLabelFormData(formData)) {
+    return {
+      ...formData,
+      hosts: formData.targetedHosts.map((host) => host.id),
+    };
+  }
+  return formData;
 };
 
 export default {
-  create: async (formData: ILabelFormData) => {
+  create: (
+    formData: IDynamicLabelFormData | IManualLabelFormData
+  ): Promise<ICreateLabelResponse> => {
     const { LABELS } = endpoints;
 
-    try {
-      const { label: createdLabel } = await sendRequest(
-        "POST",
-        LABELS,
-        formData
-      );
-
-      return {
-        ...createdLabel,
-        slug: helpers.labelSlug(createdLabel),
-        type: "custom",
-      };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+    const postBody = generateCreateLabelBody(formData);
+    return sendRequest("POST", LABELS, postBody);
   },
   destroy: (label: ILabel) => {
     const { LABELS } = endpoints;
