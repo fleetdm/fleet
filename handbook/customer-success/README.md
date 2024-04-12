@@ -18,6 +18,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 
+
 ### Assign a customer codename
 Occasionally, we will need to track public issues for customers who wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
@@ -26,7 +27,7 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
 - Make sure the issue has a "customer request" label or "customer-codename" label.
   - Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 - "+" prefixed labels (e.g., "+more info please") indicate we are waiting on an answer from an external community member who does not work at Fleet or that no further action is needed from the Fleet team until an external community member, who doesn't work at Fleet, replies with a comment. At this point, our bot will automatically remove the +-prefixed label.
-- 1. Required details that will help speed up time to resolution:
+1. Required details that will help speed up time to resolution:
     - Fleet server version
     - Agent version 
         - Osquery or fleetd?
@@ -109,4 +110,4 @@ The following stubs are included only to make links backward compatible.
 Please see [Handbook/customer-success#respond-to-messages-and-alerts](https://www.fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts)
 
 <meta name="maintainedBy" value="zayhanlon">
-<meta name="title" value="🏹 Customer Success">
+<meta name="title" value="🌦️ Customer Success">

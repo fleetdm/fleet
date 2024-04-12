@@ -17,9 +17,15 @@ module.exports = {
 
 
   fn: async function () {
-
-    // Respond with view.
-    return {};
+    if(this.req.me.lastSubmittedGetStartedQuestionnaireStep && !_.isEmpty(this.req.me.getStartedQuestionnaireAnswers)){
+      let currentStep = this.req.me.lastSubmittedGetStartedQuestionnaireStep;
+      let previouslyAnsweredQuestions = this.req.me.getStartedQuestionnaireAnswers;
+      // Respond with view.
+      return {currentStep, previouslyAnsweredQuestions};
+    } else {
+      // Respond with view.
+      return;
+    }
 
   }
 

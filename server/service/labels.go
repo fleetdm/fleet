@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -64,6 +66,12 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		label.Description = *p.Description
 	}
 
+	for name := range fleet.ReservedLabelNames() {
+		if label.Name == name {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
+		}
+	}
+
 	label, err := svc.ds.NewLabel(ctx, label)
 	if err != nil {
 		return nil, err
@@ -111,7 +119,16 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if err != nil {
 		return nil, err
 	}
+	if label.LabelType == fleet.LabelTypeBuiltIn {
+		return nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
+	}
 	if payload.Name != nil {
+		// Check if the new name is a reserved label name
+		for name := range fleet.ReservedLabelNames() {
+			if *payload.Name == name {
+				return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot rename label to '%s' because it conflicts with the name of a built-in label", name))
+			}
+		}
 		label.Name = *payload.Name
 	}
 	if payload.Description != nil {
@@ -319,6 +336,13 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 		return err
 	}
 
+	// check if the label is a built-in label
+	for n := range fleet.ReservedLabelNames() {
+		if n == name {
+			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", name))
+		}
+	}
+
 	return svc.ds.DeleteLabel(ctx, name)
 }
 
@@ -354,6 +378,15 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 	if err != nil {
 		return err
 	}
+	if label.LabelType == fleet.LabelTypeBuiltIn {
+		return fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot delete built-in label '%s'", label.Name))
+	}
+	for name := range fleet.ReservedLabelNames() {
+		if label.Name == name {
+			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", label.Name))
+		}
+	}
+
 	return svc.ds.DeleteLabel(ctx, label.Name)
 }
 
@@ -392,6 +425,14 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeManual && spec.Hosts == nil {
 			// Hosts list doesn't need to contain anything, but it should at least not be nil.
 			return ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name)
+		}
+		if spec.LabelType == fleet.LabelTypeBuiltIn {
+			return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", spec.Name), http.StatusUnprocessableEntity)
+		}
+		for name := range fleet.ReservedLabelNames() {
+			if spec.Name == name {
+				return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", name), http.StatusUnprocessableEntity)
+			}
 		}
 	}
 	return svc.ds.ApplyLabelSpecs(ctx, specs)

@@ -46,7 +46,7 @@ columns:
   - name: uuid
   - name: email
     required: false
-    type: string
+    type: text
     description: Email
     platforms:
       - chrome

@@ -1,0 +1,1 @@
+* Fix bug where query retrieving bitlocker info from windows server wouldn't return

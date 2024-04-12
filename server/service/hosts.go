@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
+	"github.com/go-kit/kit/log/level"
 	"github.com/gocarina/gocsv"
 )
 
@@ -1029,17 +1030,30 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			if !ac.MDM.WindowsEnabledAndConfigured {
 				break
 			}
+
 			if license.IsPremium(ctx) {
-				hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+				// we include disk encryption status only for premium so initialize it to default struct
+				host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
+				// ensure host mdm info is loaded (we don't know if our caller populated it)
+				err := svc.ensureHostMDMInfo(ctx, host)
 				switch {
+				case err != nil && fleet.IsNotFound(err):
+					// assume host is unmanaged, log for debugging, and move on
+					level.Debug(svc.logger).Log("msg", "cannot determine bitlocker status because no mdm info for host", "host_id", host.ID)
 				case err != nil:
-					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
-				case hde != nil:
-					host.MDM.OSSettings.DiskEncryption = *hde
+					return nil, ctxerr.Wrap(ctx, err, "ensure host mdm info")
 				default:
-					host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
+					hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
+					}
+					if hde != nil {
+						// overwrite the default disk encryption status
+						host.MDM.OSSettings.DiskEncryption = *hde
+					}
 				}
 			}
+
 			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
@@ -1122,6 +1136,21 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Packs:     packs,
 		Batteries: &bats,
 	}, nil
+}
+
+func (svc *Service) ensureHostMDMInfo(ctx context.Context, host *fleet.Host) error {
+	if host.MDMInfo == nil {
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil {
+			return err
+		}
+		host.MDMInfo = mdmInfo
+	}
+	if host.MDMInfo == nil {
+		// this should not happen, but just in case
+		return ctxerr.New(ctx, fmt.Sprintf("nil mdm info for host %d", host.ID))
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

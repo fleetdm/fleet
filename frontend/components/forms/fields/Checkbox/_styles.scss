@@ -29,6 +29,18 @@
         }
       }
 
+      &--disabled {
+        &::after {
+          @include disabled-checkbox;
+        }
+
+        &:hover {
+          &::after {
+            @include disabled-checkbox;
+          }
+        }
+      }
+
       &::before {
         @include position(absolute, 50% null null 50%);
         transform: rotate(45deg);
@@ -41,6 +53,7 @@
         border-top: 0;
         border-left: 0;
         content: "";
+        z-index: 9;
       }
     }
   }
@@ -109,6 +122,10 @@
     padding-left: $pad-small;
     display: inline-block;
     vertical-align: top;
+
+    &--disabled {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &__label-tooltip {
