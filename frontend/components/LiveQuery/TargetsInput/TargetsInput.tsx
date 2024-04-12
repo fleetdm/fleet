@@ -18,8 +18,11 @@ interface ITargetsInputProps {
   isTargetsLoading: boolean;
   hasFetchError: boolean;
   targetedHosts: IHost[];
-  searchResultsTableConfig: ITargestInputHostTableConfig[]; // TODO: add typing;
-  selectedHostsTableConifg: ITargestInputHostTableConfig[]; // TODO: add typing;
+  searchResultsTableConfig: ITargestInputHostTableConfig[];
+  selectedHostsTableConifg: ITargestInputHostTableConfig[];
+  /** disabled pagination for the results table. The pagination is currently
+   * client side pagination. Defaults to `false` */
+  disablePagination?: boolean;
   label?: string;
   placeholder?: string;
   setSearchText: (value: string) => void;
@@ -39,6 +42,7 @@ const TargetsInput = ({
   targetedHosts,
   searchResultsTableConfig,
   selectedHostsTableConifg,
+  disablePagination = false,
   label = DEFAULT_LABEL,
   placeholder = HOSTS_SEARCH_BOX_PLACEHOLDER,
   handleRowSelect,
@@ -106,7 +110,8 @@ const TargetsInput = ({
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount
-            disablePagination
+            disablePagination={disablePagination}
+            isClientSidePagination={!disablePagination}
             emptyComponent={() => <></>}
           />
         </div>

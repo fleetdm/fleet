@@ -464,6 +464,7 @@ const SelectTargets = ({
         hasFetchError={!!errorSearchResults}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
+        disablePagination
       />
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
