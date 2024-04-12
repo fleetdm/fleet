@@ -6,6 +6,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import FormField from "components/forms/FormField";
 
 const PLATFORM_STRINGS: { [key: string]: string } = {
+  allPlatforms: "All platforms",
   darwin: "macOS",
   windows: "MS Windows",
   ubuntu: "Ubuntu Linux",

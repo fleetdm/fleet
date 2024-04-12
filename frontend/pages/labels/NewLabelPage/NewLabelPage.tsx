@@ -45,7 +45,6 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
-
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
 

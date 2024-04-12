@@ -24,17 +24,17 @@ export interface IDynamicLabelFormData {
 }
 
 interface IDynamicLabelFormProps {
-  showOpenSidebarButton: boolean;
+  showOpenSidebarButton?: boolean;
   defaultQuery?: string;
   defaultPlatform?: string;
   isEditing?: boolean;
-  onOpenSidebar: () => void;
+  onOpenSidebar?: () => void;
   onSave: (formData: IDynamicLabelFormData) => void;
   onCancel: () => void;
 }
 
 const DynamicLabelForm = ({
-  showOpenSidebarButton,
+  showOpenSidebarButton = false,
   defaultQuery = "",
   defaultPlatform = "allPlatforms",
   isEditing = false,
@@ -129,7 +129,11 @@ const DynamicLabelForm = ({
               helpText={isEditing ? IMMUTABLE_QUERY_HELP_TEXT : ""}
               wrapEnabled
             />
-            <PlatformField platform={platform} onChange={onChangePlatform} />
+            <PlatformField
+              platform={platform}
+              isEditing={isEditing}
+              onChange={onChangePlatform}
+            />
           </>
         }
       />
