@@ -3765,7 +3765,7 @@ Install managed software on macOS, Windows, or Linux (Ubuntu) host.
 | id                | integer    | path | **Required**. The host's ID.                     |
 | software_title_id | integer    | path | **Required**. The software title's ID.           |
 
-Software title must be `managed` to be installed.
+Software title must have `software_package` added to be installed.
 
 #### Example
 
@@ -7997,7 +7997,7 @@ Get a list of all software.
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
-| managed              | bool    | query | If true or 1, only list software that is managed (added by the user). Default is `false`.                                                                                    |
+| available_for_insall    | bool    | query | If true or 1, only list software that is availble for install (added by the user). Default is `false`.                                                                                    |
 
 #### Example
 
@@ -8015,6 +8015,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "software_package": "FirefoxInstall.pkg",
       "versions_count": 3,
       "source": "apps",
       "browser": "",
@@ -8040,6 +8041,7 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
+      "software_package": null,
       "versions_count": 5,
       "source": "apps",
       "browser": "",
@@ -8070,6 +8072,7 @@ Get a list of all software.
     {
       "id": 32,
       "name": "1Password – Password Manager",
+      "software_package": null,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
@@ -8190,8 +8193,8 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
-    "managed": {
-      "installer": "FalconSensor-6.44.pkg",
+    "software_package": {
+      "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
       "uploaded_at": "2024-04-01T14:22:58Z",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
@@ -8201,7 +8204,6 @@ Returns information about the specified software. By default, `versions` are sor
         "pending": 1,
         "failed": 2,
       }
-      "broken": "false",
     },
     "source": "apps",
     "browser": "",
