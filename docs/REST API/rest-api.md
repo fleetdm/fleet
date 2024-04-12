@@ -3691,7 +3691,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "managed": true,
+      "software_package": "GoogleChrome.pkg",
       "source": "apps",
       "bundle_identifier": "com.google.Chrome",
       "status": "failed",
@@ -3712,7 +3712,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 134,
       "name": "Falcon.app",
-      "managed": true,
+      "software_package": "FalconSensor-6.44.pkg",
       "source": "",
       "bundle_identifier": "",
       "status": null,
@@ -3723,7 +3723,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 147,
       "name": "Firefox.app",
-      "managed": false,
+      "software_package": null,
       "source": "apps",
       "bundle_identifier": "org.mozilla.firefox",
       "status": null,
