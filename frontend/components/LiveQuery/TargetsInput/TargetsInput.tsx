@@ -18,12 +18,17 @@ interface ITargetsInputProps {
   isTargetsLoading: boolean;
   hasFetchError: boolean;
   targetedHosts: IHost[];
-  tableColumnConifg: any; // TODO: add typing;
+  searchResultsTableConfig: any; // TODO: add typing;
+  selectedHostsTableConifg: any; // TODO: add typing;
+  label?: string;
+  placeholder?: string;
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row<IHost>) => void;
 }
 
 const baseClass = "targets-input";
+
+const DEFAULT_LABEL = "Target specific hosts";
 
 const TargetsInput = ({
   tabIndex,
@@ -32,11 +37,13 @@ const TargetsInput = ({
   isTargetsLoading,
   hasFetchError,
   targetedHosts,
-  tableColumnConifg,
+  searchResultsTableConfig,
+  selectedHostsTableConifg,
+  label = DEFAULT_LABEL,
+  placeholder = HOSTS_SEARCH_BOX_PLACEHOLDER,
   handleRowSelect,
   setSearchText,
 }: ITargetsInputProps): JSX.Element => {
-  const resultsDropdownTableHeaders = generateTableHeaders();
   const dropdownHosts =
     searchResults && pullAllBy(searchResults, targetedHosts, "display_name");
   const isActiveSearch =
@@ -53,14 +60,14 @@ const TargetsInput = ({
           value={searchText}
           tabIndex={tabIndex}
           iconPosition="start"
-          label="Target specific hosts"
-          placeholder={HOSTS_SEARCH_BOX_PLACEHOLDER}
+          label={label}
+          placeholder={placeholder}
           onChange={setSearchText}
         />
         {isActiveSearch && (
           <div className={`${baseClass}__hosts-search-dropdown`}>
             <TableContainer<Row<IHost>>
-              columnConfigs={resultsDropdownTableHeaders}
+              columnConfigs={searchResultsTableConfig}
               data={dropdownHosts}
               isLoading={isTargetsLoading}
               resultsTitle=""
@@ -92,7 +99,7 @@ const TargetsInput = ({
         )}
         <div className={`${baseClass}__hosts-selected-table`}>
           <TableContainer
-            columnConfigs={tableColumnConifg}
+            columnConfigs={selectedHostsTableConifg}
             data={targetedHosts}
             isLoading={false}
             resultsTitle=""

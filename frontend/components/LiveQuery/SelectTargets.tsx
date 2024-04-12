@@ -434,7 +434,8 @@ const SelectTargets = ({
     );
   }
 
-  const selectedTableHeaders = generateTableHeaders(handleRowRemove);
+  const resultsTableConfig = generateTableHeaders();
+  const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
 
   return (
     <div className={`${baseClass}__wrapper`}>
@@ -453,7 +454,8 @@ const SelectTargets = ({
           renderTargetEntityList("Labels", labels.other)}
       </div>
       <TargetsInput
-        tableColumnConifg={selectedTableHeaders}
+        searchResultsTableConfig={resultsTableConfig}
+        selectedHostsTableConifg={selectedHostsTableConfig}
         tabIndex={inputTabIndex || 0}
         searchText={searchText}
         searchResults={searchResults || []}
@@ -462,7 +464,6 @@ const SelectTargets = ({
         hasFetchError={!!errorSearchResults}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
-        handleRowRemove={handleRowRemove}
       />
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button

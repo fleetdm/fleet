@@ -1,25 +1,26 @@
-import React, { useState } from "react";
+import React, { useDeferredValue, useState } from "react";
 import { useQuery } from "react-query";
+import { Row } from "react-table";
 
 import { IHost } from "interfaces/host";
-import targetsAPI, {
-  ITargetsCountResponse,
-  ITargetsSearchResponse,
-} from "services/entities/targets";
+import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
 
 import TargetsInput from "components/LiveQuery/TargetsInput";
 
 import LabelForm from "../LabelForm";
 import { ILabelFormData } from "../LabelForm/LabelForm";
-import { Row } from "react-table";
 import { generateTableHeaders } from "./LabelHostTargetTableConfig";
 
 const baseClass = "ManualLabelForm";
 
+const LABEL_TARGET_HOSTS_INPUT_LABEL = "Select hosts";
+const LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER =
+  "Search name, hostname, serial number, or location (private IP address)";
+
 export interface IManualLabelFormData {
   name: string;
   description: string;
-  hosts: string[];
+  targetedHosts: IHost[];
 }
 
 interface ITargetsQueryKey {
@@ -29,19 +30,21 @@ interface ITargetsQueryKey {
 }
 
 interface IManualLabelFormProps {
-  defaultSelectedHosts?: IHost[];
+  defaultTargetedHosts?: IHost[];
   onSave: (formData: IManualLabelFormData) => void;
   onCancel: () => void;
 }
 
 const ManualLabelForm = ({
-  defaultSelectedHosts = [],
+  defaultTargetedHosts = [],
   onSave,
   onCancel,
 }: IManualLabelFormProps) => {
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedHosts, setSelectedHosts] = useState<IHost[]>(
-    defaultSelectedHosts
+  const defferedQuery = useDeferredValue(searchQuery);
+
+  const [targetedHosts, setTargetedHosts] = useState<IHost[]>(
+    defaultTargetedHosts
   );
 
   const {
@@ -52,7 +55,7 @@ const ManualLabelForm = ({
     [
       {
         scope: "labels-targets-search",
-        query: searchQuery,
+        query: defferedQuery,
         excludedHostIds: [], // TODO: add this
       },
     ],
@@ -65,29 +68,37 @@ const ManualLabelForm = ({
     },
     {
       select: (data) => data.hosts,
-      enabled: searchQuery !== "",
+      enabled: defferedQuery !== "",
     }
   );
 
   const onHostSelect = (row: Row<IHost>) => {
-    setSelectedHosts((prevHosts) => prevHosts.concat(row.original));
+    setTargetedHosts((prevHosts) => prevHosts.concat(row.original));
     setSearchQuery("");
   };
 
   const onHostRemove = (row: Row<IHost>) => {
-    setSelectedHosts((prevHosts) =>
+    setTargetedHosts((prevHosts) =>
       prevHosts.filter((h) => h.id !== row.original.id)
     );
   };
 
   const onSaveNewLabel = (
-    formData: ILabelFormData,
+    labelFormData: ILabelFormData,
     labelFormDataValid: boolean
   ) => {
-    console.log("data", formData);
+    if (labelFormDataValid) {
+      // values from LabelForm component must be valid too
+      onSave({ ...labelFormData, targetedHosts });
+    }
   };
 
-  const tableConfig = generateTableHeaders(onHostRemove);
+  const onChangeSearchQuery = (value: string) => {
+    setSearchQuery(value);
+  };
+
+  const resultsTableConfig = generateTableHeaders();
+  const selectedHostsTableConfig = generateTableHeaders(onHostRemove);
 
   return (
     <div className={baseClass}>
@@ -96,13 +107,16 @@ const ManualLabelForm = ({
         onSave={onSaveNewLabel}
         additionalFields={
           <TargetsInput
+            label={LABEL_TARGET_HOSTS_INPUT_LABEL}
+            placeholder={LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER}
             searchText={searchQuery}
-            setSearchText={setSearchQuery}
-            tableColumnConifg={tableConfig}
+            searchResultsTableConfig={resultsTableConfig}
+            selectedHostsTableConifg={selectedHostsTableConfig}
             isTargetsLoading={false}
             hasFetchError={false}
             searchResults={hostTargets ?? []}
-            targetedHosts={selectedHosts}
+            targetedHosts={targetedHosts}
+            setSearchText={onChangeSearchQuery}
             handleRowSelect={onHostSelect}
           />
         }

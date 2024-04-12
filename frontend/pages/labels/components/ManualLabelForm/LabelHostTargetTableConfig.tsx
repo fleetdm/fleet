@@ -7,8 +7,6 @@ import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
-import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon/Icon";
 
 type ITargestInputhostTableConfig = Column<IHost>;
@@ -46,17 +44,12 @@ export const generateTableHeaders = (
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      Header: "UUID",
-      accessor: "uuid",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
       Header: "Serial number",
       accessor: "hardware_serial",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      Header: "Private IP address",
+      Header: "Location",
       accessor: "primary_ip",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
