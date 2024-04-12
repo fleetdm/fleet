@@ -1,5 +1,9 @@
-import { IHost, IHostResponse } from "interfaces/host";
+import { IHost } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
+import { pick } from "lodash";
+
+import { normalizeEmptyValues } from "utilities/helpers";
+import { HOST_SUMMARY_DATA } from "utilities/constants";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",
@@ -35,7 +39,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   platform: "ubuntu",
   osquery_version: "4.9.0",
   orbit_version: "1.22.0",
-  fleet_desktop_version: "1.22.0",
+  fleet_desktop_version: "1.22.1",
   os_version: "Ubuntu 18.4.0",
   build: "",
   platform_like: "debian",
@@ -105,5 +109,11 @@ const createMockHost = (overrides?: Partial<IHost>): IHost => {
 };
 
 export const createMockHostResponse = { host: createMockHost() };
+
+export const createMockHostSummary = (overrides?: Partial<IHost>) => {
+  return normalizeEmptyValues(
+    pick(createMockHost(overrides), HOST_SUMMARY_DATA)
+  );
+};
 
 export default createMockHost;
