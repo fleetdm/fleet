@@ -416,7 +416,7 @@ Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses de
 Follow these steps to process and backup the E-group agenda: 
 1. [Archive the E-group agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
-3. If the "All hands" meeting has happened today
+3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
 
 ### Check LinkedIn for unread messages 
 Once a day the Apprentice will confirm check LinkedIn for unread messages. 
