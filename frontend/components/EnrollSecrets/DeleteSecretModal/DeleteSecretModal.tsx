@@ -51,7 +51,7 @@ const DeleteSecretModal = ({
           </p>
           <p>
             Any enrolled hosts using this secret will not receive updates
-            through Orbit including updates to agent options and command line
+            through Fleet's agent (fleetd), including updates to agent options and command line
             flags.
           </p>
           <p>
