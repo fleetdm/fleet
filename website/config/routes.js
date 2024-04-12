@@ -350,7 +350,7 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/business-operations/security',
-  'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.comm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
@@ -486,7 +486,7 @@ module.exports.routes = {
   'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',
   'GET /learn-more-about/enabling-calendar-api': 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
   'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
-  'GET /learn-more-about/fleetd': 'https://fleetdm.com/docs/get-started/anatomy#fleetd',
+  'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
 
   // Sitemap
   // =============================================================================================================
