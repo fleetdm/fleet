@@ -163,6 +163,7 @@ func TestHosts(t *testing.T) {
 		{"ListHostsWithPagination", testListHostsWithPagination},
 		{"LastRestarted", testLastRestarted},
 		{"HostHealth", testHostHealth},
+		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -211,9 +212,22 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	assert.Equal(t, policyUpdatedAt.UTC(), host.PolicyUpdatedAt)
 	assert.NotNil(t, host.RefetchCriticalQueriesUntil)
 	assert.True(t, time.Now().Before(*host.RefetchCriticalQueriesUntil))
+	assert.Nil(t, host.OrbitVersion)
+	assert.Nil(t, host.DesktopVersion)
+	assert.Nil(t, host.ScriptsEnabled)
 
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	err = ds.SaveHostAdditional(context.Background(), host.ID, &additionalJSON)
+	require.NoError(t, err)
+	// set host orbit info
+	var (
+		orbitVersion   = "1.1.0"
+		desktopVersion = "2.1.0"
+	)
+	err = ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, orbitVersion, sql.NullString{String: desktopVersion, Valid: true},
+		sql.NullBool{Bool: true, Valid: true},
+	)
 	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
@@ -221,6 +235,9 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	require.NotNil(t, host)
 	require.NotNil(t, host.Additional)
 	assert.Equal(t, additionalJSON, *host.Additional)
+	assert.Equal(t, orbitVersion, *host.OrbitVersion)
+	assert.Equal(t, desktopVersion, *host.DesktopVersion)
+	assert.True(t, *host.ScriptsEnabled)
 
 	err = updateHostFunc(context.Background(), host)
 	require.NoError(t, err)
@@ -229,10 +246,18 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	err = updateHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
+	err = ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, orbitVersion, sql.NullString{Valid: false}, sql.NullBool{Valid: false},
+	)
+	require.NoError(t, err)
+
 	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.NotNil(t, host)
 	require.Nil(t, host.RefetchCriticalQueriesUntil)
+	assert.Equal(t, orbitVersion, *host.OrbitVersion)
+	assert.Nil(t, host.DesktopVersion)
+	assert.Nil(t, host.ScriptsEnabled)
 
 	p, err := ds.NewPack(context.Background(), &fleet.Pack{
 		Name:    t.Name(),
@@ -6515,7 +6540,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0)
 	require.NoError(t, err)
 	// set host orbit info
-	err = ds.SetOrUpdateHostOrbitInfo(context.Background(), host.ID, "1.1.0")
+	err = ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, "1.1.0", sql.NullString{String: "2.1.0", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	)
 	require.NoError(t, err)
 	// set an encryption key
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "TESTKEY", "", nil)
@@ -8729,4 +8756,42 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.Empty(t, hh.FailingPolicies)
 	require.Empty(t, hh.VulnerableSoftware)
 	require.Equal(t, h.TeamID, hh.TeamID)
+}
+
+func testGetHostOrbitInfo(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(
+		context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("1"),
+			UUID:            "1",
+			Hostname:        "foo.local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	_, err = ds.GetHostOrbitInfo(context.Background(), host.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	orbitVersion := "1.1.0"
+	err = ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, orbitVersion, sql.NullString{Valid: false}, sql.NullBool{Valid: false},
+	)
+	require.NoError(t, err)
+	hostOrbitInfo, err := ds.GetHostOrbitInfo(context.Background(), host.ID)
+	require.NoError(t, err)
+	assert.Nil(t, hostOrbitInfo.ScriptsEnabled)
+
+	err = ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, orbitVersion, sql.NullString{Valid: false}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
+	hostOrbitInfo, err = ds.GetHostOrbitInfo(context.Background(), host.ID)
+	require.NoError(t, err)
+	assert.True(t, *hostOrbitInfo.ScriptsEnabled)
 }
