@@ -558,6 +558,43 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Lock")).toBeInTheDocument();
     });
 
+    it("renders as disabled with a tooltip when scripts_enabled is set to false for windows/linux", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="debian"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      await user.hover(screen.getByText("Lock"));
+
+      expect(
+        screen.getByText("Lock").parentNode?.parentNode?.parentNode
+      ).toHaveClass("is-disabled");
+
+      expect(
+        screen.getByText(/fleetd agent with --enable-scripts/i)
+      ).toBeInTheDocument();
+    });
+
     it("does not render when the host is not enrolled in mdm", async () => {
       const render = createCustomRenderer({
         context: {
@@ -770,6 +807,43 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
     });
+
+    it("renders as disabled with a tooltip when scripts_enabled is set to false for windows/linux", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="offline"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="windows"
+          hostMdmDeviceStatus="locked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      await user.hover(screen.getByText("Unlock"));
+
+      expect(
+        screen.getByText("Unlock").parentNode?.parentNode?.parentNode
+      ).toHaveClass("is-disabled");
+
+      expect(
+        screen.getByText(/fleetd agent with --enable-scripts/i)
+      ).toBeInTheDocument();
+    });
   });
 
   describe("Wipe action", () => {
@@ -863,6 +937,43 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+    });
+
+    it("renders as disabled with a tooltip when scripts_enabled is set to false for linux", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="debian"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      await user.hover(screen.getByText("Lock"));
+
+      expect(
+        screen.getByText("Wipe").parentNode?.parentNode?.parentNode
+      ).toHaveClass("is-disabled");
+
+      expect(
+        screen.getByText(/fleetd agent with --enable-scripts/i)
+      ).toBeInTheDocument();
     });
   });
 
