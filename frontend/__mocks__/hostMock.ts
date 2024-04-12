@@ -91,6 +91,7 @@ const DEFAULT_HOST_MOCK: IHost = {
     failing_policies_count: 0,
   },
   status: "offline",
+  scripts_enabled: false,
   labels: [],
   packs: [],
   software: [],

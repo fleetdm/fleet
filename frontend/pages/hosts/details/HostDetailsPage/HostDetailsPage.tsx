@@ -675,6 +675,7 @@ const HostDetailsPage = ({
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
         mdmName={mdm?.name}
+        hostScriptsEnabled={host.scripts_enabled}
       />
     );
   };
