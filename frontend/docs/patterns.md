@@ -11,12 +11,14 @@ should be discussed within the team and documented before merged.
 - [Typing](#typing)
 - [Utilities](#utilities)
 - [Components](#components)
-- [React Hooks](#react-hooks)
+- [React hooks](#react-hooks)
 - [React Context](#react-context)
-- [Fleet API Calls](#fleet-api-calls)
-- [Page Routing](#page-routing)
+- [Fleet API calls](#fleet-api-calls)
+- [Page routing](#page-routing)
 - [Styles](#styles)
-- [Icons and Images](#icons-and-images)
+- [Icons and images](#icons-and-images)
+- [Testing](#testing)
+- [Security considerations](#security-considerations)
 - [Other](#other)
 
 ## Typing
@@ -344,9 +346,9 @@ Below are a few need-to-knows about what's available in Fleet's CSS:
    action buttons (cancel, save, delete, etc.) and proceed to style as needed.
 
 
-## Icons and Images
+## Icons and images
 
-### Adding Icons
+### Adding icons
 
 To add a new icon:
 
@@ -380,6 +382,7 @@ At a bare minimum, we make every effort to test that components that should rend
 as expected. For example: `HQRTable.tests.tsx` tests that the `HQRTable` component correctly renders
 data being passed to it.
 
+At a bare minimum, critical bugs released involving the UI will have automated testing discussed at the critical bug post-mortem with a frontend engineer and an engineering manager. We make every effort to add an automated test to either the unit, integration, or E2E layer to prevent the critical bug from resurfacing.
 
 ## Security considerations
 
