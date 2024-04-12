@@ -10,7 +10,7 @@ import TabsWrapper from "components/TabsWrapper";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
 import PATHS from "router/paths";
-import { InjectedRouter, RouteComponentProps } from "react-router";
+import { RouteComponentProps } from "react-router";
 
 interface ILabelSubNavItem {
   name: string;
@@ -41,7 +41,7 @@ interface INewLabelPageProps extends RouteComponentProps<never, never> {
   children: JSX.Element;
 }
 
-const NewLabelPage = ({ router, children }: INewLabelPageProps) => {
+const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
@@ -50,6 +50,8 @@ const NewLabelPage = ({ router, children }: INewLabelPageProps) => {
   const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
     false
   );
+
+  const isDynamicLabel = location.pathname.includes("dynamic");
 
   const navigateToNav = useCallback(
     (i: number): void => {
@@ -91,7 +93,7 @@ const NewLabelPage = ({ router, children }: INewLabelPageProps) => {
           test: "test",
         })}
       </MainContent>
-      {isSidePanelOpen && (
+      {isDynamicLabel && isSidePanelOpen && (
         <SidePanelContent>
           <QuerySidePanel
             key="query-side-panel"
