@@ -3690,39 +3690,59 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
   "software_titles": [
     {
       "id": 121,
-      "name": "Google Chrome.app"
+      "name": "Google Chrome.app",
       "managed": true,
-      "versions": ["121.0"]
-      "source": "apps"
-      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+      "source": "apps",
+      "bundle_identifier": "com.google.Chrome",
       "status": "failed",
       "detail": "Software is installed, but script after installation failed.",
       "last_install": {
         "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
         "installed_at": "2024-05-15T15:23:57Z"
-      }
+      },
+      "installed_versions": [
+        { 
+          "version": "121.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Google Chrome.app"]
+        }
+      ]
     },
     {
       "id": 134,
       "name": "Falcon.app",
       "managed": true,
-      "versions": [],
       "source": "",
-      "vulnerabilities": [],
+      "bundle_identifier": "",
       "status": null,
       "detail": "",
-      "last_install": null
+      "last_install": null,
+      "installed_versions": [],
     },
     {
       "id": 147,
       "name": "Firefox.app",
       "managed": false,
-      "versions": ["112.1"],
       "source": "apps",
-      "vulnerabilities": [],
+      "bundle_identifier": "org.mozilla.firefox",
       "status": null,
       "detail": "",
-      "last_install": null
+      "last_install": null,
+      "installed_versions": [
+        {
+          "version": "118.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234"],
+          "installed_paths": ["/Applications/Firefox.app"]
+        },
+        { 
+          "version": "119.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Downloads/Firefox.app"]
+        }
+      ]
     },
   ],
   "meta": {
