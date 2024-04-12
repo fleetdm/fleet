@@ -94,30 +94,36 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       return <DataError />;
     }
 
-    if (label) {
-      return label.label_membership_type === "dynamic" ? (
-        <DynamicLabelForm
-          defaultName={label.name}
-          defaultDescription={label.description}
-          defaultQuery={label.query}
-          defaultPlatform={label.platform}
-          isEditing
-          onSave={onUpdateLabel}
-          onCancel={onCancelEdit}
-        />
-      ) : (
-        <ManualLabelForm
-          key={targetedHosts?.toString()}
-          defaultName={label.name}
-          defaultDescription={label.description}
-          defaultTargetedHosts={targetedHosts}
-          onSave={onUpdateLabel}
-          onCancel={onCancelEdit}
-        />
+    if (!label) return null;
+
+    if (label.label_type === "builtin") {
+      return (
+        <div className={`${baseClass}__wrapper`}>
+          <p>Built in labels cannot be edited</p>
+        </div>
       );
     }
 
-    return null;
+    return label.label_membership_type === "dynamic" ? (
+      <DynamicLabelForm
+        defaultName={label.name}
+        defaultDescription={label.description}
+        defaultQuery={label.query}
+        defaultPlatform={label.platform}
+        isEditing
+        onSave={onUpdateLabel}
+        onCancel={onCancelEdit}
+      />
+    ) : (
+      <ManualLabelForm
+        key={targetedHosts?.toString()}
+        defaultName={label.name}
+        defaultDescription={label.description}
+        defaultTargetedHosts={targetedHosts}
+        onSave={onUpdateLabel}
+        onCancel={onCancelEdit}
+      />
+    );
   };
 
   // GET HOSTS

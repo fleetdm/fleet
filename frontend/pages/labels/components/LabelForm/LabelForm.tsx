@@ -55,36 +55,6 @@ const LabelForm = ({
     onSave({ name, description }, isFormValid);
   };
 
-  // const renderLabelComponent = (): JSX.Element | null => {
-  //   if (!showOpenSchemaActionText) {
-  //     return null;
-  //   }
-
-  //   return (
-  //     <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
-  //       <>
-  //         <Icon name="info" size="small" />
-  //         Show schema
-  //       </>
-  //     </Button>
-  //   );
-  // };
-
-  // const isBuiltin =
-  //   selectedLabel &&
-  //   (selectedLabel.label_type === "builtin" || selectedLabel.type === "status");
-  // const aceHelpText = isEdit
-  //   ? "Label queries are immutable. To change the query, delete this label and create a new one."
-  //   : "";
-
-  // if (isBuiltin) {
-  //   return (
-  //     <div className={`${baseClass}__wrapper`}>
-  //       <h1>Built in labels cannot be edited</h1>
-  //     </div>
-  //   );
-  // }
-
   return (
     <form className={`${baseClass}__wrapper`} onSubmit={onSubmitForm}>
       <InputField
