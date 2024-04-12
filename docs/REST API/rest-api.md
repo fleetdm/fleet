@@ -6036,7 +6036,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": true
     },
     {
       "id": 2,
@@ -6054,7 +6055,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": false
     }
   ],
   "inherited_policies": [
@@ -6143,7 +6145,8 @@ Team policies work the same as policies, but at the team level.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": null
+    "host_count_updated_at": null,
+    "calendar_events_enabled": true
   }
 }
 ```
@@ -6208,7 +6211,8 @@ Either `query` or `query_id` must be provided.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": null
+    "host_count_updated_at": null,
+    "calendar_events_enabled": false
   }
 }
 ```
@@ -6262,6 +6266,7 @@ Either `query` or `query_id` must be provided.
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| calendar_events_enabled    | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
 
 #### Example
 
@@ -6302,7 +6307,8 @@ Either `query` or `query_id` must be provided.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": null
+    "host_count_updated_at": null,
+    "calendar_events_enabled": true
   }
 }
 ```
