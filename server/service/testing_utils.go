@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -40,6 +41,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
+	"golang.org/x/exp/maps"
 )
 
 func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
@@ -202,14 +204,16 @@ func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryRes
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
-	userID := uint(1)
-	for _, u := range testUsers {
+	// Map iteration is random so we sort and iterate using the testUsers keys.
+	keys := maps.Keys(testUsers)
+	sort.StringSlice(keys).Sort()
+	for _, key := range keys {
+		u := testUsers[key]
 		role := fleet.RoleObserver
 		if strings.Contains(u.Email, "admin") {
 			role = fleet.RoleAdmin
 		}
 		user := &fleet.User{
-			ID:         userID,
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
 			GlobalRole: &role,
@@ -219,7 +223,6 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 		user, err = ds.NewUser(context.Background(), user)
 		require.Nil(t, err)
 		users[user.Email] = *user
-		userID++
 	}
 	return users
 }
