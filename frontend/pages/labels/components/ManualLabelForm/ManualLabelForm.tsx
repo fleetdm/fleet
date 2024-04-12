@@ -30,12 +30,16 @@ interface ITargetsQueryKey {
 }
 
 interface IManualLabelFormProps {
+  defaultName?: string;
+  defaultDescription?: string;
   defaultTargetedHosts?: IHost[];
   onSave: (formData: IManualLabelFormData) => void;
   onCancel: () => void;
 }
 
 const ManualLabelForm = ({
+  defaultName = "",
+  defaultDescription = "",
   defaultTargetedHosts = [],
   onSave,
   onCancel,
@@ -49,8 +53,10 @@ const ManualLabelForm = ({
 
   const {
     data: hostTargets,
-    isFetching: isFetchingSearchResults,
-    error: errorSearchResults,
+    isLoading: isLoadingSearchResults,
+    isError: isErrorSearchResults,
+    // isFetching: isFetchingSearchResults,
+    // error: errorSearchResults,
   } = useQuery<ITargetsSearchResponse, Error, IHost[], ITargetsQueryKey[]>(
     [
       {
@@ -103,6 +109,8 @@ const ManualLabelForm = ({
   return (
     <div className={baseClass}>
       <LabelForm
+        defaultName={defaultName}
+        defaultDescription={defaultDescription}
         onCancel={onCancel}
         onSave={onSaveNewLabel}
         additionalFields={

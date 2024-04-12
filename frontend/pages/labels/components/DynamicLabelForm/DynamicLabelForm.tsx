@@ -24,9 +24,11 @@ export interface IDynamicLabelFormData {
 }
 
 interface IDynamicLabelFormProps {
-  showOpenSidebarButton?: boolean;
+  defaultName?: string;
+  defaultDescription?: string;
   defaultQuery?: string;
   defaultPlatform?: string;
+  showOpenSidebarButton?: boolean;
   isEditing?: boolean;
   onOpenSidebar?: () => void;
   onSave: (formData: IDynamicLabelFormData) => void;
@@ -34,10 +36,12 @@ interface IDynamicLabelFormProps {
 }
 
 const DynamicLabelForm = ({
-  showOpenSidebarButton = false,
+  defaultName = "",
+  defaultDescription = "",
   defaultQuery = "",
   defaultPlatform = "",
   isEditing = false,
+  showOpenSidebarButton = false,
   onOpenSidebar,
   onSave,
   onCancel,
@@ -113,6 +117,8 @@ const DynamicLabelForm = ({
   return (
     <div className={baseClass}>
       <LabelForm
+        defaultName={defaultName}
+        defaultDescription={defaultDescription}
         onSave={onSaveForm}
         onCancel={onCancel}
         additionalFields={

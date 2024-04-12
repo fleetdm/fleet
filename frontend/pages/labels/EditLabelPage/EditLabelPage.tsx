@@ -47,6 +47,10 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     }
   );
 
+  const onCancelEdit = () => {
+    router.goBack();
+  };
+
   const renderContent = () => {
     if (isLoadingLabel) {
       return <Spinner />;
@@ -60,14 +64,22 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     if (label) {
       return label.label_membership_type ? (
         <DynamicLabelForm
+          defaultName={label.name}
+          defaultDescription={label.description}
           defaultQuery={label.query}
           defaultPlatform={label.platform}
           isEditing
           onSave={noop}
-          onCancel={noop}
+          onCancel={onCancelEdit}
         />
       ) : (
-        <ManualLabelForm onSave={noop} onCancel={noop} />
+        <ManualLabelForm
+          defaultName={label.name}
+          defaultDescription={label.description}
+          defaultTargetedHosts={[]}
+          onSave={noop}
+          onCancel={onCancelEdit}
+        />
       );
     }
 
@@ -81,7 +93,6 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       <MainContent className={baseClass}>
         <h1>Edit label</h1>
         {renderContent()}
-        {/* <ManualLabelForm d={hosts} /> */}
       </MainContent>
     </>
   );
