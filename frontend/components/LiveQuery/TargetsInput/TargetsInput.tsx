@@ -12,15 +12,15 @@ import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {
-  tabIndex: number;
+  tabIndex?: number;
   searchText: string;
   searchResults: IHost[];
   isTargetsLoading: boolean;
   hasFetchError: boolean;
   targetedHosts: IHost[];
+  tableColumnConifg: any; // TODO: add typing;
   setSearchText: (value: string) => void;
-  handleRowSelect: (value: Row) => void;
-  handleRowRemove: (value: Row<IHost>) => void;
+  handleRowSelect: (value: Row<IHost>) => void;
 }
 
 const baseClass = "targets-input";
@@ -32,12 +32,11 @@ const TargetsInput = ({
   isTargetsLoading,
   hasFetchError,
   targetedHosts,
+  tableColumnConifg,
   handleRowSelect,
-  handleRowRemove,
   setSearchText,
 }: ITargetsInputProps): JSX.Element => {
   const resultsDropdownTableHeaders = generateTableHeaders();
-  const selectedTableHeaders = generateTableHeaders(handleRowRemove);
   const dropdownHosts =
     searchResults && pullAllBy(searchResults, targetedHosts, "display_name");
   const isActiveSearch =
@@ -60,7 +59,7 @@ const TargetsInput = ({
         />
         {isActiveSearch && (
           <div className={`${baseClass}__hosts-search-dropdown`}>
-            <TableContainer
+            <TableContainer<Row<IHost>>
               columnConfigs={resultsDropdownTableHeaders}
               data={dropdownHosts}
               isLoading={isTargetsLoading}
@@ -81,7 +80,8 @@ const TargetsInput = ({
               disableCount
               disablePagination
               disableMultiRowSelect
-              onSelectSingleRow={handleRowSelect}
+              onClickRow={handleRowSelect}
+              // onSelectSingleRow={handleRowSelect}
             />
           </div>
         )}
@@ -92,7 +92,7 @@ const TargetsInput = ({
         )}
         <div className={`${baseClass}__hosts-selected-table`}>
           <TableContainer
-            columnConfigs={selectedTableHeaders}
+            columnConfigs={tableColumnConifg}
             data={targetedHosts}
             isLoading={false}
             resultsTitle=""

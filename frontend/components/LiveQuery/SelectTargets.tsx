@@ -30,6 +30,7 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -305,9 +306,8 @@ const SelectTargets = ({
       : setTargetedTeams(newTargets as ITeam[]);
   };
 
-  const handleRowSelect = (row: Row) => {
-    const selectedHost = row.original as IHost;
-    setTargetedHosts((prevHosts) => prevHosts.concat(selectedHost));
+  const handleRowSelect = (row: Row<IHost>) => {
+    setTargetedHosts((prevHosts) => prevHosts.concat(row.original));
     setSearchText("");
 
     // If "all hosts" is already selected when using host target picker, deselect "all hosts"
@@ -434,6 +434,8 @@ const SelectTargets = ({
     );
   }
 
+  const selectedTableHeaders = generateTableHeaders(handleRowRemove);
+
   return (
     <div className={`${baseClass}__wrapper`}>
       <h1>Select targets</h1>
@@ -451,6 +453,7 @@ const SelectTargets = ({
           renderTargetEntityList("Labels", labels.other)}
       </div>
       <TargetsInput
+        tableColumnConifg={selectedTableHeaders}
         tabIndex={inputTabIndex || 0}
         searchText={searchText}
         searchResults={searchResults || []}

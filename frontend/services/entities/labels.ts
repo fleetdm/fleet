@@ -12,6 +12,10 @@ export interface ILabelsSummaryResponse {
   labels: ILabelSummary[];
 }
 
+export type IGetLabelResonse = {
+  label: ILabel;
+};
+
 export default {
   create: async (formData: ILabelFormData) => {
     const { LABELS } = endpoints;
@@ -52,19 +56,17 @@ export default {
     }
   },
   summary: (): Promise<ILabelsSummaryResponse> => {
-    const { LABELS } = endpoints;
-    const path = `${LABELS}/summary`;
+    const { LABELS_SUMMARY } = endpoints;
 
-    return sendRequest("GET", path);
+    return sendRequest("GET", LABELS_SUMMARY);
   },
   update: async (label: ILabel, updatedAttrs: ILabel) => {
-    const { LABELS } = endpoints;
-    const path = `${LABELS}/${label.id}`;
+    const { LABEL } = endpoints;
 
     try {
       const { label: updatedLabel } = await sendRequest(
         "PATCH",
-        path,
+        LABEL(label.id),
         updatedAttrs
       );
       return {
@@ -81,5 +83,10 @@ export default {
     const { LABEL_SPEC_BY_NAME } = endpoints;
     const path = LABEL_SPEC_BY_NAME(labelName);
     return sendRequest("GET", path);
+  },
+
+  getLabel: (labelId: number): Promise<IGetLabelResonse> => {
+    const { LABEL } = endpoints;
+    return sendRequest("GET", LABEL(labelId));
   },
 };
