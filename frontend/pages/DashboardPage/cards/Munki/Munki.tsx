@@ -110,7 +110,7 @@ const Munki = ({
                           To see Munki versions, deploy&nbsp;
                           <CustomLink
                             url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
-                            text="Fleet's osquery installer"
+                            text="Fleet's agent (fleetd)"
                             newTab
                           />
                           .
