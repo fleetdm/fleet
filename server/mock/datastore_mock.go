@@ -830,7 +830,7 @@ type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
-type GetHostMDMProfileStatusFunc func(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error)
+type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error)
 
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
@@ -2121,8 +2121,8 @@ type DataStore struct {
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
 
-	GetHostMDMProfileStatusFunc        GetHostMDMProfileStatusFunc
-	GetHostMDMProfileStatusFuncInvoked bool
+	GetHostMDMProfileInstallStatusFunc        GetHostMDMProfileInstallStatusFunc
+	GetHostMDMProfileInstallStatusFuncInvoked bool
 
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
@@ -5074,11 +5074,11 @@ func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, p
 	return s.ResendHostMDMProfileFunc(ctx, hostUUID, profileUUID)
 }
 
-func (s *DataStore) GetHostMDMProfileStatus(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error) {
+func (s *DataStore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error) {
 	s.mu.Lock()
-	s.GetHostMDMProfileStatusFuncInvoked = true
+	s.GetHostMDMProfileInstallStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostMDMProfileStatusFunc(ctx, hostUUID, profileUUID)
+	return s.GetHostMDMProfileInstallStatusFunc(ctx, hostUUID, profileUUID)
 }
 
 func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {

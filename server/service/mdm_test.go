@@ -1686,9 +1686,9 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 
 	ds.HostLiteFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 		if hid == 1 {
-			return &fleet.Host{ID: hid, UUID: "host-uuid-1", TeamID: ptr.Uint(1)}, nil
+			return &fleet.Host{ID: hid, UUID: "host-uuid-1", Platform: "darwin", TeamID: ptr.Uint(1)}, nil
 		} else if hid == 1337 {
-			return &fleet.Host{ID: hid, UUID: "host-uuid-no-team", TeamID: nil}, nil
+			return &fleet.Host{ID: hid, UUID: "host-uuid-no-team", Platform: "darwin", TeamID: nil}, nil
 		}
 		return nil, &notFoundErr{}
 	}
@@ -1702,7 +1702,7 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			TeamID:      &tid,
 		}, nil
 	}
-	ds.GetHostMDMProfileStatusFunc = func(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
+	ds.GetHostMDMProfileInstallStatusFunc = func(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
 		return fleet.MDMDeliveryFailed, nil
 	}
 	ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {

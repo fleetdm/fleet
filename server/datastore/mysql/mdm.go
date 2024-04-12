@@ -1099,10 +1099,10 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	return nil
 }
 
-func (ds *Datastore) GetHostMDMProfileStatus(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
+func (ds *Datastore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
 	table, column, err := getTableAndColumnNameForHostMDMProfileUUID(profUUID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err)
+		return "", ctxerr.Wrap(ctx, err, "getting table and column")
 	}
 
 	selectStmt := fmt.Sprintf(`
@@ -1111,14 +1111,14 @@ SELECT
 	FROM
 	%s
 WHERE
-	host_uuid = ?
-	AND %s = ?
+	operation_type = ?
+	AND host_uuid = ?
+	AND %s = ? 
 `, table, column)
 
 	var status fleet.MDMDeliveryStatus
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &status, selectStmt, fleet.MDMDeliveryPending, hostUUID, profUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &status, selectStmt, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, hostUUID, profUUID); err != nil {
 		if err == sql.ErrNoRows {
-			// TODO: confirm this error
 			return "", notFound("HostMDMProfile").WithMessage("unable to match profile to host")
 		}
 		return "", ctxerr.Wrap(ctx, err, "get MDM profile status")
@@ -1129,7 +1129,7 @@ WHERE
 func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	table, column, err := getTableAndColumnNameForHostMDMProfileUUID(profUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return ctxerr.Wrap(ctx, err, "getting table and column")
 	}
 
 	// update the status to NULL to trigger resending on the next cron run

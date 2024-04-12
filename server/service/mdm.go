@@ -1996,8 +1996,7 @@ type resendHostMDMProfileResponse struct {
 
 func (r resendHostMDMProfileResponse) error() error { return r.Err }
 
-// TODO: do we already have plumbing to allow for StatusAccepted (202) responses?
-func (r resendHostMDMProfileResponse) Status() int { return http.StatusNoContent }
+func (r resendHostMDMProfileResponse) Status() int { return http.StatusAccepted }
 
 func resendHostMDMProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*resendHostMDMProfileRequest)
@@ -2025,82 +2024,65 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: prescreen host platform against profile prefix?
-
 	var profileTeamID *uint
-	var profileName string
 	switch {
-	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix), strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
+		}
+		if host.Platform != "darwin" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting apple config profile")
 		}
 		profileTeamID = prof.TeamID
-		profileName = prof.Name
 
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
+		}
+		if host.Platform != "darwin" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting apple declaration")
 		}
 		profileTeamID = decl.TeamID
-		profileName = decl.Name
 
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check windows mdm enabled")
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check windows mdm enabled")
+		}
+		if host.Platform != "windows" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting windows config profile")
 		}
 		profileTeamID = prof.TeamID
-		profileName = prof.Name
 
 	default:
-		// TODO: confirm error message?
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", "Invalid profile UUID prefix."))
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Invalid profile UUID prefix.").WithStatus(http.StatusNotFound), "check profile UUID prefix")
 	}
 
 	// check again based on team id of profile before we proceeding
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: profileTeamID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return ctxerr.Wrap(ctx, err, "authorizing profile team")
 	}
 
-	// TODO: specs say to screen disk encryption profile? what about other reserved profiles?
-	reservedNames := mdm.FleetReservedProfileNames()
-	if _, ok := reservedNames[profileName]; ok {
-		return fleet.NewInvalidArgumentError("profile_uuid", fmt.Sprintf("%s profile cannot be resent.", profileName))
-	}
-
-	var hTID, pTID uint
-	if host.TeamID != nil {
-		hTID = *host.TeamID
-	}
-	if profileTeamID != nil {
-		pTID = *profileTeamID
-	}
-	if hTID != pTID {
-		// TODO: confirm error message? should this be an auth error?
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", "Profile does not belong to host's team."))
-	}
-
-	status, err := svc.ds.GetHostMDMProfileStatus(ctx, host.UUID, profileUUID)
+	status, err := svc.ds.GetHostMDMProfileInstallStatus(ctx, host.UUID, profileUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			// TODO: confirm error message?
-			return fleet.NewInvalidArgumentError("profile_uuid", "Unable to match profile to host.")
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Unable to match profile to host.").WithStatus(http.StatusNotFound), "getting host mdm profile status")
 		}
 		return ctxerr.Wrap(ctx, err, "getting host mdm profile status")
 	}
 	if status == fleet.MDMDeliveryPending || status == fleet.MDMDeliveryVerifying {
-		return fleet.NewInvalidArgumentError("profile_status", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict)
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status")
 	}
 	if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified {
 		// this should never happen, but just in case
