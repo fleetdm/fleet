@@ -64,6 +64,123 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Transfer")).toBeInTheDocument();
     });
   });
+  describe("Query action", () => {
+    it("renders the Query action when the user is a global admin and the host is online", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Query")).toBeInTheDocument();
+    });
+
+    it("renders the Query action as disabled with a tooltip when a host is offline", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="offline"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      await user.hover(screen.getByText("Query"));
+
+      expect(
+        screen.getByText("Query").parentNode?.parentNode?.parentNode
+      ).toHaveClass("is-disabled");
+
+      expect(
+        screen.getByText("You can't query an offline host.")
+      ).toBeInTheDocument();
+    });
+
+    it("renders the Query action as disabled when a host is locked", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="offline"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="locked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      await user.hover(screen.getByText("Query"));
+
+      expect(
+        screen.getByText("Query").parentNode?.parentNode?.parentNode
+      ).toHaveClass("is-disabled");
+    });
+    it("renders the Query action as disabled when a host is wiped", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="offline"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="wiped"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      await user.hover(screen.getByText("Query"));
+
+      expect(
+        screen.getByText("Query").parentNode?.parentNode?.parentNode
+      ).toHaveClass("is-disabled");
+    });
+  });
 
   it("renders the Show Disk Encryption Key action when on premium tier and we store the disk encryption key", async () => {
     const render = createCustomRenderer({
@@ -746,6 +863,98 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Run script action", () => {
+    it("renders the Run script action when scripts_enabled is set to true", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="offline"
+          mdmName="Fleet"
+          hostPlatform="windows"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Run script")).toBeInTheDocument();
+    });
+
+    it("renders the Run script action as disabled with a tooltip when scripts_enabled is set to false", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      await user.hover(screen.getByText("Run script"));
+
+      expect(
+        screen.getByText("Run script").parentNode?.parentNode?.parentNode
+      ).toHaveClass("is-disabled");
+
+      expect(
+        screen.getByText(/fleetd agent with --enable-scripts/i)
+      ).toBeInTheDocument();
+    });
+
+    it("does not render the Run script action for ChromeOS", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="chrome"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus={"unlocked"}
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
     });
   });
 });
