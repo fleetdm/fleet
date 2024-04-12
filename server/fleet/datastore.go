@@ -176,6 +176,13 @@ type Datastore interface {
 	// GetLabelSpec returns the spec for the named label.
 	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
+	// AddLabelsToHost adds the given label IDs membership to the host.
+	// If a host is already a member of the label then this will update the row's updated_at.
+	AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error
+	// RemoveLabelsFromHost removes the given label IDs membership from the host.
+	// If a host is already not a member of a label then such label will be ignored.
+	RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error
+
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	SaveLabel(ctx context.Context, label *Label) (*Label, error)
 	DeleteLabel(ctx context.Context, name string) error
@@ -1192,7 +1199,7 @@ type Datastore interface {
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
-	//MDMAppleBatchSetHostDeclarationState
+	// MDMAppleBatchSetHostDeclarationState
 	MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error)
 	// MDMAppleStoreDDMStatusReport receives a host.uuid and a slice
 	// of declarations, and updates the tracked host declaration status for

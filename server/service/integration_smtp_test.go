@@ -34,7 +34,7 @@ func (s *integrationSMTPTestSuite) SetupSuite() {
 	s.token = s.getTestAdminToken()
 }
 
-func TestIntegrationsSMTP(t *testing.T) {
+func TestSMTPIntegrations(t *testing.T) {
 	testingSuite := new(integrationSMTPTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
