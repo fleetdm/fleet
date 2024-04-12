@@ -22,11 +22,13 @@ import (
 	"bytes"
 	"compress/zlib"
 	"crypto"
+	_ "crypto/sha1"
 	"encoding/binary"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 )
 
 // xarMagic is the [file signature][1] (or magic bytes) for xar
@@ -145,4 +147,109 @@ func parseHeader(r io.Reader) (xarHeader, crypto.Hash, error) {
 	}
 
 	return hdr, hashType, nil
+}
+
+func CheckXar(pkg io.Reader) error {
+	buff := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buff, pkg); err != nil {
+		return err
+	}
+
+	r := bytes.NewReader(buff.Bytes())
+	var hdr xarHeader
+	if err := binary.Read(r, binary.BigEndian, &hdr); err != nil {
+		return err
+	}
+
+	if hdr.Magic != xarMagic {
+		return ErrInvalidType
+	}
+
+	return nil
+}
+
+type xmlXar struct {
+	XMLName xml.Name `xml:"xar"`
+	TOC     xmlTOC
+}
+
+type xmlTOC struct {
+	XMLName xml.Name   `xml:"toc"`
+	Files   []*xmlFile `xml:"file"`
+}
+
+type xmlFileData struct {
+	XMLName xml.Name `xml:"data"`
+	Length  int64    `xml:"length"`
+	Offset  int64    `xml:"offset"`
+	Size    int64    `xml:"size"`
+}
+
+type xmlFile struct {
+	XMLName xml.Name `xml:"file"`
+	Name    string   `xml:"name"`
+	Data    *xmlFileData
+}
+
+const xarHeaderSize = 28
+
+func GetXarInfo(r io.ReaderAt, size int64) (string, string, error) {
+	hdr := make([]byte, xarHeaderSize)
+	if _, err := r.ReadAt(hdr, 0); err != nil {
+		return "", "", err
+	}
+
+	zlibLen := binary.BigEndian.Uint64(hdr[8:16])
+	ztoc := make([]byte, zlibLen)
+	if _, err := r.ReadAt(ztoc, xarHeaderSize); err != nil {
+		return "", "", err
+	}
+
+	br := bytes.NewBuffer(ztoc)
+	zr, err := zlib.NewReader(br)
+	if err != nil {
+		return "", "", err
+	}
+
+	root := &xmlXar{}
+	decoder := xml.NewDecoder(zr)
+	decoder.Strict = false
+	err = decoder.Decode(root)
+	if err != nil {
+		return "", "", err
+	}
+
+	heapOffset := xarHeaderSize + int64(zlibLen)
+	for _, f := range root.TOC.Files {
+		if f.Name == "Distribution" {
+			u := io.NewSectionReader(r, heapOffset, size-heapOffset)
+			x := io.NewSectionReader(u, f.Data.Offset, f.Data.Length)
+			rc := io.NopCloser(x)
+
+			rr, err := io.ReadAll(rc)
+			if err != nil {
+				log.Fatalf("reading contents: %s", err)
+			}
+			var script distributionXML
+			err = xml.Unmarshal([]byte(rr), &script)
+			if err != nil {
+				log.Fatalf("unmarshal distribution xml: %s", err)
+			}
+
+			return script.PkgRef[0].ID, script.PkgRef[0].Version, nil
+		}
+	}
+
+	return "", "", nil
+}
+
+type distributionXML struct {
+	PkgRef []pkgRef `xml:"pkg-ref"`
+}
+
+type pkgRef struct {
+	ID      string `xml:"id,attr"`
+	Version string `xml:"version,attr,omitempty"`
+	Auth    string `xml:"auth,attr,omitempty"`
+	Content string `xml:",chardata"`
 }
