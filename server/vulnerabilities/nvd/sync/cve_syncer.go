@@ -514,6 +514,9 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 
 		resp, err = s.client.Do(req)
 		if err != nil {
+			if resp != nil {
+				resp.Body.Close()
+			}
 			s.logger.Log("msg", "VulnCheck API request failed", "attempt", attempt, "error", err)
 			if attempt == s.MaxTryAttempts {
 				return "", ctxerr.Wrap(ctx, err, "max retry attempts reached")
