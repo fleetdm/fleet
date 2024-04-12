@@ -19,7 +19,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/facebookincubator/nvdtools/vulndb"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/vulndb"
 )
 
 func init() {

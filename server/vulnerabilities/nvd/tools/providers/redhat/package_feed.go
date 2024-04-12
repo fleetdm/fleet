@@ -19,9 +19,9 @@ import (
 	"strings"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/redhat/schema"
-	"github.com/facebookincubator/nvdtools/rpm"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/redhat/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/rpm"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 	"github.com/pkg/errors"
 )
 
@@ -77,7 +77,6 @@ func (feed *Feed) packageFeed() packageFeed {
 
 		for _, pkg := range pkgs {
 			pkgFeed[pkg] = append(pkgFeed[pkg], cve)
-
 		}
 	}
 

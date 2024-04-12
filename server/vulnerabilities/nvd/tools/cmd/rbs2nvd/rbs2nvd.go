@@ -23,10 +23,10 @@ import (
 	"os"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/lib/client"
-	"github.com/facebookincubator/nvdtools/providers/lib/runner"
-	"github.com/facebookincubator/nvdtools/providers/rbs/api"
-	"github.com/facebookincubator/nvdtools/providers/rbs/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/runner"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/rbs/api"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/rbs/schema"
 )
 
 const (

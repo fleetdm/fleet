@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/lib/client"
-	"github.com/facebookincubator/nvdtools/providers/snyk/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/snyk/schema"
 )
 
 type Client struct {

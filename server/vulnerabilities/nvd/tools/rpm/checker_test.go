@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 func TestCheck(t *testing.T) {
@@ -89,8 +89,8 @@ func (c constChecker) Check(_ *Package, _ *wfn.Attributes, _ string) bool {
 
 // returns true and false checkers
 // if we represent a number in binary format, then
-//	- the number of true checkers is the number of 1s
-//	- the number of false checkers is the number of 0s
+//   - the number of true checkers is the number of 1s
+//   - the number of false checkers is the number of 0s
 func getCheckers(n int) []Checker {
 	trueChk := constChecker(true)
 	falseChk := constChecker(false)

@@ -30,9 +30,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/facebookincubator/nvdtools/providers/fireeye/schema"
-	"github.com/facebookincubator/nvdtools/providers/lib/client"
-	"github.com/facebookincubator/nvdtools/stats"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/fireeye/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/stats"
 )
 
 const (

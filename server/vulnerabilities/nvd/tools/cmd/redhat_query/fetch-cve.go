@@ -22,8 +22,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/facebookincubator/nvdtools/providers/lib/client"
-	"github.com/facebookincubator/nvdtools/providers/redhat/api"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/redhat/api"
 )
 
 var fetchCVECmd = &cobra.Command{

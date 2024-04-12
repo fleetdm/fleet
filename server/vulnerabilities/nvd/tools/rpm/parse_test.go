@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 func TestParse(t *testing.T) {
@@ -146,7 +146,6 @@ func TestParse(t *testing.T) {
 				t.Errorf("wrong result:\n\thave: %+v\n\twant: %+v", c.pkg, *pkg)
 			}
 		})
-
 	}
 }
 

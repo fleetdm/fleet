@@ -19,7 +19,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 // Package represents one RPM package

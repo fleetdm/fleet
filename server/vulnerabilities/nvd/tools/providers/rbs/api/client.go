@@ -26,9 +26,9 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/lib/client"
-	"github.com/facebookincubator/nvdtools/providers/lib/runner"
-	"github.com/facebookincubator/nvdtools/providers/rbs/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/runner"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/rbs/schema"
 )
 
 const (
@@ -72,7 +72,6 @@ func (c *Client) FetchAllVulnerabilities(since int64) (<-chan runner.Convertible
 }
 
 func (c *Client) fetchAllVulnerabilities(getEndpoint func() string) (<-chan runner.Convertible, error) {
-
 	fetch := func(page, size int) (*schema.VulnerabilityResult, error) {
 		u, err := url.Parse(fmt.Sprintf("%s/api/v1/vulnerabilities/%s", c.baseURL, getEndpoint()))
 		if err != nil {

@@ -24,8 +24,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/facebookincubator/nvdtools/vulndb"
-	"github.com/facebookincubator/nvdtools/vulndb/debug"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/vulndb"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/vulndb/debug"
 )
 
 var (

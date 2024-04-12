@@ -15,7 +15,7 @@
 package cvefeed
 
 import (
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 // Vuln is a vulnerability interface

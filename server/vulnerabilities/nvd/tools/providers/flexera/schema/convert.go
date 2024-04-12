@@ -17,7 +17,7 @@ package schema
 import (
 	"fmt"
 
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 )
 
 const (
@@ -115,7 +115,7 @@ func makeConfigurations(cpes []string) *nvd.NVDCVEFeedJSON10DefConfigurations {
 	return &nvd.NVDCVEFeedJSON10DefConfigurations{
 		CVEDataVersion: cveDataVersion,
 		Nodes: []*nvd.NVDCVEFeedJSON10DefNode{
-			&nvd.NVDCVEFeedJSON10DefNode{
+			{
 				CPEMatch: matches,
 				Operator: "OR",
 			},

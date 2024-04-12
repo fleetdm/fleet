@@ -22,7 +22,7 @@ import (
 	"unsafe"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 const cacheEvictPercentage = 0.1 // every eviction cycle invalidates this part of cache size at once

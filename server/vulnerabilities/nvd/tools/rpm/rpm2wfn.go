@@ -17,7 +17,7 @@ package rpm
 import (
 	"fmt"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 // ToWFN parses CPE name from RPM package name

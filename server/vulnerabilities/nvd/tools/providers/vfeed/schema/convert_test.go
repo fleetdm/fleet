@@ -27,7 +27,7 @@ import (
 	"github.com/andreyvit/diff"
 
 	"github.com/facebookincubator/flog"
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 )
 
 const (
@@ -50,7 +50,7 @@ func marshalFile(item interface{}, name string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(name, data, 0644)
+	return ioutil.WriteFile(name, data, 0o644)
 }
 
 func unmarshalFile(item interface{}, name string) error {

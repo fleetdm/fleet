@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/rustsec"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/rustsec"
 )
 
 func init() {

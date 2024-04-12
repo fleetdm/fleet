@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/lib/client"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
 )
 
 // CPE defines the CPE data feed for synchronization.
@@ -149,7 +149,7 @@ func (cf cpeFile) Sync(ctx context.Context, src SourceConfig, localdir string) e
 
 	// write etag file
 	etagFilename := filepath.Join(localdir, cf.EtagFile)
-	err = ioutil.WriteFile(etagFilename, []byte(etag), 0644)
+	err = ioutil.WriteFile(etagFilename, []byte(etag), 0o644)
 	if err != nil {
 		return err
 	}

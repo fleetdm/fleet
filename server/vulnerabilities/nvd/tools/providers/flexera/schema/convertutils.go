@@ -20,14 +20,12 @@ import (
 	"strings"
 	"time"
 
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/wfn"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
-var (
-	// we try to use this to extract name and version from their product
-	productRegex = *regexp.MustCompile(`^(.+)\s+([0-9.x]+)$`)
-)
+// we try to use this to extract name and version from their product
+var productRegex = *regexp.MustCompile(`^(.+)\s+([0-9.x]+)$`)
 
 func findCPEs(product *Product) ([]string, error) {
 	if product.HasCpe {

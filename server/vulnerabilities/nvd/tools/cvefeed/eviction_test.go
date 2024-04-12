@@ -19,7 +19,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 func TestCacheEviction(t *testing.T) {

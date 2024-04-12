@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/facebookincubator/flog"
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/wfn"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 const (
@@ -122,7 +122,7 @@ func (item *Vulnerability) makeConfigurations() *nvd.NVDCVEFeedJSON10DefConfigur
 	conf := nvd.NVDCVEFeedJSON10DefConfigurations{
 		CVEDataVersion: cveDataVersion,
 		Nodes: []*nvd.NVDCVEFeedJSON10DefNode{
-			&nvd.NVDCVEFeedJSON10DefNode{
+			{
 				CPEMatch: matches,
 				Operator: "OR",
 			},
@@ -198,7 +198,6 @@ func addNVDData(nvdItem *nvd.NVDCVEFeedJSON10DefCVEItem, additional []*NVDAdditi
 		nvdItem.CVE.Problemtype.ProblemtypeData = append(
 			nvdItem.CVE.Problemtype.ProblemtypeData,
 			&nvd.CVEJSON40ProblemtypeProblemtypeData{
-
 				Description: []*nvd.CVEJSON40LangString{
 					{Lang: "en", Value: cwe},
 				},

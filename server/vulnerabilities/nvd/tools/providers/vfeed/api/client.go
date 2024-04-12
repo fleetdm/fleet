@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/vfeed/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/vfeed/schema"
 )
 
 const suffixPattern = "/*/CVE-*.json"

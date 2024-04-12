@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 )
 
 // TODO: move this file to its own package in the future, to implement a common
@@ -247,11 +247,11 @@ func (c *ProvidersConfiguration) convertToNVD() *nvd.NVDCVEFeedJSON10DefConfigur
 		if len(node.conditionalMatches) > 0 {
 			nvdNode.Operator = "AND"
 			nvdNode.Children = []*nvd.NVDCVEFeedJSON10DefNode{
-				&nvd.NVDCVEFeedJSON10DefNode{
+				{
 					Operator: "OR",
 					CPEMatch: node.matches,
 				},
-				&nvd.NVDCVEFeedJSON10DefNode{
+				{
 					Operator: "OR",
 					CPEMatch: node.conditionalMatches,
 				},

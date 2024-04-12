@@ -20,9 +20,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-  "github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/vulndb"
-	"github.com/facebookincubator/nvdtools/vulndb/mysql"
+	"github.com/facebookincubator/flog"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/vulndb"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/vulndb/mysql"
 )
 
 func init() {

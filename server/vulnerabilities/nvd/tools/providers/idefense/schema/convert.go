@@ -15,7 +15,7 @@
 package schema
 
 import (
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 
 	"github.com/pkg/errors"
 )
@@ -158,7 +158,7 @@ func (item *Vulnerability) makeConfigurations() (*nvd.NVDCVEFeedJSON10DefConfigu
 	v := nvd.NVDCVEFeedJSON10DefConfigurations{
 		CVEDataVersion: cveDataVersion,
 		Nodes: []*nvd.NVDCVEFeedJSON10DefNode{
-			&nvd.NVDCVEFeedJSON10DefNode{
+			{
 				CPEMatch: matches,
 				Operator: "OR",
 			},

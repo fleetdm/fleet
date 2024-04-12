@@ -17,8 +17,8 @@ package nvd
 import (
 	"regexp"
 
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 var cveRegex = regexp.MustCompile("CVE-[0-9]{4}-[0-9]{4,}")

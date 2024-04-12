@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/facebookincubator/nvdtools/providers/redhat/schema"
-	"github.com/facebookincubator/nvdtools/rpm"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/redhat/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/rpm"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 var ErrCheckers = errors.New("no applicable checkers")

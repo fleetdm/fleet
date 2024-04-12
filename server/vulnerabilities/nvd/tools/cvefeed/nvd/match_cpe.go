@@ -17,8 +17,8 @@ package nvd
 import (
 	"fmt"
 
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 // cpeMatch is a wrapper around the actual NVDCVEFeedJSON10DefCPEMatch

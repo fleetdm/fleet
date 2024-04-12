@@ -25,8 +25,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/vulndb/debug"
-	"github.com/facebookincubator/nvdtools/vulndb/sqlutil"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/vulndb/debug"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/vulndb/sqlutil"
 )
 
 // VendorRecord represents a db record of the `vendor` table.
@@ -403,19 +403,19 @@ func (v VendorDataExporter) JSON(ctx context.Context, w io.Writer, indent string
 // Deleting would be easier in common scenarions, but we have some hard
 // constraints:
 //
-//	* Vendor data is versioned
-//	* No foreign key between vendor_data and vendor tables
-//	* MySQL in safe mode forbids deleting from SELECT queries, wants values
-//	* Must keep the binlog smaller than 500M, not enough for the NVD database
+//   - Vendor data is versioned
+//   - No foreign key between vendor_data and vendor tables
+//   - MySQL in safe mode forbids deleting from SELECT queries, wants values
+//   - Must keep the binlog smaller than 500M, not enough for the NVD database
 //
 // Therefore, deletion works as follows:
 //
-//	* Select versions from the vendor table based on the provided settings
-//	* Operate on vendor records with ready=true or older versions
-//	* By default, delete all versions but the latest, for each provider
-//	* Delete from vendor table first, effectively making data records orphans
-//	* Delete any orphan records from vendor_data, effectively crowd sourcing deletions
-//	* Delete data in chunks, keeping binlog small
+//   - Select versions from the vendor table based on the provided settings
+//   - Operate on vendor records with ready=true or older versions
+//   - By default, delete all versions but the latest, for each provider
+//   - Delete from vendor table first, effectively making data records orphans
+//   - Delete any orphan records from vendor_data, effectively crowd sourcing deletions
+//   - Delete data in chunks, keeping binlog small
 //
 // Deletion operations are expensive.
 type VendorDataTrimmer struct {

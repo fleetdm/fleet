@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/wfn"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 
 	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
@@ -86,7 +86,6 @@ func ConvertAdvisory(r io.Reader) (*nvd.NVDCVEFeedJSON10DefCVEItem, error) {
 		return nil, errors.New("cannot parse md advisory structure")
 	}
 	_, err = toml.Decode(data[1], &spec)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot decode rustsec toml advisory part of md file")
 	}

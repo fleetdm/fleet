@@ -23,7 +23,7 @@ import (
 	"sort"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/cvefeed"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	"github.com/spf13/cobra"
 )
 
@@ -79,7 +79,6 @@ var diffCmd = &cobra.Command{
 		}
 
 		bDict, err := feedLoad(args[1])
-
 		if err != nil {
 			return err
 		}
@@ -112,7 +111,7 @@ var diffCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to encode stats to JSON: %w", err)
 		}
-		if err := ioutil.WriteFile("stats.json", data, 0644); err != nil {
+		if err := ioutil.WriteFile("stats.json", data, 0o644); err != nil {
 			return fmt.Errorf("failed to write stats file: %w", err)
 		}
 

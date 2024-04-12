@@ -21,8 +21,8 @@ import (
 	"sync"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/fireeye/schema"
-	"github.com/facebookincubator/nvdtools/stats"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/fireeye/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/stats"
 )
 
 // FetchAllThreatReportsSince will fetch all vulnerabilities with specified parameters

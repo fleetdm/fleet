@@ -23,10 +23,10 @@ import (
 	"strings"
 
 	"github.com/facebookincubator/flog"
-	"github.com/facebookincubator/nvdtools/providers/flexera/api"
-	"github.com/facebookincubator/nvdtools/providers/flexera/schema"
-	"github.com/facebookincubator/nvdtools/providers/lib/client"
-	"github.com/facebookincubator/nvdtools/providers/lib/runner"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/flexera/api"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/flexera/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/runner"
 )
 
 func Read(r io.Reader, c chan runner.Convertible) error {

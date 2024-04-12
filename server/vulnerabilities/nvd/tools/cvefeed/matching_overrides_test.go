@@ -19,21 +19,21 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 func TestMatchOverrides(t *testing.T) {
 	cases := [][]*wfn.Attributes{
-		[]*wfn.Attributes{},
-		[]*wfn.Attributes{
+		{},
+		{
 			{Part: "o", Vendor: "linux", Product: "linux_kernel", Version: "2\\.6\\.1"},
 			{Part: "a", Vendor: "djvulibre_project", Product: "djvulibre", Version: "3\\.5\\.11"},
 		},
-		[]*wfn.Attributes{
+		{
 			{Part: "o", Vendor: "microsoft", Product: "windows_xp", Update: "sp3"},
 			{Part: "a", Vendor: "microsoft", Product: "ie", Version: "5\\.0", Update: wfn.NA},
 		},
-		[]*wfn.Attributes{
+		{
 			{Part: "o", Vendor: "microsoft", Product: "windows_xp", Update: "sp3"},
 			{Part: "a", Vendor: "microsoft", Product: "ie", Version: "5\\.0", Update: "patched"},
 		},

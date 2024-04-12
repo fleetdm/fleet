@@ -17,7 +17,7 @@ package vulndb
 import (
 	"time"
 
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 )
 
 // TimeLayout is the layout of NVD CVE JSON timestamps.

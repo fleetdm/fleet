@@ -16,8 +16,8 @@ package schema
 
 import (
 	"github.com/facebookincubator/flog"
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/wfn"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 const (
@@ -113,7 +113,7 @@ func (advisory *Advisory) newReferences() *nvd.CVEJSON40References {
 
 func (advisory *Advisory) newConfigurations() *nvd.NVDCVEFeedJSON10DefConfigurations {
 	nodes := []*nvd.NVDCVEFeedJSON10DefNode{
-		&nvd.NVDCVEFeedJSON10DefNode{Operator: "OR"},
+		{Operator: "OR"},
 	}
 	var err error
 	var product string
@@ -133,7 +133,7 @@ func (advisory *Advisory) newConfigurations() *nvd.NVDCVEFeedJSON10DefConfigurat
 		for _, vRange := range vRanges {
 			node := &nvd.NVDCVEFeedJSON10DefCPEMatch{
 				CPEName: []*nvd.NVDCVEFeedJSON10DefCPEName{
-					&nvd.NVDCVEFeedJSON10DefCPEName{
+					{
 						Cpe22Uri: cpe22URI,
 						Cpe23Uri: cpe23URI,
 					},

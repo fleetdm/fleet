@@ -17,7 +17,7 @@ package cpedict
 import (
 	"fmt"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 // MatchType represents the type of match in dictionary lookup
@@ -56,7 +56,8 @@ func (mt MatchType) String() string {
 // and match type of Superset. If the needle is a subset of one or more dictionary names, the function will
 // return that set and the match type of Subset. Otherwise an empty slice and match type None are returned.
 // TODO: optimise the performance -- now it's O(n) to O(n^2), it should be easy enough to make it O(log n)
-//       or even O(1) (e.g. use map keyed with WFNs instead of slice)
+//
+//	or even O(1) (e.g. use map keyed with WFNs instead of slice)
 func (dict CPEList) Search(needle NamePattern, exact bool) ([]CPEItem, MatchType) {
 	if exact {
 		result := make([]CPEItem, 0)

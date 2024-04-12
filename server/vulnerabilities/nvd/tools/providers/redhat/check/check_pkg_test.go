@@ -18,13 +18,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/facebookincubator/nvdtools/rpm"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/rpm"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
-var (
-	pkg *rpm.Package
-)
+var pkg *rpm.Package
 
 func init() {
 	pkg, _ = rpm.Parse("name-1:v2-rel.arch.rpm")

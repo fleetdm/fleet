@@ -21,19 +21,17 @@ import (
 	"time"
 
 	"github.com/facebookincubator/flog"
-	nvd "github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/rpm"
-	"github.com/facebookincubator/nvdtools/wfn"
+	nvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/rpm"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 const (
 	timeLayout = "2006-01-02T15:04:05"
 )
 
-var (
-	// cwe regex to match CWEs
-	cweRegex = regexp.MustCompile("CWE-[0-9]+")
-)
+// cwe regex to match CWEs
+var cweRegex = regexp.MustCompile("CWE-[0-9]+")
 
 func convertTime(redhatTime string) (string, error) {
 	t, err := time.Parse(time.RFC3339, redhatTime)
