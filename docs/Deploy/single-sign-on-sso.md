@@ -30,7 +30,7 @@ Create a new SAML app in Google Workspace:
 
 2. Enter "Fleet" for the **App name** and click **Continue**.
 
-  ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
+  ![Adding a new app to Google Workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
 3. Click **Download Metadata**, saving the metadata to your computer. Click **Continue**.
 
