@@ -1,12 +1,12 @@
 ## File carving
 
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
+Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from Fleet's agent (fleetd) returning the full contents to Fleet.
 
 File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://fleetdm.com/docs/deploying/configuration#s-3-file-carving-backend).
 
 ### Configuration
 
-Given a working flagfile for connecting osquery agents to Fleet, add the following flags to enable carving:
+Given a working flagfile for connecting fleetd to Fleet, add the following flags to enable carving:
 
 ```sh
 --disable_carver=false
@@ -16,7 +16,7 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 --carver_block_size=8000000
 ```
 
-The default flagfile provided in the "Add New Host" dialog also includes this configuration.
+The default flagfile provided in the "Add new host" dialog also includes this configuration.
 
 #### Carver block size
 
