@@ -3754,7 +3754,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Install software
 
-Install managed software on macOS, Windows, or Linux (Ubuntu) host.
+Install software on macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
 
 `POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
 
@@ -3764,8 +3764,6 @@ Install managed software on macOS, Windows, or Linux (Ubuntu) host.
 | ---------         | ---------- | ---- | --------------------------------------------     |
 | id                | integer    | path | **Required**. The host's ID.                     |
 | software_title_id | integer    | path | **Required**. The software title's ID.           |
-
-Software title must have `software_package` added to be installed.
 
 #### Example
 
@@ -7834,22 +7832,22 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### Add software
 
-Add managed software to install on macOS, Windows, and Linux (Ubuntu) hosts.
+Add software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 
-`POST /api/v1/fleet/software/manage`
+`POST /api/v1/fleet/software/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer file. PKG or DMG for macOS and MSI for Windows hosts.   |
+| software        | file    | form | **Required**. Installer package file. Supported packages are PKG, DMG, APP, MSI, EXE, and DEB.   |
 | team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 
 #### Example
 
-`POST /api/v1/fleet/software/manage`
+`POST /api/v1/fleet/software/package`
 
 ##### Request header
 
@@ -7884,7 +7882,7 @@ Content-Type: application/octet-stream
 
 ### Download software
 
-Download managed software.
+Download software package.
 
 `GET /api/v1/fleet/software/manage/:id?alt=media`
 
@@ -7892,8 +7890,8 @@ Download managed software.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | **Required**. The ID of the managed software title to download installer.|
-| alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software installer. |
+| id              | integer | path | **Required**. The ID of the software title to download software package.|
+| alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software package. |
 
 #### Example
 
@@ -7913,7 +7911,7 @@ Body: <blob>
 
 ### Delete software
 
-Delete managed software.
+Delete software package.
 
 `DELETE /api/v1/fleet/software/manage/:id`
 
@@ -7921,7 +7919,7 @@ Delete managed software.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | **Required**. The ID of the managed software title to delete software installer. |
+| id              | integer | path | **Required**. The ID of the software title to delete software package. |
 
 #### Example
 
