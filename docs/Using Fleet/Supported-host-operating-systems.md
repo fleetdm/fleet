@@ -32,5 +32,5 @@ If you aren't sure what version of `glibc` your distribution is using, [DistroWa
 > The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 <meta name="pageOrderInSection" value="1200">
-<meta name="description" value="This page contains information about operating systems that are compatible with the osquery agent.">
+<meta name="description" value="This page contains information about operating systems that are compatible with Fleet's agent (fleetd).">
 <meta name="navSection" value="The basics">
