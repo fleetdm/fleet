@@ -6,7 +6,6 @@ import Dropdown from "components/forms/fields/Dropdown";
 import FormField from "components/forms/FormField";
 
 const PLATFORM_STRINGS: { [key: string]: string } = {
-  allPlatforms: "All platforms",
   darwin: "macOS",
   windows: "MS Windows",
   ubuntu: "Ubuntu Linux",
@@ -14,7 +13,7 @@ const PLATFORM_STRINGS: { [key: string]: string } = {
 };
 
 const platformOptions = [
-  { label: "All platforms", value: "allPlatforms" },
+  { label: "All platforms", value: "" },
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Ubuntu", value: "ubuntu" },
@@ -24,7 +23,7 @@ const platformOptions = [
 const baseClass = "platform-field";
 
 interface IPlatformFieldProps {
-  platform?: string;
+  platform: string;
   isEditing?: boolean;
   onChange?: (platform: string) => void;
 }

@@ -36,7 +36,7 @@ interface IDynamicLabelFormProps {
 const DynamicLabelForm = ({
   showOpenSidebarButton = false,
   defaultQuery = "",
-  defaultPlatform = "allPlatforms",
+  defaultPlatform = "",
   isEditing = false,
   onOpenSidebar,
   onSave,
