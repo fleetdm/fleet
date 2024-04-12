@@ -98,9 +98,10 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
 
     if (label.label_type === "builtin") {
       return (
-        <div className={`${baseClass}__wrapper`}>
-          <p>Built in labels cannot be edited</p>
-        </div>
+        <DataError
+          description="Built in labels cannot be edited"
+          excludeIssueLink
+        />
       );
     }
 
