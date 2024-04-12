@@ -9,7 +9,7 @@ import DataError from "components/DataError";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
+import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {
   tabIndex?: number;
@@ -18,8 +18,8 @@ interface ITargetsInputProps {
   isTargetsLoading: boolean;
   hasFetchError: boolean;
   targetedHosts: IHost[];
-  searchResultsTableConfig: any; // TODO: add typing;
-  selectedHostsTableConifg: any; // TODO: add typing;
+  searchResultsTableConfig: ITargestInputHostTableConfig[]; // TODO: add typing;
+  selectedHostsTableConifg: ITargestInputHostTableConfig[]; // TODO: add typing;
   label?: string;
   placeholder?: string;
   setSearchText: (value: string) => void;
