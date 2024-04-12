@@ -24,6 +24,7 @@ import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
 import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
 import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -135,8 +136,30 @@ const QueryResults = ({
       </div>
     );
   };
+  const renderPassFailPcts = () => (
+    <span className={`${baseClass}__results-pass-fail-pct`}>
+      {" "}
+      (Yes:{" "}
+      <TooltipWrapper
+        tipContent={`${hostsCount.successful} host${
+          hostsCount.successful !== 1 ? "s" : ""
+        }`}
+      >
+        {Math.ceil((hostsCount.successful / hostsCount.total) * 100)}%
+      </TooltipWrapper>
+      , No:{" "}
+      <TooltipWrapper
+        tipContent={`${hostsCount.failed} host${
+          hostsCount.failed !== 1 ? "s" : ""
+        }`}
+      >
+        {Math.floor((hostsCount.failed / hostsCount.total) * 100)}%
+      </TooltipWrapper>
+      )
+    </span>
+  );
 
-  const renderTable = () => {
+  const renderResultsTable = () => {
     const emptyResults =
       !hostsOnline || !hostsOnline.length || !hostsCount.successful;
     const hasNoResultsYet = !isQueryFinished && emptyResults;
@@ -167,8 +190,11 @@ const QueryResults = ({
           Hosts that responded with no results are marked <strong>No</strong>.
         </InfoBanner>
         <div className={`${baseClass}__results-table-header`}>
-          <span className={`${baseClass}__results-count`}>
-            {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+          <span className={`${baseClass}__results-meta`}>
+            <span className={`${baseClass}__results-count`}>
+              {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+            </span>
+            {isQueryFinished && renderPassFailPcts()}
           </span>
           <div className={`${baseClass}__results-cta`}>
             {renderTableButtons("results")}
@@ -232,7 +258,7 @@ const QueryResults = ({
               </span>
             </Tab>
           </TabList>
-          <TabPanel>{renderTable()}</TabPanel>
+          <TabPanel>{renderResultsTable()}</TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
       </TabsWrapper>
