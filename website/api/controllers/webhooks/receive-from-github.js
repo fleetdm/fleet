@@ -87,7 +87,6 @@ module.exports = {
       'phtardif1',
       'pintomi1989',
       'nonpunctual',
-      'hughestaylor',
       'dantecatalfamo',
       'unearthlyglow',
     ];
