@@ -198,6 +198,19 @@ Fleet's public relations firm is directly responsible for the accuracy of event 
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
 
 
+### Schedule press release
+Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. This process sUse the following steps to schedule a press release:  
+
+1. Add context for the next press release to the [e-group agenda](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit) as a "DISCUSS:" to be reviewed by Fleet's executive team for alignment and finalization of date.
+2. Once a release date is set, at-mention our public relations firm in the [#help-public-relations-firm--mindshare-pr--brand-marketing](https://fleetdm.slack.com/archives/C04PC9H34LF) and schedule a 30m call for our CEO and to communicate the press release.
+
+> The above must be completed 6 weeks before the press release date. 
+
+3. Schedule a 1.5h discussion between the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) and the CEO to review the first draft linked as "Agenda: LINK" to the calendar event description.
+4. Schedule a 60m call with the CEO and public relations firm to review the first draft linked as above to the calendar event (first draft provided by the PR firm)
+5. Schedule 2.5 hrs of async time for the CEO work on edits and a 60m followup postgame (solo) where CEO edits and then settles+sends final release.
+
+
 ### Archive a document
 Follow these steps to archive any document:
 1. Create a copy of the document prefixed with the date using the format "`YYYY-MM-DD` Backup of `DOCUMENT_NAME`" (e.g. "2024-03-22 Backup of 🪂🗞️ Customer voice").
