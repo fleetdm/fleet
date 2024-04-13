@@ -145,23 +145,18 @@ will be disabled and/or hidden in the UI.
               res.locals.me = undefined;
             }//ﬁ
 
-            // Check for UTM parameters for website personalization.
+            // Check for website personalization parameter, and if valid, absorb it in the session.
+            // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters
             // e.g.
-            //   https://fleetdm.com/device-management?utm_source=linkedin&utm_campaign=evergreen+leadgen&utm_content=mdm
-            if (['eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
-              // If this is set to something weird, then we silently ignore it.
-              // Modify the active session instance. (This will be persisted when the response is sent.)
-              req.session.primaryBuyingSituation = req.param('utm_content');
-              // FUTURE: Auto-redirect without the querystring after absorbtion to make it prettier in the URL bar.
-              // (except this probably messes up analytics so before doing that, figure out how to solve that problem)
+            //   https://fleetdm.com/device-management?utm_content=mdm
+            if (['clear','eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
+              req.session.primaryBuyingSituation = req.param('utm_content') === 'clear' ? undefined : req.param('utm_content');
+              return res.redirect(req.path);// « auto-redirect without querystring to make it prettier in the URL bar.
             }//ﬁ
-            if(req.param('utm_content') === 'clear'){
-              req.session.primaryBuyingSituation = undefined;
-            }
+
             if (req.method === 'GET' || req.method === 'HEAD') {
-              // Include information about the primary buying situation
-              // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
+              // Include information about the primary buying situation for use in the HTML layout, views, and page scripts.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
             }//ﬁ
 
