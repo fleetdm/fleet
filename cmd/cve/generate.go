@@ -241,8 +241,11 @@ func gunzipFileToDisk(filename, dbpath string) error {
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
+	defer out.Close()
 
-	_, err = io.Copy(out, gz)
+	// Using a maxBytes limit to prevent decompression bombs: gosec G110
+	maxBytes := 200 * 1024 * 1024 // 200MB
+	_, err = io.CopyN(out, gz, int64(maxBytes))
 	if err != nil {
 		return fmt.Errorf("copy file: %w", err)
 	}
