@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -47,8 +48,20 @@ func main() {
 
 	// Download the last released NVD feed
 	logger.Log("msg", "Downloading latest release")
-	if err := downloadLatestRelease(*dbDir, *debug, logger); err != nil {
-		panic(err)
+	maxRetries := 3
+	for i := 0; i < maxRetries; i++ {
+		err := downloadLatestRelease(*dbDir, *debug, logger)
+		if err == nil {
+			break
+		}
+
+		if i == maxRetries-1 {
+			logger.Log("msg", "Failed to download latest release. Continuing with full NVD Sync", "err", err)
+			break
+		}
+
+		logger.Log("msg", "Failed to download latest release. Retrying in 30 seconds", "err", err)
+		time.Sleep(30 * time.Second)
 	}
 
 	// Sync the CVE files
@@ -103,14 +116,14 @@ func downloadLatestRelease(dbDir string, debug bool, logger log.Logger) error {
 	for _, file := range files {
 		err = gunzipFileToDisk(file, dbDir)
 		if err != nil {
-			return fmt.Errorf("gunzip file to disk: %w", err)
+			return fmt.Errorf("gunzip file %s to disk: %w", file, err)
 		}
 	}
 
 	// Download the last mod start date
 	err = downloadLatestGitHubAsset(dbDir, "last_mod_start_date.txt")
 	if err != nil {
-		return fmt.Errorf("downloading last_most_start_date asset: %w", err)
+		return fmt.Errorf("downloading last_mod_start_date asset: %w", err)
 	}
 
 	return nil
@@ -129,6 +142,10 @@ func downloadLatestGitHubAsset(dbDir, fileName string) error {
 		return fmt.Errorf("get last mod start date: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("get last mod start date: %w", fmt.Errorf("unexpected status code %d", resp.StatusCode))
+	}
 
 	lastModStartDate, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -247,7 +264,8 @@ func gunzipFileToDisk(filename, dbpath string) error {
 	maxBytes := 200 * 1024 * 1024 // 200MB
 	_, err = io.CopyN(out, gz, int64(maxBytes))
 	if err != nil && err != io.EOF {
-		return fmt.Errorf("copy file: %w", err)
+		msg := fmt.Sprintf("error copying file %s: %v", f.Name(), err)
+		panic(msg)
 	}
 
 	return nil
