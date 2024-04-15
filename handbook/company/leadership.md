@@ -401,12 +401,19 @@ From time to time, someone's job title changes.  To do this, Business Operations
 2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
 
-## Performance feedback
+## Delivering performance feedback
 When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
 
 1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
-2. Performance mangement is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
-3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.  
+2. Performance management is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
+3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.
+
+
+#### Stubs
+
+##### Performance feedback
+Please see 📖[handbook/company/leadership#delivering-performance-feedback](https://fleetdm.com/handbook/company/leadership#delivering-performance-feedback).
+
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛠️ Leadership">
