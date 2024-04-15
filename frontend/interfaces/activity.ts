@@ -70,6 +70,7 @@ export enum ActivityType {
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
+  ResentConfigurationProfile = "resent_configuration_profile",
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
