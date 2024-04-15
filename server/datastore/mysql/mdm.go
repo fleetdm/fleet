@@ -1098,3 +1098,66 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 
 	return nil
 }
+
+func (ds *Datastore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
+	table, column, err := getTableAndColumnNameForHostMDMProfileUUID(profUUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting table and column")
+	}
+
+	selectStmt := fmt.Sprintf(`
+SELECT	
+	COALESCE(status, ?) as status
+	FROM
+	%s
+WHERE
+	operation_type = ?
+	AND host_uuid = ?
+	AND %s = ? 
+`, table, column)
+
+	var status fleet.MDMDeliveryStatus
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &status, selectStmt, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, hostUUID, profUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", notFound("HostMDMProfile").WithMessage("unable to match profile to host")
+		}
+		return "", ctxerr.Wrap(ctx, err, "get MDM profile status")
+	}
+	return status, nil
+}
+
+func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	table, column, err := getTableAndColumnNameForHostMDMProfileUUID(profUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting table and column")
+	}
+
+	// update the status to NULL to trigger resending on the next cron run
+	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL WHERE host_uuid = ? AND %s = ?`, table, column)
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, updateStmt, hostUUID, profUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resending host MDM profile")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// this should never happen, log for debugging
+			level.Debug(ds.logger).Log("msg", "resend profile status not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+		}
+
+		return nil
+	})
+}
+
+func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column string, err error) {
+	switch {
+	case strings.HasPrefix(profUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		return "host_mdm_apple_declarations", "declaration_uuid", nil
+	case strings.HasPrefix(profUUID, fleet.MDMAppleProfileUUIDPrefix):
+		return "host_mdm_apple_profiles", "profile_uuid", nil
+	case strings.HasPrefix(profUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		return "host_mdm_windows_profiles", "profile_uuid", nil
+	default:
+		return "", "", fmt.Errorf("invalid profile UUID prefix %s", profUUID)
+	}
+}

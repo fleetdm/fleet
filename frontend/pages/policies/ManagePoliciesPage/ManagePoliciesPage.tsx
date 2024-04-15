@@ -775,57 +775,26 @@ const ManagePolicyPage = ({
 
   const getAutomationsDropdownOptions = () => {
     const isAllTeams = teamIdForApi === undefined || teamIdForApi === -1;
-    let calEventsLabel: React.ReactNode = "Calendar events";
+    let disabledTooltipContent: React.ReactNode;
     if (!isPremiumTier) {
-      const tipId = uniqueId();
-      calEventsLabel = (
-        <span>
-          <div className="label-text" data-tooltip-id={tipId}>
-            Calendar events
-          </div>
-          <ReactTooltip5
-            id={tipId}
-            place="left"
-            positionStrategy="fixed"
-            offset={24}
-            opacity={1}
-            disableStyleInjection
-            classNameArrow="tooltip-arrow"
-          >
-            Available in Fleet Premium
-          </ReactTooltip5>
-        </span>
-      );
+      disabledTooltipContent = "Available in Fleet Premium.";
     } else if (isAllTeams) {
-      const tipId = uniqueId();
-      calEventsLabel = (
-        <span>
-          <div className="label-text" data-tooltip-id={tipId}>
-            Calendar events
-          </div>
-          <ReactTooltip5
-            id={tipId}
-            place="left"
-            positionStrategy="fixed"
-            offset={24}
-            opacity={1}
-            disableStyleInjection
-            classNameArrow="tooltip-arrow"
-          >
-            Select a team to manage
-            <br />
-            calendar events.
-          </ReactTooltip5>
-        </span>
+      disabledTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          calendar events.
+        </>
       );
     }
 
     return [
       {
-        label: calEventsLabel,
+        label: "Calendar events",
         value: "calendar_events",
         disabled: !isPremiumTier || isAllTeams,
         helpText: "Automatically reserve time to resolve failing policies.",
+        disabledTooltipContent,
       },
       {
         label: "Other workflows",

@@ -136,15 +136,10 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	// NVD_TEST_VULNDB_DIR can be used to speed up development (sync vulnerability data only once).
 	tempDir := os.Getenv("NVD_TEST_VULNDB_DIR")
 	if tempDir == "" {
-		nettest.Run(t)
 		// download the CVEs once for all sub-tests, and then disable syncing
 		tempDir = t.TempDir()
 		err := nettest.RunWithNetRetry(t, func() error {
-			// We use cveFeedPrefixURL="https://nvd.nist.gov/feeds/json/cve/1.1/" because a full sync
-			// with the NVD API 2.0 takes a long time (>15m). These feeds will be deprecated
-			// TBD during 2024 and this test will start failing then.
-			// For more information see: https://nvd.nist.gov/general/news/change-timeline.
-			return DownloadNVDCVEFeed(tempDir, "https://nvd.nist.gov/feeds/json/cve/1.1/", false, log.NewNopLogger())
+			return DownloadCVEFeed(tempDir, "", false, log.NewNopLogger())
 		})
 		require.NoError(t, err)
 	} else {
@@ -552,7 +547,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 	tempDir := t.TempDir()
 	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
-	err := DownloadNVDCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
+	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
 	require.Error(t, err)
 	require.Contains(t,
 		err.Error(),
