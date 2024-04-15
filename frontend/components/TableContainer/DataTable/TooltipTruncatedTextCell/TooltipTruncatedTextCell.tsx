@@ -16,7 +16,7 @@ interface ITooltipTruncatedTextCellProps {
    * Default is `false`.
    */
   tooltipBreakOnWord?: boolean;
-  /** DEPRICATED: use the prop `className` in order to add custom classes to this component */
+  /** @depricated use the prop `className` in order to add custom classes to this component */
   classes?: string;
   className?: string;
 }

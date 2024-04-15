@@ -45,7 +45,7 @@ export default {
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/configurtion_profiles/resend/${profileUUID}`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   LABELS: `/${API_VERSION}/fleet/labels`,
