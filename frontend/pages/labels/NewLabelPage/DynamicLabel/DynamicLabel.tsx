@@ -10,6 +10,8 @@ import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/
 
 const baseClass = "dynamic-label";
 
+const DEFAULT_QUERY = "SELECT 1 FROM os_version WHERE major >= 13;";
+
 type IDynamicLabelProps = RouteComponentProps<never, never> & {
   showOpenSidebarButton: boolean;
   onOpenSidebar: () => void;
@@ -39,6 +41,7 @@ const DynamicLabel = ({
   return (
     <div className={baseClass}>
       <DynamicLabelForm
+        defaultQuery={DEFAULT_QUERY}
         showOpenSidebarButton={showOpenSidebarButton}
         onOpenSidebar={onOpenSidebar}
         onSave={onSaveNewLabel}

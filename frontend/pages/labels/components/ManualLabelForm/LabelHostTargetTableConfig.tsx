@@ -48,17 +48,6 @@ export const generateTableHeaders = (
       accessor: "hardware_serial",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
-    {
-      Header: "Location",
-      accessor: "geolocation",
-      Cell: (cellProps) => {
-        const location = !cellProps.cell.value
-          ? undefined
-          : `${cellProps.cell.value?.city_name}, ${cellProps.cell.value?.country_iso}`;
-
-        return <TextCell value={location} />;
-      },
-    },
     ...deleteHeader,
   ];
 };

@@ -15,7 +15,7 @@ const baseClass = "ManualLabelForm";
 
 const LABEL_TARGET_HOSTS_INPUT_LABEL = "Select hosts";
 const LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER =
-  "Search name, hostname, serial number, or location (private IP address)";
+  "Search name, hostname, or serial number";
 
 export interface IManualLabelFormData {
   name: string;
