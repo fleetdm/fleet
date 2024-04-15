@@ -11273,11 +11273,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	}, http.StatusForbidden, &removeLabelsFromHostResp)
 
 	// A team observer should not be allowed to add/remove a label.
-	oldToken = s.token
 	s.token = s.getTestToken(teamObserver.Email, test.GoodPassword)
-	t.Cleanup(func() {
-		s.token = oldToken
-	})
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusForbidden, &addLabelsToHostResp)
@@ -11286,11 +11282,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	}, http.StatusForbidden, &removeLabelsFromHostResp)
 
 	// A team admin should not be allowed to add/remove a label for a global host.
-	oldToken = s.token
 	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
-	t.Cleanup(func() {
-		s.token = oldToken
-	})
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusForbidden, &addLabelsToHostResp)
@@ -11299,11 +11291,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	}, http.StatusForbidden, &removeLabelsFromHostResp)
 
 	// A team admin should be allowed to add/remove a label for a team host.
-	oldToken = s.token
 	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
-	t.Cleanup(func() {
-		s.token = oldToken
-	})
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
 		Labels: []string{manualLabel1.Name},
 	}, http.StatusOK, &addLabelsToHostResp)
