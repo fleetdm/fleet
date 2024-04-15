@@ -143,7 +143,7 @@ type LabelSpec struct {
 	Platform            string              `json:"platform,omitempty"`
 	LabelType           LabelType           `json:"label_type,omitempty" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
-	Hosts               []string            `json:"hosts,omitempty"`
+	Hosts               []string            `json:"hosts"`
 }
 
 const (
