@@ -3595,10 +3595,12 @@ func (s *integrationTestSuite) TestLabels() {
 	var listResp listLabelsResponse
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
 	assert.True(t, len(listResp.Labels) > 0)
+	var builtinLbl fleet.Label
 	for _, lbl := range listResp.Labels {
 		_, ok := builtinsMap[lbl.Name]
 		assert.True(t, ok)
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+		builtinLbl = lbl.Label
 	}
 	builtInsCount := len(listResp.Labels)
 	require.Equal(t, builtInsCount, len(builtinsMap))
@@ -3687,6 +3689,33 @@ func (s *integrationTestSuite) TestLabels() {
 
 	// modify a non-existing label
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
+	// modify a built-in label
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", builtinLbl.ID), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "cannot modify built-in label")
+
+	// modify manual label 1 without modifying its hosts
+	modResp = modifyLabelResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String("modified_manual_label1")}, http.StatusOK, &modResp)
+	assert.Equal(t, manualLbl1.ID, modResp.Label.ID)
+	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.EqualValues(t, 3, modResp.Label.HostCount)
+
+	// modify manual label 2 adding some hosts
+	modResp = modifyLabelResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{manualHosts[0].UUID}}, http.StatusOK, &modResp)
+	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.EqualValues(t, 1, modResp.Label.HostCount)
+
+	// modify manual label 2 clearing its hosts
+	modResp = modifyLabelResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{}, Description: ptr.String("desc")}, http.StatusOK, &modResp)
+	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+	assert.Equal(t, "desc", modResp.Label.Description)
+	assert.EqualValues(t, 0, modResp.Label.HostCount)
 
 	// list labels
 	dynamicLabels := []fleet.Label{lbl1}
@@ -3714,7 +3743,7 @@ func (s *integrationTestSuite) TestLabels() {
 		require.NoError(t, err)
 	}
 
-	// list hosts in label
+	// list hosts in dynamic label lbl2
 	var listHostsResp listHostsResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
 	assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
@@ -3724,7 +3753,20 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, lbl2Hosts[1].ID, listHostsResp.Hosts[0].ID)
 	assert.Equal(t, lbl2Hosts[2].ID, listHostsResp.Hosts[1].ID)
 
-	// list hosts in label searching by display_name
+	// list hosts in manual label 1
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", manualLbl1.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id")
+	assert.Len(t, listHostsResp.Hosts, manualLbl1.HostCount)
+	assert.Equal(t, manualHosts[0].ID, listHostsResp.Hosts[0].ID)
+	assert.Equal(t, manualHosts[1].ID, listHostsResp.Hosts[1].ID)
+	assert.Equal(t, manualHosts[2].ID, listHostsResp.Hosts[2].ID)
+
+	// list hosts in manual label 2
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", manualLbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id")
+	assert.Len(t, listHostsResp.Hosts, 0)
+
+	// list hosts in dynamic label 2 searching by display_name
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "display_name", "order_direction", "desc")
 	assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
 	// first in the list is the last one, as the names are ordered with the index
