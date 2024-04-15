@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockPolicy from "__mocks__/policyMock";
@@ -100,7 +100,7 @@ describe("PolicyForm - component", () => {
       },
     });
 
-    const { container, user } = render(
+    const { user } = render(
       <PolicyForm
         policyIdForEdit={mockPolicy.id}
         showOpenSchemaActionText={false}
@@ -125,9 +125,11 @@ describe("PolicyForm - component", () => {
 
     await user.hover(screen.getByRole("button", { name: "Save" }));
 
-    expect(container.querySelector("#save-policy-button")).toHaveTextContent(
-      /to save or run the policy/i
-    );
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(/to save or run the policy/i)
+      ).toBeInTheDocument();
+    });
   });
 
   it("disables run button with tooltip when live queries are globally disabled", async () => {

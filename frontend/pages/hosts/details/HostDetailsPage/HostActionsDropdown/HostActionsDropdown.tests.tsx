@@ -1,12 +1,14 @@
 import React from "react";
 import { noop } from "lodash";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import createMockTeam from "__mocks__/teamMock";
 
 import HostActionsDropdown from "./HostActionsDropdown";
+
+const SCRIPTS_DISABLED_TOOLTIP_TEXT = /fleetd agent with --enable-scripts/i;
 
 describe("Host Actions Dropdown", () => {
   describe("Transfer action", () => {
@@ -118,13 +120,13 @@ describe("Host Actions Dropdown", () => {
         screen.getByText("Query").parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      await user.hover(screen.getByText(/Query/i));
+      await user.hover(screen.getByText("Query"));
 
-      const tooltipText = await screen.findByText(
-        /You can't query an offline host./i
-      );
-
-      expect(tooltipText).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(/You can't query an offline host./i)
+        ).toBeInTheDocument();
+      });
     });
 
     it("renders the Query action as disabled when a host is locked", async () => {
@@ -590,11 +592,11 @@ describe("Host Actions Dropdown", () => {
 
       await user.hover(screen.getByText("Lock"));
 
-      const tooltipText = await screen.findByText(
-        /fleetd agent with --enable-scripts/i
-      );
-
-      expect(tooltipText).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(SCRIPTS_DISABLED_TOOLTIP_TEXT)
+        ).toBeInTheDocument();
+      });
     });
 
     it("does not render when the host is not enrolled in mdm", async () => {
@@ -841,13 +843,13 @@ describe("Host Actions Dropdown", () => {
         screen.getByText("Unlock").parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      await user.hover(screen.getByText(/Unlock/i));
+      await user.hover(screen.getByText("Unlock"));
 
-      const tooltipText = await screen.findByText(
-        /fleetd agent with --enable-scripts/i
-      );
-
-      expect(tooltipText).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(SCRIPTS_DISABLED_TOOLTIP_TEXT)
+        ).toBeInTheDocument();
+      });
     });
   });
 
@@ -976,11 +978,11 @@ describe("Host Actions Dropdown", () => {
         screen.getByText(/Wipe/i).parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      const tooltipText = await screen.findByText(
-        /fleetd agent with --enable-scripts/i
-      );
-
-      expect(tooltipText).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(SCRIPTS_DISABLED_TOOLTIP_TEXT)
+        ).toBeInTheDocument();
+      });
     });
   });
 
@@ -1037,17 +1039,18 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText(/Run script/i));
 
       expect(
         screen.getByText("Run script").parentNode?.parentNode?.parentNode
       ).toHaveClass("is-disabled");
 
-      const tooltipText = await screen.findByText(
-        /fleetd agent with --enable-scripts/i
-      );
+      await user.hover(screen.getByText(/Run script/i));
 
-      expect(tooltipText).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(SCRIPTS_DISABLED_TOOLTIP_TEXT)
+        ).toBeInTheDocument();
+      });
     });
 
     it("does not render the Run script action for ChromeOS", async () => {
