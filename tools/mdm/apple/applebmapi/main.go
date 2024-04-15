@@ -1,6 +1,6 @@
-// Command getaccount takes an Apple Business Manager server token in decrypted
+// Command applebmapi takes an Apple Business Manager server token in decrypted
 // JSON format and calls the Apple BM API to retrieve and print the account
-// information.
+// information or the specified enrollment profile.
 //
 // Was implemented to test out https://github.com/fleetdm/fleet/issues/7515#issuecomment-1330889768,
 // and can still be useful for debugging purposes.
@@ -27,12 +27,18 @@ import (
 func main() {
 	mysqlAddr := flag.String("mysql", "localhost:3306", "mysql address")
 	appleBMToken := flag.String("apple-bm-token", "", "path to (decrypted) Apple BM token")
+	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve")
+	serialNum := flag.String("serial-number", "", "serial number of a device to get the device details")
 
 	flag.Parse()
 
 	if *appleBMToken == "" {
 		log.Fatal("must provide Apple BM token")
 	}
+	if *profileUUID != "" && *serialNum != "" {
+		log.Fatal("only one of -profile-uuid or -serial-number must be provided")
+	}
+
 	tok, err := os.ReadFile(*appleBMToken)
 	if err != nil {
 		log.Fatal(err)
@@ -64,11 +70,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 
 	ctx := context.Background()
-	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
+	var res any
+	switch {
+	case *profileUUID != "":
+		res, err = depClient.GetProfile(ctx, apple_mdm.DEPName, *profileUUID)
+	case *serialNum != "":
+		res, err = depClient.GetDeviceDetails(ctx, apple_mdm.DEPName, *serialNum)
+	default:
+		res, err = depClient.AccountDetail(ctx, apple_mdm.DEPName)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
