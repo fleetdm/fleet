@@ -42,10 +42,10 @@ func (ts *withDS) SetupSuite(dbName string) {
 	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
 	// remove any migration-created labels
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `DELETE FROM labels WHERE label_type != ?`, fleet.LabelTypeBuiltIn)
+		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
 		return err
 	})
-	test.AddAllHostsLabel(t, ts.ds)
+	test.AddBuiltinLabels(t, ts.ds)
 
 	// setup the required fields on AppConfig
 	appConf, err := ts.ds.AppConfig(context.Background())
@@ -100,6 +100,12 @@ func (ts *withServer) TearDownSuite() {
 }
 
 func (ts *withServer) commonTearDownTest(t *testing.T) {
+	// By setting DISABLE_TABLES_CLEANUP a developer can troubleshoot tests
+	// by inspecting mysql tables.
+	if os.Getenv("DISABLE_CLEANUP_TABLES") != "" {
+		return
+	}
+
 	ctx := context.Background()
 
 	u := ts.users["admin1@example.com"]

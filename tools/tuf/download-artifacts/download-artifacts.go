@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -37,6 +38,7 @@ func orbitCommand() *cli.Command {
 		outputDirectory string
 		githubUsername  string
 		githubAPIToken  string
+		retry           bool
 	)
 	return &cli.Command{
 		Name:  "orbit",
@@ -70,13 +72,19 @@ func orbitCommand() *cli.Command {
 				Destination: &githubAPIToken,
 				Usage:       "Github API token (https://github.com/settings/tokens)",
 			},
+			&cli.BoolFlag{
+				Name:        "retry",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_RETRY"},
+				Destination: &retry,
+				Usage:       "Whether to retry if the artifact doesn't exist yet",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("goreleaser-orbit.yaml", gitTag, map[string]string{
 				"macos":   "orbit-macos",
 				"linux":   "orbit-linux",
 				"windows": "orbit-windows",
-			}, outputDirectory, githubUsername, githubAPIToken)
+			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
 }
@@ -87,6 +95,7 @@ func desktopCommand() *cli.Command {
 		outputDirectory string
 		githubUsername  string
 		githubAPIToken  string
+		retry           bool
 	)
 	return &cli.Command{
 		Name:  "desktop",
@@ -120,13 +129,19 @@ func desktopCommand() *cli.Command {
 				Destination: &githubAPIToken,
 				Usage:       "Github API token (https://github.com/settings/tokens)",
 			},
+			&cli.BoolFlag{
+				Name:        "retry",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_RETRY"},
+				Destination: &retry,
+				Usage:       "Whether to retry if the artifact doesn't exist yet",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("generate-desktop-targets.yml", gitBranch, map[string]string{
 				"macos":   "desktop.app.tar.gz",
 				"linux":   "desktop.tar.gz",
 				"windows": "fleet-desktop.exe",
-			}, outputDirectory, githubUsername, githubAPIToken)
+			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
 }
@@ -231,7 +246,7 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 	return nil
 }
 
-func downloadComponents(workflowName string, headBranch string, artifactNames map[string]string, outputDirectory string, githubUsername string, githubAPIToken string) error {
+func downloadComponents(workflowName string, headBranch string, artifactNames map[string]string, outputDirectory string, githubUsername string, githubAPIToken string, retry bool) error {
 	if err := os.RemoveAll(outputDirectory); err != nil {
 		return err
 	}
@@ -241,40 +256,55 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 		}
 	}
 	ctx := context.Background()
-	gc := github.NewClient(fleethttp.NewClient())
-	workflow, _, err := gc.Actions.GetWorkflowByFileName(ctx, "fleetdm", "fleet", workflowName)
-	if err != nil {
-		return err
-	}
-	workflowRuns, _, err := gc.Actions.ListWorkflowRunsByID(ctx, "fleetdm", "fleet", *workflow.ID, nil)
-	if err != nil {
-		return err
-	}
 	var workflowRun *github.WorkflowRun
-	for _, wr := range workflowRuns.WorkflowRuns {
-		if headBranch == *wr.HeadBranch {
-			workflowRun = wr
+	gc := github.NewClient(fleethttp.NewClient())
+	for {
+		workflow, _, err := gc.Actions.GetWorkflowByFileName(ctx, "fleetdm", "fleet", workflowName)
+		if err != nil {
+			return err
+		}
+		workflowRuns, _, err := gc.Actions.ListWorkflowRunsByID(ctx, "fleetdm", "fleet", *workflow.ID, nil)
+		if err != nil {
+			return err
+		}
+		for _, wr := range workflowRuns.WorkflowRuns {
+			if headBranch == *wr.HeadBranch {
+				workflowRun = wr
+				break
+			}
+		}
+		if workflowRun != nil || !retry {
 			break
 		}
+		fmt.Printf("Workflow not available yet, it might be queued, retrying in 60s...\n")
+		time.Sleep(60 * time.Second)
 	}
 	if workflowRun == nil {
 		return fmt.Errorf("workflow with tag %s not found", headBranch)
 	}
-	artifactList, _, err := gc.Actions.ListWorkflowRunArtifacts(ctx, "fleetdm", "fleet", *workflowRun.ID, nil)
-	if err != nil {
-		return err
-	}
-	urls := make(map[string]string)
-	for _, artifact := range artifactList.Artifacts {
-		if *artifact.Name == artifactNames["linux"] {
-			urls["linux"] = *artifact.ArchiveDownloadURL
-		} else if *artifact.Name == artifactNames["macos"] {
-			urls["macos"] = *artifact.ArchiveDownloadURL
-		} else if *artifact.Name == artifactNames["windows"] {
-			urls["windows"] = *artifact.ArchiveDownloadURL
-		} else {
-			return fmt.Errorf("unknown artifact name: %s", *artifact.Name)
+	var urls map[string]string
+	for {
+		artifactList, _, err := gc.Actions.ListWorkflowRunArtifacts(ctx, "fleetdm", "fleet", *workflowRun.ID, nil)
+		if err != nil {
+			return err
 		}
+		urls = make(map[string]string)
+		for _, artifact := range artifactList.Artifacts {
+			if *artifact.Name == artifactNames["linux"] {
+				urls["linux"] = *artifact.ArchiveDownloadURL
+			} else if *artifact.Name == artifactNames["macos"] {
+				urls["macos"] = *artifact.ArchiveDownloadURL
+			} else if *artifact.Name == artifactNames["windows"] {
+				urls["windows"] = *artifact.ArchiveDownloadURL
+			} else {
+				return fmt.Errorf("unknown artifact name: %s", *artifact.Name)
+			}
+		}
+		if len(urls) == 3 || !retry {
+			break
+		}
+		fmt.Printf("All artifacts are not available yet, the workflow might still be running, retrying in 60s...\n")
+		time.Sleep(60 * time.Second)
 	}
 	if len(urls) != 3 {
 		return fmt.Errorf("missing some artifact: %+v", urls)
@@ -295,6 +325,7 @@ func osquerydCommand() *cli.Command {
 		outputDirectory string
 		githubUsername  string
 		githubAPIToken  string
+		retry           bool
 	)
 	return &cli.Command{
 		Name:  "osqueryd",
@@ -328,13 +359,19 @@ func osquerydCommand() *cli.Command {
 				Destination: &githubAPIToken,
 				Usage:       "Github API token (https://github.com/settings/tokens)",
 			},
+			&cli.BoolFlag{
+				Name:        "retry",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_RETRY"},
+				Destination: &retry,
+				Usage:       "Whether to retry if the artifact doesn't exist yet",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("generate-osqueryd-targets.yml", gitBranch, map[string]string{
 				"macos":   "osqueryd.app.tar.gz",
 				"linux":   "osqueryd",
 				"windows": "osqueryd.exe",
-			}, outputDirectory, githubUsername, githubAPIToken)
+			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
 }

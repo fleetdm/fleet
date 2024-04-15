@@ -723,9 +723,6 @@ module.exports = {
               if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
                 columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
               }
-              if(column.requires_user_context) { // If a column has `"requires_user_context": true`, we'll add a note to the description that will be added to the table
-                columnDescriptionForTable += '<br> **Defaults to root** &nbsp;&nbsp;[Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table?utm_source=fleetdm.com&utm_content=table-'+encodeURIComponent(table.name)+')';
-              }
               if(column.hidden) { // If a column has `"hidden": true`, we'll add a note to the description that will be added to the table
                 columnDescriptionForTable += '<br> **Not returned in `SELECT * FROM '+table.name+'`.**';
               }

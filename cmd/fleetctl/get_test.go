@@ -1458,9 +1458,9 @@ func TestGetQuery(t *testing.T) {
 				Platform:           "linux",
 				Logging:            "differential",
 			}, nil
-		} else {
-			return nil, &notFoundError{}
 		}
+
+		return nil, &notFoundError{}
 	}
 
 	expectedYaml := `---

@@ -28,6 +28,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -54,6 +55,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -81,6 +83,7 @@ describe("Host Actions Dropdown", () => {
         hostMdmEnrollmentStatus={null}
         doesStoreEncryptionKey
         hostMdmDeviceStatus="unlocked"
+        hostScriptsEnabled
       />
     );
 
@@ -110,6 +113,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -138,6 +142,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -167,6 +172,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -196,6 +202,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -223,6 +230,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Non Fleet MDM"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -251,6 +259,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -283,6 +292,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="windows"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -310,6 +320,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -335,6 +346,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -361,6 +373,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -387,6 +400,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -418,6 +432,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -447,6 +462,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -476,6 +492,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Non Fleet MDM"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -507,6 +524,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
+          hostScriptsEnabled
         />
       );
 
@@ -536,6 +554,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocking"
+          hostScriptsEnabled
         />
       );
 
@@ -565,6 +584,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
+          hostScriptsEnabled
         />
       );
 
@@ -594,6 +614,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Non Fleet MDM"
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
+          hostScriptsEnabled
         />
       );
 
@@ -624,6 +645,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
+          hostScriptsEnabled
         />
       );
 
@@ -655,6 +677,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -685,6 +708,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="windows"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 
@@ -715,6 +739,7 @@ describe("Host Actions Dropdown", () => {
           mdmName="Fleet"
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 

@@ -8,6 +8,10 @@ team_settings:
     host_expiry_window: 0
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET
+  integrations:
+    google_calendar:
+      enable_calendar_events: true
+      webhook_url: $DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
     decorators:
@@ -100,12 +104,6 @@ policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
-  - name: chromeOS/macOS - Screenlock enabled
-    query: SELECT 1 FROM screenlock WHERE enabled = 1;
-    critical: false
-    description: ""
-    resolution: ""
-    platform: darwin,chrome
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-usb-devices.queries.yml

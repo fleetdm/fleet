@@ -5,8 +5,8 @@
   task: "Check browser compatibility for fleetdm.com"
   startedOn: "2024-03-06" 
   frequency: "Monthly"
-  description: "Run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com."
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm-com"
+  description: "Use Browserstack to manually QA pages on fleetdm.com in each of the earliest supported browser versions"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com"
   dri: "eashaw"
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-digital-experience" ] # label to be applied to issue

@@ -154,8 +154,8 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 /////////////////////////////////////////////////////////////////////////////////
 
 type countTeamPoliciesRequest struct {
-	fleet.ListOptions `url:"list_options"`
-	TeamID            uint `url:"team_id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+	TeamID      uint              `url:"team_id"`
 }
 
 type countTeamPoliciesResponse struct {
@@ -167,7 +167,7 @@ func (r countTeamPoliciesResponse) error() error { return r.Err }
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countTeamPoliciesRequest)
-	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.MatchQuery)
+	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery)
 	if err != nil {
 		return countTeamPoliciesResponse{Err: err}, nil
 	}

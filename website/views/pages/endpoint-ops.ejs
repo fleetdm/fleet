@@ -1,43 +1,75 @@
-<div id="endpoint-ops" v-cloak>
+<div id="endpoint-ops-page" v-cloak>
   <div purpose="page-container">
     <div purpose="page-content" class="mx-auto">
     <div purpose="hero">
       <div purpose="page-headline">
         <h4>Endpoint operations</h4>
-        <h1>A consistent interface</h1>
+        <h1>Understand your computers</h1>
       </div>
       <div purpose="hero-content" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
         <div purpose="hero-image">
           <img alt="A device verifying compliance for every endpoint" src="/images/endpoint-operations-hero-image-380x380@2x.png">
         </div>
         <div purpose="hero-text">
-          <strong>Pulse check anything</strong>
-          <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
-          <strong>Ship data to any platform</strong>
-          <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
-          <strong>Osquery on easy mode</strong>
-          <p>You don’t need to be an osquery expert to get the answers you need from your devices, Fleet does some of that for you.</p>
+          <% if(primaryBuyingSituation === 'eo-it') { %>
+            <strong>Pulse check anything</strong>
+            <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
+            <strong>Ship data to any platform</strong>
+            <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
+            <strong>Automate anything</strong>
+            <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
+          <% } else if(primaryBuyingSituation === 'eo-security') { %>
+            <strong>Osquery on easy mode</strong>
+            <p>You don’t need to be an osquery expert to get the answers you need from your devices, Fleet does some of that for you.</p>
+            <strong>Pulse check anything</strong>
+            <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
+            <strong>Ship data to any platform</strong>
+            <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
+          <% } else { %>
+            <strong>Pulse check anything</strong>
+            <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
+            <strong>Ship data to any platform</strong>
+            <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
+            <strong>Osquery on easy mode</strong>
+            <p>You don’t need to be an osquery expert to get the answers you need from your devices, Fleet does some of that for you.</p>
+          <% }%>
           <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
-            <a purpose="cta-button" href="/contact">Talk to us</a>
-            <a purpose="animated-arrow-button-red" href="/register">Try it out</a>
+            <a purpose="cta-button" href="/register">Start now</a>
+            <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
           </div>
         </div>
       </div>
     </div>
     <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
-      <div purpose="testimonial-quote">
-        <div purpose="quote">
-          <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-          <p>I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work.</p>
-        </div>
-        <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
-          <div purpose="quote-image"><img src="/images/testimonial-daniel-grzelak-48x48@2x.png" alt="Daniel Grzelak"></div>
-          <div class="d-flex flex-column">
-            <p purpose="name">Daniel Grzelak</p>
-            <p purpose="title">CISO</p>
+      <% if(primaryBuyingSituation === 'eo-it') { %>
+        <div purpose="testimonial-quote">
+          <div purpose="quote">
+            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+            <p>“Fleet provides a way to surface device data to our other teams and partners.”</p>
+          </div>
+          <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
+            <div purpose="quote-image"><img src="/images/testimonial-author-nick-fohs-24x24@2x.png" alt="Nick Fohs"></div>
+            <div class="d-flex flex-column">
+              <p purpose="name">Nick Fohs</p>
+              <p purpose="title">Systems and infrastructure manager</p>
+            </div>
           </div>
         </div>
-      </div>
+      <% } else { %>
+        <div purpose="testimonial-quote">
+          <div purpose="quote">
+            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+            <p>"I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work."</p>
+          </div>
+          <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
+            <div purpose="quote-image"><img src="/images/testimonial-daniel-grzelak-48x48@2x.png" alt="Daniel Grzelak"></div>
+            <div class="d-flex flex-column">
+              <p purpose="name">Daniel Grzelak</p>
+              <p purpose="title">CISO</p>
+            </div>
+          </div>
+        </div>
+      <% } %>
       <div purpose="testimonial-videos" class="d-flex">
         <div purpose="testimonial-video" @click="clickOpenVideoModal('austin-anderson')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
@@ -76,7 +108,7 @@
 
 
       </div>
-      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center justify-content-left">
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center">
 
         <div purpose="feature-item" class="ml-sm-0">
           <img alt="CIS benchmarks" src="/images/icon-cis-benchmarks-48x48@2x.png" class="mx-auto mx-sm-0">
@@ -95,6 +127,15 @@
           <h5>Verify updates and settings</h5>
           <p>Track progress towards deadlines for security posture remediation projects, and enforce due dates through automations.</p>
         </div>
+      </div>
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center">
+        <div purpose="feature-item" class="ml-sm-0 mb-0">
+          <img alt="Verify updates and settings" src="/images/icon-edr-health-check-48x48@2x.png" class="mx-auto mx-sm-0">
+          <h5>EDR health checks</h5>
+          <p>Verify that your EDR tools are installed and working so you can identify and address configuration issues quickly.</p>
+        </div>
+        <div purpose="feature-item" class="ml-sm-0 mb-0"></div>
+        <div purpose="feature-item" class="ml-sm-0 mb-0"></div>
       </div>
       <p purpose="feature-footnote">*Currently limited to: macOS, Linux, Windows, Chromebooks, OT, data centers, Amazon Web Services (AWS), Google Cloud (GCP), and the Microsoft Cloud (Azure).</p>
     </div>
@@ -183,7 +224,7 @@
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
         <h4>Who else uses Fleet?</h4>
-        <h3>Empowering security and IT teams, globally</h3>
+        <h3>Empowering <%= ['mdm', 'eo-it'].includes(primaryBuyingSituation) ? 'IT and security' : 'security and IT' %> teams, globally</h3>
       </div>
     </div>
 
@@ -194,8 +235,8 @@
         <h4>Endpoint operations</h4>
         <h3>A consistent interface</h3>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/contact">Talk to us</a>
-          <a purpose="animated-arrow-button-red" href="/register">Try it out</a>
+          <a purpose="cta-button" href="/register">Start now</a>
+          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
         </div>
       </div>
     </div>

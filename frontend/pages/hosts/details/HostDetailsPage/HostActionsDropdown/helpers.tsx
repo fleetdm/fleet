@@ -79,6 +79,7 @@ interface IHostActionConfigOptions {
   doesStoreEncryptionKey: boolean;
   isSandboxMode: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
+  hostScriptsEnabled: boolean | null;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -284,11 +285,39 @@ const filterOutOptions = (
 
 const setOptionsAsDisabled = (
   options: IDropdownOption[],
-  { isHostOnline, isSandboxMode, hostMdmDeviceStatus }: IHostActionConfigOptions
+  {
+    isHostOnline,
+    isSandboxMode,
+    hostMdmDeviceStatus,
+    hostScriptsEnabled,
+  }: IHostActionConfigOptions
 ) => {
+  // Available tooltips for disabled options
+  const disabledTooltipContent = (value: string | number) => {
+    const tooltipAction: Record<string, string> = {
+      runScript: "run scripts on",
+      wipe: "wipe",
+      lock: "lock",
+      unlock: "unlock",
+    };
+    if (tooltipAction[value]) {
+      return (
+        <>
+          To {tooltipAction[value]} this host, deploy the
+          <br />
+          fleetd agent with --enable-scripts
+        </>
+      );
+    }
+    if (!isHostOnline && value === "query") {
+      return <>You can&apos;t query an offline host.</>;
+    }
+  };
+
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
       option.disabled = true;
+      option.disabledTooltipContent = disabledTooltipContent(option.value);
     });
   };
 
@@ -303,6 +332,12 @@ const setOptionsAsDisabled = (
       options.filter(
         (option) => option.value === "query" || option.value === "mdmOff"
       )
+    );
+  }
+
+  if (!hostScriptsEnabled) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "runScript")
     );
   }
   if (isSandboxMode) {
