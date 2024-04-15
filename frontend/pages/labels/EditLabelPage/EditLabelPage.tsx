@@ -89,7 +89,6 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       return <Spinner />;
     }
 
-    // TODO: new empty state? Ask design if this is expected for this story.
     if (isErrorLabel || isErrorHosts) {
       return <DataError />;
     }
@@ -127,8 +126,6 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     );
   };
 
-  // GET HOSTS
-  // host;
   return (
     <>
       <MainContent className={baseClass}>

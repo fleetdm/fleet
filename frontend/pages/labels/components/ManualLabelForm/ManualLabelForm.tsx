@@ -55,8 +55,6 @@ const ManualLabelForm = ({
     data: hostTargets,
     isLoading: isLoadingSearchResults,
     isError: isErrorSearchResults,
-    // isFetching: isFetchingSearchResults,
-    // error: errorSearchResults,
   } = useQuery<ITargetsSearchResponse, Error, IHost[], ITargetsQueryKey[]>(
     [
       {
@@ -120,7 +118,7 @@ const ManualLabelForm = ({
             searchText={searchQuery}
             searchResultsTableConfig={resultsTableConfig}
             selectedHostsTableConifg={selectedHostsTableConfig}
-            isTargetsLoading={false}
+            isTargetsLoading={isLoadingSearchResults}
             hasFetchError={false}
             searchResults={hostTargets ?? []}
             targetedHosts={targetedHosts}
