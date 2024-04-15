@@ -1,6 +1,6 @@
-// Command getaccount takes an Apple Business Manager server token in decrypted
+// Command applebmapi takes an Apple Business Manager server token in decrypted
 // JSON format and calls the Apple BM API to retrieve and print the account
-// information.
+// information or the specified enrollment profile.
 //
 // Was implemented to test out https://github.com/fleetdm/fleet/issues/7515#issuecomment-1330889768,
 // and can still be useful for debugging purposes.
@@ -27,6 +27,7 @@ import (
 func main() {
 	mysqlAddr := flag.String("mysql", "localhost:3306", "mysql address")
 	appleBMToken := flag.String("apple-bm-token", "", "path to (decrypted) Apple BM token")
+	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve; print the account details if no profile uuid provided")
 
 	flag.Parse()
 
@@ -64,16 +65,25 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 
 	ctx := context.Background()
-	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
-	if err != nil {
-		log.Fatal(err)
+	var body any
+	if *profileUUID == "" {
+		res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
+		if err != nil {
+			log.Fatal(err)
+		}
+		body = res
+	} else {
+		res, err := depClient.GetProfile(ctx, apple_mdm.DEPName, *profileUUID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		body = res
 	}
 
-	b, err := json.MarshalIndent(res, "", "  ")
+	b, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
 		log.Fatalf("pretty-format body: %v", err)
 	}
