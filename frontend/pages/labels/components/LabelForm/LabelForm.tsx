@@ -48,7 +48,7 @@ const LabelForm = ({
 
     let isFormValid = true;
     if (!validate_presence(name)) {
-      setNameError("Label title must be present");
+      setNameError("Label name must be present");
       isFormValid = false;
     }
 
