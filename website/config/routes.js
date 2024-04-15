@@ -248,6 +248,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Endpoint ops | Fleet',
       pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
+      currentSection: 'platform',
     }
   },
 
@@ -256,6 +257,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Vulnerability management | Fleet',
       pageDescriptionForMeta: 'Report CVEs, software inventory, security posture, and other risks down to the chipset of any endpoint with Fleet.',
+      currentSection: 'platform',
     }
   },
 
@@ -462,8 +464,14 @@ module.exports.routes = {
   'GET /try-fleet/sandbox-expired':   '/try-fleet',
   'GET /try-fleet/sandbox':   '/try-fleet',
   'GET /try-fleet/waitlist':   '/try-fleet',
-  'GET /mdm': '/device-management',// « alias for radio ad
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
+  'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json',
+
+  // Shortlinks for texting friends, radio ads, etc
+  'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
+  'GET /it': '/endpoint-ops?utm_content=eo-it',
+  'GET /seceng': '/endpoint-ops?utm_content=eo-security',
+  'GET /vm': '/vulnerability-management?utm_content=vm',
 
   // Fleet UI
   // =============================================================================================================
@@ -482,6 +490,8 @@ module.exports.routes = {
   'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
   'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',
   'GET /learn-more-about/enabling-calendar-api': 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
+  'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
+  'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
 
   // Sitemap
   // =============================================================================================================

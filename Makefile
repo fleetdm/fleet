@@ -318,7 +318,9 @@ changelog:
 	sh -c "git rm changes/*"
 
 changelog-orbit:
-	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
+	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
+	@echo -e "## Orbit $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
+	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {} | sed -E "s/^-/*/"; echo' >> new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md orbit/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md orbit/CHANGELOG.md"
 	sh -c "git rm orbit/changes/*"
 
@@ -394,7 +396,7 @@ ifneq ($(shell uname), Darwin)
 	@exit 1
 endif
 	# locking the version of swiftDialog to 2.2.1-4591 as newer versions
-	# migth have layout issues.
+	# might have layout issues.
 ifneq ($(version), 2.2.1)
 	@echo "Version is locked at 2.1.0, see comments in Makefile target for details"
 	@exit 1

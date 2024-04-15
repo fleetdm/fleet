@@ -152,6 +152,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	workr.Register(macosJob, appleMDMJob)
 	s.worker = workr
 
+	// clear the jobs queue of any pending jobs generated via DB migrations
+	mysql.ExecAdhocSQL(s.T(), s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), "DELETE FROM jobs")
+		return err
+	})
+
 	var depSchedule *schedule.Schedule
 	var integrationsSchedule *schedule.Schedule
 	var profileSchedule *schedule.Schedule
@@ -1509,7 +1515,6 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// create a host enrolled in fleet
 	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	s.runWorker()
 
 	// create a host that's not enrolled into MDM
 	nonMDMHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -1536,6 +1541,14 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		Name:              "no-team",
 		EnrollmentProfile: json.RawMessage(noTeamProf),
 	}, http.StatusOK, &globalAsstResp)
+
+	// set the global Enable Release Device manually setting to true,
+	// will be inherited by teams created via preassign/match.
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		json.RawMessage(jsonMustMarshal(t, map[string]any{"enable_release_device_manually": true})),
+		http.StatusNoContent)
+
+	s.runWorker()
 
 	// preassign an empty profile, fails
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
@@ -1571,6 +1584,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	tm1, err := s.ds.Team(ctx, *h.TeamID)
 	require.NoError(t, err)
 	require.Equal(t, "g1", tm1.Name)
+	require.True(t, tm1.Config.MDM.EnableDiskEncryption)
+	require.True(t, tm1.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
 	runWithAdminToken(func() {
 		// it create activities for the new team, the profiles assigned to it,
@@ -1595,34 +1610,51 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 			0)
 	})
 
-	// and the team has the expected profiles
+	// and the team has the expected profiles (prof1 and prof2)
 	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
 	require.NoError(t, err)
 	require.Len(t, profs, 2)
 	// order is guaranteed by profile name
 	require.Equal(t, prof1, []byte(profs[0].Mobileconfig))
 	require.Equal(t, prof2, []byte(profs[1].Mobileconfig))
-	// filevault is enabled by default
-	require.True(t, tm1.Config.MDM.EnableDiskEncryption)
 	// setup assistant settings are copyied from "no team"
 	teamAsst, err := s.ds.GetMDMAppleSetupAssistant(ctx, &tm1.ID)
 	require.NoError(t, err)
 	require.Equal(t, globalAsstResp.Name, teamAsst.Name)
 	require.JSONEq(t, string(globalAsstResp.Profile), string(teamAsst.Profile))
 
-	// create a team and set profiles to it
+	// trigger the schedule so profiles are set in their state
+	s.awaitTriggerProfileSchedule(t)
+	s.runWorker()
+
+	// the mdm host has the same profiles (i1, i2, plus fleetd config and disk encryption)
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		mdmHost: {
+			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "i2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+
+	// create a team and set profiles to it (note that it doesn't have disk encryption enabled)
 	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name: "g1 - g4",
+		Name:    "g1 - g4",
+		Secrets: []*fleet.EnrollSecret{{Secret: "tm2secret"}},
 	})
 	require.NoError(t, err)
 	prof4 := mobileconfigForTest("n4", "i4")
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 		prof1, prof4,
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
+	// tm2 has disk encryption and release device manually disabled
+	require.False(t, tm2.Config.MDM.EnableDiskEncryption)
+	require.False(t, tm2.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
 	// create another team with a superset of profiles
 	tm3, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name: "team3_" + t.Name(),
+		Name:    "team3_" + t.Name(),
+		Secrets: []*fleet.EnrollSecret{{Secret: "tm3secret"}},
 	})
 	require.NoError(t, err)
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
@@ -1631,15 +1663,13 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// and yet another team with the same profiles as tm3
 	tm4, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name: "team4_" + t.Name(),
+		Name:    "team4_" + t.Name(),
+		Secrets: []*fleet.EnrollSecret{{Secret: "tm4secret"}},
 	})
 	require.NoError(t, err)
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 		prof1, prof2, prof4,
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm4.ID))
-
-	// trigger the schedule so profiles are set in their state
-	s.awaitTriggerProfileSchedule(t)
 
 	// preassign the MDM host to prof1 and prof4, should match existing team tm2
 	//
@@ -1657,51 +1687,45 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	require.NotNil(t, h.TeamID)
 	require.Equal(t, tm2.ID, *h.TeamID)
+	// tm2 still has disk encryption and release device manually disabled
+	tm2, err = s.ds.Team(ctx, *h.TeamID)
+	require.NoError(t, err)
+	require.False(t, tm2.Config.MDM.EnableDiskEncryption)
+	require.False(t, tm2.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
 	// the host's profiles are:
-	// - the same as the team's and are pending
+	// - the same as the team's and are pending (prof1 + prof4)
 	// - prof2 + old filevault are pending removal
-	// - fleetd config being reinstalled (to update the enroll secret)
+	// - fleetd config being reinstalled (for new enroll secret)
 	s.awaitTriggerProfileSchedule(t)
-	hostProfs, err := s.ds.GetHostMDMAppleProfiles(ctx, mdmHost.UUID)
-	require.NoError(t, err)
-	require.Len(t, hostProfs, 5)
 
-	sort.Slice(hostProfs, func(i, j int) bool {
-		l, r := hostProfs[i], hostProfs[j]
-		return l.Name < r.Name
+	// useful for debugging
+	//mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	//	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
+	//	return nil
+	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		mdmHost: {
+			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "i2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "i4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
 	})
-	require.Equal(t, "Disk encryption", hostProfs[0].Name)
-	require.NotNil(t, hostProfs[0].Status)
-	require.Equal(t, fleet.MDMDeliveryPending, *hostProfs[0].Status)
-	require.Equal(t, fleet.MDMOperationTypeRemove, hostProfs[0].OperationType)
-	require.Equal(t, "Fleetd configuration", hostProfs[1].Name)
-	require.NotNil(t, hostProfs[1].Status)
-	require.Equal(t, fleet.MDMDeliveryPending, *hostProfs[1].Status)
-	require.Equal(t, fleet.MDMOperationTypeInstall, hostProfs[1].OperationType)
-	require.Equal(t, "n1", hostProfs[2].Name)
-	require.NotNil(t, hostProfs[2].Status)
-	require.Equal(t, fleet.MDMDeliveryPending, *hostProfs[2].Status)
-	require.Equal(t, fleet.MDMOperationTypeInstall, hostProfs[2].OperationType)
-	require.Equal(t, "n2", hostProfs[3].Name)
-	require.NotNil(t, hostProfs[3].Status)
-	require.Equal(t, fleet.MDMDeliveryPending, *hostProfs[3].Status)
-	require.Equal(t, fleet.MDMOperationTypeRemove, hostProfs[3].OperationType)
-	require.Equal(t, "n4", hostProfs[4].Name)
-	require.NotNil(t, hostProfs[4].Status)
-	require.Equal(t, fleet.MDMDeliveryPending, *hostProfs[4].Status)
-	require.Equal(t, fleet.MDMOperationTypeInstall, hostProfs[4].OperationType)
 
 	// create a new mdm host enrolled in fleet
 	mdmHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	s.runWorker()
+
 	// make it part of team 2
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{mdmHost2.ID}}, http.StatusOK)
 
 	// simulate having its profiles installed
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ?`, fleet.OSSettingsVerifying, mdmHost2.UUID)
+		res, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ?`, fleet.OSSettingsVerifying, mdmHost2.UUID)
+		n, _ := res.RowsAffected()
+		require.Equal(t, 3, int(n))
 		return err
 	})
 
@@ -1719,23 +1743,14 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// and its profiles have been left untouched
 	s.awaitTriggerProfileSchedule(t)
-	hostProfs, err = s.ds.GetHostMDMAppleProfiles(ctx, mdmHost2.UUID)
-	require.NoError(t, err)
-	require.Len(t, hostProfs, 3)
 
-	sort.Slice(hostProfs, func(i, j int) bool {
-		l, r := hostProfs[i], hostProfs[j]
-		return l.Name < r.Name
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		mdmHost2: {
+			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "i4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
 	})
-	require.Equal(t, "Fleetd configuration", hostProfs[0].Name)
-	require.NotNil(t, hostProfs[0].Status)
-	require.Equal(t, fleet.MDMDeliveryVerifying, *hostProfs[0].Status)
-	require.Equal(t, "n1", hostProfs[1].Name)
-	require.NotNil(t, hostProfs[1].Status)
-	require.Equal(t, fleet.MDMDeliveryVerifying, *hostProfs[1].Status)
-	require.Equal(t, "n4", hostProfs[2].Name)
-	require.NotNil(t, hostProfs[2].Status)
-	require.Equal(t, fleet.MDMDeliveryVerifying, *hostProfs[2].Status)
 }
 
 // while s.TestPuppetMatchPreassignProfiles focuses on many edge cases/extra
@@ -5587,6 +5602,20 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 				},
 			})
 			require.NoError(t, err)
+
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = map[string]string{
+				prof.Devices[0]: string(fleet.DEPAssignProfileResponseSuccess),
+			}
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
 		}
 	}))
 	s.runDEPSchedule()
@@ -5701,6 +5730,19 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhookErrors() {
 					},
 				},
 			})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = map[string]string{
+				prof.Devices[0]: string(fleet.DEPAssignProfileResponseSuccess),
+			}
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(resp)
 			require.NoError(t, err)
 		}
 	}))
@@ -6367,6 +6409,30 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 	}, "a config profile must %s with identifier: %s", label, profileIdent)
 
 	return profile
+}
+
+func (s *integrationMDMTestSuite) assertMacOSConfigProfilesByName(teamID *uint, profileName string, exists bool) {
+	t := s.T()
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+	var cfgProfs []*fleet.MDMAppleConfigProfile
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT name FROM mdm_apple_configuration_profiles WHERE team_id = ?`, teamID)
+	})
+
+	label := "exist"
+	if !exists {
+		label = "not exist"
+	}
+	require.Condition(t, func() bool {
+		for _, p := range cfgProfs {
+			if p.Name == profileName {
+				return exists // success if we want it to exist, failure if we don't
+			}
+		}
+		return !exists
+	}, "a config profile must %s with name: %s", label, profileName)
 }
 
 func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint, profileName string, exists bool) {
@@ -7258,6 +7324,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
 
 		// simulate that the device is assigned to Fleet in ABM
+		profileAssignmentStatusResponse := fleet.DEPAssignProfileResponseSuccess
 		s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			switch r.URL.Path {
@@ -7280,9 +7347,33 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 					},
 				})
 				require.NoError(t, err)
+			case "/profile/devices":
+				b, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+				var prof profileAssignmentReq
+				require.NoError(t, json.Unmarshal(b, &prof))
+				var resp godep.ProfileResponse
+				resp.ProfileUUID = prof.ProfileUUID
+				resp.Devices = map[string]string{
+					prof.Devices[0]: string(profileAssignmentStatusResponse),
+				}
+				encoder := json.NewEncoder(w)
+				err = encoder.Encode(resp)
+				require.NoError(t, err)
 			}
 		}))
-		s.runDEPSchedule()
+
+		cleanAssignmentStatus := func() {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				stmt := `UPDATE host_dep_assignments
+					 SET assign_profile_response = NULL,
+					     response_updated_at = NULL,
+					     profile_uuid = NULL
+					 WHERE host_id = ?`
+				_, err := q.ExecContext(context.Background(), stmt, host.ID)
+				return err
+			})
+		}
 
 		// simulate that the device is enrolled in a third-party MDM and DEP capable
 		err := s.ds.SetOrUpdateMDMData(
@@ -7297,24 +7388,70 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		)
 		require.NoError(t, err)
 
+		// simulate a response before we have the chance to assign the profile
 		getDesktopResp = fleetDesktopResponse{}
 		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 		require.NoError(t, res.Body.Close())
 		require.NoError(t, getDesktopResp.Err)
 		require.Zero(t, *getDesktopResp.FailingPolicies)
-		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
 		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
 		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
-
 		orbitConfigResp = orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+		cleanAssignmentStatus()
+
+		// simulate a "FAILED" JSON profile assignment
+		profileAssignmentStatusResponse = fleet.DEPAssignProfileResponseFailed
+		s.runDEPSchedule()
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+		orbitConfigResp = orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+		cleanAssignmentStatus()
+
+		// simulate a "NOT_ACCESSIBLE" JSON profile assignment
+		profileAssignmentStatusResponse = fleet.DEPAssignProfileResponseNotAccessible
+		s.runDEPSchedule()
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+		require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
+		cleanAssignmentStatus()
+
+		// simulate a "SUCCESS" JSON profile assignment
+		profileAssignmentStatusResponse = fleet.DEPAssignProfileResponseSuccess
+		s.runDEPSchedule()
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.True(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+		cleanAssignmentStatus()
 
 		// simulate that the device needs to be enrolled in fleet, DEP capable
 		err = s.ds.SetOrUpdateMDMData(
@@ -7384,6 +7521,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 	host := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 	checkMigrationResponses(host, token)
+	require.NoError(t, s.ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial}))
 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
@@ -12337,4 +12475,160 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &hr)
 	require.NotNil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
+}
+
+func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
+	t := s.T()
+	ctx := context.Background()
+
+	checkMacProfs := func(teamID *uint, names ...string) {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tid uint
+			if teamID != nil {
+				tid = *teamID
+			}
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tid)
+		})
+		require.Equal(t, len(names), count)
+		for _, n := range names {
+			s.assertMacOSConfigProfilesByName(teamID, n, true)
+		}
+	}
+
+	checkWinProfs := func(teamID *uint, names ...string) {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tid uint
+			if teamID != nil {
+				tid = *teamID
+			}
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid)
+		})
+		for _, n := range names {
+			s.assertWindowsConfigProfilesByName(teamID, n, true)
+		}
+	}
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EnabledAndConfigured)
+	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
+
+	// ensures that the fleetd profile is created
+	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	if len(secrets) == 0 {
+		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	}
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
+
+	// turn on disk encryption and os updates
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"enable_disk_encryption": true,
+			"windows_updates": {
+				"deadline_days": 3,
+				"grace_period_days": 1
+			},
+			"macos_updates": {
+				"deadline": "2023-12-31",
+				"minimum_version": "13.3.7"
+			}
+		}
+	}`), http.StatusOK, &acResp)
+	checkMacProfs(nil, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
+
+	// batch set only windows profiles doesn't remove the reserved names
+	newWinProfile := syncml.ForTestWithData(map[string]string{"l1": "d1"})
+	var testProfiles []fleet.MDMProfileBatchPayload
+	testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
+		Name:     "n1",
+		Contents: newWinProfile,
+	})
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+	checkMacProfs(nil, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkWinProfs(nil, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
+
+	// batch set windows and mac profiles doesn't remove the reserved names
+	newMacProfile := mcBytesForTest("n2", "i2", uuid.NewString())
+	testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
+		Name:     "n2",
+		Contents: newMacProfile,
+	})
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+	checkMacProfs(nil, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkWinProfs(nil, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
+
+	// batch set only mac profiles doesn't remove the reserved names
+	testProfiles = []fleet.MDMProfileBatchPayload{{
+		Name:     "n2",
+		Contents: newMacProfile,
+	}}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+	checkMacProfs(nil, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
+
+	// create a team
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/v1/fleet/teams", map[string]string{"Name": t.Name()}, http.StatusOK, &tmResp)
+
+	// edit team mdm config to turn on disk encryption and os updates
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tmResp.Team.ID), modifyTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(t.Name()),
+			MDM: &fleet.TeamPayloadMDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+				WindowsUpdates: &fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(4),
+					GracePeriodDays: optjson.SetInt(1),
+				},
+				MacOSUpdates: &fleet.MacOSUpdates{
+					Deadline:       optjson.SetString("2023-12-31"),
+					MinimumVersion: optjson.SetString("13.3.8"),
+				},
+			},
+		},
+	}, http.StatusOK, &teamResponse{})
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d", tmResp.Team.ID), nil, http.StatusOK, &tmResp)
+	require.True(t, tmResp.Team.Config.MDM.EnableDiskEncryption)
+	require.Equal(t, 4, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 1, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
+	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
+
+	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
+
+	// batch set only windows profiles doesn't remove the reserved names
+	var testTeamProfiles []fleet.MDMProfileBatchPayload
+	testTeamProfiles = append(testTeamProfiles, fleet.MDMProfileBatchPayload{
+		Name:     "n1",
+		Contents: newWinProfile,
+	})
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
+
+	// batch set windows and mac profiles doesn't remove the reserved names
+	testTeamProfiles = append(testTeamProfiles, fleet.MDMProfileBatchPayload{
+		Name:     "n2",
+		Contents: newMacProfile,
+	})
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
+
+	// batch set only mac profiles doesn't remove the reserved names
+	testTeamProfiles = []fleet.MDMProfileBatchPayload{{
+		Name:     "n2",
+		Contents: newMacProfile,
+	}}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
 }

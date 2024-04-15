@@ -15,6 +15,11 @@ import (
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO: do we want to allow on duplicate updating label_type or
+		// label_membership_type or should those always be immutable?
+		// are we ok depending solely on the caller to ensure that these fields
+		// are not changed?
+
 		sql := `
 		INSERT INTO labels (
 			name,
@@ -281,10 +286,15 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 }
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
+// MatchQuery not supported
 func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	if opt.After != "" {
-		return nil, &fleet.BadRequestError{Message: "after parameter is not supported"}
+		return nil, &fleet.BadRequestError{Message: "parameter 'after' is not supported"}
 	}
+	if opt.MatchQuery != "" {
+		return nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
+	}
+
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
