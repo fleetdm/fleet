@@ -219,7 +219,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string) error {
 	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
 		p7, err := pkcs7.Parse(body)
 		if err != nil {
-			return fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
+			return fmt.Errorf("enrollment profile is not XML nor PKCS7 parseable: %w", err)
 		}
 
 		err = p7.Verify()

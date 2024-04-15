@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/groob/plist"
-	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 )
 
 // commandPayload is the common structure all MDM commands use
@@ -47,19 +46,12 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
 func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
-	if svc.config.IsAppleSCEPSet() {
-		cert, _, _, err := svc.config.AppleSCEP()
-		if err != nil {
-			return err
-		}
-
-		profile, err = profileutil.Sign(cert.PrivateKey, cert.Leaf, profile)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "signing profile with the specified key")
-		}
+	signedProfile, err := mobileconfig.Sign(profile, svc.config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
-	base64Profile := base64.StdEncoding.EncodeToString(profile)
+	base64Profile := base64.StdEncoding.EncodeToString(signedProfile)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -75,7 +67,7 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 	</dict>
 </dict>
 </plist>`, uuid, base64Profile)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
 	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 

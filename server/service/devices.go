@@ -16,8 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -501,29 +501,22 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
 		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
 
-	if svc.config.MDM.IsAppleSCEPSet() {
-		cert, _, _, err := svc.config.MDM.AppleSCEP()
-		if err != nil {
-			return nil, err
-		}
-
-		mobileConfig, err = profileutil.Sign(cert.PrivateKey, cert.Leaf, mobileConfig)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "signing profile with the specified key")
-		}
-
+	signed, err := mobileconfig.Sign(enrollmentProf, svc.config.MDM)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
-	return mobileConfig, nil
+
+	return signed, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -38,7 +38,6 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 )
 
 type getMDMAppleCommandResultsRequest struct {
@@ -1325,28 +1324,22 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
 
-	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		enrollURL,
 		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "generating enrollment profile")
 	}
 
-	if svc.config.MDM.IsAppleSCEPSet() {
-		cert, _, _, err := svc.config.MDM.AppleSCEP()
-		if err != nil {
-			return nil, err
-		}
-
-		mobileconfig, err = profileutil.Sign(cert.PrivateKey, cert.Leaf, mobileconfig)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "signing profile with the specified key")
-		}
+	signed, err := mobileconfig.Sign(enrollmentProf, svc.config.MDM)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
-	return mobileconfig, nil
+
+	return signed, nil
 }
 
 type mdmAppleCommandRemoveEnrollmentProfileRequest struct {
