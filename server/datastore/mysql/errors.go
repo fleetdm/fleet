@@ -2,7 +2,9 @@ package mysql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/VividCortex/mysqlerr"
@@ -148,6 +150,43 @@ func isMySQLForeignKey(err error) bool {
 		if driverErr.Number == mysqlerr.ER_ROW_IS_REFERENCED_2 {
 			return true
 		}
+	}
+	return false
+}
+
+// accessDeniedError is an error that implements StatusCode and Internal
+type accessDeniedError struct {
+	Message     string
+	InternalErr error
+	Code        int
+}
+
+// Error returns the error message.
+func (e *accessDeniedError) Error() string {
+	return e.Message
+}
+
+func (e accessDeniedError) Internal() string {
+	if e.InternalErr == nil {
+		return ""
+	}
+	return e.InternalErr.Error()
+}
+
+func (e *accessDeniedError) StatusCode() int {
+	if e.Code == 0 {
+		return http.StatusUnprocessableEntity
+	}
+	return e.Code
+}
+
+func isMySQLAccessDenied(err error) bool {
+	err = ctxerr.Cause(err)
+	var mySQLErr *mysql.MySQLError
+	if errors.As(
+		err, &mySQLErr,
+	) && (mySQLErr.Number == mysqlerr.ER_SPECIFIC_ACCESS_DENIED_ERROR || mySQLErr.Number == mysqlerr.ER_TABLEACCESS_DENIED_ERROR) {
+		return true
 	}
 	return false
 }
