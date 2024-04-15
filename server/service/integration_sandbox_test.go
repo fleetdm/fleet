@@ -48,7 +48,7 @@ func (s *integrationSandboxTestSuite) SetupSuite() {
 	require.NoError(t, err)
 }
 
-func TestSandboxIntegrations(t *testing.T) {
+func TestIntegrationsSandbox(t *testing.T) {
 	testingSuite := new(integrationSandboxTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)

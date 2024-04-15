@@ -57,7 +57,7 @@ func (s *integrationTestSuite) TearDownTest() {
 	s.withServer.commonTearDownTest(s.T())
 }
 
-func TestCoreIntegrations(t *testing.T) {
+func TestIntegrations(t *testing.T) {
 	testingSuite := new(integrationTestSuite)
 	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -7796,11 +7796,11 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Equal(t, []string{"memory", "hostname", "status"}, rows[0]) // first row contains headers
 	require.Len(t, rows[1], 3)
 	// status is timing-dependent, ignore in the assertion
-	require.Equal(t, []string{"0", "TestCoreIntegrations/TestHostsReportDownloadfoo.local2"}, rows[1][:2])
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local2"}, rows[1][:2])
 	require.Len(t, rows[2], 3)
-	require.Equal(t, []string{"0", "TestCoreIntegrations/TestHostsReportDownloadfoo.local1"}, rows[2][:2])
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local1"}, rows[2][:2])
 	require.Len(t, rows[3], 3)
-	require.Equal(t, []string{"0", "TestCoreIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
 
 	// invalid combinations of software filters
 	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_title_id", "123", "software_id", "456")

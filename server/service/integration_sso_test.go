@@ -46,7 +46,7 @@ func (s *integrationSSOTestSuite) SetupSuite() {
 	s.token = s.getTestAdminToken()
 }
 
-func TestSSOIntegrations(t *testing.T) {
+func TestIntegrationsSSO(t *testing.T) {
 	testingSuite := new(integrationSSOTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)

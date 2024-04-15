@@ -42,7 +42,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestEnterpriseIntegrations(t *testing.T) {
+func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
 	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)

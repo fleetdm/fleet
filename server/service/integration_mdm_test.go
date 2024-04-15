@@ -65,7 +65,7 @@ import (
 	"go.mozilla.org/pkcs7"
 )
 
-func TestMDMIntegrations(t *testing.T) {
+func TestIntegrationsMDM(t *testing.T) {
 	testingSuite := new(integrationMDMTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -8325,7 +8325,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
 		Result:      getCommandFullResult(cmdOneUUID),
 		Payload:     commandOne.RawCommand,
-		Hostname:    "TestMDMIntegrations/TestWindowsMDMh1.local",
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdTwoUUID)
@@ -8339,7 +8339,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 		Result:      getCommandFullResult(cmdTwoUUID),
 		Payload:     commandTwo.RawCommand,
-		Hostname:    "TestMDMIntegrations/TestWindowsMDMh1.local",
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdThreeUUID)
@@ -8352,7 +8352,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 		Result:      getCommandFullResult(cmdThreeUUID),
-		Hostname:    "TestMDMIntegrations/TestWindowsMDMh1.local",
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 		Payload:     commandThree.RawCommand,
 	}, getMDMCmdResp.Results[0])
 
@@ -8366,7 +8366,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Status:      "200",
 		RequestType: "./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml",
 		Result:      getCommandFullResult(cmdFourUUID),
-		Hostname:    "TestMDMIntegrations/TestWindowsMDMh1.local",
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 		Payload:     commandFour.RawCommand,
 	}, getMDMCmdResp.Results[0])
 }
