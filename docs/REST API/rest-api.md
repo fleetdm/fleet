@@ -7884,7 +7884,7 @@ Content-Type: application/octet-stream
 
 Download software package.
 
-`GET /api/v1/fleet/software/manage/:id?alt=media`
+`GET /api/v1/fleet/software/package/:id?alt=media`
 
 #### Parameters
 
@@ -7895,7 +7895,7 @@ Download software package.
 
 #### Example
 
-`GET /api/v1/fleet/software/manage/123?alt=media`
+`GET /api/v1/fleet/software/package/123?alt=media`
 
 ##### Default response
 
@@ -7913,7 +7913,7 @@ Body: <blob>
 
 Delete software package.
 
-`DELETE /api/v1/fleet/software/manage/:id`
+`DELETE /api/v1/fleet/software/package/:id`
 
 #### Parameters
 
@@ -7923,7 +7923,7 @@ Delete software package.
 
 #### Example
 
-`DELETE /api/v1/fleet/software/manage/24`
+`DELETE /api/v1/fleet/software/package/24`
 
 ##### Default response
 
