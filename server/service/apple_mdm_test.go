@@ -2868,7 +2868,10 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 		pushFactory,
 		stdlogfmt.New(),
 	)
-	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher, config.MDMConfig{})
+	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher, config.MDMConfig{
+		AppleSCEPCert: "./testdata/server.pem",
+		AppleSCEPKey:  "./testdata/server.key",
+	})
 
 	return ctx, logger, ds, &cfg, mdmStorage, commander
 }
