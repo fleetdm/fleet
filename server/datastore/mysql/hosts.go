@@ -4982,10 +4982,11 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 		return nil, err
 	}
 
+	isPremium := license.IsPremium(ctx)
 	for _, p := range policies {
 		if p.Response == "fail" {
 			var critical *bool
-			if license.IsPremium(ctx) {
+			if isPremium {
 				critical = &p.Critical
 			}
 			hh.FailingPolicies = append(hh.FailingPolicies, &fleet.HostHealthFailingPolicy{
