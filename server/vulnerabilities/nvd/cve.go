@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	vulnOwner = "mostlikelee"
 	vulnRepo  = "vulnerabilities"
 )
 
@@ -85,6 +84,11 @@ func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger log.L
 }
 
 func GetGitHubCVEAssetPath() (string, error) {
+	vulnOwner := os.Getenv("TEST_VULN_GITHUB_OWNER")
+	if vulnOwner == "" {
+		vulnOwner = owner
+	}
+
 	ghClient := github.NewClient(fleethttp.NewGithubClient())
 
 	releases, _, err := ghClient.Repositories.ListReleases(
