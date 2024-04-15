@@ -62,7 +62,10 @@ setup () {
         prompt "AWS SSO login was successful, press any key to continue..."
     fi
 
-    GITHUB_TOKEN=$(op read "op://$GITHUB_TOKEN_1PASSWORD_PATH")
+    # GITHUB_TOKEN is only necessary when releasing to edge.
+    if [[ -n $GITHUB_TOKEN_1PASSWORD_PATH ]]; then
+        GITHUB_TOKEN=$(op read "op://$GITHUB_TOKEN_1PASSWORD_PATH")
+    fi
 
     # These need to be exported for use by `fleetctl updates` commands.
     FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
@@ -87,10 +90,11 @@ promote_component_edge_to_stable () {
     component_name=$1
     component_version=$2
 
-    version_parts=("${component_version//./ }")
+    IFS='.' read -r -a version_parts <<< "$component_version"
     major=${version_parts[0]}  
     minor=${version_parts[1]}  
 
+    pushd "$TUF_DIRECTORY"
     case $component_name in
         orbit)
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/macos/edge/orbit" --platform macos --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
@@ -112,6 +116,7 @@ promote_component_edge_to_stable () {
             exit 1
             ;;
     esac
+    popd
 }
 
 promote_edge_to_stable () {
