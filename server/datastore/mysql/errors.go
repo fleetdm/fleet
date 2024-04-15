@@ -106,6 +106,10 @@ func (e *existsError) IsExists() bool {
 	return true
 }
 
+func (e *existsError) Resource() string {
+	return e.ResourceType
+}
+
 func isDuplicate(err error) bool {
 	err = ctxerr.Cause(err)
 	if driverErr, ok := err.(*mysql.MySQLError); ok {
