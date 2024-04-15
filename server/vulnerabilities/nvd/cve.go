@@ -69,7 +69,7 @@ func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger log.L
 	var err error
 
 	if cveFeedPrefixURL == "" {
-		cveFeedPrefixURL, err = getGitHubCVEAssetPath()
+		cveFeedPrefixURL, err = GetGitHubCVEAssetPath()
 		if err != nil {
 			return fmt.Errorf("get cve asset path: %w", err)
 		}
@@ -83,12 +83,17 @@ func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger log.L
 	return nil
 }
 
-func getGitHubCVEAssetPath() (string, error) {
+func GetGitHubCVEAssetPath() (string, error) {
+	vulnOwner := os.Getenv("TEST_VULN_GITHUB_OWNER")
+	if vulnOwner == "" {
+		vulnOwner = owner
+	}
+
 	ghClient := github.NewClient(fleethttp.NewGithubClient())
 
 	releases, _, err := ghClient.Repositories.ListReleases(
 		context.Background(),
-		owner,
+		vulnOwner,
 		vulnRepo,
 		&github.ListOptions{Page: 0, PerPage: 10},
 	)
@@ -115,7 +120,7 @@ func getGitHubCVEAssetPath() (string, error) {
 		return "", errors.New("no CVE feed found")
 	}
 
-	return fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/", owner, vulnRepo, found), nil
+	return fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/", vulnOwner, vulnRepo, found), nil
 }
 
 func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
