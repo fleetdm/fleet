@@ -130,16 +130,28 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 
 ### Shared calendars
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
-
 Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/digital-experience#contact-us) and the appropriate DRI will reply with feedback.
 
 
+## Skip-level 1:1 meetings 
+
+Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#performance-feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
+1. Create a copy of the ["Skip-level 1:1 agenda template"](https://docs.google.com/document/d/191wiy-_a9XBMndLlM97iOwUF6a-0PtkbboQ2FCUIy6w/copy) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
+2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager's supervisor and title the calendar event by copying your skip-level agenda title and appending "[no shadows]" to the end (this tells other team members that this is a private conversation).
+
+> **If you're scheduling with the CEO** please [get help](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo) before adding events to the calendar.
+
+3. Link the skip-level agenda in the calendar event description before saving.
+
+
 ### Zoom
+
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
 Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
 
 ### Recording meetings
+
 Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
   - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
