@@ -1055,17 +1055,7 @@ Modifies the Fleet's configuration with the supplied information.
 | sso_settings         | object  | body    | See [the `sso_settings` object](#sso_settings-object) |
 | agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
 | fleet_desktop         | object  | body    | See [the `fleet_desktop` object](#fleet_desktop-object) |
-| enable_host_status_webhook        | boolean | body  | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
-| destination_url                   | string  | body  | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
-| host_percentage                   | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
-| days_count                        | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
-| enable_failing_policies_webhook   | boolean | body  | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
-| destination_url                   | string  | body  | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| policy_ids                        | array   | body  | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size                   | integer | body  | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| enable_vulnerabilities_webhook    | boolean | body  | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
-| destination_url                   | string  | body  | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| host_batch_size                   | integer | body  | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+| webhook_settings      | object  | body    | See [the `webhook_settings` object](#fleet_desktop-object) |
 | enable_software_vulnerabilities   | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
 | enable_failing_policies           | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | url                               | string  | body  | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
@@ -1159,6 +1149,22 @@ Modifies the Fleet's configuration with the supplied information.
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
+
+#### `webhook_settings` object
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_host_status_webhook        | boolean | body  | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
+| destination_url                   | string  | body  | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
+| host_percentage                   | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count                        | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| enable_failing_policies_webhook   | boolean | body  | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
+| destination_url                   | string  | body  | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| policy_ids                        | array   | body  | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
+| host_batch_size                   | integer | body  | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| enable_vulnerabilities_webhook    | boolean | body  | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
+| destination_url                   | string  | body  | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size                   | integer | body  | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 
 
 
