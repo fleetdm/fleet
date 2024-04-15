@@ -676,7 +676,7 @@ func TestPreprocessVersion(t *testing.T) {
 		{"2.3", "2.3"},
 		{"v2.3.0", "v2.3.0"},
 		{"notAVersion", "notAVersion"},
-		{"2.0.0-svn315-7fakesync1ubuntu0.22.04.1", "2.0.0-svn315-7fakesync1ubuntu0.22.04.1"},
+		{"2.0.0+svn315-7fakesync1ubuntu0.22.04.1", "2.0.0+svn315-7fakesync1ubuntu0.22.04.1"},
 		{"1.21.1ubuntu2", "1.21.1-ubuntu2"},
 	}
 
