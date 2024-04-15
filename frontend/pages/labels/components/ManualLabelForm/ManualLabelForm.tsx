@@ -1,6 +1,7 @@
-import React, { useDeferredValue, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
+import { useDebouncedCallback } from "use-debounce";
 
 import { IHost } from "interfaces/host";
 import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
@@ -16,6 +17,7 @@ const baseClass = "ManualLabelForm";
 const LABEL_TARGET_HOSTS_INPUT_LABEL = "Select hosts";
 const LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER =
   "Search name, hostname, or serial number";
+const DEBOUNCE_DELAY = 500;
 
 export interface IManualLabelFormData {
   name: string;
@@ -44,12 +46,27 @@ const ManualLabelForm = ({
   onSave,
   onCancel,
 }: IManualLabelFormProps) => {
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const defferedQuery = useDeferredValue(searchQuery);
-
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [isDebouncing, setIsDebouncing] = useState(false);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>(
     defaultTargetedHosts
   );
+
+  const debounceSearch = useDebouncedCallback(
+    (search: string) => {
+      setDebouncedSearchQuery(search);
+      setIsDebouncing(false);
+    },
+    DEBOUNCE_DELAY,
+    { trailing: true }
+  );
+
+  // TODO: find a better way to debounce search requests
+  useEffect(() => {
+    setIsDebouncing(true);
+    debounceSearch(searchQuery);
+  }, [debounceSearch, searchQuery]);
 
   const {
     data: hostTargets,
@@ -59,7 +76,7 @@ const ManualLabelForm = ({
     [
       {
         scope: "labels-targets-search",
-        query: defferedQuery,
+        query: debouncedSearchQuery,
         excludedHostIds: [], // TODO: add this
       },
     ],
@@ -72,7 +89,7 @@ const ManualLabelForm = ({
     },
     {
       select: (data) => data.hosts,
-      enabled: defferedQuery !== "",
+      enabled: debouncedSearchQuery !== "",
     }
   );
 
@@ -118,7 +135,7 @@ const ManualLabelForm = ({
             searchText={searchQuery}
             searchResultsTableConfig={resultsTableConfig}
             selectedHostsTableConifg={selectedHostsTableConfig}
-            isTargetsLoading={isLoadingSearchResults}
+            isTargetsLoading={isLoadingSearchResults || isDebouncing}
             hasFetchError={isErrorSearchResults}
             searchResults={hostTargets ?? []}
             targetedHosts={targetedHosts}
