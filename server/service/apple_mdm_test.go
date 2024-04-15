@@ -19,6 +19,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -41,7 +42,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
+	"github.com/groob/plist"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 type nopProfileMatcher struct{}
@@ -57,6 +61,9 @@ func (nopProfileMatcher) RetrieveProfiles(ctx context.Context, extHostID string)
 func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
+	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/server/devices"):
@@ -2088,14 +2095,14 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		pushFactory,
 		NewNanoMDMLogger(kitlog.NewNopLogger()),
 	)
-	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher, config.MDMConfig{})
+	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher, config.MDMConfig{
+		AppleSCEPCert: "./testdata/server.pem",
+		AppleSCEPKey:  "./testdata/server.key",
+	})
 	hostUUID, hostUUID2 := "ABC-DEF", "GHI-JKL"
 	contents1 := []byte("test-content-1")
-	contents1Base64 := base64.StdEncoding.EncodeToString(contents1)
 	contents2 := []byte("test-content-2")
-	contents2Base64 := base64.StdEncoding.EncodeToString(contents2)
 	contents4 := []byte("test-content-4")
-	contents4Base64 := base64.StdEncoding.EncodeToString(contents4)
 
 	p1, p2, p3, p4 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
 	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
@@ -2130,6 +2137,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	}
 
 	var enqueueFailForOp fleet.MDMOperationType
+	var mu sync.Mutex
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 		require.NotNil(t, cmd)
 		require.NotEmpty(t, cmd.CommandUUID)
@@ -2143,10 +2151,18 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				require.Len(t, id, 1)
 			}
 
-			if !strings.Contains(string(cmd.Raw), contents1Base64) && !strings.Contains(string(cmd.Raw), contents2Base64) &&
-				!strings.Contains(string(cmd.Raw), contents4Base64) {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			// the p7 library doesn't support concurrent calls to Parse
+			mu.Lock()
+			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+			mu.Unlock()
+			require.NoError(t, err)
+
+			if !bytes.Equal(p7.Content, contents1) && !bytes.Equal(p7.Content, contents2) &&
+				!bytes.Equal(p7.Content, contents4) {
 				require.Failf(t, "profile contents don't match", "expected to contain %s, %s or %s but got %s",
-					contents1Base64, contents2Base64, contents4Base64, string(cmd.Raw))
+					contents1, contents2, contents4, p7.Content)
 			}
 		case "RemoveProfile":
 			require.ElementsMatch(t, []string{hostUUID, hostUUID2}, id)

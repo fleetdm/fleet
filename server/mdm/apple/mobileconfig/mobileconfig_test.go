@@ -22,7 +22,7 @@ func TestSign(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "Error retrieving SCEP certificate",
+			name:        "Error with invalid certificate",
 			config:      config.MDMConfig{AppleSCEPCertBytes: "foo", AppleSCEPKeyBytes: "bar"},
 			profile:     []byte("profile data"),
 			expectError: true,

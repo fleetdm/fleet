@@ -44,7 +44,7 @@ func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
 	for _, prof := range got {
 		p7, err := pkcs7.Parse(prof)
 		require.NoError(t, err)
-		p7.VerifyWithChain(rootCA)
+		require.NoError(t, p7.VerifyWithChain(rootCA))
 		signedContents = append(signedContents, p7.Content)
 	}
 

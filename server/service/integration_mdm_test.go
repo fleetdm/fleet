@@ -4737,7 +4737,7 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 		require.NoError(t, err)
 		rootCA := x509.NewCertPool()
 		require.True(t, rootCA.AppendCertsFromPEM([]byte(s.fleetCfg.MDM.AppleSCEPCertBytes)))
-		p7.VerifyWithChain(rootCA)
+		require.NoError(t, p7.VerifyWithChain(rootCA))
 		rawProfile = p7.Content
 	}
 
