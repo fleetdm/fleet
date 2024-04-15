@@ -10612,11 +10612,6 @@ func results(num int, hostID string) string {
 func (s *integrationTestSuite) TestHostHealth() {
 	t := s.T()
 
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name: "team1",
-	})
-	require.NoError(t, err)
-
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		OsqueryHostID:   ptr.String(t.Name() + "hostid1"),
@@ -10631,7 +10626,7 @@ func (s *integrationTestSuite) TestHostHealth() {
 		OSVersion:       "Mac OS X 10.14.6",
 		Platform:        "darwin",
 		CPUType:         "cpuType",
-		TeamID:          ptr.Uint(team.ID),
+		TeamID:          nil,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -10670,19 +10665,17 @@ func (s *integrationTestSuite) TestHostHealth() {
 	require.NoError(t, err)
 	require.True(t, inserted)
 
-	user1 := test.NewUser(t, s.ds, "Joe", "joe@example.com", true)
-
-	q1 := test.NewQuery(t, s.ds, nil, "passing_query", "select 1", 0, true)
-	defer cleanupQuery(s, q1.ID)
-	passingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID: &q1.ID,
+	passingPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
+		Name:       "passing_policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
 	})
 	require.NoError(t, err)
 
-	q2 := test.NewQuery(t, s.ds, nil, "failing_query", "select 0", 0, true)
-	defer cleanupQuery(s, q2.ID)
-	failingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID: &q2.ID,
+	failingPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
+		Name:       "failing_policy",
+		Query:      "select 0",
+		Resolution: "Run this command to fix it",
 	})
 	require.NoError(t, err)
 
@@ -10698,7 +10691,20 @@ func (s *integrationTestSuite) TestHostHealth() {
 	assert.NotNil(t, hh.HostHealth)
 	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
 	assert.Len(t, hh.HostHealth.VulnerableSoftware, 1)
+	assert.Equal(t, hh.HostHealth.VulnerableSoftware[0], fleet.HostHealthVulnerableSoftware{
+		ID:      soft1.ID,
+		Name:    soft1.Name,
+		Version: soft1.Version,
+	})
+	assert.Equal(t, 1, hh.HostHealth.FailingPoliciesCount)
+	assert.Nil(t, hh.HostHealth.FailingCriticalPoliciesCount)
 	assert.Len(t, hh.HostHealth.FailingPolicies, 1)
+	assert.Equal(t, hh.HostHealth.FailingPolicies[0], &fleet.HostHealthFailingPolicy{
+		ID:         failingPolicy.ID,
+		Name:       failingPolicy.Name,
+		Resolution: failingPolicy.Resolution,
+		Critical:   nil,
+	})
 	assert.True(t, *hh.HostHealth.DiskEncryptionEnabled)
 	// Check that the TeamID didn't make it into the response
 	assert.Nil(t, hh.HostHealth.TeamID)
