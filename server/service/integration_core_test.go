@@ -3884,6 +3884,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.NotZero(t, createResp.Label.ID)
 	lbl2 := createResp.Label.Label
 	dynamicLabels = append(dynamicLabels, lbl2)
+	require.Len(t, dynamicLabels, 2) // to make linter happy (dynamicLabels is not used past this point)
 
 	// add lbl2 hosts to that label
 	for _, h := range lbl2Hosts {
