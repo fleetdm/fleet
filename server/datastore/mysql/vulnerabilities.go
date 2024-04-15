@@ -108,7 +108,11 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 }
 
 func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (vos []*fleet.VulnerableOS, updatedAt time.Time, err error) {
-	osvs, err := ds.OSVersions(ctx, teamID, nil, nil, nil)
+	var teamFilter *fleet.TeamFilter
+	if teamID != nil {
+		teamFilter = &fleet.TeamFilter{TeamID: teamID}
+	}
+	osvs, err := ds.OSVersions(ctx, teamFilter, nil, nil, nil)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching team OS versions")
 	}
@@ -246,7 +250,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt += " AND cm.cisa_known_exploit = 1"
 	}
 
-	if match := opt.MatchQuery; match != "" {
+	if match := opt.ListOptions.MatchQuery; match != "" {
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
@@ -265,8 +269,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	// Prepare metadata
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(vulns) > int(opt.PerPage) {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		if len(vulns) > int(opt.ListOptions.PerPage) {
 			metaData.HasNextResults = true
 			vulns = vulns[:len(vulns)-1]
 		}
@@ -300,7 +304,7 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
 	}
 
-	if match := opt.MatchQuery; match != "" {
+	if match := opt.ListOptions.MatchQuery; match != "" {
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 

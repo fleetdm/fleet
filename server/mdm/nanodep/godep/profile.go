@@ -8,12 +8,14 @@ import (
 // Profile corresponds to the Apple DEP API "Profile" structure.
 // See https://developer.apple.com/documentation/devicemanagement/profile
 type Profile struct {
-	ProfileName           string   `json:"profile_name"`
-	URL                   string   `json:"url"`
-	AllowPairing          bool     `json:"allow_pairing,omitempty"`
-	IsSupervised          bool     `json:"is_supervised,omitempty"`
-	IsMultiUser           bool     `json:"is_multi_user,omitempty"`
-	IsMandatory           bool     `json:"is_mandatory,omitempty"`
+	ProfileName  string `json:"profile_name"`
+	URL          string `json:"url"`
+	AllowPairing bool   `json:"allow_pairing,omitempty"`
+	IsSupervised bool   `json:"is_supervised,omitempty"`
+	IsMultiUser  bool   `json:"is_multi_user,omitempty"`
+	IsMandatory  bool   `json:"is_mandatory,omitempty"`
+	// AwaitDeviceConfigured should never be set in the profiles we store in the
+	// database - it is now always forced to true when registering with Apple.
 	AwaitDeviceConfigured bool     `json:"await_device_configured,omitempty"`
 	IsMDMRemovable        bool     `json:"is_mdm_removable"` // default true
 	SupportPhoneNumber    string   `json:"support_phone_number,omitempty"`

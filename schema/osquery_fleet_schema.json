@@ -14,7 +14,7 @@
       {
         "name": "uid",
         "description": "[User ID](https://superuser.com/a/1108201)",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -70,7 +70,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -572,7 +571,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "type",
@@ -1717,8 +1715,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "List the SSH keys allowed to connect to this host.\n```\nSELECT key FROM authorized_keys;\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN authorized_keys USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -1727,8 +1725,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "algorithm",
@@ -1800,7 +1797,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -2461,7 +2457,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "tid",
@@ -2630,7 +2625,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "tid",
@@ -2843,8 +2837,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See classic browser plugins (C/NPAPI) installed by users. These plugins have been deprecated for a long time, so this query will usually not return anything.\n```\nSELECT bp.name, bp.identifier, bp.version FROM browser_plugins bp JOIN users u on bp.uid = u.uid ;\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "See classic browser plugins (C/NPAPI) installed by users. These plugins have been deprecated for a long time, so this query will usually not return anything.\n```\nSELECT * FROM users CROSS JOIN browser_plugins USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -3626,7 +3620,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -3697,8 +3690,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nSELECT chrome_extension_content_scripts.* FROM users JOIN chrome_extension_content_scripts USING (uid) GROUP BY identifier, match\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN chrome_extension_content_scripts USING (uid);\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -3716,8 +3709,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       },
       {
         "name": "identifier",
@@ -3797,8 +3789,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
-    "examples": "List Chrome extensions by user and profile which have full access to HTTPS browsing.\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "examples": "```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\nList Chrome extensions by user and profile which have full access to HTTPS browsing.\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -3821,8 +3813,7 @@
           "macOS",
           "Windows",
           "Linux"
-        ],
-        "requires_user_context": true
+        ]
       },
       {
         "name": "name",
@@ -3970,7 +3961,7 @@
       {
         "name": "path",
         "description": "Path to extension folder. Defaults to '' on ChromeOS",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -4067,7 +4058,7 @@
       {
         "name": "state",
         "description": "1 if this extension is enabled",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -4167,7 +4158,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -4746,7 +4736,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device_id",
@@ -5075,8 +5064,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See software responsible for crashes. This can be useful to detect what the most problematic software in your environment is.\n```\nSELECT crash_path, identifier, responsible, exception_type FROM crashes;\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN crashes USING (uid);\n```",
     "columns": [
       {
         "name": "type",
@@ -5157,8 +5146,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       },
       {
         "name": "datetime",
@@ -5975,7 +5963,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -6113,7 +6100,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "variable",
@@ -6157,7 +6143,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6351,7 +6336,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6422,7 +6406,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device",
@@ -6805,7 +6788,7 @@
       {
         "name": "type",
         "description": "The interface type of the disk.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6814,7 +6797,7 @@
       {
         "name": "id",
         "description": "The unique identifier of the drive on the system.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6835,7 +6818,7 @@
       {
         "name": "disk_size",
         "description": "Size of the disk.",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6868,7 +6851,7 @@
       {
         "name": "name",
         "description": "The label of the disk object.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -9350,7 +9333,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -9609,7 +9591,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -9773,7 +9754,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -9948,7 +9928,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -10059,7 +10038,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "fan",
@@ -10492,7 +10470,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_path",
@@ -10800,8 +10777,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See Firefox extensions by user as well as information about their creator and automatic update status.\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN firefox_addons USING (uid);\n```\nSee Firefox extensions by user as well as information about their creator and automatic update status.\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
     "columns": [
       {
         "name": "uid",
@@ -10810,8 +10787,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "name",
@@ -11099,7 +11075,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -11321,7 +11296,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -11582,7 +11556,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -11643,7 +11616,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "boot_uuid",
@@ -11714,7 +11686,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -11766,7 +11737,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "version",
@@ -12578,7 +12548,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "filter_name",
@@ -12984,7 +12953,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -13333,8 +13301,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect * from users join known_hosts using (uid)\n```",
+    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN known_hosts USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -13343,8 +13311,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       },
       {
         "name": "key",
@@ -13775,7 +13742,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "label",
@@ -15143,19 +15109,19 @@
         "name": "trace_id",
         "description": "The ID of a trace event",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "event_type",
         "description": "The type of event, this can be logEvent, signpostEvent or stateEvent.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "format_string",
         "description": "The format string used to convert variable content into a string for output.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "activity_identifier",
@@ -15185,19 +15151,19 @@
         "name": "sender_image_uuid",
         "description": "The UUID of the library, framework, kernel extension, or mach-o image, that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "sender_image_path",
         "description": "The full path of the library, framework, kernel extension, or mach-o image, that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "boot_uuid",
         "description": "The boot UUID of the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "process_id",
@@ -15209,7 +15175,7 @@
         "name": "process_image_path",
         "description": "The full path of the process that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "timestamp",
@@ -15221,7 +15187,7 @@
         "name": "event_message",
         "description": "The message of the log entry.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "sender_program_counter",
@@ -15355,7 +15321,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -15485,7 +15450,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "device_name",
@@ -15780,7 +15744,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "md_device_name",
@@ -15832,7 +15795,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -16078,7 +16040,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16140,7 +16101,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16220,7 +16180,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16310,7 +16269,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16507,7 +16465,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -16595,7 +16552,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "memory_total",
@@ -16701,7 +16657,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -16859,7 +16814,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "processor_number",
@@ -17344,7 +17298,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -17405,7 +17358,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -17600,7 +17552,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "handle",
@@ -17746,10 +17697,22 @@
         "description": "The Update Framework update channel used for the Fleet Desktop executable."
       },
       {
+        "name": "desktop_version",
+        "type": "text",
+        "required": false,
+        "description": "The version of the fleet-desktop instance. Blank if fleet-desktop is not installed."
+      },
+      {
         "name": "uptime",
         "type": "bigint",
         "required": false,
         "description": "Uptime of the orbit process in seconds."
+      },
+      {
+        "name": "scripts_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "1 if running scripts is enabled, 0 if disabled."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
@@ -18830,6 +18793,186 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/package_receipts.yml"
   },
   {
+    "name": "parse_ini",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Parse a file as INI configuration.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "fullkey",
+        "description": "Key including any parent keys.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "JSON key or array index.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "JSON value",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/parse_ini",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/parse_ini.yml"
+  },
+  {
+    "name": "parse_json",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Parses an entire file as JSON. See `parse_jsonl` where multiple JSON documents are supported.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "fullkey",
+        "description": "Same as `key` in this table. See `parse_jsonl` where multiple JSON documents are supported.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "JSON key or array index.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "JSON value",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/parse_json",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/parse_json.yml"
+  },
+  {
+    "name": "parse_jsonl",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Parses each line of a file as a separate JSON document. See `parse_json` to treat an entire file as a single JSON document.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "fullkey",
+        "description": "Key including any parent keys or document indices.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "INI key",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "INI value",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/parse_jsonl",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/parse_jsonl.yml"
+  },
+  {
+    "name": "parse_xml",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Parses a file as an XML document.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "fullkey",
+        "description": "Key including any parent keys.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "XML key",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "XML value",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/parse_xml",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/parse_xml.yml"
+  },
+  {
     "name": "password_policy",
     "description": "Password Policies for macOS.",
     "url": "https://fleetdm.com/tables/password_policy",
@@ -18844,7 +18987,7 @@
       {
         "name": "uid",
         "description": "User ID for the policy. Returns `-1` if the policy applies to all users.",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18853,7 +18996,7 @@
       {
         "name": "policy_identifier",
         "description": "Policy identifier, such as `ProfilePayload:1d33ef8c-da1c-4534-8458-95a4d43d849e:minLength`.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18862,7 +19005,7 @@
       {
         "name": "policy_content",
         "description": "Policy content, such as `policyAttributePassword matches '.{10,}'`.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18871,7 +19014,7 @@
       {
         "name": "policy_description",
         "description": "Policy description, such as `Contain at least 10 characters.`",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -19141,7 +19284,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -19512,7 +19654,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19573,7 +19714,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19661,7 +19801,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -19842,8 +19981,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- The `value` column will be empty for keys that contain binary data.",
-    "examples": "This table reads a huge amount of preferences, including on third-party apps. This query will show how many users are enrolled to TouchID.\n```\nSELECT * FROM preferences WHERE subkey='dailyEvents/2/enrolledUserCount';\n```",
+    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n- The `value` column will be empty for keys that contain binary data.",
+    "examples": "This table reads a huge amount of preferences, including on third-party apps.\n```\nSELECT * FROM users CROSS JOIN preferences USING (username);\n```",
     "columns": [
       {
         "name": "domain",
@@ -19897,8 +20036,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "host",
@@ -20419,7 +20557,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "pid",
@@ -20731,12 +20868,11 @@
     "evented": true,
     "cacheable": false,
     "notes": "This table will only include events for changes and files in directories that existed before the fleetd agent starts.",
-    "examples": [],
     "columns": [
       {
         "name": "operation",
         "description": "Operation type",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20745,7 +20881,7 @@
       {
         "name": "pid",
         "description": "Process ID",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20754,7 +20890,7 @@
       {
         "name": "ppid",
         "description": "Parent process ID",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20763,7 +20899,7 @@
       {
         "name": "time",
         "description": "Time of execution in UNIX time",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20772,7 +20908,7 @@
       {
         "name": "executable",
         "description": "The executable path",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20781,7 +20917,7 @@
       {
         "name": "partial",
         "description": "True if this is a partial event (i.e.: this process existed before we started osquery)",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20790,7 +20926,7 @@
       {
         "name": "cwd",
         "description": "The current working directory of the process",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20799,7 +20935,7 @@
       {
         "name": "path",
         "description": "The path associated with the event",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20808,7 +20944,7 @@
       {
         "name": "dest_path",
         "description": "The canonical path associated with the event",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20817,7 +20953,7 @@
       {
         "name": "uid",
         "description": "The uid of the process performing the action",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20826,7 +20962,7 @@
       {
         "name": "gid",
         "description": "The gid of the process performing the action",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20835,7 +20971,7 @@
       {
         "name": "auid",
         "description": "Audit user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20844,7 +20980,7 @@
       {
         "name": "euid",
         "description": "Effective user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20853,7 +20989,7 @@
       {
         "name": "egid",
         "description": "Effective group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20862,7 +20998,7 @@
       {
         "name": "fsuid",
         "description": "Filesystem user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20871,7 +21007,7 @@
       {
         "name": "fsgid",
         "description": "Filesystem group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20880,7 +21016,7 @@
       {
         "name": "suid",
         "description": "Saved user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20889,7 +21025,7 @@
       {
         "name": "sgid",
         "description": "Saved group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20898,7 +21034,7 @@
       {
         "name": "uptime",
         "description": "Time of execution in system uptime",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20907,7 +21043,7 @@
       {
         "name": "eid",
         "description": "Event ID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": true,
         "required": false,
@@ -21881,7 +22017,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_name",
@@ -22332,7 +22467,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "path",
@@ -22637,7 +22771,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "package",
@@ -22716,7 +22849,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "name",
@@ -22895,8 +23027,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- Includes installed extensions for all system users.",
-    "examples": "```\nselect count(*) from users JOIN safari_extensions using (uid)\n```",
+    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table) - Includes installed extensions for all system users.",
+    "examples": "```\nSELECT * FROM users CROSS JOIN safari_extensions USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -22905,8 +23037,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       },
       {
         "name": "name",
@@ -23029,7 +23160,6 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "label",
@@ -23206,7 +23336,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n- For ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- For ChromeOS, this table is only available for Chrome 73+.\n",
-    "examples": [],
     "columns": [
       {
         "name": "enabled",
@@ -23239,7 +23368,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -23477,7 +23605,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "minimum_password_age",
@@ -23700,7 +23827,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "type",
@@ -24067,7 +24193,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "shmid",
@@ -24401,8 +24526,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See command line executions and related timestamps. Useful for threat hunting when a device is suspected of being compromised.\n```\nSELECT u.username, s.command, s.time FROM users u CROSS JOIN shell_history s USING (uid);\n```",
+    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN shell_history USING (uid);\n```\nSee command line executions and related timestamps. Useful for threat hunting when a device is suspected of being compromised.\n```\nSELECT u.username, s.command, s.time FROM users u CROSS JOIN shell_history s USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -24411,8 +24536,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "time",
@@ -24895,7 +25019,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "action",
@@ -25084,8 +25207,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "Identify SSH clients configured to send their locales to the server.\n```\nSELECT * FROM ssh_configs WHERE option='sendenv lang lc_*'; \n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN ssh_configs USING (uid);\n```\nIdentify SSH clients configured to send their locales to the server.\n```\nSELECT * FROM ssh_configs WHERE option='sendenv lang lc_*'; \n```",
     "columns": [
       {
         "name": "uid",
@@ -25094,8 +25217,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "block",
@@ -25343,7 +25465,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -25617,7 +25738,7 @@
       {
         "name": "hostname",
         "description": "Network hostname including domain. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25635,7 +25756,7 @@
       {
         "name": "cpu_type",
         "description": "CPU type",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25658,7 +25779,7 @@
       {
         "name": "cpu_brand",
         "description": "CPU brand string, contains vendor and model",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25718,7 +25839,7 @@
       {
         "name": "physical_memory",
         "description": "Total physical memory in bytes",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25727,7 +25848,7 @@
       {
         "name": "hardware_vendor",
         "description": "Hardware vendor. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25736,7 +25857,7 @@
       {
         "name": "hardware_model",
         "description": "Hardware model. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25759,7 +25880,7 @@
       {
         "name": "hardware_serial",
         "description": "The device's serial number. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25824,7 +25945,7 @@
       {
         "name": "computer_name",
         "description": "Friendly computer name (optional). For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only",
-        "type": "STRING",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25857,7 +25978,7 @@
     "columns": [
       {
         "name": "idle_state",
-        "type": "string",
+        "type": "text",
         "description": "Returns \"locked\", \"idle\", or \"active\".",
         "required": false
       }
@@ -25877,7 +25998,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "id",
@@ -26787,7 +26907,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "uid",
@@ -26904,7 +27023,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "uid",
@@ -26938,7 +27056,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "time",
@@ -26983,8 +27100,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "Identify SSH keys stored in clear text in user directories\n```\nSELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN user_ssh_keys USING (uid);\n```\nIdentify SSH keys stored in clear text in user directories\n```\nSELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;\n```",
     "columns": [
       {
         "name": "uid",
@@ -26993,8 +27110,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false,
-        "requires_user_context": true
+        "index": false
       },
       {
         "name": "path",
@@ -27254,7 +27370,7 @@
       {
         "name": "email",
         "required": false,
-        "type": "string",
+        "type": "text",
         "description": "Email",
         "platforms": [
           "chrome"
@@ -27273,7 +27389,6 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "color_depth",
@@ -27575,13 +27690,13 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "Querying this table requires joining against the `users` table.",
-    "examples": "List the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.\n```\nSELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
+    "examples": "```\nSELECT * FROM users CROSS JOIN vscode_extensions USING (uid);\n```\n\nList the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.\n```\nSELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);\n```",
     "columns": [
       {
         "name": "name",
         "description": "Extension Name",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27590,7 +27705,7 @@
       {
         "name": "uuid",
         "description": "Extension UUID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27599,7 +27714,7 @@
       {
         "name": "version",
         "description": "Extension version",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27608,7 +27723,7 @@
       {
         "name": "path",
         "description": "Extension path",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27617,7 +27732,7 @@
       {
         "name": "publisher",
         "description": "Publisher Name",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27626,7 +27741,7 @@
       {
         "name": "publisher_id",
         "description": "Publisher ID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27635,7 +27750,7 @@
       {
         "name": "installed_at",
         "description": "Installed Timestamp",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27644,7 +27759,7 @@
       {
         "name": "prerelease",
         "description": "Pre release version",
-        "type": "INTEGER",
+        "type": "integer",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27653,7 +27768,7 @@
       {
         "name": "uid",
         "description": "The local user that owns the plugin",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -29831,7 +29946,6 @@
     "evented": true,
     "cacheable": false,
     "notes": "",
-    "examples": [],
     "columns": [
       {
         "name": "target_path",

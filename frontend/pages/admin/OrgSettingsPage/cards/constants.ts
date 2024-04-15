@@ -2,11 +2,17 @@ import { IConfig } from "interfaces/config";
 
 export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
 
+export type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;
+
 export interface IAppConfigFormProps {
   appConfig: IConfig;
   isPremiumTier?: boolean;
   isUpdatingSettings?: boolean;
-  handleSubmit: any;
+  handleSubmit: (formUpdates: DeepPartial<IConfig>) => false | undefined;
 }
 
 export interface IFormField {
@@ -49,23 +55,7 @@ export const authTypeOptions = [
   { label: "None", value: "authtype_none" },
 ];
 
-export const percentageOfHosts = [
-  { label: "1%", value: 1 },
-  { label: "5%", value: 5 },
-  { label: "10%", value: 10 },
-  { label: "25%", value: 25 },
-];
-
-export const numberOfDays = [
-  { label: "1 day", value: 1 },
-  { label: "3 days", value: 3 },
-  { label: "7 days", value: 7 },
-  { label: "14 days", value: 14 },
-];
-
 export default {
   authMethodOptions,
   authTypeOptions,
-  percentageOfHosts,
-  numberOfDays,
 };

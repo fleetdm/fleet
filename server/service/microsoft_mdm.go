@@ -2227,6 +2227,14 @@ func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fle
 		}
 	}
 
+	// generate a CmdID for any nested <Add>
+	for i := range cmd.AddCommands {
+		cmd.AddCommands[i].CmdID = mdm_types.CmdID{
+			Value:               uuid.NewString(),
+			IncludeFleetComment: true,
+		}
+	}
+
 	rawCommand, err := xml.Marshal(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("marshalling command: %w", err)

@@ -24,7 +24,7 @@ defaults:
     shell: bash
 
 env:
-  FLEET_DESKTOP_VERSION: 1.22.0
+  FLEET_DESKTOP_VERSION: 1.23.0
 
 permissions:
   contents: read
@@ -39,6 +39,11 @@ jobs:
     # or if we revise our minimum supported macOS version.
     runs-on: macos-12
     steps:
+
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
@@ -88,6 +93,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
@@ -110,6 +120,11 @@ jobs:
   desktop-linux:
     runs-on: ubuntu-latest
     steps:
+
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0

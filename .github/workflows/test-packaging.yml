@@ -51,6 +51,11 @@ jobs:
     # Docker needs to be installed manually on macOS.
     # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
     # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
     - name: Install Docker
       timeout-minutes: 20
       if: matrix.os == 'macos-latest'
@@ -80,7 +85,7 @@ jobs:
     - name: Install wine and wix
       if: matrix.os == 'macos-latest'
       run: |
-        ./scripts/macos-install-wine.sh
+        ./scripts/macos-install-wine.sh -n
         wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
         mkdir wix
         unzip wix.zip -d wix
