@@ -33,6 +33,11 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 			shouldFail:   false,
 		},
 		{
+			testName:     "TestParseConfigProfileLeadingSpace",
+			mobileconfig: append([]byte{' '}, []byte(MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""))...),
+			shouldFail:   false,
+		},
+		{
 			testName:     "TestParseConfigProfileNoIdentifier",
 			mobileconfig: MobileconfigForTest("ValidName", "", uuid.NewString(), ""),
 			shouldFail:   true,

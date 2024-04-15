@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only for tests
+	"crypto/x509"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -29,7 +30,27 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
+
+func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
+	t := s.T()
+	rootCA := x509.NewCertPool()
+	require.True(t, rootCA.AppendCertsFromPEM([]byte(s.fleetCfg.MDM.AppleSCEPCertBytes)))
+
+	// verify that all the profiles were signed usign the SCEP certificate,
+	// and grab their contents
+	signedContents := [][]byte{}
+	for _, prof := range got {
+		p7, err := pkcs7.Parse(prof)
+		require.NoError(t, err)
+		p7.VerifyWithChain(rootCA)
+		signedContents = append(signedContents, p7.Content)
+	}
+
+	// verify that contents match
+	require.ElementsMatch(t, want, signedContents)
+}
 
 func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	t := s.T()
@@ -95,7 +116,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
-	require.ElementsMatch(t, wantGlobalProfiles, installs)
+	s.signedProfilesMatch(wantGlobalProfiles, installs)
 	require.Empty(t, removes)
 
 	expectedNoTeamSummary := fleet.MDMProfilesSummary{
@@ -116,7 +137,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	// verify that we should install the team profile
-	require.ElementsMatch(t, wantTeamProfiles, installs)
+	s.signedProfilesMatch(wantTeamProfiles, installs)
 	// verify that we should delete both profiles
 	require.ElementsMatch(t, []string{"I1", "I2"}, removes)
 
@@ -142,7 +163,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	// verify that we should install the team profiles
-	require.ElementsMatch(t, wantTeamProfiles, installs)
+	s.signedProfilesMatch(wantTeamProfiles, installs)
 	// verify that we should delete the old team profiles
 	require.ElementsMatch(t, []string{"I3"}, removes)
 
@@ -258,7 +279,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// trigger initial profile sync and confirm that we received all profiles
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes := checkNextPayloads(t, mdmDevice, false)
-		require.ElementsMatch(t, initialExpectedProfiles, installs)
+		s.signedProfilesMatch(initialExpectedProfiles, installs)
 		require.Empty(t, removes)
 
 		checkProfilesStatus(t) // all profiles verifying
@@ -276,7 +297,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// trigger a profile sync and confirm that the install profile command for I2 was resent
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes = checkNextPayloads(t, mdmDevice, false)
-		require.ElementsMatch(t, [][]byte{initialExpectedProfiles[1]}, installs)
+		s.signedProfilesMatch([][]byte{initialExpectedProfiles[1]}, installs)
 		require.Empty(t, removes)
 
 		// report osquery results with I2 present and confirm that all profiles are verified
@@ -303,7 +324,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// trigger a profile sync and confirm that the install profile command for I1 was resent
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes := checkNextPayloads(t, mdmDevice, false)
-		require.ElementsMatch(t, [][]byte{initialExpectedProfiles[0]}, installs)
+		s.signedProfilesMatch([][]byte{initialExpectedProfiles[0]}, installs)
 		require.Empty(t, removes)
 
 		// report osquery results with I1 missing again and confirm that the I1 marked as failed (max retries exceeded)
@@ -330,7 +351,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// simulate a device error
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes := checkNextPayloads(t, mdmDevice, true)
-		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		s.signedProfilesMatch([][]byte{newProfile}, installs)
 		require.Empty(t, removes)
 		expectedProfileStatuses["I3"] = fleet.MDMDeliveryPending
 		checkProfilesStatus(t)
@@ -341,7 +362,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// simulate a device ack
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes = checkNextPayloads(t, mdmDevice, false)
-		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		s.signedProfilesMatch([][]byte{newProfile}, installs)
 		require.Empty(t, removes)
 		expectedProfileStatuses["I3"] = fleet.MDMDeliveryVerifying
 		checkProfilesStatus(t)
@@ -372,7 +393,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// simulate a device error
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes := checkNextPayloads(t, mdmDevice, true)
-		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		s.signedProfilesMatch([][]byte{newProfile}, installs)
 		require.Empty(t, removes)
 		expectedProfileStatuses["I4"] = fleet.MDMDeliveryPending
 		checkProfilesStatus(t)
@@ -383,7 +404,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// simulate a second device error
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes = checkNextPayloads(t, mdmDevice, true)
-		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		s.signedProfilesMatch([][]byte{newProfile}, installs)
 		require.Empty(t, removes)
 		expectedProfileStatuses["I4"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
@@ -408,7 +429,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// simulate a device error
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes := checkNextPayloads(t, mdmDevice, true)
-		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		s.signedProfilesMatch([][]byte{newProfile}, installs)
 		require.Empty(t, removes)
 		expectedProfileStatuses["I5"] = fleet.MDMDeliveryPending
 		checkProfilesStatus(t)
@@ -419,7 +440,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		// simulate a device ack
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes = checkNextPayloads(t, mdmDevice, false)
-		require.ElementsMatch(t, [][]byte{newProfile}, installs)
+		s.signedProfilesMatch([][]byte{newProfile}, installs)
 		require.Empty(t, removes)
 		expectedProfileStatuses["I5"] = fleet.MDMDeliveryVerifying
 		checkProfilesStatus(t)

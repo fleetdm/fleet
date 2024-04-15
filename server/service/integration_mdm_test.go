@@ -2,7 +2,7 @@ package service
 
 import (
 	"bytes"
-	"context" // nolint:gosec // used only for tests
+	"context"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -127,7 +127,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		pushFactory,
 		NewNanoMDMLogger(pushLog),
 	)
-	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDMConfig{})
+	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, fleetCfg.MDM)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 	s.withServer.lq = live_query_mock.New(s.T())
 
@@ -4735,6 +4735,9 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 	if !bytes.HasPrefix(bytes.TrimSpace(rawProfile), []byte("<?xml")) {
 		p7, err := pkcs7.Parse(rawProfile)
 		require.NoError(t, err)
+		rootCA := x509.NewCertPool()
+		require.True(t, rootCA.AppendCertsFromPEM([]byte(s.fleetCfg.MDM.AppleSCEPCertBytes)))
+		p7.VerifyWithChain(rootCA)
 		rawProfile = p7.Content
 	}
 
