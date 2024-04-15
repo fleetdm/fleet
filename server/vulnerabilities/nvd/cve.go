@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	vulnRepo  = "vulnerabilities"
+	vulnRepo = "vulnerabilities"
 )
 
 // Define a regex pattern for semver (simplified)
