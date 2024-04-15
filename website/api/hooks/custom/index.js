@@ -88,8 +88,8 @@ will be disabled and/or hidden in the UI.
           from: sails.config.custom.fromEmailAddress,
           fromName: sails.config.custom.fromName,
         });
-
-        if(sails.config.environment === 'production'){
+        // Send a request to our Algolia crawler to reindex the website.
+        if(sails.config.environment === 'production' && process.env.DYNO === 'web.1'){
           sails.helpers.http.post.with({
             url: `https://crawler.algolia.com/api/1/crawlers/${sails.config.custom.algoliaCrawlerId}/reindex`,
             headers: { 'Authorization': sails.config.custom.algoliaCrawlerApiToken}
