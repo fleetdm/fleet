@@ -83,7 +83,7 @@ type Parsed struct {
 // Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
 func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	mcBytes := mc
-	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
+	if !bytes.HasPrefix(bytes.TrimSpace(mcBytes), []byte("<?xml")) {
 		p7, err := pkcs7.Parse(mcBytes)
 		if err != nil {
 			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)

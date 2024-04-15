@@ -7135,6 +7135,13 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enrollmentRef string) *enrollmentProfile {
 	t := s.T()
 	var profile enrollmentProfile
+
+	if !bytes.HasPrefix(bytes.TrimSpace(rawProfile), []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		rawProfile = p7.Content
+	}
+
 	require.NoError(t, plist.Unmarshal(rawProfile, &profile))
 
 	for _, p := range profile.PayloadContent {
