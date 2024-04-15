@@ -5055,19 +5055,26 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error) {
 	const selectStmt = `
 		SELECT
-			h.hostname
-		FROM hosts h
-		WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
+			DISTINCT h.hostname
+		FROM hosts h,
+		(%s) ids
+		WHERE ids.identifier IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
 `
 	if len(identifiers) == 0 {
 		return nil, nil
 	}
 
-	var hostnames []string
-	stmt, args, err := sqlx.In(selectStmt, identifiers)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build IN statement for hostnames by identifiers")
+	var sb strings.Builder
+	args := make([]any, len(identifiers))
+	for i, id := range identifiers {
+		if i > 0 {
+			sb.WriteString(` UNION `)
+		}
+		sb.WriteString(`SELECT ? AS identifier`)
+		args[i] = id
 	}
+	var hostnames []string
+	stmt := fmt.Sprintf(selectStmt, sb.String())
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostnames, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get hostnames by identifiers")
 	}

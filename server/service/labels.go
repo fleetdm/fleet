@@ -171,10 +171,11 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		return nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
 	}
 
-	// TODO(mna): if membership type is manual and the Hosts membership is
-	// provided, must use ApplyLabelSpecs (as SaveLabel does not update label
-	// memberships), otherwise SaveLabel works for dynamic membership. Must
-	// resolve the host identifiers to hostname so that ApplySpecs can be used.
+	// if membership type is manual and the Hosts membership is provided, must
+	// use ApplyLabelSpecs (as SaveLabel does not update label memberships),
+	// otherwise SaveLabel works for dynamic membership. Must resolve the host
+	// identifiers to hostname so that ApplySpecs can be used (it expects only
+	// hostnames).
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual && payload.Hosts != nil {
 		spec := fleet.LabelSpec{
 			Name:                label.Name,

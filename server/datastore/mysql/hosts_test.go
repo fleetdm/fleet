@@ -8849,6 +8849,8 @@ func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
 		{desc: "single match", in: []string{"abc"}, out: []string{h1.Hostname}},
 		{desc: "two matches", in: []string{"mno"}, out: []string{h2.Hostname, h3.Hostname}},
 		{desc: "all matches", in: []string{"def"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
+		{desc: "multiple identifiers", in: []string{"abc", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
+		{desc: "duplicate identifiers", in: []string{"abc", "abc", "ghi"}, out: []string{h1.Hostname}},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
