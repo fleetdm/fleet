@@ -2025,6 +2025,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 	}
 
 	var profileTeamID *uint
+	var profileName string
 	switch {
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -2038,6 +2039,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 			return ctxerr.Wrap(ctx, err, "getting apple config profile")
 		}
 		profileTeamID = prof.TeamID
+		profileName = prof.Name
 
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -2051,6 +2053,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 			return ctxerr.Wrap(ctx, err, "getting apple declaration")
 		}
 		profileTeamID = decl.TeamID
+		profileName = decl.Name
 
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
@@ -2064,6 +2067,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 			return ctxerr.Wrap(ctx, err, "getting windows config profile")
 		}
 		profileTeamID = prof.TeamID
+		profileName = prof.Name
 
 	default:
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Invalid profile UUID prefix.").WithStatus(http.StatusNotFound), "check profile UUID prefix")
@@ -2093,7 +2097,13 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err, "resending host mdm profile")
 	}
 
-	// TODO: log activity?
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfile{
+		HostID:          &host.ID,
+		HostDisplayName: ptr.String(host.DisplayName()),
+		ProfileName:     profileName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
+	}
 
 	return nil
 }

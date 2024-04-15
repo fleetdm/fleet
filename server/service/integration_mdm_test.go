@@ -791,14 +791,18 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Equal(t, prof, installs[0])
 	require.Empty(t, removes)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q}`, host.ID, host.DisplayName(), "name-"+mcUUID),
+		0)
 
 	// add a declaration to the team
-	declIdent := "decl-ident-" + t.Name()
+	declIdent := "decl-ident-" + uuid.NewString()
 	fields := map[string][]string{
 		"team_id": {fmt.Sprintf("%d", tm.ID)},
 	}
 	body, headers := generateNewProfileMultipartRequest(
-		t, declIdent+".json", declarationForTest(declIdent), s.token, fields,
+		t, "some-declaration.json", declarationForTest(declIdent), s.token, fields,
 	)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	var resp newMDMConfigProfileResponse
@@ -837,6 +841,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, declUUID), nil, http.StatusAccepted)
 	checkDDMSync(mdmDevice)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": "some-declaration"}`, host.ID, host.DisplayName()),
+		0)
 
 	// transfer the host to the global team
 	err = s.ds.AddHostsToTeam(ctx, nil, []uint{host.ID})
@@ -11007,7 +11015,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// can resend a profile after it has failed
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
 	verifyProfiles(mdmDevice, 1, false)                                               // trigger a profile sync, device gets the profile resent
-	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so it back to verifying
+	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so back to verifying
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q}`, host.ID, host.DisplayName(), "name-"+teamProfiles[0]),
+		0)
 
 	// add a macOS profile to the team
 	mcUUID := "a" + uuid.NewString()
