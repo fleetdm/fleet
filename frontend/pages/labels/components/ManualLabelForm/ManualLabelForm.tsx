@@ -53,6 +53,8 @@ const ManualLabelForm = ({
     defaultTargetedHosts
   );
 
+  const targetdHostsIds = targetedHosts.map((host) => host.id);
+
   const debounceSearch = useDebouncedCallback(
     (search: string) => {
       setDebouncedSearchQuery(search);
@@ -77,7 +79,7 @@ const ManualLabelForm = ({
       {
         scope: "labels-targets-search",
         query: debouncedSearchQuery,
-        excludedHostIds: [], // TODO: add this
+        excludedHostIds: targetdHostsIds,
       },
     ],
     ({ queryKey }) => {
@@ -89,7 +91,7 @@ const ManualLabelForm = ({
     },
     {
       select: (data) => data.hosts,
-      enabled: debouncedSearchQuery !== "",
+      enabled: searchQuery !== "",
     }
   );
 
