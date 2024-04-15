@@ -136,26 +136,30 @@ func init() {
 }
 
 type Stats struct {
-	startTime              time.Time
-	errors                 int
-	osqueryEnrollments     int
-	orbitEnrollments       int
-	mdmEnrollments         int
-	mdmSessions            int
-	distributedWrites      int
-	mdmCommandsReceived    int
-	distributedReads       int
-	configRequests         int
-	configErrors           int
-	resultLogRequests      int
-	orbitErrors            int
-	mdmErrors              int
-	ddmErrors              int
-	desktopErrors          int
-	distributedReadErrors  int
-	distributedWriteErrors int
-	resultLogErrors        int
-	bufferedLogs           int
+	startTime           time.Time
+	errors              int
+	osqueryEnrollments  int
+	orbitEnrollments    int
+	mdmEnrollments      int
+	mdmSessions         int
+	distributedWrites   int
+	mdmCommandsReceived int
+	distributedReads    int
+	configRequests      int
+	configErrors        int
+	resultLogRequests   int
+	orbitErrors         int
+	mdmErrors           int
+	// ddmErrors                 int
+	ddmDeclarationItemsErrors int
+	ddmConfigurationErrors    int
+	ddmActivationErrors       int
+	ddmStatusErrors           int
+	desktopErrors             int
+	distributedReadErrors     int
+	distributedWriteErrors    int
+	resultLogErrors           int
+	bufferedLogs              int
 
 	l sync.Mutex
 }
@@ -238,10 +242,28 @@ func (s *Stats) IncrementMDMErrors() {
 	s.mdmErrors++
 }
 
-func (s *Stats) IncrementDDMErrors() {
+func (s *Stats) IncrementDDMDeclarationItemsErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.ddmErrors++
+	s.ddmDeclarationItemsErrors++
+}
+
+func (s *Stats) IncrementDDMConfigurationErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmConfigurationErrors++
+}
+
+func (s *Stats) IncrementDDMActivationErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmActivationErrors++
+}
+
+func (s *Stats) IncrementDDMStatusErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmStatusErrors++
 }
 
 func (s *Stats) IncrementDesktopErrors() {
@@ -282,7 +304,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, ddm errors: %d, buffered logs: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, ddm declaration items errors: %d, ddm activation errors: %d, ddm configuration errors: %d, ddm status errors: %d, buffered logs: %d",
 		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
@@ -301,7 +323,10 @@ func (s *Stats) Log() {
 		s.orbitErrors,
 		s.desktopErrors,
 		s.mdmErrors,
-		s.ddmErrors,
+		s.ddmDeclarationItemsErrors,
+		s.ddmActivationErrors,
+		s.ddmConfigurationErrors,
+		s.ddmStatusErrors,
 		s.bufferedLogs,
 	)
 }
@@ -967,20 +992,20 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 	r, err := a.macMDMClient.DeclarativeManagement("declaration-items")
 	if err != nil {
 		log.Printf("DDM declaration-items request failed: %s", err)
-		a.stats.IncrementMDMErrors()
+		a.stats.IncrementDDMDeclarationItemsErrors()
 		return
 	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("DDM declaration-items read body failed: %s", err)
-		a.stats.IncrementMDMErrors()
+		a.stats.IncrementDDMDeclarationItemsErrors()
 		return
 	}
 	var items fleet.MDMAppleDDMDeclarationItemsResponse
 	err = json.Unmarshal(body, &items)
 	if err != nil {
 		log.Printf("DDM declaration-items unmarshal failed: %s", err)
-		a.stats.IncrementMDMErrors()
+		a.stats.IncrementDDMDeclarationItemsErrors()
 		return
 	}
 
@@ -990,20 +1015,44 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 		r, err := a.macMDMClient.DeclarativeManagement(path)
 		if err != nil {
 			log.Printf("DDM %s request failed: %s", path, err)
-			a.stats.IncrementMDMErrors()
+			a.stats.IncrementDDMConfigurationErrors()
 			return
 		}
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("DDM %s read body failed: %s", path, err)
-			a.stats.IncrementMDMErrors()
+			a.stats.IncrementDDMConfigurationErrors()
 			return
 		}
 		var decl fleet.MDMAppleDeclaration
 		err = json.Unmarshal(body, &decl)
 		if err != nil {
 			log.Printf("DDM %s unmarshal failed: %s", path, err)
-			a.stats.IncrementMDMErrors()
+			a.stats.IncrementDDMConfigurationErrors()
+			return
+		}
+	}
+
+	// get declaration/activation/:identifer endpoint
+	for _, d := range items.Declarations.Activations {
+		path := fmt.Sprintf("declaration/%s/%s", "activation", d.Identifier)
+		r, err := a.macMDMClient.DeclarativeManagement(path)
+		if err != nil {
+			log.Printf("DDM %s request failed: %s", path, err)
+			a.stats.IncrementDDMActivationErrors()
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("DDM %s read body failed: %s", path, err)
+			a.stats.IncrementDDMActivationErrors()
+			return
+		}
+		var act fleet.MDMAppleDDMActivation
+		err = json.Unmarshal(body, &act)
+		if err != nil {
+			log.Printf("DDM %s unmarshal failed: %s", path, err)
+			a.stats.IncrementDDMActivationErrors()
 			return
 		}
 	}
@@ -1017,13 +1066,13 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 		r, err := a.macMDMClient.DeclarativeManagement("status", report)
 		if err != nil {
 			log.Printf("DDM %s status request failed: %s", d.Identifier, err)
-			a.stats.IncrementMDMErrors()
+			a.stats.IncrementDDMStatusErrors()
 			return
 		}
 		// if r.StatusCode != http.StatusNoContent {
 		if r.StatusCode != http.StatusOK && r.StatusCode != http.StatusNoContent {
 			log.Printf("DDM %s status response unexpected: %d", d.Identifier, r.StatusCode)
-			a.stats.IncrementMDMErrors()
+			a.stats.IncrementDDMStatusErrors()
 			return
 		}
 	}
