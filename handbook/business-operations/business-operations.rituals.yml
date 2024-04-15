@@ -50,7 +50,7 @@
   moreInfoUrl: 
   dri: "jostableford" 
   autoIssue:   
-    labels: [ "#g-digital-experience" ] 
+    labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
   task: "AP invoice monitoring" # TODO tie this to a responsibility
