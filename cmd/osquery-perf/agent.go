@@ -136,21 +136,20 @@ func init() {
 }
 
 type Stats struct {
-	startTime           time.Time
-	errors              int
-	osqueryEnrollments  int
-	orbitEnrollments    int
-	mdmEnrollments      int
-	mdmSessions         int
-	distributedWrites   int
-	mdmCommandsReceived int
-	distributedReads    int
-	configRequests      int
-	configErrors        int
-	resultLogRequests   int
-	orbitErrors         int
-	mdmErrors           int
-	// ddmErrors                 int
+	startTime                 time.Time
+	errors                    int
+	osqueryEnrollments        int
+	orbitEnrollments          int
+	mdmEnrollments            int
+	mdmSessions               int
+	distributedWrites         int
+	mdmCommandsReceived       int
+	distributedReads          int
+	configRequests            int
+	configErrors              int
+	resultLogRequests         int
+	orbitErrors               int
+	mdmErrors                 int
 	ddmDeclarationItemsErrors int
 	ddmConfigurationErrors    int
 	ddmActivationErrors       int
