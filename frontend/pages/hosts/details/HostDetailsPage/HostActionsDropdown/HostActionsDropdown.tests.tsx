@@ -8,8 +8,6 @@ import createMockTeam from "__mocks__/teamMock";
 
 import HostActionsDropdown from "./HostActionsDropdown";
 
-const SCRIPTS_DISABLED_TOOLTIP_TEXT = /fleetd agent with --enable-scripts/i;
-
 describe("Host Actions Dropdown", () => {
   describe("Transfer action", () => {
     it("renders the Transfer action when on premium tier and the user is a global admin", async () => {
@@ -117,12 +115,14 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Query").parentNode?.parentNode?.parentNode
+        screen.getByText("Query").parentElement?.parentElement?.parentElement
       ).toHaveClass("is-disabled");
 
-      await user.hover(screen.getByText("Query"));
-
       await waitFor(() => {
+        waitFor(() => {
+          user.hover(screen.getByText("Query"));
+        });
+
         expect(
           screen.getByText(/You can't query an offline host./i)
         ).toBeInTheDocument();
@@ -152,7 +152,7 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
       expect(
-        screen.getByText("Query").parentNode?.parentNode?.parentNode
+        screen.getByText("Query").parentElement?.parentElement?.parentElement
       ).toHaveClass("is-disabled");
     });
 
@@ -179,7 +179,9 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      expect(screen.getByText("Query").parentNode).toHaveClass("is-disabled");
+      expect(screen.getByText("Query").parentElement).toHaveClass(
+        "is-disabled"
+      );
     });
   });
 
@@ -385,7 +387,7 @@ describe("Host Actions Dropdown", () => {
 
       debug();
 
-      expect(screen.getByText("Turn off MDM").parentNode).toHaveClass(
+      expect(screen.getByText("Turn off MDM").parentElement).toHaveClass(
         "is-disabled"
       );
     });
@@ -587,14 +589,16 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Lock").parentNode?.parentNode?.parentNode
+        screen.getByText("Lock").parentElement?.parentElement?.parentElement
       ).toHaveClass("is-disabled");
 
-      await user.hover(screen.getByText("Lock"));
-
       await waitFor(() => {
+        waitFor(() => {
+          user.hover(screen.getByText("Lock"));
+        });
+
         expect(
-          screen.getByText(SCRIPTS_DISABLED_TOOLTIP_TEXT)
+          screen.getByText(/fleetd agent with --enable-scripts/i)
         ).toBeInTheDocument();
       });
     });
@@ -840,14 +844,16 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Unlock").parentNode?.parentNode?.parentNode
+        screen.getByText("Unlock").parentElement?.parentElement?.parentElement
       ).toHaveClass("is-disabled");
 
-      await user.hover(screen.getByText("Unlock"));
-
       await waitFor(() => {
+        waitFor(() => {
+          user.hover(screen.getByText("Unlock"));
+        });
+
         expect(
-          screen.getByText(SCRIPTS_DISABLED_TOOLTIP_TEXT)
+          screen.getByText(/fleetd agent with --enable-scripts/i)
         ).toBeInTheDocument();
       });
     });
@@ -972,15 +978,18 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      await user.hover(screen.getByText(/Lock/i));
 
       expect(
-        screen.getByText(/Wipe/i).parentNode?.parentNode?.parentNode
+        screen.getByText("Wipe").parentElement?.parentElement?.parentElement
       ).toHaveClass("is-disabled");
 
       await waitFor(() => {
+        waitFor(() => {
+          user.hover(screen.getByText("Wipe"));
+        });
+
         expect(
-          screen.getByText(SCRIPTS_DISABLED_TOOLTIP_TEXT)
+          screen.getByText(/fleetd agent with --enable-scripts/i)
         ).toBeInTheDocument();
       });
     });
@@ -1041,14 +1050,17 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Run script").parentNode?.parentNode?.parentNode
+        screen.getByText("Run script").parentElement?.parentElement
+          ?.parentElement
       ).toHaveClass("is-disabled");
 
-      await user.hover(screen.getByText(/Run script/i));
-
       await waitFor(() => {
+        waitFor(() => {
+          user.hover(screen.getByText("Run script"));
+        });
+
         expect(
-          screen.getByText(SCRIPTS_DISABLED_TOOLTIP_TEXT)
+          screen.getByText(/fleetd agent with --enable-scripts/i)
         ).toBeInTheDocument();
       });
     });

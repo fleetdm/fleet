@@ -100,7 +100,7 @@ describe("PolicyForm - component", () => {
       },
     });
 
-    const { user } = render(
+    const { container, user } = render(
       <PolicyForm
         policyIdForEdit={mockPolicy.id}
         showOpenSchemaActionText={false}
@@ -123,12 +123,14 @@ describe("PolicyForm - component", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
 
-    await user.hover(screen.getByRole("button", { name: "Save" }));
-
     await waitFor(() => {
-      expect(
-        screen.getAllByText(/to save or run the policy/i)
-      ).toBeInTheDocument();
+      waitFor(() => {
+        user.hover(screen.getByRole("button", { name: "Save" }));
+      });
+
+      expect(container.querySelector("#save-policy-button")).toHaveTextContent(
+        /to save or run the policy/i
+      );
     });
   });
 
@@ -192,11 +194,15 @@ describe("PolicyForm - component", () => {
 
     expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
 
-    await user.hover(screen.getByRole("button", { name: "Run" }));
+    await waitFor(() => {
+      waitFor(() => {
+        user.hover(screen.getByRole("button", { name: "Run" }));
+      });
 
-    expect(container.querySelector("#run-policy-button")).toHaveTextContent(
-      /live queries are disabled/i
-    );
+      expect(
+        screen.getByText(/live queries are disabled/i)
+      ).toBeInTheDocument();
+    });
   });
 
   // TODO: Consider testing save button is disabled for a sql error
