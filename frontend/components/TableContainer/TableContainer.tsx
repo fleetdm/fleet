@@ -193,7 +193,7 @@ const TableContainer = <T,>({
   );
 
   const onSearchQueryChange = (value: string) => {
-    setSearchQuery(value);
+    setSearchQuery(value.trim());
   };
 
   const hasPageIndexChangedRef = useRef(false);

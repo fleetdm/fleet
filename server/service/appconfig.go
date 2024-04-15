@@ -821,7 +821,7 @@ func (svc *Service) validateMDM(
 		// TODO: Should we validate MDM configured on here too?
 
 		if mdm.MacOSMigration.Enable {
-			if license.Tier != fleet.TierPremium {
+			if !license.IsPremium() {
 				invalid.Append("macos_migration.enable", ErrMissingLicense.Error())
 				return nil
 			}

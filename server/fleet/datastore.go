@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -594,6 +595,11 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
+	// GetTeamHostsPolicyMembmerships returns the hosts that belong to the given team and their pass/fail statuses
+	// around the provided policyIDs.
+	// 	- Returns hosts of the team that are failing one or more of the provided policies.
+	//	- Returns hosts of the team that are passing all the policies (or are not running any of the provided policies)
+	//	  and have a calendar event scheduled.
 	GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]HostPolicyMembershipData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 
@@ -831,7 +837,11 @@ type Datastore interface {
 	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *Host, cmdUUID string) (HostMDMProfileRetryCount, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
-	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
+	SetOrUpdateHostOrbitInfo(
+		ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
+	) error
+
+	GetHostOrbitInfo(ctx context.Context, hostID uint) (*HostOrbitInfo, error)
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping, source string) error
 

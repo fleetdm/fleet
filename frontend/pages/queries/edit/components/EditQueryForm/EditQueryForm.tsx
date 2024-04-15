@@ -63,6 +63,7 @@ interface IEditQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
+  currentTeamId?: number;
   teamNameForQuery?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
@@ -97,6 +98,7 @@ const EditQueryForm = ({
   router,
   queryIdForEdit,
   apiTeamIdForQuery,
+  currentTeamId,
   teamNameForQuery,
   showOpenSchemaActionText,
   storedQuery,
@@ -601,7 +603,7 @@ const EditQueryForm = ({
               onClick={() => {
                 router.push(
                   PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
                 );
               }}
               disabled={disabledLiveQuery}
@@ -680,7 +682,6 @@ const EditQueryForm = ({
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
 
-    console.log("lastEditedQueryPlatforms", lastEditedQueryPlatforms);
     return (
       <>
         <form className={`${baseClass}`} autoComplete="off">
@@ -846,7 +847,7 @@ const EditQueryForm = ({
                   setEditingExistingQuery(true); // Persists edited query data through live query flow
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
                   );
                 }}
                 disabled={disabledLiveQuery}

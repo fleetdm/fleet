@@ -317,6 +317,40 @@ const HostSummary = ({
     );
   };
 
+  const renderAgentSummary = () => {
+    if (platform === "chrome") {
+      return <DataSet title="Agent" value={summaryData.osquery_version} />;
+    }
+    if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
+      return (
+        <DataSet
+          title="Agent"
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  osquery: {summaryData.osquery_version}
+                  <br />
+                  Orbit: {summaryData.orbit_version}
+                  {summaryData.fleet_desktop_version !==
+                    DEFAULT_EMPTY_CELL_VALUE && (
+                    <>
+                      <br />
+                      Fleet Desktop: {summaryData.fleet_desktop_version}
+                    </>
+                  )}
+                </>
+              }
+            >
+              {summaryData.orbit_version}
+            </TooltipWrapper>
+          }
+        />
+      );
+    }
+    return <DataSet title="Osquery" value={summaryData.osquery_version} />;
+  };
+
   const renderSummary = () => {
     // for windows hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
@@ -401,7 +435,8 @@ const HostSummary = ({
         />
         <DataSet title="Processor type" value={summaryData.cpu_type} />
         <DataSet title="Operating system" value={summaryData.os_version} />
-        <DataSet title="Osquery" value={summaryData.osquery_version} />
+
+        {renderAgentSummary()}
       </Card>
     );
   };

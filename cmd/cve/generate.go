@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// Sync the CVE files
-	if err := nvd.DownloadNVDCVEFeed(*dbDir, "", *debug, logger); err != nil {
+	if err := nvd.GenerateCVEFeeds(*dbDir, *debug, logger); err != nil {
 		panic(err)
 	}
 
@@ -64,44 +64,16 @@ func main() {
 		fileNameRaw := filepath.Join(*dbDir, fileFmt(suffix, "json", ""))
 		fileName := filepath.Join(*dbDir, fileFmt(suffix, "json", "gz"))
 		metaName := filepath.Join(*dbDir, fileFmt(suffix, "meta", ""))
-		compressFile(fileNameRaw, fileName)
+		err := nvdsync.CompressFile(fileNameRaw, fileName)
+		if err != nil {
+			panic(err)
+		}
 		createMetadata(fileName, metaName)
 	}
 
 	// Create modified and recent files
 	createEmptyFiles(*dbDir, "modified")
 	createEmptyFiles(*dbDir, "recent")
-}
-
-func compressFile(fileName string, newFileName string) {
-	// Read old file
-	file, err := os.Open(fileName)
-	if err != nil {
-		panic(err)
-	}
-	read := bufio.NewReader(file)
-	data, err := io.ReadAll(read)
-	if err != nil {
-		panic(err)
-	}
-	file.Close()
-
-	// Write new file
-	newFile, err := os.Create(newFileName)
-	if err != nil {
-		panic(err)
-	}
-	writer := gzip.NewWriter(newFile)
-	if _, err = writer.Write(data); err != nil {
-		panic(err)
-	}
-	writer.Close()
-	newFile.Close()
-
-	// Remove old file
-	if err = os.Remove(fileName); err != nil {
-		panic(err)
-	}
 }
 
 func createMetadata(fileName string, metaName string) {

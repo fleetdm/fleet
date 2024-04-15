@@ -45,6 +45,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
@@ -137,6 +138,9 @@ const ManageHostsPage = ({
     isFreeTier,
     isSandboxMode,
     setFilteredHostsPath,
+    setFilteredPoliciesPath,
+    setFilteredQueriesPath,
+    setFilteredSoftwarePath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -886,6 +890,11 @@ const ManageHostsPage = ({
       // tableQueryData)
       handleTeamChange(teamId);
       handleResetPageIndex();
+      // Must clear other page paths or the team might accidentally switch
+      // When navigating from host details
+      setFilteredSoftwarePath("");
+      setFilteredQueriesPath("");
+      setFilteredPoliciesPath("");
     },
     [handleTeamChange]
   );
@@ -1015,7 +1024,11 @@ const ManageHostsPage = ({
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not delete label. Please try again.");
+      if (getErrorReason(error).includes("built-in")) {
+        renderFlash("error", "Built-in labels can’t be modified or deleted.");
+      } else {
+        renderFlash("error", "Could not delete label. Please try again.");
+      }
     } finally {
       setIsUpdatingLabel(false);
     }

@@ -68,7 +68,7 @@
   task: "Maintenance" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-01" 
   frequency: "Weekly" 
-  description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #help-product-design Slack channel." 
+  description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #g-mdm and #g-endpoint-ops Slack channel." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
