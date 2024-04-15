@@ -108,7 +108,7 @@
   frequency: "Monthly"
   description: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll"
-  dri: "hughestaylor" 
+  dri: "joStableford" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
