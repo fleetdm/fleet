@@ -7,10 +7,15 @@ import OSSettingsTable from "./OSSettingsTable";
 import { generateTableData } from "./OSSettingsTable/OSSettingsTableConfig";
 
 interface IOSSettingsModalProps {
-  hostId?: number;
-  platform?: string;
-  hostMDMData?: IHostMdmData;
+  hostId: number;
+  platform: string;
+  hostMDMData: IHostMdmData;
+  /** controls showing the action for a user to resend a profile. Defaults to `false` */
+  canResendProfiles?: boolean;
   onClose: () => void;
+  /** handler that fires when a profile was reset. Requires `canResendProfiles` prop
+   * to be `true`, otherwise has no effect.
+   */
   onProfileResent?: () => void;
 }
 
@@ -20,6 +25,7 @@ const OSSettingsModal = ({
   hostId,
   platform,
   hostMDMData,
+  canResendProfiles = false,
   onClose,
   onProfileResent,
 }: IOSSettingsModalProps) => {
@@ -41,8 +47,9 @@ const OSSettingsModal = ({
     >
       <>
         <OSSettingsTable
+          canResendProfiles={canResendProfiles}
           hostId={hostId}
-          tableData={memoizedTableData || []}
+          tableData={memoizedTableData ?? []}
           onProfileResent={onProfileResent}
         />
         <div className="modal-cta-wrap">

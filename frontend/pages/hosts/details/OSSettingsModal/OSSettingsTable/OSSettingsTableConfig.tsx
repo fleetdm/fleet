@@ -42,7 +42,8 @@ export type OsSettingsTableStatusValue =
   | INonDDMProfileStatus;
 
 const generateTableConfig = (
-  hostId?: number,
+  hostId: number,
+  canResendProfiles: boolean,
   onProfileResent?: () => void
 ): ITableColumnConfig[] => {
   return [
@@ -74,6 +75,7 @@ const generateTableConfig = (
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => (
         <OSSettingsErrorCell
+          canResendProfiles={canResendProfiles}
           hostId={hostId}
           profile={cellProps.row.original}
           onProfileResent={onProfileResent}
@@ -131,13 +133,9 @@ const makeDarwinRows = ({ profiles, macos_settings }: IHostMdmData) => {
 };
 
 export const generateTableData = (
-  hostMDMData?: IHostMdmData,
-  platform?: string
+  hostMDMData: IHostMdmData,
+  platform: string
 ) => {
-  if (!platform || !hostMDMData) {
-    return null;
-  }
-
   switch (platform) {
     case "windows":
       return makeWindowsRows(hostMDMData);

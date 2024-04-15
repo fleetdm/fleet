@@ -8,17 +8,23 @@ import generateTableHeaders, {
 const baseClass = "os-settings-table";
 
 interface IOSSettingsTableProps {
-  hostId?: number;
-  tableData?: IHostMdmProfileWithAddedStatus[];
+  canResendProfiles: boolean;
+  hostId: number;
+  tableData: IHostMdmProfileWithAddedStatus[];
   onProfileResent?: () => void;
 }
 
 const OSSettingsTable = ({
+  canResendProfiles,
   hostId,
   tableData,
   onProfileResent,
 }: IOSSettingsTableProps) => {
-  const tableConfig = generateTableHeaders(hostId, onProfileResent);
+  const tableConfig = generateTableHeaders(
+    hostId,
+    canResendProfiles,
+    onProfileResent
+  );
 
   return (
     <div className={baseClass}>

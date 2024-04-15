@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
 import classnames from "classnames";
+import { noop } from "lodash";
 
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import hostAPI from "services/entities/hosts";
@@ -10,7 +11,6 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
 import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
-import { isDiskEncryptionProfile } from "../OSSettingStatusCell/helpers";
 
 const baseClass = "os-settings-error-cell";
 
@@ -20,7 +20,7 @@ interface IRefetchButtonProps {
 }
 
 const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
-  const classNames = classnames(`${baseClass}__resend-button`, {
+  const classNames = classnames(`${baseClass}__resend-button`, "resend-link", {
     [`${baseClass}__resending`]: isFetching,
   });
 
@@ -96,39 +96,35 @@ const generateErrorTooltip = (
 };
 
 interface IOSSettingsErrorCellProps {
-  hostId?: number;
+  canResendProfiles: boolean;
+  hostId: number;
   profile: IHostMdmProfileWithAddedStatus;
   onProfileResent?: () => void;
 }
 
 const OSSettingsErrorCell = ({
+  canResendProfiles,
   hostId,
   profile,
-  onProfileResent,
+  onProfileResent = noop,
 }: IOSSettingsErrorCellProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isLoading, setIsLoading] = useState(false);
 
   const onResendProfile = async () => {
-    if (!hostId) return;
     setIsLoading(true);
     try {
       await hostAPI.resendProfile(hostId, profile.profile_uuid);
-      onProfileResent?.();
+      onProfileResent();
     } catch (e) {
       renderFlash("error", "Couldn't resend. Please try again.");
     }
-    onProfileResent?.();
     setIsLoading(false);
   };
 
-  // const isFailed = profile.status === "failed";
-  const isFailed = true;
+  const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
-  const showRefetchButton =
-    (isFailed || isVerified) &&
-    !isDiskEncryptionProfile(profile.name) &&
-    hostId !== undefined;
+  const showRefetchButton = canResendProfiles && (isFailed || isVerified);
   const value = (isFailed && profile.detail) || DEFAULT_EMPTY_CELL_VALUE;
 
   const tooltip = generateErrorTooltip(value, profile);

@@ -4,4 +4,16 @@
       white-space: nowrap;
     }
   }
+
+  // row hover effect for resend button
+  .resend-link {
+    opacity: 0;
+    transition: opacity 250ms;
+  }
+
+  tr:hover {
+    .resend-link {
+      opacity: 1;
+    }
+  }
 }

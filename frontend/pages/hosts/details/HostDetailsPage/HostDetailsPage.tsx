@@ -932,9 +932,10 @@ const HostDetailsPage = ({
         )}
         {showOSSettingsModal && (
           <OSSettingsModal
+            canResendProfiles
             hostId={host.id}
-            platform={host?.platform}
-            hostMDMData={host?.mdm}
+            platform={host.platform}
+            hostMDMData={host.mdm}
             onClose={toggleOSSettingsModal}
             onProfileResent={refetchHostDetails}
           />
