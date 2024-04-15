@@ -2,6 +2,7 @@ package osquery_utils
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -607,8 +608,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
 	"orbit_info": {
-		Query:            `SELECT version FROM orbit_info`,
+		Query:            `SELECT * FROM orbit_info`,
 		DirectIngestFunc: directIngestOrbitInfo,
+		Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"),
 		Discovery:        discoveryTable("orbit_info"),
 	},
 	"disk_encryption_darwin": {
@@ -628,11 +630,26 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_windows": {
-		Query:            `SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;`,
+		// Bitlocker is an optional component on Windows Server and
+		// isn't guaranteed to be installed. If we try to query the
+		// bitlocker_info table when the bitlocker component isn't
+		// present, the query will crash and fail to report back to
+		// the server. Before querying bitlocke_info, we check if it's
+		// either:
+		// 1. both an optional component, and installed.
+		// OR
+		// 2. not optional, meaning it's built into the OS
+		Query: `
+	WITH encrypted(enabled) AS (
+		SELECT CASE WHEN
+			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+			OR
+			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+	END)
+	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryption,
-		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
-		// osquery table on windows, it is always present.
 	},
 }
 
@@ -1054,7 +1071,15 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 		return ctxerr.Errorf(ctx, "directIngestOrbitInfo invalid number of rows: %d", len(rows))
 	}
 	version := rows[0]["version"]
-	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version); err != nil {
+	var desktopVersion sql.NullString
+	desktopVersion.String, desktopVersion.Valid = rows[0]["desktop_version"]
+	var scriptsEnabled sql.NullBool
+	scriptsEnabledStr, ok := rows[0]["scripts_enabled"]
+	if ok {
+		scriptsEnabled.Bool = scriptsEnabledStr == "1"
+		scriptsEnabled.Valid = true
+	}
+	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version, desktopVersion, scriptsEnabled); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOrbitInfo update host orbit info")
 	}
 

@@ -167,10 +167,48 @@ If the action fails, please complete the following steps:
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action. 
 
 
+### Communicate Fleet's potential energy to stakeholders
+On the first business day of every month, the Apprentice will send an update to the stakeholders of Fleet using the following steps:
+1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
+
+```
+Hi investors and friends,
+
+Here’s a quick update on the numbers from last month:
+
+• Gross new ∆ARR (QTD): + TODO
+• Social media mentions (LinkedIn): 3.8 per day (Goal: 5) (Want to help?)
+• Current version: 4.48.0 (See what's new)
+• Next in-person event: Kansas City, (April 20) BSides KC
+• Next press release: 2024-04-30: "Stop nudging"
+"Stop installing updates and forcing restarts when your users are busy using their computers.  Fleet finds time in the calendar for a reboot and uses AI to explain why." 
+
+
+Thanks for your support,
+Mike and the Fleet team
+```
+
+2. Address the email to the executive team's Gmail.
+3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, collect all of the investor emails from previous funding rounds and add them to bcc of the email and send.
+
+
 ### Refresh event calendar
 Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
 1. Visit the latest website for each event.
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
+
+
+### Schedule press release
+Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. This process sUse the following steps to schedule a press release:  
+
+1. Add context for the next press release to the [e-group agenda](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit) as a "DISCUSS:" to be reviewed by Fleet's executive team for alignment and finalization of date.
+2. Once a release date is set, at-mention our public relations firm in the [#help-public-relations-firm--mindshare-pr--brand-marketing](https://fleetdm.slack.com/archives/C04PC9H34LF) and schedule a 30m call for our CEO and to communicate the press release.
+
+> The above must be completed 6 weeks before the press release date. 
+
+3. Schedule a 1.5h discussion between the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) and the CEO to review the first draft linked as "Agenda: LINK" to the calendar event description.
+4. Schedule a 60m call with the CEO and public relations firm to review the first draft linked as above to the calendar event (first draft provided by the PR firm)
+5. Schedule 2.5 hrs of async time for the CEO work on edits and a 60m followup postgame (solo) where CEO edits and then settles+sends final release.
 
 
 ### Archive a document
@@ -391,7 +429,7 @@ Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses de
 Follow these steps to process and backup the E-group agenda: 
 1. [Archive the E-group agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
-3. If the "All hands" meeting has happened today
+3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
 
 ### Check LinkedIn for unread messages 
 Once a day the Apprentice will confirm check LinkedIn for unread messages. 

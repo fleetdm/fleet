@@ -3053,10 +3053,7 @@ func (svc *Service) maybeRestorePendingDEPHost(ctx context.Context, host *fleet.
 		return nil
 	}
 
-	license, ok := license.FromContext(ctx)
-	if !ok {
-		return ctxerr.New(ctx, "maybe restore pending DEP host: missing license")
-	} else if license.Tier != fleet.TierPremium {
+	if !license.IsPremium(ctx) {
 		// only premium tier supports DEP so nothing more to do
 		return nil
 	}

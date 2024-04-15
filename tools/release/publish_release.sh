@@ -190,7 +190,7 @@ build_changelog() {
         prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
         if [[ "$main_release" == "true" ]]; then
             # Place to make a main targeted prompt
-            #prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
+            prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
         fi
 
         content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
@@ -263,7 +263,7 @@ changelog_and_versions() {
         cp /tmp/CHANGELOG.md .
         git add CHANGELOG.md
         escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
-        version_files=`ack -l --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
+        version_files=`ack -l --ignore-dir=tools/release --ignore-dir=articles --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
         unameOut="$(uname -s)"
         case "${unameOut}" in
             Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";;
