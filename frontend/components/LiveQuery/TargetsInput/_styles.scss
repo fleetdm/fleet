@@ -94,4 +94,10 @@
       overflow: auto;
     }
   }
+
+  // override the default styles for the spinner.
+  // TODO: set better default styles for the spinner
+  .loading-spinner.centered {
+    margin: auto;
+  }
 }

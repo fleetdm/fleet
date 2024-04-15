@@ -94,7 +94,6 @@ const TargetsInput = ({
               disablePagination
               disableMultiRowSelect
               onClickRow={handleRowSelect}
-              // onSelectSingleRow={handleRowSelect}
             />
           </div>
         )}
