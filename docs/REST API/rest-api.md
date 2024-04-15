@@ -3667,7 +3667,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Get host's software
 
-`GET /api/v1/fleet/hosts/:id/software/titles`
+`GET /api/v1/fleet/hosts/:id/software`
 
 #### Parameters
 
@@ -3679,7 +3679,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 #### Example
 
-`GET /api/v1/fleet/hosts/123/software/titles`
+`GET /api/v1/fleet/hosts/123/software`
 
 ##### Default response
 
@@ -3687,7 +3687,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ```json
 {
-  "software_titles": [
+  "software": [
     {
       "id": 121,
       "name": "Google Chrome.app",
