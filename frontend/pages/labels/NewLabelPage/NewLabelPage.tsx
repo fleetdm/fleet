@@ -37,9 +37,6 @@ const getTabIndex = (path: string): number => {
 
 const baseClass = "new-label-page";
 
-const NEW_LABEL_DESCRIPTION =
-  "Dynamic label is assigned to hosts automatically based on the query. Manual label is assigned by specifying exact hosts.";
-
 interface INewLabelPageProps extends RouteComponentProps<never, never> {
   children: JSX.Element;
 }
@@ -79,7 +76,8 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
       <MainContent className={baseClass}>
         <h1>Add label</h1>
         <p className={`${baseClass}__page-description`}>
-          {NEW_LABEL_DESCRIPTION}
+          Dynamic (smart) labels are assigned to hosts if the query returns
+          results. Manual labels are assigned to selected hosts.
         </p>
         <TabsWrapper className={`${baseClass}__new-label-tabs-wrapper`}>
           <Tabs
