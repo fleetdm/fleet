@@ -25,6 +25,7 @@ interface ITargetsInputProps {
   disablePagination?: boolean;
   label?: string;
   placeholder?: string;
+  autofocus?: boolean;
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row<IHost>) => void;
 }
@@ -45,6 +46,7 @@ const TargetsInput = ({
   disablePagination = false,
   label = DEFAULT_LABEL,
   placeholder = HOSTS_SEARCH_BOX_PLACEHOLDER,
+  autofocus = false,
   handleRowSelect,
   setSearchText,
 }: ITargetsInputProps): JSX.Element => {
@@ -58,7 +60,7 @@ const TargetsInput = ({
     <div>
       <div className={baseClass}>
         <InputFieldWithIcon
-          autofocus
+          autofocus={autofocus}
           type="search"
           iconSvg="search"
           value={searchText}

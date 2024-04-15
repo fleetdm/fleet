@@ -81,7 +81,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
         <p className={`${baseClass}__page-description`}>
           {NEW_LABEL_DESCRIPTION}
         </p>
-        <TabsWrapper>
+        <TabsWrapper className={`${baseClass}__new-label-tabs-wrapper`}>
           <Tabs
             selectedIndex={getTabIndex(location?.pathname || "")}
             onSelect={navigateToNav}

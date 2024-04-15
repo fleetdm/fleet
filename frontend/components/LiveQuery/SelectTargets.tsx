@@ -454,6 +454,7 @@ const SelectTargets = ({
           renderTargetEntityList("Labels", labels.other)}
       </div>
       <TargetsInput
+        autofocus
         searchResultsTableConfig={resultsTableConfig}
         selectedHostsTableConifg={selectedHostsTableConfig}
         tabIndex={inputTabIndex || 0}
