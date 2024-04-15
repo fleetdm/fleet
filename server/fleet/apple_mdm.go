@@ -819,3 +819,23 @@ type MDMAppleDDMStatusErrorReason struct {
 	// error.
 	Details map[string]any `json:"Details"`
 }
+
+// MDMAppleDDMActivationPayload represents the payload of an activation declaration.
+//
+// https://developer.apple.com/documentation/devicemanagement/activationsimple
+type MDMAppleDDMActivationPayload struct {
+	Predicate              string   `json:"Predicate"`
+	StandardConfigurations []string `json:"StandardConfigurations"`
+}
+
+// MDMAppleDDMActivation represents the declaration of an activation. It combines the base
+// declaation with the activation payload.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationbase
+// https://developer.apple.com/documentation/devicemanagement/activationsimple
+type MDMAppleDDMActivation struct {
+	Identifier  string                       `json:"Identifier"`
+	Payload     MDMAppleDDMActivationPayload `json:"Payload"`
+	ServerToken string                       `json:"ServerToken"`
+	Type        string                       `json:"Type"` // "com.apple.activation.simple"
+}
