@@ -128,7 +128,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		res, err := tx.ExecContext(ctx, updStmt,
 			output,
 			result.Runtime,
-			result.ExitCode,
+			int32(result.ExitCode),
 			result.HostID,
 			result.ExecutionID,
 		)
