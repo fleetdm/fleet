@@ -27,13 +27,18 @@ import (
 func main() {
 	mysqlAddr := flag.String("mysql", "localhost:3306", "mysql address")
 	appleBMToken := flag.String("apple-bm-token", "", "path to (decrypted) Apple BM token")
-	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve; print the account details if no profile uuid provided")
+	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve")
+	serialNum := flag.String("serial-number", "", "serial number of a device to get the device details")
 
 	flag.Parse()
 
 	if *appleBMToken == "" {
 		log.Fatal("must provide Apple BM token")
 	}
+	if *profileUUID != "" && *serialNum != "" {
+		log.Fatal("only one of -profile-uuid or -serial-number must be provided")
+	}
+
 	tok, err := os.ReadFile(*appleBMToken)
 	if err != nil {
 		log.Fatal(err)
@@ -68,22 +73,20 @@ func main() {
 	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 
 	ctx := context.Background()
-	var body any
-	if *profileUUID == "" {
-		res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
-		if err != nil {
-			log.Fatal(err)
-		}
-		body = res
-	} else {
-		res, err := depClient.GetProfile(ctx, apple_mdm.DEPName, *profileUUID)
-		if err != nil {
-			log.Fatal(err)
-		}
-		body = res
+	var res any
+	switch {
+	case *profileUUID != "":
+		res, err = depClient.GetProfile(ctx, apple_mdm.DEPName, *profileUUID)
+	case *serialNum != "":
+		res, err = depClient.GetDeviceDetails(ctx, apple_mdm.DEPName, *serialNum)
+	default:
+		res, err = depClient.AccountDetail(ctx, apple_mdm.DEPName)
+	}
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	b, err := json.MarshalIndent(body, "", "  ")
+	b, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
 		log.Fatalf("pretty-format body: %v", err)
 	}
