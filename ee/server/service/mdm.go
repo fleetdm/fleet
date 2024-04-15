@@ -31,7 +31,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
-	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 )
 
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
@@ -1103,17 +1102,11 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	if svc.config.MDM.IsAppleSCEPSet() {
-		cert, _, _, err := svc.config.MDM.AppleSCEP()
-		if err != nil {
-			return nil, err
-		}
-
-		mobileConfig, err = profileutil.Sign(cert.PrivateKey, cert.Leaf, mobileConfig)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "signing profile with the specified key")
-		}
-	}
-
+	// NOTE: the profile returned by this endpoint is intentionally not
+	// signed so it can be modified and signed by the IT admin with a
+	// custom certificate.
+	//
+	// Per @marko-lisica, we can add a parameter like `signed=true` if the
+	// need arises.
 	return mobileConfig, nil
 }
