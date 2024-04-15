@@ -20,14 +20,15 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID      uint   `url:"team_id"`
-	QueryID     *uint  `json:"query_id"`
-	Query       string `json:"query"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Resolution  string `json:"resolution"`
-	Platform    string `json:"platform"`
-	Critical    bool   `json:"critical" premium:"true"`
+	TeamID                uint   `url:"team_id"`
+	QueryID               *uint  `json:"query_id"`
+	Query                 string `json:"query"`
+	Name                  string `json:"name"`
+	Description           string `json:"description"`
+	Resolution            string `json:"resolution"`
+	Platform              string `json:"platform"`
+	Critical              bool   `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
 }
 
 type teamPolicyResponse struct {
@@ -40,13 +41,14 @@ func (r teamPolicyResponse) error() error { return r.Err }
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*teamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.PolicyPayload{
-		QueryID:     req.QueryID,
-		Name:        req.Name,
-		Query:       req.Query,
-		Description: req.Description,
-		Resolution:  req.Resolution,
-		Platform:    req.Platform,
-		Critical:    req.Critical,
+		QueryID:               req.QueryID,
+		Name:                  req.Name,
+		Query:                 req.Query,
+		Description:           req.Description,
+		Resolution:            req.Resolution,
+		Platform:              req.Platform,
+		Critical:              req.Critical,
+		CalendarEventsEnabled: req.CalendarEventsEnabled,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -152,8 +154,8 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 /////////////////////////////////////////////////////////////////////////////////
 
 type countTeamPoliciesRequest struct {
-	fleet.ListOptions `url:"list_options"`
-	TeamID            uint `url:"team_id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+	TeamID      uint              `url:"team_id"`
 }
 
 type countTeamPoliciesResponse struct {
@@ -165,7 +167,7 @@ func (r countTeamPoliciesResponse) error() error { return r.Err }
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countTeamPoliciesRequest)
-	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.MatchQuery)
+	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery)
 	if err != nil {
 		return countTeamPoliciesResponse{Err: err}, nil
 	}
@@ -389,6 +391,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.Critical != nil {
 		policy.Critical = *p.Critical
+	}
+	if p.CalendarEventsEnabled != nil {
+		policy.CalendarEventsEnabled = *p.CalendarEventsEnabled
 	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 

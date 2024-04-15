@@ -18,21 +18,27 @@
       moreInfoUrl: https://play.goconsensus.com/s4e490bb9
   buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
   waysToUse:
-    - description: Create a calendar event and auto-remediate all failing policies when users are free. Coming soon (2024-04-01).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17230
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
     - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
     - description: Quickly implement conditional access based on device health using osquery and a simple device health REST API.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
-    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
+    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-06-31).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
     - description: Implement multivariate device trust
       moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
     - description: Implement your own version of Google's zero trust model (BeyondCorp)
       moreInfoUrl: https://cloud.google.com/beyondcorp
     - description: Get endpoint data into ServiceNow and make your asset management teams happy
       moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
+- industryName: Maintenance windows
+  friendlyName: Fleet in your calendar
+  description: Create a calendar event to auto-remediate failing policies when your end users are free. Coming soon (2024-04-01)
+  documentationUrl: https://github.com/fleetdm/fleet/issues/17230
+  tier: Premium
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Endpoint operations]
 #
 #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
 #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
@@ -435,8 +441,7 @@
 - industryName: GitOps
   friendlyName: Manage endpoints in git
   documentationUrl: https://github.com/fleetdm/fleet-gitops
-  description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes. Coming soon (2024-03-31)
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
+  description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Deployment]
   usualDepartment: IT
@@ -552,6 +557,7 @@
     - description: Target profiles to specific hosts using SQL.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
     - description: Automatically re-deploy configuration profiles when they're not installed.
+    - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-06-31).
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Self service
@@ -567,7 +573,7 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Low-level MDM commands for macOS and Windows (e.g. remote restart)
+- industryName: Low-level MDM commands for macOS, iOS/iPadOS*, and Windows (e.g. remote restart)
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   tier: Free
   usualDepartment: IT
@@ -576,6 +582,7 @@
   waysToUse:
     - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-03-31)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
+    - description: MDM commands for iOS/iPadOS are coming soon (2024-06-31).
 - industryName: Native macOS update reminders
   description: Send low-level MDM commands to tell end users to update their OS.
   moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
@@ -583,13 +590,14 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Zero-touch setup for macOS computers
+- industryName: Zero-touch setup for macOS, iOS/iPadOS*, and Windows
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
+    - description: Zero-touch for iOS/iPadOS is coming soon (2024-06-31).
     - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
@@ -602,13 +610,15 @@
   pricingTableCategories: [Device management]
   waysToUse:
     - description: Enforce macOS updates via Nudge.
+    - description: Progressively enhance from Nudge to DDM-based OS updates. Coming soon (2024-03-31).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
     - description: Automatically update Windows after the end user reaches a deadline.
 - industryName: Cross-platform remote lock and wipe
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
-    - description: High-level remote lock for macOS, Windows, and Linux. Coming soon (2024-03-31)
+    - description: High-level remote lock for macOS, Windows, and Linux.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
-    - description: High-level remote wipe for macOS, Windows, and Linux. Coming soon (2024-03-31)
+    - description: High-level remote wipe for macOS, Windows, and Linux.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
   usualDepartment: IT
@@ -616,10 +626,31 @@
   pricingTableCategories: [Device management]
 - industryName: Deploy security agents on macOS, Windows, and Linux computers.
   documentationUrl: https://github.com/fleetdm/fleet/issues/14921
-  description:
+  description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
   tier: Premium
   comingSoonOn: 2024-04-22 #customer-reedtimmer,customer-flacourtia 
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+- industryName: Deploy and update apps on macOS, Windows, and Linux computers.
+  description: Install Zoom, Slack, Chrome, and other apps without interrupting your end users.
+  tier: Premium
+  comingSoonOn: 2024-06-31
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+- industryName: Self-service portal for users to install apps
+  description: Add optional apps for your end users through Fleet Desktop (for macOS, Windows, and Linux).
+  tier: Premium
+  comingSoonOn: 2024-06-31
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+- industryName: License apps on macOS and iOS/iPadOS through Volume Purchasing Program (VPP).
+  description: Offer licenses for Photoshop and other App Sore apps for your end users.
+  tier: Premium
+  comingSoonOn: 2024-06-31
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -756,11 +787,11 @@
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Trigger a workflow based on a failing policy
-  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
+  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  tier: Premium
+  tier: Free
 - industryName: Role-based access control
   documentationUrl: https://fleetdm.com/docs/using-fleet/manage-access#manage-access
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -797,9 +828,9 @@
   demos:
     - description: See a list of all vulneribilities across your hosts. Coming soon (2024-03-31)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15919
-    - description: AI generated CVSS v4 context. Coming soon (2024-03-31)
+    - description: AI generated CVSS v4 context. Coming soon (2024-12-31).
   waysToUse:
-    - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
+    - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about. Coming soon (2024-12-31) #Customer-faltona and customer-rialto
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗       ╔═╗╔═╗╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╦╔═╗╔═╗
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ╚═╗║  ║ ║╠╦╝║╣ ╚═╗  ───  ║╣ ╠═╝╚═╗╚═╗  ╠═╣║║║ ║║  ║  ╚╗╔╝╚═╗╚═╗
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
@@ -873,7 +904,7 @@
   pricingTableCategories: [Endpoint operations]
   buzzwords: [Real-time export,Ship logs]
   waysToUse:
-    - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
+    - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-04-22) #Customer-blanco
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/11999
 - industryName: File carving (AWS S3)
   documentationUrl: https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-file-carving-backend

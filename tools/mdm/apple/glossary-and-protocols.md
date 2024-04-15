@@ -80,7 +80,8 @@ For [DEP enrollment](#dep-device-enrollment-program) the enrollment profile is d
 This (JSON) profile is used to configure a device in Apple Business Manager.
 It contains all the necessary information that a device needs to automatically enroll to an MDM server during device setup.
 
-Sample: [dep_sample_profile.json](https://github.com/fleetdm/nanodep/blob/main/docs/dep-profile.example.json).
+[Example](https://fleetdm.com/example-dep-profile)
+
 See all fields [here](https://developer.apple.com/documentation/devicemanagement/profile).
 
 ### Commands

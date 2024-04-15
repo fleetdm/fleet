@@ -5,6 +5,7 @@ package mock
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
 	"math/big"
 	"sync"
@@ -440,6 +441,10 @@ type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
+type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error)
+
+type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
+
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
 type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
@@ -457,6 +462,24 @@ type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) 
 type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
 
 type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
+
+type CreateOrUpdateCalendarEventFunc func(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
+
+type GetCalendarEventFunc func(ctx context.Context, email string) (*fleet.CalendarEvent, error)
+
+type DeleteCalendarEventFunc func(ctx context.Context, calendarEventID uint) error
+
+type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error
+
+type GetHostCalendarEventFunc func(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error)
+
+type GetHostCalendarEventByEmailFunc func(ctx context.Context, email string) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error)
+
+type UpdateHostCalendarWebhookStatusFunc func(ctx context.Context, hostID uint, status fleet.CalendarWebhookStatus) error
+
+type ListCalendarEventsFunc func(ctx context.Context, teamID *uint) ([]*fleet.CalendarEvent, error)
+
+type ListOutOfDateCalendarEventsFunc func(ctx context.Context, t time.Time) ([]*fleet.CalendarEvent, error)
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -564,7 +587,9 @@ type GetHostMDMProfilesRetryCountsFunc func(ctx context.Context, host *fleet.Hos
 
 type GetHostMDMProfileRetryCountByCommandUUIDFunc func(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error)
 
-type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
+type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool) error
+
+type GetHostOrbitInfoFunc func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error)
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error
 
@@ -580,7 +605,7 @@ type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
-type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error)
+type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error)
 
 type UpdateJobFunc func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error)
 
@@ -619,6 +644,8 @@ type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*f
 type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error)
+
+type GetMDMAppleDeclarationFunc func(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error)
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
@@ -756,6 +783,20 @@ type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint
 
 type UpdateDEPAssignProfileRetryPendingFunc func(ctx context.Context, jobID uint, serials []string) error
 
+type InsertMDMAppleDDMRequestFunc func(ctx context.Context, hostUUID string, messageType string, rawJSON json.RawMessage) error
+
+type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error)
+
+type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error)
+
+type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
+
+type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]string, error)
+
+type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
+
+type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -814,7 +855,9 @@ type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindow
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
-type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error
+type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error
+
+type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -1492,6 +1535,12 @@ type DataStore struct {
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
 
+	GetTeamHostsPolicyMembershipsFunc        GetTeamHostsPolicyMembershipsFunc
+	GetTeamHostsPolicyMembershipsFuncInvoked bool
+
+	GetCalendarPoliciesFunc        GetCalendarPoliciesFunc
+	GetCalendarPoliciesFuncInvoked bool
+
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
 
@@ -1518,6 +1567,33 @@ type DataStore struct {
 
 	DeleteOutOfDateVulnerabilitiesFunc        DeleteOutOfDateVulnerabilitiesFunc
 	DeleteOutOfDateVulnerabilitiesFuncInvoked bool
+
+	CreateOrUpdateCalendarEventFunc        CreateOrUpdateCalendarEventFunc
+	CreateOrUpdateCalendarEventFuncInvoked bool
+
+	GetCalendarEventFunc        GetCalendarEventFunc
+	GetCalendarEventFuncInvoked bool
+
+	DeleteCalendarEventFunc        DeleteCalendarEventFunc
+	DeleteCalendarEventFuncInvoked bool
+
+	UpdateCalendarEventFunc        UpdateCalendarEventFunc
+	UpdateCalendarEventFuncInvoked bool
+
+	GetHostCalendarEventFunc        GetHostCalendarEventFunc
+	GetHostCalendarEventFuncInvoked bool
+
+	GetHostCalendarEventByEmailFunc        GetHostCalendarEventByEmailFunc
+	GetHostCalendarEventByEmailFuncInvoked bool
+
+	UpdateHostCalendarWebhookStatusFunc        UpdateHostCalendarWebhookStatusFunc
+	UpdateHostCalendarWebhookStatusFuncInvoked bool
+
+	ListCalendarEventsFunc        ListCalendarEventsFunc
+	ListCalendarEventsFuncInvoked bool
+
+	ListOutOfDateCalendarEventsFunc        ListOutOfDateCalendarEventsFunc
+	ListOutOfDateCalendarEventsFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -1681,6 +1757,9 @@ type DataStore struct {
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
 
+	GetHostOrbitInfoFunc        GetHostOrbitInfoFunc
+	GetHostOrbitInfoFuncInvoked bool
+
 	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
 	ReplaceHostDeviceMappingFuncInvoked bool
 
@@ -1761,6 +1840,9 @@ type DataStore struct {
 
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
+
+	GetMDMAppleDeclarationFunc        GetMDMAppleDeclarationFunc
+	GetMDMAppleDeclarationFuncInvoked bool
 
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
@@ -1966,6 +2048,27 @@ type DataStore struct {
 	UpdateDEPAssignProfileRetryPendingFunc        UpdateDEPAssignProfileRetryPendingFunc
 	UpdateDEPAssignProfileRetryPendingFuncInvoked bool
 
+	InsertMDMAppleDDMRequestFunc        InsertMDMAppleDDMRequestFunc
+	InsertMDMAppleDDMRequestFuncInvoked bool
+
+	MDMAppleDDMDeclarationsTokenFunc        MDMAppleDDMDeclarationsTokenFunc
+	MDMAppleDDMDeclarationsTokenFuncInvoked bool
+
+	MDMAppleDDMDeclarationItemsFunc        MDMAppleDDMDeclarationItemsFunc
+	MDMAppleDDMDeclarationItemsFuncInvoked bool
+
+	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
+	MDMAppleDDMDeclarationsResponseFuncInvoked bool
+
+	MDMAppleBatchSetHostDeclarationStateFunc        MDMAppleBatchSetHostDeclarationStateFunc
+	MDMAppleBatchSetHostDeclarationStateFuncInvoked bool
+
+	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
+	MDMAppleStoreDDMStatusReportFuncInvoked bool
+
+	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
+	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
+
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
 
@@ -2055,6 +2158,9 @@ type DataStore struct {
 
 	BatchSetMDMProfilesFunc        BatchSetMDMProfilesFunc
 	BatchSetMDMProfilesFuncInvoked bool
+
+	NewMDMAppleDeclarationFunc        NewMDMAppleDeclarationFunc
+	NewMDMAppleDeclarationFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -3599,6 +3705,20 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
+func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error) {
+	s.mu.Lock()
+	s.GetTeamHostsPolicyMembershipsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetTeamHostsPolicyMembershipsFunc(ctx, domain, teamID, policyIDs)
+}
+
+func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
+	s.mu.Lock()
+	s.GetCalendarPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCalendarPoliciesFunc(ctx, teamID)
+}
+
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
 	s.mu.Lock()
 	s.AsyncBatchInsertPolicyMembershipFuncInvoked = true
@@ -3660,6 +3780,69 @@ func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source f
 	s.DeleteOutOfDateVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, duration)
+}
+
+func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.CreateOrUpdateCalendarEventFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateOrUpdateCalendarEventFunc(ctx, email, startTime, endTime, data, hostID, webhookStatus)
+}
+
+func (s *DataStore) GetCalendarEvent(ctx context.Context, email string) (*fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.GetCalendarEventFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCalendarEventFunc(ctx, email)
+}
+
+func (s *DataStore) DeleteCalendarEvent(ctx context.Context, calendarEventID uint) error {
+	s.mu.Lock()
+	s.DeleteCalendarEventFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCalendarEventFunc(ctx, calendarEventID)
+}
+
+func (s *DataStore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error {
+	s.mu.Lock()
+	s.UpdateCalendarEventFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateCalendarEventFunc(ctx, calendarEventID, startTime, endTime, data)
+}
+
+func (s *DataStore) GetHostCalendarEvent(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.GetHostCalendarEventFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCalendarEventFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostCalendarEventByEmail(ctx context.Context, email string) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.GetHostCalendarEventByEmailFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCalendarEventByEmailFunc(ctx, email)
+}
+
+func (s *DataStore) UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status fleet.CalendarWebhookStatus) error {
+	s.mu.Lock()
+	s.UpdateHostCalendarWebhookStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostCalendarWebhookStatusFunc(ctx, hostID, status)
+}
+
+func (s *DataStore) ListCalendarEvents(ctx context.Context, teamID *uint) ([]*fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.ListCalendarEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListCalendarEventsFunc(ctx, teamID)
+}
+
+func (s *DataStore) ListOutOfDateCalendarEvents(ctx context.Context, t time.Time) ([]*fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.ListOutOfDateCalendarEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListOutOfDateCalendarEventsFunc(ctx, t)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -4033,11 +4216,18 @@ func (s *DataStore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context
 	return s.GetHostMDMProfileRetryCountByCommandUUIDFunc(ctx, host, cmdUUID)
 }
 
-func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
+func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostOrbitInfoFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostOrbitInfoFunc(ctx, hostID, version)
+	return s.SetOrUpdateHostOrbitInfoFunc(ctx, hostID, version, desktopVersion, scriptsEnabled)
+}
+
+func (s *DataStore) GetHostOrbitInfo(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+	s.mu.Lock()
+	s.GetHostOrbitInfoFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostOrbitInfoFunc(ctx, hostID)
 }
 
 func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
@@ -4089,11 +4279,11 @@ func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, err
 	return s.NewJobFunc(ctx, job)
 }
 
-func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
+func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 	s.mu.Lock()
 	s.GetQueuedJobsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetQueuedJobsFunc(ctx, maxNumJobs)
+	return s.GetQueuedJobsFunc(ctx, maxNumJobs, now)
 }
 
 func (s *DataStore) UpdateJob(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error) {
@@ -4227,6 +4417,13 @@ func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID st
 	s.GetMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.GetMDMAppleDeclarationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleDeclarationFunc(ctx, declUUID)
 }
 
 func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -4705,6 +4902,55 @@ func (s *DataStore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobI
 	return s.UpdateDEPAssignProfileRetryPendingFunc(ctx, jobID, serials)
 }
 
+func (s *DataStore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID string, messageType string, rawJSON json.RawMessage) error {
+	s.mu.Lock()
+	s.InsertMDMAppleDDMRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMAppleDDMRequestFunc(ctx, hostUUID, messageType, rawJSON)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationsTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationsTokenFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationItemsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationItemsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, identifier, hostUUID)
+}
+
+func (s *DataStore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error) {
+	s.mu.Lock()
+	s.MDMAppleBatchSetHostDeclarationStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleBatchSetHostDeclarationStateFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
+	s.mu.Lock()
+	s.MDMAppleStoreDDMStatusReportFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleStoreDDMStatusReportFunc(ctx, hostUUID, updates)
+}
+
+func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
+	s.mu.Lock()
+	s.MDMAppleSetPendingDeclarationsAsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleSetPendingDeclarationsAsFunc(ctx, hostUUID, status, detail)
+}
+
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
 	s.mu.Lock()
 	s.WSTEPStoreCertificateFuncInvoked = true
@@ -4908,11 +5154,18 @@ func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp f
 	return s.SetOrUpdateMDMWindowsConfigProfileFunc(ctx, cp)
 }
 
-func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error {
 	s.mu.Lock()
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles)
+	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations)
+}
+
+func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.NewMDMAppleDeclarationFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMAppleDeclarationFunc(ctx, declaration)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

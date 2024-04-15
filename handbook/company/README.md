@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source systems management platform and security agent. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
+Fleet is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source systems management platform and security agent. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/feed/update/urn:li:activity:7120880290859728897/).
 
 Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
 
@@ -113,13 +113,13 @@ Ever wonder why there are 6 circles in the Fleet logo, but only 5 values?  Behol
 ## History
 
 ### 2014: Origins of osquery
-In 2014, our Cofounder Zach Wasserman, together with [Mike Arpaia](https://twitter.com/mikearpaia/status/1357455391588839424) and the rest of their team at Facebook, created an open source project called [osquery](https://osquery.io).
+In 2014, our cofounder Zach Wasserman, together with [Mike Arpaia](https://twitter.com/mikearpaia/status/1357455391588839424) and the rest of their team at Facebook, created an open source project called [osquery](https://osquery.io).
 
 ### 2016: Origins of Fleet v1.0
 A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security) founded [Kolide](https://kolide.com) and created Fleet: an open source platform that made it easier and more productive to use osquery in an enterprise setting.
 
 ### 2019: The growing community
-When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
+When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community [took over maintenance](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community) of the open-source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
 
 ### 2020: Fleet was incorporated
 Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/leadership#ceo-flaws), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
@@ -127,8 +127,10 @@ Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
 
-### 2024: Your last MDM migration
-Fleet announces [support for Windows and Linux devices](https://fleetdm.com/announcements/fleet-introduces-windows-mdm), enabling IT departments to consolidate tools and implement “zero trust” faster using a modern Mac-first MDM. Removing the need for proprietary alternatives like Jamf Pro, Jamf Protect, Microsoft Intune, Ivanti MobileIron, and Broadcom's recently acquired Workspace ONE (originally known as "Airwatch"). 
+### 2023: Your last MDM migration
+Fleet added support for [scripting and management capabilities](https://fleetdm.com/announcements/fleet-introduces-windows-mdm) on macOS, Windows, _and_ Linux devices, allowing IT departments to manage devices more consistently using modern tooling and best practices.  This allowed many customers to simplify their management practices.  In several cases, Fleet was also able to save customers several hundreds of thousands of dollars (USD) by cutting tool overlap across platforms such as Jamf, Airwatch, Intune, MobileIron, Nexthink, Tanium, Uptycs, and Rapid7.
+
+<!-- 2024: and implement "zero trust" faster -->
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 
@@ -136,7 +138,7 @@ Fleet announces [support for Windows and Linux devices](https://fleetdm.com/anno
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and [every manager](https://fleetdm.com/handbook/company#management) has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
 - 🔦 [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for these traditional functions: People, Finance, tax, compliance, Legal, and IT.
-- 🏹 [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
+- 🌦️ [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 - 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
@@ -145,7 +147,7 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
-[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo).)
+[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/leadership#contact-the-ceo).)
 
 <!--
 #### Stubs

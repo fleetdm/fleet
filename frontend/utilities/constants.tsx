@@ -4,6 +4,7 @@ import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { IconNames } from "components/icons";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -184,6 +185,25 @@ export const DEFAULT_CAMPAIGN_STATE = {
   campaign: { ...DEFAULT_CAMPAIGN },
 };
 
+const PLATFORM_LABEL_NAMES_FROM_API = [
+  "All Hosts",
+  "All Linux",
+  "CentOS Linux",
+  "macOS",
+  "MS Windows",
+  "Red Hat Linux",
+  "Ubuntu Linux",
+  "chrome",
+] as const;
+
+type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
+
+export const isPlatformLabelNameFromAPI = (
+  s: string
+): s is PlatformLabelNameFromAPI => {
+  return PLATFORM_LABEL_NAMES_FROM_API.includes(s as PlatformLabelNameFromAPI);
+};
+
 export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   darwin: "macOS",
   macOS: "macOS",
@@ -193,10 +213,13 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   Linux: "Linux",
   chrome: "ChromeOS",
   ChromeOS: "ChromeOS",
-};
+} as const;
 
 // as returned by the TARGETS API; based on display_text
-export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
+export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
+  PlatformLabelNameFromAPI,
+  string
+> = {
   "All Hosts": "All hosts",
   "All Linux": "Linux",
   "CentOS Linux": "CentOS Linux",
@@ -205,7 +228,7 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
   "Red Hat Linux": "Red Hat Linux",
   "Ubuntu Linux": "Ubuntu Linux",
   chrome: "ChromeOS",
-};
+} as const;
 
 export const PLATFORM_LABEL_DISPLAY_ORDER = [
   "macOS",
@@ -214,9 +237,12 @@ export const PLATFORM_LABEL_DISPLAY_ORDER = [
   "Red Hat Linux",
   "Ubuntu Linux",
   "MS Windows",
-];
+] as const;
 
-export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
+export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
+  PlatformLabelNameFromAPI,
+  string
+> = {
   "All Hosts": "all",
   "All Linux": "platform",
   "CentOS Linux": "platform",
@@ -225,6 +251,28 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
   "Red Hat Linux": "platform",
   "Ubuntu Linux": "platform",
   chrome: "platform",
+} as const;
+
+export const PLATFORM_TYPE_ICONS: Record<
+  Extract<
+    PlatformLabelNameFromAPI,
+    "All Linux" | "macOS" | "MS Windows" | "chrome"
+  >,
+  IconNames
+> = {
+  "All Linux": "linux",
+  macOS: "darwin",
+  "MS Windows": "windows",
+  chrome: "chrome",
+} as const;
+
+export const hasPlatformTypeIcon = (
+  s: string
+): s is Extract<
+  PlatformLabelNameFromAPI,
+  "All Linux" | "macOS" | "MS Windows" | "chrome"
+> => {
+  return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
 interface IPlatformDropdownOptions {
@@ -341,6 +389,8 @@ export const HOST_SUMMARY_DATA = [
   "platform",
   "os_version",
   "osquery_version",
+  "orbit_version",
+  "fleet_desktop_version",
   "enroll_secret_name",
   "detail_updated_at",
   "percent_disk_space_available",

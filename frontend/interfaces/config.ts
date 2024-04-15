@@ -4,7 +4,7 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
 } from "interfaces/webhook";
-import { IIntegrations } from "./integration";
+import { IGlobalIntegrations } from "./integration";
 
 export interface ILicense {
   tier: string;
@@ -48,6 +48,7 @@ export interface IMdmConfig {
     bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
     macos_setup_assistant: string | null;
+    enable_release_device_manually: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
@@ -122,7 +123,7 @@ export interface IConfig {
   };
   sandbox_enabled: boolean;
   server_settings: IConfigServerSettings;
-  smtp_settings: {
+  smtp_settings?: {
     enable_smtp: boolean;
     configured: boolean;
     sender_address: string;
@@ -175,7 +176,7 @@ export interface IConfig {
   //   databases_path: string;
   // };
   webhook_settings: IWebhookSettings;
-  integrations: IIntegrations;
+  integrations: IGlobalIntegrations;
   logging: {
     debug: boolean;
     json: boolean;

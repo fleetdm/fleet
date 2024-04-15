@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -36,18 +35,6 @@ func EncodeCertPEM(cert *x509.Certificate) []byte {
 	return pem.EncodeToMemory(&block)
 }
 
-func DecodeCertPEM(encoded []byte) (*x509.Certificate, error) {
-	block, _ := pem.Decode(encoded)
-	if block == nil {
-		return nil, errors.New("no PEM-encoded data found")
-	}
-	if block.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("unexpected block type %s", block.Type)
-	}
-
-	return x509.ParseCertificate(block.Bytes)
-}
-
 func EncodeCertRequestPEM(cert *x509.CertificateRequest) []byte {
 	pemBlock := &pem.Block{
 		Type:    "CERTIFICATE REQUEST",
@@ -65,19 +52,6 @@ func EncodePrivateKeyPEM(key *rsa.PrivateKey) []byte {
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	}
 	return pem.EncodeToMemory(&block)
-}
-
-// DecodePrivateKeyPEM decodes PEM-encoded private key data.
-func DecodePrivateKeyPEM(encoded []byte) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode(encoded)
-	if block == nil {
-		return nil, errors.New("no PEM-encoded data found")
-	}
-	if block.Type != "RSA PRIVATE KEY" {
-		return nil, fmt.Errorf("unexpected block type %s", block.Type)
-	}
-
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
 // GenerateRandomPin generates a `lenght`-digit PIN number that takes into
@@ -101,6 +75,7 @@ func GenerateRandomPin(length int) string {
 	return fmt.Sprintf(f, v)
 }
 
+// FmtErrorChain formats Command error message for macOS MDM v1
 func FmtErrorChain(chain []mdm.ErrorChain) string {
 	var sb strings.Builder
 	for _, mdmErr := range chain {
@@ -111,6 +86,15 @@ func FmtErrorChain(chain []mdm.ErrorChain) string {
 		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
 	}
 	return sb.String()
+}
+
+// FmtDDMError formats a DDM error message
+func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
+	var errMsg strings.Builder
+	for _, r := range reasons {
+		errMsg.WriteString(fmt.Sprintf("%s: %s %+v\n", r.Code, r.Description, r.Details))
+	}
+	return errMsg.String()
 }
 
 func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {

@@ -15,19 +15,34 @@
   // NOTE: Look more into this styling
   &__os_settings-dropdown,
   &__macsettings-dropdown {
-    width: 137px;
-
     .Select-value {
       display: flex;
       align-items: center;
+      position: initial !important;
+      line-height: initial !important;
 
       &::before {
         position: relative;
         content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
         transform: scale(0.5);
-        left: -8px;
-        top: 4px;
+        top: 1px;
       }
+    }
+
+    .Select-input {
+      display: none !important;
+    }
+
+    .Select {
+      box-sizing: initial;
+    }
+
+    .Select-control {
+      height: 36px;
+    }
+
+    .dropdown__select {
+      border: 1px solid #e2e4ea;
     }
   }
 }

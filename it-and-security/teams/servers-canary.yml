@@ -1,4 +1,4 @@
-name: "Servers (canary)"
+name: "☁️🐣Servers (canary)"
 team_settings:
   features:
     enable_host_users: false
@@ -9,7 +9,7 @@ team_settings:
   secrets:
     - secret: $DOGFOOD_SERVERS_CANARY_ENROLL_SECRET
 agent_options:
-  path: ../lib/servers.agent-options.yml
+  path: ../lib/servers-canary.agent-options.yml
 controls:
   enable_disk_encryption: false
   macos_settings:

@@ -1,4 +1,4 @@
-name: "Workstations (canary)"
+name: "💻🐣Workstations (canary)"
 team_settings:
   features:
     enable_host_users: true
@@ -8,8 +8,54 @@ team_settings:
     host_expiry_window: 0
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET
+  integrations:
+    google_calendar:
+      enable_calendar_events: true
+      webhook_url: $DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL
 agent_options:
-  path: ../lib/agent-options.yml
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  overrides:
+      platforms:
+        darwin:
+          auto_table_construction:
+            tcc_system:
+              path: /Library/Application Support/com.apple.TCC/TCC.db
+              query: 'select service, client, client_type, auth_value, auth_reason, policy_id, indirect_object_identifier, indirect_object_identifier_type, last_modified from access'
+              columns:
+                - service
+                - client
+                - client_type
+                - auth_value
+                - auth_reason
+                - policy_id
+                - indirect_object_identifier
+                - indirect_object_identifier_type
+                - last_modified
+            tcc_user:
+              path: /Users/%/Library/Application Support/com.apple.TCC/TCC.db
+              query: 'select service, client, client_type, auth_value, auth_reason, policy_id, indirect_object_identifier, indirect_object_identifier_type, last_modified from access'
+              columns:
+                - service
+                - client
+                - client_type
+                - auth_value
+                - auth_reason
+                - policy_id
+                - indirect_object_identifier
+                - indirect_object_identifier_type
+                - last_modified
 controls:
   enable_disk_encryption: true
   macos_settings:
@@ -53,17 +99,14 @@ controls:
     - path: ../lib/macos-remove-old-nudge.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
+    - path: ../lib/windows-install-bitdefender.ps1
 policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
-  - name: chromeOS/macOS - Screenlock enabled
-    query: SELECT 1 FROM screenlock WHERE enabled = 1;
-    critical: false
-    description: ""
-    resolution: ""
-    platform: darwin,chrome
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-usb-devices.queries.yml
   - path: ../lib/collect-vs-code-extensions.queries.yml
+  - path: ../lib/collect-software-permissions-system.queries.yml
+  - path: ../lib/collect-software-permissions-user.queries.yml

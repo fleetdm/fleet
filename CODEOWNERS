@@ -68,13 +68,13 @@ go.mod @fleetdm/go
 /docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
-/docs/Deploy/kubernetes/ @dherder # « Kubernetes best practice
+/docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 ##############################################################################################
 # 🫧 Pricing and features
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
+/handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
 
 ##############################################################################################
 # 🦿 Repo automation and change control settings
@@ -105,6 +105,57 @@ go.mod @fleetdm/go
 # 🦿 GitHub issue templates
 ##############################################################################################
 /.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # See https://github.com/fleetdm/fleet/pull/16203
+
+##############################################################################################
+# 🌐 GitHub workflows
+##############################################################################################
+/.github/workflows/markdown-link-check-config.json @eashaw
+/.github/workflows/deploy-vulnerability-dashboard.yml @eashaw
+/.github/workflows/test-website.yml @eashaw
+/.github/workflows/test-vulnerability-dashboard-changes.yml @eashaw
+/.github/workflows/docs.yml @eashaw
+/.github/workflows/deploy-fleet-website.yml @eashaw
+
+##############################################################################################
+# 🚀 GitHub workflows
+##############################################################################################
+/.github/workflows/README.md @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/goreleaser-fleet.yaml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/update-certs.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/codeql-analysis.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/codeql.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/scorecards-analysis.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/integration.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/fleetctl-preview.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/fleetctl-preview-latest.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/goreleaser-orbit.yaml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/trivy-scan.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/goreleaser-snapshot-fleet.yaml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/build-and-push-fleetctl-docker.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/fleetd-tuf.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/generate-desktop-targets.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-yml-specs.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/build-binaries.yaml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/fleet-and-orbit.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/build-orbit.yaml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/generate-osqueryd-targets.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-packaging.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/release-helm.yaml @rfairburn @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/pr-helm.yaml @rfairburn @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/tfvalidate.yml @rfairburn @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/dogfood-deploy.yml @rfairburn @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-db-changes.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-go.yaml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/golangci-lint.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-native-tooling-packaging.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/check-tuf-timestamps.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-puppet.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/generate-nudge-targets.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-js.yml @ghernandez345 @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/dogfood-gitops.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-fleetd-chrome.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/release-fleetd-chrome.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/release-fleetd-chrome-beta.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

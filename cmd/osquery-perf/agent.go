@@ -401,7 +401,7 @@ type agent struct {
 	// single goroutine at a time can execute scripts.
 	scriptExecRunning atomic.Bool
 
-	softwareVSCodeExtensionsProb     float64
+	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 
 	//
@@ -544,7 +544,7 @@ func newAgent(
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
 
-		softwareVSCodeExtensionsProb:     softwareQueryFailureProb,
+		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
 
 		macMDMClient: macMDMClient,
@@ -1514,12 +1514,12 @@ func (a *agent) mdmWindows() []map[string]string {
 	if !a.mdmEnrolled() {
 		return []map[string]string{
 			// empty service url means not enrolled
-			{"is_federated": "0", "discovery_service_url": "", "provider_id": "", "installation_type": "Client"},
+			{"aad_resource_id": "", "discovery_service_url": "", "provider_id": "", "installation_type": "Client"},
 		}
 	}
 	return []map[string]string{
 		{
-			"is_federated":          "0",
+			"aad_resource_id":       "",
 			"discovery_service_url": a.serverAddress,
 			"provider_id":           fleet.WellKnownMDMFleet,
 			"installation_type":     "Client",
@@ -1644,6 +1644,32 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
+func (a *agent) orbitInfo() []map[string]string {
+	version := "1.22.0"
+	desktopVersion := version
+	if a.disableFleetDesktop {
+		desktopVersion = ""
+	}
+	deviceAuthToken := ""
+	if a.deviceAuthToken != nil {
+		deviceAuthToken = *a.deviceAuthToken
+	}
+	return []map[string]string{
+		{
+			"version":             version,
+			"device_auth_token":   deviceAuthToken,
+			"enrolled":            "true",
+			"last_recorded_error": "",
+			"orbit_channel":       "stable",
+			"osqueryd_channel":    "stable",
+			"desktop_channel":     "stable",
+			"desktop_version":     desktopVersion,
+			"uptime":              "10000",
+			"scripts_enabled":     "1",
+		},
+	}
+}
+
 func (a *agent) runLiveQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	if a.liveQueryFailProb > 0.0 && rand.Float64() <= a.liveQueryFailProb {
 		ss := fleet.OsqueryStatus(1)
@@ -1737,7 +1763,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_macos":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -1746,7 +1772,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -1755,7 +1781,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -1800,6 +1826,11 @@ func (a *agent) processQuery(name, query string) (
 		// the caller knows it is handled, will not try to return lorem-ipsum-style
 		// results.
 		return true, nil, &statusNotOK, nil, nil
+	case name == hostDetailQueryPrefix+"orbit_info":
+		if a.orbitNodeKey == nil {
+			return true, nil, &statusNotOK, nil, nil
+		}
+		return true, a.orbitInfo(), &statusOK, nil, nil
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
@@ -2019,8 +2050,8 @@ func main() {
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
-		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
-		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.5, "Probability of the software vscode_extensions query failing")
+		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.05, "Probability of the software query failing")
+		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.05, "Probability of the software vscode_extensions query failing")
 
 		commonSoftwareCount                          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 		commonVSCodeExtensionsSoftwareCount          = flag.Int("common_vscode_extensions_software_count", 5, "Number of common vscode_extensions installed applications reported to fleet")

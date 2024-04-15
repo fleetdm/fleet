@@ -30,8 +30,10 @@ org_settings:
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
-    host_expiry_window: 7
   integrations:
+    google_calendar:
+    - api_key_json: $DOGFOOD_CALENDAR_API_KEY
+      domain: fleetdm.com
     jira: [ ]
     zendesk: [ ]
   mdm:

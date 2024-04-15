@@ -77,10 +77,6 @@ func cronVulnerabilities(
 	if config == nil {
 		return errors.New("nil configuration")
 	}
-	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
-		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
-		return nil
-	}
 
 	level.Info(logger).Log("periodicity", config.Periodicity)
 
@@ -1032,6 +1028,9 @@ func newMDMProfileManager(
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
 			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+		}),
+		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
+			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
 		}),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
 			return service.ReconcileWindowsProfiles(ctx, ds, logger)

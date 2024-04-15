@@ -339,6 +339,10 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 					logger:    kitlog.NewNopLogger(),
 				},
+				&MDMAppleDDMService{
+					ds:     ds,
+					logger: logger,
+				},
 			)
 			require.NoError(t, err)
 		}

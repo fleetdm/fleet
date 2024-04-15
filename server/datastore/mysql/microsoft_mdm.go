@@ -633,17 +633,20 @@ WHERE
 
 func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 	if host == nil {
-		return nil, errors.New("host cannot be nil")
+		return nil, ctxerr.New(ctx, "cannot get bitlocker status for nil host")
 	}
 
 	if host.Platform != "windows" {
-		// Generally, the caller should have already checked this, but just in case we log and
-		// return nil
-		level.Debug(ds.logger).Log("msg", "cannot get bitlocker status for non-windows host", "host_id", host.ID)
-		return nil, nil
+		// the caller should have already checked this
+		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status for non-windows host %d", host.ID)
 	}
 
-	if host.MDMInfo != nil && host.MDMInfo.IsServer {
+	if host.MDMInfo == nil {
+		// the caller should have already checked
+		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status because no mdm info for host %d", host.ID)
+	}
+
+	if host.MDMInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
 		// the query and return nil. We log for potential debugging in case this changes in the future.
 		level.Debug(ds.logger).Log("msg", "no bitlocker status for server host", "host_id", host.ID)
@@ -700,9 +703,10 @@ WHERE
 	}
 
 	if dest.Status == "" {
-		// If we have no status, we treat it as enforcing since we know disk encryption is enabled and log for potential debugging
-		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
-		dest.Status = fleet.DiskEncryptionEnforcing
+		// This is unexpected. We know that disk encryption is enabled so we treat it failed to draw
+		// attention to the issue and log potential debugging
+		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info", fmt.Sprintf("%+v", host.MDMInfo))
+		dest.Status = fleet.DiskEncryptionFailed
 	}
 
 	return &fleet.HostMDMDiskEncryption{
@@ -734,7 +738,7 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm windows config profile")
 	}
 
-	labels, err := ds.listProfileLabelsForProfiles(ctx, []string{res.ProfileUUID}, nil)
+	labels, err := ds.listProfileLabelsForProfiles(ctx, []string{res.ProfileUUID}, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1495,6 +1499,8 @@ INSERT INTO
 (SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+	) AND NOT EXISTS (
+		SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
 	)
 )`
 
@@ -1504,7 +1510,7 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case isDuplicate(err):
@@ -1556,6 +1562,8 @@ INSERT INTO
 (SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+	) AND NOT EXISTS (
+		SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
 	)
 )
 ON DUPLICATE KEY UPDATE
@@ -1568,7 +1576,7 @@ ON DUPLICATE KEY UPDATE
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID)
 	if err != nil {
 		switch {
 		case isDuplicate(err):
@@ -1683,6 +1691,12 @@ ON DUPLICATE KEY UPDATE
 	for _, p := range existingProfiles {
 		if newP := incomingProfs[p.Name]; newP != nil {
 			keepNames = append(keepNames, p.Name)
+		}
+	}
+	for n := range mdm.FleetReservedProfileNames() {
+		if _, ok := incomingProfs[n]; !ok {
+			// always keep reserved profiles even if they're not incoming
+			keepNames = append(keepNames, n)
 		}
 	}
 

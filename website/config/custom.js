@@ -124,15 +124,14 @@ module.exports.custom = {
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
-    'website': 'mikermcneil',// (catch-all)
+    'website': 'eashaw',// (catch-all)
     'website/assets': 'eashaw', // « Eric is DRI for website frontend code
     'website/views': 'eashaw',
-    'website/api': 'mikermcneil',//« Website backend, scripts, deps
-    'website/api/controllers/webhooks/receive-from-github.js': 'mikermcneil',// github bot (webhook)
-    'website/api/controllers/imagine': 'eashaw',// landing pages
-    'website/config': 'mikermcneil',
+    'website/api': 'eashaw',//« Website backend, scripts, deps
+    'website/api/controllers/webhooks/receive-from-github.js': 'eashaw',// github bot (webhook)
+    'website/config': 'eashaw',
     'website/config/routes.js': 'eashaw',//« Website redirects and URLs
-    'website/scripts': 'mikermcneil',
+    'website/scripts': 'eashaw',
     'website/package.json': 'eashaw',
 
     // 🫧 Vulnerability dashboard
@@ -143,7 +142,7 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/config': 'mikermcneil',
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',//« Vulnerability dashboard redirects and URLs
     'ee/vulnerability-dashboard/scripts': 'mikermcneil',
-    'ee/vulnerability-dashboard/package.json': 'eashaw',
+    'ee/vulnerability-dashboard/package.json': 'mikermcneil',
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
@@ -204,7 +203,7 @@ module.exports.custom = {
     'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
-    'website': 'mikermcneil',// (default for website)
+    'website': ['mikermcneil', 'eashaw'],// (default for website)
     'website/views': 'eashaw',
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
@@ -232,6 +231,8 @@ module.exports.custom = {
     // Github workflows
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],//« website CI test script
+    '.github/workflows/deploy-vulnerability-dashboard.yml': ['eashaw','mikermcneil'],// (vulnerabiltiy dashboard deploy script)
+    '.github/workflows/test-vulnerability-dashboard-changes.yml': ['eashaw','mikermcneil'],//« vulnerabiltiy dashboard CI test script
     '.github/workflows': ['lukeheath', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
 
     // Repo automation and change control settings
@@ -242,6 +243,7 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
+    'handbook/company/open-positions.yml': ['@sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
     'handbook/business-operations': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
@@ -249,14 +251,13 @@ module.exports.custom = {
     'handbook/sales': ['sampfluger88','mikermcneil'],
     'handbook/demand': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
-
     '/handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
     '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
     '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential

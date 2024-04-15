@@ -63,18 +63,6 @@ the account verification message.)`,
       defaultsTo: 'Buy a license',
     },
 
-    primaryBuyingSituation: {
-      type: 'string',
-      description: 'What the user will be using Fleet for.',
-      required: true,
-      isIn: [
-        'endpoint-ops-security',
-        'endpoint-ops-it',
-        'device-management',
-        'vulnerability-management'
-      ],
-    }
-
   },
 
 
@@ -104,7 +92,7 @@ the account verification message.)`,
 
   },
 
-  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason, primaryBuyingSituation}) {
+  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
     // Note: in Oct. 2023, the Fleet Sandbox related code was removed from this action. For more details, see https://github.com/fleetdm/fleet/pull/14638/files
 
     var newEmailAddress = emailAddress.toLowerCase();
@@ -172,7 +160,6 @@ the account verification message.)`,
         lastName,
         organization,
         signupReason,
-        primaryBuyingSituation,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
       }
     })

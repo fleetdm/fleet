@@ -29,15 +29,20 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
     - name: Check remote timestamp.json file
       run: |
         expires=$(curl -s http://tuf.fleetctl.com/timestamp.json | jq -r '.signed.expires' | cut -c 1-10)
         today=$(date "+%Y-%m-%d")
-        tomorrow=$(date -d "$today + 1 day" "+%Y-%m-%d")
+        warning_at=$(date -d "$today + 2 day" "+%Y-%m-%d")
         expires_sec=$(date -d "$expires" "+%s")
-        tomorrow_sec=$(date -d "$tomorrow" "+%s")
+        warning_at_sec=$(date -d "$warning_at" "+%s")
         
-        if [ "$expires_sec" -le "$tomorrow_sec" ]; then
+        if [ "$expires_sec" -le "$warning_at_sec" ]; then
             exit 1
         else
             exit 0

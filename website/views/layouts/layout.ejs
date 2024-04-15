@@ -8,6 +8,7 @@
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
+  var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
   
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
@@ -101,14 +102,6 @@
       window.heap=window.heap||[],heap.load=function(e,t){window.heap.appid=e,window.heap.config=t=t||{};var r=document.createElement("script");r.type="text/javascript",r.async=!0,r.src="https://cdn.heapanalytics.com/js/heap-"+e+".js";var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(r,a);for(var n=function(e){return function(){heap.push([e].concat(Array.prototype.slice.call(arguments,0)))}},p=["addEventProperties","addUserProperties","clearEventProperties","identify","resetIdentity","removeEventProperty","setEventProperties","track","unsetEventProperty"],o=0;o<p.length;o++)heap[p[o]]=n(p[o])};
       heap.load("4175146533");
     </script>
-    <% /* Snitcher analytics code */ %>
-    <script>
-      !function(i,s,o,g,r,a,m){i.Ip2cObject=o;i[o]||(i[o]=function(){
-      (i[o].q=i[o].q||[]).push(arguments)});i[o].l=+new Date;r=s.createElement(g);
-      a=s.getElementsByTagName(g)[0];r.src='//reveal.ip2c.net/8416878.js';
-      a.parentNode.insertBefore(r,a)}(window,document,'ip2c','script');
-      ip2c('verify', '8416878');
-    </script>
     <% /* HubSpot Embed Code  */ %>
     <script type="text/javascript" id="hs-script-loader" async defer src="//js-na1.hs-scripts.com/24385138.js"></script>
     <% }
@@ -145,147 +138,155 @@
       <div class="header" purpose="header-container" data-nosnippet>
         <div purpose="header-background">
           <% if(!hideHeaderLinks) { %>
-            <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
+            <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center">
               <a purpose="header-logo" href="/">
                 <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
               </a>
               <%/* Mobile Navigation menu */%>
               <div class="d-flex d-lg-none align-items-center">
-                <button purpose="mobile-nav-toggle-btn" class="btn btn-link d-flex flex-row align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
-                  <span class="mr-2">Menu</span>
+                <a purpose="mobile-nav-toggle-btn" class="d-flex flex-row align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+                  <span>Menu</span>
                   <img class="align-self-center" alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
-                </button>
+                </a>
               </div>
-              <div purpose="mobile-nav" class="collapse px-4 px-sm-5" id="navbarToggleExternalContent">
-                <div class="d-flex justify-content-between">
+              <div purpose="mobile-nav" class="collapse" id="navbarToggleExternalContent">
+                <div purpose="mobile-nav-header" class="d-flex justify-content-between align-items-center">
                   <a purpose="mobile-header-logo" href="/">
-                    <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="" class="mt-3"/>
+                    <img purpose="mobile-nav-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png" />
                   </a>
-                  <button purpose="mobile-nav-close-btn" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+                  <a purpose="mobile-nav-close-btn" class="d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
                     <img alt="An 'X' icon indicating that this can be interacted with to close the navigation menu." src="/images/icon-close-16x16@2x.png"/>
-                  </button>
+                  </a>
                 </div>
-                <div id="mobileDropdowns" class="py-2">
+                <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
-                  <div class="d-block">
-                    <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                      <a href="/endpoint-ops">Endpoint operations</a>
-                      <a href="/device-management">Device management (MDM)</a>
-                      <a href="/vulnerability-management">Vulnerability management</a>
-                      <a href="/integrations">Integrations</a>
-                    </div>
+                  <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
+                    <a purpose="mobile-dropdown-link" href="/endpoint-ops">Endpoint operations</a>
+                    <a purpose="mobile-dropdown-link" href="/device-management">Device management (MDM)</a>
+                    <a purpose="mobile-dropdown-link" href="/vulnerability-management">Vulnerability management</a>
+                    <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
                   </div>
                   <hr>
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Documentation</a>
-                  <div class="d-block">
-                    <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                      <a href="/docs">Docs</a>
-                      <a href="/docs/rest-api">REST API</a>
-                      <a href="/queries">Built-in queries</a>
-                      <a href="/tables">Data tables</a>
-                      <span>SUPPORT</span>
-                      <a class="pl-3" href="/support">Chat</a>
-                      <a class="pl-3" href="/docs/deploy/introduction">Hosting</a>
-                      <a class="pl-3" href="/releases">Release notes</a>
-                      <a class="pl-3" href="/customers/register">Get your license</a>
-                      <a class="pl-3" href="/contribute">Contribute</a>
+                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Documentation</a>
+                  <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                    <a purpose="mobile-dropdown-link" href="/docs">Docs</a>
+                    <a purpose="mobile-dropdown-link" href="/docs/rest-api">REST API</a>
+                    <a purpose="mobile-dropdown-link" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
+                    <a purpose="mobile-dropdown-link" href="/tables">Data tables</a>
+                    <span>SUPPORT</span>
+                    <div purpose="indented-mobile-links">
+                      <a purpose="mobile-dropdown-link" href="/support">Chat</a>
+                      <a purpose="mobile-dropdown-link" href="/docs/deploy/introduction">Hosting</a>
+                      <a purpose="mobile-dropdown-link" href="/releases">Release notes</a>
+                      <a purpose="mobile-dropdown-link" href="/customers/register">Get your license</a>
+                      <a purpose="mobile-dropdown-link" href="/contribute">Contribute</a>
                     </div>
                   </div>
                   <hr>
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
-                  <div class="d-block">
-                    <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                      <a href="/support">Chat</a>
-                      <a href="/announcements">News</a>
-                      <a href="/podcasts">Podcasts</a>
-                      <a href="/articles">Articles</a>
-                      <span>COMPANY</span>
-                      <a class="pl-3" href="/handbook">Handbook</a>
-                      <a class="pl-3" href="/logos">Logos & artwork</a>
-                      <a class="pl-3" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
+                  <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                    <a purpose="mobile-dropdown-link" href="/support">Chat</a>
+                    <a purpose="mobile-dropdown-link" href="/announcements">News</a>
+                    <a purpose="mobile-dropdown-link" href="/podcasts">Podcasts</a>
+                    <a purpose="mobile-dropdown-link" href="/articles">Articles</a>
+                    <span>COMPANY</span>
+                    <div purpose="indented-mobile-links">
+                      <a purpose="mobile-dropdown-link" href="/handbook">Handbook</a>
+                      <a purpose="mobile-dropdown-link" href="/logos">Logos & artwork</a>
+                      <a purpose="mobile-dropdown-link" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
                     </div>
                   </div>
                   <hr>
-                  <a purpose="mobile-nav-btn" href="/pricing" class="d-flex align-items-center">Pricing</a>
+                  <a purpose="mobile-dropdown-link" href="/pricing" class="d-flex align-items-center">Pricing</a>
                   <% if(_.has(me, 'id')) {%>
                     <hr>
-                    <a purpose="mobile-nav-btn"  href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
+                    <a purpose="mobile-dropdown-link" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
                   <% }%>
-                    <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact">Talk to us</a>
+                  <%if(me && me.isSuperAdmin && showAdminLinks) {%>
+                    <hr>
+                    <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
+                    <div id="mobileNavbarToggleAdmin" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                      <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
+                      <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
+                    </div>
+                  <%}%>
+                  <%if(!hideGetStartedButton){%>
+                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/register">Start now</a>
+                  <% }%>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
               <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
+                  <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item mb-1" href="/endpoint-ops">Endpoint operations</a>
-                    <a class="dropdown-item mb-1" href="/device-management">Device management (MDM)</a>
-                    <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
-                    <a class="dropdown-item mb-1" href="/integrations">Integrations</a>
+                    <a class="dropdown-item" href="/endpoint-ops">Endpoint operations</a>
+                    <a class="dropdown-item" href="/device-management">Device management (MDM)</a>
+                    <a class="dropdown-item" href="/vulnerability-management">Vulnerability management</a>
+                    <a class="dropdown-item" href="/integrations">Integrations</a>
                   </div>
                 </div>
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item mb-1" href="/docs">Docs</a>
-                    <a class="dropdown-item mb-1" href="/docs/rest-api">REST API</a>
-                    <a class="dropdown-item mb-1" href="/queries">Built-in queries</a>
-                    <a class="dropdown-item mb-1" href="/tables">Data tables</a>
+                    <a class="dropdown-item" href="/docs">Docs</a>
+                    <a class="dropdown-item" href="/docs/rest-api">REST API</a>
+                    <a class="dropdown-item" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
+                    <a class="dropdown-item" href="/tables">Data tables</a>
                     <span class="muted dropdown-header">SUPPORT</span>
-                    <a class="dropdown-item mb-1" href="/support">Chat</a>
-                    <a class="dropdown-item mb-1" href="/docs/deploy/introduction">Hosting</a>
-                    <a class="dropdown-item mb-1" href="/releases">Release notes</a>
-                    <a class="dropdown-item mb-1" href="/customers/register">Get your license</a>
-                    <a class="dropdown-item mb-1" href="/contribute">Contribute</a>
+                    <a class="dropdown-item" href="/support">Chat</a>
+                    <a class="dropdown-item" href="/docs/deploy/introduction">Hosting</a>
+                    <a class="dropdown-item" href="/releases">Release notes</a>
+                    <a class="dropdown-item" href="/customers/register">Get your license</a>
+                    <a class="dropdown-item" href="/contribute">Contribute</a>
                   </div>
                 </div>
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
+                  <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item mb-1" href="/support">Chat</a>
-                    <a class="dropdown-item mb-1" href="/announcements">News</a>
-                    <a class="dropdown-item mb-1" href="/podcasts">Podcasts</a>
-                    <a class="dropdown-item mb-1" href="/articles">Articles</a>
-                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="/support">Chat</a>
+                    <a class="dropdown-item" href="/announcements">News</a>
+                    <a class="dropdown-item" href="/podcasts">Podcasts</a>
+                    <a class="dropdown-item" href="/articles">Articles</a>
                     <span class="muted dropdown-header">COMPANY</span>
-                    <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
+                    <a class="dropdown-item" href="/handbook">Handbook</a>
                     <a class="dropdown-item" href="/logos">Logos/artwork</a>
                     <a class="dropdown-item" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
                   </div>
                 </div>
-                <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class="d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
-                <span class="d-flex align-items-center px-3">
+                <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
+                <span purpose="gh-button" class="d-flex align-items-center">
                   <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
                   allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
                 </span>
-                <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact">Talk to us</a>
+                <%if(!hideGetStartedButton){%>
+                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register">Start now</a>
+                <% }%>
                 <% if(_.has(me, 'id')) {%>
-                <a purpose="header-nav-btn" href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none">Log out</a>
+                <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
                 <% }%>
               </div>
             </div>
           <% } else {%>
-            <div purpose="page-header" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
+            <div purpose="page-header" class="container-fluid d-flex align-items-center justify-content-between">
               <a purpose="header-logo" href="/">
                 <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
               </a>
               <div purpose="header-nav">
                   <% if(_.has(me, 'id')) {%>
-                  <a purpose="header-nav-btn" href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none">Log out</a>
+                  <a purpose="header-nav-btn" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
                   <% }%>
                 </div>
               </div>
           <% } %>
           <%if(me && me.isSuperAdmin && showAdminLinks) {%>
-            <div purpose="admin-nav" class="d-flex flex-row align-items-center px-5">
-              <div class=" justif-self-start">
+            <div purpose="admin-nav" class="d-lg-flex d-none flex-row align-items-center justify-content-center py-2 px-1">
+              <div class="justify-self-start">
                 <span>Admin pages</span>
               </div>
-              <div class="d-flex flex-row align-self-end">
-                <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
-                <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
-                <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/sandbox-waitlist">Manage Fleet Sandbox waitlist</a>
+              <div class="d-flex flex-row align-self-end justify-content-between">
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
               </div>
             </div>
           <%} %>
@@ -482,6 +483,7 @@
     <script src="/js/components/call-to-action.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
+    <script src="/js/components/logo-carousel.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/open-positions.component.js"></script>
     <script src="/js/components/parallax-city.component.js"></script>
@@ -515,12 +517,6 @@
     <script src="/js/pages/fleetctl-preview.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
-    <script src="/js/pages/imagine/defcon-31.page.js"></script>
-    <script src="/js/pages/imagine/higher-education.page.js"></script>
-    <script src="/js/pages/imagine/jamf-alternative.page.js"></script>
-    <script src="/js/pages/imagine/launch-party.page.js"></script>
-    <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
-    <script src="/js/pages/imagine/unused-software.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
@@ -538,7 +534,6 @@
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
-    <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
     <script src="/js/pages/vulnerability-management.page.js"></script>
     <!--SCRIPTS END-->

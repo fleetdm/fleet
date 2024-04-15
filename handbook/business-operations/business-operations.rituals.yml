@@ -42,9 +42,19 @@
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
+- 
+  task: "Revenue report" # TODO tie this to a responsibility
+  startedOn: "2024-02-12" 
+  frequency: "Weekly"
+  description: "At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil." 
+  moreInfoUrl: 
+  dri: "jostableford" 
+  autoIssue:   
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 -
   task: "AP invoice monitoring" # TODO tie this to a responsibility
-  startedOn: "2024-03-31" 
+  startedOn: "2024-04-01" 
   frequency: "Weekly"
   description: "Look for new accounts payable invoices and make sure that Fleet's suppliers are paid" 
   moreInfoUrl: 
@@ -64,7 +74,7 @@
     repo: "confidential"
 -
   task: "Vanta check" # TODO tie this to a responsibility
-  startedOn: "2024-03-01" 
+  startedOn: "2024-04-01" 
   frequency: "Monthly"
   description: "Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time" 
   moreInfoUrl: 

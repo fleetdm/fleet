@@ -413,6 +413,24 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 	}
 }
 
+func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfigProfilePayload {
+	var tid *uint
+	if decl.TeamID != nil && *decl.TeamID > 0 {
+		tid = decl.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID: decl.DeclarationUUID,
+		TeamID:      tid,
+		Name:        decl.Name,
+		Identifier:  decl.Identifier,
+		Platform:    "darwin",
+		Checksum:    []byte(decl.Checksum),
+		CreatedAt:   decl.CreatedAt,
+		UploadedAt:  decl.UploadedAt,
+		Labels:      decl.Labels,
+	}
+}
+
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {

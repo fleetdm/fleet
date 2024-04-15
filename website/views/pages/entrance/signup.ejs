@@ -1,14 +1,16 @@
 <div id="signup" v-cloak>
   <div style="max-width: 560px;" class="container-fluid pb-5 px-lg-0 px-3">
     <div purpose="page-heading">
-      <h1 class="text-center">Welcome to Fleet</h1>
-      <p class="text-center pb-2">We just need a few details in order to get started.</p>
+      <h1>Welcome to Fleet</h1>
+      <p class="mb-0">We just need a few details in order to get started.</p>
     </div>
     <div purpose="customer-portal-form" class="card card-body">
+      <div purpose="login-link">
+        <a href="/login">I have an account</a>
+      </div>
       <ajax-form action="signup" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
         <div class="form-group">
           <label for="email-address">Work email *</label>
-          <span style="float: right" class="text-right small"><a href="/login">I have an account</a></span>
           <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
           <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
         </div>
@@ -41,19 +43,6 @@
               </div>
             </div>
           </div>
-          <div class="form-group">
-            <label for="primaryBuyingSituation">What will you be using Fleet for? *</label>
-            <div class="selectbox">
-            <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation" @input="typeClearOneFormError('primaryBuyingSituation')">
-              <option disabled hidden value="undefined">Choose an option</option>
-              <option value="endpoint-ops-security">Endpoint operations for security engineers</option>
-              <option value="endpoint-ops-it">Endpoint operations for IT admins</option>
-              <option value="device-management">Device management</option>
-              <option value="vulnerability-management">Vulnerability management</option>
-            </select>
-            </div>
-            <div class="d-block invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option.</div>
-          </div>
         </div>
         <cloud-error v-if="cloudError==='emailAlreadyInUse'">
           <p>This email is already linked to a Fleet account.<br> Please <a href="/login">sign in</a> with your email and password.</p>
@@ -67,7 +56,7 @@
         <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
       </ajax-form>
     </div>
-
+    <logo-carousel></logo-carousel>
   </div>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

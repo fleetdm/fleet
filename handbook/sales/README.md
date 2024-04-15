@@ -143,6 +143,12 @@ To close a deal with a new customer (non-self-service), create and complete a Gi
 ### Change customer credit card number
 You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
 
+### Process a security questionnaire
+- The AE will [use the handbook](https://fleetdm.com/handbook/company/communications#vendor-questionnaires) to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will [assign the issue to Business Operations (#g-business-operations)](https://fleetdm.com/handbook/business-operations#contact-us)  with a requested timeline for completion defined.
+- BizOps consults the handbook to validate that nothing was missed by the AE. After the second pass has been completed, and if there are outstanding questions, BizOps will [reassign the issue to Sales (#g-sales)](https://fleetdm.com/handbook/sales#contact-us) for intake.
+- The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
+- The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
+- Any questions answered by the infra team will be added to the handbook by the SC.
 
 ## Rituals
 
