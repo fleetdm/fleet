@@ -230,6 +230,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		UserID:         &u.ID,
 		SyncRequest:    true,
 	})
+	require.NoError(t, err)
 
 	unsignedScriptResult, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      1,
