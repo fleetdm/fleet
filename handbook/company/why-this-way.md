@@ -117,6 +117,9 @@ The only exceptions are:
    - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
    - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
 3. **GitHub Actions:** Since GitHub requires GitHub Actions to live in dedicated repositories in order to submit them to the marketplace, Fleet uses a separate repo for publishing [GitHub Actions designed for other people to deploy and use (and/or fork)](https://github.com/fleetdm/fleet-mdm-gitops).
+4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
+  - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
+  - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
