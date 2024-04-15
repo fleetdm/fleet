@@ -1029,7 +1029,7 @@ None.
   },
   "vulnerabilities": {
     "cpe_database_url": "",
-    "current_instance_checks": "auto",
+    "disable_schedule": false,
     "cve_feed_prefix_url": "",
     "databases_path": "",
     "disable_data_sync": false,
