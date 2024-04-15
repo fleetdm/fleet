@@ -1,0 +1,37 @@
+.Select > .Select-menu-outer {
+  .is-disabled * {
+    color: $ui-fleet-black-50;
+    .disabled-option-tooltip-wrapper {
+      width: 100%;
+    }
+    .disabled-option-tooltip-wrapper__element {
+      // for broader tooltip activation area, equally increase padding and decrease margin
+      padding: 8px;
+      margin: -8px;
+      width: 100%;
+    }
+    .react-tooltip {
+      @include tooltip-text;
+      font-style: normal;
+      text-align: center;
+    }
+
+    // arrow styles directly from react-tooltip-5 css
+    .tooltip-arrow {
+      width: 8px;
+      height: 8px;
+    }
+    [class*="react-tooltip__place-top"] > .styles-module_arrow__K0L3T {
+      transform: rotate(45deg);
+    }
+    [class*="react-tooltip__place-right"] > .styles-module_arrow__K0L3T {
+      transform: rotate(135deg);
+    }
+    [class*="react-tooltip__place-bottom"] > .styles-module_arrow__K0L3T {
+      transform: rotate(225deg);
+    }
+    [class*="react-tooltip__place-left"] > .styles-module_arrow__K0L3T {
+      transform: rotate(315deg);
+    }
+  }
+}
