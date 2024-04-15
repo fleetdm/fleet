@@ -54,7 +54,7 @@ Everyone [can contribute](https://fleetdm.com/handbook/company#openness) to Flee
 - **🔌 don’t break links (whenever practical**. link to outdated Kevin Burke article about sailsjs doc links being broken. Describe it as outdated in the link text (😉: Seo revenge)
 
 - **🪟 Write it once**. Deduplicate content more than you think you need to. Use links instead. Decorate relevant bits of text, don’t put full URLs. Think of SEO: the link text matters
-<!-- I don't we were encouraged to use full URLS? -->
+<!-- I though we were encouraged to use full URLS? -->
 
 - **🔌 some people read the docs as text on GitHub**. It’s a small audience and we can’t afford to optimize for this use case. But it’s worth remembering. For example, someone from Iran needed help from Mike in 2013 to access content from sailsjs.com unencrypted when https:// was banned in her country
 
