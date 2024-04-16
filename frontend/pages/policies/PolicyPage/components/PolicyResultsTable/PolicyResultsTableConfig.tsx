@@ -10,7 +10,7 @@ import Icon from "components/Icon/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
-import { IHostPolicyQuery } from "interfaces/host";
+import { IPolicyHostResponse } from "interfaces/host";
 import sortUtils from "utilities/sort";
 
 interface IHeaderProps {
@@ -22,7 +22,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IHostPolicyQuery;
+    original: IPolicyHostResponse;
   };
 }
 
@@ -87,7 +87,7 @@ const generateTableHeaders = (): IDataColumn[] => {
 };
 
 const generateDataSet = memoize(
-  (policyHostsList: IHostPolicyQuery[] = []): IHostPolicyQuery[] => {
+  (policyHostsList: IPolicyHostResponse[] = []): IPolicyHostResponse[] => {
     policyHostsList = policyHostsList.sort((a, b) =>
       sortUtils.caseInsensitiveAsc(a.display_name, b.display_name)
     );
