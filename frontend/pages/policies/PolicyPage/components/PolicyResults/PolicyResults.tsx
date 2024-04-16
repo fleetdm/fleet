@@ -147,7 +147,7 @@ const PolicyResults = ({
         </TooltipWrapper>
         , No:{" "}
         <TooltipWrapper tipContent={`${noCt} host${noCt !== 1 ? "s" : ""}`}>
-          {Math.floor((noCt / hostsCount.total) * 100)}%
+          {Math.floor((noCt / hostsCount.successful) * 100)}%
         </TooltipWrapper>
         )
       </span>
