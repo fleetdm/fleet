@@ -12,9 +12,10 @@ export default class TableGeolocation extends Table {
         {
           ip: json.ip,
           city: json.city,
-          country:json.country_name,
+          country: json.country_name,
           region: json.region,
         },
       ],
     };
+  }
 }
