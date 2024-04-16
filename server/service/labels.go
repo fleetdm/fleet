@@ -291,10 +291,11 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*f
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	// TODO(mna): ListLabels doesn't currently return the hostIDs members of the
-	// label, that would be an N+1 queries endpoint (unless we gather the host
-	// IDs in the same query with e.g. a JSON array column, but this probably
-	// only works if the number of hosts is low). Leaving like that for now
-	// because we're in a hurry before merge freeze.
+	// label, the quick approach would be an N+1 queries endpoint. Leaving like
+	// that for now because we're in a hurry before merge freeze but the solution
+	// would probably be to do it in 2 queries : grab all label IDs from the
+	// list, then select hostID+labelID tuples in one query (where labelID IN
+	// <list of ids>)and fill the hostIDs per label.
 	return svc.ds.ListLabels(ctx, filter, opt)
 }
 
