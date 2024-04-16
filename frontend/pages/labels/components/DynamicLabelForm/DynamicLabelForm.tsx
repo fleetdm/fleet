@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { IAceEditor } from "react-ace/lib/types";
 
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
@@ -31,6 +32,7 @@ interface IDynamicLabelFormProps {
   showOpenSidebarButton?: boolean;
   isEditing?: boolean;
   onOpenSidebar?: () => void;
+  onOsqueryTableSelect?: (tableName: string) => void;
   onSave: (formData: IDynamicLabelFormData) => void;
   onCancel: () => void;
 }
@@ -43,6 +45,7 @@ const DynamicLabelForm = ({
   isEditing = false,
   showOpenSidebarButton = false,
   onOpenSidebar,
+  onOsqueryTableSelect,
   onSave,
   onCancel,
 }: IDynamicLabelFormProps) => {
@@ -91,24 +94,24 @@ const DynamicLabelForm = ({
   };
 
   // TODO: figure out if we need this on FleetAce component.
-  // const onLoad = (editor: IAceEditor) => {
-  //   editor.setOptions({
-  //     enableLinking: true,
-  //     enableMultiselect: false, // Disables command + click creating multiple cursors
-  //   });
+  const onLoad = (editor: IAceEditor) => {
+    editor.setOptions({
+      enableLinking: true,
+      enableMultiselect: false, // Disables command + click creating multiple cursors
+    });
 
-  //   // @ts-expect-error
-  //   // the string "linkClick" is not officially in the lib but we need it
-  //   editor.on("linkClick", (data) => {
-  //     const { type, value } = data.token;
+    // @ts-expect-error
+    // the string "linkClick" is not officially in the lib but we need it
+    editor.on("linkClick", (data) => {
+      const { type, value } = data.token;
 
-  //     if (type === "osquery-token" && onOsqueryTableSelect) {
-  //       return onOsqueryTableSelect(value);
-  //     }
+      if (type === "osquery-token" && onOsqueryTableSelect) {
+        return onOsqueryTableSelect(value);
+      }
 
-  //     return false;
-  //   });
-  // };
+      return false;
+    });
+  };
 
   const onChangePlatform = (value: string) => {
     setPlatform(value);
@@ -131,6 +134,7 @@ const DynamicLabelForm = ({
               label="Query"
               labelActionComponent={renderLabelComponent()}
               readOnly={isEditing}
+              onLoad={onLoad}
               wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
               helpText={isEditing ? IMMUTABLE_QUERY_HELP_TEXT : ""}
               wrapEnabled

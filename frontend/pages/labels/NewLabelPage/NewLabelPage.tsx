@@ -68,6 +68,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
   };
 
   const onOsqueryTableSelect = (tableName: string) => {
+    console.log(tableName);
     setSelectedOsqueryTable(tableName);
   };
 
@@ -98,6 +99,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
         {React.cloneElement(children, {
           showOpenSidebarButton,
           onOpenSidebar,
+          onOsqueryTableSelect,
         })}
       </MainContent>
       {isDynamicLabel && isSidePanelOpen && (
