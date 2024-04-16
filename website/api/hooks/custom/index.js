@@ -123,9 +123,9 @@ will be disabled and/or hidden in the UI.
 
             var url = require('url');
 
-            // First, if this is a GET request (and thus potentially a view),
+            // First, if this is a GET request (and thus potentially a view) or a HEAD request,
             // attach a couple of guaranteed locals.
-            if (req.method === 'GET') {
+            if (req.method === 'GET' || req.method === 'HEAD') {
 
               // The  `_environment` local lets us do a little workaround to make Vue.js
               // run in "production mode" without unnecessarily involving complexities

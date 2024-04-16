@@ -4,7 +4,7 @@
     font-weight: $bold;
 
     &--error {
-      color: $ui-error;
+      color: $core-vibrant-red;
     }
     &--with-action {
       justify-content: space-between;
@@ -18,7 +18,7 @@
   &__wrapper {
     &--error {
       .ace-fleet {
-        border: 1px solid $ui-error;
+        border: 1px solid $core-vibrant-red;
       }
     }
   }

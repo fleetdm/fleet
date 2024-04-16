@@ -50,7 +50,7 @@
   moreInfoUrl: 
   dri: "jostableford" 
   autoIssue:   
-    labels: [ "#g-digital-experience" ] 
+    labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
   task: "AP invoice monitoring" # TODO tie this to a responsibility
@@ -108,7 +108,7 @@
   frequency: "Monthly"
   description: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll"
-  dri: "hughestaylor" 
+  dri: "joStableford" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
