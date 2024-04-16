@@ -138,6 +138,10 @@ check_grep() {
     fi
 }
 
+check_gh() {
+    gh repo set-default
+}
+
 check_required_binaries() {
     local missing_counter=0
     # List of required binaries used in the script
@@ -155,6 +159,7 @@ check_required_binaries() {
         exit 1
     fi
     check_grep
+    check_gh
 }
 
 validate_and_format_date() {
