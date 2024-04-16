@@ -9,6 +9,7 @@ import {
   createMockGetLabelResponse,
   createMockLabel,
 } from "__mocks__/labelsMock";
+import { IHost } from "interfaces/host";
 
 export interface ILabelsResponse {
   labels: ILabel[];
@@ -30,6 +31,10 @@ const isManualLabelFormData = (
   return "targetedHosts" in formData;
 };
 
+const getUniqueHostIdentifier = (host: IHost) => {
+  return host.hardware_serial || host.uuid || host.hostname;
+};
+
 const generateCreateLabelBody = (
   formData: IDynamicLabelFormData | IManualLabelFormData
 ) => {
@@ -38,7 +43,9 @@ const generateCreateLabelBody = (
     return {
       name: formData.name,
       description: formData.description,
-      hosts: formData.targetedHosts.map((host) => host.id),
+      hosts: formData.targetedHosts.map((host) =>
+        getUniqueHostIdentifier(host)
+      ),
     };
   }
   return formData;
