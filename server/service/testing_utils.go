@@ -41,7 +41,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
-	"golang.org/x/exp/maps"
 )
 
 func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
@@ -205,8 +204,11 @@ func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryRes
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
 	// Map iteration is random so we sort and iterate using the testUsers keys.
-	keys := maps.Keys(testUsers)
-	sort.StringSlice(keys).Sort()
+	var keys []string
+	for key := range testUsers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
 	for _, key := range keys {
 		u := testUsers[key]
 		role := fleet.RoleObserver
