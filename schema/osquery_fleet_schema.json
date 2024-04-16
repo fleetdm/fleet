@@ -294,6 +294,8 @@
       "darwin"
     ],
     "description": "Information about APFS physical stores from the `diskutil apfs list -plist` command.",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
     "columns": [
       {
         "name": "container_uuid",
@@ -305,7 +307,7 @@
         "name": "container_designated_physical_store",
         "type": "text",
         "required": false,
-        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
+        "description": "The disk displayed as the backing store of the container. There may be multiple, use `apfs_physical_stores` to see all actual physical stores"
       },
       {
         "name": "container_reference",
@@ -350,8 +352,6 @@
         "description": "The size of the physical store in byptes"
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
     "url": "https://fleetdm.com/tables/apfs_physical_stores",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
   },
@@ -372,7 +372,7 @@
         "name": "container_designated_physical_store",
         "type": "text",
         "required": false,
-        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
+        "description": "The disk displayed as the backing store of the container. There may be multiple, use `apfs_physical_stores` to see all actual physical stores"
       },
       {
         "name": "container_reference",
@@ -420,7 +420,7 @@
         "name": "role",
         "type": "text",
         "required": false,
-        "description": "The first role of the volume. User-created volumes will have no role (this will be empty).\nSystem volumes might have roles like \"Data\", \"Hardware\", etc.\n"
+        "description": "The first role of the volume. User-created volumes will have no role (this will be empty). System volumes might have roles like \"Data\", \"Hardware\", etc."
       },
       {
         "name": "capacity_in_use",
@@ -1438,13 +1438,13 @@
         "name": "right_name",
         "type": "text",
         "required": true,
-        "description": "The right_name to query in the `authorizationdb read <right_name>` command.\n"
+        "description": "The right_name to query in the `authorizationdb read <right_name>` command."
       },
       {
         "name": "json_result",
         "type": "text",
         "required": false,
-        "description": "The JSON output parsed from the plist output of the `authorizationdb read <right_name>` command. \n"
+        "description": "The JSON output parsed from the plist output of the `authorizationdb read <right_name>` command. "
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
@@ -3789,7 +3789,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "examples": "```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\nList Chrome extensions by user and profile which have full access to HTTPS browsing.\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
     "columns": [
       {
@@ -4427,7 +4427,7 @@
         "name": "vg_FreeSpace",
         "type": "bigint",
         "required": false,
-        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
+        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume"
       },
       {
         "name": "vg_FusionDrive",
@@ -4548,7 +4548,7 @@
         "name": "vg_FreeSpace",
         "type": "bigint",
         "required": false,
-        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume\n"
+        "description": "Amount of space, in bytes, in the volume group that have not been allocated by any logical volume"
       },
       {
         "name": "vg_FusionDrive",
@@ -4704,7 +4704,7 @@
         "name": "DesignatedPhysicalVolumeIdentifier",
         "type": "text",
         "required": false,
-        "description": "Identifier of one of the physical volumes that holds this logical volume (e.g disk0s2)\n"
+        "description": "Identifier of one of the physical volumes that holds this logical volume (e.g disk0s2)"
       },
       {
         "name": "Identifier",
@@ -5431,7 +5431,7 @@
         "name": "ssv_enabled",
         "type": "integer",
         "required": false,
-        "description": "Sealed System Volume is a security feature introduced in macOS 11.0 Big Sur.\nDuring system installation, a SHA-256 cryptographic hash is calculated for all immutable system files and stored in a Merkle tree which itself is hashed as the Seal. Both are stored in the metadata of the snapshot created of the System volume.\nThe seal is verified by the boot loader at startup. macOS will not boot if system files have been tampered with. If validation fails, the user will be instructed to reinstall the operating system.\nDuring read operations for files located in the Sealed System Volume, a hash is calculated and compared to the value stored in the Merkle tree.\n"
+        "description": "Sealed System Volume is a security feature introduced in macOS 11.0 Big Sur. During system installation, a SHA-256 cryptographic hash is calculated for all immutable system files and stored in a Merkle tree which itself is hashed as the Seal. Both are stored in the metadata of the snapshot created of the System volume. The seal is verified by the boot loader at startup. macOS will not boot if system files have been tampered with. If validation fails, the user will be instructed to reinstall the operating system. During read operations for files located in the Sealed System Volume, a hash is calculated and compared to the value stored in the Merkle tree.\n"
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
@@ -6758,8 +6758,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- Available for ChromeOS 91+.\n",
-    "examples": "``` SELECT * FROM disk_info; ```",
+    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- Available for ChromeOS 91+.",
+    "examples": "```\nSELECT * FROM disk_info;\n```",
     "columns": [
       {
         "name": "partitions",
@@ -10740,28 +10740,28 @@
         "name": "directory",
         "type": "text",
         "required": true,
-        "description": "The directory passed to find as first argument.\n"
+        "description": "The directory passed to find as first argument."
       },
       {
         "name": "type",
         "type": "text",
         "required": false,
-        "description": "Sets the value of the `-type` flag.\n"
+        "description": "Sets the value of the `-type` flag."
       },
       {
         "name": "perm",
         "type": "text",
         "required": false,
-        "description": "Sets the value of the `-perm` flag.\n"
+        "description": "Sets the value of the `-perm` flag."
       },
       {
         "name": "path",
         "type": "text",
         "required": false,
-        "description": "Contains the found paths.\n"
+        "description": "Contains the found paths."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "evented": false,
     "url": "https://fleetdm.com/tables/find_cmd",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/find_cmd.yml"
@@ -10969,13 +10969,13 @@
         "name": "chip",
         "type": "text",
         "required": false,
-        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
+        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\". If chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed."
       },
       {
         "name": "output",
         "type": "text",
         "required": false,
-        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
+        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command. This value is only valid when chip is \"intel-t1\"."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
@@ -11149,7 +11149,7 @@
         "description": "Region"
       }
     ],
-    "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "url": "https://fleetdm.com/tables/geolocation",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/geolocation.yml"
   },
@@ -17042,7 +17042,7 @@
         "description": "IPv6 address (only available to extensions force-installed by enterprise policy)"
       }
     ],
-    "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- Requires that the fleetd extension is force-installed by enterprise policy\n",
+    "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- Requires that the fleetd extension is force-installed by enterprise policy",
     "url": "https://fleetdm.com/tables/network_interfaces",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
   },
@@ -17533,7 +17533,7 @@
         "name": "amfi_enabled",
         "type": "integer",
         "required": false,
-        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
+        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation. Note: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
@@ -17732,7 +17732,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "examples": "See the OS version as well as the CPU architecture in use (X86 vs ARM for example)\n```\nSELECT arch, version FROM os_version;\n```",
     "columns": [
       {
@@ -18110,7 +18110,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "examples": "See the version of the currently running osquery.\n```\nSELECT version FROM osquery_info; \n```",
     "columns": [
       {
@@ -19639,7 +19639,7 @@
         "description": "Result of the command in JSON format."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "evented": false,
     "url": "https://fleetdm.com/tables/pmset",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pmset.yml"
@@ -20312,7 +20312,7 @@
         "type": "integer"
       }
     ],
-    "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "url": "https://fleetdm.com/tables/privacy_preferences",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/privacy_preferences.yml"
   },
@@ -22333,34 +22333,34 @@
         "name": "max_failed_attempts",
         "type": "integer",
         "required": false,
-        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.\n"
+        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer."
       },
       {
         "name": "expires_every_n_days",
         "type": "integer",
         "required": false,
-        "description": "How many days for a new password to expire.\n"
+        "description": "How many days for a new password to expire."
       },
       {
         "name": "days_to_expiration",
         "type": "integer",
         "required": false,
-        "description": "How many days are left for the expiration of the current password.\n"
+        "description": "How many days are left for the expiration of the current password."
       },
       {
         "name": "history_depth",
         "type": "integer",
         "required": false,
-        "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
+        "description": "This parameter indicates the depth of password history which a new password can't be identical to."
       },
       {
         "name": "min_mixed_case_characters",
         "type": "integer",
         "required": false,
-        "description": "This parameter indicates the minimum number of mixed characters in a password.\n"
+        "description": "This parameter indicates the minimum number of mixed characters in a password."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "evented": false,
     "url": "https://fleetdm.com/tables/pwd_policy",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
@@ -23335,7 +23335,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n- For ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- For ChromeOS, this table is only available for Chrome 73+.\n",
+    "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n- For ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- For ChromeOS, this table is only available for Chrome 73+.",
     "columns": [
       {
         "name": "enabled",
@@ -25003,7 +25003,7 @@
         "description": "Offset between the host's time and the SNTP time in milliseconds."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.\nFleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).\n",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "evented": false,
     "url": "https://fleetdm.com/tables/sntp_request",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/sntp_request.yml"
@@ -25188,7 +25188,7 @@
         "name": "software_update_required",
         "type": "integer",
         "required": false,
-        "description": "If true, means one of the Apple softwares installed on this machine has a new available upgrade.\n"
+        "description": "If true, means one of the Apple softwares installed on this machine has a new available upgrade."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
@@ -25732,7 +25732,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "examples": "See the CPU architecture of a machine as well as who made it and what its serial number is.\n```\nSELECT CPU_type, hardware_vendor, hardware_model, hardware_serial FROM system_info;\n```",
     "columns": [
       {
@@ -27217,7 +27217,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n",
+    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
     "examples": "List users that have interactive access via a shell that isn't false.\n```\nSELECT * FROM users WHERE shell!='/usr/bin/false';\n```",
     "columns": [
       {
@@ -29791,7 +29791,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- In [very specific circumstances](https://github.com/osquery/osquery/issues/6588#issuecomment-1410934706) this table will return empty because xprotect will detect and remediate without generating an eicar file. \n",
+    "notes": "- In [very specific circumstances](https://github.com/osquery/osquery/issues/6588#issuecomment-1410934706) this table will return empty because xprotect will detect and remediate without generating an eicar file. ",
     "examples": "See all Xprotect activity reports, if any are present. This indicates potentially malicious software was blocked by Xprotect.\n```\nSELECT * FROM xprotect_reports;\n```",
     "columns": [
       {
