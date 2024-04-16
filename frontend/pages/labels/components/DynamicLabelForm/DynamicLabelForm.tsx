@@ -93,7 +93,6 @@ const DynamicLabelForm = ({
     );
   };
 
-  // TODO: figure out if we need this on FleetAce component.
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
