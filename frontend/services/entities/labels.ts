@@ -5,10 +5,6 @@ import helpers from "utilities/helpers";
 import { ILabel, ILabelSummary } from "interfaces/label";
 import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
 import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
-import {
-  createMockGetLabelResponse,
-  createMockLabel,
-} from "__mocks__/labelsMock";
 import { IHost } from "interfaces/host";
 
 export interface ILabelsResponse {
