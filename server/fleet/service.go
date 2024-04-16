@@ -241,11 +241,11 @@ type Service interface {
 	// GetLabelSpec gets the spec for the label with the given name.
 	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
-	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
-	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
+	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
+	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
 	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
-	GetLabel(ctx context.Context, id uint) (label *Label, err error)
+	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
 	// DeleteLabelByID is for backwards compatibility with the UI

@@ -90,16 +90,16 @@ func TestLabelsAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: t.Name(), Query: `SELECT 1`})
+			_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: t.Name(), Query: `SELECT 1`})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{})
+			_, _, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.GetLabel(ctx, 1)
+			_, _, err = svc.GetLabel(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetLabelSpecs(ctx)
@@ -155,7 +155,7 @@ func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
 	assert.Nil(t, err)
 	assert.NotZero(t, label.ID)
 
-	labelVerify, err := svc.GetLabel(test.UserContext(ctx, test.UserAdmin), label.ID)
+	labelVerify, _, err := svc.GetLabel(test.UserContext(ctx, test.UserAdmin), label.ID)
 	assert.Nil(t, err)
 	assert.Equal(t, label.ID, labelVerify.ID)
 }

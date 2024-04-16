@@ -25,7 +25,7 @@ func TestUnicode(t *testing.T) {
 	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1})
 	require.Nil(t, err)
 
-	label, err := ds.Label(context.Background(), l1.ID)
+	label, _, err := ds.Label(context.Background(), l1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "測試", label.Name)
 
