@@ -141,7 +141,7 @@ type DeleteLabelFunc func(ctx context.Context, name string) error
 
 type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, []uint, error)
 
-type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
+type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, map[uint][]uint, error)
 
 type LabelsSummaryFunc func(ctx context.Context) ([]*fleet.LabelSummary, error)
 
@@ -2680,7 +2680,7 @@ func (s *DataStore) Label(ctx context.Context, lid uint) (*fleet.Label, []uint, 
 	return s.LabelFunc(ctx, lid)
 }
 
-func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, map[uint][]uint, error) {
 	s.mu.Lock()
 	s.ListLabelsFuncInvoked = true
 	s.mu.Unlock()

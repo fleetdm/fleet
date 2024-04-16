@@ -190,7 +190,9 @@ type Datastore interface {
 	DeleteLabel(ctx context.Context, name string) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint) (*Label, []uint, error)
-	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
+	// ListLabels returns a paginated list of labels. The second return value
+	// maps the host IDs to the label ID.
+	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, map[uint][]uint, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.

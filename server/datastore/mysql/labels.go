@@ -294,12 +294,12 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
 // MatchQuery not supported
-func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, map[uint][]uint, error) {
 	if opt.After != "" {
-		return nil, &fleet.BadRequestError{Message: "parameter 'after' is not supported"}
+		return nil, nil, &fleet.BadRequestError{Message: "parameter 'after' is not supported"}
 	}
 	if opt.MatchQuery != "" {
-		return nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
+		return nil, nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
 	}
 
 	query := fmt.Sprintf(`
@@ -313,14 +313,41 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	labels := []*fleet.Label{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
-		// it's ok if no labels exist
-		if err == sql.ErrNoRows {
-			return labels, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "selecting labels")
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting labels")
 	}
 
-	return labels, nil
+	labelIDs := make([]uint, 0, len(labels))
+	for _, lbl := range labels {
+		if lbl.LabelMembershipType == fleet.LabelMembershipTypeManual {
+			labelIDs = append(labelIDs, lbl.ID)
+		}
+	}
+	var labelHostIDs map[uint][]uint
+	if len(labelIDs) > 0 {
+		var lblHostTuple []struct {
+			LabelID uint `db:"label_id"`
+			HostID  uint `db:"host_id"`
+		}
+		// NOTE: not adding the WHERE clause by team that the user is allowed to
+		// see, I don't think there's any security risk here, as only the ids are
+		// returned and only for manual labels (so, hosts that were manually
+		// assigned to this label).
+		stmt := `SELECT host_id, label_id FROM label_membership WHERE label_id IN (?)`
+		stmt, args, err := sqlx.In(stmt, labelIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "build IN query to select label membership")
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &lblHostTuple, stmt, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "select label membership")
+		}
+
+		labelHostIDs = make(map[uint][]uint, len(labelIDs))
+		for _, tup := range lblHostTuple {
+			labelHostIDs[tup.LabelID] = append(labelHostIDs[tup.LabelID], tup.HostID)
+		}
+	}
+
+	return labels, labelHostIDs, nil
 }
 
 func platformForHost(host *fleet.Host) string {

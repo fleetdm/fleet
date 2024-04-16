@@ -264,14 +264,14 @@ func (r listLabelsResponse) error() error { return r.Err }
 func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listLabelsRequest)
 
-	labels, err := svc.ListLabels(ctx, req.ListOptions)
+	labels, labelsHostIDs, err := svc.ListLabels(ctx, req.ListOptions)
 	if err != nil {
 		return listLabelsResponse{Err: err}, nil
 	}
 
 	resp := listLabelsResponse{}
 	for _, label := range labels {
-		labelResp, err := labelResponseForLabel(ctx, svc, label, nil)
+		labelResp, err := labelResponseForLabel(ctx, svc, label, labelsHostIDs[label.ID])
 		if err != nil {
 			return listLabelsResponse{Err: err}, nil
 		}
@@ -280,22 +280,15 @@ func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return resp, nil
 }
 
-func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Label, map[uint][]uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		return nil, nil, fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	// TODO(mna): ListLabels doesn't currently return the hostIDs members of the
-	// label, the quick approach would be an N+1 queries endpoint. Leaving like
-	// that for now because we're in a hurry before merge freeze but the solution
-	// would probably be to do it in 2 queries : grab all label IDs from the
-	// list, then select hostID+labelID tuples in one query (where labelID IN
-	// <list of ids>)and fill the hostIDs per label.
 	return svc.ds.ListLabels(ctx, filter, opt)
 }
 

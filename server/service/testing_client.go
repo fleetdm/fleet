@@ -116,7 +116,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// recalculate software counts will remove the software entries
 	require.NoError(t, ts.ds.SyncHostsSoftware(context.Background(), time.Now()))
 
-	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	lbls, _, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {

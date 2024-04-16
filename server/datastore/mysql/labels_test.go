@@ -594,7 +594,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	assert.Nil(t, err)
 	assert.Equal(t, len(hosts), len(uniqueHosts))
 
-	labels, err := db.ListLabels(context.Background(), filter, fleet.ListOptions{})
+	labels, _, err := db.ListLabels(context.Background(), filter, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, labels, 2)
 	for _, l := range labels {
@@ -609,7 +609,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, uniqueHosts, 0)
 
-	labels, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{})
+	labels, _, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, labels, 2)
 	for _, l := range labels {
@@ -622,7 +622,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, uniqueHosts, len(hosts))
 
-	labels, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{})
+	labels, _, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, labels, 2)
 	for _, l := range labels {
@@ -637,7 +637,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	require.Len(t, uniqueHosts, 1) // only host 0 associated with this team
 	assert.Equal(t, hosts[0].ID, uniqueHosts[0].ID)
 
-	labels, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{})
+	labels, _, err = db.ListLabels(context.Background(), filter, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, labels, 2)
 	for _, l := range labels {
@@ -869,7 +869,7 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 	test.AddAllHostsLabel(t, db)
 
 	// Only 'All Hosts' label should be returned
-	labels, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	labels, _, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 
@@ -894,7 +894,7 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 	err = db.ApplyLabelSpecs(context.Background(), newLabels)
 	require.Nil(t, err)
 
-	labels, err = db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	labels, _, err = db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, labels, 4)
 	labelsByID := make(map[uint]*fleet.Label)
