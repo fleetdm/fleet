@@ -1480,6 +1480,7 @@ func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
 	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID})
 	require.NoError(t, err)
 	lbl, hids, err := ds.Label(ctx, label1.ID)
+	require.NoError(t, err)
 	require.Equal(t, label1.ID, lbl.ID)
 	require.ElementsMatch(t, []uint{host1.ID}, hids)
 	getLabelUpdatedAt := func(updatedAt *time.Time) func(q sqlx.ExtContext) error {
@@ -1526,6 +1527,7 @@ func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
 	require.Len(t, labels, 1)
 
 	lbl, hids, err = ds.Label(ctx, label1.ID)
+	require.NoError(t, err)
 	require.Equal(t, label1.ID, lbl.ID)
 	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, hids)
 
