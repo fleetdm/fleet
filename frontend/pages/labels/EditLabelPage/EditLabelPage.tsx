@@ -51,7 +51,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
 
   // TODO: clean this up when API allows getting hosts by
   // host ids in a single request. We need to make another request when
-  // the lable is manual to get the host data for the targeted hosts.
+  // the label is manual to get the host data for the targeted hosts.
   const {
     data: targetedHosts,
     isLoading: isLoadingHosts,
