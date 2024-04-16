@@ -15,7 +15,9 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -4973,7 +4975,11 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 
 	for _, s := range host.Software {
 		if len(s.Vulnerabilities) > 0 {
-			hh.VulnerableSoftware = append(hh.VulnerableSoftware, s)
+			hh.VulnerableSoftware = append(hh.VulnerableSoftware, fleet.HostHealthVulnerableSoftware{
+				ID:      s.ID,
+				Name:    s.Name,
+				Version: s.Version,
+			})
 		}
 	}
 
@@ -4982,10 +4988,32 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 		return nil, err
 	}
 
+	isPremium := license.IsPremium(ctx)
 	for _, p := range policies {
 		if p.Response == "fail" {
-			hh.FailingPolicies = append(hh.FailingPolicies, p)
+			var critical *bool
+			if isPremium {
+				critical = &p.Critical
+			}
+			hh.FailingPolicies = append(hh.FailingPolicies, &fleet.HostHealthFailingPolicy{
+				ID:         p.ID,
+				Name:       p.Name,
+				Resolution: p.Resolution,
+				Critical:   critical,
+			})
 		}
+	}
+
+	hh.FailingPoliciesCount = len(hh.FailingPolicies)
+
+	if license.IsPremium(ctx) {
+		var count int
+		for _, p := range hh.FailingPolicies {
+			if p.Critical != nil && *p.Critical {
+				count++
+			}
+		}
+		hh.FailingCriticalPoliciesCount = ptr.Int(count)
 	}
 
 	return &hh, nil

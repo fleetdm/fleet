@@ -77,10 +77,6 @@ func cronVulnerabilities(
 	if config == nil {
 		return errors.New("nil configuration")
 	}
-	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
-		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
-		return nil
-	}
 
 	level.Info(logger).Log("periodicity", config.Periodicity)
 

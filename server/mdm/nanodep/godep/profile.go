@@ -2,7 +2,9 @@ package godep
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"net/url"
 )
 
 // Profile corresponds to the Apple DEP API "Profile" structure.
@@ -74,4 +76,13 @@ func (c *Client) AssignProfile(ctx context.Context, name, uuid string, serials .
 func (c *Client) DefineProfile(ctx context.Context, name string, profile *Profile) (*ProfileResponse, error) {
 	resp := new(ProfileResponse)
 	return resp, c.doWithAfterHook(ctx, name, http.MethodPost, "/profile", profile, resp)
+}
+
+// GetProfile uses the Apple "Get a Profile" API endpoint to get the details
+// for the specified profile UUID.
+// See https://developer.apple.com/documentation/devicemanagement/get_a_profile
+func (c *Client) GetProfile(ctx context.Context, name, profileUUID string) (*json.RawMessage, error) {
+	resp := &json.RawMessage{}
+	qs := url.Values{"profile_uuid": {profileUUID}}
+	return resp, c.doWithAfterHook(ctx, name, http.MethodGet, "/profile?"+qs.Encode(), nil, resp)
 }
