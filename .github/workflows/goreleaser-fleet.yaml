@@ -67,7 +67,7 @@ jobs:
           curl -O -L "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${version}/${codesign_package}.sha256"
           echo "$(cat $codesign_package.sha256)  $codesign_package" | sha256sum --quiet --strict --check -
           tar --extract --strip-components 1 --file "$codesign_package"
-          mkdir -p $HOME/.bin  # Ensure the directory exists
+          mkdir -p $HOME/.bin
           mv rcodesign $HOME/.bin/
           echo "$HOME/.bin" >> $GITHUB_PATH
           popd
@@ -80,7 +80,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: latest
-          args: release --verbose --rm-dist -f .goreleaser.yml
+          args: release --rm-dist -f .goreleaser.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
