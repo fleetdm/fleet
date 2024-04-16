@@ -1015,3 +1015,36 @@ func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, lab
 
 	return ok, nil
 }
+
+func (ds *Datastore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	sql := `INSERT INTO label_membership (host_id, label_id) VALUES `
+	sql += strings.Repeat(`(?, ?),`, len(labelIDs))
+	sql = strings.TrimSuffix(sql, ",")
+	sql += ` ON DUPLICATE KEY UPDATE updated_at = NOW()`
+	args := make([]interface{}, 0, len(labelIDs)*2)
+	for _, labelID := range labelIDs {
+		args = append(args, hostID, labelID)
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert into label_membership")
+	}
+	return nil
+}
+
+func (ds *Datastore) RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
+	sql, args, err := sqlx.In(sql, hostID, labelIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build label_membership IN query")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from label_membership")
+	}
+	return nil
+}

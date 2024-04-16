@@ -32,8 +32,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -3332,6 +3332,89 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	}
 }
 
+func (s *integrationEnterpriseTestSuite) TestHostHealth() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "hostid1"),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(t.Name() + "nodekey1"),
+		UUID:            t.Name() + "uuid1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OSVersion:       "Mac OS X 10.14.6",
+		Platform:        "darwin",
+		CPUType:         "cpuType",
+		TeamID:          ptr.Uint(team.ID),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	passingTeamPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, nil, fleet.PolicyPayload{
+		Name:       "Passing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+	})
+	require.NoError(t, err)
+
+	failingTeamPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, nil, fleet.PolicyPayload{
+		Name:       "Failing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+		Critical:   true,
+	})
+	require.NoError(t, err)
+
+	passingGlobalPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
+		Name:       "Passing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+	})
+	require.NoError(t, err)
+
+	failingGlobalPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
+		Name:       "Failing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+		Critical:   false,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingGlobalPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingGlobalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingTeamPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingTeamPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+
+	hh := getHostHealthResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
+	require.Equal(t, host.ID, hh.HostID)
+	assert.NotNil(t, hh.HostHealth)
+	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
+	assert.Equal(t, 2, hh.HostHealth.FailingPoliciesCount)
+	assert.Equal(t, ptr.Int(1), hh.HostHealth.FailingCriticalPoliciesCount)
+	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
+		ID:         failingTeamPolicy.ID,
+		Name:       failingTeamPolicy.Name,
+		Resolution: failingTeamPolicy.Resolution,
+		Critical:   ptr.Bool(true),
+	})
+	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
+		ID:         failingGlobalPolicy.ID,
+		Name:       failingGlobalPolicy.Name,
+		Resolution: failingGlobalPolicy.Resolution,
+		Critical:   ptr.Bool(false),
+	})
+}
+
 func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	t := s.T()
 	var resp listVulnerabilitiesResponse
@@ -4192,6 +4275,19 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		Name: "Zoo",
 	})
 	require.NoError(t, err)
+	team1Host, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  ptr.String(t.Name() + "2"),
+		UUID:     t.Name() + "2",
+		Hostname: strings.Replace(t.Name()+"zoo.local", "/", "_", -1),
+		TeamID:   &t1.ID,
+	})
+	require.NoError(t, err)
+	globalHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  ptr.String(t.Name() + "3"),
+		UUID:     t.Name() + "3",
+		Hostname: strings.Replace(t.Name()+"global.local", "/", "_", -1),
+	})
+	require.NoError(t, err)
 	acr := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"webhook_settings": {
@@ -4298,6 +4394,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	require.NoError(t, u3.SetPassword(test.GoodPassword, 10, 10))
 	_, err = s.ds.NewUser(context.Background(), u3)
 	require.NoError(t, err)
+	manualLabel1, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                "manualLabel1",
+		Query:               "SELECT 2;",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
 
 	//
 	// Start running permission tests with user gitops1.
@@ -4376,6 +4478,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}`), http.StatusOK, &acr)
 	require.True(t, acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.Enable)
 	require.Equal(t, "https://foobar.example.com", acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.DestinationURL)
+
+	// Attempt to add/remove manual labels to/from a host.
+	var addLabelsToHostResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", h1.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+	var removeLabelsFromHostResp removeLabelsFromHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", h1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
 
 	// Attempt to run live queries synchronously, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/queries/run", runLiveQueryRequest{
@@ -4748,6 +4860,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to remove a query from the team's schedule, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", t1.ID, ttsqr.Scheduled.ID), deleteTeamScheduleRequest{}, http.StatusOK, &deleteTeamScheduleResponse{})
+
+	// Attempt to add/remove a manual label from a team host, should allow.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+
+	// Attempt to add/remove a manual label from a global host, should not allow.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &addLabelsToHostResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &removeLabelsFromHostResp)
 
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})

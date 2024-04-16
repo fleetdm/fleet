@@ -389,6 +389,21 @@ type Service interface {
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
 
+	// AddLabelsToHost adds the given label names to the host's label membership.
+	//
+	// If a host is already a member of one of the labels then this operation will only
+	// update the membership row update time.
+	//
+	// Returns an error if any of the labels does not exist or if any of the labels
+	// are not manual.
+	AddLabelsToHost(ctx context.Context, id uint, labels []string) error
+	// RemoveLabelsFromHost removes the given label names from the host's label membership.
+	// Labels that the host are already not a member of are ignored.
+	//
+	// Returns an error if any of the labels does not exist or if any of the labels
+	// are not manual.
+	RemoveLabelsFromHost(ctx context.Context, id uint, labels []string) error
+
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
@@ -926,6 +941,9 @@ type Service interface {
 	// Windows hosts in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
+
+	// ResendHostMDMProfile resends the MDM profile to the host.
+	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution
