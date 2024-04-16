@@ -1,5 +1,4 @@
 .query-results {
-
   .info-banner {
     margin: 2rem auto 1.25rem;
   }
@@ -46,9 +45,12 @@
     margin-top: $pad-xlarge;
   }
 
+  &__results-meta > * {
+    font-size: $x-small;
+  }
+
   &__results-count,
   &__error-count {
-    font-size: $x-small;
     font-weight: $bold;
   }
 }

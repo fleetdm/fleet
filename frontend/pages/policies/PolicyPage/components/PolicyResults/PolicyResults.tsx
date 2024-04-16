@@ -18,14 +18,16 @@ import Icon from "components/Icon/Icon";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import TooltipWrapper from "components/TooltipWrapper";
 
-import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
+import ResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
-import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
-import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";
+import PolicyResultsTable from "../PolicyResultsTable/PolicyResultsTable";
+import PolicyQueriesErrorsTable from "../PolicyErrorsTable/PolicyErrorsTable";
+import { getYesNoCounts } from "./helpers";
 
-interface IQueryResultsProps {
+interface IPolicyResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
   policyName?: string;
@@ -43,7 +45,7 @@ const NAV_TITLES = {
   ERRORS: "Errors",
 };
 
-const QueryResults = ({
+const PolicyResults = ({
   campaign,
   isQueryFinished,
   policyName,
@@ -52,10 +54,10 @@ const QueryResults = ({
   setSelectedTargets,
   goToQueryEditor,
   targetsTotalCount,
-}: IQueryResultsProps): JSX.Element => {
+}: IPolicyResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(PolicyContext);
 
-  const { hosts: hostsOnline, hosts_count: hostsCount, errors } =
+  const { hosts: hostResponses, hosts_count: hostsCount, errors } =
     campaign || {};
 
   const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);
@@ -63,11 +65,11 @@ const QueryResults = ({
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [showQueryModal, setShowQueryModal] = useState(false);
 
-  const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const onExportResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (hostsOnline) {
-      const hostsExport = hostsOnline.map((host) => {
+    if (hostResponses) {
+      const hostsExport = hostResponses.map((host) => {
         return {
           host: host.display_name,
           status:
@@ -121,9 +123,7 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={
-            tableType === "errors"
-              ? onExportErrorsResults
-              : onExportQueryResults
+            tableType === "errors" ? onExportErrorsResults : onExportResults
           }
           variant="text-icon"
         >
@@ -136,9 +136,27 @@ const QueryResults = ({
     );
   };
 
-  const renderTable = () => {
+  const renderPassFailPcts = () => {
+    const { yes: yesCt, no: noCt } = getYesNoCounts(hostResponses);
+    return (
+      <span className={`${baseClass}__results-pass-fail-pct`}>
+        {" "}
+        (Yes:{" "}
+        <TooltipWrapper tipContent={`${yesCt} host${yesCt !== 1 ? "s" : ""}`}>
+          {Math.ceil((yesCt / hostsCount.successful) * 100)}%
+        </TooltipWrapper>
+        , No:{" "}
+        <TooltipWrapper tipContent={`${noCt} host${noCt !== 1 ? "s" : ""}`}>
+          {Math.floor((noCt / hostsCount.successful) * 100)}%
+        </TooltipWrapper>
+        )
+      </span>
+    );
+  };
+
+  const renderResultsTable = () => {
     const emptyResults =
-      !hostsOnline || !hostsOnline.length || !hostsCount.successful;
+      !hostResponses || !hostResponses.length || !hostsCount.successful;
     const hasNoResultsYet = !isQueryFinished && emptyResults;
     const finishedWithNoResults =
       isQueryFinished && (!hostsCount.successful || emptyResults);
@@ -167,16 +185,19 @@ const QueryResults = ({
           Hosts that responded with no results are marked <strong>No</strong>.
         </InfoBanner>
         <div className={`${baseClass}__results-table-header`}>
-          <span className={`${baseClass}__results-count`}>
-            {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+          <span className={`${baseClass}__results-meta`}>
+            <span className={`${baseClass}__results-count`}>
+              {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+            </span>
+            {isQueryFinished && renderPassFailPcts()}
           </span>
           <div className={`${baseClass}__results-cta`}>
             {renderTableButtons("results")}
           </div>
         </div>
-        <PolicyQueryTable
+        <PolicyResultsTable
           isLoading={false}
-          policyHostsList={hostsOnline}
+          hostResponses={hostResponses}
           resultsTitle="hosts"
         />
       </div>
@@ -211,7 +232,7 @@ const QueryResults = ({
 
   return (
     <div className={baseClass}>
-      <QueryResultsHeading
+      <ResultsHeading
         respondedHosts={hostsCount.total}
         targetsTotalCount={targetsTotalCount}
         isQueryFinished={isQueryFinished}
@@ -232,7 +253,7 @@ const QueryResults = ({
               </span>
             </Tab>
           </TabList>
-          <TabPanel>{renderTable()}</TabPanel>
+          <TabPanel>{renderResultsTable()}</TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
       </TabsWrapper>
@@ -246,4 +267,4 @@ const QueryResults = ({
   );
 };
 
-export default QueryResults;
+export default PolicyResults;
