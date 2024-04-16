@@ -72,9 +72,6 @@ jobs:
           echo "$HOME/.bin" >> $GITHUB_PATH
           popd
 
-      - name: REMOVEME Git tag only for testing
-        run: git tag fleet-v9.99.9
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
