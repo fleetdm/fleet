@@ -3,13 +3,14 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-var innodbLockWaitsTableExists *bool
+var innodbLockWaitsTableExists atomic.Int64 // Initializes to 0. 0 means we haven't checked yet.
 
 func (ds *Datastore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 	lockObtainers := []func(context.Context, string, string, time.Duration) (sql.Result, error){
@@ -64,18 +65,26 @@ func (ds *Datastore) Unlock(ctx context.Context, name string, owner string) erro
 func (ds *Datastore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
 	// information_schema.innodb_lock_waits has been deprecated in MySQL 8, so we need to check if it exists.
 	// We only need to check once.
-	if innodbLockWaitsTableExists == nil {
+	localInnodbLockWaitsTableExists := innodbLockWaitsTableExists.Load()
+	if localInnodbLockWaitsTableExists == 0 {
+		var exists bool
 		existsStmt := `
 		SELECT EXISTS (SELECT *
 			FROM information_schema.tables
 			WHERE table_schema = 'information_schema'
   			AND table_name = 'innodb_lock_waits')`
-		if err := ds.writer(ctx).GetContext(ctx, &innodbLockWaitsTableExists, existsStmt); err != nil {
+		if err := ds.writer(ctx).GetContext(ctx, &exists, existsStmt); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "check for existence of innodb_lock_waits table")
 		}
+		if exists {
+			localInnodbLockWaitsTableExists = 1
+		} else {
+			localInnodbLockWaitsTableExists = -1
+		}
+		innodbLockWaitsTableExists.Store(localInnodbLockWaitsTableExists)
 	}
 	var stmt string
-	if *innodbLockWaitsTableExists {
+	if localInnodbLockWaitsTableExists == 1 {
 		stmt = `
 		SELECT
 		  r.trx_id              waiting_trx_id,
