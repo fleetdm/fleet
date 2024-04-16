@@ -68,6 +68,7 @@ func TestLabels(t *testing.T) {
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
 		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
+		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1428,4 +1429,95 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 1)
 		checkHosts(t, hosts, []uint{h2.ID})
 	})
+}
+
+func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("1"),
+		NodeKey:       ptr.String("1"),
+		UUID:          "1",
+		Hostname:      "foo.local",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("2"),
+		NodeKey:       ptr.String("2"),
+		UUID:          "2",
+		Hostname:      "bar.local",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	err = ds.AddLabelsToHost(ctx, host1.ID, nil)
+	require.NoError(t, err)
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, nil)
+	require.NoError(t, err)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "label1",
+		Query:               "SELECT 1;",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "label2",
+		Query:               "SELECT 2;",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+
+	// Removing a label and multiple labels that the host is not a member of.
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID})
+	require.NoError(t, err)
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+
+	// Adding and removing labels.
+	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID})
+	require.NoError(t, err)
+	getLabelUpdatedAt := func(updatedAt *time.Time) func(q sqlx.ExtContext) error {
+		return func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, updatedAt, `SELECT updated_at FROM label_membership WHERE host_id = ? AND label_id = ?`, host1.ID, label1.ID)
+		}
+	}
+	var labelUpdatedAt1 time.Time
+	ExecAdhocSQL(t, ds, getLabelUpdatedAt(&labelUpdatedAt1))
+	time.Sleep(1 * time.Second)
+	// Add a label that the host is already member of.
+	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID})
+	require.NoError(t, err)
+	var labelUpdatedAt2 time.Time
+	ExecAdhocSQL(t, ds, getLabelUpdatedAt(&labelUpdatedAt2))
+	require.True(t, labelUpdatedAt2.After(labelUpdatedAt1))
+	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+	labels2, err := ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Empty(t, labels2)
+
+	// Removing a label that the host is a member of
+	// and one that the host is not a member of.
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Empty(t, labels)
+
+	// Add and remove multiple labels.
+	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 2)
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Empty(t, labels)
 }

@@ -129,6 +129,10 @@ type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
 
+type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
+
+type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
+
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
 type SaveLabelFunc func(ctx context.Context, label *fleet.Label) (*fleet.Label, error)
@@ -831,6 +835,10 @@ type GetHostMDMWindowsProfilesFunc func(ctx context.Context, hostUUID string) ([
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
+type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
+
+type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error)
+
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error)
@@ -1066,6 +1074,12 @@ type DataStore struct {
 
 	GetLabelSpecFunc        GetLabelSpecFunc
 	GetLabelSpecFuncInvoked bool
+
+	AddLabelsToHostFunc        AddLabelsToHostFunc
+	AddLabelsToHostFuncInvoked bool
+
+	RemoveLabelsFromHostFunc        RemoveLabelsFromHostFunc
+	RemoveLabelsFromHostFuncInvoked bool
 
 	NewLabelFunc        NewLabelFunc
 	NewLabelFuncInvoked bool
@@ -2120,6 +2134,12 @@ type DataStore struct {
 	ListMDMConfigProfilesFunc        ListMDMConfigProfilesFunc
 	ListMDMConfigProfilesFuncInvoked bool
 
+	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
+	ResendHostMDMProfileFuncInvoked bool
+
+	GetHostMDMProfileInstallStatusFunc        GetHostMDMProfileInstallStatusFunc
+	GetHostMDMProfileInstallStatusFuncInvoked bool
+
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
 
@@ -2611,6 +2631,20 @@ func (s *DataStore) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 	s.GetLabelSpecFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetLabelSpecFunc(ctx, name)
+}
+
+func (s *DataStore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	s.mu.Lock()
+	s.AddLabelsToHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.AddLabelsToHostFunc(ctx, hostID, labelIDs)
+}
+
+func (s *DataStore) RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	s.mu.Lock()
+	s.RemoveLabelsFromHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemoveLabelsFromHostFunc(ctx, hostID, labelIDs)
 }
 
 func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
@@ -5068,6 +5102,20 @@ func (s *DataStore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 	s.ListMDMConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMConfigProfilesFunc(ctx, teamID, opt)
+}
+
+func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error {
+	s.mu.Lock()
+	s.ResendHostMDMProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendHostMDMProfileFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error) {
+	s.mu.Lock()
+	s.GetHostMDMProfileInstallStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMProfileInstallStatusFunc(ctx, hostUUID, profileUUID)
 }
 
 func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {

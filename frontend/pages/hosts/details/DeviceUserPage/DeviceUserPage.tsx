@@ -445,10 +445,12 @@ const DeviceUserPage = ({
             policy={selectedPolicy}
           />
         )}
-        {showOSSettingsModal && (
+        {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            platform={host?.platform}
-            hostMDMData={host?.mdm}
+            canResendProfiles={false}
+            hostId={host.id}
+            platform={host.platform}
+            hostMDMData={host.mdm}
             onClose={toggleOSSettingsModal}
           />
         )}

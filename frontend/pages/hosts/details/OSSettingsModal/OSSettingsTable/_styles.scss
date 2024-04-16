@@ -4,4 +4,17 @@
       white-space: nowrap;
     }
   }
+
+  // row hover effect for resend button. we dont want this behavior when the
+  // button is resending
+  .resend-link:not(.os-settings-error-cell__resending) {
+    opacity: 0;
+    transition: opacity 250ms;
+  }
+
+  tr:hover {
+    .resend-link:not(.os-settings-error-cell__resending) {
+      opacity: 1;
+    }
+  }
 }
