@@ -33,8 +33,8 @@ func TestLabelsAuth(t *testing.T) {
 	ds.LabelFunc = func(ctx context.Context, id uint) (*fleet.Label, []uint, error) {
 		return &fleet.Label{}, nil, nil
 	}
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
-		return nil, nil
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, map[uint][]uint, error) {
+		return nil, nil, nil
 	}
 	ds.LabelsSummaryFunc = func(ctx context.Context) ([]*fleet.LabelSummary, error) {
 		return nil, nil
@@ -108,7 +108,7 @@ func TestLabelsAuth(t *testing.T) {
 			_, err = svc.GetLabelSpec(ctx, "abc")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListLabels(ctx, fleet.ListOptions{})
+			_, _, err = svc.ListLabels(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.LabelsSummary((ctx))
@@ -164,7 +164,7 @@ func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	require.NoError(t, ds.MigrateData(context.Background()))
 
-	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000})
+	labels, _, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000})
 	require.NoError(t, err)
 	require.Len(t, labels, 8)
 
