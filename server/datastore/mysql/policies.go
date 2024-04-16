@@ -1186,9 +1186,9 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 		h.hardware_serial AS host_hardware_serial
 	FROM hosts h
 	LEFT JOIN (
-		SELECT host_id, BIT_AND(COALESCE(passes, 0)) AS passing
+		SELECT host_id, BIT_AND(passes) AS passing
 		FROM policy_membership
-		WHERE policy_id IN (?)
+		WHERE policy_id IN (?) AND passes IS NOT NULL
 		GROUP BY host_id
 	) pm ON h.id = pm.host_id
 	LEFT JOIN (
