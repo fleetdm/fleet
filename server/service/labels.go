@@ -28,12 +28,12 @@ func (r createLabelResponse) error() error { return r.Err }
 func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createLabelRequest)
 
-	label, err := svc.NewLabel(ctx, req.LabelPayload)
+	label, hostIDs, err := svc.NewLabel(ctx, req.LabelPayload)
 	if err != nil {
 		return createLabelResponse{Err: err}, nil
 	}
 
-	labelResp, err := labelResponseForLabel(ctx, svc, label)
+	labelResp, err := labelResponseForLabel(ctx, svc, label, hostIDs)
 	if err != nil {
 		return createLabelResponse{Err: err}, nil
 	}
@@ -41,9 +41,9 @@ func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return createLabelResponse{Label: *labelResp}, nil
 }
 
-func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, error) {
+func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, []uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	label := &fleet.Label{
@@ -52,12 +52,12 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	}
 
 	if p.Name == "" {
-		return nil, fleet.NewInvalidArgumentError("name", "missing required argument")
+		return nil, nil, fleet.NewInvalidArgumentError("name", "missing required argument")
 	}
 	label.Name = p.Name
 
 	if p.Query != "" && len(p.Hosts) > 0 {
-		return nil, fleet.NewInvalidArgumentError("query", `Only one of either "query" or "hosts" can be included in the request.`)
+		return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of either "query" or "hosts" can be included in the request.`)
 	}
 	label.Query = p.Query
 	if p.Query == "" {
@@ -69,7 +69,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 
 	for name := range fleet.ReservedLabelNames() {
 		if label.Name == name {
-			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
+			return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
 		}
 	}
 
@@ -77,6 +77,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	// not create label memberships), otherwise NewLabel works for dynamic
 	// membership. Must resolve the host identifiers to hostname so that
 	// ApplySpecs can be used.
+	var hostIDs []uint
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
 		spec := fleet.LabelSpec{
 			Name:                label.Name,
@@ -88,28 +89,30 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		}
 		hostnames, err := svc.ds.HostnamesByIdentifiers(ctx, p.Hosts)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		spec.Hosts = hostnames
 		if err := svc.ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&spec}); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		// must reload it to get the id
+		// must reload it to get the id, and the host IDs
 		lblIDsByName, err := svc.ds.LabelIDsByName(ctx, []string{label.Name})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		label.ID = lblIDsByName[label.Name]
-		label.HostCount = len(hostnames)
+		label, hostIDs, err = svc.ds.Label(ctx, lblIDsByName[label.Name])
+		if err != nil {
+			return nil, nil, err
+		}
 	} else {
 		newLbl, err := svc.ds.NewLabel(ctx, label)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		label = newLbl
 	}
-	return label, nil
+	return label, hostIDs, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -130,12 +133,12 @@ func (r modifyLabelResponse) error() error { return r.Err }
 
 func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyLabelRequest)
-	label, err := svc.ModifyLabel(ctx, req.ID, req.ModifyLabelPayload)
+	label, hostIDs, err := svc.ModifyLabel(ctx, req.ID, req.ModifyLabelPayload)
 	if err != nil {
 		return modifyLabelResponse{Err: err}, nil
 	}
 
-	labelResp, err := labelResponseForLabel(ctx, svc, label)
+	labelResp, err := labelResponseForLabel(ctx, svc, label, hostIDs)
 	if err != nil {
 		return modifyLabelResponse{Err: err}, nil
 	}
@@ -143,23 +146,23 @@ func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return modifyLabelResponse{Label: *labelResp}, err
 }
 
-func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, error) {
+func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, []uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	label, err := svc.ds.Label(ctx, id)
+	label, _, err := svc.ds.Label(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if label.LabelType == fleet.LabelTypeBuiltIn {
-		return nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
+		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
 	if payload.Name != nil {
 		// Check if the new name is a reserved label name
 		for name := range fleet.ReservedLabelNames() {
 			if *payload.Name == name {
-				return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot rename label to '%s' because it conflicts with the name of a built-in label", name))
+				return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot rename label to '%s' because it conflicts with the name of a built-in label", name))
 			}
 		}
 		label.Name = *payload.Name
@@ -168,7 +171,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		label.Description = *payload.Description
 	}
 	if len(payload.Hosts) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
-		return nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
 	}
 
 	// if membership type is manual and the Hosts membership is provided, must
@@ -187,11 +190,11 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		}
 		hostnames, err := svc.ds.HostnamesByIdentifiers(ctx, payload.Hosts)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		spec.Hosts = hostnames
 		if err := svc.ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&spec}); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		// must reload it to get the host counts information
@@ -224,20 +227,20 @@ func (r getLabelResponse) error() error { return r.Err }
 
 func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getLabelRequest)
-	label, err := svc.GetLabel(ctx, req.ID)
+	label, hostIDs, err := svc.GetLabel(ctx, req.ID)
 	if err != nil {
 		return getLabelResponse{Err: err}, nil
 	}
-	resp, err := labelResponseForLabel(ctx, svc, label)
+	resp, err := labelResponseForLabel(ctx, svc, label, hostIDs)
 	if err != nil {
 		return getLabelResponse{Err: err}, nil
 	}
 	return getLabelResponse{Label: *resp}, nil
 }
 
-func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, error) {
+func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, []uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return svc.ds.Label(ctx, id)
@@ -268,7 +271,7 @@ func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	resp := listLabelsResponse{}
 	for _, label := range labels {
-		labelResp, err := labelResponseForLabel(ctx, svc, label)
+		labelResp, err := labelResponseForLabel(ctx, svc, label, nil)
 		if err != nil {
 			return listLabelsResponse{Err: err}, nil
 		}
@@ -287,14 +290,21 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*f
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
+	// TODO(mna): ListLabels doesn't currently return the hostIDs members of the
+	// label, the quick approach would be an N+1 queries endpoint. Leaving like
+	// that for now because we're in a hurry before merge freeze but the solution
+	// would probably be to do it in 2 queries : grab all label IDs from the
+	// list, then select hostID+labelID tuples in one query (where labelID IN
+	// <list of ids>)and fill the hostIDs per label.
 	return svc.ds.ListLabels(ctx, filter, opt)
 }
 
-func labelResponseForLabel(ctx context.Context, svc fleet.Service, label *fleet.Label) (*labelResponse, error) {
+func labelResponseForLabel(ctx context.Context, svc fleet.Service, label *fleet.Label, hostIDs []uint) (*labelResponse, error) {
 	return &labelResponse{
 		Label:       *label,
 		DisplayText: label.Name,
 		Count:       label.HostCount,
+		HostIDs:     hostIDs,
 	}, nil
 }
 
@@ -437,7 +447,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 		return err
 	}
 
-	label, err := svc.ds.Label(ctx, id)
+	label, _, err := svc.ds.Label(ctx, id)
 	if err != nil {
 		return err
 	}
