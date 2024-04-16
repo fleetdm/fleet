@@ -90,7 +90,7 @@ func TestLabelsAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: ptr.String(t.Name()), Query: ptr.String(`SELECT 1`)})
+			_, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: t.Name(), Query: `SELECT 1`})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{})
