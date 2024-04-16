@@ -25,7 +25,7 @@ func TestUnicode(t *testing.T) {
 	require.Nil(t, err)
 	l1.ID = labelIDFromName(t, ds, l1.Name)
 
-	label, err := ds.Label(context.Background(), l1.ID)
+	label, _, err := ds.Label(context.Background(), l1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "測試", label.Name)
 

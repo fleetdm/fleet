@@ -184,9 +184,12 @@ type Datastore interface {
 	RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error
 
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
-	SaveLabel(ctx context.Context, label *Label) (*Label, error)
+	// SaveLabel updates the label and returns the label and an array of host IDs
+	// members of this label, or an error.
+	SaveLabel(ctx context.Context, label *Label) (*Label, []uint, error)
 	DeleteLabel(ctx context.Context, name string) error
-	Label(ctx context.Context, lid uint) (*Label, error)
+	// Label returns the label and an array of host IDs members of this label, or an error.
+	Label(ctx context.Context, lid uint) (*Label, []uint, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
@@ -270,15 +273,19 @@ type Datastore interface {
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
-	// osquery_host_identifier, node_key, UUID, or hostname.
+	// osquery_host_id, node_key, UUID, hardware_serial or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
-	// HostLiteByIdentifier returns a host and a subset of its fields using an "identifier" string.
-	// The identifier string will be matched against the hostname, osquery_host_id, node_key, uuid and hardware_serial columns.
+	// HostLiteByIdentifier returns a host and a subset of its fields using an
+	// "identifier" string. The identifier string will be matched against the
+	// hostname, osquery_host_id, node_key, uuid and hardware_serial columns.
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
+	// HostnamesByIdentifiers returns the hostnames corresponding to the provided identifiers,
+	// as understood by HostByIdentifier.
+	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
 
 	TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 

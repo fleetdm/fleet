@@ -220,11 +220,11 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 	return label, nil
 }
 
-func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
+func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error) {
 	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
 	_, err := ds.writer(ctx).ExecContext(ctx, query, label.Name, label.Description, label.ID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "saving label")
+		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
 	}
 	return labelDB(ctx, label.ID, ds.writer(ctx))
 }
@@ -261,11 +261,11 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
-func (ds *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
+func (ds *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, []uint, error) {
 	return labelDB(ctx, lid, ds.reader(ctx))
 }
 
-func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, error) {
+func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, []uint, error) {
 	stmt := `
 		SELECT
 		       l.*,
@@ -277,12 +277,19 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 
 	if err := sqlx.GetContext(ctx, q, label, stmt, lid); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
+			return nil, nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
 		}
-		return nil, ctxerr.Wrap(ctx, err, "selecting label")
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting label")
 	}
 
-	return label, nil
+	var hostIDs []uint
+	if label.LabelMembershipType == fleet.LabelMembershipTypeManual && label.HostCount > 0 {
+		if err := sqlx.SelectContext(ctx, q, &hostIDs, `SELECT host_id FROM label_membership WHERE label_id = ?`, lid); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "selecting label host IDs")
+		}
+	}
+
+	return label, hostIDs, nil
 }
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.

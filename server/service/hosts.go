@@ -2403,7 +2403,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 
 	var dynamicLabels []string
 	for labelName, labelID := range labels {
-		label, err := svc.ds.Label(ctx, labelID)
+		label, _, err := svc.ds.Label(ctx, labelID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load label from id")
 		}

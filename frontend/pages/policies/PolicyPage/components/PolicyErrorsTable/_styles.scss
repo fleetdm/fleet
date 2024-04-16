@@ -1,4 +1,4 @@
-.policies-queries-table {
+.policy-results-table {
   border-collapse: collapse;
 
   &__wrapper {
@@ -6,10 +6,6 @@
     border-radius: $border-radius;
     overflow: hidden;
     margin-top: $pad-medium;
-  }
-
-  .table-container {
-    margin-top: $pad-small;
   }
 
   .table-container__header {
@@ -27,25 +23,16 @@
       padding: $pad-medium $pad-large;
     }
 
-    .display-name__header {
-      width: 70%;
+    .host_display_name__header {
+      width: 50%;
     }
   }
 
-  tbody {
-    td {
-      img {
-        width: 16px;
-        height: 16px;
-        vertical-align: sub;
-        padding-right: 4px;
-      }
-    }
-    .query_results__cell {
-      .status-header-text {
-        margin-left: 10px;
-      }
-    }
+  tbody td img {
+    width: 16px;
+    height: 16px;
+    vertical-align: sub;
+    padding-right: 4px;
   }
 
   &__empty-table {
@@ -113,10 +100,6 @@
   &__inner-text {
     width: 500px;
     padding: $pad-xxlarge 0;
-  }
-
-  &__bullet-text {
-    text-align: center;
   }
 }
 

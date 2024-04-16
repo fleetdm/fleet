@@ -216,9 +216,9 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	err := db.ApplyLabelSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	all, err := db.Label(context.Background(), specs[len(specs)-1].ID)
+	all, _, err := db.Label(context.Background(), specs[len(specs)-1].ID)
 	require.Nil(t, err)
-	l3, err := db.Label(context.Background(), specs[2].ID)
+	l3, _, err := db.Label(context.Background(), specs[2].ID)
 	require.Nil(t, err)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -664,7 +664,7 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&label})
 	require.Nil(t, err)
 
-	saved, err := db.Label(context.Background(), label.ID)
+	saved, _, err := db.Label(context.Background(), label.ID)
 	require.Nil(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 }
@@ -781,9 +781,9 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
-	_, err = db.SaveLabel(context.Background(), label)
+	_, _, err = db.SaveLabel(context.Background(), label)
 	require.NoError(t, err)
-	saved, err := db.Label(context.Background(), label.ID)
+	saved, _, err := db.Label(context.Background(), label.ID)
 	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
@@ -1479,6 +1479,10 @@ func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
 	// Adding and removing labels.
 	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID})
 	require.NoError(t, err)
+	lbl, hids, err := ds.Label(ctx, label1.ID)
+	require.NoError(t, err)
+	require.Equal(t, label1.ID, lbl.ID)
+	require.ElementsMatch(t, []uint{host1.ID}, hids)
 	getLabelUpdatedAt := func(updatedAt *time.Time) func(q sqlx.ExtContext) error {
 		return func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, updatedAt, `SELECT updated_at FROM label_membership WHERE host_id = ? AND label_id = ?`, host1.ID, label1.ID)
@@ -1515,6 +1519,18 @@ func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
 	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Len(t, labels, 2)
+
+	err = ds.AddLabelsToHost(ctx, host2.ID, []uint{label1.ID})
+	require.NoError(t, err)
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	lbl, hids, err = ds.Label(ctx, label1.ID)
+	require.NoError(t, err)
+	require.Equal(t, label1.ID, lbl.ID)
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, hids)
+
 	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
 	require.NoError(t, err)
 	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
