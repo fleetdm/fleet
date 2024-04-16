@@ -209,6 +209,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
+	userID := uint(1)
 	for _, key := range keys {
 		u := testUsers[key]
 		role := fleet.RoleObserver
@@ -216,6 +217,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 			role = fleet.RoleAdmin
 		}
 		user := &fleet.User{
+			ID:         userID, // We need to set this in case ds is a mocked Datastore.
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
 			GlobalRole: &role,
@@ -225,6 +227,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 		user, err = ds.NewUser(context.Background(), user)
 		require.Nil(t, err)
 		users[user.Email] = *user
+		userID++
 	}
 	return users
 }
