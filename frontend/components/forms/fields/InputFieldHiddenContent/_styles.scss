@@ -43,9 +43,6 @@
   }
 
   &__copy-message {
-    background-color: $ui-light-grey;
-    border: solid 1px #e2e4ea;
-    border-radius: 10px;
-    padding: 2px 6px;
+    @include copy-message;
   }
 }

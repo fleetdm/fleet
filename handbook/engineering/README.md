@@ -38,23 +38,14 @@ What happens next? The engineering output and architecture DRI reviews engineeri
 
 If there are product changes (i.e. interface, documentation, or dependency changes), the story is added to the "New requests" column on the drafting board.
 
-If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on drafting board so that it can be estimated.
+If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on the drafting board so that it can be estimated.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
-### Manage release branches
-Every three weeks, release a minor version of Fleet from the `main` branch. 
-
-Every week between minor releases, release a patch release with fixes for released bugs. 
-
-The DRI for publishing a release is responsible for creating the next patch branch. Create a patch branch off the latest tagged release of Fleet. Submit PRs for released bug fixes directly to the target patch branch to avoid merge conflicts later in the release cycle. After merging into the patch branch, submit another PR to `main` containing the same fix and resolve any merge conflicts.
-
-> It is the responsibility of the person merging the fix into the patch branch to make sure the fix is also merged into `main`.
-
 ### Fix a bug
-If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`.
+If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`. These issues can be closed as soon as they complete QA.
 
-If the bug is labeled `~released bug`, branch off and put your PR into the upcoming patch branch `patch-fleet-v4.x.x`. If you are unsure which branch to use, confirm with your manager. Don't forget to also submit a second PR to `main` after the bug is confirmed fixed.
+If the bug is labeled `~released bug`, branch off the tag for the latest release of Fleet and put your PR into `main`. For example, `git checkout fleet-v4.48.2`, then `git checkout -b my-bug-fix-branch`. These issues are not closed until the next release of Fleet. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
 
 ### Begin a merge freeze
 To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
@@ -123,6 +114,7 @@ If code changes are found for any `fleetd` components, create a new release QA i
 Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=release-qa.md). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [Endpoint ops](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group) product groups.
 
 The issue's template will contain validation steps for Fleet and individual `fleetd` components. Remove any instructions that do not apply to this release.
+
 
 ### Indicate your product group is release-ready
 Once a product group completes its QA process during the freeze period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.

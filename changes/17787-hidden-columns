@@ -1,0 +1,1 @@
+- UI and website show hidden columns in schema with a note that they won't be returned by running select \* from table

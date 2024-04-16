@@ -30,6 +30,11 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 	return p7.Decrypt(cert, key)
 }
 
+func prefixMatches(val []byte, prefix string) bool {
+	return len(val) >= len(prefix) &&
+		bytes.EqualFold([]byte(prefix), val[:len(prefix)])
+}
+
 // GetRawProfilePlatform identifies the platform type of a profile bytes by
 // examining its initial content:
 //
@@ -45,20 +50,35 @@ func GetRawProfilePlatform(profile []byte) string {
 		return ""
 	}
 
-	prefixMatches := func(prefix []byte) bool {
-		return len(trimmedProfile) >= len(prefix) &&
-			bytes.EqualFold(prefix, trimmedProfile[:len(prefix)])
-	}
-
-	if prefixMatches([]byte("<?xml")) {
+	if prefixMatches(trimmedProfile, "<?xml") || prefixMatches(trimmedProfile, `{`) {
 		return "darwin"
 	}
 
-	if prefixMatches([]byte("<replace")) || prefixMatches([]byte("<add")) {
+	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") {
 		return "windows"
 	}
 
 	return ""
+}
+
+// GuessProfileExtension determines the likely file extension of a profile
+// based on its content.
+//
+// It returns a string representing the determined file extension ("xml",
+// "json", or "") based on the profile's content.
+func GuessProfileExtension(profile []byte) string {
+	trimmedProfile := bytes.TrimSpace(profile)
+
+	switch {
+	case prefixMatches(trimmedProfile, "<?xml"),
+		prefixMatches(trimmedProfile, "<replace"),
+		prefixMatches(trimmedProfile, "<add"):
+		return "xml"
+	case prefixMatches(trimmedProfile, "{"):
+		return "json"
+	default:
+		return ""
+	}
 }
 
 const (
@@ -87,4 +107,10 @@ func FleetReservedProfileNames() map[string]struct{} {
 // that are reserved by Fleet for Windows.
 func ListFleetReservedWindowsProfileNames() []string {
 	return []string{FleetWindowsOSUpdatesProfileName}
+}
+
+// ListFleetReservedMacOSProfileNames returns a list of PayloadDisplayName strings
+// that are reserved by Fleet for macOS.
+func ListFleetReservedMacOSProfileNames() []string {
+	return []string{FleetFileVaultProfileName, FleetdConfigProfileName}
 }

@@ -339,6 +339,10 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 					logger:    kitlog.NewNopLogger(),
 				},
+				&MDMAppleDDMService{
+					ds:     ds,
+					logger: logger,
+				},
 			)
 			require.NoError(t, err)
 		}
@@ -346,6 +350,8 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
+	debugHandler := MakeDebugHandler(svc, cfg, logger, nil, ds)
+	rootMux.Handle("/debug/", debugHandler)
 
 	server := httptest.NewUnstartedServer(rootMux)
 	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)

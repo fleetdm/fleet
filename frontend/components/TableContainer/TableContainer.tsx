@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
-import { Row, UseExpandedRowProps } from "react-table";
+import { Row } from "react-table";
 import ReactTooltip from "react-tooltip";
 import useDeepEffect from "hooks/useDeepEffect";
 
@@ -193,7 +193,7 @@ const TableContainer = <T,>({
   );
 
   const onSearchQueryChange = (value: string) => {
-    setSearchQuery(value);
+    setSearchQuery(value.trim());
   };
 
   const hasPageIndexChangedRef = useRef(false);

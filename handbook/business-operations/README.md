@@ -15,7 +15,7 @@ This handbook page details processes specific to working [with](#what-we-do) and
 
 
 ## Responsibilities
-The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
+The Business Operations department is directly responsible for finance + invoicing, people operations, legal + deal desk, and corporate information technology (IT). 
 
 ### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
@@ -24,10 +24,10 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Revenue Operations
+| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Business Operations
 | Sign-on bonus                | "Bonus" payroll              | Head of Business Operations
 | Performance bonus            | "Bonus" payroll              | Head of Business Operations     
-| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
+| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Business Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
 ### Reconcile monthly recurring expenses
@@ -108,6 +108,47 @@ For Fleet's US contractors, running payroll is a manual process:
 - Adjust time frame to match current payroll period (the 27th through 26th of the month)
 - Sync hours and run contractor payroll.
 
+
+### Grant role-specific license to a team member
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
+
+| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
+|:-----------------|:---|:---|:----|:---|:---|
+| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
+| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
+| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
+| ⚗️ PM             | ❌ | ❌ | ❌ | ✅ | ✅
+| ⚗️ PD             | ❌ | ❌ | ❌ | ✅ | ✅
+| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
+|   Other roles    | ❌ | ❌ | ❌ | ❌ | ✅
+
+> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
+
+
+### Communicate the status of customer financial actions
+This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
+- Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
+- Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending. 
+
+```
+Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
+- Number accounts with outstanding balances = `todo`
+- Number of customers awaiting invoices = `todo`
+- Number of past-due renewals = `todo`
+```
+
+
+### Add a seat to Salesforce
+Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
+- Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
+- View contracts -> pick current contract.
+- Add the desired number of licenses.
+- Sign DocuSign sent to the email.
+- The order will be processed in ~30m.
+- Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
+- To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
+
+
 ### Run US commission payroll
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
@@ -142,6 +183,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
+> Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
 
 ### Change a Fleetie's job title
 When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
@@ -265,6 +307,13 @@ Within 60 days of the end of the year, follow these steps:
 - Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to BizOps to have their access restored.
 - The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
 
+### Process a new vendor invoice
+- After making sure that an invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
+
+### Process a request to cancel a vendor
+- Make the cancellation notification in accordance with the contract terms between Fleet and the vendor, typically these notifications are made via email and may have a specific address that notice must be sent to. If the vendor has an autorenew contract with Fleet there will often be a window of time in which Fleet can cancel, if notification is made after this time period Fleet may be obligated to pay for the subsequent year even if we don't use the vendor during the next contract term.  
+- Once cancelled, update the recurring expenses section of [The Numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) to reflect the cancellation by changing the projected monthly burn in column G to $0 and adding "CANCELLED" in front of the vendor's name in column C.
+
 ### Update weekly KPIs
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
@@ -276,7 +325,6 @@ You can confirm that the device has been ordered correctly by following these st
 - Use the device serial number to find the device.
   - Note: if the device cannot be found, you will need to manually enroll the device.
 - View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
-<img width="143" alt="Screenshot 2023-11-21 at 11 08 50 AM" src="https://github.com/fleetdm/confidential/assets/47070608/512dc629-76dd-4090-bf86-9c4582286d1d">
 
 On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
 - If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
@@ -329,6 +377,36 @@ Article creation begins with creation of an issue using the "Article request" te
 Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 -->
 
+### Order SWAG
+
+**To order T-shirts:**
+
+  - Check [Postal](https://app.postal.io/items/postals) first and see if the warehouse has enough shirts.
+  - Navigate to the [approved items page](https://app.postal.io/items/postals).
+      - Hover over the shirt design and click on the airplane.
+      - Click bulk send and choose one shirt size and the expected quantity of that particular shirt size.
+      - Make sure the address matches the expected receiving address.
+  - If the Postal warehouse can't fulfill the order or To order swag quickly: 
+      - Login to [https://www.rushordertees.com/my-account/login/) (saved in 1Password).
+      - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
+      - Order shirts based on the pre-determined number (~5% of total event attendees).
+      - Submit the order. Ensure the address matches the expected receiving address.
+
+**To order stickers:**
+
+  - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
+  - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
+  - Click on the "Fleet Device Management" brand kit and order preapproved stickers from the templates.
+  - Total sticker quantity should be ~10% of total event attendees.
+  - Complete the checkout process. Ensure the address matches the expected receiving address.
+
+**To order pens and sticky note pads**
+
+  - Pens and sticky note pads are ordered through Everything Branded.
+  - Email our sales representative Jake William (saved in 1Password) to order any of the following:
+    - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
+    - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
+    - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
 
 ## Rituals
 

@@ -331,29 +331,31 @@ func TestGetHosts(t *testing.T) {
 		return []*fleet.HostPolicy{
 			{
 				PolicyData: fleet.PolicyData{
-					ID:          1,
-					Name:        "query1",
-					Query:       defaultPolicyQuery,
-					Description: "Some description",
-					AuthorID:    ptr.Uint(1),
-					AuthorName:  "Alice",
-					AuthorEmail: "alice@example.com",
-					Resolution:  ptr.String("Some resolution"),
-					TeamID:      ptr.Uint(1),
+					ID:                    1,
+					Name:                  "query1",
+					Query:                 defaultPolicyQuery,
+					Description:           "Some description",
+					AuthorID:              ptr.Uint(1),
+					AuthorName:            "Alice",
+					AuthorEmail:           "alice@example.com",
+					Resolution:            ptr.String("Some resolution"),
+					TeamID:                ptr.Uint(1),
+					CalendarEventsEnabled: true,
 				},
 				Response: "passes",
 			},
 			{
 				PolicyData: fleet.PolicyData{
-					ID:          2,
-					Name:        "query2",
-					Query:       defaultPolicyQuery,
-					Description: "",
-					AuthorID:    ptr.Uint(1),
-					AuthorName:  "Alice",
-					AuthorEmail: "alice@example.com",
-					Resolution:  nil,
-					TeamID:      nil,
+					ID:                    2,
+					Name:                  "query2",
+					Query:                 defaultPolicyQuery,
+					Description:           "",
+					AuthorID:              ptr.Uint(1),
+					AuthorName:            "Alice",
+					AuthorEmail:           "alice@example.com",
+					Resolution:            nil,
+					TeamID:                nil,
+					CalendarEventsEnabled: false,
 				},
 				Response: "fails",
 			},
@@ -1455,9 +1457,9 @@ func TestGetQuery(t *testing.T) {
 				Platform:           "linux",
 				Logging:            "differential",
 			}, nil
-		} else {
-			return nil, &notFoundError{}
 		}
+
+		return nil, &notFoundError{}
 	}
 
 	expectedYaml := `---
@@ -2205,7 +2207,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {

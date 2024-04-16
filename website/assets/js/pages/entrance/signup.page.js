@@ -17,7 +17,6 @@ parasails.registerPage('signup', {
       organization: {required: true},
       emailAddress: {required: true, isEmail: true},
       password: {required: true, minLength: 8},
-      primaryBuyingSituation: {required: true},
     },
     // Syncing / loading state
     syncing: false,

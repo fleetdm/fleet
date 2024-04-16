@@ -1,0 +1,6 @@
+- Correctly parse query params for `GET` ...`policies/count`, `GET` ...`teams/:id/policies/count`, and
+  `GET` ...`vulnerabilities`
+- Also updates `GET` ...`labels` to return `400` when the non-supported `query` url param is
+  included in the request. Previous behavior was to silently ignore that param and return `200`.
+  This is technically a minor breaking change, but one that breaks in the right direction, i.e., if
+  you see this break, you were using a URL param that was being ignored, which you are now aware of.

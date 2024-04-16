@@ -116,7 +116,7 @@ export interface IExportHostsOptions {
 }
 
 export interface IActionByFilter {
-  teamId: number | null;
+  teamId?: number | null;
   query: string;
   status: string;
   labelId?: number;
@@ -511,5 +511,11 @@ export default {
   wipeHost: (id: number) => {
     const { HOST_WIPE } = endpoints;
     return sendRequest("POST", HOST_WIPE(id));
+  },
+
+  resendProfile: (hostId: number, profileUUID: string) => {
+    const { HOST_RESEND_PROFILE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
   },
 };

@@ -7,6 +7,7 @@ import Select from "react-select";
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
+import DisabledOptionTooltipWrapper from "./DisabledOptionTooltipWrapper";
 
 const baseClass = "dropdown";
 
@@ -109,6 +110,22 @@ class Dropdown extends Component {
   };
 
   renderOption = (option) => {
+    if (option.disabledTooltipContent) {
+      return (
+        <DisabledOptionTooltipWrapper
+          tipContent={option.disabledTooltipContent}
+        >
+          <div className={`${baseClass}__option`}>
+            {option.label}
+            {option.helpText && (
+              <span className={`${baseClass}__help-text`}>
+                {option.helpText}
+              </span>
+            )}
+          </div>
+        </DisabledOptionTooltipWrapper>
+      );
+    }
     return (
       <div className={`${baseClass}__option`}>
         {option.label}

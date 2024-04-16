@@ -176,10 +176,10 @@ WITH registry_keys AS (
                     enrollment_info AS (
                         SELECT
                             MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                            MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
                             MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
                             MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state
+                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
                         FROM registry_keys
                         GROUP BY key
                     ),
@@ -190,7 +190,7 @@ WITH registry_keys AS (
                         LIMIT 1
                     )
                     SELECT
-                        e.is_federated,
+                        e.aad_resource_id,
                         e.discovery_service_url,
                         e.provider_id,
                         i.installation_type
@@ -199,7 +199,7 @@ WITH registry_keys AS (
 		    -- coalesce to 'unknown' and keep that state in the list
 		    -- in order to account for hosts that might not have this
 		    -- key, and servers
-                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2')
+                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
                     LIMIT 1;
 ```
 
@@ -373,12 +373,20 @@ SELECT * FROM os_version LIMIT 1
 
 - Query:
 ```sql
-SELECT os.name, r.data as display_version, k.version
-		FROM 
-			registry r,
+WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		)
+		SELECT
+			os.name,
+			COALESCE(d.display_version, '') AS display_version,
+			k.version
+		FROM
 			os_version os,
 			kernel_info k
-		WHERE r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		LEFT JOIN
+			display_version_table d
 ```
 
 ## os_windows
@@ -387,19 +395,23 @@ SELECT os.name, r.data as display_version, k.version
 
 - Query:
 ```sql
-SELECT
+WITH display_version_table AS (
+		SELECT data as display_version
+		FROM registry
+		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	)
+	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
 		os.version,
-		r.data as display_version
+		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
-		kernel_info k,
-		registry r
-	WHERE
-		r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		kernel_info k
+	LEFT JOIN
+		display_version_table d
 ```
 
 ## osquery_flags

@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
@@ -1001,6 +1003,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	if len(policyResults) > 0 {
 
+		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		// filter policy results for webhooks
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
@@ -1091,6 +1097,126 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
+}
+
+func processCalendarPolicies(
+	ctx context.Context,
+	ds fleet.Datastore,
+	appConfig *fleet.AppConfig,
+	host *fleet.Host,
+	policyResults map[uint]*bool,
+	logger log.Logger,
+) error {
+	if len(appConfig.Integrations.GoogleCalendar) == 0 || host.TeamID == nil {
+		return nil
+	}
+
+	team, err := ds.Team(ctx, *host.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load host team")
+	}
+
+	if team.Config.Integrations.GoogleCalendar == nil || !team.Config.Integrations.GoogleCalendar.Enable {
+		return nil
+	}
+
+	hostCalendarEvent, calendarEvent, err := ds.GetHostCalendarEvent(ctx, host.ID)
+	switch {
+	case err == nil:
+		if hostCalendarEvent.WebhookStatus != fleet.CalendarWebhookStatusPending {
+			return nil
+		}
+	case fleet.IsNotFound(err):
+		return nil
+	default:
+		return ctxerr.Wrap(ctx, err, "get host calendar event")
+	}
+
+	now := time.Now()
+	if now.Before(calendarEvent.StartTime) {
+		level.Warn(logger).Log("msg", "results came too early", "now", now, "start_time", calendarEvent.StartTime)
+		if err = ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusError); err != nil {
+			level.Error(logger).Log("msg", "mark webhook as errored early", "err", err)
+		}
+		return nil
+	}
+
+	//
+	// TODO(lucas): Discuss.
+	//
+	const allowedTimeRelativeToEndTime = 5 * time.Minute // up to 5 minutes after the end_time to allow for short (0-time) event times
+
+	if now.After(calendarEvent.EndTime.Add(allowedTimeRelativeToEndTime)) {
+		level.Warn(logger).Log("msg", "results came too late", "now", now, "end_time", calendarEvent.EndTime)
+		if err = ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusError); err != nil {
+			level.Error(logger).Log("msg", "mark webhook as errored late", "err", err)
+		}
+		return nil
+	}
+
+	calendarPolicies, err := ds.GetCalendarPolicies(ctx, *host.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get calendar policy ids")
+	}
+	if len(calendarPolicies) == 0 {
+		return nil
+	}
+
+	failingCalendarPolicies := getFailingCalendarPolicies(policyResults, calendarPolicies)
+	if len(failingCalendarPolicies) == 0 {
+		return nil
+	}
+
+	go func() {
+		retryStrategy := backoff.NewExponentialBackOff()
+		retryStrategy.MaxElapsedTime = 30 * time.Minute
+		err := backoff.Retry(
+			func() error {
+				if err := fleet.FireCalendarWebhook(
+					team.Config.Integrations.GoogleCalendar.WebhookURL,
+					host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
+				); err != nil {
+					var statusCoder kithttp.StatusCoder
+					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {
+						level.Debug(logger).Log("msg", "fire webhook", "err", err)
+						if err := ds.UpdateHostCalendarWebhookStatus(
+							context.Background(), host.ID, fleet.CalendarWebhookStatusRetry,
+						); err != nil {
+							level.Error(logger).Log("msg", "mark fired webhook as retry", "err", err)
+						}
+						return err
+					}
+					return backoff.Permanent(err)
+				}
+				return nil
+			}, retryStrategy,
+		)
+		nextStatus := fleet.CalendarWebhookStatusSent
+		if err != nil {
+			level.Error(logger).Log("msg", "fire webhook", "err", err)
+			nextStatus = fleet.CalendarWebhookStatusError
+		}
+		if err := ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, nextStatus); err != nil {
+			level.Error(logger).Log("msg", fmt.Sprintf("mark fired webhook as %v", nextStatus), "err", err)
+		}
+	}()
+
+	return nil
+}
+
+func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies []fleet.PolicyCalendarData) []fleet.PolicyCalendarData {
+	var failingPolicies []fleet.PolicyCalendarData
+	for _, calendarPolicy := range calendarPolicies {
+		result, ok := policyResults[calendarPolicy.ID]
+		if !ok || // ignore result of a policy that's not configured for calendar.
+			result == nil { // ignore policies that failed to execute.
+			continue
+		}
+		if !*result {
+			failingPolicies = append(failingPolicies, calendarPolicy)
+		}
+	}
+	return failingPolicies
 }
 
 // preProcessSoftwareResults will run pre-processing on the responses of the software queries.

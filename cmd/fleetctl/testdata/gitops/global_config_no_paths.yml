@@ -137,6 +137,12 @@ org_settings:
   integrations:
     jira: []
     zendesk: []
+    google_calendar:
+      - domain: example.com
+        api_key_json: {
+                        "client_email": "service@example.com",
+                        "private_key": "google_calendar_private_key",
+      }
   mdm:
     apple_bm_default_team: ""
     end_user_authentication:

@@ -342,7 +342,7 @@ func testVulnerabilitiesPagination(t *testing.T, ds *Datastore) {
 	require.False(t, meta.HasPreviousResults)
 	require.True(t, meta.HasNextResults)
 
-	opts.Page = 1
+	opts.ListOptions.Page = 1
 	list, meta, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, list, 2)
@@ -399,8 +399,8 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 	require.Equal(t, "CVE-2020-1237", list[3].CVE.CVE)
 	require.Equal(t, "CVE-2020-1236", list[4].CVE.CVE)
 
-	opts.OrderKey = "published"
-	opts.OrderDirection = fleet.OrderAscending
+	opts.ListOptions.OrderKey = "published"
+	opts.ListOptions.OrderDirection = fleet.OrderAscending
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, list, 5)

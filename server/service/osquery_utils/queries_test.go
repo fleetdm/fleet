@@ -692,7 +692,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Client",
 				},
@@ -703,7 +703,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "",
 		},
 		{
-			name: "off missing is_federated and server url",
+			name: "off missing aad_resource_id and server url",
 			data: []map[string]string{
 				{
 					"provider_id":       "Some_ID",
@@ -728,7 +728,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Client",
 				},
@@ -743,7 +743,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -754,7 +754,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "https://example.com",
 		},
 		{
-			name: "on manual missing is_federated",
+			name: "on manual missing aad_resource_id",
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
@@ -772,7 +772,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Windows SeRvEr 99.9",
 				},
@@ -790,7 +790,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://jumpcloud.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -806,7 +806,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://airwatch.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -822,7 +822,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://awmdm.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -838,7 +838,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://microsoft.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -854,7 +854,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://fleetdm.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -871,7 +871,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://myinstall.local",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Fleet",
 					"installation_type":     "Client",
 				},

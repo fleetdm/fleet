@@ -44,6 +44,8 @@ export default {
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+  HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   LABELS: `/${API_VERSION}/fleet/labels`,
@@ -79,11 +81,13 @@ export default {
     }
     return `/api/mdm/apple/enroll?${query}`;
   },
+  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
+  MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
   MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
   MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,

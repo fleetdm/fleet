@@ -13,9 +13,6 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
 
-  // Bypass the `is-logged-in` policy for experiments, such as temporary landing pages.
-  'imagine/*': true,
-
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
   'webhooks/*': true,
@@ -48,8 +45,6 @@ module.exports.policies = {
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-upgrade': true,
-  'deliver-premium-upgrade-form': true,
   'view-endpoint-ops': true,
   'view-vulnerability-management': true,
   'deliver-mdm-demo-email': true,

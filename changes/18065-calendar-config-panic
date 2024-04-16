@@ -1,0 +1,1 @@
+Fixing potential server panic when events are created with calendar integration, but then global calendar integration is disabled.

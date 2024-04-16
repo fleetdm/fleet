@@ -28,6 +28,7 @@ import (
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -462,6 +463,7 @@ the way that the Fleet server works.
 				mdmStorage                  *mysql.NanoMDMStorage
 				mdmPushService              push.Pusher
 				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
+				ddmService                  *service.MDMAppleDDMService
 				mdmPushCertTopic            string
 			)
 
@@ -546,6 +548,7 @@ the way that the Fleet server works.
 				}
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+				ddmService = service.NewMDMAppleDDMService(ds, logger)
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
@@ -710,15 +713,22 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register stats schedule")
 			}
 
-			if !config.Vulnerabilities.DisableSchedule {
+			vulnerabilityScheduleDisabled := false
+			if config.Vulnerabilities.DisableSchedule {
+				vulnerabilityScheduleDisabled = true
+				level.Info(logger).Log("msg", "vulnerabilities schedule disabled via vulnerabilities.disable_schedule")
+			}
+			if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
+				level.Info(logger).Log("msg", "vulnerabilities schedule disabled via vulnerabilities.current_instance_checks")
+				vulnerabilityScheduleDisabled = true
+			}
+			if !vulnerabilityScheduleDisabled {
 				// vuln processing by default is run by internal cron mechanism
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 				}); err != nil {
 					initFatal(err, "failed to register vulnerabilities schedule")
 				}
-			} else {
-				level.Info(logger).Log("msg", "vulnerabilities schedule disabled")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -765,6 +775,16 @@ the way that the Fleet server works.
 					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)
 				}); err != nil {
 					initFatal(err, "failed to register activities streaming schedule")
+				}
+			}
+
+			if license.IsPremium() {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, 5*time.Minute, logger)
+					},
+				); err != nil {
+					initFatal(err, "failed to register calendar schedule")
 				}
 			}
 
@@ -870,6 +890,7 @@ the way that the Fleet server works.
 					scepStorage,
 					logger,
 					mdmCheckinAndCommandService,
+					ddmService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

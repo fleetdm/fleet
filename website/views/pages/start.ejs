@@ -1,20 +1,664 @@
 <div id="start" v-cloak>
   <div class="d-flex container" purpose="page-container">
-    <div class="text-center mx-auto">
-      <h1>Welcome to Fleet</h1>
-      <p class="mb-0">Spin up a local demo or get your Fleet Premium license key.</p>
+    <div purpose="form-container">
+    <%//  ┌─┐┌┬┐┌─┐┬─┐┌┬┐
+      //  └─┐ │ ├─┤├┬┘ │
+      //  └─┘ ┴ ┴ ┴┴└─ ┴ %>
+    <div v-if="currentStep === 'start'">
+      <div class=" mx-auto">
+        <h2>Let’s get started</h2>
+        <p>To see whether Fleet’s right for your team, let's have a look at your hosts and what you're trying to do.</p>
+        <p>You can come back at any time and pick up where you left off.</p>
+        <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['start']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div purpose="form-buttons">
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Start</ajax-button>
+        </div>
+        </ajax-form>
+      </div>
     </div>
-    <div purpose="start-cards">
-      <a purpose="card" href="/try-fleet">
-        <img alt="Run a local demo of Fleet" src="/images/start-try-fleet-64x64@2x.png">
-        <h2>Try Fleet</h2>
-        <p>Run a local demo of Fleet</p>
-      </a>
-      <a purpose="card" href="/new-license">
-        <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
-        <h2>Start</h2>
-        <p>Purchase a Fleet Premium license</p>
-      </a>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐  ┬ ┬┌─┐┬ ┬  ┬ ┬┌─┐┬┌┐┌┌─┐  ┌─┐┬  ┌─┐┌─┐┌┬┐  ┌─┐┌─┐┬─┐
+      //  │││├─┤├─┤ │   ├─┤├┬┘├┤   └┬┘│ ││ │  │ │└─┐│││││ ┬  ├┤ │  ├┤ ├┤  │   ├┤ │ │├┬┘
+      //  └┴┘┴ ┴┴ ┴ ┴   ┴ ┴┴└─└─┘   ┴ └─┘└─┘  └─┘└─┘┴┘└┘└─┘  └  ┴─┘└─┘└─┘ ┴   └  └─┘┴└─%>
+    <div v-if="currentStep === 'what-are-you-using-fleet-for'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 20%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What will you use Fleet for?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-are-you-using-fleet-for']" :form-rules="primaryBuyingSituationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" >
+          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security' ? 'selected' : '']">
+            <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-security" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            Endpoint ops for security engineering
+          </label>
+          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it' ? 'selected' : '']">
+            <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-it" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            Endpoint ops for identity engineers and IT admins
+          </label>
+          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm' ? 'selected' : '']">
+            <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            Device management (MDM)
+          </label>
+          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm' ? 'selected' : '']">
+            <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="vm" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            Vulnerability management
+          </label>
+          <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┌─┐┬  ┬┌─┐  ┬ ┬┌─┐┬ ┬  ┌─┐┬  ┬┌─┐┬─┐  ┬ ┬┌─┐┌─┐┌┬┐  ┌─┐┬  ┌─┐┌─┐┌┬┐
+      //  ├─┤├─┤└┐┌┘├┤   └┬┘│ ││ │  ├┤ └┐┌┘├┤ ├┬┘  │ │└─┐├┤  ││  ├┤ │  ├┤ ├┤  │
+      //  ┴ ┴┴ ┴ └┘ └─┘   ┴ └─┘└─┘  └─┘ └┘ └─┘┴└─  └─┘└─┘└─┘─┴┘  └  ┴─┘└─┘└─┘ ┴ %>
+    <div v-if="currentStep === 'have-you-ever-used-fleet'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 40%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>Have you ever used Fleet?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['have-you-ever-used-fleet']" :form-rules="isUsingFleetFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+
+          <div class="form-group" :class="[formErrors.fleetUseStatus ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed' ? 'selected' : '']">
+              <input type="radio"  v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Yes, we actively use Fleet at work today
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-recently-deployed' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-recently-deployed" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Yes, we deployed Fleet at work recently to try it out
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed-local' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed-local" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Yes, but only in a local / homelab environment
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed-long-time' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="yes-deployed-long-time" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Yes, but it's been a long time
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['have-you-ever-used-fleet'].fleetUseStatus === 'no' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['have-you-ever-used-fleet'].fleetUseStatus" value="no" @input="clickClearOneFormError('fleetUseStatus')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              No, not yet
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.fleetUseStatus">Please select an option</div>
+          </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┌─┐┬ ┬  ┌┬┐┌─┐┌┐┌┬ ┬  ┬ ┬┌─┐┌─┐┌┬┐┌─┐
+      //  ├─┤│ ││││  │││├─┤│││└┬┘  ├─┤│ │└─┐ │ └─┐
+      //  ┴ ┴└─┘└┴┘  ┴ ┴┴ ┴┘└┘ ┴   ┴ ┴└─┘└─┘ ┴ └─┘%>
+    <div v-if="currentStep === 'how-many-hosts'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 70%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <div purpose="form-header">
+        <h2>About how many hosts do you have?</h2>
+        <p v-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security'">Including servers, containers, workstations, and other hosts.</p>
+        <p v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it'">Including macOS, Windows, Linux workstations, Chromebooks, servers, and other hosts.</p>
+        <p v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm'">Including computers, servers, OT/ICS, containers, and other hosts.</p>
+      </div>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['how-many-hosts']" :form-rules="numberOfHostsFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['how-many-hosts'].numberOfHosts === '1-100' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="1-100" @input="clickClearOneFormError('numberOfHosts')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              1 to 100
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['how-many-hosts'].numberOfHosts === '100-700' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="100-700" @input="clickClearOneFormError('numberOfHosts')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              100 to 700
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['how-many-hosts'].numberOfHosts === '700-10000' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="700-10000" @input="clickClearOneFormError('numberOfHosts')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              700 to 10,000
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['how-many-hosts'].numberOfHosts === '10000+' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['how-many-hosts'].numberOfHosts" value="10000+" @input="clickClearOneFormError('numberOfHosts')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              More than 10,000
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┬┬  ┬    ┬ ┬┌─┐┬ ┬  ┌┐ ┌─┐  ┌─┐┌─┐┬  ┌─┐  ┬ ┬┌─┐┌─┐┌┬┐┬┌┐┌┌─┐
+      //  │││││  │    └┬┘│ ││ │  ├┴┐├┤   └─┐├┤ │  ├┤   ├─┤│ │└─┐ │ │││││ ┬
+      //  └┴┘┴┴─┘┴─┘   ┴ └─┘└─┘  └─┘└─┘  └─┘└─┘┴─┘└    ┴ ┴└─┘└─┘ ┴ ┴┘└┘└─┘%>
+    <div v-if="currentStep === 'will-you-be-self-hosting'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 90%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>Will you be hosting Fleet yourself?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['will-you-be-self-hosting']" :form-rules="hostingFleetFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+
+          <div class="form-group" :class="[formErrors.willSelfHost ? 'is-invalid' : '']" >
+            <label purpose="form-option" class="form-control" :class="[formData['will-you-be-self-hosting'].willSelfHost === 'true' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['will-you-be-self-hosting'].willSelfHost" value="true" @input="clickClearOneFormError('willSelfHost')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Yes, self hosted
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['will-you-be-self-hosting'].willSelfHost === 'false' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['will-you-be-self-hosting'].willSelfHost" value="false" @input="clickClearOneFormError('willSelfHost')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              I'd prefer not to
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.willSelfHost">Please select an option</div>
+          </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐  ┬ ┬┌─┐┬ ┬  ┬ ┬┌─┐┬─┐┬┌─┬┌┐┌┌─┐  ┌─┐┌┐┌
+      //  │││├─┤├─┤ │   ├─┤├┬┘├┤   └┬┘│ ││ │  ││││ │├┬┘├┴┐│││││ ┬  │ ││││  ───
+      //  └┴┘┴ ┴┴ ┴ ┴   ┴ ┴┴└─└─┘   ┴ └─┘└─┘  └┴┘└─┘┴└─┴ ┴┴┘└┘└─┘  └─┘┘└┘
+      //  ┌─┐┌─┐   ┌─┐┌─┐┌─┐┬ ┬┬─┐┬┌┬┐┬ ┬
+      //  ├┤ │ │───└─┐├┤ │  │ │├┬┘│ │ └┬┘
+      //  └─┘└─┘   └─┘└─┘└─┘└─┘┴└─┴ ┴  ┴%>
+    <div v-if="currentStep === 'what-are-you-working-on-eo-security'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What are you working on, mainly?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-are-you-working-on-eo-security']" :form-rules="endpointOpsSecurityWorkingOnFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group" :class="[formErrors.endpointOpsSecurityUseCase ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase === 'detection-and-response' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="detection-and-response" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Detection and response
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase === 'production-infrastructure-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="production-infrastructure-security" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Production infrastructure / security
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase === 'identity-and-access-management-endpoint-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="identity-and-access-management-endpoint-security" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Identity and access management (IAM) / endpoint security
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase === 'cyber-threat-intelligence' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="cyber-threat-intelligence" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Cyber-threat intelligence (CTI)
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase === 'risk-grc' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="risk-grc" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Risk (GRC)
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase === 'ot-ics-iot-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-are-you-working-on-eo-security'].endpointOpsSecurityUseCase" value="ot-ics-iot-security" @input="clickClearOneFormError('endpointOpsSecurityUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              OT / ICS / IoT security
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.endpointOpsSecurityUseCase">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌┬┐┌─┐┌─┐┌─┐  ┬ ┬┌─┐┬ ┬┬─┐  ┌┬┐┌─┐┌─┐┌┬┐  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐
+      //  │││├─┤├─┤ │    │││ │├┤ └─┐  └┬┘│ ││ │├┬┘   │ ├┤ ├─┤│││  │││├─┤│││├─┤│ ┬├┤
+      //  └┴┘┴ ┴┴ ┴ ┴   ─┴┘└─┘└─┘└─┘   ┴ └─┘└─┘┴└─   ┴ └─┘┴ ┴┴ ┴  ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘
+      //  ┌─┐┌─┐   ┬┌┬┐
+      //  ├┤ │ │───│ │
+      //  └─┘└─┘   ┴ ┴%>
+    <div v-if="currentStep === 'what-does-your-team-manage-eo-it'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What does your team manage?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-does-your-team-manage-eo-it']" :form-rules="endpointOpsItUseCaseFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group" :class="[formErrors.endpointOpsItUseCase ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase === 'employee-workstations' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase" value="employee-workstations" @input="clickClearOneFormError('endpointOpsItUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Employee workstations
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase === 'just-macos' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase" value="just-macos" @input="clickClearOneFormError('endpointOpsItUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Just macOS
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase === 'production-infrastructure' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase" value="production-infrastructure" @input="clickClearOneFormError('endpointOpsItUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Production infrastructure
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase === 'everything' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-eo-it'].endpointOpsItUseCase" value="everything" @input="clickClearOneFormError('endpointOpsItUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Everything
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.endpointOpsItUseCase">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌┬┐┌─┐┌─┐┌─┐  ┬ ┬┌─┐┬ ┬┬─┐  ┌┬┐┌─┐┌─┐┌┬┐  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐
+      //  │││├─┤├─┤ │    │││ │├┤ └─┐  └┬┘│ ││ │├┬┘   │ ├┤ ├─┤│││  │││├─┤│││├─┤│ ┬├┤
+      //  └┴┘┴ ┴┴ ┴ ┴   ─┴┘└─┘└─┘└─┘   ┴ └─┘└─┘┴└─   ┴ └─┘┴ ┴┴ ┴  ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘
+      //  ┬  ┬┌┬┐
+      //  └┐┌┘│││
+      //   └┘ ┴ ┴%>
+    <div v-if="currentStep === 'what-does-your-team-manage-vm'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What does your team manage?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-does-your-team-manage-vm']" :form-rules="vmUseCaseFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group" :class="[formErrors.vmUseCase ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'ot-ics-iot-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="ot-ics-iot-security" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              OT / ICS / IoT security
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'compliance-grc' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="compliance-grc" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Compliance (GRC)
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'cyber-threat-intelligence-security-research' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="cyber-threat-intelligence-security-research" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Cyber-threat intelligence (CTI) / security research
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'infrastructure-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="infrastructure-security" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Infrastructure security
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-does-your-team-manage-vm'].vmUseCase === 'everything' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-does-your-team-manage-vm'].vmUseCase" value="everything" @input="clickClearOneFormError('vmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Everything
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.vmUseCase">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌┬┐┌─┐  ┬ ┬┌─┐┬ ┬ ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐
+      //  │││├─┤├─┤ │    │││ │  └┬┘│ ││ │ │││├─┤│││├─┤│ ┬├┤
+      //  └┴┘┴ ┴┴ ┴ ┴   ─┴┘└─┘   ┴ └─┘└─┘ ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘
+      //  ┌┬┐┌┬┐┌┬┐
+      //  │││ │││││
+      //  ┴ ┴─┴┘┴ ┴%>
+    <div v-if="currentStep === 'what-do-you-manage-mdm'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What do you manage?</h2>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-do-you-manage-mdm']" :form-rules="mdmUseCaseFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group">
+
+          <div class="form-group" :class="[formErrors.mdmUseCase ? 'is-invalid' : '']">
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'mostly-macs' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="mostly-macs" @input="clickClearOneFormError('mdmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Mostly Macs
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'mostly-windows' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="mostly-windows" @input="clickClearOneFormError('mdmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Mostly Windows
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'about-half-and-half' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="about-half-and-half" @input="clickClearOneFormError('mdmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              About half and half
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.mdmUseCase">Please select an option</div>
+          </div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬┌─┐  ┬┌┬┐  ┌─┐┌┐┌┬ ┬  ┌─┐┌─┐┌─┐┌┬┐
+      //  │└─┐  │ │   ├─┤│││└┬┘  │ ┬│ ││ │ ││
+      //  ┴└─┘  ┴ ┴   ┴ ┴┘└┘ ┴   └─┘└─┘└─┘─┴┘%>
+    <div v-if="currentStep === 'is-it-any-good'">
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['is-it-any-good']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div purpose="progress-bar-container">
+          <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
+          <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+        </div>
+        <h2>Is it any good?</h2>
+        <div purpose="form-header" class="mx-auto">
+          <p class="mb-3 pb-3">We don’t have a public sample environment, but you can try Fleet out locally on your computer.</p>
+          <p>Got questions? <a purpose="contact-link" href="/contact">Ask us anything</a>.</p>
+        </div>
+        <div purpose="start-cards">
+          <a purpose="card" href="/try-fleet?start">
+            <img alt="Run a local demo of Fleet" src="/images/start-try-fleet-64x64@2x.png">
+            <h2>Try Fleet yourself</h2>
+            <p>Try Fleet locally on your device</p>
+          </a>
+          <a purpose="card" href="/docs/get-started">
+            <img alt="Purchase a Fleet Premium license" src="/images/homepage-icon-documentation-64x64@2x.png">
+            <h2>Read the docs</h2>
+            <p>See what Fleet can do</p>
+          </a>
+        </div>
+        <p>You can come back here any time to continue with your deployment.</p>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬ ┬┬ ┬┌─┐┌┬┐  ┌┬┐┬┌┬┐  ┬ ┬┌─┐┬ ┬  ┌┬┐┬ ┬┬┌┐┌┬┌─
+      //  │││├─┤├─┤ │    │││ ││  └┬┘│ ││ │   │ ├─┤││││├┴┐
+      //  └┴┘┴ ┴┴ ┴ ┴   ─┴┘┴─┴┘   ┴ └─┘└─┘   ┴ ┴ ┴┴┘└┘┴ ┴%>
+    <div v-if="currentStep === 'what-did-you-think'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 90%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <h2>What did you think?</h2>
+      <p>Now that you’ve seen what Fleet can do, what do you want to do next?</p>
+      <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['what-did-you-think']" :form-rules="endpointOpsSecurityWhatDidYouThinkFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div class="form-group" :class="[formErrors.whatDidYouThink ? 'is-invalid' : '']">
+          <div purpose="form-option" class="form-control" @click.stop.prevent="clickGoToContactPage()">
+            <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="Id like you to host Fleet for me">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            I’d like you to host Fleet for me
+          </div>
+          <label purpose="form-option" class="form-control" :class="[formData['what-did-you-think'].whatDidYouThink === 'deploy-fleet-in-environemnt' ? 'selected' : '']">
+            <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="deploy-fleet-in-environemnt" @input="clickClearOneFormError('whatDidYouThink')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            I’d like to deploy Fleet in my environment
+          </label>
+          <label purpose="form-option" class="form-control" :class="[formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it' ? 'selected' : '']">
+            <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="let-me-think-about-it" @input="clickClearOneFormError('whatDidYouThink')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            Let me think about it
+          </label>
+          <div class="invalid-feedback" v-if="formErrors.whatDidYouThink">Please select an option</div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div purpose="quote" v-if="!formData['what-are-you-using-fleet-for'].primaryBuyingSituation">
+          <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
+          <p purpose="quote-text">
+            Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
+          </p>
+          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+            <div purpose="profile-picture">
+              <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
+            </div>
+            <div class="d-flex flex-column align-self-top">
+              <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
+              <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm'">
+          <div purpose="logo" class="mb-4"><img height="32" alt="Uber logo" src="/images/social-proof-logo-uber-71x32@2x.png"></div>
+          <p purpose="quote-text">
+            Exciting. This is a team that listens to feedback.
+          </p>
+          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+            <div purpose="profile-picture">
+              <img alt="Erik Gomez" src="/images/testimonial-author-erik-gomez-48x48@2x.png">
+            </div>
+            <div class="d-flex flex-column align-self-top">
+              <p purpose="name" class="font-weight-bold m-0">Erik Gomez</p>
+              <p purpose="job-title" class="m-0">Staff Client Platform Engineer</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm'">
+          <div purpose="logo" class="mb-4"><img height="32" alt="Rivian logo" src="/images/logo-rivian-dark-120x32@2x.png"></div>
+          <p purpose="quote-text">
+            The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
+          </p>
+          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+            <div purpose="profile-picture">
+              <img alt="Andre Shields" src="/images/testimonial-author-andre-shields-48x48@2x.png">
+            </div>
+            <div class="d-flex flex-column align-self-top">
+              <p purpose="name" class="font-weight-bold m-0">Andre Shields</p>
+              <p purpose="job-title" class="m-0">Staff Cybersecurity Engineer, Vulnerability Management</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it'">
+          <div purpose="logo" class="mb-4"><img height="32" alt="Deputy logo" src="/images/logo-deputy-118x28@2x.png"></div>
+          <p purpose="quote-text">
+            When we look at vendors, we look for ones that are very receptive to feedback, where you’re just part of the family, I guess. Fleet’s really good at that.
+          </p>
+          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+            <div purpose="profile-picture">
+              <img alt="Harrison Ravazzolo" src="/images/testimonial-author-harrison-ravazzolo-48x48@2x.png">
+            </div>
+            <div class="d-flex flex-column align-self-top">
+              <p purpose="name" class="font-weight-bold m-0">Harrison Ravazzolo</p>
+              <p purpose="job-title" class="m-0">Lead platform and identity engineer</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security'">
+          <div purpose="logo" class="mb-4"><img height="32" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-192x32@2x.png"></div>
+          <p purpose="quote-text">
+            I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work.
+          </p>
+          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+            <div purpose="profile-picture">
+              <img alt="Dan Grzelak" src="/images/testimonial-author-daniel-grzelak-48x48@2x.png">
+            </div>
+            <div class="d-flex flex-column align-self-top">
+              <p purpose="name" class="font-weight-bold m-0">Dan Grzelak</p>
+              <p purpose="job-title" class="m-0">Security Chief of Staff</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <%//  ┬  ┌─┐┌┬┐┌─┐  ┌┬┐┌─┐┬  ┬┌─  ┌┬┐┌─┐  ┬ ┬┌─┐┬ ┬┬─┐  ┌┬┐┌─┐┌─┐┌┬┐
+      //  │  ├┤  │ └─┐   │ ├─┤│  ├┴┐   │ │ │  └┬┘│ ││ │├┬┘   │ ├┤ ├─┤│││
+      //  ┴─┘└─┘ ┴ └─┘   ┴ ┴ ┴┴─┘┴ ┴   ┴ └─┘   ┴ └─┘└─┘┴└─   ┴ └─┘┴ ┴┴ ┴%>
+    <div v-if="currentStep === 'lets-talk-to-your-team'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 100%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <div class=" mx-auto">
+        <h2>Let’s talk to your team</h2>
+        <p>Great, let’s jump on a call to talk more about your fleet.</p>
+      </div>
+      <div purpose="start-cards">
+        <a purpose="card" @click="clickGoToCalendly()">
+          <img alt="Premium support" src="/images/icon-premium-support-64x64@2x.png">
+          <h2>Work with us</h2>
+          <p>Get support and training or schedule a personalized demo for your team.</p>
+        </a>
+        <a purpose="card" @click="clickGoToCalendly()">
+          <img alt="Ask us anything" src="/images/icon-ask-anything-64x64@2x.png">
+          <h2>Got questions?</h2>
+          <p>Grab some time and ask us anything.</p>
+        </a>
+      </div>
+      <div purpose="form-buttons">
+        <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
+    <%//  ╔╦╗┌─┐┌─┐┬  ┌─┐┬ ┬  ┌─┐┬  ┌─┐┌─┐┌┬┐  ┬┌┐┌  ┬ ┬┌─┐┬ ┬┬─┐  ┌─┐┌┐┌┬  ┬┬┬─┐┌─┐┌┐┌┌┬┐┌─┐┌┐┌┌┬┐
+      //   ║║├┤ ├─┘│  │ │└┬┘  ├┤ │  ├┤ ├┤  │   ││││  └┬┘│ ││ │├┬┘  ├┤ │││└┐┌┘│├┬┘│ │││││││├┤ │││ │
+      //  ═╩╝└─┘┴  ┴─┘└─┘ ┴   └  ┴─┘└─┘└─┘ ┴   ┴┘└┘   ┴ └─┘└─┘┴└─  └─┘┘└┘ └┘ ┴┴└─└─┘┘└┘┴ ┴└─┘┘└┘ ┴%>
+    <div v-if="currentStep === 'deploy-fleet-in-your-environment'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 100%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <div class="mx-auto">
+        <h2>Deploy Fleet in your environment</h2>
+        <p>Learn how to deploy and roll out Fleet in your environment.</p>
+      </div>
+      <div purpose="start-cards">
+        <a purpose="card" href="/docs/deploy">
+          <img alt="Premium support" src="/images/icon-deploy-fleet-64x64@2x.png">
+          <h2>Deploy Fleet</h2>
+          <p>Learn how to deploy Fleet</p>
+        </a>
+        <a purpose="card" href="/support">
+          <img alt="Ask us anything" src="/images/icon-ask-anything-64x64@2x.png">
+          <h2>Got questions?</h2>
+          <p>Ask Fleet’s community of helpful, knowledgeable people.</p>
+        </a>
+      </div>
+      <div purpose="logo-container">
+      <logo-carousel></logo-carousel>
+      </div>
+      <div purpose="form-buttons">
+        <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
+    <%//  ┌─┐┌─┐┬  ┌─┐  ┬ ┬┌─┐┌─┐┌┬┐┌─┐┌┬┐  ┌┬┐┌─┐┌─┐┬  ┌─┐┬ ┬
+      //  └─┐├┤ │  ├┤───├─┤│ │└─┐ │ ├┤  ││   ││├┤ ├─┘│  │ │└┬┘
+      //  └─┘└─┘┴─┘└    ┴ ┴└─┘└─┘ ┴ └─┘─┴┘  ─┴┘└─┘┴  ┴─┘└─┘ ┴%>
+    <div v-if="currentStep === 'self-hosted-deploy'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 100%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <div class="mx-auto">
+        <h2>Deploy Fleet in your environment</h2>
+        <p>Learn how to deploy and rollout Fleet in your environment, get a Fleet Premium license, or both. You can come back in any time to upgrade.</p>
+      </div>
+      <div purpose="start-cards">
+        <a purpose="card" href="/docs/deploy">
+          <img alt="Premium support" src="/images/icon-deploy-fleet-64x64@2x.png">
+          <h2>Deploy Fleet</h2>
+          <p>Learn how to deploy Fleet</p>
+        </a>
+
+        <a purpose="card" href="/new-license">
+          <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
+          <h2>Get a license</h2>
+          <p>Purchase a Fleet Premium license</p>
+        </a>
+      </div>
+      <div purpose="form-buttons">
+        <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
+    <%//  ┌┬┐┌─┐┌┐┌┌─┐┌─┐┌─┐┌┬┐  ┌─┐┬  ┌─┐┬ ┬┌┬┐  ┌─┐┌─┐┬─┐  ┌─┐┬─┐┌─┐┬ ┬┬┌┐┌┌─┐
+      //  │││├─┤│││├─┤│ ┬├┤  ││  │  │  │ ││ │ ││  ├┤ │ │├┬┘  │ ┬├┬┘│ │││││││││ ┬
+      //  ┴ ┴┴ ┴┘└┘┴ ┴└─┘└─┘─┴┘  └─┘┴─┘└─┘└─┘─┴┘  └  └─┘┴└─  └─┘┴└─└─┘└┴┘┴┘└┘└─┘
+      //  ┌┬┐┌─┐┌─┐┬  ┌─┐┬ ┬┌┬┐┌─┐┌┐┌┌┬┐┌─┐
+      //   ││├┤ ├─┘│  │ │└┬┘│││├┤ │││ │ └─┐
+      //  ─┴┘└─┘┴  ┴─┘└─┘ ┴ ┴ ┴└─┘┘└┘ ┴ └─┘%>
+    <div v-if="currentStep === 'managed-cloud-for-growing-deployments'">
+      <div purpose="progress-bar-container">
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 100%"></div></div>
+        <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
+      </div>
+      <div class="mx-auto">
+        <h2>Managed cloud for growing deployments</h2>
+        <p>Unfortunately, managed cloud hosting is not yet available for growing deployments of less than 700 hosts.</p>
+      </div>
+      <div purpose="start-cards" class="justify-content-start">
+        <a purpose="card" href="/docs/deploy">
+          <img alt="Premium support" src="/images/icon-deploy-fleet-64x64@2x.png">
+          <h2>Deploy Fleet</h2>
+          <p>Learn how to deploy Fleet</p>
+        </a>
+      </div>
+      <div purpose="form-buttons">
+        <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
+    <%//  ┬ ┬┌─┐┬  ┌─┐┌─┐┌┬┐┌─┐  ┌┬┐┌─┐  ┌─┐┬  ┌─┐┌─┐┌┬┐
+      //  │││├┤ │  │  │ ││││├┤    │ │ │  ├┤ │  ├┤ ├┤  │
+      //  └┴┘└─┘┴─┘└─┘└─┘┴ ┴└─┘   ┴ └─┘  └  ┴─┘└─┘└─┘ ┴%>
+    <div v-if="currentStep === 'welcome-to-fleet'">
+      <div class="text-center mx-auto">
+        <h1>Welcome to Fleet</h1>
+        <p class="mb-0">Spin up a local demo or get your Fleet Premium license key.</p>
+      </div>
+      <div purpose="start-cards">
+        <a purpose="card" href="/try-fleet?start">
+          <img alt="Run a local demo of Fleet" src="/images/start-try-fleet-64x64@2x.png">
+          <h2>Try Fleet</h2>
+          <p>Run a local demo of Fleet</p>
+        </a>
+        <a purpose="card" href="/new-license">
+          <img alt="Purchase a Fleet Premium license" src="/images/start-purchase-license-64x64@2x.png">
+          <h2>Get a license</h2>
+          <p>Purchase a Fleet Premium license</p>
+        </a>
+      </div>
+      <div purpose="logo-container">
+        <logo-carousel></logo-carousel>
+      </div>
+      <div purpose="form-buttons">
+        <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+      </div>
+    </div>
     </div>
   </div>
 </div>

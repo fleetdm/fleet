@@ -101,10 +101,6 @@
       &__disabled-usage-statistics-checkbox {
         @include disabled;
       }
-
-      .component__tooltip-wrapper {
-        margin-bottom: $pad-xsmall;
-      }
     }
   }
 }
