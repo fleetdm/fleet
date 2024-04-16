@@ -1,0 +1,15 @@
+.new-label-page {
+  h1 {
+    margin-bottom: $pad-large;
+  }
+
+  &__page-description {
+    margin: 0;
+    color: $ui-fleet-black-75;
+    font-size: $xx-small;
+  }
+
+  &__new-label-tabs-wrapper {
+    margin-bottom: $pad-xxlarge;
+  }
+}

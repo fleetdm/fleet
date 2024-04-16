@@ -56,6 +56,11 @@ agent_options:
                 - indirect_object_identifier
                 - indirect_object_identifier_type
                 - last_modified
+  update_channels:
+    # We want to use these hosts to smoke test edge releases.
+    osqueryd: edge
+    orbit: edge
+    desktop: edge
 controls:
   enable_disk_encryption: true
   macos_settings:

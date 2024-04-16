@@ -1,37 +1,30 @@
 import React from "react";
 import { noop } from "lodash";
 
+import { IPolicyHostResponse } from "interfaces/host";
 import TableContainer from "components/TableContainer";
-import { ICampaignError } from "interfaces/campaign";
 import {
   generateTableHeaders,
   generateDataSet,
-} from "./PolicyQueriesErrorsTableConfig";
+} from "./PolicyResultsTableConfig";
 
-const baseClass = "policies-queries-table";
-const noPolicyQueries = "no-policy-queries";
+// TODO - this class is duplicated and styles are overlapping with PolicyErrorsTable. Differentiate
+// them clearly and encapsulate common styles.
+const baseClass = "policy-results-table";
 
-interface IPoliciesTableProps {
-  errorsList: ICampaignError[];
+interface IPolicyResultsTableProps {
+  hostResponses: IPolicyHostResponse[];
   isLoading: boolean;
   resultsTitle?: string;
   canAddOrDeletePolicy?: boolean;
 }
 
-const PoliciesTable = ({
-  errorsList,
+const PolicyResultsTable = ({
+  hostResponses,
   isLoading,
   resultsTitle,
   canAddOrDeletePolicy,
-}: IPoliciesTableProps): JSX.Element => {
-  const NoPolicyQueries = () => {
-    return (
-      <div className={`${noPolicyQueries}__inner`}>
-        <p>No hosts are online.</p>
-      </div>
-    );
-  };
-
+}: IPolicyResultsTableProps): JSX.Element => {
   return (
     <div
       className={`${baseClass} ${
@@ -41,21 +34,24 @@ const PoliciesTable = ({
       <TableContainer
         resultsTitle={resultsTitle || "policies"}
         columnConfigs={generateTableHeaders()}
-        data={generateDataSet(errorsList)}
+        data={generateDataSet(hostResponses)}
         isLoading={isLoading}
-        defaultSortHeader="name"
+        defaultSortHeader="query_results"
         defaultSortDirection="asc"
-        manualSortBy
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        disablePagination
+        isClientSidePagination
         primarySelectAction={{
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
           variant: "text-icon",
         }}
-        emptyComponent={NoPolicyQueries}
+        emptyComponent={() => (
+          <div className="no-hosts__inner">
+            <p>No hosts are online.</p>
+          </div>
+        )}
         onQueryChange={noop}
         disableCount
       />
@@ -63,4 +59,4 @@ const PoliciesTable = ({
   );
 };
 
-export default PoliciesTable;
+export default PolicyResultsTable;

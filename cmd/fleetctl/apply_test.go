@@ -938,6 +938,37 @@ spec:
   platforms:
     - darwin
 `
+	manualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: manual_label
+  label_membership_type: manual
+  hosts:
+    - host1
+  platforms:
+    - darwin
+`
+	emptyManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: empty_manual_label
+  label_membership_type: manual
+  hosts: []
+  platforms:
+    - darwin
+`
+	nohostsManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: invalid_nohost_manual_label
+  label_membership_type: manual
+  hosts:
+  platforms:
+    - darwin
+`
 	packsSpec = `---
 apiVersion: v1
 kind: pack
@@ -1509,6 +1540,37 @@ func TestApplyLabels(t *testing.T) {
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, manualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "manual_label", appliedLabels[0].Name)
+	assert.Empty(t, appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, emptyManualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "empty_manual_label", appliedLabels[0].Name)
+	assert.Empty(t, appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, nohostsManualLabelSpec)
+
+	_, err := runAppNoChecks([]string{"apply", "-f", name})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as manual but contains no `hosts key`")
 }
 
 func TestApplyPacks(t *testing.T) {
