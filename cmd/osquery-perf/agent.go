@@ -1275,13 +1275,11 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 		return errors.New("not enrolled")
 	}
 
-	var body bytes.Buffer
-	if err := a.templates.ExecuteTemplate(&body, "enroll", a); err != nil {
-		log.Println("execute template:", err)
-		return err
-	}
-
 	response := a.waitingDo(func() *http.Request {
+		var body bytes.Buffer
+		if err := a.templates.ExecuteTemplate(&body, "enroll", a); err != nil {
+			panic(err)
+		}
 		request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/enroll", &body)
 		if err != nil {
 			panic(err)
