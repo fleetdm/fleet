@@ -63,9 +63,6 @@ parasails.registerPage('contact', {
       }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
     }
-    if(window.location.search){// auto-clear query string  (TODO: Document why we're doing this further.  I think this shouldn't exist in the frontend code, instead in the hook.  Because analytics corruption.)
-      window.history.replaceState({}, document.title, '/contact' );
-    }
   },
   mounted: async function() {
     //…

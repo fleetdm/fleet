@@ -30,11 +30,7 @@ parasails.registerPage('signup', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    // Removing the query string for users redirected to this page by the /try-fleet/explore-data pages.
-    // FUTURE: remove this when that view-query-report is updated.
-    if(window.location.search){
-      window.history.replaceState({}, document.title, '/register' );
-    }
+    //…
   },
   mounted: async function() {
     //…
