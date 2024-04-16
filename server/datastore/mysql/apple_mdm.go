@@ -2200,7 +2200,6 @@ func subqueryAppleProfileStatus(status fleet.MDMDeliveryStatus) (string, []any, 
 
 	arg := map[string]any{
 		"install":   fleet.MDMOperationTypeInstall,
-		"remove":    fleet.MDMOperationTypeRemove,
 		"verifying": fleet.MDMDeliveryVerifying,
 		"failed":    fleet.MDMDeliveryFailed,
 		"verified":  fleet.MDMDeliveryVerified,
@@ -2225,6 +2224,7 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d1
 			WHERE
 				h.uuid = d1.host_uuid
+				AND d1.operation_type = :install
 				AND d1.status = :failed
 				AND d1.declaration_name NOT IN (:reserved_names)) THEN
 			'declarations_failed'
@@ -2235,6 +2235,7 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d2
 			WHERE
 				h.uuid = d2.host_uuid
+				AND d2.operation_type = :install
 				AND(d2.status IS NULL
 					OR d2.status = :pending)
 				AND d2.declaration_name NOT IN (:reserved_names)
@@ -2245,6 +2246,7 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 						host_mdm_apple_declarations d3
 					WHERE
 						h.uuid = d3.host_uuid
+						AND d3.operation_type = :install
 						AND d3.status = :failed
 						AND d3.declaration_name NOT IN (:reserved_names))) THEN
 			'declarations_pending'
@@ -2255,6 +2257,7 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d4
 			WHERE
 				h.uuid = d4.host_uuid
+				AND d4.operation_type = :install
 				AND d4.status = :verifying
 				AND d4.declaration_name NOT IN (:reserved_names)
 				AND NOT EXISTS (
@@ -2263,6 +2266,7 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 					FROM
 						host_mdm_apple_declarations d5
 					WHERE (h.uuid = d5.host_uuid
+						AND d5.operation_type = :install
 						AND d5.declaration_name NOT IN (:reserved_names)
 						AND(d5.status IS NULL
 							OR d5.status IN(:pending, :failed))))) THEN
@@ -2274,6 +2278,7 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d6
 			WHERE
 				h.uuid = d6.host_uuid
+				AND d6.operation_type = :install
 				AND d6.status = :verified
 				AND d6.declaration_name NOT IN (:reserved_names)
 				AND NOT EXISTS (
@@ -2282,6 +2287,7 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 					FROM
 						host_mdm_apple_declarations d7
 					WHERE (h.uuid = d7.host_uuid
+						AND d7.operation_type = :install
 						AND d7.declaration_name NOT IN (:reserved_names)
 						AND(d7.status IS NULL
 							OR d7.status IN(:pending, :failed, :verifying))))) THEN
@@ -2290,10 +2296,8 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 			''
 		END`
 
-	// TODO: do we need to differentiate between install and remove?
 	arg := map[string]any{
-		// "install":   fleet.MDMOperationTypeInstall,
-		// "remove":    fleet.MDMOperationTypeRemove,
+		"install":        fleet.MDMOperationTypeInstall,
 		"verifying":      fleet.MDMDeliveryVerifying,
 		"failed":         fleet.MDMDeliveryFailed,
 		"verified":       fleet.MDMDeliveryVerified,
