@@ -11010,3 +11010,303 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	require.Empty(t, listResp.Activities)
 	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false}, listResp.Meta)
 }
+
+func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	newGlobalUserFunc := func(email string, globalRole string) *fleet.User {
+		user := &fleet.User{
+			Name:       email,
+			Email:      email,
+			GlobalRole: &globalRole,
+		}
+		err = user.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+		user, err = s.ds.NewUser(context.Background(), user)
+		require.NoError(t, err)
+		return user
+	}
+	newTeamUserFunc := func(email string, team *fleet.Team, teamRole string) *fleet.User {
+		user := &fleet.User{
+			Name:  email,
+			Email: email,
+			Teams: []fleet.UserTeam{
+				{
+					Team: *team,
+					Role: teamRole,
+				},
+			},
+		}
+		err = user.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+		user, err = s.ds.NewUser(context.Background(), user)
+		require.NoError(t, err)
+		return user
+	}
+	globalObserver := newGlobalUserFunc("global.observer@example.com", fleet.RoleObserver)
+	teamAdmin := newTeamUserFunc("team.admin@example.com", team1, fleet.RoleAdmin)
+	teamObserver := newTeamUserFunc("team.observer@example.com", team1, fleet.RoleObserver)
+
+	newHostFunc := func(name string, teamID *uint) *fleet.Host {
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			NodeKey:  ptr.String(name),
+			UUID:     name,
+			Hostname: "foo.local." + name,
+			TeamID:   teamID,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		return host
+	}
+	host1 := newHostFunc("host1", nil)
+	host2 := newHostFunc("host2", nil)
+	teamHost2 := newHostFunc("teamHost2", &team1.ID)
+
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, ls, 1)
+	allHostsLabelID, ok := ls["All Hosts"]
+	require.True(t, ok)
+	require.NotZero(t, allHostsLabelID)
+
+	dynamicLabel1, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                "dynamicLabel1",
+		Query:               "SELECT 1;",
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	manualLabel1, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                "manualLabel1",
+		Query:               "SELECT 2;",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+	manualLabel2, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                "manualLabel2",
+		Query:               "SELECT 3;",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{allHostsLabelID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	getHostLabels := func(host *fleet.Host) []string {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		var labels []string
+		for _, label := range hostResp.Host.Labels {
+			labels = append(labels, label.Name)
+		}
+		return labels
+	}
+
+	hostLabels1 := getHostLabels(host1)
+	require.Len(t, hostLabels1, 1)
+	require.Equal(t, "All Hosts", hostLabels1[0])
+
+	// No labels or empty labels is a no-op.
+	var addLabelsToHostResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID),
+		json.RawMessage(`{}`), http.StatusOK, &addLabelsToHostResp,
+	)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{},
+	}, http.StatusOK, &addLabelsToHostResp)
+	var removeLabelsFromHostResp removeLabelsFromHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{""},
+	}, http.StatusOK, &addLabelsToHostResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{"", ""},
+	}, http.StatusOK, &addLabelsToHostResp)
+
+	// A dynamic buitin label should fail to be added.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{"All Hosts"},
+	}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't add labels. Labels are dynamic: \"All Hosts\". Dynamic labels can not be assigned to hosts manually.")
+	// An inexistent label should fail to be added.
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{"manualLabel2", "does not exist"},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\". All labels must exist.")
+	// Multiple inexistent labels should fail to be added.
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{"manualLabel2", "does not exist", "does not exist 2"},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't add labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist.")
+	// A dynamic non-builtin label should fail to be added.
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{dynamicLabel1.Name},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't add labels. Labels are dynamic: \"dynamicLabel1\". Dynamic labels can not be assigned to hosts manually.")
+	// Multiple dynamic labels should fail to be added.
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{"All Hosts", dynamicLabel1.Name},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't add labels. Labels are dynamic: \"All Hosts\", \"dynamicLabel1\". Dynamic labels can not be assigned to hosts manually.")
+
+	// A dynamic builtin label should fail to be deleted.
+	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{"All Hosts"},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels are dynamic: \"All Hosts\". Dynamic labels can not be assigned to hosts manually.")
+	// An inexistent label should fail to be deleted.
+	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel2.Name, "does not exist"},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\". All labels must exist.")
+	// Multiple inexistent labels should fail to be deleted.
+	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel2.Name, "does not exist", "does not exist 2"},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels not found: \"does not exist\", \"does not exist 2\". All labels must exist.")
+	// Multiple dynamic labels should fail to be deleted.
+	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel2.Name, dynamicLabel1.Name, "All Hosts"},
+	}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't remove labels. Labels are dynamic: \"All Hosts\", \"dynamicLabel1\". Dynamic labels can not be assigned to hosts manually.")
+
+	// Add two manual labels to a host.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel2.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+	// Add the same manual labels to a host should succeed.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel2.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+
+	hostLabels1 = getHostLabels(host1)
+	require.Len(t, hostLabels1, 3)
+	require.Equal(t, "All Hosts", hostLabels1[0])
+	require.Equal(t, manualLabel1.Name, hostLabels1[1])
+	require.Equal(t, manualLabel2.Name, hostLabels1[2])
+	hostLabels2 := getHostLabels(host2)
+	require.Empty(t, hostLabels2)
+
+	// Remove the two manual labels from the host.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel2.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+	// Remove the same manual labels from the host again.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel2.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+
+	hostLabels1 = getHostLabels(host1)
+	require.Len(t, hostLabels1, 1)
+	require.Equal(t, "All Hosts", hostLabels1[0])
+
+	// Add same label, should deduplicate.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel1.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+
+	hostLabels1 = getHostLabels(host1)
+	require.Len(t, hostLabels1, 2)
+	require.Equal(t, "All Hosts", hostLabels1[0])
+	require.Equal(t, manualLabel1.Name, hostLabels1[1])
+
+	// Adding an already added label should work.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel2.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+
+	hostLabels1 = getHostLabels(host1)
+	require.Len(t, hostLabels1, 3)
+	require.Equal(t, "All Hosts", hostLabels1[0])
+	require.Equal(t, manualLabel1.Name, hostLabels1[1])
+	require.Equal(t, manualLabel2.Name, hostLabels1[2])
+
+	// Delete same label, should deduplicate.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel1.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+
+	// Deleting a non-member label (manualLabel1) should work.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel2.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+
+	hostLabels1 = getHostLabels(host1)
+	require.Len(t, hostLabels1, 1)
+	require.Equal(t, "All Hosts", hostLabels1[0])
+
+	// Add to non-existent host
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", 999), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel2.Name},
+	}, http.StatusNotFound, &addLabelsToHostResp)
+	// Delete from non-existent host
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", 999), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name, manualLabel2.Name},
+	}, http.StatusNotFound, &removeLabelsFromHostResp)
+
+	// Add labels to team host.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+
+	// A global observer should not be allowed to add/remove a label.
+	oldToken := s.token
+	s.token = s.getTestToken(globalObserver.Email, test.GoodPassword)
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &addLabelsToHostResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &removeLabelsFromHostResp)
+
+	// A team observer should not be allowed to add/remove a label.
+	s.token = s.getTestToken(teamObserver.Email, test.GoodPassword)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &addLabelsToHostResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &removeLabelsFromHostResp)
+
+	// A team admin should not be allowed to add/remove a label for a global host.
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &addLabelsToHostResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &removeLabelsFromHostResp)
+
+	// A team admin should be allowed to add/remove a label for a team host.
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+	teamHost2Labels := getHostLabels(teamHost2)
+	require.Len(t, teamHost2Labels, 1)
+	require.Equal(t, manualLabel1.Name, teamHost2Labels[0])
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", teamHost2.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+	teamHost2Labels = getHostLabels(teamHost2)
+	require.Empty(t, teamHost2Labels)
+}

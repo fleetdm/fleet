@@ -129,6 +129,10 @@ type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
 
+type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
+
+type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
+
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
 type SaveLabelFunc func(ctx context.Context, label *fleet.Label) (*fleet.Label, error)
@@ -1070,6 +1074,12 @@ type DataStore struct {
 
 	GetLabelSpecFunc        GetLabelSpecFunc
 	GetLabelSpecFuncInvoked bool
+
+	AddLabelsToHostFunc        AddLabelsToHostFunc
+	AddLabelsToHostFuncInvoked bool
+
+	RemoveLabelsFromHostFunc        RemoveLabelsFromHostFunc
+	RemoveLabelsFromHostFuncInvoked bool
 
 	NewLabelFunc        NewLabelFunc
 	NewLabelFuncInvoked bool
@@ -2621,6 +2631,20 @@ func (s *DataStore) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 	s.GetLabelSpecFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetLabelSpecFunc(ctx, name)
+}
+
+func (s *DataStore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	s.mu.Lock()
+	s.AddLabelsToHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.AddLabelsToHostFunc(ctx, hostID, labelIDs)
+}
+
+func (s *DataStore) RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	s.mu.Lock()
+	s.RemoveLabelsFromHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemoveLabelsFromHostFunc(ctx, hostID, labelIDs)
 }
 
 func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
