@@ -11310,3 +11310,14 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	teamHost2Labels = getHostLabels(teamHost2)
 	require.Empty(t, teamHost2Labels)
 }
+
+func (s *integrationTestSuite) TestDebugDB() {
+	t := s.T()
+	var response map[string]string
+	s.DoJSON("GET", "/debug/db/locks", nil, http.StatusOK, &response)
+	assert.Empty(t, response)
+
+	var responseString string
+	s.DoJSON("GET", "/debug/db/innodb-status", nil, http.StatusOK, &responseString)
+	assert.Contains(t, responseString, "INNODB MONITOR OUTPUT")
+}
