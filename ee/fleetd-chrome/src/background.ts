@@ -200,11 +200,7 @@ const main = async () => {
   }
 
   if (!DATABASE) {
-    const virtual = await VirtualDatabase.init();
-    DATABASE = virtual;
-
-    // Expose it for debugging in console
-    globalThis.DB = DATABASE;
+    await initDB();
   }
 
   const node_key = await getNodeKey();
@@ -214,6 +210,11 @@ const main = async () => {
   await live_query();
   //await sqlite3.close(db);
 };
+
+const initDB = async () => {
+  DATABASE = await VirtualDatabase.init();
+  globalThis.DB = DATABASE;
+}
 
 class NodeInvalidError extends Error {
   constructor(message: string) {
@@ -238,6 +239,10 @@ const mainLoop = async () => {
     mainTimeout = setTimeout(mainLoop, 10 * 1000);
   } catch (err) {
     console.error(err);
+    if (err.toString().includes("RuntimeError: memory access out of bounds")) {
+      console.info("Restarting DB after RuntimeError")
+      await initDB();
+    }
   }
 };
 mainLoop();
