@@ -7,8 +7,6 @@ import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
-import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon/Icon";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
@@ -38,43 +36,16 @@ export const generateTableHeaders = (
     {
       Header: "Host",
       accessor: "display_name",
-      Cell: (cellProps: ITableStringCellProps) => {
-        return (
-          <LiveQueryIssueCell
-            displayName={cellProps.cell.value}
-            distributedInterval={cellProps.row.original.distributed_interval}
-            status={cellProps.row.original.status}
-            rowId={cellProps.row.original.id}
-          />
-        );
-      },
-    },
-    // TODO: Consider removing status column from selected hosts table because
-    // status info is not refreshed once a target has been selected
-    {
-      Header: "Status",
-      disableSortBy: true,
-      accessor: "status",
-      Cell: (cellProps) => <StatusIndicator value={cellProps.cell.value} />,
-    },
-    {
-      Header: "Private IP address",
-      accessor: "primary_ip",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      Header: "MAC address",
-      accessor: "primary_mac",
+      Header: "Hostname",
+      accessor: "hostname",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      Header: "OS",
-      accessor: "os_version",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
-      Header: "Osquery",
-      accessor: "osquery_version",
+      Header: "Serial number",
+      accessor: "hardware_serial",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     ...deleteHeader,
