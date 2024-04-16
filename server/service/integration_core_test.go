@@ -3777,12 +3777,14 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.Label.ID)
 	assert.Equal(t, t.Name(), createResp.Label.Name)
+	assert.Empty(t, createResp.Label.HostIDs)
 	lbl1 := createResp.Label.Label
 
 	// get the label
 	var getResp getLabelResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, lbl1.ID, getResp.Label.ID)
+	assert.Empty(t, getResp.Label.HostIDs)
 
 	// get a non-existing label
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID+1), nil, http.StatusNotFound, &getResp)
@@ -3792,6 +3794,7 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "manual", Hosts: []string{manualHosts[0].UUID, manualHosts[1].Hostname, *manualHosts[2].NodeKey}}, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.Label.ID)
 	assert.Equal(t, t.Name()+"manual", createResp.Label.Name)
+	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, createResp.Label.HostIDs)
 	manualLbl1 := createResp.Label.Label
 
 	// get the label
@@ -3800,6 +3803,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, manualLbl1.ID, getResp.Label.ID)
 	assert.Equal(t, fleet.LabelTypeRegular, getResp.Label.LabelType)
 	assert.Equal(t, fleet.LabelMembershipTypeManual, getResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, getResp.Label.HostIDs)
 	assert.EqualValues(t, 3, getResp.Label.HostCount)
 
 	// create a valid empty manual label
@@ -3807,6 +3811,7 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ReplaceAll(t.Name(), "/", "_") + "manual2"}, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.Label.ID)
 	assert.Equal(t, strings.ReplaceAll(t.Name(), "/", "_")+"manual2", createResp.Label.Name)
+	assert.Empty(t, createResp.Label.HostIDs)
 	manualLbl2 := createResp.Label.Label
 
 	// get the label
@@ -3815,6 +3820,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, manualLbl2.ID, getResp.Label.ID)
 	assert.Equal(t, fleet.LabelTypeRegular, getResp.Label.LabelType)
 	assert.Equal(t, fleet.LabelMembershipTypeManual, getResp.Label.LabelMembershipType)
+	assert.Empty(t, getResp.Label.HostIDs)
 	assert.EqualValues(t, 0, getResp.Label.HostCount)
 
 	// get a non-existing label
@@ -3824,6 +3830,7 @@ func (s *integrationTestSuite) TestLabels() {
 	var modResp modifyLabelResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(t.Name() + "zzz")}, http.StatusOK, &modResp)
 	assert.Equal(t, lbl1.ID, modResp.Label.ID)
+	assert.Empty(t, modResp.Label.HostIDs)
 	assert.NotEqual(t, lbl1.Name, modResp.Label.Name)
 
 	// attempt to modify a label to a reserved name
@@ -3844,6 +3851,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, manualLbl1.ID, modResp.Label.ID)
 	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 3, modResp.Label.HostCount)
 
 	// modify manual label 2 adding some hosts
@@ -3852,6 +3860,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
 	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{manualHosts[0].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 1, modResp.Label.HostCount)
 
 	// modify manual label 2 clearing its hosts
@@ -3859,6 +3868,7 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{}, Description: ptr.String("desc")}, http.StatusOK, &modResp)
 	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
 	assert.Equal(t, "desc", modResp.Label.Description)
+	assert.Empty(t, modResp.Label.HostIDs)
 	assert.EqualValues(t, 0, modResp.Label.HostCount)
 
 	// list labels
