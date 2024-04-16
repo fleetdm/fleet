@@ -65,11 +65,9 @@
   resolution: Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location.
   platform: darwin
 - name: macOS - Check if latest version
-  query: SELECT 1 WHERE 
-    EXISTS ( 
-      SELECT major, concat_ws(".", major, minor, patch) AS "macOS Version" FROM os_version --Sonoma WHERE 
-        (major = "14" AND "macOS Version" < "14.4.1")
-    );
+  query: |
+    SELECT 1 FROM os_version 
+      WHERE (major > 14 OR (major = 14 AND minor > 4) OR (major = 14 AND minor = 4 AND patch >= 1)) --Sonoma
   critical: false
   description: This policy check if macOS version is most recent version available.
   resolution: From the Apple menu, select System Settings. Navigate to General > Software Update.
