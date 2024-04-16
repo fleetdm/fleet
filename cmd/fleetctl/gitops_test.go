@@ -379,23 +379,23 @@ func TestFullTeamGitOps(t *testing.T) {
 	// License is not needed because we are not using any premium features in our config.
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License:     license,
-			MDMStorage:  new(mock.MDMAppleStore),
-			MDMPusher:   mockPusher{},
-			FleetConfig: &fleetCfg,
+			License:          license,
+			MDMStorage:       new(mock.MDMAppleStore),
+			MDMPusher:        mockPusher{},
+			FleetConfig:      &fleetCfg,
+			NoCacheDatastore: true,
 		},
 	)
 
+	appConfig := fleet.AppConfig{
+		// During dry run, the global calendar integration setting may not be set
+		MDM: fleet.MDM{
+			EnabledAndConfigured:        true,
+			WindowsEnabledAndConfigured: true,
+		},
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			MDM: fleet.MDM{
-				EnabledAndConfigured:        true,
-				WindowsEnabledAndConfigured: true,
-			},
-			Integrations: fleet.Integrations{
-				GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
-			},
-		}, nil
+		return &appConfig, nil
 	}
 
 	var appliedScripts []*fleet.Script
@@ -525,6 +525,10 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Len(t, appliedWinProfiles, 0)
 
 	// Real run
+	// Setting global calendar config
+	appConfig.Integrations = fleet.Integrations{
+		GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
+	}
 	_ = runAppForTest(t, []string{"gitops", "-f", file})
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
