@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -268,9 +269,23 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if appConfig.MDM.EnabledAndConfigured &&
 			mdmConfig != nil &&
 			mdmConfig.MacOSUpdates.EnabledForHost(host) {
-			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
+			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
+			if errors.Is(err, sql.ErrNoRows) {
+				// host os has not been collected yet (no details query)
+				hostOS = &fleet.OperatingSystem{}
+			} else if err != nil {
+				return fleet.OrbitConfig{}, err
+			}
+			requiresNudge, err := hostOS.RequiresNudge()
 			if err != nil {
 				return fleet.OrbitConfig{}, err
+			}
+
+			if requiresNudge {
+				nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
+				if err != nil {
+					return fleet.OrbitConfig{}, err
+				}
 			}
 		}
 
@@ -313,9 +328,24 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	var nudgeConfig *fleet.NudgeConfig
 	if appConfig.MDM.EnabledAndConfigured &&
 		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
-		nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
+		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
+		if errors.Is(err, sql.ErrNoRows) {
+			// host os has not been collected yet (no details query)
+			hostOS = &fleet.OperatingSystem{}
+		} else if err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+		requiresNudge, err := hostOS.RequiresNudge()
 		if err != nil {
 			return fleet.OrbitConfig{}, err
+		}
+
+		if requiresNudge {
+			nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
+			if err != nil {
+				return fleet.OrbitConfig{}, err
+
+			}
 		}
 	}
 

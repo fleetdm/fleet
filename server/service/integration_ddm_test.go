@@ -62,7 +62,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusUnprocessableEntity)
 
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. OS updates coming soon!")
+	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
 
 	// Types from our list of forbidden types should fail
 	for ft := range fleet.ForbiddenDeclTypes {

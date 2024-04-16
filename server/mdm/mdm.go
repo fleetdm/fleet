@@ -82,24 +82,31 @@ func GuessProfileExtension(profile []byte) string {
 }
 
 const (
-
 	// FleetdConfigProfileName is the value for the PayloadDisplayName used by
 	// fleetd to read configuration values from the system.
 	FleetdConfigProfileName = "Fleetd configuration"
 
 	// FleetdFileVaultProfileName is the value for the PayloadDisplayName used
 	// by Fleet to configure FileVault and FileVault Escrow.
-	FleetFileVaultProfileName        = "Disk encryption"
+	FleetFileVaultProfileName = "Disk encryption"
+
+	// FleetWindowsOSUpdatesProfileName is the name of the profile used by Fleet
+	// to configure Windows OS updates.
 	FleetWindowsOSUpdatesProfileName = "Windows OS Updates"
+
+	// FleetMacOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure macOS OS updates.
+	FleetMacOSUpdatesProfileName = "Fleet macOS OS Updates"
 )
 
-// FleetReservedProfileNames returns a map of PayloadDisplayName strings
-// that are reserved by Fleet.
+// FleetReservedProfileNames returns a map of PayloadDisplayName or profile
+// name strings that are reserved by Fleet.
 func FleetReservedProfileNames() map[string]struct{} {
 	return map[string]struct{}{
 		FleetdConfigProfileName:          {},
 		FleetFileVaultProfileName:        {},
 		FleetWindowsOSUpdatesProfileName: {},
+		FleetMacOSUpdatesProfileName:     {},
 	}
 }
 
@@ -113,4 +120,10 @@ func ListFleetReservedWindowsProfileNames() []string {
 // that are reserved by Fleet for macOS.
 func ListFleetReservedMacOSProfileNames() []string {
 	return []string{FleetFileVaultProfileName, FleetdConfigProfileName}
+}
+
+// ListFleetReservedMacOSDeclarationNames returns a list of declaration names
+// that are reserved by Fleet for Apple DDM declarations.
+func ListFleetReservedMacOSDeclarationNames() []string {
+	return []string{FleetMacOSUpdatesProfileName}
 }
