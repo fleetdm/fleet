@@ -367,13 +367,28 @@ type HostOrbitInfo struct {
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
 // the same name, see the comments/docs for the Host field above.
 type HostHealth struct {
-	UpdatedAt             time.Time           `json:"updated_at,omitempty" db:"updated_at"`
-	OsVersion             string              `json:"os_version,omitempty" db:"os_version"`
-	DiskEncryptionEnabled *bool               `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
-	VulnerableSoftware    []HostSoftwareEntry `json:"vulnerable_software,omitempty"`
-	FailingPolicies       []*HostPolicy       `json:"failing_policies,omitempty"`
-	Platform              string              `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
-	TeamID                *uint               `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+	UpdatedAt                    time.Time                      `json:"updated_at,omitempty" db:"updated_at"`
+	OsVersion                    string                         `json:"os_version,omitempty" db:"os_version"`
+	DiskEncryptionEnabled        *bool                          `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
+	FailingPoliciesCount         int                            `json:"failing_policies_count"`
+	FailingCriticalPoliciesCount *int                           `json:"failing_critical_policies_count,omitempty"` // Fleet Premium Only
+	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
+	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
+	Platform                     string                         `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                       *uint                          `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+}
+
+type HostHealthVulnerableSoftware struct {
+	ID      uint   `json:"id"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+type HostHealthFailingPolicy struct {
+	ID         uint    `json:"id"`
+	Name       string  `json:"name"`
+	Critical   *bool   `json:"critical,omitempty"` // Fleet Premium Only
+	Resolution *string `json:"resolution"`
 }
 
 func (hh HostHealth) AuthzType() string {

@@ -49,7 +49,7 @@ func Sync(opts SyncOptions, logger log.Logger) error {
 
 	level.Debug(logger).Log("msg", "syncing CVEs")
 	start = time.Now()
-	if err := DownloadNVDCVEFeed(opts.VulnPath, opts.CVEFeedPrefixURL, opts.Debug, logger); err != nil {
+	if err := DownloadCVEFeed(opts.VulnPath, opts.CVEFeedPrefixURL, opts.Debug, logger); err != nil {
 		return fmt.Errorf("sync NVD CVE feed: %w", err)
 	}
 	level.Debug(logger).Log("msg", "CVEs synced", "duration", time.Since(start))

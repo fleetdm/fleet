@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -2260,4 +2261,175 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 	}
 
 	return &opt, labelID, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Labels
+////////////////////////////////////////////////////////////////////////////////
+
+type addLabelsToHostRequest struct {
+	ID     uint     `url:"id"`
+	Labels []string `json:"labels"`
+}
+
+type addLabelsToHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r addLabelsToHostResponse) error() error { return r.Err }
+
+func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*addLabelsToHostRequest)
+	if err := svc.AddLabelsToHost(ctx, req.ID, req.Labels); err != nil {
+		return addLabelsToHostResponse{Err: err}, nil
+	}
+	return addLabelsToHostResponse{}, nil
+}
+
+func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []string) error {
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "load host")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWriteHostLabel); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames)
+	if err != nil {
+		return err
+	}
+	if len(labelIDs) == 0 {
+		return nil
+	}
+
+	if err := svc.ds.AddLabelsToHost(ctx, host.ID, labelIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "add labels to host")
+	}
+
+	return nil
+}
+
+type removeLabelsFromHostRequest struct {
+	ID     uint     `url:"id"`
+	Labels []string `json:"labels"`
+}
+
+type removeLabelsFromHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r removeLabelsFromHostResponse) error() error { return r.Err }
+
+func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*removeLabelsFromHostRequest)
+	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
+		return removeLabelsFromHostResponse{Err: err}, nil
+	}
+	return removeLabelsFromHostResponse{}, nil
+}
+
+func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelNames []string) error {
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "load host")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWriteHostLabel); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames)
+	if err != nil {
+		return err
+	}
+	if len(labelIDs) == 0 {
+		return nil
+	}
+
+	if err := svc.ds.RemoveLabelsFromHost(ctx, host.ID, labelIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove labels from host")
+	}
+
+	return nil
+}
+
+func (svc *Service) validateLabelNames(ctx context.Context, action string, labelNames []string) ([]uint, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
+
+	// Filter out empty label string.
+	for i, labelName := range labelNames {
+		if labelName == "" {
+			labelNames = append(labelNames[:i], labelNames[i+1:]...)
+			break
+		}
+	}
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	var labelsNotFound []string
+	for _, labelName := range labelNames {
+		if _, ok := labels[labelName]; !ok {
+			labelsNotFound = append(labelsNotFound, "\""+labelName+"\"")
+		}
+	}
+
+	if len(labelsNotFound) > 0 {
+		sort.Slice(labelsNotFound, func(i, j int) bool {
+			// Ignore quotes to sort.
+			return labelsNotFound[i][1:len(labelsNotFound[i])-1] < labelsNotFound[j][1:len(labelsNotFound[j])-1]
+		})
+		return nil, &fleet.BadRequestError{
+			Message: fmt.Sprintf(
+				"Couldn't %s labels. Labels not found: %s. All labels must exist.",
+				action,
+				strings.Join(labelsNotFound, ", "),
+			),
+		}
+	}
+
+	var dynamicLabels []string
+	for labelName, labelID := range labels {
+		label, err := svc.ds.Label(ctx, labelID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load label from id")
+		}
+		if label.LabelMembershipType != fleet.LabelMembershipTypeManual {
+			dynamicLabels = append(dynamicLabels, "\""+labelName+"\"")
+		}
+	}
+
+	if len(dynamicLabels) > 0 {
+		sort.Slice(dynamicLabels, func(i, j int) bool {
+			// Ignore quotes to sort.
+			return dynamicLabels[i][1:len(dynamicLabels[i])-1] < dynamicLabels[j][1:len(dynamicLabels[j])-1]
+		})
+		return nil, &fleet.BadRequestError{
+			Message: fmt.Sprintf(
+				"Couldn't %s labels. Labels are dynamic: %s. Dynamic labels can not be assigned to hosts manually.",
+				action,
+				strings.Join(dynamicLabels, ", "),
+			),
+		}
+	}
+
+	labelIDs := make([]uint, 0, len(labels))
+	for _, labelID := range labels {
+		labelIDs = append(labelIDs, labelID)
+	}
+
+	return labelIDs, nil
 }

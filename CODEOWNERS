@@ -57,7 +57,7 @@ go.mod @fleetdm/go
 /infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb
 /charts/ @rfairburn @ksatter @lukeheath @edwardsb
 /terraform/ @rfairburn @ksatter @lukeheath @edwardsb
-/it-and-security/ @noahtalerman
+/it-and-security/ @noahtalerman @lukeheath
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
