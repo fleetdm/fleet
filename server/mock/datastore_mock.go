@@ -135,11 +135,11 @@ type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []
 
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(ctx context.Context, label *fleet.Label) (*fleet.Label, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error)
 
 type DeleteLabelFunc func(ctx context.Context, name string) error
 
-type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, error)
+type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, []uint, error)
 
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
@@ -204,6 +204,8 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
+
+type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) ([]string, error)
 
 type TotalAndUnseenHostsSinceFunc func(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
@@ -1188,6 +1190,9 @@ type DataStore struct {
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
+
+	HostnamesByIdentifiersFunc        HostnamesByIdentifiersFunc
+	HostnamesByIdentifiersFuncInvoked bool
 
 	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
 	TotalAndUnseenHostsSinceFuncInvoked bool
@@ -2654,7 +2659,7 @@ func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fl
 	return s.NewLabelFunc(ctx, Label, opts...)
 }
 
-func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.SaveLabelFuncInvoked = true
 	s.mu.Unlock()
@@ -2668,7 +2673,7 @@ func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
 	return s.DeleteLabelFunc(ctx, name)
 }
 
-func (s *DataStore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
+func (s *DataStore) Label(ctx context.Context, lid uint) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.LabelFuncInvoked = true
 	s.mu.Unlock()
@@ -2897,6 +2902,13 @@ func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	s.AddHostsToTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
+}
+
+func (s *DataStore) HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error) {
+	s.mu.Lock()
+	s.HostnamesByIdentifiersFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostnamesByIdentifiersFunc(ctx, identifiers)
 }
 
 func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {
