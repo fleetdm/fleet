@@ -68,7 +68,6 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
   };
 
   const onOsqueryTableSelect = (tableName: string) => {
-    console.log(tableName);
     setSelectedOsqueryTable(tableName);
   };
 
