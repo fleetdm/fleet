@@ -290,6 +290,7 @@ const setOptionsAsDisabled = (
     isSandboxMode,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
+    hostPlatform,
   }: IHostActionConfigOptions
 ) => {
   // Available tooltips for disabled options
@@ -339,6 +340,23 @@ const setOptionsAsDisabled = (
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "runScript")
     );
+    if (isLinuxLike(hostPlatform)) {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter(
+          (option) =>
+            option.value === "lock" ||
+            option.value === "unlock" ||
+            option.value === "wipe"
+        )
+      );
+    }
+    if (hostPlatform === "windows") {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter(
+          (option) => option.value === "lock" || option.value === "unlock"
+        )
+      );
+    }
   }
   if (isSandboxMode) {
     optionsToDisable = optionsToDisable.concat(

@@ -876,8 +876,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Invalid profile UUID prefix")
 
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // host now verifying global profiles
-
 	// set OS updates settings for no-team and team, should not change the
 	// summaries as this profile is ignored.
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -888,9 +886,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 			}
 		}
 	}`), http.StatusOK)
-
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // host now verifying global profiles
-
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.MacOSUpdates{
@@ -899,7 +894,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 			},
 		},
 	}, http.StatusOK)
-	// s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
 
 	// it should also not show up in the host's profiles list
