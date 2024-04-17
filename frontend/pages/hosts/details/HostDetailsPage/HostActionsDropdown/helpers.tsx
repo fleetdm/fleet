@@ -5,8 +5,6 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-
 import {
   HostMdmDeviceStatusUIState,
   isDeviceStatusUpdating,
@@ -77,7 +75,6 @@ interface IHostActionConfigOptions {
   isMacMdmEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
-  isSandboxMode: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
 }
@@ -287,7 +284,6 @@ const setOptionsAsDisabled = (
   options: IDropdownOption[],
   {
     isHostOnline,
-    isSandboxMode,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     hostPlatform,
@@ -358,12 +354,6 @@ const setOptionsAsDisabled = (
       );
     }
   }
-  if (isSandboxMode) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "transfer")
-    );
-  }
-
   disableOptions(optionsToDisable);
   return options;
 };
@@ -382,23 +372,6 @@ export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   if (options.length === 0) return options;
 
   options = setOptionsAsDisabled(options, config);
-
-  if (config.isSandboxMode) {
-    const premiumOnlyOptions: IDropdownOption[] = options.filter(
-      (option) => !!option.premiumOnly
-    );
-
-    premiumOnlyOptions.forEach((option) => {
-      option.label = (
-        <span>
-          {option.label}
-          <PremiumFeatureIconWithTooltip
-            tooltipPositionOverrides={{ leftAdj: 2 }}
-          />
-        </span>
-      );
-    });
-  }
 
   return options;
 };
