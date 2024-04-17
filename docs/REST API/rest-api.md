@@ -209,7 +209,7 @@ Changes the password for the authenticated user.
 
 #### Parameters
 
-| Name         | Type   | In   | Deion                            |
+| Name         | Type   | In   | Description                            |
 | ------------ | ------ | ---- | -------------------------------------- |
 | old_password | string | body | **Required**. The user's old password. |
 | new_password | string | body | **Required**. The user's new password. |
