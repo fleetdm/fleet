@@ -39,14 +39,14 @@ describe("Host Actions Dropdown", () => {
         waitFor(() => {
           user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
         });
-      });
 
-      expect(
-        screen.getByText(new RegExp(osqueryVersion, "i"))
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(new RegExp(fleetdVersion, "i"))
-      ).toBeInTheDocument();
+        expect(
+          screen.getByText(new RegExp(osqueryVersion, "i"))
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText(new RegExp(fleetdVersion, "i"))
+        ).toBeInTheDocument();
+      });
     });
 
     it("omit fleet desktop from tooltip if no fleet desktop version", async () => {
