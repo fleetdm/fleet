@@ -307,19 +307,9 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 		require.Empty(t, pending)
 	} else {
-		// get the worker's pending job from the future, there should be a DEP
-		// release device task
-		pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
-		require.NoError(t, err)
-		require.Len(t, pending, 1)
-		releaseJob := pending[0]
-		require.Equal(t, 0, releaseJob.Retries)
-		require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
-
-		// update the job so that it can run immediately
-		releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
-		_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
-		require.NoError(t, err)
+		// there should be a Release Device pending job in the near future, expect
+		// it and schedule it to run now.
+		s.expectAndScheduleReleaseDeviceJob(t)
 
 		// run the worker to process the DEP release
 		s.runWorker()
@@ -352,6 +342,24 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 }
 
+func (s *integrationMDMTestSuite) expectAndScheduleReleaseDeviceJob(t *testing.T) {
+	ctx := context.Background()
+
+	// get the worker's pending job from the future, there should be a DEP
+	// release device task
+	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	releaseJob := pending[0]
+	require.Equal(t, 0, releaseJob.Retries)
+	require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+	// update the job so that it can run immediately
+	releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
+	_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
+	require.NoError(t, err)
+}
+
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	t := s.T()
 
@@ -362,6 +370,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: ""},
 		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: "modified"},
 	}
+
+	// set release device manually to true so there is no job enqueued at a later
+	// time to release the device (this is not what this test is about)
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, map[string]any{
+		"enable_release_device_manually": true,
+	})), http.StatusNoContent)
 
 	profileAssignmentReqs := []profileAssignmentReq{}
 
@@ -467,6 +481,9 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkNoJobsPending := func() {
 		pending, err := s.ds.GetQueuedJobs(context.Background(), 1, time.Time{})
 		require.NoError(t, err)
+		if len(pending) > 0 {
+			t.Logf("found unexpected pending job %s scheduled for %v ('now' is %v):\n%s\n", pending[0].Name, pending[0].NotBefore, time.Now().UTC(), string(*pending[0].Args))
+		}
 		require.Empty(t, pending)
 	}
 
