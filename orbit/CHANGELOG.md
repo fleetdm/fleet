@@ -1,6 +1,6 @@
 ## Orbit 1.24.0 (Apr 17, 2024)
 
-* Cast windows exit codes to signed integers to match windows interpreter
+* Fixed script execution exit codes on windows by casting to signed integers to match windows interpreter.
 
 * In orbit_info table, added desktop_version and scripts_enabled fields.
 
