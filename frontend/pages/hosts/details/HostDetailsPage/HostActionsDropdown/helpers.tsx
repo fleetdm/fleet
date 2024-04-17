@@ -236,7 +236,7 @@ const canRunScript = ({
   );
 };
 
-const filterOutOptions = (
+const removeUnavailableOptions = (
   options: IDropdownOption[],
   config: IHostActionConfigOptions
 ) => {
@@ -280,7 +280,7 @@ const filterOutOptions = (
   return options;
 };
 
-const setOptionsAsDisabled = (
+const modifyOptions = (
   options: IDropdownOption[],
   {
     isHostOnline,
@@ -290,7 +290,7 @@ const setOptionsAsDisabled = (
   }: IHostActionConfigOptions
 ) => {
   // Available tooltips for disabled options
-  const disabledTooltipContent = (value: string | number) => {
+  const getDropdownOptionTooltipContent = (value: string | number) => {
     const tooltipAction: Record<string, string> = {
       runScript: "run scripts on",
       wipe: "wipe",
@@ -314,7 +314,7 @@ const setOptionsAsDisabled = (
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
       option.disabled = true;
-      option.disabledTooltipContent = disabledTooltipContent(option.value);
+      option.tooltipContent = getDropdownOptionTooltipContent(option.value);
     });
   };
 
@@ -332,7 +332,21 @@ const setOptionsAsDisabled = (
     );
   }
 
-  if (!hostScriptsEnabled) {
+  if (hostScriptsEnabled === null) {
+    const runScriptOption = options.find(
+      (option) => option.value === "runScript"
+    );
+    // it's there
+    if (runScriptOption) {
+      runScriptOption.tooltipContent = (
+        <>
+          This host does not report whether scripts can be run on it.
+          <br />
+          Running them may or may not work.
+        </>
+      );
+    }
+  } else if (!hostScriptsEnabled) {
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "runScript")
     );
@@ -367,11 +381,11 @@ const setOptionsAsDisabled = (
 export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   // deep clone to always start with a fresh copy of the default options.
   let options: IDropdownOption[] = cloneDeep([...DEFAULT_OPTIONS]);
-  options = filterOutOptions(options, config);
+  options = removeUnavailableOptions(options, config);
 
   if (options.length === 0) return options;
 
-  options = setOptionsAsDisabled(options, config);
+  options = modifyOptions(options, config);
 
   return options;
 };
