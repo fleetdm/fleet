@@ -255,7 +255,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 #### Parameters
 
-| Name                      | Type   | In   | Deion                                                               |
+| Name                      | Type   | In   | Description                                                               |
 | ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
 | new_password              | string | body | **Required**. The new password.                                           |
 | new_password_confirmation | string | body | **Required**. Confirmation for the new password.                          |
