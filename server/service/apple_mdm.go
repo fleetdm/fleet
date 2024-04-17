@@ -359,7 +359,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		var existsErr existsErrorInterface
 		if errors.As(err, &existsErr) {
-			err = fleet.NewInvalidArgumentError("profile", "Couldn't upload. A configuration profile with this name already exists.").
+			msg := "Couldn't upload. A configuration profile with this name already exists."
+			if re, ok := existsErr.(interface{ Resource() string }); ok {
+				if re.Resource() == "MDMAppleConfigProfile.PayloadIdentifier" {
+					msg = "Couldn't upload. A configuration profile with this identifier (PayloadIdentifier) already exists."
+				}
+			}
+			err = fleet.NewInvalidArgumentError("profile", msg).
 				WithStatus(http.StatusConflict)
 		}
 		return nil, ctxerr.Wrap(ctx, err)

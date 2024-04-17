@@ -214,7 +214,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		// Only update the calendar integration if it's not nil
 		if payload.Integrations.GoogleCalendar != nil {
 			invalid := &fleet.InvalidArgumentError{}
-			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, invalid)
+			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, false, invalid)
 			if invalid.HasErrors() {
 				return nil, ctxerr.Wrap(ctx, invalid)
 			}
@@ -249,6 +249,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 	if macOSMinVersionUpdated {
+		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
@@ -984,8 +988,10 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
+	var mdmMacOSUpdatesEdited bool
 	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+		mdmMacOSUpdatesEdited = true
 	}
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
@@ -1095,7 +1101,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
-		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, invalid)
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, dryRun, invalid)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
@@ -1165,18 +1171,24 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	if mdmMacOSUpdatesEdited {
+		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(
 	calendarIntegration *fleet.TeamGoogleCalendarIntegration,
-	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+	appCfg *fleet.AppConfig, dryRun bool, invalid *fleet.InvalidArgumentError,
 ) error {
 	if !calendarIntegration.Enable {
 		return nil
 	}
-	// Check that global configs exist
-	if len(appCfg.Integrations.GoogleCalendar) == 0 {
+	// Check that global configs exist. During dry run, the global config may not be available yet.
+	if len(appCfg.Integrations.GoogleCalendar) == 0 && !dryRun {
 		invalid.Append("integrations.google_calendar.enable_calendar_events", "global Google Calendar integration is not configured")
 	}
 	// Validate URL

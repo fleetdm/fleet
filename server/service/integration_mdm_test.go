@@ -725,6 +725,184 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host still verifying team profiles
+
+	// add a new profile to the team
+	mcUUID := "a" + uuid.NewString()
+	prof := mcBytesForTest("name-"+mcUUID, "idenfifer-"+mcUUID, mcUUID)
+	wantTeamProfiles = append(wantTeamProfiles, prof)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, []byte("checksum-"+mcUUID))
+		return err
+	})
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Len(t, installs, 1)
+	require.Equal(t, prof, installs[0])
+	require.Empty(t, removes)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+
+	// can't resend profile while verifying
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// set the profile to pending, can't resend
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryPending, mcUUID, host.UUID)
+		return err
+	})
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Pending: 1}, nil)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// set the profile to failed, can resend
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryFailed, mcUUID, host.UUID)
+		return err
+	})
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Failed: 1}, nil)
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusAccepted)
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Len(t, installs, 1)
+	require.Equal(t, prof, installs[0])
+	require.Empty(t, removes)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+
+	// can't resend profile while verifying
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// set the profile to verified, can resend
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryVerified, mcUUID, host.UUID)
+		return err
+	})
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusAccepted)
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Len(t, installs, 1)
+	require.Equal(t, prof, installs[0])
+	require.Empty(t, removes)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q}`, host.ID, host.DisplayName(), "name-"+mcUUID),
+		0)
+
+	// add a declaration to the team
+	declIdent := "decl-ident-" + uuid.NewString()
+	fields := map[string][]string{
+		"team_id": {fmt.Sprintf("%d", tm.ID)},
+	}
+	body, headers := generateNewProfileMultipartRequest(
+		t, "some-declaration.json", declarationForTest(declIdent), s.token, fields,
+	)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	var resp newMDMConfigProfileResponse
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.ProfileUUID)
+	require.Equal(t, "d", string(resp.ProfileUUID[0]))
+	declUUID := resp.ProfileUUID
+
+	checkDDMSync := func(d *mdmtest.TestAppleMDMClient) {
+		require.NoError(t, ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger))
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+		cmd, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd, fmt.Sprintf("expected no more commands, but got: %+v", cmd))
+		_, err = d.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+	}
+	checkDDMSync(mdmDevice)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+
+	// can't resend declaration while verifying
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, declUUID), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// set the declaration to verified, can resend
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_declarations SET status = ? WHERE declaration_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryVerified, declUUID, host.UUID)
+		return err
+	})
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, declUUID), nil, http.StatusAccepted)
+	checkDDMSync(mdmDevice)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": "some-declaration"}`, host.ID, host.DisplayName()),
+		0)
+
+	// transfer the host to the global team
+	err = s.ds.AddHostsToTeam(ctx, nil, []uint{host.ID})
+	require.NoError(t, err)
+
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Len(t, installs, len(wantGlobalProfiles))
+	require.ElementsMatch(t, wantGlobalProfiles, installs)
+	require.Len(t, removes, len(wantTeamProfiles))
+	expectedNoTeamSummary = fleet.MDMProfilesSummary{Verifying: 1}
+	expectedTeamSummary = fleet.MDMProfilesSummary{}
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // host now verifying global profiles
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
+
+	// can't resend profile from another team
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusNotFound)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Unable to match profile to host")
+
+	// add a Windows profile, resend not supported when host is macOS
+	wpUUID := mysql.InsertWindowsProfileForTest(t, s.ds, 0)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, wpUUID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Profile is not compatible with host platform")
+
+	// invalid profile UUID prefix should return 404
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, "z"+uuid.NewString()), nil, http.StatusNotFound)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Invalid profile UUID prefix")
+
+	// set OS updates settings for no-team and team, should not change the
+	// summaries as this profile is ignored.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"macos_updates": {
+				"deadline": "2023-12-31",
+				"minimum_version": "13.3.7"
+			}
+		}
+	}`), http.StatusOK)
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
+			},
+		},
+	}, http.StatusOK)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
+
+	// it should also not show up in the host's profiles list
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.NotEmpty(t, hostResp.Host.MDM.Profiles)
+	resProfiles = *hostResp.Host.MDM.Profiles
+	// one extra profile for the fleetd config
+	require.Len(t, resProfiles, len(wantGlobalProfiles)+1)
 }
 
 func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
@@ -6296,6 +6474,30 @@ func (s *integrationMDMTestSuite) assertMacOSConfigProfilesByName(teamID *uint, 
 	}, "a config profile must %s with name: %s", label, profileName)
 }
 
+func (s *integrationMDMTestSuite) assertMacOSDeclarationsByName(teamID *uint, declarationName string, exists bool) {
+	t := s.T()
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+	var cfgProfs []*fleet.MDMAppleConfigProfile
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT name FROM mdm_apple_declarations WHERE team_id = ?`, teamID)
+	})
+
+	label := "exist"
+	if !exists {
+		label = "not exist"
+	}
+	require.Condition(t, func() bool {
+		for _, p := range cfgProfs {
+			if p.Name == declarationName {
+				return exists // success if we want it to exist, failure if we don't
+			}
+		}
+		return !exists
+	}, "a config profile must %s with name: %s", label, declarationName)
+}
+
 func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint, profileName string, exists bool) {
 	t := s.T()
 	if teamID == nil {
@@ -7512,6 +7714,10 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
 	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+
+	err := s.ds.UpdateHostOperatingSystem(context.Background(), h.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
+	require.NoError(t, err)
+
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
@@ -7540,7 +7746,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	})
 	mdmDevice.SerialNumber = h.HardwareSerial
 	mdmDevice.UUID = h.UUID
-	err := mdmDevice.Enroll()
+	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	resp = orbitGetConfigResponse{}
@@ -7557,6 +7763,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 		Description: "desc team1_" + t.Name(),
 	})
 	require.NoError(t, err)
+	s.assertMacOSDeclarationsByName(&team.ID, servermdm.FleetMacOSUpdatesProfileName, false)
 
 	// add the host to the team
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
@@ -7578,6 +7785,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 			},
 		},
 	}, http.StatusOK, &tmResp)
+	s.assertMacOSDeclarationsByName(&team.ID, servermdm.FleetMacOSUpdatesProfileName, true)
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
@@ -7597,12 +7805,54 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	mdmDevice.UUID = h2.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
+
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), h2.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
+	require.NoError(t, err)
+
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
 	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+
+	// host on macos > 14, shouldn't be receiving nudge configs
+	h3 := createOrbitEnrolledHost(t, "darwin", "h3", s.ds)
+
+	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h3.HardwareSerial
+	mdmDevice.UUID = h3.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), h3.ID, fleet.OperatingSystem{Platform: "darwin", Version: "14.1"})
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h3.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Nil(t, resp.NudgeConfig)
+
+	// host is available for nudge, but has not had details query run
+	// yet, so we don't know the os version.
+	h4 := createOrbitEnrolledHost(t, "darwin", "h4", s.ds)
+
+	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h4.HardwareSerial
+	mdmDevice.UUID = h4.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h4.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Nil(t, resp.NudgeConfig)
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
@@ -9073,7 +9323,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `
 		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
-		FROM mdm_configuration_profile_labels 
+		FROM mdm_configuration_profile_labels
 		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
 		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
 		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
@@ -9245,6 +9495,22 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	require.NoError(t, err)
 	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
+
+	// set OS Updates settings for team 1 for both macOS and Windows, should not
+	// be returned by the list profiles endpoint.
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
+			},
+			WindowsUpdates: &fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(5),
+				GracePeriodDays: optjson.SetInt(2),
+			},
+		},
+	}, http.StatusOK, &tmResp)
 
 	// create 5 profiles for no team and team 1, names are A, B, C ... for global and
 	// tA, tB, tC ... for team 1. Alternate macOS and Windows profiles.
@@ -10688,6 +10954,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsProfilesMatch(host, globalProfiles)
 	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
+	// can't resend a profile while it is verifying
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusConflict)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
 	// create new label that includes host
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -10750,6 +11021,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Verifying: 0,
 	}, nil)
 
+	// can resend a profile after it has failed
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusAccepted)
+	verifyProfiles(mdmDevice, 1, false)                                                 // trigger a profile sync, device gets the profile resent
+	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so it back to verifying
+
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
 	require.NoError(t, err)
@@ -10776,6 +11052,16 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// check that we deleted the old profile in the DB
 	checkHostsProfilesMatch(host, teamProfiles)
 	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+
+	// can't resend a profile while it is verifying
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// can't resend a profile from the wrong team
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusNotFound)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Unable to match profile to host.")
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
@@ -10844,6 +11130,32 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Failed:    1,
 		Verifying: 0,
 	}, nil)
+
+	// can resend a profile after it has failed
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
+	verifyProfiles(mdmDevice, 1, false)                                               // trigger a profile sync, device gets the profile resent
+	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so back to verifying
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q}`, host.ID, host.DisplayName(), "name-"+teamProfiles[0]),
+		0)
+
+	// add a macOS profile to the team
+	mcUUID := "a" + uuid.NewString()
+	prof := mcBytesForTest("name-"+mcUUID, "idenfifer-"+mcUUID, mcUUID)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, []byte("checksum-"+mcUUID))
+		return err
+	})
+
+	// trigger a profile sync, device doesn't get the macOS profile
+	verifyProfiles(mdmDevice, 0, false)
+
+	// can't resend a macOS profile to a Windows host
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Profile is not compatible with host platform")
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
@@ -11057,7 +11369,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N4", Contents: declarationForTestWithType("D1", "com.apple.configuration.softwareupdate.enforcement.specific")},
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. OS updates coming soon!")
+	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
 
 	// invalid JSON
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -12315,6 +12627,21 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 		}
 	}
 
+	checkMacDecls := func(teamID *uint, names ...string) {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var tid uint
+			if teamID != nil {
+				tid = *teamID
+			}
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_apple_declarations WHERE team_id = ?`, tid)
+		})
+		require.Equal(t, len(names), count)
+		for _, n := range names {
+			s.assertMacOSDeclarationsByName(teamID, n, true)
+		}
+	}
+
 	checkWinProfs := func(teamID *uint, names ...string) {
 		var count int
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -12324,6 +12651,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 			}
 			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid)
 		})
+		require.Equal(t, len(names), count)
 		for _, n := range names {
 			s.assertWindowsConfigProfilesByName(teamID, n, true)
 		}
@@ -12352,11 +12680,12 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 			},
 			"macos_updates": {
 				"deadline": "2023-12-31",
-				"minimum_version": "13.3.7"
+				"minimum_version": "13.3.6"
 			}
 		}
 	}`), http.StatusOK, &acResp)
 	checkMacProfs(nil, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkMacDecls(nil, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
 
 	// batch set only windows profiles doesn't remove the reserved names
@@ -12368,6 +12697,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	})
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 	checkMacProfs(nil, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkMacDecls(nil, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(nil, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
 	// batch set windows and mac profiles doesn't remove the reserved names
@@ -12378,15 +12708,27 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	})
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 	checkMacProfs(nil, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkMacDecls(nil, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(nil, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
-	// batch set only mac profiles doesn't remove the reserved names
+	// batch set only mac profiles and declaration doesn't remove the reserved names
+	newMacDecl := []byte(fmt.Sprintf(`{
+  "Type": "com.apple.configuration.foo",
+  "Payload": {
+    "Echo": "f1337"
+  },
+  "Identifier": "%s"
+}`, uuid.NewString()))
 	testProfiles = []fleet.MDMProfileBatchPayload{{
 		Name:     "n2",
 		Contents: newMacProfile,
+	}, {
+		Name:     "n3",
+		Contents: newMacDecl,
 	}}
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 	checkMacProfs(nil, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkMacDecls(nil, append(servermdm.ListFleetReservedMacOSDeclarationNames(), "n3")...)
 	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
 
 	// create a team
@@ -12405,7 +12747,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 				},
 				MacOSUpdates: &fleet.MacOSUpdates{
 					Deadline:       optjson.SetString("2023-12-31"),
-					MinimumVersion: optjson.SetString("13.3.8"),
+					MinimumVersion: optjson.SetString("13.3.9"),
 				},
 			},
 		},
@@ -12416,11 +12758,12 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, 4, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 1, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
 	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
-	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "13.3.9", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 
 	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkMacDecls(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
 
 	// batch set only windows profiles doesn't remove the reserved names
@@ -12431,6 +12774,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	})
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkMacDecls(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
 	// batch set windows and mac profiles doesn't remove the reserved names
@@ -12440,14 +12784,25 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	})
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
 	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkMacDecls(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedWindowsProfileNames(), "n1")...)
 
-	// batch set only mac profiles doesn't remove the reserved names
+	// batch set only mac profiles and declaration doesn't remove the reserved names
 	testTeamProfiles = []fleet.MDMProfileBatchPayload{{
 		Name:     "n2",
 		Contents: newMacProfile,
+	}, {
+		Name:     "n3",
+		Contents: newMacDecl,
 	}}
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
 	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
+	checkMacDecls(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSDeclarationNames(), "n3")...)
+	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
+
+	// batch set with an empty set still doesn't remove the Fleet-controlled profiles
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
+	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
+	checkMacDecls(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSDeclarationNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
 }

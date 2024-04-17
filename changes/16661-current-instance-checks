@@ -1,0 +1,1 @@
+vulnerabilities.current_instance_checks=no is now an alias for vulnerabilities.disable_schedule=true

@@ -31,7 +31,6 @@ parasails.registerPage('contact', {
       lastName: {required: true},
       message: {required: false},
     },
-
     formDataToPrefillForLoggedInUsers: {},
 
     // Server error state for the form
@@ -39,6 +38,9 @@ parasails.registerPage('contact', {
 
     // Success state when form has been submitted
     cloudSuccess: false,
+
+    // For personalizing the message at the top of the contact form.
+    buyingStage: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -48,7 +50,11 @@ parasails.registerPage('contact', {
     if(this.formToShow === 'contact'){
       this.formToDisplay = this.formToShow;
     }
-    if(this.prefillFormDataFromUserRecord){
+    if(this.primaryBuyingSituation){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
+      // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
+      this.formData.primaryBuyingSituation = this.primaryBuyingSituation;
+    }
+    if(this.me){// prefill from database
       this.formDataToPrefillForLoggedInUsers.emailAddress = this.me.emailAddress;
       this.formDataToPrefillForLoggedInUsers.firstName = this.me.firstName;
       this.formDataToPrefillForLoggedInUsers.lastName = this.me.lastName;
@@ -58,12 +64,23 @@ parasails.registerPage('contact', {
         this.formDataToPrefillForLoggedInUsers.primaryBuyingSituation = this.me.primaryBuyingSituation;
       }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
-    }
-    if(window.location.search){
-      window.history.replaceState({}, document.title, '/contact' );
-    }
-    if(this.primaryBuyingSituation){
-      this.formData.primaryBuyingSituation = this.primaryBuyingSituation;// prefill form
+      // If this user has submitted the /start questionnaire, determine their buying stage based on the answers they provided
+      if(!_.isEmpty(this.me.getStartedQuestionnaireAnswers)) {
+        let getStartedQuestionnaireAnswers = _.clone(this.me.getStartedQuestionnaireAnswers);
+        if(getStartedQuestionnaireAnswers['have-you-ever-used-fleet']) {
+          // If the user has Fleet deployed, then we'll assume they're stage five.
+          if(getStartedQuestionnaireAnswers['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed' ||
+            getStartedQuestionnaireAnswers['have-you-ever-used-fleet'].fleetUseStatus === 'yes-recently-deployed') {
+            this.buyingStage = 'five';
+          }
+        }
+        if(getStartedQuestionnaireAnswers['what-did-you-think']){
+          // If this user has completed the "What did you think" step and wants to self-host Fleet, we'll assume theyre stage four.
+          if(getStartedQuestionnaireAnswers['what-did-you-think'].whatDidYouThink === 'deploy-fleet-in-environemnt'){
+            this.buyingStage = 'four';
+          }
+        }
+      }
     }
   },
   mounted: async function() {

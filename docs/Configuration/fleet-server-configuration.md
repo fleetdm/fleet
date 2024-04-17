@@ -2275,7 +2275,7 @@ If set then `fleet serve` will run even if there are database migrations missing
 
 The path specified needs to exist and Fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
-When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
+When `disable_schedule` is set to `false` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
 - Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
@@ -2345,21 +2345,11 @@ When not defined, Fleet downloads CVE information from the nvd.nist.gov host usi
     cve_feed_prefix_url: ""
   ```
 
-##### current_instance_checks
-
-When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
-
-- Default value: `auto`
-- Environment variable: `FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS`
-- Config file format:
-  ```yaml
-  vulnerabilities:
-    current_instance_checks: yes
-  ```
-
 ##### disable_schedule
 
-To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to `true` and one of them set to `false`.
+
+Similarly, to externally manage running vulnerability processing, set the value to `true` for all Fleet instances and then run `fleet vuln_processing` using external
 tools like crontab.
 
 - Default value: `false`

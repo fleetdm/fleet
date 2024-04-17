@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -303,6 +304,20 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 	return nil
 }
 
+func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error {
+	const stmt = `DELETE FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`
+
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTmID, name)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	return nil
+}
+
 func (ds *Datastore) deleteMDMAppleDeclaration(ctx context.Context, uuid string) error {
 	stmt := `DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?`
 
@@ -370,7 +385,7 @@ COALESCE(detail, '') AS detail
 FROM
 host_mdm_apple_declarations
 WHERE
-host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+host_uuid = ? AND declaration_name NOT IN (?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -383,8 +398,13 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 		fleet.MDMDeliveryVerified,
 	)
 
+	stmt, args, err := sqlx.In(stmt, hostUUID, hostUUID, fleetmdm.ListFleetReservedMacOSDeclarationNames())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
 	var profiles []fleet.HostMDMAppleProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...); err != nil {
 		return nil, err
 	}
 	return profiles, nil
@@ -2180,7 +2200,6 @@ func subqueryAppleProfileStatus(status fleet.MDMDeliveryStatus) (string, []any, 
 
 	arg := map[string]any{
 		"install":   fleet.MDMOperationTypeInstall,
-		"remove":    fleet.MDMOperationTypeRemove,
 		"verifying": fleet.MDMDeliveryVerifying,
 		"failed":    fleet.MDMDeliveryFailed,
 		"verified":  fleet.MDMDeliveryVerified,
@@ -2205,7 +2224,9 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d1
 			WHERE
 				h.uuid = d1.host_uuid
-				AND d1.status = :failed) THEN
+				AND d1.operation_type = :install
+				AND d1.status = :failed
+				AND d1.declaration_name NOT IN (:reserved_names)) THEN
 			'declarations_failed'
 		WHEN EXISTS (
 			SELECT
@@ -2214,8 +2235,10 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d2
 			WHERE
 				h.uuid = d2.host_uuid
+				AND d2.operation_type = :install
 				AND(d2.status IS NULL
 					OR d2.status = :pending)
+				AND d2.declaration_name NOT IN (:reserved_names)
 				AND NOT EXISTS (
 					SELECT
 						1
@@ -2223,7 +2246,9 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 						host_mdm_apple_declarations d3
 					WHERE
 						h.uuid = d3.host_uuid
-						AND d3.status = :failed)) THEN
+						AND d3.operation_type = :install
+						AND d3.status = :failed
+						AND d3.declaration_name NOT IN (:reserved_names))) THEN
 			'declarations_pending'
 		WHEN EXISTS (
 			SELECT
@@ -2232,13 +2257,17 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d4
 			WHERE
 				h.uuid = d4.host_uuid
+				AND d4.operation_type = :install
 				AND d4.status = :verifying
+				AND d4.declaration_name NOT IN (:reserved_names)
 				AND NOT EXISTS (
 					SELECT
 						1
 					FROM
 						host_mdm_apple_declarations d5
 					WHERE (h.uuid = d5.host_uuid
+						AND d5.operation_type = :install
+						AND d5.declaration_name NOT IN (:reserved_names)
 						AND(d5.status IS NULL
 							OR d5.status IN(:pending, :failed))))) THEN
 			'declarations_verifying'
@@ -2249,13 +2278,17 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 				host_mdm_apple_declarations d6
 			WHERE
 				h.uuid = d6.host_uuid
+				AND d6.operation_type = :install
 				AND d6.status = :verified
+				AND d6.declaration_name NOT IN (:reserved_names)
 				AND NOT EXISTS (
 					SELECT
 						1
 					FROM
 						host_mdm_apple_declarations d7
 					WHERE (h.uuid = d7.host_uuid
+						AND d7.operation_type = :install
+						AND d7.declaration_name NOT IN (:reserved_names)
 						AND(d7.status IS NULL
 							OR d7.status IN(:pending, :failed, :verifying))))) THEN
 			'declarations_verified'
@@ -2263,18 +2296,21 @@ func subqueryAppleDeclarationStatus() (string, []any, error) {
 			''
 		END`
 
-	// TODO: do we need to differentiate between install and remove?
 	arg := map[string]any{
-		// "install":   fleet.MDMOperationTypeInstall,
-		// "remove":    fleet.MDMOperationTypeRemove,
-		"verifying": fleet.MDMDeliveryVerifying,
-		"failed":    fleet.MDMDeliveryFailed,
-		"verified":  fleet.MDMDeliveryVerified,
-		"pending":   fleet.MDMDeliveryPending,
+		"install":        fleet.MDMOperationTypeInstall,
+		"verifying":      fleet.MDMDeliveryVerifying,
+		"failed":         fleet.MDMDeliveryFailed,
+		"verified":       fleet.MDMDeliveryVerified,
+		"pending":        fleet.MDMDeliveryPending,
+		"reserved_names": fleetmdm.ListFleetReservedMacOSDeclarationNames(),
 	}
 	query, args, err := sqlx.Named(declNamedStmt, arg)
 	if err != nil {
 		return "", nil, fmt.Errorf("subqueryAppleDeclarationStatus: %w", err)
+	}
+	query, args, err = sqlx.In(query, args...)
+	if err != nil {
+		return "", nil, fmt.Errorf("subqueryAppleDeclarationStatus resolve IN: %w", err)
 	}
 
 	return query, args, nil
@@ -3398,6 +3434,7 @@ ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   checksum = VALUES(checksum),
   name = VALUES(name),
+  identifier = VALUES(identifier),
   raw_json = VALUES(raw_json)
 `
 
@@ -3407,18 +3444,18 @@ DELETE FROM
 WHERE
   team_id = ? AND %s
 `
-	andIdentNotInList := "identifier NOT IN (?)" // added to fmtDeleteStmt if needed
+	andNameNotInList := "name NOT IN (?)" // added to fmtDeleteStmt if needed
 
 	const loadExistingDecls = `
 SELECT
-  identifier,
+  name,
   declaration_uuid,
   raw_json
 FROM
   mdm_apple_declarations
 WHERE
   team_id = ? AND
-  identifier IN (?)
+  name IN (?)
 `
 
 	var declTeamID uint
@@ -3426,22 +3463,22 @@ WHERE
 		declTeamID = *tmID
 	}
 
-	// build a list of identifiers for the incoming declarations, will keep the
+	// build a list of names for the incoming declarations, will keep the
 	// existing ones if there's a match and no change
-	incomingIdents := make([]string, len(incomingDeclarations))
-	// at the same time, index the incoming declarations keyed by identifier for ease
+	incomingNames := make([]string, len(incomingDeclarations))
+	// at the same time, index the incoming declarations keyed by name for ease
 	// or processing
 	incomingDecls := make(map[string]*fleet.MDMAppleDeclaration, len(incomingDeclarations))
 	for i, p := range incomingDeclarations {
-		incomingIdents[i] = p.Identifier
-		incomingDecls[p.Identifier] = p
+		incomingNames[i] = p.Name
+		incomingDecls[p.Name] = p
 	}
 
 	var existingDecls []*fleet.MDMAppleDeclaration
 
-	if len(incomingIdents) > 0 {
-		// load existing declarations that match the incoming declarations by identifiers
-		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingIdents)
+	if len(incomingNames) > 0 {
+		// load existing declarations that match the incoming declarations by names
+		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
 		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
@@ -3457,28 +3494,23 @@ WHERE
 	}
 
 	// figure out if we need to delete any declarations
-	keepIdents := make([]any, 0, len(incomingIdents))
+	keepNames := make([]string, 0, len(incomingNames))
 	for _, p := range existingDecls {
-		if newP := incomingDecls[p.Identifier]; newP != nil {
-			keepIdents = append(keepIdents, p.Identifier)
+		if newP := incomingDecls[p.Name]; newP != nil {
+			keepNames = append(keepNames, p.Name)
 		}
 	}
+	keepNames = append(keepNames, fleetmdm.ListFleetReservedMacOSDeclarationNames()...)
 
 	var delArgs []any
 	var delStmt string
-	if len(keepIdents) == 0 {
+	if len(keepNames) == 0 {
 		// delete all declarations for the team
 		delStmt = fmt.Sprintf(fmtDeleteStmt, "TRUE")
 		delArgs = []any{declTeamID}
 	} else {
-		// delete the obsolete declarations (all those that are not in keepIdents)
-		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andIdentNotInList), declTeamID, keepIdents)
-		// if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
-		// 	if err == nil {
-		// 		err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		// 	}
-		// 	return nil, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
-		// }
+		// delete the obsolete declarations (all those that are not in keepNames)
+		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andNameNotInList), declTeamID, keepNames)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
 		}
@@ -3511,7 +3543,7 @@ WHERE
 	}
 
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
-	if len(incomingIdents) > 0 {
+	if len(incomingNames) > 0 {
 		var newlyInsertedDecls []*fleet.MDMAppleDeclaration
 		// load current declarations (again) that match the incoming declarations by name to grab their uuids
 		// this is an easy way to grab the identifiers for both the existing declarations and the new ones we generated.
@@ -3520,7 +3552,7 @@ WHERE
 		// information without this extra request in the previous DB
 		// calls. Due to time constraints, I'm leaving that
 		// optimization for a later iteration.
-		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingIdents)
+		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build query to load newly inserted declarations")
 		}
@@ -3529,9 +3561,9 @@ WHERE
 		}
 
 		for _, newlyInsertedDecl := range newlyInsertedDecls {
-			incomingDecl, ok := incomingDecls[newlyInsertedDecl.Identifier]
+			incomingDecl, ok := incomingDecls[newlyInsertedDecl.Name]
 			if !ok {
-				return nil, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Identifier)
+				return nil, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Name)
 			}
 
 			for _, label := range incomingDecl.Labels {
@@ -3552,10 +3584,7 @@ WHERE
 }
 
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
-	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
-
-	stmt := `
+	const stmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
 	team_id,
@@ -3572,13 +3601,48 @@ INSERT INTO mdm_apple_declarations (
  	)
 )`
 
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
+}
+
+func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	const stmt = `
+INSERT INTO mdm_apple_declarations (
+	declaration_uuid,
+	team_id,
+	identifier,
+	name,
+	raw_json,
+	checksum,
+	uploaded_at)
+(SELECT ?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+	NOT EXISTS (
+ 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
+ 	) AND NOT EXISTS (
+ 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+ 	)
+)
+ON DUPLICATE KEY UPDATE
+	identifier = VALUES(identifier),
+	uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
+	raw_json = VALUES(raw_json),
+	checksum = VALUES(checksum)`
+
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
+}
+
+func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
+	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
+
 	var tmID uint
 	if declaration.TeamID != nil {
 		tmID = *declaration.TeamID
 	}
 
+	const reloadStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE name = ? AND team_id = ?`
+
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, stmt,
+		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
@@ -3596,6 +3660,10 @@ INSERT INTO mdm_apple_declarations (
 				Identifier:   declaration.Name,
 				TeamID:       declaration.TeamID,
 			}
+		}
+
+		if err := sqlx.GetContext(ctx, tx, &declUUID, reloadStmt, declaration.Name, tmID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reload apple mdm declaration")
 		}
 
 		for i := range declaration.Labels {

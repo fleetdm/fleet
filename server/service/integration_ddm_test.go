@@ -62,7 +62,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusUnprocessableEntity)
 
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. OS updates coming soon!")
+	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
 
 	// Types from our list of forbidden types should fail
 	for ft := range fleet.ForbiddenDeclTypes {
@@ -158,12 +158,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "darwin", resp.Profiles[1].Platform)
 
 	var createResp createLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String("label_1"), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label_1", Query: "select 1"}, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.Label.ID)
 	require.Equal(t, "label_1", createResp.Label.Name)
 	lbl1 := createResp.Label.Label
 
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String("label_2"), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label_2", Query: "select 1"}, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.Label.ID)
 	require.Equal(t, "label_2", createResp.Label.Name)
 	lbl2 := createResp.Label.Label

@@ -11,14 +11,14 @@ import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIss
 import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon/Icon";
 
-type ITargestInputhostTableConfig = Column<IHost>;
+export type ITargestInputHostTableConfig = Column<IHost>;
 type ITableStringCellProps = IStringCellProps<IHost>;
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateTableHeaders = (
   handleRowRemove?: (value: Row<IHost>) => void
-): ITargestInputhostTableConfig[] => {
+): ITargestInputHostTableConfig[] => {
   const deleteHeader = handleRowRemove
     ? [
         {

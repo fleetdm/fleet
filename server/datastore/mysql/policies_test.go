@@ -3192,6 +3192,37 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.Equal(t, "display_name3", hostsTeam2[1].HostDisplayName)
 
 	//
+	// Make host2 policy results invalid (NULL).
+	//
+
+	err = ds.RecordPolicyQueryExecutions(
+		ctx, host2, map[uint]*bool{
+			team2Policy1.ID: nil,
+			team2Policy2.ID: nil,
+		}, time.Now(), false,
+	)
+	require.NoError(t, err)
+
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam2, 2)
+	sort.Slice(
+		hostsTeam2, func(i, j int) bool {
+			return hostsTeam2[i].HostID < hostsTeam1[j].HostID
+		},
+	)
+	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam2[0].Email)
+	require.True(t, hostsTeam2[0].Passing)
+	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
+	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
+	require.Equal(t, host3.ID, hostsTeam2[1].HostID)
+	require.Equal(t, "zoo@example.com", hostsTeam2[1].Email)
+	require.True(t, hostsTeam2[1].Passing)
+	require.Equal(t, "serial3", hostsTeam2[1].HostHardwareSerial)
+	require.Equal(t, "display_name3", hostsTeam2[1].HostDisplayName)
+
+	//
 	// Make host2 pass all policies.
 	//
 
