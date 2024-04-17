@@ -2,7 +2,7 @@
 
 * Cast windows exit codes to signed integers to match windows interpreter
 
-In orbit_info table, added desktop_version and scripts_enabled fields.
+* In orbit_info table, added desktop_version and scripts_enabled fields.
 
 ## Orbit 1.23.0 (Apr 08, 2024)
 
