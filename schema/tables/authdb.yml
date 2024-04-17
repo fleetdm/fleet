@@ -6,12 +6,12 @@ columns:
   - name: right_name
     type: text
     required: true
-    description: |
+    description: >-
       The right_name to query in the `authorizationdb read <right_name>` command.
   - name: json_result
     type: text
     required: false
-    description: |
+    description: >-
       The JSON output parsed from the plist output of the `authorizationdb read <right_name>` command. 
 notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 evented: false

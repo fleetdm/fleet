@@ -76,16 +76,16 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	h6 := initHost(mockClock.Now().Add(thirtyDaysAndAMinuteAgo*time.Minute), 3600, 3600, nil)
 
 	l1 := fleet.LabelSpec{
-		ID:    1,
 		Name:  "label foo",
 		Query: "query foo",
 	}
 	l2 := fleet.LabelSpec{
-		ID:    2,
 		Name:  "label bar",
 		Query: "query bar",
 	}
 	require.NoError(t, ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2}))
+	l1.ID = labelIDFromName(t, ds, l1.Name)
+	l2.ID = labelIDFromName(t, ds, l2.Name)
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
 		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now(), false)

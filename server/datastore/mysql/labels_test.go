@@ -70,6 +70,8 @@ func TestLabels(t *testing.T) {
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 	}
+	// call TruncateTables first to remove migration-created labels
+	TruncateTables(t, ds)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
@@ -93,15 +95,13 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	err = db.UpdateHost(context.Background(), host)
 	require.NoError(t, err)
 
-	// No labels to check
 	queries, err := db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
-	// Only 'All Hosts' label should be returned
 	labels, err := db.ListLabelsForHost(context.Background(), host.ID)
 	assert.Nil(t, err)
-	assert.Len(t, labels, 1)
+	assert.Len(t, labels, 1) // all hosts only
 
 	newLabels := []*fleet.LabelSpec{
 		// Note these are intentionally out of order
@@ -1536,4 +1536,15 @@ func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
 	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Empty(t, labels)
+}
+
+func labelIDFromName(t *testing.T, ds fleet.Datastore, name string) uint {
+	allLbls, err := ds.ListLabels(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	require.Nil(t, err)
+	for _, lbl := range allLbls {
+		if lbl.Name == name {
+			return lbl.ID
+		}
+	}
+	return 0
 }
