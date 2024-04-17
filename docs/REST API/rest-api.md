@@ -6038,9 +6038,8 @@ Team policies work the same as policies, but at the team level.
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
       "calendar_event_description": {
-        "maintenance_description": "We'll update your macOS to the latest version, which will require a restart and ensure your system is secure and up-to-date.",
-        "maintenance_reason": "Updating ensures we meet security standards and maintain system integrity.",
-        "connect_to_power": true
+        "maintenance_action": "We'll update your macOS to the latest version, which will require a restart and ensure your system is secure and up-to-date.",
+        "maintenance_reason": "Updating ensures we meet security standards and maintain system integrity."
       }
     },
     {
