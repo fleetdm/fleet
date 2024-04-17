@@ -154,7 +154,7 @@
       </div>
     </div>
 
-    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center mb-0">
+    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
       <div purpose="feature-image" class="right">
         <img alt="Ship data to any platform" src="/images/endpoint-ops-feature-image-2-380x380@2x.png">
       </div>
@@ -168,6 +168,23 @@
         </div>
       </div>
     </div>
+    <% if(!primaryBuyingSituation || ['mdm', 'eo-it'].includes(primaryBuyingSituation)){%>
+    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>Automate anything</h3>
+        <p>Remote-control IT tasks on every kind of computer – even you, Linux.</p>
+        <div purpose="checklist" class="flex-column d-flex">
+          <p>Write and run scripts remotely, report progress, and replay queued up tasks on computers that went offline.</p>
+          <p>Integrate Google Calendar to install updates and force restarts when your users’ computers are actually free.</p>
+          <p>Reduce human error by automating click-tastic tasks directly on the host with <a href="https://www.openinterpreter.com/" target="_blank">Open Interpreter</a>.*</p>
+        </div>
+        <p purpose="feature-footnote">*Coming soon</p>
+      </div>
+      <div purpose="feature-image" class="left">
+        <img alt="Ship data to any platform" src="/images/device-management-clickops-or-devops-380x280@2x.png">
+      </div>
+    </div>
+    <%} else {%>
 
     <div purpose="feature-headline" class="mr-auto">
       <h3>Open security tooling</h3>
@@ -216,7 +233,7 @@
       </div>
       <p purpose="feature-footnote">*Companies like Fastly and Gusto use Fleet in production with hundreds of thousands of endpoints, including containers, OT, and laptops.</p>
     </div>
-
+    <% }%>
   </div>
   </div>
   <%/* End of page gradient */%>
