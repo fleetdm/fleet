@@ -1,3 +1,21 @@
+## Fleet 4.48.3 (Apr 16, 2024)
+
+### Bug fixes
+
+* Updated calendar webhook to retry if it receives response 429 "Too Many Requests". Webhook request will retry for 30 minutes with a 1 minute max delay between retries.
+* Updated label endpoints and UI to prevent creating, updating, or deleting built-in labels.
+* Fixed edge cases of team ID being lost in various flows.
+* Fixed queries to correctly parse params for `GET` ...`policies/count`, `GET` ...`teams/:id/policies/count`, and `GET` ...`vulnerabilities`.
+* Fixed 'GET` ...`labels` to return `400` when the non-supported `query` url param was included in the request. Previous behavior was to silently ignore that param and return `200`.
+* Casted windows exit codes to signed integers to match windows interpreter.
+* Fixed a bug where some scripts got stuck in "upcoming" activity permanently.
+* Fixed a bug where the translate API returned "forbidden" instead of "bad request" for an empty JSON body.
+* Fixed an uncaught bug where "forbidden" would be returned for invalid payload type, which should also be a bad request.
+* Fixed an issue where applying Windows MDM profiles using `fleetctl apply` would cause Fleet to overwrite the reserved profile used to manage Windows OS updates.
+* Fixed a bug where we were not ignoreing leading and trailing whitespace when filtering Fleet entities by name.
+* Fixed a bug where query retrieving bitlocker info from windows server wouldn't return.
+* Fixed MDM migration starting when the device didn't have the right ADE JSON profile already assigned.
+
 ## Fleet 4.48.2 (Apr 09, 2024)
 
 ### Bug fixes
