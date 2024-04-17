@@ -60,7 +60,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 #### Parameters
 
-| Name     | Type   | In   | Deion                                   |
+| Name     | Type   | In   | Description                                   |
 | -------- | ------ | ---- | --------------------------------------------- |
 | email    | string | body | **Required**. The user's email.               |
 | password | string | body | **Required**. The user's plain text password. |
