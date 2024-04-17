@@ -43,11 +43,11 @@
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 - 
-  task: "Revenue report" # TODO tie this to a responsibility
+  task: "Communicate the status of customer financial actions" 
   startedOn: "2024-02-12" 
   frequency: "Weekly"
   description: "At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil." 
-  moreInfoUrl: 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#communicate-the-status-of-customer-financial-actions"
   dri: "jostableford" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
