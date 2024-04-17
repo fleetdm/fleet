@@ -136,33 +136,34 @@ func init() {
 }
 
 type Stats struct {
-	startTime                  time.Time
-	errors                     int
-	osqueryEnrollments         int
-	orbitEnrollments           int
-	mdmEnrollments             int
-	mdmSessions                int
-	distributedWrites          int
-	mdmCommandsReceived        int
-	distributedReads           int
-	configRequests             int
-	configErrors               int
-	resultLogRequests          int
-	orbitErrors                int
-	mdmErrors                  int
-	ddmDeclarationItemsErrors  int
-	ddmConfigurationErrors     int
-	ddmActivationErrors        int
-	ddmStatusErrors            int
-	ddmDeclarationItemsSuccess int
-	ddmConfigurationSuccess    int
-	ddmActivationSuccess       int
-	ddmStatusSuccess           int
-	desktopErrors              int
-	distributedReadErrors      int
-	distributedWriteErrors     int
-	resultLogErrors            int
-	bufferedLogs               int
+	startTime                    time.Time
+	errors                       int
+	osqueryEnrollments           int
+	orbitEnrollments             int
+	mdmEnrollments               int
+	mdmSessions                  int
+	distributedWrites            int
+	mdmCommandsReceived          int
+	distributedReads             int
+	configRequests               int
+	configErrors                 int
+	resultLogRequests            int
+	orbitErrors                  int
+	mdmErrors                    int
+	ddmDeclarationItemsErrors    int
+	ddmConfigurationErrors       int
+	ddmActivationErrors          int
+	ddmStatusErrors              int
+	ddmDeclarativeManagementCmds int
+	ddmDeclarationItemsSuccess   int
+	ddmConfigurationSuccess      int
+	ddmActivationSuccess         int
+	ddmStatusSuccess             int
+	desktopErrors                int
+	distributedReadErrors        int
+	distributedWriteErrors       int
+	resultLogErrors              int
+	bufferedLogs                 int
 
 	l sync.Mutex
 }
@@ -243,6 +244,12 @@ func (s *Stats) IncrementMDMErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
 	s.mdmErrors++
+}
+
+func (s *Stats) IncrementDeclarativeManagementCmds() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmDeclarativeManagementCmds++
 }
 
 func (s *Stats) IncrementDDMDeclarationItemsErrors() {
@@ -331,7 +338,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, declarative management commands received: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d",
 		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
@@ -350,6 +357,7 @@ func (s *Stats) Log() {
 		s.orbitErrors,
 		s.desktopErrors,
 		s.mdmErrors,
+		s.ddmDeclarativeManagementCmds,
 		s.ddmDeclarationItemsSuccess,
 		s.ddmDeclarationItemsErrors,
 		s.ddmActivationSuccess,
@@ -1001,14 +1009,19 @@ func (a *agent) runMacosMDMLoop() {
 
 	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
+			var isDDM bool
 			a.stats.IncrementMDMCommandsReceived()
+			if mdmCommandPayload.Command.RequestType == "DeclarativeManagement" {
+				a.stats.IncrementDeclarativeManagementCmds()
+				isDDM = true
+			}
 			mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 			if err != nil {
 				log.Printf("MDM Acknowledge request failed: %s", err)
 				a.stats.IncrementMDMErrors()
 				break INNER_FOR_LOOP
 			}
-			if mdmCommandPayload != nil && mdmCommandPayload.Command.RequestType == "DeclarativeManagement" {
+			if isDDM {
 				a.doDeclarativeManagement(mdmCommandPayload)
 			}
 		}
