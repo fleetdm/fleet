@@ -8,5 +8,5 @@ examples: >-
   SELECT * FROM xprotect_reports;
 
   ```
-notes: |
+notes: >-
   - In [very specific circumstances](https://github.com/osquery/osquery/issues/6588#issuecomment-1410934706) this table will return empty because xprotect will detect and remediate without generating an eicar file. 

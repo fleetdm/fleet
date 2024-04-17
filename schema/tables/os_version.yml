@@ -23,5 +23,5 @@ columns:
   - name: mount_namespace_id
     platforms:
       - linux
-notes: |
+notes: >-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
