@@ -2,7 +2,7 @@
 
 ### Bug fixes
 
-* Updated calendar webhook to retry if retry if it receives response 429 Too Many Requests. Webhook request will retry for 30 minutes with a 1 minute max delay between retries.
+* Updated calendar webhook to retry if it receives response 429 Too Many Requests. Webhook request will retry for 30 minutes with a 1 minute max delay between retries.
 * Updated label endpoints and UI to prevent creating, updating, or deleting built-in labels.
 * Fixed edge cases of team ID being lost in various flows
 * Fixed queries to correctly parse params for `GET` ...`policies/count`, `GET` ...`teams/:id/policies/count`, and `GET` ...`vulnerabilities`.
