@@ -73,5 +73,7 @@ export const HOST_LINUX_PLATFORMS = [
  * the possible Linux-like platform values.
  */
 export const isLinuxLike = (platform: string) => {
-  return HOST_LINUX_PLATFORMS.includes(platform as any);
+  return HOST_LINUX_PLATFORMS.includes(
+    platform as typeof HOST_LINUX_PLATFORMS[number]
+  );
 };

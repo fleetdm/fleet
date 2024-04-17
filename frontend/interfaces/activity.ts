@@ -66,7 +66,19 @@ export enum ActivityType {
   EditedWindowsUpdates = "edited_windows_updates",
   LockedHost = "locked_host",
   UnlockedHost = "unlocked_host",
+  WipedHost = "wiped_host",
+  CreatedDeclarationProfile = "created_declaration_profile",
+  DeletedDeclarationProfile = "deleted_declaration_profile",
+  EditedDeclarationProfile = "edited_declaration_profile",
+  ResentConfigurationProfile = "resent_configuration_profile",
 }
+
+// This is a subset of ActivityType that are shown only for the host past activities
+export type IHostPastActivityType =
+  | ActivityType.RanScript
+  | ActivityType.LockedHost
+  | ActivityType.UnlockedHost;
+
 export interface IActivity {
   created_at: string;
   id: number;
@@ -77,6 +89,11 @@ export interface IActivity {
   type: ActivityType;
   details?: IActivityDetails;
 }
+
+export type IPastActivity = Omit<IActivity, "type"> & {
+  type: IHostPastActivityType;
+};
+
 export interface IActivityDetails {
   pack_id?: number;
   pack_name?: string;

@@ -9,6 +9,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 1. The script is executed on a macOS host.
 2. Fleet server also running on the same macOS host.
 3. All VMs (and the macOS host itself) are configured to resolve `host.docker.internal` to the macOS host IP (by modifying their `hosts` file).
+4. The hosts are running on the same GOARCH as the macOS host. If not, you can set the `GOARCH` environment variable to compile for the desired architecture. For example: `GOARCH=amd64`
 
 > PS: We use `host.docker.internal` because the testing certificate `./tools/osquery/fleet.crt`
 > has such hostname (and `localhost`) defined as SANs.
@@ -51,6 +52,14 @@ Here's a sample to use the `hello_world` and `hello_mars` test extensions:
 MACOS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/macos/hello_world_macos.ext,./tools/test_extensions/hello_world/macos/hello_mars_macos.ext" \
 WINDOWS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/windows/hello_world_windows.ext.exe,./tools/test_extensions/hello_world/windows/hello_mars_windows.ext.exe" \
 LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_linux.ext,./tools/test_extensions/hello_world/linux/hello_mars_linux.ext" \
+[...]
+./tools/tuf/test/main.sh
+```
+
+To build for a specific architecture, you can pass the `GOARCH` environment variable:
+``` shell
+[...]
+GOARCH=arm64 # defaults to amd64
 [...]
 ./tools/tuf/test/main.sh
 ```

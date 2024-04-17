@@ -11,11 +11,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/go-kit/log"
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,6 +45,7 @@ func TestDEPService(t *testing.T) {
 				require.Contains(t, got.ConfigurationWebURL, serverURL+"api/mdm/apple/enroll?token=")
 				got.URL = ""
 				got.ConfigurationWebURL = ""
+				defaultProfile.AwaitDeviceConfigured = true // this is now always set to true
 				require.Equal(t, defaultProfile, &got)
 			default:
 				require.Fail(t, "unexpected path: %s", r.URL.Path)

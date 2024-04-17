@@ -56,11 +56,11 @@ parasails.registerPage('signup', {
     },
 
     submittedSignUpForm: async function() {
-      // redirect to the new-license page.
+      // redirect to the /start page.
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      window.location = '/customers/new-license?signup';
+      window.location = '/start';
     }
 
 

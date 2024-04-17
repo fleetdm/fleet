@@ -20,9 +20,9 @@ func TestListVulnerabilities(t *testing.T) {
 	ds.ListVulnerabilitiesFunc = func(cxt context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 		return []fleet.VulnerabilityWithMetadata{
 			{
-				CVEMeta: fleet.CVEMeta{
+				CVE: fleet.CVE{
 					CVE:         "CVE-2019-1234",
-					Description: "A vulnerability",
+					Description: ptr.StringPtr("A vulnerability"),
 				},
 				CreatedAt:  time.Now(),
 				HostsCount: 10,
@@ -46,7 +46,7 @@ func TestListVulnerabilities(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid order key")
 
 		// valid order key
-		opts.OrderKey = "cve"
+		opts.ListOptions.OrderKey = "cve"
 		_, _, err = svc.ListVulnerabilities(ctx, opts)
 		require.NoError(t, err)
 	})

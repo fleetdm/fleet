@@ -1,0 +1,1 @@
+- Fix a bug where all Windows MDM enrollments were detected as automatic

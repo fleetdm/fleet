@@ -117,6 +117,13 @@ $max-width: 2560px;
   cursor: default;
 }
 
+@mixin disabled-checkbox {
+  background-color: $ui-fleet-black-25;
+  border-color: $ui-fleet-black-25;
+  pointer-events: none;
+  cursor: default;
+}
+
 @mixin grey-text {
   color: $ui-fleet-black-75;
 }
@@ -175,6 +182,15 @@ $max-width: 2560px;
   }
 }
 
+@mixin copy-message {
+  font-weight: $regular;
+  vertical-align: top;
+  background-color: $ui-light-grey;
+  border: solid 1px #e2e4ea;
+  border-radius: 10px;
+  padding: 2px 6px;
+}
+
 @mixin color-contrasted-sections {
   background-color: $ui-off-white;
   .section {
@@ -219,4 +235,103 @@ $max-width: 2560px;
 @mixin form-button-extra-clickable-area-compensation {
   // compensate in layout for extra clickable area button height
   margin: -8px 0;
+}
+
+@mixin button-dropdown {
+  .form-field {
+    margin: 0;
+  }
+
+  .Select {
+    position: relative;
+    border: 0;
+    height: auto;
+
+    &.is-focused,
+    &:hover {
+      border: 0;
+    }
+
+    &.is-focused:not(.is-open) {
+      .Select-control {
+        background-color: initial;
+      }
+    }
+
+    .Select-control {
+      display: flex;
+      background-color: initial;
+      height: auto;
+      justify-content: space-between;
+      border: 0;
+      cursor: pointer;
+
+      &:hover {
+        box-shadow: none;
+      }
+
+      &:hover .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
+
+      .Select-placeholder {
+        font-size: 14px;
+        line-height: normal;
+        padding-left: 0;
+        margin-top: 1px;
+      }
+
+      .Select-input {
+        height: auto;
+      }
+
+      .Select-arrow-zone {
+        display: flex;
+      }
+    }
+
+    .Select-placeholder {
+      display: flex;
+      align-items: center;
+    }
+
+    .Select-menu-outer {
+      margin-top: $pad-xsmall;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      border-radius: $border-radius;
+      z-index: 6;
+      overflow: hidden;
+      border: 0;
+      width: 188px;
+      left: unset;
+      top: unset;
+      max-height: none;
+      padding: $pad-small;
+      position: absolute;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+
+    .Select-arrow {
+      transition: transform 0.25s ease;
+    }
+
+    &:not(.is-open) {
+      .Select-control:hover .Select-arrow {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      }
+    }
+
+    &.is-open {
+      .Select-control .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
+
+      .Select-arrow {
+        transform: rotate(180deg);
+      }
+    }
+  }
 }

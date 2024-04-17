@@ -24,6 +24,7 @@ type listVulnerabilitiesRequest struct {
 type listVulnerabilitiesResponse struct {
 	Vulnerabilities []fleet.VulnerabilityWithMetadata `json:"vulnerabilities"`
 	Count           uint                              `json:"count"`
+	CountsUpdatedAt time.Time                         `json:"counts_updated_at"`
 	Meta            *fleet.PaginationMetadata         `json:"meta,omitempty"`
 	Err             error                             `json:"error,omitempty"`
 }
@@ -42,10 +43,18 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 		return listVulnerabilitiesResponse{Err: err}, nil
 	}
 
+	updatedAt := time.Now()
+	for _, vuln := range vulns {
+		if vuln.HostsCountUpdatedAt.Before(updatedAt) {
+			updatedAt = vuln.HostsCountUpdatedAt
+		}
+	}
+
 	return listVulnerabilitiesResponse{
 		Vulnerabilities: vulns,
 		Meta:            meta,
 		Count:           count,
+		CountsUpdatedAt: updatedAt,
 	}, nil
 }
 
@@ -75,9 +84,9 @@ func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListO
 
 	for i, vuln := range vulns {
 		if vuln.Source == fleet.MSRCSource {
-			vulns[i].DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
+			vulns[i].DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE.CVE)
 		} else {
-			vulns[i].DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
+			vulns[i].DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
 		}
 	}
 
@@ -117,17 +126,17 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 	}
 
 	if vuln.Source == fleet.MSRCSource {
-		vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
+		vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE.CVE)
 	} else {
-		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
+		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
 	}
 
-	osVersions, _, err := svc.ListOSVersionsByCVE(ctx, vuln.CVE, request.TeamID)
+	osVersions, _, err := svc.ListOSVersionsByCVE(ctx, vuln.CVE.CVE, request.TeamID)
 	if err != nil {
 		return getVulnerabilityResponse{Err: err}, nil
 	}
 
-	software, _, err := svc.ListSoftwareByCVE(ctx, vuln.CVE, request.TeamID)
+	software, _, err := svc.ListSoftwareByCVE(ctx, vuln.CVE.CVE, request.TeamID)
 	if err != nil {
 		return getVulnerabilityResponse{Err: err}, nil
 	}

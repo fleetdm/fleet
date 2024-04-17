@@ -30,6 +30,7 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -120,7 +121,6 @@ const TargetPillSelector = ({
     >
       <Icon name={isSelected ? "check" : "plus"} />
       <span className="selector-name">{displayText()}</span>
-      {/* <span className="selector-count">{entity.count}</span> */}
     </button>
   );
 };
@@ -306,9 +306,8 @@ const SelectTargets = ({
       : setTargetedTeams(newTargets as ITeam[]);
   };
 
-  const handleRowSelect = (row: Row) => {
-    const selectedHost = row.original as IHost;
-    setTargetedHosts((prevHosts) => prevHosts.concat(selectedHost));
+  const handleRowSelect = (row: Row<IHost>) => {
+    setTargetedHosts((prevHosts) => prevHosts.concat(row.original));
     setSearchText("");
 
     // If "all hosts" is already selected when using host target picker, deselect "all hosts"
@@ -317,8 +316,8 @@ const SelectTargets = ({
     }
   };
 
-  const handleRowRemove = (row: Row) => {
-    const removedHost = row.original as IHost;
+  const handleRowRemove = (row: Row<IHost>) => {
+    const removedHost = row.original;
     setTargetedHosts((prevHosts) =>
       prevHosts.filter((h) => h.id !== removedHost.id)
     );
@@ -395,8 +394,9 @@ const SelectTargets = ({
 
     return (
       <>
-        <b>{total.toLocaleString()}</b>&nbsp;host{total > 1 ? `s` : ``}{" "}
-        targeted&nbsp; ({onlinePercentage()}
+        <b>{total.toLocaleString()}</b>&nbsp;host
+        {total > 1 || total === 0 ? `s` : ``} targeted&nbsp; (
+        {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
           tipContent={
@@ -434,6 +434,9 @@ const SelectTargets = ({
     );
   }
 
+  const resultsTableConfig = generateTableHeaders();
+  const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
+
   return (
     <div className={`${baseClass}__wrapper`}>
       <h1>Select targets</h1>
@@ -442,11 +445,18 @@ const SelectTargets = ({
           renderTargetEntityList("", labels.allHosts)}
         {!!labels?.platforms?.length &&
           renderTargetEntityList("Platforms", labels.platforms)}
-        {!!teams?.length && renderTargetEntityList("Teams", teams)}
+        {!!teams?.length &&
+          renderTargetEntityList("Teams", [
+            { id: 0, name: "No team" },
+            ...teams,
+          ])}
         {!!labels?.other?.length &&
           renderTargetEntityList("Labels", labels.other)}
       </div>
       <TargetsInput
+        autofocus
+        searchResultsTableConfig={resultsTableConfig}
+        selectedHostsTableConifg={selectedHostsTableConfig}
         tabIndex={inputTabIndex || 0}
         searchText={searchText}
         searchResults={searchResults || []}
@@ -455,7 +465,7 @@ const SelectTargets = ({
         hasFetchError={!!errorSearchResults}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
-        handleRowRemove={handleRowRemove}
+        disablePagination
       />
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button

@@ -41,6 +41,12 @@ export interface IMdmSolution {
   hosts_count: number;
 }
 
+/** This is the mdm solution that comes back from the host/summary/mdm
+request. We will always get a string for the solution name in this case  */
+export interface IMdmSummaryMdmSolution extends IMdmSolution {
+  name: string;
+}
+
 interface IMdmStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
@@ -52,7 +58,7 @@ interface IMdmStatus {
 export interface IMdmSummaryResponse {
   counts_updated_at: string;
   mobile_device_management_enrollment_status: IMdmStatus;
-  mobile_device_management_solution: IMdmSolution[] | null;
+  mobile_device_management_solution: IMdmSummaryMdmSolution[] | null;
 }
 
 export type ProfilePlatform = "darwin" | "windows";
@@ -75,6 +81,11 @@ export interface IMdmProfile {
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
+export type MdmDDMProfileStatus =
+  | "success"
+  | "pending"
+  | "failed"
+  | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
 
@@ -83,7 +94,7 @@ export interface IHostMdmProfile {
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus;
+  status: MdmProfileStatus | MdmDDMProfileStatus;
   detail: string;
 }
 

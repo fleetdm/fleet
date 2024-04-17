@@ -56,6 +56,7 @@ interface IDataTableProps {
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   onSelectSingleRow?: (value: Row) => void;
+  onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
   renderFooter?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
@@ -96,6 +97,7 @@ const DataTable = ({
   searchQueryColumn,
   selectedDropdownFilter,
   onSelectSingleRow,
+  onClickRow,
   onResultsCountChange,
   renderFooter,
   renderPagination,
@@ -313,8 +315,8 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllPagesSelected, toggleAllRowsSelected]);
 
-  const onSingleRowClick = useCallback(
-    (row) => {
+  const onSelectRowClick = useCallback(
+    (row: any) => {
       if (disableMultiRowSelect) {
         row.toggleRowSelected();
         onSelectSingleRow && onSelectSingleRow(row);
@@ -524,9 +526,10 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      onSingleRowClick &&
+                      (onSelectRowClick &&
                         disableMultiRowSelect &&
-                        onSingleRowClick(row);
+                        onSelectRowClick(row)) ||
+                        (onClickRow && onClickRow(row));
                     },
                   })}
                 >

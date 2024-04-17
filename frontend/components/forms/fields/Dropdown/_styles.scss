@@ -51,6 +51,7 @@
   &__option {
     display: flex;
     flex-direction: column;
+    width: 100%;
   }
 
   &__help-text {
@@ -75,6 +76,8 @@
     background-color: $ui-light-grey;
     border: 0;
     border-radius: $border-radius;
+    cursor: pointer;
+
     .Select-value {
       font-size: $small;
       background-color: $ui-light-grey;

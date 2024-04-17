@@ -1,0 +1,1 @@
+* Fixed an issue with automatic release of the device after setup when a DDM profile is pending.

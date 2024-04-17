@@ -10,14 +10,9 @@ variable "scep_secret_name" {
   type     = string
 }
 
-variable "dep_secret_name" {
-  default  = "fleet-dep"
+variable "abm_secret_name" {
+  default  = "fleet-abm"
   nullable = true
-  type     = string
-}
-
-variable "public_domain_name" {
-  nullable = false
   type     = string
 }
 

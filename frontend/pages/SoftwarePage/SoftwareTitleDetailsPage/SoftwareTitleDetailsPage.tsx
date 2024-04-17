@@ -17,6 +17,8 @@ import softwareAPI, {
   IGetSoftwareTitleQueryKey,
 } from "services/entities/software";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
@@ -74,7 +76,8 @@ const SoftwareTitleDetailsPage = ({
     [{ scope: "softwareById", softwareId, teamId: teamIdForApi }],
     ({ queryKey }) => softwareAPI.getSoftwareTitle(queryKey[0]),
     {
-      refetchOnWindowFocus: false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
       select: (data) => data.software_title,
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {

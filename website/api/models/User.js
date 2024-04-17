@@ -202,6 +202,30 @@ without necessarily having a billing card.`
       defaultsTo: false
     },
 
+    primaryBuyingSituation: {
+      type: 'string',
+      description: 'The primary buying situation the user selected when they signed up.',
+      extendedDescription: 'User records created before 2024-03-14 will have this attribute set to ""',
+      isIn: [
+        'eo-security',
+        'eo-it',
+        'mdm',
+        'vm',
+      ]
+    },
+
+    lastSubmittedGetStartedQuestionnaireStep: {
+      type: 'string',
+      description: 'The last step the user reached in the get started form.',
+      defaultsTo: 'start',
+    },
+
+    getStartedQuestionnaireAnswers: {
+      type: 'json',
+      description: 'This answers the user provided when they filled out the get started form.',
+      defaultsTo: {},
+    }
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

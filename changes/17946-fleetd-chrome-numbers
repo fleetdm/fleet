@@ -1,0 +1,2 @@
+- Fix a bug where values not derived from "actual" fleetd-chrome tables were not being displayed
+  correctly (e.g., `SELECT 1` gets its value from the query itself, not a table)
