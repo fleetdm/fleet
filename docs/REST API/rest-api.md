@@ -390,7 +390,7 @@ Gets the current SSO configuration.
 
 #### Parameters
 
-| Name      | Type   | In   | Deion                                                                 |
+| Name      | Type   | In   | Description                                                                 |
 | --------- | ------ | ---- | --------------------------------------------------------------------------- |
 | relay_url | string | body | **Required**. The relative url to be navigated to after successful sign in. |
 
