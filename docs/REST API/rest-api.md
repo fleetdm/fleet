@@ -6037,10 +6037,8 @@ Team policies work the same as policies, but at the team level.
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
-      "calendar_event_description": {
-        "maintenance_action": "We'll update your macOS to the latest version, which will require a restart and ensure your system is secure and up-to-date.",
-        "maintenance_reason": "Updating ensures we meet security standards and maintain system integrity."
-      }
+      "risk_description": "If Gatekeeper is disabled, the laptop is vulnerable to malicious apps and software from untrusted sources.",
+      "maintenance_window_description": "Gatekeeper will be enabled to block unauthorized apps, enhancing your system's security."
     },
     {
       "id": 2,
@@ -6060,7 +6058,8 @@ Team policies work the same as policies, but at the team level.
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
-      "calendar_event_description": null
+      "risk_description": "Without BitLocker enabled, the laptop's data is exposed to unauthorized access and theft.",
+      "maintenance_window_description": "BitLocker will be activated to encrypt the hard drive, securing data against potential threats."
     }
   ],
   "inherited_policies": [
@@ -6080,7 +6079,7 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
 }
