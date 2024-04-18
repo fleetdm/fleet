@@ -302,9 +302,9 @@ const modifyOptions = (
         <>
           To {tooltipAction[value]} this host, deploy the
           <br />
-          fleetd agent with --enable-scripts
+          fleetd agent with --enable-scripts and
           <br />
-          and refetch host vitals
+          refetch host vitals
         </>
       );
     }
