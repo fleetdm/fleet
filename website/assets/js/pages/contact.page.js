@@ -49,6 +49,9 @@ parasails.registerPage('contact', {
   beforeMount: function() {
     if(this.formToShow === 'contact'){
       this.formToDisplay = this.formToShow;
+    } else if(!this.primaryBuyingSituation){
+      // Default to contact form for users who have no primaryBuyingSituation set.
+      this.formToDisplay = 'contact';
     }
     if(this.primaryBuyingSituation){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
       // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
@@ -108,7 +111,7 @@ parasails.registerPage('contact', {
     },
 
     clickSwitchForms: function(form) {
-      if(this.prefillFormDataFromUserRecord){
+      if(this.me){
         this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
       } else {
         this.formData = {};
