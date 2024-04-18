@@ -32,9 +32,11 @@
     }
   }
 
-  .disk-space-tooltip {
-    display: block;
-    white-space: normal;
-    max-width: 160px;
+  &__data {
+    .disk-space-tooltip {
+      display: block;
+      white-space: normal;
+      max-width: 160px;
+    }
   }
 }
