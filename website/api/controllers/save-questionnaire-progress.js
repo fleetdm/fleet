@@ -83,7 +83,7 @@ module.exports = {
     //  └─┐├┤  │   ├─┘└─┐└┬┘│  ├─┤│ ││  │ ││ ┬││  ├─┤│    └─┐ │ ├─┤│ ┬├┤
     //  └─┘└─┘ ┴   ┴  └─┘ ┴ └─┘┴ ┴└─┘┴─┘└─┘└─┘┴└─┘┴ ┴┴─┘  └─┘ ┴ ┴ ┴└─┘└─┘
     // This is how the questionnaire steps/options change a user's psychologicalStage value.
-    // 'start': Stage 1 » Stage 2
+    // 'start': No change
     // 'what-are-you-using-fleet-for': No change
     // 'have-you-ever-used-fleet':
     //  - yes-deployed: » Stage 6
@@ -108,9 +108,7 @@ module.exports = {
     let psychologicalStage = userRecord.psychologicalStage;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
-    if(currentStep === 'start'){
-      psychologicalStage = '2 - Aware';
-    } else if(currentStep === 'have-you-ever-used-fleet') {
+    if(currentStep === 'have-you-ever-used-fleet') {
       if(['yes-deployed', 'yes-recently-deployed'].includes(valueFromFormData)) {
         // If the user has Fleet deployed, set their stage to 6.
         psychologicalStage = '6 - Has team buy-in';
@@ -133,7 +131,7 @@ module.exports = {
         psychologicalStage = '5 - Personally confident';
       }
       // If the user selects let me think about it, their stage will not change.
-    }
+    }//ﬁ
 
     // Set the user's answer to the current step.
     questionnaireProgress[currentStep] = formData;

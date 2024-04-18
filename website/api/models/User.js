@@ -237,7 +237,7 @@ without necessarily having a billing card.`
         '5 - Personally confident',
         '6 - Has team buy-in'
       ],
-      defaultsTo: '1 - Unaware'
+      defaultsTo: '2 - Aware'
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
