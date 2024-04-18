@@ -40,6 +40,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅    | ✅      |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
+| Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅    | ✅      |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
@@ -124,6 +125,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View a host by identifier                                                                                                        | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
+| Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅         | ✅          |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |
 | Filter hosts by software                                                                                                         | ✅            | ✅             | ✅              | ✅         |             |

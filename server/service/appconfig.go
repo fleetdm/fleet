@@ -556,6 +556,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// activity
 	if oldAppConfig.MDM.MacOSUpdates.MinimumVersion.Value != appConfig.MDM.MacOSUpdates.MinimumVersion.Value ||
 		oldAppConfig.MDM.MacOSUpdates.Deadline.Value != appConfig.MDM.MacOSUpdates.Deadline.Value {
+		if license.IsPremium() {
+			// macOS updates are premium feature
+			if err := svc.EnterpriseOverrides.MDMAppleEditedMacOSUpdates(ctx, nil, appConfig.MDM.MacOSUpdates); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update DDM profile after macOS updates change")
+			}
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),

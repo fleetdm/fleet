@@ -10,12 +10,12 @@ const baseClass = "form-field";
 
 export interface IFormFieldProps {
   children: JSX.Element;
-  className: string;
-  error: string;
-  helpText: Array<any> | JSX.Element | string;
   label: Array<any> | JSX.Element | string;
   name: string;
-  type: string;
+  helpText?: Array<any> | JSX.Element | string;
+  type?: string;
+  error?: string;
+  className?: string;
   tooltip?: React.ReactNode;
   labelTooltipPosition?: PlacesType;
 }

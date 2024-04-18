@@ -177,6 +177,20 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+
 	filename := writeTmpYml(t, `
 ---
 apiVersion: v1
@@ -566,6 +580,24 @@ func TestApplyAppConfig(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
+		return nil
+	}
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -938,6 +970,37 @@ spec:
   platforms:
     - darwin
 `
+	manualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: manual_label
+  label_membership_type: manual
+  hosts:
+    - host1
+  platforms:
+    - darwin
+`
+	emptyManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: empty_manual_label
+  label_membership_type: manual
+  hosts: []
+  platforms:
+    - darwin
+`
+	nohostsManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: invalid_nohost_manual_label
+  label_membership_type: manual
+  hosts:
+  platforms:
+    - darwin
+`
 	packsSpec = `---
 apiVersion: v1
 kind: pack
@@ -1135,6 +1198,17 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil
 	}
 	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -1509,6 +1583,37 @@ func TestApplyLabels(t *testing.T) {
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, manualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "manual_label", appliedLabels[0].Name)
+	assert.Empty(t, appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, emptyManualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "empty_manual_label", appliedLabels[0].Name)
+	assert.Empty(t, appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, nohostsManualLabelSpec)
+
+	_, err := runAppNoChecks([]string{"apply", "-f", name})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as manual but contains no `hosts key`")
 }
 
 func TestApplyPacks(t *testing.T) {

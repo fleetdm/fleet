@@ -185,6 +185,184 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host still verifying team profiles
+
+	// add a new profile to the team
+	mcUUID := "a" + uuid.NewString()
+	prof := mcBytesForTest("name-"+mcUUID, "idenfifer-"+mcUUID, mcUUID)
+	wantTeamProfiles = append(wantTeamProfiles, prof)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, []byte("checksum-"+mcUUID))
+		return err
+	})
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Len(t, installs, 1)
+	require.Equal(t, prof, installs[0])
+	require.Empty(t, removes)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+
+	// can't resend profile while verifying
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// set the profile to pending, can't resend
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryPending, mcUUID, host.UUID)
+		return err
+	})
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Pending: 1}, nil)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// set the profile to failed, can resend
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryFailed, mcUUID, host.UUID)
+		return err
+	})
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Failed: 1}, nil)
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusAccepted)
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Len(t, installs, 1)
+	require.Equal(t, prof, installs[0])
+	require.Empty(t, removes)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+
+	// can't resend profile while verifying
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// set the profile to verified, can resend
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryVerified, mcUUID, host.UUID)
+		return err
+	})
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusAccepted)
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Len(t, installs, 1)
+	require.Equal(t, prof, installs[0])
+	require.Empty(t, removes)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q}`, host.ID, host.DisplayName(), "name-"+mcUUID),
+		0)
+
+	// add a declaration to the team
+	declIdent := "decl-ident-" + uuid.NewString()
+	fields := map[string][]string{
+		"team_id": {fmt.Sprintf("%d", tm.ID)},
+	}
+	body, headers := generateNewProfileMultipartRequest(
+		t, "some-declaration.json", declarationForTest(declIdent), s.token, fields,
+	)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	var resp newMDMConfigProfileResponse
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.ProfileUUID)
+	require.Equal(t, "d", string(resp.ProfileUUID[0]))
+	declUUID := resp.ProfileUUID
+
+	checkDDMSync := func(d *mdmtest.TestAppleMDMClient) {
+		require.NoError(t, ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger))
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+		cmd, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd, fmt.Sprintf("expected no more commands, but got: %+v", cmd))
+		_, err = d.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+	}
+	checkDDMSync(mdmDevice)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+
+	// can't resend declaration while verifying
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, declUUID), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// set the declaration to verified, can resend
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_declarations SET status = ? WHERE declaration_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryVerified, declUUID, host.UUID)
+		return err
+	})
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, declUUID), nil, http.StatusAccepted)
+	checkDDMSync(mdmDevice)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Verifying: 1}, nil)
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": "some-declaration"}`, host.ID, host.DisplayName()),
+		0)
+
+	// transfer the host to the global team
+	err = s.ds.AddHostsToTeam(ctx, nil, []uint{host.ID})
+	require.NoError(t, err)
+
+	s.awaitTriggerProfileSchedule(t)
+	installs, removes = checkNextPayloads(t, mdmDevice, false)
+	require.Len(t, installs, len(wantGlobalProfiles))
+	s.signedProfilesMatch(wantGlobalProfiles, installs)
+	require.Len(t, removes, len(wantTeamProfiles))
+	expectedNoTeamSummary = fleet.MDMProfilesSummary{Verifying: 1}
+	expectedTeamSummary = fleet.MDMProfilesSummary{}
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // host now verifying global profiles
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
+
+	// can't resend profile from another team
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusNotFound)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Unable to match profile to host")
+
+	// add a Windows profile, resend not supported when host is macOS
+	wpUUID := mysql.InsertWindowsProfileForTest(t, s.ds, 0)
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, wpUUID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Profile is not compatible with host platform")
+
+	// invalid profile UUID prefix should return 404
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, "z"+uuid.NewString()), nil, http.StatusNotFound)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Invalid profile UUID prefix")
+
+	// set OS updates settings for no-team and team, should not change the
+	// summaries as this profile is ignored.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"macos_updates": {
+				"deadline": "2023-12-31",
+				"minimum_version": "13.3.7"
+			}
+		}
+	}`), http.StatusOK)
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
+				Deadline:       optjson.SetString("1992-01-01"),
+				MinimumVersion: optjson.SetString("13.1.1"),
+			},
+		},
+	}, http.StatusOK)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
+
+	// it should also not show up in the host's profiles list
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.NotEmpty(t, hostResp.Host.MDM.Profiles)
+	resProfiles = *hostResp.Host.MDM.Profiles
+	// one extra profile for the fleetd config
+	require.Len(t, resProfiles, len(wantGlobalProfiles)+1)
 }
 
 func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
@@ -1475,213 +1653,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		require.Len(t, hostProfilesResp.Profiles, 2)
 		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
 	})
-}
-
-func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
-	t := s.T()
-	ctx := context.Background()
-
-	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
-	require.NoError(t, err)
-
-	testProfiles := make(map[string]fleet.MDMAppleConfigProfile)
-	generateTestProfile := func(name string, identifier string) {
-		i := identifier
-		if i == "" {
-			i = fmt.Sprintf("%s.SomeIdentifier", name)
-		}
-		cp := fleet.MDMAppleConfigProfile{
-			Name:       name,
-			Identifier: i,
-		}
-		cp.Mobileconfig = mcBytesForTest(cp.Name, cp.Identifier, fmt.Sprintf("%s.UUID", name))
-		testProfiles[name] = cp
-	}
-	setTestProfileID := func(name string, id uint) {
-		tp := testProfiles[name]
-		tp.ProfileID = id
-		testProfiles[name] = tp
-	}
-
-	generateNewReq := func(name string, teamID *uint) (*bytes.Buffer, map[string]string) {
-		args := map[string][]string{}
-		if teamID != nil {
-			args["team_id"] = []string{fmt.Sprintf("%d", *teamID)}
-		}
-		return generateNewProfileMultipartRequest(t, "some_filename", testProfiles[name].Mobileconfig, s.token, args)
-	}
-
-	checkGetResponse := func(resp *http.Response, expected fleet.MDMAppleConfigProfile) {
-		// check expected headers
-		require.Contains(t, resp.Header["Content-Type"], "application/x-apple-aspen-config")
-		require.Contains(t, resp.Header["Content-Disposition"], fmt.Sprintf(`attachment;filename="%s_%s.%s"`, time.Now().Format("2006-01-02"), strings.ReplaceAll(expected.Name, " ", "_"), "mobileconfig"))
-		// check expected body
-		var bb bytes.Buffer
-		_, err = io.Copy(&bb, resp.Body)
-		require.NoError(t, err)
-		require.Equal(t, []byte(expected.Mobileconfig), bb.Bytes())
-	}
-
-	checkConfigProfile := func(expected fleet.MDMAppleConfigProfile, actual fleet.MDMAppleConfigProfile) {
-		require.Equal(t, expected.Name, actual.Name)
-		require.Equal(t, expected.Identifier, actual.Identifier)
-	}
-
-	// create new profile (no team)
-	generateTestProfile("TestNoTeam", "")
-	body, headers := generateNewReq("TestNoTeam", nil)
-	newResp := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
-	var newCP fleet.MDMAppleConfigProfile
-	err = json.NewDecoder(newResp.Body).Decode(&newCP)
-	require.NoError(t, err)
-	require.NotEmpty(t, newCP.ProfileID)
-	setTestProfileID("TestNoTeam", newCP.ProfileID)
-
-	// create new profile (with team id)
-	generateTestProfile("TestWithTeamID", "")
-	body, headers = generateNewReq("TestWithTeamID", &testTeam.ID)
-	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
-	err = json.NewDecoder(newResp.Body).Decode(&newCP)
-	require.NoError(t, err)
-	require.NotEmpty(t, newCP.ProfileID)
-	setTestProfileID("TestWithTeamID", newCP.ProfileID)
-
-	// list profiles (no team)
-	expectedCP := testProfiles["TestNoTeam"]
-	var listResp listMDMAppleConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.ConfigProfiles, 1)
-	respCP := listResp.ConfigProfiles[0]
-	require.Equal(t, expectedCP.Name, respCP.Name)
-	checkConfigProfile(expectedCP, *respCP)
-	require.Empty(t, respCP.Mobileconfig) // list profiles endpoint shouldn't include mobileconfig bytes
-	require.Empty(t, respCP.TeamID)       // zero means no team
-
-	// list profiles (team 1)
-	expectedCP = testProfiles["TestWithTeamID"]
-	listResp = listMDMAppleConfigProfilesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
-	require.Len(t, listResp.ConfigProfiles, 1)
-	respCP = listResp.ConfigProfiles[0]
-	require.Equal(t, expectedCP.Name, respCP.Name)
-	checkConfigProfile(expectedCP, *respCP)
-	require.Empty(t, respCP.Mobileconfig)         // list profiles endpoint shouldn't include mobileconfig bytes
-	require.Equal(t, testTeam.ID, *respCP.TeamID) // team 1
-
-	// get profile (no team)
-	expectedCP = testProfiles["TestNoTeam"]
-	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
-	getResp := s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
-	checkGetResponse(getResp, expectedCP)
-
-	// get profile (team 1)
-	expectedCP = testProfiles["TestWithTeamID"]
-	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
-	getResp = s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
-	checkGetResponse(getResp, expectedCP)
-
-	// delete profile (no team)
-	deletedCP := testProfiles["TestNoTeam"]
-	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
-	var deleteResp deleteMDMAppleConfigProfileResponse
-	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
-	// confirm deleted
-	listResp = listMDMAppleConfigProfilesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{}, http.StatusOK, &listResp)
-	require.Len(t, listResp.ConfigProfiles, 0)
-	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
-	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
-
-	// delete profile (team 1)
-	deletedCP = testProfiles["TestWithTeamID"]
-	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
-	deleteResp = deleteMDMAppleConfigProfileResponse{}
-	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
-	// confirm deleted
-	listResp = listMDMAppleConfigProfilesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
-	require.Len(t, listResp.ConfigProfiles, 0)
-	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
-	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
-
-	// trying to add/delete profiles with identifiers managed by Fleet fails
-	for p := range mobileconfig.FleetPayloadIdentifiers() {
-		generateTestProfile("TestNoTeam", p)
-		body, headers := generateNewReq("TestNoTeam", nil)
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-
-		generateTestProfile("TestWithTeamID", p)
-		body, headers = generateNewReq("TestWithTeamID", nil)
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent("N1", "I1", p, "random", ""), nil)
-		require.NoError(t, err)
-		testProfiles["WithContent"] = *cp
-		body, headers = generateNewReq("WithContent", nil)
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-	}
-
-	// trying to add profiles with identifiers managed by Fleet fails
-	for p := range mobileconfig.FleetPayloadIdentifiers() {
-		generateTestProfile("TestNoTeam", p)
-		body, headers := generateNewReq("TestNoTeam", nil)
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-
-		generateTestProfile("TestWithTeamID", p)
-		body, headers = generateNewReq("TestWithTeamID", nil)
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent("N1", "I1", p, "random", ""), nil)
-		require.NoError(t, err)
-		testProfiles["WithContent"] = *cp
-		body, headers = generateNewReq("WithContent", nil)
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-	}
-
-	// trying to add profiles with names reserved by Fleet fails
-	for name := range servermdm.FleetReservedProfileNames() {
-		cp := &fleet.MDMAppleConfigProfile{
-			Name:         name,
-			Identifier:   "valid.identifier",
-			Mobileconfig: mcBytesForTest(name, "valid.identifier", "some-uuid"),
-		}
-		body, headers := generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, nil)
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-
-		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, map[string][]string{
-			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
-		})
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-
-		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent(
-			"valid outer name",
-			"valid.outer.identifier",
-			"valid.inner.identifer",
-			"some-uuid",
-			name,
-		), nil)
-		require.NoError(t, err)
-		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, nil)
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-
-		cp.TeamID = &testTeam.ID
-		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, map[string][]string{
-			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
-		})
-
-		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-	}
-
-	// make fleet add a FileVault profile
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	profile := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	// try to delete the profile
-	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
-	deleteResp = deleteMDMAppleConfigProfileResponse{}
-	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
@@ -3265,6 +3236,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsProfilesMatch(host, globalProfiles)
 	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
+	// can't resend a profile while it is verifying
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusConflict)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
 	// create new label that includes host
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -3327,6 +3303,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Verifying: 0,
 	}, nil)
 
+	// can resend a profile after it has failed
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusAccepted)
+	verifyProfiles(mdmDevice, 1, false)                                                 // trigger a profile sync, device gets the profile resent
+	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so it back to verifying
+
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
 	require.NoError(t, err)
@@ -3353,6 +3334,16 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// check that we deleted the old profile in the DB
 	checkHostsProfilesMatch(host, teamProfiles)
 	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+
+	// can't resend a profile while it is verifying
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
+
+	// can't resend a profile from the wrong team
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, globalProfiles[0]), nil, http.StatusNotFound)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Unable to match profile to host.")
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
@@ -3421,6 +3412,32 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Failed:    1,
 		Verifying: 0,
 	}, nil)
+
+	// can resend a profile after it has failed
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
+	verifyProfiles(mdmDevice, 1, false)                                               // trigger a profile sync, device gets the profile resent
+	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryVerifying) // profile was resent, so back to verifying
+	s.lastActivityMatches(
+		fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "profile_name": %q}`, host.ID, host.DisplayName(), "name-"+teamProfiles[0]),
+		0)
+
+	// add a macOS profile to the team
+	mcUUID := "a" + uuid.NewString()
+	prof := mcBytesForTest("name-"+mcUUID, "idenfifer-"+mcUUID, mcUUID)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, []byte("checksum-"+mcUUID))
+		return err
+	})
+
+	// trigger a profile sync, device doesn't get the macOS profile
+	verifyProfiles(mdmDevice, 0, false)
+
+	// can't resend a macOS profile to a Windows host
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/resend/%s", host.ID, mcUUID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Profile is not compatible with host platform")
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
@@ -3634,7 +3651,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N4", Contents: declarationForTestWithType("D1", "com.apple.configuration.softwareupdate.enforcement.specific")},
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. OS updates coming soon!")
+	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
 
 	// invalid JSON
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -4036,4 +4053,211 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testTeamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tmResp.Team.ID)))
 	checkMacProfs(&tmResp.Team.ID, append(servermdm.ListFleetReservedMacOSProfileNames(), "n2")...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
+}
+
+func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+
+	testProfiles := make(map[string]fleet.MDMAppleConfigProfile)
+	generateTestProfile := func(name string, identifier string) {
+		i := identifier
+		if i == "" {
+			i = fmt.Sprintf("%s.SomeIdentifier", name)
+		}
+		cp := fleet.MDMAppleConfigProfile{
+			Name:       name,
+			Identifier: i,
+		}
+		cp.Mobileconfig = mcBytesForTest(cp.Name, cp.Identifier, fmt.Sprintf("%s.UUID", name))
+		testProfiles[name] = cp
+	}
+	setTestProfileID := func(name string, id uint) {
+		tp := testProfiles[name]
+		tp.ProfileID = id
+		testProfiles[name] = tp
+	}
+
+	generateNewReq := func(name string, teamID *uint) (*bytes.Buffer, map[string]string) {
+		args := map[string][]string{}
+		if teamID != nil {
+			args["team_id"] = []string{fmt.Sprintf("%d", *teamID)}
+		}
+		return generateNewProfileMultipartRequest(t, "some_filename", testProfiles[name].Mobileconfig, s.token, args)
+	}
+
+	checkGetResponse := func(resp *http.Response, expected fleet.MDMAppleConfigProfile) {
+		// check expected headers
+		require.Contains(t, resp.Header["Content-Type"], "application/x-apple-aspen-config")
+		require.Contains(t, resp.Header["Content-Disposition"], fmt.Sprintf(`attachment;filename="%s_%s.%s"`, time.Now().Format("2006-01-02"), strings.ReplaceAll(expected.Name, " ", "_"), "mobileconfig"))
+		// check expected body
+		var bb bytes.Buffer
+		_, err = io.Copy(&bb, resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, []byte(expected.Mobileconfig), bb.Bytes())
+	}
+
+	checkConfigProfile := func(expected fleet.MDMAppleConfigProfile, actual fleet.MDMAppleConfigProfile) {
+		require.Equal(t, expected.Name, actual.Name)
+		require.Equal(t, expected.Identifier, actual.Identifier)
+	}
+
+	// create new profile (no team)
+	generateTestProfile("TestNoTeam", "")
+	body, headers := generateNewReq("TestNoTeam", nil)
+	newResp := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	var newCP fleet.MDMAppleConfigProfile
+	err = json.NewDecoder(newResp.Body).Decode(&newCP)
+	require.NoError(t, err)
+	require.NotEmpty(t, newCP.ProfileID)
+	setTestProfileID("TestNoTeam", newCP.ProfileID)
+
+	// create new profile (with team id)
+	generateTestProfile("TestWithTeamID", "")
+	body, headers = generateNewReq("TestWithTeamID", &testTeam.ID)
+	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(newResp.Body).Decode(&newCP)
+	require.NoError(t, err)
+	require.NotEmpty(t, newCP.ProfileID)
+	setTestProfileID("TestWithTeamID", newCP.ProfileID)
+
+	// list profiles (no team)
+	expectedCP := testProfiles["TestNoTeam"]
+	var listResp listMDMAppleConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 1)
+	respCP := listResp.ConfigProfiles[0]
+	require.Equal(t, expectedCP.Name, respCP.Name)
+	checkConfigProfile(expectedCP, *respCP)
+	require.Empty(t, respCP.Mobileconfig) // list profiles endpoint shouldn't include mobileconfig bytes
+	require.Empty(t, respCP.TeamID)       // zero means no team
+
+	// list profiles (team 1)
+	expectedCP = testProfiles["TestWithTeamID"]
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 1)
+	respCP = listResp.ConfigProfiles[0]
+	require.Equal(t, expectedCP.Name, respCP.Name)
+	checkConfigProfile(expectedCP, *respCP)
+	require.Empty(t, respCP.Mobileconfig)         // list profiles endpoint shouldn't include mobileconfig bytes
+	require.Equal(t, testTeam.ID, *respCP.TeamID) // team 1
+
+	// get profile (no team)
+	expectedCP = testProfiles["TestNoTeam"]
+	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getResp := s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+	checkGetResponse(getResp, expectedCP)
+
+	// get profile (team 1)
+	expectedCP = testProfiles["TestWithTeamID"]
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getResp = s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+	checkGetResponse(getResp, expectedCP)
+
+	// delete profile (no team)
+	deletedCP := testProfiles["TestNoTeam"]
+	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	var deleteResp deleteMDMAppleConfigProfileResponse
+	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
+	// confirm deleted
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 0)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+
+	// delete profile (team 1)
+	deletedCP = testProfiles["TestWithTeamID"]
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	deleteResp = deleteMDMAppleConfigProfileResponse{}
+	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
+	// confirm deleted
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 0)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+
+	// trying to add/delete profiles with identifiers managed by Fleet fails
+	for p := range mobileconfig.FleetPayloadIdentifiers() {
+		generateTestProfile("TestNoTeam", p)
+		body, headers := generateNewReq("TestNoTeam", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		generateTestProfile("TestWithTeamID", p)
+		body, headers = generateNewReq("TestWithTeamID", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent("N1", "I1", p, "random", ""), nil)
+		require.NoError(t, err)
+		testProfiles["WithContent"] = *cp
+		body, headers = generateNewReq("WithContent", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	}
+
+	// trying to add profiles with identifiers managed by Fleet fails
+	for p := range mobileconfig.FleetPayloadIdentifiers() {
+		generateTestProfile("TestNoTeam", p)
+		body, headers := generateNewReq("TestNoTeam", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		generateTestProfile("TestWithTeamID", p)
+		body, headers = generateNewReq("TestWithTeamID", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent("N1", "I1", p, "random", ""), nil)
+		require.NoError(t, err)
+		testProfiles["WithContent"] = *cp
+		body, headers = generateNewReq("WithContent", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	}
+
+	// trying to add profiles with names reserved by Fleet fails
+	for name := range servermdm.FleetReservedProfileNames() {
+		cp := &fleet.MDMAppleConfigProfile{
+			Name:         name,
+			Identifier:   "valid.identifier",
+			Mobileconfig: mcBytesForTest(name, "valid.identifier", "some-uuid"),
+		}
+		body, headers := generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, map[string][]string{
+			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
+		})
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent(
+			"valid outer name",
+			"valid.outer.identifier",
+			"valid.inner.identifer",
+			"some-uuid",
+			name,
+		), nil)
+		require.NoError(t, err)
+		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		cp.TeamID = &testTeam.ID
+		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, map[string][]string{
+			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
+		})
+
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	}
+
+	// make fleet add a FileVault profile
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	profile := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// try to delete the profile
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
+	deleteResp = deleteMDMAppleConfigProfileResponse{}
+	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
 }

@@ -1,4 +1,4 @@
-import React, { ReactChild, useContext } from "react";
+import React, { ReactNode, useContext } from "react";
 import classnames from "classnames";
 import { formatDistanceToNow } from "date-fns";
 
@@ -9,7 +9,7 @@ import SandboxGate from "components/Sandbox/SandboxGate";
 import { AppContext } from "context/app";
 
 interface IMainContentProps {
-  children: ReactChild;
+  children: ReactNode;
   /** An optional classname to pass to the main content component.
    * This can be used to apply styles directly onto the main content div
    */

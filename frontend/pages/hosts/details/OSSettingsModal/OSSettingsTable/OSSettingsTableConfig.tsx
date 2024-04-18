@@ -9,16 +9,14 @@ import {
   IHostMdmProfile,
   MdmDDMProfileStatus,
   MdmProfileStatus,
-  ProfilePlatform,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 import OSSettingStatusCell from "./OSSettingStatusCell";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
+import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 export const isMdmProfileStatus = (
   status: string
@@ -34,118 +32,58 @@ export interface IHostMdmProfileWithAddedStatus
 type ITableColumnConfig = Column<IHostMdmProfileWithAddedStatus>;
 type ITableStringCellProps = IStringCellProps<IHostMdmProfileWithAddedStatus>;
 
+/** Non DDM profiles can have an `action_required` as a profile status.  DDM
+ * Profiles will never have this status.
+ */
 export type INonDDMProfileStatus = MdmProfileStatus | "action_required";
 
 export type OsSettingsTableStatusValue =
   | MdmDDMProfileStatus
   | INonDDMProfileStatus;
 
-/**
- * generates the formatted tooltip for the error column.
- * the expected format of the error string is:
- * "key1: value1, key2: value2, key3: value3"
- */
-const generateFormattedTooltip = (detail: string) => {
-  const keyValuePairs = detail.split(/, */);
-  const formattedElements: JSX.Element[] = [];
-
-  // Special case to handle bitlocker error message. It does not follow the
-  // expected string format so we will just render the error message as is.
-  if (
-    detail.includes("BitLocker") ||
-    detail.includes("preparing volume for encryption")
-  ) {
-    return detail;
-  }
-
-  keyValuePairs.forEach((pair, i) => {
-    const [key, value] = pair.split(/: */);
-    if (key && value) {
-      formattedElements.push(
-        <span key={key}>
-          <b>{key.trim()}:</b> {value.trim()}
-          {/* dont add the trailing comma for the last element */}
-          {i !== keyValuePairs.length - 1 && (
-            <>
-              ,<br />
-            </>
-          )}
-        </span>
-      );
-    }
-  });
-
-  return formattedElements.length ? <>{formattedElements}</> : detail;
-};
-
-/**
- * generates the error tooltip for the error column. This will be formatted or
- * unformatted.
- */
-const generateErrorTooltip = (
-  cellValue: string,
-  platform: ProfilePlatform,
-  detail: string
-) => {
-  if (platform !== "windows") {
-    return cellValue;
-  }
-  return generateFormattedTooltip(detail);
-};
-
-const tableHeaders: ITableColumnConfig[] = [
-  {
-    Header: "Name",
-    disableSortBy: true,
-    accessor: "name",
-    Cell: (cellProps: ITableStringCellProps) => {
-      return <TextCell value={cellProps.cell.value} />;
+const generateTableConfig = (
+  hostId: number,
+  canResendProfiles: boolean,
+  onProfileResent?: () => void
+): ITableColumnConfig[] => {
+  return [
+    {
+      Header: "Name",
+      disableSortBy: true,
+      accessor: "name",
+      Cell: (cellProps: ITableStringCellProps) => {
+        return <TextCell value={cellProps.cell.value} />;
+      },
     },
-  },
-  {
-    Header: "Status",
-    disableSortBy: true,
-    accessor: "status",
-    Cell: (cellProps: ITableStringCellProps) => {
-      return (
-        <OSSettingStatusCell
-          status={cellProps.row.original.status}
-          operationType={cellProps.row.original.operation_type}
-          profileName={cellProps.row.original.name}
+    {
+      Header: "Status",
+      disableSortBy: true,
+      accessor: "status",
+      Cell: (cellProps: ITableStringCellProps) => {
+        return (
+          <OSSettingStatusCell
+            status={cellProps.row.original.status}
+            operationType={cellProps.row.original.operation_type}
+            profileName={cellProps.row.original.name}
+          />
+        );
+      },
+    },
+    {
+      Header: "Error",
+      disableSortBy: true,
+      accessor: "detail",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <OSSettingsErrorCell
+          canResendProfiles={canResendProfiles}
+          hostId={hostId}
+          profile={cellProps.row.original}
+          onProfileResent={onProfileResent}
         />
-      );
+      ),
     },
-  },
-  {
-    Header: "Error",
-    disableSortBy: true,
-    accessor: "detail",
-    Cell: (cellProps: ITableStringCellProps): JSX.Element => {
-      const profile = cellProps.row.original;
-
-      const value =
-        (profile.status === "failed" && profile.detail) ||
-        DEFAULT_EMPTY_CELL_VALUE;
-
-      const tooltip =
-        profile.status === "failed"
-          ? generateErrorTooltip(
-              value,
-              cellProps.row.original.platform,
-              profile.detail
-            )
-          : null;
-
-      return (
-        <TooltipTruncatedTextCell
-          tooltipBreakOnWord
-          tooltip={tooltip}
-          value={value}
-        />
-      );
-    },
-  },
-];
+  ];
+};
 
 const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
   const rows: IHostMdmProfileWithAddedStatus[] = [];
@@ -195,13 +133,9 @@ const makeDarwinRows = ({ profiles, macos_settings }: IHostMdmData) => {
 };
 
 export const generateTableData = (
-  hostMDMData?: IHostMdmData,
-  platform?: string
+  hostMDMData: IHostMdmData,
+  platform: string
 ) => {
-  if (!platform || !hostMDMData) {
-    return null;
-  }
-
   switch (platform) {
     case "windows":
       return makeWindowsRows(hostMDMData);
@@ -212,4 +146,4 @@ export const generateTableData = (
   }
 };
 
-export default tableHeaders;
+export default generateTableConfig;

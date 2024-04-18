@@ -294,7 +294,7 @@ const PolicyForm = ({
     }
 
     return (
-      <Button variant="small-icon" onClick={onOpenSchemaSidebar}>
+      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
         <>
           <Icon name="info" size="small" />
           Show schema

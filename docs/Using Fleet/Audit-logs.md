@@ -1108,6 +1108,25 @@ This activity contains the following fields:
 }
 ```
 
+## resent_configuration_profile
+
+Generated when a user resends an MDM configuration profile to a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "profile_name": "Passcode requirements"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

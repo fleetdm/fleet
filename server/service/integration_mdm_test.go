@@ -3892,6 +3892,30 @@ func (s *integrationMDMTestSuite) assertMacOSConfigProfilesByName(teamID *uint, 
 	}, "a config profile must %s with name: %s", label, profileName)
 }
 
+func (s *integrationMDMTestSuite) assertMacOSDeclarationsByName(teamID *uint, declarationName string, exists bool) {
+	t := s.T()
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+	var cfgProfs []*fleet.MDMAppleConfigProfile
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT name FROM mdm_apple_declarations WHERE team_id = ?`, teamID)
+	})
+
+	label := "exist"
+	if !exists {
+		label = "not exist"
+	}
+	require.Condition(t, func() bool {
+		for _, p := range cfgProfs {
+			if p.Name == declarationName {
+				return exists // success if we want it to exist, failure if we don't
+			}
+		}
+		return !exists
+	}, "a config profile must %s with name: %s", label, declarationName)
+}
+
 func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint, profileName string, exists bool) {
 	t := s.T()
 	if teamID == nil {
@@ -5118,6 +5142,10 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	// nudge config is empty if macos_updates is not set, and Windows MDM notifications are unset
 	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+
+	err := s.ds.UpdateHostOperatingSystem(context.Background(), h.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
+	require.NoError(t, err)
+
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
@@ -5146,7 +5174,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	})
 	mdmDevice.SerialNumber = h.HardwareSerial
 	mdmDevice.UUID = h.UUID
-	err := mdmDevice.Enroll()
+	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	resp = orbitGetConfigResponse{}
@@ -5163,6 +5191,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 		Description: "desc team1_" + t.Name(),
 	})
 	require.NoError(t, err)
+	s.assertMacOSDeclarationsByName(&team.ID, servermdm.FleetMacOSUpdatesProfileName, false)
 
 	// add the host to the team
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
@@ -5184,6 +5213,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 			},
 		},
 	}, http.StatusOK, &tmResp)
+	s.assertMacOSDeclarationsByName(&team.ID, servermdm.FleetMacOSUpdatesProfileName, true)
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
@@ -5203,12 +5233,54 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	mdmDevice.UUID = h2.UUID
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
+
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), h2.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
+	require.NoError(t, err)
+
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
 	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+
+	// host on macos > 14, shouldn't be receiving nudge configs
+	h3 := createOrbitEnrolledHost(t, "darwin", "h3", s.ds)
+
+	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h3.HardwareSerial
+	mdmDevice.UUID = h3.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), h3.ID, fleet.OperatingSystem{Platform: "darwin", Version: "14.1"})
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h3.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Nil(t, resp.NudgeConfig)
+
+	// host is available for nudge, but has not had details query run
+	// yet, so we don't know the os version.
+	h4 := createOrbitEnrolledHost(t, "darwin", "h4", s.ds)
+
+	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	mdmDevice.SerialNumber = h4.HardwareSerial
+	mdmDevice.UUID = h4.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h4.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Nil(t, resp.NudgeConfig)
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
