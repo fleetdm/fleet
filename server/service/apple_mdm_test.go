@@ -2510,11 +2510,23 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			return secrets, nil
 		}
 		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, ps []*fleet.MDMAppleConfigProfile) error {
-			require.Len(t, ps, len(secrets))
-			for i, p := range ps {
+			// fleetd + CA profiles
+			require.Len(t, ps, len(secrets)*2)
+			var fleetd, fleetCA []*fleet.MDMAppleConfigProfile
+			for _, p := range ps {
+				switch p.Identifier {
+				case mobileconfig.FleetdConfigPayloadIdentifier:
+					fleetd = append(fleetd, p)
+				case mobileconfig.FleetCARootConfigPayloadIdentifier:
+					fleetCA = append(fleetCA, p)
+				}
+			}
+			require.Len(t, fleetd, 3)
+			require.Len(t, fleetCA, 3)
+
+			for i, p := range fleetd {
 				require.Contains(t, string(p.Mobileconfig), testURL)
 				require.Contains(t, string(p.Mobileconfig), secrets[i].Secret)
-				require.Equal(t, mobileconfig.FleetdConfigPayloadIdentifier, p.Identifier)
 			}
 			return nil
 		}
@@ -2542,11 +2554,23 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			return secrets, nil
 		}
 		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, ps []*fleet.MDMAppleConfigProfile) error {
-			require.Len(t, ps, len(secrets))
-			for i, p := range ps {
+			// fleetd + CA profiles
+			require.Len(t, ps, len(secrets)*2)
+			var fleetd, fleetCA []*fleet.MDMAppleConfigProfile
+			for _, p := range ps {
+				switch p.Identifier {
+				case mobileconfig.FleetdConfigPayloadIdentifier:
+					fleetd = append(fleetd, p)
+				case mobileconfig.FleetCARootConfigPayloadIdentifier:
+					fleetCA = append(fleetCA, p)
+				}
+			}
+			require.Len(t, fleetd, 2)
+			require.Len(t, fleetCA, 2)
+
+			for i, p := range fleetd {
 				require.Contains(t, string(p.Mobileconfig), testURL)
 				require.Contains(t, string(p.Mobileconfig), secrets[i].Secret)
-				require.Equal(t, mobileconfig.FleetdConfigPayloadIdentifier, p.Identifier)
 			}
 			return nil
 		}
