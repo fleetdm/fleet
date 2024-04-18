@@ -81,7 +81,7 @@ var FleetCARootTemplate = template.Must(template.New("").Option("missingkey=erro
         <key>PayloadContent</key>
         <data>{{ .Certificate }}</data>
         <key>PayloadDescription</key>
-        <string>TODO</string>
+        <string>{{ .PayloadName }}</string>
         <key>PayloadDisplayName</key>
         <string>{{ .PayloadName }}</string>
         <key>PayloadIdentifier</key>
