@@ -110,7 +110,13 @@ const generateDefaultTableHeaders = (
       if (platform !== "darwin" && platform !== "windows") {
         return <TextCell value="Not supported" greyed />;
       }
-      return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      return (
+        <VulnerabilitiesCell
+          vulnerabilities={cellProps.cell.value}
+          teamId={teamId}
+          router={router}
+        />
+      );
     },
   },
   {

@@ -95,7 +95,11 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnerabilitiesCellProps) => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
+        <VulnerabilitiesCell
+          vulnerabilities={cellProps.cell.value}
+          teamId={teamId}
+          router={router}
+        />
       ),
     },
     {

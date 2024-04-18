@@ -91,7 +91,11 @@ const generateSoftwareTitleDetailsTableConfig = ({
       // total number of vulnerabilities for the software title
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnCellProps): JSX.Element => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
+        <VulnerabilitiesCell
+          vulnerabilities={cellProps.cell.value}
+          teamId={teamId}
+          router={router}
+        />
         // TODO: tooltip
       ),
     },

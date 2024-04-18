@@ -122,7 +122,13 @@ const generateTableHeaders = (
         const vulnerabilities = getVulnerabilities(
           cellProps.row.original.versions ?? []
         );
-        return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
+        return (
+          <VulnerabilitiesCell
+            vulnerabilities={vulnerabilities}
+            teamId={teamId}
+            router={router}
+          />
+        );
       },
     },
     {

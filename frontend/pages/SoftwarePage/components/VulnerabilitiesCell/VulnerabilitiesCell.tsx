@@ -1,16 +1,22 @@
 import React from "react";
 import { uniqueId } from "lodash";
 import ReactTooltip from "react-tooltip";
+import { InjectedRouter } from "react-router";
 
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftwareVulnerability } from "interfaces/software";
+import { buildQueryStringFromParams } from "utilities/url";
+import PATHS from "router/paths";
 
 const NUM_VULNERABILITIES_IN_TOOLTIP = 3;
 
 const baseClass = "vulnerabilities-cell";
 
 const generateCell = (
-  vulnerabilities: ISoftwareVulnerability[] | string[] | null
+  vulnerabilities: ISoftwareVulnerability[] | string[] | null,
+  teamId?: number,
+  router?: InjectedRouter
 ) => {
   if (vulnerabilities === null) {
     return <TextCell value="---" greyed />;
@@ -26,6 +32,23 @@ const generateCell = (
       typeof vulnerabilities[0] === "string"
         ? vulnerabilities[0]
         : vulnerabilities[0].cve;
+    const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+    const softwareVulnerabilitiesDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
+      text
+    )}?${teamQueryParam}`;
+    const onClickCVE = (e: React.MouseEvent) => {
+      // Allows for button to be clickable in a clickable row
+      e.stopPropagation();
+
+      router?.push(softwareVulnerabilitiesDetailsPath);
+    };
+    return (
+      <LinkCell
+        path={softwareVulnerabilitiesDetailsPath}
+        value={text}
+        customOnClick={onClickCVE}
+      />
+    );
   } else {
     text = `${vulnerabilities.length} vulnerabilities`;
   }
@@ -82,15 +105,19 @@ const generateTooltip = (
 };
 interface IVulnerabilitiesCellProps {
   vulnerabilities: ISoftwareVulnerability[] | string[] | null;
+  teamId?: number;
+  router?: InjectedRouter;
 }
 
 const VulnerabilitiesCell = ({
   vulnerabilities,
+  teamId,
+  router,
 }: IVulnerabilitiesCellProps) => {
   const tooltipId = uniqueId();
 
   // only one vulnerability, no need for tooltip
-  const cell = generateCell(vulnerabilities);
+  const cell = generateCell(vulnerabilities, teamId, router);
   if (vulnerabilities === null || vulnerabilities.length <= 1) {
     return <>{cell}</>;
   }
