@@ -56,7 +56,8 @@ module.exports = {
     // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
       let primaryBuyingSituation = formData.primaryBuyingSituation;
-      await User.updateOne({id: this.req.me.id}).set({
+      await User.updateOne({id: this.req.me.id})
+      .set({
         primaryBuyingSituation
       });
       // Send a POST request to Zapier
@@ -78,14 +79,72 @@ module.exports = {
       // Set the primary buying situation in the user's session.
       this.req.session.primaryBuyingSituation = primaryBuyingSituation;
     }
+    //  ┌─┐┌─┐┌┬┐  ┌─┐┌─┐┬ ┬┌─┐┬ ┬┌─┐┬  ┌─┐┌─┐┬┌─┐┌─┐┬    ┌─┐┌┬┐┌─┐┌─┐┌─┐
+    //  └─┐├┤  │   ├─┘└─┐└┬┘│  ├─┤│ ││  │ ││ ┬││  ├─┤│    └─┐ │ ├─┤│ ┬├┤
+    //  └─┘└─┘ ┴   ┴  └─┘ ┴ └─┘┴ ┴└─┘┴─┘└─┘└─┘┴└─┘┴ ┴┴─┘  └─┘ ┴ ┴ ┴└─┘└─┘
+    // This is how the questionnaire steps/options change a user's psychologicalStage value.
+    // 'start': Stage 1 » Stage 2
+    // 'what-are-you-using-fleet-for': No change
+    // 'have-you-ever-used-fleet':
+    //  - yes-deployed: » Stage 6
+    //  - yes-recently-deployed: » Stage 6
+    //  - yes-deployed-local: » Stage 3
+    //  - yes-deployed-long-time: No change
+    //  - no: No change
+    // 'how-many-hosts': No change
+    // 'will-you-be-self-hosting': No change
+    // 'what-are-you-working-on-eo-security' » Stage 4
+    // 'what-does-your-team-manage-eo-it' » Stage 4
+    // 'what-does-your-team-manage-vm' » Stage 4
+    // 'what-do-you-manage-mdm'
+    //  - no-use-case-yet: » No change
+    //  - All other options » Stage 4
+    // 'is-it-any-good': No change
+    // 'what-did-you-think'
+    //  - deploy-fleet-in-environment » Stage 5
+    //  - let-me-think-about-it » No change
+    //  - host-fleet-for-me » N/A (currently not selectable, but should set the user's psychologicalStage to stage 5)
+
+    let psychologicalStage = userRecord.psychologicalStage;
+    // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
+    let valueFromFormData = _.values(formData)[0];
+    if(currentStep === 'start'){
+      psychologicalStage = '2 - Aware';
+    } else if(currentStep === 'have-you-ever-used-fleet') {
+      if(['yes-deployed', 'yes-recently-deployed'].includes(valueFromFormData)) {
+        // If the user has Fleet deployed, set their stage to 6.
+        psychologicalStage = '6 - Has team buy-in';
+      } else if(valueFromFormData === 'yes-deployed-local'){
+        // If they've tried Fleet locally, set their stage to 3.
+        psychologicalStage = '3 - Intrigued';
+      }
+    } else if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm'].includes(currentStep)){
+      psychologicalStage = '4 - Has use case';
+    } else if(currentStep === 'what-do-you-manage-mdm') {
+      if(valueFromFormData === 'no-use-case-yet'){
+        // If this user doe not have a use case for Fleet MDM yet, set their psyStage to 3
+        psychologicalStage = '3 - Intrigued';
+      } else {// Otherwise, they have a use case and will be set to stage 4.
+        psychologicalStage = '4 - Has use case';
+      }
+    } else if(currentStep === 'what-did-you-think') {
+      // If the user is read yto deploy Fleet, set their psyStage to 5.
+      if(valueFromFormData === 'deploy-fleet-in-environment') {
+        psychologicalStage = '5 - Personally confident';
+      }
+      // If the user selects let me think about it, their stage will not change.
+    }
+
     // Set the user's answer to the current step.
     questionnaireProgress[currentStep] = formData;
     // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
     let getStartedProgress = _.clone(questionnaireProgress);
     // Update the user's database model.
-    await User.updateOne({id: userRecord.id}).set({
+    await User.updateOne({id: userRecord.id})
+    .set({
       getStartedQuestionnaireAnswers: questionnaireProgress,
-      lastSubmittedGetStartedQuestionnaireStep: currentStep
+      lastSubmittedGetStartedQuestionnaireStep: currentStep,
+      psychologicalStage
     });
     // Return the JSON dictionary of form data submitted by this user.
     return getStartedProgress;
