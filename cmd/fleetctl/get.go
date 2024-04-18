@@ -1196,12 +1196,13 @@ func getTeamsCommand() *cli.Command {
 
 			for _, team := range teams {
 				data = append(data, []string{
+					strconv.Itoa(int(team.ID)),
 					team.Name,
 					fmt.Sprintf("%d", team.HostCount),
 					fmt.Sprintf("%d", team.UserCount),
 				})
 			}
-			columns := []string{"Team name", "Host count", "User count"}
+			columns := []string{"Team ID", "Team name", "Host count", "User count"}
 			printTable(c, columns, data)
 
 			return nil
