@@ -110,8 +110,8 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 
 // SavePolicy updates some fields of the given policy on the datastore.
 //
-// Currently SavePolicy does not allow updating the team of an existing policy.
-func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
+// Currently, SavePolicy does not allow updating the team of an existing policy.
+func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
 	sql := `
@@ -134,9 +134,27 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	}
 
 	if shouldRemoveAllPolicyMemberships {
-		return ds.cleanupPolicyMembershipForPolicy(ctx, p.ID)
+		err = ds.cleanupPolicyMembershipForPolicy(ctx, p.ID)
+	} else {
+		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
 	}
-	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
+	if err != nil {
+		return err
+	}
+	if removePolicyStats {
+		// delete all policy stats for the policy
+		// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
+		err = ds.withRetryTxx(
+			ctx, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, p.ID)
+				return err
+			},
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup policy stats")
+		}
+	}
+	return nil
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -757,16 +775,6 @@ func (ds *Datastore) cleanupPolicyMembershipForPolicy(ctx context.Context, polic
 	_, err := ds.writer(ctx).ExecContext(ctx, delStmt, policyID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
-	}
-
-	// delete all policy stats for the policy
-	// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
-		return err
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup policy stats")
 	}
 
 	return nil

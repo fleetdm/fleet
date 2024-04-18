@@ -1412,7 +1412,8 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 			Name:  "non-existent query",
 			Query: "select 1;",
 		},
-	}, false)
+	}, false, false,
+	)
 	require.Error(t, err)
 	var nfe *notFoundError
 	require.True(t, errors.As(err, &nfe))
@@ -1473,7 +1474,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	gp2 := *gp
 	gp2.Name = "global query updated"
 	gp2.Critical = true
-	err = ds.SavePolicy(ctx, &gp2, false)
+	err = ds.SavePolicy(ctx, &gp2, false, false)
 	require.NoError(t, err)
 	gp, err = ds.Policy(ctx, gp.ID)
 	require.NoError(t, err)
@@ -1493,7 +1494,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.Resolution = ptr.String("team1 query resolution updated")
 	tp2.Critical = false
 	tp2.CalendarEventsEnabled = false
-	err = ds.SavePolicy(ctx, &tp2, true)
+	err = ds.SavePolicy(ctx, &tp2, true, true)
 	require.NoError(t, err)
 	tp1, err = ds.Policy(ctx, tp1.ID)
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
@@ -1586,7 +1587,7 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), inheritedPolicies[0].PassingHostCount)
 
 	// Update the global policy sql to trigger a cache invalidation
-	err = ds.SavePolicy(ctx, globalPolicy, true)
+	err = ds.SavePolicy(ctx, globalPolicy, true, true)
 	require.NoError(t, err)
 
 	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
@@ -1599,8 +1600,8 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
 	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
 
-	// Update the team policy sql to trigger a cache invalidation
-	err = ds.SavePolicy(ctx, teamPolicy, true)
+	// Update the team policy platform to trigger a cache invalidation
+	err = ds.SavePolicy(ctx, teamPolicy, false, true)
 	require.NoError(t, err)
 
 	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
@@ -1921,9 +1922,9 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	}
 
 	// updating without change works fine
-	err = ds.SavePolicy(ctx, polsByName["g1"], false)
+	err = ds.SavePolicy(ctx, polsByName["g1"], false, false)
 	require.NoError(t, err)
-	err = ds.SavePolicy(ctx, polsByName["t2"], false)
+	err = ds.SavePolicy(ctx, polsByName["t2"], false, false)
 	require.NoError(t, err)
 	// apply specs that result in an update (without change) works fine
 	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
@@ -1975,7 +1976,7 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	g1 := polsByName["g1"]
 	g1.Platform = "linux"
 	polsByName["g1"] = g1
-	err = ds.SavePolicy(ctx, g1, false)
+	err = ds.SavePolicy(ctx, g1, false, false)
 	require.NoError(t, err)
 	wantHostsByPol["g1"] = []uint{globalHosts[hostDeb].ID, globalHosts[hostLin].ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
@@ -1984,7 +1985,7 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	t1 := polsByName["t1"]
 	t1.Platform = "windows,darwin"
 	polsByName["t1"] = t1
-	err = ds.SavePolicy(ctx, t1, false)
+	err = ds.SavePolicy(ctx, t1, false, false)
 	require.NoError(t, err)
 	wantHostsByPol["t1"] = []uint{teamHosts[hostWin].ID, teamHosts[hostMac].ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
@@ -2723,7 +2724,7 @@ func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
 	policyEmoji, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "💻"})
 	require.NoError(t, err)
 	err = ds.SavePolicy(
-		context.Background(), &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyEmoji.ID, Name: equivalentNames[1]}}, false,
+		context.Background(), &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyEmoji.ID, Name: equivalentNames[1]}}, false, false,
 	)
 	assert.True(t, isDuplicate(err), err)
 
@@ -3270,10 +3271,10 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	//
 
 	team2Policy1.Platform = "darwin"
-	err = ds.SavePolicy(ctx, team1Policy1, false)
+	err = ds.SavePolicy(ctx, team1Policy1, false, true)
 	require.NoError(t, err)
 	team1Policy1.Platform = "darwin"
-	err = ds.SavePolicy(ctx, team2Policy1, false)
+	err = ds.SavePolicy(ctx, team2Policy1, false, true)
 	require.NoError(t, err)
 
 	//
