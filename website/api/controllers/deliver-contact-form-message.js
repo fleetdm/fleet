@@ -60,13 +60,9 @@ module.exports = {
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
-    const bannedEmailDomainsForContactFormMessages = [
-      'gmail.com','yahoo.com', 'yahoo.co.uk','hotmail.com','hotmail.co.uk', 'hotmail.ca','outlook.com', 'icloud.com', 'proton.me','live.com','yandex.ru','ymail.com',
-    ];
 
     let emailDomain = emailAddress.split('@')[1];
-
-    if(_.includes(bannedEmailDomainsForContactFormMessages, emailDomain.toLowerCase())){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
 

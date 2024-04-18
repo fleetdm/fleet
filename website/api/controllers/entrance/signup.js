@@ -100,23 +100,9 @@ the account verification message.)`,
     if(await User.findOne({emailAddress: newEmailAddress})) {
       throw 'emailAlreadyInUse';
     }
-    // Check the user's email address and return an 'invalidEmailDomain' response if the domain is in the bannedEmailDomainsForSignup array.
+    // Check the user's email address and return an 'invalidEmailDomain' response if the domain is in the sails.config.custom.bannedEmailDomainsForWebsiteSubmissions array.
     let emailDomain = newEmailAddress.split('@')[1];
-    let bannedEmailDomainsForSignup = [
-      'gmail.com',
-      'yahoo.com',
-      'yahoo.co.uk',
-      'hotmail.com',
-      'hotmail.co.uk',
-      'hotmail.ca',
-      'outlook.com',
-      'icloud.com',
-      'proton.me',
-      'live.com',
-      'yandex.ru',
-      'ymail.com',
-    ];
-    if(_.includes(bannedEmailDomainsForSignup, emailDomain)){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain)){
       throw 'invalidEmailDomain';
     }
 
