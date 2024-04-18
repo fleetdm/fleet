@@ -79,6 +79,7 @@ usage() {
     echo "  -m, --minor            Increment to a minor version instead of patch (Required if including non-bugs"
     echo "  -o, --open_api_key     Set the Open API key for calling out to ChatGPT"
     echo "  -p, --print            If the release is already drafted then print out the helpful info"
+    echo "  -q, --quiet            This will skip notifying in slack"
     echo "  -r, --release_notes    Update the release notes in the named release on github and exit (requires changelog output from running the script previously)."
     echo "  -s, --start_version    Set the target starting version (can also be the first positional arg) for the release, defaults to latest release on github"
     echo "  -t, --target_date      Set the target date for the release, defaults to today if not provided"
@@ -137,6 +138,10 @@ check_grep() {
     fi
 }
 
+check_gh() {
+    gh repo set-default
+}
+
 check_required_binaries() {
     local missing_counter=0
     # List of required binaries used in the script
@@ -154,6 +159,7 @@ check_required_binaries() {
         exit 1
     fi
     check_grep
+    check_gh
 }
 
 validate_and_format_date() {
@@ -309,9 +315,11 @@ print_announce_info() {
         slack_hook_url=https://hooks.slack.com/services
         app_id=T019PP37ALW
         announce_text="Release $target_milestone QA ticket and docker publish\nQA ticket for Release $target_milestone $qa_ticket\nDocker Deploy status $docker_deploy\nList of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
-        curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"$announce_text\"}" \
-            $slack_hook_url/$app_id/$SLACK_HELP_ENG_TOKEN
+        if [ "$quiet" = "false" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"$announce_text\"}" \
+                $slack_hook_url/$app_id/$SLACK_HELP_ENG_TOKEN
+        fi
     else
         echo "DRYRUN: Would have printed announce in #help-engineering text w/ qa ticket, deploy to docker link, and milestone issue list link"
     fi
@@ -404,6 +412,17 @@ tag() {
 
 publish() {
     if [ "$dry_run" = "false" ]; then
+        if [[ "$main_release" == "true" ]]; then
+            article_url="https://fleetdm.com/releases/fleet-$target_milestone"
+            article_published=`curl -is "$article_url" | head -n 1 | awk '{print $2}'`
+            if [[ "$article_published" != "200" ]]; then
+                echo "Coulndn't find article at '$article_url'"
+                exit 1
+            fi
+
+            # TODO Publish Linkedin post about release article here and save url
+            linkedin_post_url=""
+        fi
         # TODO more checks to validate we are ready to publish
         gh release edit --draft=false --latest $next_tag
         gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
@@ -431,14 +450,21 @@ publish() {
         slack_hook_url=https://hooks.slack.com/services
         app_id=T019PP37ALW
         announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nUpgrade now: https://fleetdm.com/docs/deploying/upgrading-fleet"
+        if [[ "$main_release" == "true" ]]; then
+            announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nUpgrade now: https://fleetdm.com/docs/deploying/upgrading-fleet\nRelease Article: $article_url\nLinkedIn Post: $linkedin_post_url"
+        fi
 
-        curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"$announce_text\"}" \
-            $slack_hook_url/$app_id/$SLACK_GENERAL_TOKEN
+        echo $announce_text
 
-        curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"$announce_text\nDogfood Deployed $dogfood_deploy\"}" \
-            $slack_hook_url/$app_id/$SLACK_HELP_INFRA_TOKEN
+        if [ "$quiet" = "false" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"$announce_text\"}" \
+                $slack_hook_url/$app_id/$SLACK_GENERAL_TOKEN
+
+            curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"$announce_text\nDogfood Deployed $dogfood_deploy\"}" \
+                $slack_hook_url/$app_id/$SLACK_HELP_INFRA_TOKEN
+        fi
     else
         echo "DRYRUN: Would have published $next_tag / deployed to dogfood / closed non-stories / closed milestone / announced in slack"
     fi
@@ -461,6 +487,7 @@ publish_release=false
 release_notes=false
 do_tag=false
 main_release=false
+quiet=false
 
 # Parse long options manually
 for arg in "$@"; do
@@ -474,6 +501,7 @@ for arg in "$@"; do
     "--minor") set -- "$@" "-m" ;;
     "--open_api_key") set -- "$@" "-o" ;;
     "--print") set -- "$@" "-p" ;;
+    "--quiet") set -- "$@" "-q" ;;
     "--publish_release") set -- "$@" "-u" ;;
     "--release_notes") set -- "$@" "-r" ;;
     "--start_version") set -- "$@" "-s" ;;
@@ -485,7 +513,7 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "acdfhgmo:prs:t:uv:" opt; do
+while getopts "acdfhgmo:pqrs:t:uv:" opt; do
     case "$opt" in
         a) main_release=true ;;
         c) cherry_pick_resolved=true ;;
@@ -496,6 +524,7 @@ while getopts "acdfhgmo:prs:t:uv:" opt; do
         m) minor=true ;;
         o) open_api_key=$OPTARG ;;
         p) print_info=true ;;
+        q) quiet=true ;;
         r) release_notes=true ;;
         s) start_version=$OPTARG ;;
         t) target_date=$OPTARG ;;

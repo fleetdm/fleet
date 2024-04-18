@@ -61,7 +61,7 @@ module.exports = {
       );
     }
     const bannedEmailDomainsForContactFormMessages = [
-      'gmail.com','yahoo.com', 'yahoo.co.uk','hotmail.com','hotmail.co.uk', 'outlook.com', 'icloud.com', 'proton.me','live.com','yandex.ru','ymail.com',
+      'gmail.com','yahoo.com', 'yahoo.co.uk','hotmail.com','hotmail.co.uk', 'hotmail.ca','outlook.com', 'icloud.com', 'proton.me','live.com','yandex.ru','ymail.com',
     ];
 
     let emailDomain = emailAddress.split('@')[1];

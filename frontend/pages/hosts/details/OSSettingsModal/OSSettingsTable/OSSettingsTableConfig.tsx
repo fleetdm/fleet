@@ -52,7 +52,12 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        return <TextCell value={cellProps.cell.value} />;
+        return (
+          <TextCell
+            value={cellProps.cell.value}
+            classes="os-settings-name-cell"
+          />
+        );
       },
     },
     {
