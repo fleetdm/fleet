@@ -103,7 +103,7 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		}()
 	}
 
-	ext := ".sh"
+	var ext string
 	if runtime.GOOS == "windows" {
 		ext = ".ps1"
 	}
