@@ -69,7 +69,7 @@ const CalendarEventsModal = ({
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
 
-  // Used on URL change only when URL error exists, always onBlur, and always on attempting to save
+  // Used on URL change only when URL error exists and always on attempting to save
   const validateForm = (newFormData: ICalendarEventsFormData) => {
     const errors: Record<string, string> = {};
     const { url: newUrl } = newFormData;
@@ -278,9 +278,6 @@ const CalendarEventsModal = ({
           tooltip="Provide a URL to deliver a webhook request to."
           labelTooltipPosition="top-start"
           helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
-          onBlur={() => {
-            validateForm(formData);
-          }}
         />
         <RevealButton
           isShowing={showExamplePayload}
