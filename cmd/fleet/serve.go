@@ -757,6 +757,7 @@ the way that the Fleet server works.
 						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
 						logger,
 						config.Logging.Debug,
+						config.MDM,
 					)
 				}); err != nil {
 					initFatal(err, "failed to register mdm_apple_profile_manager schedule")

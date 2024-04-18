@@ -22,6 +22,9 @@ const (
 	// by fleetd to read configuration values from the system.
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
 
+	// FleetCARootConfigPayloadIdentifier TODO
+	FleetCARootConfigPayloadIdentifier = "com.fleetdm.caroot.config"
+
 	// FleetEnrollmentPayloadIdentifier is the value for the PayloadIdentifier used
 	// by Fleet to enroll a device with the MDM server.
 	FleetEnrollmentPayloadIdentifier = "com.fleetdm.fleet.mdm.apple.mdm"

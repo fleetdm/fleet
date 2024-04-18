@@ -87,6 +87,10 @@ const (
 	// fleetd to read configuration values from the system.
 	FleetdConfigProfileName = "Fleetd configuration"
 
+	// FleetCAConfigProfileName is the value for the PayloadDisplayName used by
+	// fleetd to read configuration values from the system.
+	FleetCAConfigProfileName = "Fleet root CA"
+
 	// FleetdFileVaultProfileName is the value for the PayloadDisplayName used
 	// by Fleet to configure FileVault and FileVault Escrow.
 	FleetFileVaultProfileName        = "Disk encryption"
