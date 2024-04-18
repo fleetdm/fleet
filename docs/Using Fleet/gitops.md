@@ -1,16 +1,16 @@
 # GitOps
 
-Fleet can be managed with configuration files (YAML) with GitOps workflow. To learn how to setup GitOps workflow see [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
+Fleet can be managed using configuration files (YAML) with GitOps workflow. To learn how to setup GitOps workflow see [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-> Old workflow with YAML configuration files is documented [here](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/configuration-files/README.md).  `fleetctl apply` can be still used for imports and backwards compatibility.
+> Old workflow with YAML configuration files is documented [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-files.md).  `fleetctl apply` can be still used for imports and backwards compatibility.
 
-On this page, you can learn how to write configuration files.
+On this page, you can learn how to craft configuration files.
 
 ## Default configuration
 
-The `default.yml` file defines the queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). Controls and agent options are defined for hosts on "No team." 
+The `default.yml` file defines queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file will define queries and policies that run for "All teams". Controls and agent options will be defined for hosts assigned to "No team." 
 
-Queries, policies, configuration profiles, scripts, and agent options can be referenced from `lib/` folder. Learn more about it in the [Library section](https://#library-lib).
+Queries, policies, configuration profiles, scripts, and agent options can be referenced from `lib/` folder. Learn more about it in the [Library section](#library-lib).
 
 
 ### Agent options
@@ -41,9 +41,9 @@ Queries, policies, configuration profiles, scripts and agent options can be refe
 
 ----
 
-## Library (`lib/`) 
+## Library
 
-The library is used to store files that define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in the default configuration (`default.yml`) and team configurations inside `teams/` folder in the GitOps repo.
+Folder for policies, queries, configuration profiles, scripts, and agent options. Configuration files from library can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
 
 ### Policies
 
