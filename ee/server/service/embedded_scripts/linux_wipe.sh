@@ -44,7 +44,7 @@ wipe_all_files() {
     wipe_system_files
 }
 
-if [ $1 == "wipe" ]; then
+if [ "$1" = "wipe" ]; then
     # We are in the detatched child process
     wipe_all_files
 else
@@ -52,5 +52,5 @@ else
     # wipe child process
     logout_users
     echo "Wiping, system will be unreachable"
-    nohup sh $0 wipe >/dev/null 2>/dev/null </dev/null &
+    (/usr/bin/nohup sh $0 wipe >/dev/null 2>/dev/null </dev/null) &
 fi
