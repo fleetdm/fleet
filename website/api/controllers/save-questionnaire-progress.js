@@ -88,14 +88,20 @@ module.exports = {
     // 'have-you-ever-used-fleet':
     //  - yes-deployed: » Stage 6
     //  - yes-recently-deployed: » Stage 6
-    //  - yes-deployed-local: » Stage 3
+    //  - yes-deployed-local: » Stage 3 (Tried Fleet but don't have a use case)
     //  - yes-deployed-long-time: No change
     //  - no: No change
     // 'how-many-hosts': No change
     // 'will-you-be-self-hosting': No change
-    // 'what-are-you-working-on-eo-security' » Stage 4
-    // 'what-does-your-team-manage-eo-it' » Stage 4
-    // 'what-does-your-team-manage-vm' » Stage 4
+    // 'what-are-you-working-on-eo-security'
+    //  - no-use-case-yet: » No change
+    //  - All other options » Stage 4
+    // 'what-does-your-team-manage-eo-it'
+    //  - no-use-case-yet: » No change
+    //  - All other options » Stage 4
+    // 'what-does-your-team-manage-vm'
+    //  - no-use-case-yet: » No change
+    //  - All other options » Stage 4
     // 'what-do-you-manage-mdm'
     //  - no-use-case-yet: » No change
     //  - All other options » Stage 4
@@ -116,17 +122,15 @@ module.exports = {
         // If they've tried Fleet locally, set their stage to 3.
         psychologicalStage = '3 - Intrigued';
       }
-    } else if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm'].includes(currentStep)){
-      psychologicalStage = '4 - Has use case';
-    } else if(currentStep === 'what-do-you-manage-mdm') {
-      if(valueFromFormData === 'no-use-case-yet'){
-        // If this user doe not have a use case for Fleet MDM yet, set their psyStage to 3
+    } else if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
+      if(valueFromFormData === 'no-use-case-yet') {
+        // If this user doe not have a use case for Fleet yet, set their psyStage to 3
         psychologicalStage = '3 - Intrigued';
       } else {// Otherwise, they have a use case and will be set to stage 4.
         psychologicalStage = '4 - Has use case';
       }
     } else if(currentStep === 'what-did-you-think') {
-      // If the user is read yto deploy Fleet, set their psyStage to 5.
+      // If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
       if(valueFromFormData === 'deploy-fleet-in-environment') {
         psychologicalStage = '5 - Personally confident';
       }
