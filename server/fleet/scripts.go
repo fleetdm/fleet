@@ -299,6 +299,21 @@ const (
 // anchored, so that it matches to the end of the line
 var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/z?sh(?:\s*|\s+.*)$`)
 
+// ValidateShebang validates if we support a script, and whether we
+// can execute it directly, or need to pass it to a shell interpreter.
+func ValidateShebang(s string) (directExecute bool, err error) {
+	if strings.HasPrefix(s, "#!") {
+		// read the first line in a portable way
+		s := bufio.NewScanner(strings.NewReader(s))
+		// if a hashbang is present, it can only be `/bin/sh` for now
+		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
+			return false, errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh” or "#!/bin/zsh.`)
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
 func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	if s == "" {
 		return errors.New("Script contents must not be empty.")
@@ -330,13 +345,8 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 		return errors.New("Wrong data format. Only plain text allowed.")
 	}
 
-	if strings.HasPrefix(s, "#!") {
-		// read the first line in a portable way
-		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` for now
-		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh” or "#!/bin/zsh.`)
-		}
+	if _, err := ValidateShebang(s); err != nil {
+		return err
 	}
 
 	return nil
