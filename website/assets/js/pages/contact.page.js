@@ -76,7 +76,7 @@ parasails.registerPage('contact', {
         }
         if(getStartedQuestionnaireAnswers['what-did-you-think']){
           // If this user has completed the "What did you think" step and wants to self-host Fleet, we'll assume theyre stage four.
-          if(getStartedQuestionnaireAnswers['what-did-you-think'].whatDidYouThink === 'deploy-fleet-in-environemnt'){
+          if(getStartedQuestionnaireAnswers['what-did-you-think'].whatDidYouThink === 'deploy-fleet-in-environment'){
             this.buyingStage = 'four';
           }
         }

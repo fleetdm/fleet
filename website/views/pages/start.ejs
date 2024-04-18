@@ -424,8 +424,8 @@
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             I’d like you to host Fleet for me
           </div>
-          <label purpose="form-option" class="form-control" :class="[formData['what-did-you-think'].whatDidYouThink === 'deploy-fleet-in-environemnt' ? 'selected' : '']">
-            <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="deploy-fleet-in-environemnt" @input="clickClearOneFormError('whatDidYouThink')">
+          <label purpose="form-option" class="form-control" :class="[formData['what-did-you-think'].whatDidYouThink === 'deploy-fleet-in-environment' ? 'selected' : '']">
+            <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="deploy-fleet-in-environment" @input="clickClearOneFormError('whatDidYouThink')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             I’d like to deploy Fleet in my environment
           </label>
