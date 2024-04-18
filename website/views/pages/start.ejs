@@ -364,6 +364,11 @@
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               About half and half
             </label>
+            <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="no-use-case-yet" @input="clickClearOneFormError('mdmUseCase')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              I'm just curious
+            </label>
             <div class="invalid-feedback" v-if="formErrors.mdmUseCase">Please select an option</div>
           </div>
         </div>
