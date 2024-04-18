@@ -19,7 +19,7 @@ import {
   WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG,
 } from "./helpers";
 
-const baseClass = "os-setting-status-cell";
+const baseClass = "os-settings-status-cell";
 
 interface IOSSettingStatusCellProps {
   status: OsSettingsTableStatusValue;
@@ -57,7 +57,7 @@ const OSSettingStatusCell = ({
         {tooltip ? (
           <>
             <span
-              className="tooltip tooltip__tooltip-icon"
+              className={`${baseClass}__status-text`}
               data-tip
               data-for={tooltipId}
               data-tip-disable={false}

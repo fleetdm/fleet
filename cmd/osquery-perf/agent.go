@@ -2218,8 +2218,11 @@ func main() {
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
-		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.05, "Probability of the software query failing")
-		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.05, "Probability of the software vscode_extensions query failing")
+		// 50% failure probability is not realistic but this is our current baseline for the osquery-perf setup.
+		// We tried setting this to a more realistic value like 5% but it overloaded the MySQL Writer instance
+		// during hosts enroll.
+		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
+		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 
 		commonSoftwareCount                          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 		commonVSCodeExtensionsSoftwareCount          = flag.Int("common_vscode_extensions_software_count", 5, "Number of common vscode_extensions installed applications reported to fleet")
