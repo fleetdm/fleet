@@ -131,6 +131,7 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	// NVD_TEST_VULNDB_DIR can be used to speed up development (sync vulnerability data only once).
