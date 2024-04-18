@@ -290,6 +290,8 @@ module.exports.custom = {
   // (both in Fleet's query console and on fleetdm.com)
   versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.11.0',
 
+
+  // FUTURE: Consolidate these two lists of email domains (And maybe find another word for banned)
   // For the deliver-apple-csr webhook:
   bannedEmailDomainsForCSRSigning:   [
     'aim.com',         'alice.it',     'aliceadsl.fr',     'aol.com',
