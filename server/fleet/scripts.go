@@ -307,7 +307,7 @@ func ValidateShebang(s string) (directExecute bool, err error) {
 		s := bufio.NewScanner(strings.NewReader(s))
 		// if a hashbang is present, it can only be `/bin/sh` for now
 		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return false, errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh” or "#!/bin/zsh.`)
+			return false, errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
 		}
 		return true, nil
 	}
