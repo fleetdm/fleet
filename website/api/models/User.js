@@ -228,7 +228,7 @@ without necessarily having a billing card.`
 
     psychologicalStage: {
       type: 'string',
-      description: 'This user\'s psychological buying stage based on the answers to the get started qeustionnaire.',
+      description: 'This user\'s psychological stage based on the answers to the get started questionnaire.',
       isIn: [
         '1 - Unaware',
         '2 - Aware',
