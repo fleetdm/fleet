@@ -23,7 +23,7 @@ const (
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
 
 	// FleetCARootConfigPayloadIdentifier TODO
-	FleetCARootConfigPayloadIdentifier = "com.fleetdm.caroot.config"
+	FleetCARootConfigPayloadIdentifier = "com.fleetdm.caroot"
 
 	// FleetEnrollmentPayloadIdentifier is the value for the PayloadIdentifier used
 	// by Fleet to enroll a device with the MDM server.
@@ -48,8 +48,9 @@ const (
 // files around due to import cycles.
 func FleetPayloadIdentifiers() map[string]struct{} {
 	return map[string]struct{}{
-		FleetFileVaultPayloadIdentifier: {},
-		FleetdConfigPayloadIdentifier:   {},
+		FleetFileVaultPayloadIdentifier:    {},
+		FleetdConfigPayloadIdentifier:      {},
+		FleetCARootConfigPayloadIdentifier: {},
 	}
 }
 

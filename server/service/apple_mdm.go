@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -2727,28 +2728,17 @@ func mdmAppleDeliveryStatusFromCommandStatus(cmdStatus string) *fleet.MDMDeliver
 // This profile will be installed to all hosts in the team (or "no team",) but it
 // will only be used by hosts that have a fleetd installation without an enroll
 // secret and fleet URL (mainly DEP enrolled hosts).
-func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cfg config.MDMConfig) error {
+func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, signingCert *tls.Certificate) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
-	if !cfg.IsAppleSCEPSet() {
-		return ctxerr.New(ctx, "SCEP configuration is required")
-	}
-
-	cert, _, _, err := cfg.AppleSCEP()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting Apple SCEP keypair")
-	}
-
-	fmt.Println(base64.StdEncoding.EncodeToString(cert.Certificate[0]))
-
 	var rootCAProfContents bytes.Buffer
 	params := mobileconfig.FleetCARootTemplateOptions{
 		PayloadIdentifier: mobileconfig.FleetCARootConfigPayloadIdentifier,
 		PayloadName:       mdm_types.FleetCAConfigProfileName,
-		Certificate:       base64.StdEncoding.EncodeToString(cert.Certificate[0]),
+		Certificate:       base64.StdEncoding.EncodeToString(signingCert.Certificate[0]),
 	}
 
 	if err := mobileconfig.FleetCARootTemplate.Execute(&rootCAProfContents, params); err != nil {
@@ -2849,7 +2839,7 @@ func ReconcileAppleProfiles(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
-	cfg config.MDMConfig,
+	signingCert *tls.Certificate,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2858,7 +2848,7 @@ func ReconcileAppleProfiles(
 	if !appConfig.MDM.EnabledAndConfigured {
 		return nil
 	}
-	if err := ensureFleetProfiles(ctx, ds, logger, cfg); err != nil {
+	if err := ensureFleetProfiles(ctx, ds, logger, signingCert); err != nil {
 		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
 

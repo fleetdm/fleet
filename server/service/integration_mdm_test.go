@@ -212,7 +212,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onProfileJobDone != nil {
 								s.onProfileJobDone()
 							}
-							err := ReconcileAppleProfiles(ctx, ds, mdmCommander, logger, fleetCfg.MDM)
+							signingCert, _, _, err := fleetCfg.MDM.AppleSCEP()
+							require.NoError(s.T(), err)
+							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger, signingCert)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -592,8 +594,6 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 }
 
 func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, forceDeviceErr bool) ([][]byte, []string) {
-	var cmd *mdm.Command
-	var err error
 	installs := [][]byte{}
 	removes := []string{}
 
@@ -601,22 +601,9 @@ func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, forc
 	// ping the server via idle
 	// if after idle or acknowledge cmd is still nil, it
 	// means there aren't any commands left to run
-	for {
-		if cmd == nil {
-			cmd, err = mdmDevice.Idle()
-		} else {
-			if forceDeviceErr {
-				cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{})
-			} else {
-				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			}
-		}
-		require.NoError(t, err)
-
-		if cmd == nil {
-			break
-		}
-
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 		switch cmd.Command.RequestType {
@@ -626,7 +613,16 @@ func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, forc
 			removes = append(removes, fullCmd.Command.RemoveProfile.Identifier)
 
 		}
+
+		if forceDeviceErr {
+			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{})
+		} else {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		}
+
+		require.NoError(t, err)
 	}
+
 	return installs, removes
 }
 
@@ -639,6 +635,20 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 		PayloadName:  servermdm.FleetdConfigProfileName,
 	}
 	err := mobileconfig.FleetdProfileTemplate.Execute(&b, params)
+	require.NoError(t, err)
+	return b.Bytes()
+}
+
+func setupExpectedCAProfile(t *testing.T, cfg config.MDMConfig) []byte {
+	cert, _, _, err := cfg.AppleSCEP()
+	require.NoError(t, err)
+	var b bytes.Buffer
+	params := mobileconfig.FleetCARootTemplateOptions{
+		PayloadName:       servermdm.FleetCAConfigProfileName,
+		PayloadIdentifier: mobileconfig.FleetCARootConfigPayloadIdentifier,
+		Certificate:       base64.StdEncoding.EncodeToString(cert.Certificate[0]),
+	}
+	err = mobileconfig.FleetCARootTemplate.Execute(&b, params)
 	require.NoError(t, err)
 	return b.Bytes()
 }
@@ -932,8 +942,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
-	// 3 profiles added + 1 profile with fleetd configuration
-	require.Len(t, *hostResp.Host.MDM.Profiles, 4)
+	// 3 profiles added + 1 profile with fleetd configuration + 1 root CA config
+	require.Len(t, *hostResp.Host.MDM.Profiles, 5)
 
 	// try to unenroll the host, fails since the host doesn't respond
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusGatewayTimeout)
@@ -7515,18 +7525,19 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 	if expectedAppleSummary != nil {
 		var apple getMDMAppleProfilesSummaryResponse
 		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &apple, queryParams...)
-		require.Equal(t, expectedSummary.Failed, apple.Failed)
-		require.Equal(t, expectedSummary.Pending, apple.Pending)
-		require.Equal(t, expectedSummary.Verifying, apple.Verifying)
-		require.Equal(t, expectedSummary.Verified, apple.Verified)
+		fmt.Println(expectedSummary, apple)
+		require.Equal(t, expectedSummary.Failed, apple.Failed, "failed summary count doesn't match")
+		require.Equal(t, expectedSummary.Pending, apple.Pending, "pending summary count doesn't match")
+		require.Equal(t, expectedSummary.Verifying, apple.Verifying, "verifying summary count doesn't match")
+		require.Equal(t, expectedSummary.Verified, apple.Verified, "verified summary count doesn't match")
 	}
 
 	var combined getMDMProfilesSummaryResponse
 	s.DoJSON("GET", "/api/v1/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &combined, queryParams...)
-	require.Equal(t, expectedSummary.Failed, combined.Failed)
-	require.Equal(t, expectedSummary.Pending, combined.Pending)
-	require.Equal(t, expectedSummary.Verifying, combined.Verifying)
-	require.Equal(t, expectedSummary.Verified, combined.Verified)
+	require.Equal(t, expectedSummary.Failed, combined.Failed, "failed summary count doesn't match")
+	require.Equal(t, expectedSummary.Pending, combined.Pending, "pending summary count doesn't match")
+	require.Equal(t, expectedSummary.Verifying, combined.Verifying, "verifying summary count doesn't match")
+	require.Equal(t, expectedSummary.Verified, combined.Verified, "verified summary count doesn't match")
 }
 
 func (s *integrationMDMTestSuite) checkMDMDiskEncryptionSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMDiskEncryptionSummary, checkFileVaultSummary bool) {
@@ -8238,10 +8249,10 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
-	// The profiles should be associated with the host we made + the standard fleet config
+	// The profiles should be associated with the host we made + the standard fleet configs
 	profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Len(t, profs, 3)
+	require.Len(t, profs, 4)
 
 	// Acknowledge the profiles so we can mark them as verified
 	cmd, err := mdmDevice.Idle()
@@ -8254,7 +8265,8 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
 		"I2": {Identifier: "I2", DisplayName: "I2", InstallDate: time.Now()},
-		mobileconfig.FleetdConfigPayloadIdentifier: {Identifier: mobileconfig.FleetdConfigPayloadIdentifier, DisplayName: "I2", InstallDate: time.Now()},
+		mobileconfig.FleetdConfigPayloadIdentifier:      {Identifier: mobileconfig.FleetdConfigPayloadIdentifier, DisplayName: "I2", InstallDate: time.Now()},
+		mobileconfig.FleetCARootConfigPayloadIdentifier: {Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, DisplayName: "I2", InstallDate: time.Now()},
 	}))
 
 	// Check that the profile is marked as verified when fetching the host

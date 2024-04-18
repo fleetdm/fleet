@@ -2104,6 +2104,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	contents1 := []byte("test-content-1")
 	contents2 := []byte("test-content-2")
 	contents4 := []byte("test-content-4")
+	signingCert, _, _, err := mdmConfig.AppleSCEP()
+	require.NoError(t, err)
 
 	p1, p2, p3, p4 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
 	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
@@ -2316,7 +2318,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			failedCount++
 			require.Len(t, payload, 0)
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), mdmConfig)
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), signingCert)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
@@ -2352,7 +2354,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeRemove
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), mdmConfig)
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), signingCert)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
@@ -2405,7 +2407,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeInstall
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), mdmConfig)
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), signingCert)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
@@ -2441,6 +2443,8 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		AppleSCEPCert: "./testdata/server.pem",
 		AppleSCEPKey:  "./testdata/server.key",
 	}
+	signingCert, _, _, err := mdmConfig.AppleSCEP()
+	require.NoError(t, err)
 
 	t.Run("no enroll secret found", func(t *testing.T) {
 		ctx := context.Background()
@@ -2456,7 +2460,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			require.Empty(t, ps)
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, mdmConfig)
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert)
 		require.NoError(t, err)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -2481,7 +2485,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			require.Empty(t, ps)
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, mdmConfig)
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert)
 		require.NoError(t, err)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -2515,7 +2519,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			return nil
 		}
 
-		err := ensureFleetProfiles(ctx, ds, logger, mdmConfig)
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert)
 		require.NoError(t, err)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
@@ -2546,7 +2550,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			}
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, mdmConfig)
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert)
 		require.NoError(t, err)
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -2559,7 +2563,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return nil, testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, mdmConfig)
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert)
 		require.ErrorIs(t, err, testError)
 	})
 
@@ -2572,7 +2576,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return nil, testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, mdmConfig)
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert)
 		require.ErrorIs(t, err, testError)
 	})
 
@@ -2592,7 +2596,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
 			return testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, mdmConfig)
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert)
 		require.ErrorIs(t, err, testError)
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
