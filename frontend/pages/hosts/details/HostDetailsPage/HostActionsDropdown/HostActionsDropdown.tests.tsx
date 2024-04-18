@@ -1024,6 +1024,52 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Run script")).toBeInTheDocument();
     });
 
+    it("renders the Run script action as enabled when `scripts_enabled` is `null`", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="offline"
+          mdmName="Fleet"
+          hostPlatform="windows"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={null}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Run script")).toBeInTheDocument();
+
+      expect(
+        screen
+          .getByText("Run script")
+          .parentElement?.parentElement?.parentElement?.classList.contains(
+            "is-disabled"
+          )
+      ).toBeFalsy();
+
+      await waitFor(() => {
+        waitFor(() => {
+          user.hover(screen.getByText("Run script"));
+        });
+
+        expect(
+          screen.queryByText(/fleetd agent with --enable-scripts/i)
+        ).toBeNull();
+      });
+    });
+
     it("renders the Run script action as disabled with a tooltip when scripts_enabled is set to false", async () => {
       const render = createCustomRenderer({
         context: {
