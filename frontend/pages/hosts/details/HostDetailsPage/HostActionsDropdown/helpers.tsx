@@ -303,6 +303,8 @@ const modifyOptions = (
           To {tooltipAction[value]} this host, deploy the
           <br />
           fleetd agent with --enable-scripts
+          <br />
+          and refetch host vitals
         </>
       );
     }
@@ -332,21 +334,11 @@ const modifyOptions = (
     );
   }
 
-  if (hostScriptsEnabled === null) {
-    const runScriptOption = options.find(
-      (option) => option.value === "runScript"
-    );
-    // it's there
-    if (runScriptOption) {
-      runScriptOption.tooltipContent = (
-        <>
-          This host does not report whether scripts can be run on it.
-          <br />
-          Running them may or may not work.
-        </>
-      );
-    }
-  } else if (!hostScriptsEnabled) {
+  // null intentionally excluded from this condition:
+  // scripts_enabled === null means this agent is not an orbit agent, or this agent is version
+  // <=1.23.0 which is not collecting the scripts enabled info
+  // in each of these cases, we maintain these options
+  if (hostScriptsEnabled === false) {
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "runScript")
     );
