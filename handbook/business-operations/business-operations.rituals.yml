@@ -174,7 +174,7 @@
   description: "Provide information to tax team with Deloitte and assist with filing and paying state and federal returns" 
   moreInfoUrl: 
   dri: "hollidayn"
- -
+-
   task: "Monthly mail review" # TODO tie this to a responsibility
   startedOn: "2024-04-15" 
   frequency: "Monthly"
