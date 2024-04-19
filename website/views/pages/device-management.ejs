@@ -42,7 +42,9 @@
       <logo-carousel></logo-carousel>
       </div>
     </div>
-      <%- partial('../partials/calendar-banner.partial.ejs') %>
+      <% if(primaryBuyingSituation){%>
+      <%-  partial('../partials/calendar-banner.partial.ejs') %>
+      <% } %>
       <div purpose="page-container">
       <div purpose="page-content" class="mx-auto">
       <%/* Your last MDM migration section */%>
