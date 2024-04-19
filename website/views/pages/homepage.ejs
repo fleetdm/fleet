@@ -133,14 +133,19 @@
             <a href="/integrations">
               <div purpose="integration-card">
                 <img alt="Custom IT workflows" src="/images/integration-icon-custom-workflows-32x36@2x.png">
+                <% if(['vm', 'eo-security'].includes(primaryBuyingSituation)){%>
+                <strong>Kick off automations</strong>
+                <p>Use git, yaml, webhooks, file carving, vuln feeds, the REST API, and a GUI for security automations</p>
+                <% } else { %>
                 <strong>Custom IT workflows</strong>
                 <p>Use git, yaml, webhooks, realtime device access, file carving, vuln feeds, the REST API, and a GUI for IT automation.</p>
+                <% } %>
               </div>
             </a>
             <a href="/integrations">
               <div purpose="integration-card">
                 <img alt="IT ticketing" src="/images/integration-logo-jira-32x36@2x.png">
-                <strong>IT ticketing</strong>
+                <strong><%- ['vm', 'eo-security'].includes(primaryBuyingSituation) ? 'Case management' : 'IT ticketing'%></strong>
                 <p>Automate ticketing with Jira, ServiceNow, or integrate your own system.</p>
               </div>
             </a>
@@ -155,9 +160,15 @@
             </a>
             <a href="/integrations">
               <div purpose="integration-card">
-                <img alt="Scripting" src="/images/integration-logo-munki-36x36@2x.png">
-                <strong>Scripting</strong>
-                <p>Easily connect Munki, Chef, Ansible, and Puppet or deploy your own scripts.</p>
+                <% if(['vm', 'eo-security'].includes(primaryBuyingSituation)){%>
+                  <img alt="Remediations" src="/images/integration-logo-ansible-36x36@2x.png">
+                  <strong>Remediations</strong>
+                  <p>Easily connect Ansible, Chef, or deploy your own runbooks to install missing security agents and harden endpoints.</p>
+                <% } else { %>
+                  <img alt="Scripting" src="/images/integration-logo-munki-36x36@2x.png">
+                  <strong>Scripting</strong>
+                  <p>Easily connect Munki, Chef, Ansible, and Puppet or deploy your own scripts.</p>
+                <% } %>
               </div>
             </a>
           </div>
