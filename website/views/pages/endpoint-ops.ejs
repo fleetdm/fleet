@@ -79,7 +79,14 @@
         </div>
       </div>
     </div>
-
+    <logo-carousel></logo-carousel>
+  </div>
+  </div>
+  <% if(primaryBuyingSituation){%>
+  <%-  partial('../partials/calendar-banner.partial.ejs') %>
+  <% } %>
+  <div purpose="page-container">
+  <div purpose="page-content" class="mx-auto">
     <div purpose="feature-headline" class="mr-auto">
       <h3>Pulse check anything</h3>
       <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
