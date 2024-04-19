@@ -368,7 +368,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
-	var shouldRemoveAll bool
+	var removeAllMemberships bool
 	var removeStats bool
 	if p.Name != nil {
 		policy.Name = *p.Name
@@ -378,7 +378,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.Query != nil {
 		if policy.Query != *p.Query {
-			shouldRemoveAll = true
+			removeAllMemberships = true
 			removeStats = true
 		}
 		policy.Query = *p.Query
@@ -404,7 +404,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
-	err = svc.ds.SavePolicy(ctx, policy, shouldRemoveAll, removeStats)
+	err = svc.ds.SavePolicy(ctx, policy, removeAllMemberships, removeStats)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
