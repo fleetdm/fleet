@@ -181,7 +181,7 @@
   description: "Review and clear mail incurring storage fees" 
   moreInfoUrl: null 
   dri: "ireedy"
-    autoIssue:   
+  autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 
