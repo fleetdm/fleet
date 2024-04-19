@@ -16,7 +16,8 @@ services:
           name: fleet-database
           property: connectionString
       - key: FLEET_REDIS_ADDRESS
-        fromDatabase:
+        fromService:
+          type: redis
           name: fleet-redis
           property: connectionString
     healthCheckPath: '/healthz'
