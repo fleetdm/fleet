@@ -42,7 +42,6 @@ const HostActionsDropdown = ({
     isGlobalMaintainer = false,
     isMacMdmEnabledAndConfigured = false,
     isWindowsMdmEnabledAndConfigured = false,
-    isSandboxMode = false,
     currentUser,
   } = useContext(AppContext);
 
@@ -73,7 +72,6 @@ const HostActionsDropdown = ({
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
-    isSandboxMode,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
   });
