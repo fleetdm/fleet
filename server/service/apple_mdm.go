@@ -2746,7 +2746,6 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.
 	}
 
 	b := rootCAProfContents.Bytes()
-	fmt.Println(string(b))
 
 	enrollSecrets, err := ds.AggregateEnrollSecretPerTeam(ctx)
 	if err != nil {
