@@ -14,9 +14,9 @@ See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configur
 
 ## Queries
 
-The `lib/{name}.queries.yml` file controls saved queries in Fleet.
+The `lib/{name}.queries.yml` files control saved queries in Fleet.
 
-- Optional setting
+- Optional
 - Array of dictionaries
 - Config format:  
   ```yaml
@@ -34,3 +34,91 @@ The `lib/{name}.queries.yml` file controls saved queries in Fleet.
     observer_can_run: true
     automations_enabled: false
   ``` 
+
+## Policies
+
+The `lib/{name}.poliicies.yml` files control policies in Fleet.
+
+- Optional
+- Array of dictionaries
+- Config format:
+  ```yaml
+  - name: macOS - Enable FileVault
+    platform: darwin
+    description: This policy checks if FileVault (disk encryption) is enabled.
+    resolution: As an IT admin, turn on disk encryption in Fleet.
+    query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+  - name: macOS - Disable guest account
+    platform: darwin
+    description: This policy checks if the guest account is disabled.
+    resolution: An an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
+    query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
+  ```
+
+## Controls
+
+The `controls` section defines device management settings (OS updates, configuration profiles, disk encryption, OS updates, and scripts). This is the top-level key, and all options referenced below are under this one.
+
+
+### Mobile device management (MDM) options
+
+#### mdm.apple​_bm​_default​_team
+
+_Available in Fleet Premium_
+
+Set the name of the default team to use with Apple Business Manager. macOS hosts will be added to this team when they’re first unboxed.
+
+- Optional
+- Default value: `""`
+- Config format:
+  ```yaml
+  mdm:
+    apple_bm_default_team: "Workstations"
+  ```
+
+#### mdm.windows​_enabled​_and​_configured
+
+Turns on or off Windows MDM.
+
+- Optional
+- Default value: `false`
+- Config format:
+  ```yaml
+  mdm:
+    windows_enabled_and_configured: true
+  ```
+
+#### mdm.macos​_updates
+
+_Available in Fleet Premium_
+
+Configures OS updates enforcement for macOS hosts.
+
+##### mdm.macos​_updates.minimum_version
+
+macOS version that the end-user must update to.
+
+- Requires `mdm.macos_updates.deadline` to be set  
+- Default value: `""`
+- Config format:
+  ```yaml
+  mdm:
+    macos_updates:
+      minimum_version: "14.3.0"
+  ```
+
+##### mdm.macos​_updates.deadline
+
+A deadline in the form of YYYY-MM-DD. The exact deadline time is 04:00:00 (UTC-8).
+
+- Requires `mdm.macos_updates.minimum_version` to be set  
+- Default value: `""`
+- Config format:
+  ```yaml
+  mdm:
+    macos_updates:
+      deadline: "2022-01-01"
+  ```
+
+
+
