@@ -601,7 +601,7 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 // NOTE: Similar to ApplyQueries, ApplyPolicySpecs will update the author_id of the policies
 // that are updated.
 //
-// Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
+// Currently, ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	// Preprocess specs and group them by team
 	teamNameToID := make(map[string]uint)
@@ -635,15 +635,21 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	teamIDToPoliciesByName := make(map[uint]map[string]policyLite, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
 		teamIDToPoliciesByName[teamID] = make(map[string]policyLite, len(teamPolicySpecs))
-		var teamIDPtr *uint
-		if teamID != 0 {
-			teamIDPtr = &teamID
-		}
 		policyNames := make([]string, 0, len(teamPolicySpecs))
 		for _, spec := range teamPolicySpecs {
 			policyNames = append(policyNames, spec.Name)
 		}
-		query, args, err := sqlx.In("SELECT name, query, platforms FROM policies WHERE team_id = ? AND name IN (?)", teamIDPtr, policyNames)
+
+		var query string
+		var args []interface{}
+		var err error
+		if teamID == 0 {
+			query, args, err = sqlx.In("SELECT name, query, platforms FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
+		} else {
+			query, args, err = sqlx.In(
+				"SELECT name, query, platforms FROM policies WHERE team_id = ? AND name IN (?)", &teamID, policyNames,
+			)
+		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building query to get policies by name")
 		}
