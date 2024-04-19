@@ -4,7 +4,7 @@ import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 
 import { uniqueId } from "lodash";
 
-interface IDisabledOptionTooltipWrapper {
+interface IDropdownOptionTooltipWrapper {
   children: React.ReactNode;
   isDelayed?: boolean;
   className?: string;
@@ -16,9 +16,9 @@ interface IDisabledOptionTooltipWrapper {
   offset?: number;
 }
 
-const baseClass = "disabled-option-tooltip-wrapper";
+const baseClass = "dropdown-option-tooltip-wrapper";
 
-const DisabledOptionTooltipWrapper = ({
+const DropdownOptionTooltipWrapper = ({
   children,
   tipContent,
   isDelayed,
@@ -27,7 +27,7 @@ const DisabledOptionTooltipWrapper = ({
   clickable = true,
   place = "left",
   offset = 24,
-}: IDisabledOptionTooltipWrapper) => {
+}: IDropdownOptionTooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className);
 
   const elementClassNames = classnames(`${baseClass}__element`);
@@ -64,4 +64,4 @@ const DisabledOptionTooltipWrapper = ({
   );
 };
 
-export default DisabledOptionTooltipWrapper;
+export default DropdownOptionTooltipWrapper;

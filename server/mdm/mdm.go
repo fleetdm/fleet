@@ -86,6 +86,10 @@ const (
 	// fleetd to read configuration values from the system.
 	FleetdConfigProfileName = "Fleetd configuration"
 
+	// FleetCAConfigProfileName is the value for the PayloadDisplayName used by
+	// fleetd to read configuration values from the system.
+	FleetCAConfigProfileName = "Fleet root certificate authority (CA)"
+
 	// FleetdFileVaultProfileName is the value for the PayloadDisplayName used
 	// by Fleet to configure FileVault and FileVault Escrow.
 	FleetFileVaultProfileName = "Disk encryption"
@@ -107,6 +111,7 @@ func FleetReservedProfileNames() map[string]struct{} {
 		FleetFileVaultProfileName:        {},
 		FleetWindowsOSUpdatesProfileName: {},
 		FleetMacOSUpdatesProfileName:     {},
+		FleetCAConfigProfileName:         {},
 	}
 }
 
@@ -119,7 +124,7 @@ func ListFleetReservedWindowsProfileNames() []string {
 // ListFleetReservedMacOSProfileNames returns a list of PayloadDisplayName strings
 // that are reserved by Fleet for macOS.
 func ListFleetReservedMacOSProfileNames() []string {
-	return []string{FleetFileVaultProfileName, FleetdConfigProfileName}
+	return []string{FleetFileVaultProfileName, FleetdConfigProfileName, FleetCAConfigProfileName}
 }
 
 // ListFleetReservedMacOSDeclarationNames returns a list of declaration names

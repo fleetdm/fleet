@@ -150,7 +150,7 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 
 
 ### Run US commission payroll
-- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
+- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have a **Close date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
 - Let the Head of Business Operations know they can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 

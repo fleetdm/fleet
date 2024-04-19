@@ -366,9 +366,9 @@ COALESCE(status, '%s') AS status,
 COALESCE(operation_type, '') AS operation_type,
 COALESCE(detail, '') AS detail
 FROM
-host_mdm_apple_profiles
+  host_mdm_apple_profiles
 WHERE
-host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
+  host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
 
 UNION ALL
 SELECT
@@ -383,9 +383,9 @@ COALESCE(status, '%s') AS status,
 COALESCE(operation_type, '') AS operation_type,
 COALESCE(detail, '') AS detail
 FROM
-host_mdm_apple_declarations
+  host_mdm_apple_declarations
 WHERE
-host_uuid = ? AND declaration_name NOT IN (?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+  host_uuid = ? AND declaration_name NOT IN (?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,

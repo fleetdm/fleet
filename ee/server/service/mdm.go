@@ -1156,5 +1156,11 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// NOTE: the profile returned by this endpoint is intentionally not
+	// signed so it can be modified and signed by the IT admin with a
+	// custom certificate.
+	//
+	// Per @marko-lisica, we can add a parameter like `signed=true` if the
+	// need arises.
 	return mobileConfig, nil
 }

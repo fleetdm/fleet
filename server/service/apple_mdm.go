@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1330,16 +1332,22 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
 
-	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		enrollURL,
 		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "generating enrollment profile")
 	}
-	return mobileconfig, nil
+
+	signed, err := mobileconfig.Sign(enrollmentProf, svc.config.MDM)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	return signed, nil
 }
 
 type mdmAppleCommandRemoveEnrollmentProfileRequest struct {
@@ -2710,7 +2718,7 @@ func mdmAppleDeliveryStatusFromCommandStatus(cmdStatus string) *fleet.MDMDeliver
 	}
 }
 
-// ensureFleetdConfig ensures there's a fleetd configuration profile in
+// ensureFleetProfiles ensures there's a fleetd configuration profile in
 // mdm_apple_configuration_profiles for each team and for "no team"
 //
 // We try our best to use each team's secret but we default to creating a
@@ -2720,11 +2728,25 @@ func mdmAppleDeliveryStatusFromCommandStatus(cmdStatus string) *fleet.MDMDeliver
 // This profile will be installed to all hosts in the team (or "no team",) but it
 // will only be used by hosts that have a fleetd installation without an enroll
 // secret and fleet URL (mainly DEP enrolled hosts).
-func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, signingCert *tls.Certificate) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
+
+	var rootCAProfContents bytes.Buffer
+	params := mobileconfig.FleetCARootTemplateOptions{
+		PayloadIdentifier: mobileconfig.FleetCARootConfigPayloadIdentifier,
+		PayloadName:       mdm_types.FleetCAConfigProfileName,
+		Certificate:       base64.StdEncoding.EncodeToString(signingCert.Certificate[0]),
+	}
+
+	if err := mobileconfig.FleetCARootTemplate.Execute(&rootCAProfContents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "executing fleet root CA config template")
+	}
+
+	b := rootCAProfContents.Bytes()
+	fmt.Println(string(b))
 
 	enrollSecrets, err := ds.AggregateEnrollSecretPerTeam(ctx)
 	if err != nil {
@@ -2767,11 +2789,15 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 
 		cp, err := fleet.NewMDMAppleConfigProfile(contents.Bytes(), es.TeamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building configuration profile")
+			return ctxerr.Wrap(ctx, err, "building fleetd configuration profile")
 		}
-
 		profiles = append(profiles, cp)
 
+		rootCAProf, err := fleet.NewMDMAppleConfigProfile(b, es.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building root CA configuration profile")
+		}
+		profiles = append(profiles, rootCAProf)
 	}
 
 	if err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, profiles); err != nil {
@@ -2813,6 +2839,7 @@ func ReconcileAppleProfiles(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
+	signingCert *tls.Certificate,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2821,7 +2848,7 @@ func ReconcileAppleProfiles(
 	if !appConfig.MDM.EnabledAndConfigured {
 		return nil
 	}
-	if err := ensureFleetdConfig(ctx, ds, logger); err != nil {
+	if err := ensureFleetProfiles(ctx, ds, logger, signingCert); err != nil {
 		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
 
