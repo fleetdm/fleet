@@ -137,6 +137,25 @@ module.exports = {
       // If the user selects let me think about it, their stage will not change.
     }//ﬁ
 
+    // Send a POST request to Zapier
+    await sails.helpers.http.post.with({
+      url: 'https://hooks.zapier.com/hooks/catch/3627242/3nltwbg/',
+      data: {
+        emailAddress: this.req.me.emailAddress,
+        firstName: this.req.me.firstName,
+        lastName: this.req.me.lastName,
+        primaryBuyingSituation: this.req.me.primaryBuyingSituation,
+        organization: this.req.me.organization,
+        psychologicalStage,
+        webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
+      }
+    })
+    .timeout(5000)
+    .tolerate(['non200Response', 'requestFailed'], (err)=>{
+      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+      sails.log.warn(`When a user completed a questionnaire step, a lead/contact could not be updated in the CRM for this email address: ${this.req.me.emailAddress}. Raw error: ${err}`);
+      return;
+    });
     // Set the user's answer to the current step.
     questionnaireProgress[currentStep] = formData;
     // Clone the questionnaireProgress to prevent any mutations from sending it through the updateOne Waterline method.
