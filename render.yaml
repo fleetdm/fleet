@@ -21,21 +21,17 @@ services:
           name: fleet-redis
           property: connectionString
     healthCheckPath: '/healthz'
-
   - type: redis
     name: fleet-redis
+    plan: free
     ipAllowList: # Required
       - source: 0.0.0.0/0
         description: everywhere
-    plan: free # Default: starter
-
-# List all PostgreSQL databases here
 databases:
-
-  # A database with a read replica
   - name: fleet-database
-    databaseName: fleetdb # (Render may add a suffix)
-    user: fleetuser 
-    ipAllowList: # Optional (defaults to allow all)
+    plan: free
+    databaseName: fleetdb
+    user: fleetuser
+    ipAllowList:
       - source: 0.0.0.0/0
         description: everywhere
