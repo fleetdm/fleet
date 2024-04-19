@@ -13,6 +13,7 @@ import input.subject
 read := "read"
 list := "list"
 write := "write"
+write_host_label := "write_host_label"
 
 # User specific actions
 write_role := "write_role"
@@ -272,6 +273,13 @@ allow {
 	action == write
 }
 
+# Global admin, mantainers and gitops can write labels to hosts.
+allow {
+	object.type == "host"
+	subject.global_role == [admin, maintainer, gitops][_]
+	action == write_host_label
+}
+
 # Allow read for global observer and observer_plus, selective_read for gitops.
 allow {
 	object.type == "host"
@@ -293,6 +301,13 @@ allow {
 	object.type == "host"
 	team_role(subject, object.team_id) == [admin, maintainer][_]
 	action == write
+}
+
+# Team admins, maintainers and gitops can write labels to hosts of their own team.
+allow {
+	object.type == "host"
+	team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+	action == write_host_label
 }
 
 # Allow read for host health for global admin/maintainer, team admins, observer.

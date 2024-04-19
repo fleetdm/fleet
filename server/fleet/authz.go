@@ -7,6 +7,8 @@ const (
 	ActionList = "list"
 	// ActionWrite refers to writing (CRUD operations) an entity.
 	ActionWrite = "write"
+	// ActionWriteHostLabel refers to writing labels on hosts.
+	ActionWriteHostLabel = "write_host_label"
 
 	//
 	// User specific actions

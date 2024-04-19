@@ -94,6 +94,26 @@ func (c *Client) SyncDevices(ctx context.Context, name string, opts ...DeviceReq
 	return resp, c.doWithAfterHook(ctx, name, http.MethodPost, "/devices/sync", req, resp)
 }
 
+// GetDevicesDetails uses the Apple "Get Device Details" API endpoint to
+// retrieve the details (such as its assigned enrollment profile UUID) for the
+// specified device, identified by its serial number.
+// See https://developer.apple.com/documentation/devicemanagement/get_device_details
+func (c *Client) GetDeviceDetails(ctx context.Context, name, serialNumber string) (*Device, error) {
+	type request struct {
+		Devices []string `json:"devices"`
+	}
+	type response struct {
+		Devices map[string]*Device `json:"devices"`
+	}
+	resp := new(response)
+	if err := c.doWithAfterHook(ctx, name, http.MethodPost, "/devices", request{
+		Devices: []string{serialNumber},
+	}, resp); err != nil {
+		return nil, err
+	}
+	return resp.Devices[serialNumber], nil
+}
+
 // IsCursorExhausted returns true if err is a DEP "exhausted cursor" error.
 func IsCursorExhausted(err error) bool {
 	return httpErrorContains(err, http.StatusBadRequest, "EXHAUSTED_CURSOR")
