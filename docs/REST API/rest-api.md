@@ -7522,7 +7522,7 @@ Gets the result of a script that was executed.
 
 ### Upload script
 
-Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
+Uploads a script making it available to run on hosts assigned to the specified team (or no team).
 
 `POST /api/v1/fleet/scripts`
 
@@ -7572,6 +7572,8 @@ echo "hello"
 
 ### Download script
 
+Downloads a script.
+
 `GET /api/v1/fleet/scripts/:id`
 
 #### Parameters
@@ -7620,26 +7622,6 @@ Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
 echo "hello"
 ```
 
-### Delete script
-
-Deletes an existing script.
-
-`DELETE /api/v1/fleet/scripts/:id`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                           |
-| ----            | ------- | ---- | --------------------------------------------          |
-| id              | integer | path | **Required**. The ID of the script to delete. |
-
-#### Example
-
-`DELETE /api/v1/fleet/scripts/1`
-
-##### Default response
-
-`Status: 204`
-
 ### List scripts
 
 `GET /api/v1/fleet/scripts`
@@ -7683,8 +7665,27 @@ Deletes an existing script.
     "has_previous_results": false
   }
 }
-
 ```
+
+### Delete script
+
+Deletes a script.
+
+`DELETE /api/v1/fleet/scripts/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                           |
+| ----            | ------- | ---- | --------------------------------------------          |
+| id              | integer | path | **Required**. The ID of the script to delete. |
+
+#### Example
+
+`DELETE /api/v1/fleet/scripts/1`
+
+##### Default response
+
+`Status: 204`
 
 ## Sessions
 
