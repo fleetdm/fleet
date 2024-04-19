@@ -39,8 +39,8 @@ parasails.registerPage('contact', {
     // Success state when form has been submitted
     cloudSuccess: false,
 
-    // For personalizing the message at the top of the contact form.
-    buyingStage: undefined,
+    // For personalizing the message at the top of the contact form for logged-in users.
+    psychologicalStage: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -67,23 +67,7 @@ parasails.registerPage('contact', {
         this.formDataToPrefillForLoggedInUsers.primaryBuyingSituation = this.me.primaryBuyingSituation;
       }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
-      // If this user has submitted the /start questionnaire, determine their buying stage based on the answers they provided
-      if(!_.isEmpty(this.me.getStartedQuestionnaireAnswers)) {
-        let getStartedQuestionnaireAnswers = _.clone(this.me.getStartedQuestionnaireAnswers);
-        if(getStartedQuestionnaireAnswers['have-you-ever-used-fleet']) {
-          // If the user has Fleet deployed, then we'll assume they're stage five.
-          if(getStartedQuestionnaireAnswers['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed' ||
-            getStartedQuestionnaireAnswers['have-you-ever-used-fleet'].fleetUseStatus === 'yes-recently-deployed') {
-            this.buyingStage = 'five';
-          }
-        }
-        if(getStartedQuestionnaireAnswers['what-did-you-think']){
-          // If this user has completed the "What did you think" step and wants to self-host Fleet, we'll assume theyre stage four.
-          if(getStartedQuestionnaireAnswers['what-did-you-think'].whatDidYouThink === 'deploy-fleet-in-environment'){
-            this.buyingStage = 'four';
-          }
-        }
-      }
+      this.psychologicalStage = this.me.psychologicalStage;
     }
   },
   mounted: async function() {
