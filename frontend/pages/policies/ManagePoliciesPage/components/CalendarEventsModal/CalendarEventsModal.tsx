@@ -104,7 +104,6 @@ const CalendarEventsModal = ({
   };
 
   const onUrlChange = (value: string) => {
-    console.log("value", value);
     const newFormData = { ...formData, url: value };
     // On URL change with erroneous URL, validate form
     if (formErrors.url) {
