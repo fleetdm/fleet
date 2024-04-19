@@ -7,7 +7,6 @@ services:
     branch: main
     buildCommand: 'make'
     preDeployCommand: 'build/fleet prepare db'
-    startCommand: 'build/fleet serve'
     envVars:
       - key: FLEET_SERVER_ADDRESS
         value: '0.0.0.0:8080'
