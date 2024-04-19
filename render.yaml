@@ -4,7 +4,7 @@ services:
     name: fleet
     repo: https://github.com/fleetdm/fleet.git
     numInstances: 1
-    branch: deploy-on-render
+    branch: deploy-to-render
     buildCommand: 'make deps && make build && make'
     preDeployCommand: 'build/fleet prepare db'
     envVars:
