@@ -154,3 +154,38 @@ A grace period in days.
 
 #### mdm.macos_settings
 
+Configures OS settings for macOS hosts.
+
+##### mdm.macos​_settings.custom​_settings
+
+Defines configuration profile files to apply to macOS hosts.
+
+- Optional
+- Default value: none
+- Config format:
+  ```yaml
+  mdm:
+    macos_settings:
+      custom_settings:
+        - path: '/path/to/profile1.mobileconfig'
+          labels:
+            - Label name 1
+          - path: '/path/to/profile2.mobileconfig'
+  ```
+  The `labels` key is optional.
+
+##### mdm.macos​_settings.enable​_disk​_encryption
+
+_Available in Fleet Premium_
+
+Enables disk encryption on macOS and Windows hosts.
+
+- Optional
+- Default value: `false`
+- Config format:
+  ```yaml
+  mdm:
+    macos_settings:
+      enable_disk_encryption: true
+  ```
+  
