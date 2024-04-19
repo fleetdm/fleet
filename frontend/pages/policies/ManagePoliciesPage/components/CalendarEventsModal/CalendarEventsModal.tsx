@@ -69,30 +69,45 @@ const CalendarEventsModal = ({
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
 
-  const validateCalendarEventsFormData = (
-    curFormData: ICalendarEventsFormData
-  ) => {
+  // Used on URL change only when URL error exists and always on attempting to save
+  const validateForm = (newFormData: ICalendarEventsFormData) => {
     const errors: Record<string, string> = {};
-    if (curFormData.enabled) {
-      const { url: curUrl } = curFormData;
-      if (!validURL({ url: curUrl })) {
-        const errorPrefix = curUrl ? `${curUrl} is not` : "Please enter";
-        errors.url = `${errorPrefix} a valid resolution webhook URL`;
-      }
+    const { url: newUrl } = newFormData;
+    if (
+      formData.enabled &&
+      !validURL({ url: newUrl || "", protocol: "http" })
+    ) {
+      const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
+      errors.url = `${errorPrefix} a valid resolution webhook URL`;
     }
+
+    setFormErrors(errors);
+
     return errors;
   };
 
   // two onChange handlers to handle different levels of nesting in the form data
-  const onFeatureEnabledOrUrlChange = useCallback(
-    (newVal: { name: "enabled" | "url"; value: string | boolean }) => {
-      const { name, value } = newVal;
-      const newFormData = { ...formData, [name]: value };
-      setFormData(newFormData);
-      setFormErrors(validateCalendarEventsFormData(newFormData));
-    },
-    [formData]
-  );
+  const onFeatureEnabledOrUrlChange = (newVal: {
+    name: "enabled" | "url";
+    value: string | boolean;
+  }) => {
+    const { name, value } = newVal;
+    const newFormData = { ...formData, [name]: value };
+
+    // On disabling feature with erroneous URL, clear erroneous URL and URL error
+    if (name === "enabled" && value === false && formErrors.url) {
+      newFormData.url = "";
+      const { url: removedUrl, ...remainingFormErrors } = formErrors;
+      setFormErrors(remainingFormErrors);
+    }
+    setFormData(newFormData);
+
+    // On URL change with erroneous URL, validate form
+    if (name === "url" && formErrors.url) {
+      validateForm(newFormData);
+    }
+  };
+
   const onPolicyEnabledChange = useCallback(
     (newVal: { name: FormNames; value: boolean }) => {
       const { name, value } = newVal;
@@ -104,10 +119,18 @@ const CalendarEventsModal = ({
       });
       const newFormData = { ...formData, policies: newFormPolicies };
       setFormData(newFormData);
-      setFormErrors(validateCalendarEventsFormData(newFormData));
     },
     [formData]
   );
+
+  const onUpdatePolicyEnabledCalendarEvents = () => {
+    const errors = validateForm(formData);
+
+    // Submit only if there are no errors
+    if (Object.keys(errors).length === 0) {
+      updatePolicyEnabledCalendarEvents(formData);
+    }
+  };
 
   const togglePreviewCalendarEvent = () => {
     setShowPreviewCalendarEvent(!showPreviewCalendarEvent);
@@ -273,9 +296,7 @@ const CalendarEventsModal = ({
         <Button
           type="submit"
           variant="brand"
-          onClick={() => {
-            updatePolicyEnabledCalendarEvents(formData);
-          }}
+          onClick={onUpdatePolicyEnabledCalendarEvents}
           className="save-loading"
           isLoading={isUpdating}
           disabled={Object.keys(formErrors).length > 0}

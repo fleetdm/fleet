@@ -111,6 +111,7 @@ policies:
   - path: ../lib/linux-device-health.policies.yml
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
+  - path: ../lib/collect-fleetd-information.yml
   - path: ../lib/collect-usb-devices.queries.yml
   - path: ../lib/collect-vs-code-extensions.queries.yml
   - path: ../lib/collect-software-permissions-system.queries.yml

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -151,7 +152,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -184,7 +185,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -221,7 +222,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -262,7 +263,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -313,7 +314,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -365,7 +366,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -402,7 +403,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -444,7 +445,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -499,7 +500,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -535,7 +536,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)

@@ -8,7 +8,7 @@ Fleet Desktop is a menu bar icon available on macOS, Windows, and Linux.
 
 At its core, Fleet Desktop gives your end users visibility into the security posture of their machine. This unlocks two key benefits:
 * Self-remediation: end users can see which policies they are failing and resolution steps, reducing the need for IT and security teams to intervene
-* Scope Transparency: end users can see what the Fleet agent can do on their machines, eliminating ambiguity between end users and their IT and security teams
+* Scope transparency: end users can see what the Fleet agent can do on their machines, eliminating ambiguity between end users and their IT and security teams
 
 > Self-remediation is only available for users with Fleet Premium
 
@@ -55,7 +55,7 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 - Rejected by the server
 - Older than one hour
 
-This change is imperceptible to users, as clicking on the "My Device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
+This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
 <meta name="title" value="Fleet Desktop">
 <meta name="pageOrderInSection" value="450">
