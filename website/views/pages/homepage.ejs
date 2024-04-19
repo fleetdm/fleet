@@ -50,14 +50,14 @@
       </div>
     </div>
   </div>
-  <!-- <div purpose="calendar-section">
+  <% if(primaryBuyingSituation) {%>
+  <div purpose="calendar-section">
     <div purpose="calendar-card" class="d-flex flex-column align-items-center">
       <div purpose="calendar-card-body" class="d-flex flex-column align-items-center">
         <div purpose="coming-soon-badge">Coming soon</div>
-        <% if(!primaryBuyingSituation) {%>
-        <h3>Stop nudging</h3>
-        <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p>
-        <%} else if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
+        <!-- <h3>Stop nudging</h3> -->
+        <!-- <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p> -->
+        <% if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
           <h3>Put IT in your calendar</h3>
           <p>Install updates and force restarts when your users’ computers are actually free.</p>
         <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
@@ -76,7 +76,8 @@
         <img alt="Fleet in your calendar" src="/images/homepage-calendar-1280x420@2x.png">
       </div>
     </div>
-  </div> -->
+  </div>
+  <% } %>
   <div purpose="homepage-content" class="container">
       <div purpose="page-section">
       <%/* Endpoint ops block */%>
