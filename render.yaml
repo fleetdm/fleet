@@ -1,6 +1,6 @@
 services:
   - type: web
-    runtime: go
+    runtime: docker
     name: fleet
     repo: https://github.com/fleetdm/fleet.git
     numInstances: 1
