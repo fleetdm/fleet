@@ -251,17 +251,6 @@ const CalendarEventsModal = ({
   const renderConfiguredModal = () => (
     <div className={`${baseClass} form`}>
       <div className="form-header">
-        {/* <Slider
-          value={formData.enabled}
-          onChange={() => {
-            onFeatureEnabledOrUrlChange({
-              name: "enabled",
-              value: !formData.enabled,
-            });
-          }}
-          inactiveText="Disabled"
-          activeText="Enabled"
-        /> */}
         <Slider
           value={formData.enabled}
           onChange={onFeatureEnabledChange}
