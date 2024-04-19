@@ -92,7 +92,7 @@ Turns on or off Windows MDM.
 
 _Available in Fleet Premium_
 
-Configures OS updates enforcement for macOS hosts.
+Configures OS update enforcement for macOS hosts.
 
 ##### mdm.macos​_updates.minimum_version
 
@@ -120,5 +120,37 @@ A deadline in the form of YYYY-MM-DD. The exact deadline time is 04:00:00 (UTC-8
       deadline: "2022-01-01"
   ```
 
+#### mdm.windows​_updates
 
+_Available in Fleet Premium_
+
+Configures OS update enforcement for Windows hosts.
+
+##### mdm.windows​_updates.deadline
+
+A deadline in days.
+
+- Optional
+- Default value: `""`
+- Config format:
+  ```yaml
+  mdm:
+    windows_updates:
+      deadline_days: "5"
+  ```
+
+##### mdm.windows​_updates.grace_period
+
+A grace period in days.
+
+- Optional
+- Default value: `""`
+- Config format:
+  ```yaml
+  mdm:
+    windows_updates:
+      deadline_days: "2"
+  ```
+
+#### mdm.macos_settings
 
