@@ -7404,21 +7404,60 @@ This allows you to easily configure scheduled queries that will impact a whole t
 ## Scripts
 
 - [Run script](#run-script)
-- [Get script result](#get-script-result)
-- [Run live script](#run-live-script)
 - [Add script](#add-script)
-- [Delete script](#delete-script)
+- [Get script result](#get-script-result)
+- [Upload script](#upload-script)
+- [Download script](#download-script)
 - [List scripts](#list-scripts)
-- [Get or download script](#get-or-download-script)
-- [Get script details by host](#get-script-details-by-host)
+- [Delete script](#delete-script)
 
 ### Run script
 
-Run a script on a host.
+This action will execute a script on the host if no other scripts are currently running. If script actions are not complete within 5 minutes of execution the script process will terminate.
 
-The script will be added to the host's list of upcoming activities.
+To add a script to a host's list of upcoming activities use the [Add script](#add-script) API endpoint.
 
-The new script will run after other activities finish. Failure of one activity won't cancel other activities.
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
+| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "message": "",
+  "runtime": 1,
+  "host_timeout": false,
+  "exit_code": 0
+}
+```
+
+### Add script
+
+This action will execute a script on the host by adding it to the host's list of upcoming activities. The script will run after activities ahead of it in the queue are complete. Failure of an activity in the queue does not cancel other upcoming activities.
+
+To execute a script on-demand use the [Run script](#run-script) API endpoint.
 
 `POST /api/v1/fleet/scripts/run`
 
@@ -7481,49 +7520,9 @@ Gets the result of a script that was executed.
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
 
-### Run live script
+### Upload script
 
-Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
-| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
-| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
-
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "script_contents": "echo 'hello'",
-  "output": "hello",
-  "message": "",
-  "runtime": 1,
-  "host_timeout": false,
-  "exit_code": 0
-}
-```
-
-### Add script
-
-Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
+Uploads a script making it available to run on hosts assigned to the specified team (or no team).
 
 `POST /api/v1/fleet/scripts`
 
@@ -7571,73 +7570,9 @@ echo "hello"
 }
 ```
 
-### Delete script
+### Download script
 
-Deletes an existing script.
-
-`DELETE /api/v1/fleet/scripts/:id`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                           |
-| ----            | ------- | ---- | --------------------------------------------          |
-| id              | integer | path | **Required**. The ID of the script to delete. |
-
-#### Example
-
-`DELETE /api/v1/fleet/scripts/1`
-
-##### Default response
-
-`Status: 204`
-
-### List scripts
-
-`GET /api/v1/fleet/scripts`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team to filter scripts by. If not specified, it will filter only scripts that are available to hosts with no team. |
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-
-#### Example
-
-`GET /api/v1/fleet/scripts`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scripts": [
-    {
-      "id": 1,
-      "team_id": null,
-      "name": "script_1.sh",
-      "created_at": "2023-07-30T13:41:07Z",
-      "updated_at": "2023-07-30T13:41:07Z"
-    },
-    {
-      "id": 2,
-      "team_id": null,
-      "name": "script_2.sh",
-      "created_at": "2023-08-30T13:41:07Z",
-      "updated_at": "2023-08-30T13:41:07Z"
-    }
-  ],
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
-  }
-}
-
-```
-
-### Get or download script
+Downloads a script.
 
 `GET /api/v1/fleet/scripts/:id`
 
@@ -7686,6 +7621,75 @@ Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
 ```
 echo "hello"
 ```
+
+### List scripts
+
+Lists uploaded scripts.
+
+`GET /api/v1/fleet/scripts`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team to filter scripts by. If not specified, it will filter only scripts that are available to hosts with no team. |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+
+#### Example
+
+`GET /api/v1/fleet/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "id": 1,
+      "team_id": null,
+      "name": "script_1.sh",
+      "created_at": "2023-07-30T13:41:07Z",
+      "updated_at": "2023-07-30T13:41:07Z"
+    },
+    {
+      "id": 2,
+      "team_id": null,
+      "name": "script_2.sh",
+      "created_at": "2023-08-30T13:41:07Z",
+      "updated_at": "2023-08-30T13:41:07Z"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Delete script
+
+Deletes a script.
+
+`DELETE /api/v1/fleet/scripts/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                           |
+| ----            | ------- | ---- | --------------------------------------------          |
+| id              | integer | path | **Required**. The ID of the script to delete. |
+
+#### Example
+
+`DELETE /api/v1/fleet/scripts/1`
+
+##### Default response
+
+`Status: 204`
+
+---
 
 ## Sessions
 
@@ -7739,7 +7743,6 @@ Deletes the session specified by ID. When the user associated with the session n
 ##### Default response
 
 `Status: 200`
-
 
 ---
 
