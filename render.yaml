@@ -5,7 +5,7 @@ services:
     repo: https://github.com/fleetdm/fleet.git
     numInstances: 1
     branch: main
-    buildCommand: 'make'
+    buildCommand: 'make deps && make build && make'
     preDeployCommand: 'build/fleet prepare db'
     envVars:
       - key: FLEET_SERVER_ADDRESS
