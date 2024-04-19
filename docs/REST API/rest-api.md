@@ -390,7 +390,7 @@ Gets the current SSO configuration.
 
 #### Parameters
 
-| Name      | Type   | In   | Description                                                                 |
+| Name      | Type   | In   | Deion                                                                 |
 | --------- | ------ | ---- | --------------------------------------------------------------------------- |
 | relay_url | string | body | **Required**. The relative url to be navigated to after successful sign in. |
 
@@ -434,7 +434,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 #### Parameters
 
-| Name         | Type   | In   | Description                                                 |
+| Name         | Type   | In   | Deion                                                 |
 | ------------ | ------ | ---- | ----------------------------------------------------------- |
 | SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
 
@@ -468,7 +468,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                 |
+| Name            | Type    | In    | Deion                                                 |
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
@@ -642,7 +642,7 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                    |
+| Name            | Type    | In    | Deion                                                                                                                    |
 |-----------------|---------|-------|--------------------------------------------------------------------------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                           |
 | per_page        | integer | query | Results per page.                                                                                                              |
@@ -703,7 +703,7 @@ Retrieves the specified carve.
 
 #### Parameters
 
-| Name | Type    | In   | Description                           |
+| Name | Type    | In   | Deion                           |
 | ---- | ------- | ---- | ------------------------------------- |
 | id   | integer | path | **Required.** The desired carve's ID. |
 
@@ -742,7 +742,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 #### Parameters
 
-| Name     | Type    | In   | Description                                 |
+| Name     | Type    | In   | Deion                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
 | id       | integer | path | **Required.** The desired carve's ID.       |
 | block_id | integer | path | **Required.** The desired carve block's ID. |
@@ -890,7 +890,7 @@ None.
     "windows_settings": {
       "custom_settings": ["path/to/profile2.xml"],
     },
-    "scripts": ["path/to/script.sh"],
+    "s": ["path/to/.sh"],
     "end_user_authentication": {
       "entity_id": "",
       "issuer_uri": "",
@@ -7404,21 +7404,60 @@ This allows you to easily configure scheduled queries that will impact a whole t
 ## Scripts
 
 - [Run script](#run-script)
-- [Get script result](#get-script-result)
-- [Run live script](#run-live-script)
 - [Add script](#add-script)
-- [Delete script](#delete-script)
+- [Get script result](#get-script-result)
+- [Upload script](#upload-script)
+- [Download script](#download-script)
 - [List scripts](#list-scripts)
-- [Get or download script](#get-or-download-script)
-- [Get script details by host](#get-script-details-by-host)
+- [Delete script](#delete-script)
 
 ### Run script
 
-Run a script on a host.
+This action will execute a script on the host if no other scripts are currently running. If script actions are not complete within 5 minutes of execution the script process will terminate.
 
-The script will be added to the host's list of upcoming activities.
+To add a script to a host's list of upcoming activities use the [Add script](#add-script) API endpoint.
 
-The new script will run after other activities finish. Failure of one activity won't cancel other activities.
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
+| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "message": "",
+  "runtime": 1,
+  "host_timeout": false,
+  "exit_code": 0
+}
+```
+
+### Add script
+
+This action will execute a script on the host by adding it to the host's list of upcoming activities. The script will run after activities ahead of it in the queue are complete. Failure of an activity in the queue does not cancel other upcoming activities.
+
+To execute a script on-demand use the [Run script](#run-script) API endpoint.
 
 `POST /api/v1/fleet/scripts/run`
 
@@ -7481,47 +7520,7 @@ Gets the result of a script that was executed.
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
 
-### Run live script
-
-Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
-| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
-| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
-
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "script_contents": "echo 'hello'",
-  "output": "hello",
-  "message": "",
-  "runtime": 1,
-  "host_timeout": false,
-  "exit_code": 0
-}
-```
-
-### Add script
+### Upload script
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
@@ -7569,6 +7568,56 @@ echo "hello"
 {
   "script_id": 1227
 }
+```
+
+### Download script
+
+`GET /api/v1/fleet/scripts/:id`
+
+#### Parameters
+
+| Name | Type    | In    | Description                                                       |
+| ---- | ------- | ----  | -------------------------------------                             |
+| id   | integer | path  | **Required.** The desired script's ID.                            |
+| alt  | string  | query | If specified and set to "media", downloads the script's contents. |
+
+#### Example (get script)
+
+`GET /api/v1/fleet/scripts/123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 123,
+  "team_id": null,
+  "name": "script_1.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+
+```
+
+#### Example (download script)
+
+`GET /api/v1/fleet/scripts/123?alt=media`
+
+##### Example response headers
+
+```http
+Content-Length: 13
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
+```
+
+###### Example response body
+
+`Status: 200`
+
+```
+echo "hello"
 ```
 
 ### Delete script
@@ -7635,56 +7684,6 @@ Deletes an existing script.
   }
 }
 
-```
-
-### Get or download script
-
-`GET /api/v1/fleet/scripts/:id`
-
-#### Parameters
-
-| Name | Type    | In    | Description                                                       |
-| ---- | ------- | ----  | -------------------------------------                             |
-| id   | integer | path  | **Required.** The desired script's ID.                            |
-| alt  | string  | query | If specified and set to "media", downloads the script's contents. |
-
-#### Example (get script)
-
-`GET /api/v1/fleet/scripts/123`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "id": 123,
-  "team_id": null,
-  "name": "script_1.sh",
-  "created_at": "2023-07-30T13:41:07Z",
-  "updated_at": "2023-07-30T13:41:07Z"
-}
-
-```
-
-#### Example (download script)
-
-`GET /api/v1/fleet/scripts/123?alt=media`
-
-##### Example response headers
-
-```http
-Content-Length: 13
-Content-Type: application/octet-stream
-Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
-```
-
-###### Example response body
-
-`Status: 200`
-
-```
-echo "hello"
 ```
 
 ## Sessions
