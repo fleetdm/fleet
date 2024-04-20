@@ -53,12 +53,15 @@ module.exports = {
     } else {// other wise clone it from the user record.
       questionnaireProgress = _.clone(userRecord.getStartedQuestionnaireAnswers);
     }
+
+    // Tease out what liur buying situation will now be (or is and was, if it's not changing)
+    let primaryBuyingSituation = formData.primaryBuyingSituation === undefined ? this.req.me.buyingSituation : formData.primaryBuyingSituation;
+
     // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
-      let primaryBuyingSituation = formData.primaryBuyingSituation;
       await User.updateOne({id: this.req.me.id})
       .set({
-        primaryBuyingSituation
+        primaryBuyingSituation: primaryBuyingSituation
       });
       // Send a POST request to Zapier
       await sails.helpers.http.post.with({
@@ -78,49 +81,56 @@ module.exports = {
 
       // Set the primary buying situation in the user's session.
       this.req.session.primaryBuyingSituation = primaryBuyingSituation;
-    }
+    }//ﬁ
+
     //  ┌─┐┌─┐┌┬┐  ┌─┐┌─┐┬ ┬┌─┐┬ ┬┌─┐┬  ┌─┐┌─┐┬┌─┐┌─┐┬    ┌─┐┌┬┐┌─┐┌─┐┌─┐
     //  └─┐├┤  │   ├─┘└─┐└┬┘│  ├─┤│ ││  │ ││ ┬││  ├─┤│    └─┐ │ ├─┤│ ┬├┤
     //  └─┘└─┘ ┴   ┴  └─┘ ┴ └─┘┴ ┴└─┘┴─┘└─┘└─┘┴└─┘┴ ┴┴─┘  └─┘ ┴ ┴ ┴└─┘└─┘
     // This is how the questionnaire steps/options change a user's psychologicalStage value.
     // 'start': No change
-    // 'what-are-you-using-fleet-for': No change
+    // 'what-are-you-using-fleet-for':
+    //  - (any option) = stage 2
     // 'have-you-ever-used-fleet':
     //  - yes-deployed: » Stage 6
     //  - yes-recently-deployed: » Stage 6
-    //  - yes-deployed-local: » Stage 3 (Tried Fleet but don't have a use case)
-    //  - yes-deployed-long-time: No change
-    //  - no: No change
-    // 'how-many-hosts': No change
-    // 'will-you-be-self-hosting': No change
+    //  - yes-deployed-local: » Stage 3 (Tried Fleet but might not have a use case)
+    //  - yes-deployed-long-time: Stage 2 (Tried Fleet long ago but might not fully grasp)
+    //  - no: Stage 2 (Never tried Fleet and might not fully grasp)
+    // 'how-many-hosts': No change // TODO (see above -- instead of no change there should be a change)
+    // 'will-you-be-self-hosting': No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
     // 'what-are-you-working-on-eo-security'
-    //  - no-use-case-yet: » No change
+    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-eo-it'
-    //  - no-use-case-yet: » No change
+    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-vm'
-    //  - no-use-case-yet: » No change
+    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
     //  - All other options » Stage 4
     // 'what-do-you-manage-mdm'
-    //  - no-use-case-yet: » No change
+    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
     //  - All other options » Stage 4
-    // 'is-it-any-good': No change
+    // 'is-it-any-good':  // TODO (see above -- instead of no change there should maybe be a change, sometimes)
     // 'what-did-you-think'
     //  - deploy-fleet-in-environment » Stage 5
-    //  - let-me-think-about-it » No change
+    //  - let-me-think-about-it »  // TODO (see above -- instead of no change there should maybe be a change, sometimes)
     //  - host-fleet-for-me » N/A (currently not selectable, but should set the user's psychologicalStage to stage 5)
 
     let psychologicalStage = userRecord.psychologicalStage;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
-    if(currentStep === 'have-you-ever-used-fleet') {
+    if(currentStep === 'what-are-you-using-fleet-for') {
+      psychologicalStage = '2 - Aware';
+    } else if(currentStep === 'have-you-ever-used-fleet') {
       if(['yes-deployed', 'yes-recently-deployed'].includes(valueFromFormData)) {
         // If the user has Fleet deployed, set their stage to 6.
         psychologicalStage = '6 - Has team buy-in';
       } else if(valueFromFormData === 'yes-deployed-local'){
         // If they've tried Fleet locally, set their stage to 3.
         psychologicalStage = '3 - Intrigued';
+      } else {
+        // Otherwise, we'll just assume liu're only aware.  Maybe liu don't fully grasp what Fleet can do.
+        psychologicalStage = '2 - Aware';
       }
     } else if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
       if(valueFromFormData === 'no-use-case-yet') {
@@ -144,7 +154,7 @@ module.exports = {
         emailAddress: this.req.me.emailAddress,
         firstName: this.req.me.firstName,
         lastName: this.req.me.lastName,
-        primaryBuyingSituation: this.req.me.primaryBuyingSituation,
+        primaryBuyingSituation: primaryBuyingSituation,
         organization: this.req.me.organization,
         psychologicalStage,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
