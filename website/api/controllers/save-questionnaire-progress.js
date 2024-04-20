@@ -94,8 +94,8 @@ module.exports = {
     //  - yes-deployed: » Stage 6
     //  - yes-recently-deployed: » Stage 6
     //  - yes-deployed-local: » Stage 3 (Tried Fleet but might not have a use case)
-    //  - yes-deployed-long-time: Stage 2 (Tried Fleet long ago but might not have a use case)
-    //  - no: Stage 2 (Never tried Fleet and might not have a use case)
+    //  - yes-deployed-long-time: Stage 2 (Tried Fleet long ago but might not fully grasp)
+    //  - no: Stage 2 (Never tried Fleet and might not fully grasp)
     // 'how-many-hosts': No change // TODO (see above -- instead of no change there should be a change)
     // 'will-you-be-self-hosting': No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
     // 'what-are-you-working-on-eo-security'
