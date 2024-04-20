@@ -53,12 +53,15 @@ module.exports = {
     } else {// other wise clone it from the user record.
       questionnaireProgress = _.clone(userRecord.getStartedQuestionnaireAnswers);
     }
+
+    // Tease out what liur buying situation will now be (or is and was, if it's not changing)
+    let primaryBuyingSituation = formData.primaryBuyingSituation === undefined ? this.req.me.buyingSituation : formData.primaryBuyingSituation;
+
     // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
-      let primaryBuyingSituation = formData.primaryBuyingSituation;
       await User.updateOne({id: this.req.me.id})
       .set({
-        primaryBuyingSituation
+        primaryBuyingSituation: primaryBuyingSituation
       });
       // Send a POST request to Zapier
       await sails.helpers.http.post.with({
@@ -144,7 +147,7 @@ module.exports = {
         emailAddress: this.req.me.emailAddress,
         firstName: this.req.me.firstName,
         lastName: this.req.me.lastName,
-        primaryBuyingSituation: this.req.me.primaryBuyingSituation,
+        primaryBuyingSituation: primaryBuyingSituation,
         organization: this.req.me.organization,
         psychologicalStage,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
