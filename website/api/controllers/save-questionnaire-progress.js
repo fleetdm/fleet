@@ -55,7 +55,7 @@ module.exports = {
     }
 
     // Tease out what liur buying situation will now be (or is and was, if it's not changing)
-    let primaryBuyingSituation = formData.primaryBuyingSituation === undefined ? this.req.me.buyingSituation : formData.primaryBuyingSituation;
+    let primaryBuyingSituation = formData.primaryBuyingSituation === undefined ? this.req.me.primaryBuyingSituation : formData.primaryBuyingSituation;
 
     // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
