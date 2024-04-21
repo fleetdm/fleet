@@ -600,8 +600,6 @@ func (s *CVE) downloadVulnCheckArchive(ctx context.Context, downloadURL, outFile
 }
 
 func (s *CVE) processVulnCheckFile(fileName string) error {
-	cvesByYear := make(map[int][]VulnCheckCVE)
-
 	sanitizedPath, err := sanitizeArchivePath(s.dbDir, fileName)
 	if err != nil {
 		return fmt.Errorf("error sanitizing archive path: %w", err)
@@ -617,15 +615,14 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 		return zipReader.File[i].Name > zipReader.File[j].Name
 	})
 
-	var data VulnCheckBackupDataFile
-	var stopProcessing bool
-
 	// files are in reverse chronological order by modification date
 	// so we can stop processing files once we find one that is older
 	// than the configured vulnCheckStartDate
 	var addCount int
 	var modCount int
 	for _, file := range zipReader.File {
+		cvesByYear := make(map[int][]VulnCheckCVE)
+		var stopProcessing bool
 
 		gzFile, err := file.Open()
 		if err != nil {
@@ -637,6 +634,7 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			return fmt.Errorf("error creating gzip reader for file %s: %w", file.Name, err)
 		}
 
+		var data VulnCheckBackupDataFile
 		if err := json.NewDecoder(gReader).Decode(&data); err != nil {
 			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
 		}
