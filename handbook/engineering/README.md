@@ -270,17 +270,6 @@ Both repos have a way to configure the specific TAG to pull.
 2. Route the test servers to the test Repo/s
 3. NO CHANGE: QA → Approve or reject
 
-
------------------------ TODO Sharon: Remove the cost section after it's understood by the reviewer of this PR -----------------------
-Cost:
-- One time: Create new code in the repos to pick code from Fleet repo based on TAGs (1-2 points.)
-- Every code change:
-- Dev: additional PR for the tagging. (simple)
-- QA: Reroute test servers to the test repos. (simple)
------------------------ TODO Sharon: Remove the cost section after it's understood by the reviewer of this PR -----------------------
-
-
-
 ### Run Fleet locally for QA purposes
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
 
