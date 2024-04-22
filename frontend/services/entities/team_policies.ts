@@ -10,6 +10,7 @@ import {
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { createMockPoliciesResponse } from "__mocks__/policyMock";
 
 interface IPoliciesApiQueryParams {
   page?: number;
@@ -118,7 +119,6 @@ export default {
   load: (team_id: number, id: number) => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
-
     return sendRequest("GET", path);
   },
   loadAll: (team_id?: number): Promise<ILoadTeamPoliciesResponse> => {
@@ -161,6 +161,17 @@ export default {
     const path = `${TEAMS}/${teamId}/policies?${queryString}`;
     if (!teamId) {
       throw new Error("Invalid team id");
+    }
+
+    console.log("teamId", teamId);
+    if (teamId) {
+      return new Promise((resolve, reject) => {
+        console.log(
+          "createMockPoliciesResponse()",
+          createMockPoliciesResponse()
+        );
+        resolve(createMockPoliciesResponse());
+      });
     }
 
     return sendRequest("GET", path);

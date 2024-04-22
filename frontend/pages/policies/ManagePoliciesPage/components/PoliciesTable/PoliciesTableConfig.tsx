@@ -13,7 +13,6 @@ import ReactTooltip from "react-tooltip";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
@@ -108,7 +107,7 @@ const generateTableHeaders = (
   isPremiumTier?: boolean,
   isSandboxMode?: boolean
 ): IDataColumn[] => {
-  const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
+  const { selectedTeamId, canAddOrDeletePolicy } = options;
 
   // Figure the time since the host counts were updated.
   // First, find first policy item with host_count_updated_at.
@@ -172,6 +171,27 @@ const generateTableHeaders = (
                         This is a premium feature.
                       </>
                     )}
+                  </ReactTooltip>
+                </>
+              )}
+              {selectedTeamId && !cellProps.row.original.team_id && (
+                <>
+                  <span
+                    className="tooltip-base"
+                    data-tip
+                    data-for={`inherited-tooltip-${cellProps.row.original.id}`}
+                  >
+                    Inherited
+                  </span>
+                  <ReactTooltip
+                    className="inherited-tooltip"
+                    place="top"
+                    type="dark"
+                    effect="solid"
+                    id={`inherited-tooltip-${cellProps.row.original.id}`}
+                    backgroundColor={COLORS["tooltip-bg"]}
+                  >
+                    This policy is inherited.
                   </ReactTooltip>
                 </>
               )}
@@ -283,33 +303,31 @@ const generateTableHeaders = (
     },
   ];
 
-  if (tableType !== "inheritedPolicies") {
-    if (!canAddOrDeletePolicy) {
-      return tableHeaders;
-    }
-
-    tableHeaders.unshift({
-      id: "selection",
-      Header: (cellProps: IHeaderProps) => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const props = cellProps.row.getToggleRowSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      disableHidden: true,
-    });
+  if (!canAddOrDeletePolicy) {
+    return tableHeaders;
   }
+
+  tableHeaders.unshift({
+    id: "selection",
+    Header: (cellProps: IHeaderProps) => {
+      const props = cellProps.getToggleAllRowsSelectedProps();
+      const checkboxProps = {
+        value: props.checked,
+        indeterminate: props.indeterminate,
+        onChange: () => cellProps.toggleAllRowsSelected(),
+      };
+      return <Checkbox {...checkboxProps} />;
+    },
+    Cell: (cellProps: ICellProps): JSX.Element => {
+      const props = cellProps.row.getToggleRowSelectedProps();
+      const checkboxProps = {
+        value: props.checked,
+        onChange: () => cellProps.row.toggleRowSelected(),
+      };
+      return <Checkbox {...checkboxProps} />;
+    },
+    disableHidden: true,
+  });
 
   return tableHeaders;
 };
