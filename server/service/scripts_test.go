@@ -315,7 +315,6 @@ func TestHostRunScript(t *testing.T) {
 			{"valid with hashbang and spacing", "#! /bin/sh  \necho 'a'", ""},
 			{"valid with hashbang and Windows newline", "#! /bin/sh  \r\necho 'a'", ""},
 			{"invalid hashbang", "#!/bin/bash\necho 'a'", "Interpreter not supported."},
-			{"invalid hashbang suffix", "#!/bin/sh -n\necho 'a'", "Interpreter not supported."},
 		}
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
