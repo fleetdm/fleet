@@ -61,13 +61,18 @@ const Info = ({
       errors.org_name = "Organization name must be present";
     }
 
-    if (orgLogoURL && !validUrl({ url: orgLogoURL, protocol: "http" })) {
+    if (
+      orgLogoURL &&
+      !validUrl({ url: orgLogoURL, protocols: ["http", "https"] })
+    ) {
       errors.org_logo_url = `${orgLogoURL} is not a valid URL`;
     }
 
     if (!orgSupportURL) {
       errors.org_support_url = `Organization support URL must be present`;
-    } else if (!validUrl({ url: orgSupportURL, protocol: "http" })) {
+    } else if (
+      !validUrl({ url: orgSupportURL, protocols: ["http", "https"] })
+    ) {
       errors.org_support_url = `${orgSupportURL} is not a valid URL`;
     }
 

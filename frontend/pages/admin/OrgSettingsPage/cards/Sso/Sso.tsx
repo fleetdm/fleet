@@ -74,7 +74,9 @@ const Sso = ({
         if (!metadataUrl) {
           errors.metadata_url = "Metadata or Metadata URL must be present";
           errors.metadata = "Metadata or Metadata URL must be present";
-        } else if (!validUrl({ url: metadataUrl, protocol: "http" })) {
+        } else if (
+          !validUrl({ url: metadataUrl, protocols: ["http", "https"] })
+        ) {
           errors.metadata_url = `${metadataUrl} is not a valid URL`;
         }
       }
