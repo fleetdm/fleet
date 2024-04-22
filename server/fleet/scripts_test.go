@@ -58,6 +58,50 @@ func TestScriptValidate(t *testing.T) {
 	}
 }
 
+func TestValidateShebang(t *testing.T) {
+	tests := []struct {
+		name          string
+		contents      string
+		directExecute bool
+		err           error
+	}{
+		{
+			name:          "no shebang",
+			contents:      "echo hi",
+			directExecute: false,
+		},
+		{
+			name:          "posix shebang",
+			contents:      "#!/bin/sh\necho hi",
+			directExecute: true,
+		},
+		{
+			name:          "zsh shebang",
+			contents:      "#!/bin/zsh\necho hi",
+			directExecute: true,
+		},
+		{
+			name:          "zsh shebang with args",
+			contents:      "#!/bin/zsh -x\necho hi",
+			directExecute: true,
+		},
+		{
+			name:          "shebang with unsupported interpreter",
+			contents:      "#!/usr/bin/python\nprint('hi')",
+			directExecute: false,
+			err:           ErrUnsupportedInterpreter,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			directExecute, err := ValidateShebang(tc.contents)
+			require.Equal(t, tc.directExecute, directExecute)
+			require.ErrorIs(t, tc.err, err)
+
+		})
+	}
+}
+
 func TestValidateHostScriptContents(t *testing.T) {
 	tests := []struct {
 		name      string

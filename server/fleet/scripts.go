@@ -298,6 +298,7 @@ const (
 
 // anchored, so that it matches to the end of the line
 var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/z?sh(?:\s*|\s+.*)$`)
+var ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
 
 // ValidateShebang validates if we support a script, and whether we
 // can execute it directly, or need to pass it to a shell interpreter.
@@ -307,7 +308,7 @@ func ValidateShebang(s string) (directExecute bool, err error) {
 		s := bufio.NewScanner(strings.NewReader(s))
 		// if a hashbang is present, it can only be `/bin/sh` for now
 		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return false, errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
+			return false, ErrUnsupportedInterpreter
 		}
 		return true, nil
 	}
