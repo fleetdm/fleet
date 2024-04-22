@@ -297,7 +297,7 @@ const (
 )
 
 // anchored, so that it matches to the end of the line
-var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/z?sh(?:\s*|\s+.*)$`)
+var scriptHashbangValidation = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
 var ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
 
 // ValidateShebang validates if we support a script, and whether we
