@@ -1295,6 +1295,3 @@ List of saved scripts that can be run on all hosts.
 #### Advanced configuration
 
 > **Note:** More settings are included in the [contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-for-contributors.md). It's possible, although not recommended, to configure these settings in the YAML configuration file.
-
-<meta name="pageOrderInSection" value="3500">
-<meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure Fleet.">
