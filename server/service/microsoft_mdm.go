@@ -1274,7 +1274,23 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
 	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
-		return false, nil
+		var isPresent bool
+		if enrolledDevice.HostUUID != "" {
+			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return false, ctxerr.Wrap(ctx, err, "get host lite by identifier")
+			}
+			if host != nil {
+				orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return false, ctxerr.Wrap(ctx, err, "get host orbit info")
+				}
+				if orbitInfo != nil {
+					isPresent = orbitInfo.Version != ""
+				}
+			}
+		}
+		return isPresent, nil
 	}
 
 	// TODO: Add check here to determine if MDM DeviceID is connected with Smbios UUID present on

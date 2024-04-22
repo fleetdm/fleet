@@ -361,7 +361,9 @@ type Host struct {
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
 type HostOrbitInfo struct {
-	ScriptsEnabled *bool `json:"scripts_enabled" db:"scripts_enabled"`
+	Version        string  `json:"version" db:"version"`
+	DesktopVersion *string `json:"desktop_version" db:"desktop_version"`
+	ScriptsEnabled *bool   `json:"scripts_enabled" db:"scripts_enabled"`
 }
 
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
