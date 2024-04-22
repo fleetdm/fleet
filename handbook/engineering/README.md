@@ -255,7 +255,7 @@ The repos will only take TAG based code from fleet-main and not the latest.
 TAGs will include PR number in them: e.g. VULN_TAG_12345 
 Both repos have a way to configure the specific TAG to pull.
 
-#### Dev work fleet repo code that is copied and run by NVD and/or Vuln repo
+#### Dev work in fleet repo code that is copied and run by NVD and/or Vuln repo
 ----------------------- TODO Sharon: Remove the "NO CHANGE" and "NEW" comments after it's understood by the reviewer of this PR -----------------------
 1. NO CHANGE: Fork the repo.
 2. NO CHANGE: Create a new PR e.g. #12345
