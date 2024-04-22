@@ -48,8 +48,6 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("cleanEnvVar", os.Getenv(cleanEnvVar))
-
 	if os.Getenv(cleanEnvVar) == "false" {
 		logger.Log("msg", "Downloading latest release")
 		maxRetries := 3
