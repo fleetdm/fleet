@@ -30,22 +30,22 @@ func TestExecCmdNonWindows(t *testing.T) {
 		{
 			name:     "no shebang",
 			contents: "ps -o comm= -p $$",
-			output:   "/bin/sh",
+			output:   map[bool]string{true: "/bin/sh", false: "sh"}[runtime.GOOS == "darwin"],
 		},
 		{
 			name:     "sh shebang",
 			contents: "#!/bin/sh\nps -o comm= -p $$",
-			output:   "/bin/sh",
+			output:   map[bool]string{true: "/bin/sh", false: "sh_shebang.sh"}[runtime.GOOS == "darwin"],
 		},
 		{
 			name:     "zsh shebang",
 			contents: "#!" + zshPath + "\nps -o comm= -p $$",
-			output:   "/bin/zsh",
+			output:   map[bool]string{true: zshPath, false: "zsh"}[runtime.GOOS == "darwin"],
 		},
 		{
 			name:     "zsh shebang with args",
 			contents: "#!" + zshPath + " -e\nps -o comm= -p $$",
-			output:   "/bin/zsh",
+			output:   map[bool]string{true: zshPath, false: "zsh"}[runtime.GOOS == "darwin"],
 		},
 		{
 			name:     "unsupported shebang",
