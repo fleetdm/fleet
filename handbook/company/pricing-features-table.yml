@@ -565,8 +565,10 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-desktop
   tier: Premium
   usualDepartment: IT
-  productCategories: [Device management]
+  productCategories: [Device management, Vulnerability management]
   pricingTableCategories: [Device management]
+  waysToUse:
+    - description: Send software vulnerability emails to end users to encourage self-remediation.
 - industryName: User-initiated enrollment of macOS computers
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-manually-enrolled-hosts
   tier: Free
