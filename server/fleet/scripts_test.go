@@ -144,11 +144,16 @@ func TestValidateHostScriptContents(t *testing.T) {
 		{
 			name:    "unsupported interpreter",
 			script:  "#!/bin/bash\necho 'hello'",
-			wantErr: errors.New(`Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`),
+			wantErr: ErrUnsupportedInterpreter,
 		},
 		{
 			name:    "valid script",
 			script:  "#!/bin/sh\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid zsh script",
+			script:  "#!/bin/zsh\necho 'hello'",
 			wantErr: nil,
 		},
 	}
