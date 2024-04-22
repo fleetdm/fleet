@@ -131,6 +131,15 @@ hello world
 			expectOutput: expectedOutputSuccess,
 		},
 		{
+			name:       "zsh hashbang with arguments",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/zsh -x", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
 			name: "script too long (unsaved)",
 			scriptPath: func() string {
 				return writeTmpScriptContents(t, exceedsMaxCharsUnsaved, ".sh")
