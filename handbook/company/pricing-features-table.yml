@@ -201,8 +201,8 @@
 #  ║║║╠═╣║  ║║║╠═╣╠╦╝║╣    ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  │ ╚╦╝╠═╣╠╦╝╠═╣ │
 #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
 - industryName: Malware detection (YARA/custom IoCs)  # TODO: consider: technically more than YARA, consider generalizing this and including the concept of comparing known binary hashes and other IoCs (either via live query or in the data lake to compare threat intel feed)
-  friendlyName: Scan files for malware signatures
-  description: Report and trigger automations when malware or other unexpected files are detected on a host using YARA signatures.
+  friendlyName: Scan files for zero days and malware signatures
+  description: Use YARA signatures to report and trigger automations when zero days, malware, or unexpected files are detected on a host.
   documentationUrl: https://fleetdm.com/tables/yara
   tier: Free
   dri: mikermcneil
@@ -803,19 +803,26 @@
 #   ╦═╗╦╔═╗╦╔═   ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
 #   ╠╦╝║╚═╗╠╩╗───╠╩╗╠═╣╚═╗║╣  ║║  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
 #   ╩╚═╩╚═╝╩ ╩   ╚═╝╩ ╩╚═╝╚═╝═╩╝   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
-- industryName: Risk-based vulnerability management
+- industryName: Continuous scanning
   friendlyName: Detect vulnerable software
   documentationUrl: https://fleetdm.com/vulnerability-management
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
   usualDepartment: Security
   tier: Free
+  buzzwords: [Stakeholder-specific vulnerability categorization (SSVC),Continuous scanning,Continuous vulnerability scanning,Risk-based vulnerability management]
+  waysToUse:
+    - description: 'Use an SSVC decision tree model to prioritize relevant vulnerabilities into four possible decisions: "Track", "Track*", "Attend", and "Act".'
+      moreInfoUrl: https://www.cisa.gov/stakeholder-specific-vulnerability-categorization-ssvc
+    - description: 'Balint Fazakas: I think what offers a better use of CVSS if you break it down to vectors. You may find that a DoS (High Availability Impact) not as relevant for you, or equally a vulnerability requiring user interaction has a very low likelihood of exploit in another scenario.  If you want to fine tune your SSVC, it worth using the vectors you care about instead of the score itself. But ultimately you would want to read the description of the vulnerabilities to determine the risk they are posing to your environment. SSVC can assist you to do that in a more efficient way.'
+      moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162681703918985216%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162681703918985216%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
+    - description: 'Melissa Bischoping: CVSS is never enough to contextualize the urgency or risk of a vulnerability in your environment. It is one metric that needs to be part of an overall risk calculus, but a CVSS of 6 can be a greater threat in your organization than a CVSS of 10 based on the environmental variables and mitigations. Only two 10.0s here, but several lower severity that are resulting in high-impact breaches.   Getting a handle on managing that public facing infrastructure and being able to rapidly patch the apps and devices with such exposure needs to be part of an overall plan, but must go hand in hand with mitigations and layers of a zero trust design. CVSS isn’t the sole determination of risk, it’s only one partial piece of data to understand the impact of a vulnerability if exploited.'
+      moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162629486344159232%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162629486344159232%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
   demos:
     - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
       quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
       moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
-  waysToUse:
-    - description: Email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
+    - description: One of the world's largest, top transportation companies uses Fleet's API to email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
       moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔═╗╦ ╦╔╗ ╔═╗╔═╗╦═╗╔╦╗
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝   ║║╠═╣╚═╗╠═╣╠╩╗║ ║╠═╣╠╦╝ ║║
