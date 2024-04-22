@@ -277,10 +277,6 @@ Cost:
 - Every code change:
 - Dev: additional PR for the tagging. (simple)
 - QA: Reroute test servers to the test repos. (simple)
-
-Action items
-- TODO Reed Haynes Update smoke test ticket to include process for QA approving these releases
-- TODO Tim Lee: create a ticket for Tag based code picking.
 ----------------------- TODO Sharon: Remove the cost section after it's understood by the reviewer of this PR -----------------------
 
 
