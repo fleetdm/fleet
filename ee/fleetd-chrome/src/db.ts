@@ -83,7 +83,9 @@ export default class VirtualDatabase {
           columns.map((_, i) => {
             let [colName, val] = [columns[i], row[i]];
             if (typeof val !== "string") {
-              if (val && val.toString) {
+              if (typeof val === "boolean") {
+                val = val === true ? "1" : "0";
+              } else if (val && val.toString) {
                 val = val.toString();
               } else {
                 this.warnings?.push({
