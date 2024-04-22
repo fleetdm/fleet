@@ -27,6 +27,8 @@ import {
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
+  INVALID_PLATFORMS_REASON,
+  INVALID_PLATFORMS_FLASH_MESSAGE,
 } from "utilities/constants";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import { IApiError } from "interfaces/errors";
@@ -58,9 +60,6 @@ import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "edit-query-form";
-
-const INVALID_PLATFORMS_REASON =
-  "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
 
 interface IEditQueryFormProps {
   router: InjectedRouter;
@@ -379,10 +378,7 @@ const EditQueryForm = ({
             createError.data.errors[0].reason.includes(INVALID_PLATFORMS_REASON)
           ) {
             setIsSaveAsNewLoading(false);
-            renderFlash(
-              "error",
-              "Couldn't save query. Please update platforms and try again."
-            );
+            renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
           } else {
             setIsSaveAsNewLoading(false);
             renderFlash("error", "Could not create query. Please try again.");

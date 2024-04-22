@@ -5,7 +5,12 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { DEFAULT_QUERY, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  DEFAULT_QUERY,
+  DOCUMENT_TITLE_SUFFIX,
+  INVALID_PLATFORMS_FLASH_MESSAGE,
+  INVALID_PLATFORMS_REASON,
+} from "utilities/constants";
 import configAPI from "services/entities/config";
 import queryAPI from "services/entities/queries";
 import statusAPI from "services/entities/status";
@@ -277,6 +282,10 @@ const EditQueryPage = ({
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
         renderFlash("error", "A query with this name already exists.");
+      } else if (
+        updateError.data.errors[0].reason.includes(INVALID_PLATFORMS_REASON)
+      ) {
+        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
       } else {
         renderFlash(
           "error",
