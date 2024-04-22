@@ -241,6 +241,50 @@ The on-call developer is responsible for:
 3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field.
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
+### Make changes to vulnerabilitie-repo and NVD-repo
+
+NVD-repo and Vulnerability-repo have two code locations that affect them. 
+1. Their own code (within the repository itself).
+2. Code sections in Fleet main repo that is being copied and run.
+
+Merging PRs into NVD-repo and/or Vulnerability-repo or into the relevant code sections in fleet repo, has an immediate effect of releasing and deploying to all customers without QA. 
+Due to this reason we need a special procedure for merging code into them.
+
+#### Copying code from fellt-repo
+The repos will only take TAG based code from fleet-main and not the latest.
+TAGs will include PR number in them: e.g. VULN_TAG_12345 
+Both repos have a way to configure the specific TAG to pull.
+
+#### Dev work fleet repo code that is copied and run by NVD and/or Vuln repo
+----------------------- TODO Sharon: Remove the "NO CHANGE" and "NEW" comments after it's understood by the reviewer of this PR -----------------------
+1. NO CHANGE: Fork the repo.
+2. NO CHANGE: Create a new PR e.g. #12345
+3. NO CHANGE: Merge PR to main after review and approval
+4. NEW: Tag fleet-main branch with VULN_TAG_12345 
+5. NEW: Hand over the forked repo to QA for testing.
+6. NO CHANGE: wait for QA approval (see changes below)
+7. NEW: After successful QA → Change TAG in the repo (Using a PR)
+
+#### QA process:
+1. NO CHANGE: Create test servers
+2. Route the test servers to the test Repo/s
+3. NO CHANGE: QA → Approve or reject
+
+
+----------------------- TODO Sharon: Remove the cost section after it's understood by the reviewer of this PR -----------------------
+Cost:
+- One time: Create new code in the repos to pick code from Fleet repo based on TAGs (1-2 points.)
+- Every code change:
+- Dev: additional PR for the tagging. (simple)
+- QA: Reroute test servers to the test repos. (simple)
+
+Action items
+- TODO Reed Haynes Update smoke test ticket to include process for QA approving these releases
+- TODO Tim Lee: create a ticket for Tag based code picking.
+----------------------- TODO Sharon: Remove the cost section after it's understood by the reviewer of this PR -----------------------
+
+
+
 ### Run Fleet locally for QA purposes
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
 
