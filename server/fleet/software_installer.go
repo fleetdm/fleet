@@ -25,9 +25,3 @@ type SoftwareInstallerStore interface {
 	// content.
 	Exists(ctx context.Context, installerID string) (bool, error)
 }
-
-// TODO: to be defined by the other sub-tasks, intended to be used to store
-// the metadata of an installer, e.g. name, version, package extension, etc.
-type SoftwareInstaller struct {
-	Filename string
-}
