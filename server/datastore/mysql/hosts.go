@@ -3717,9 +3717,9 @@ func (ds *Datastore) GetHostOrbitInfo(ctx context.Context, hostID uint) (*fleet.
 	SELECT
 		version,
 		desktop_version,
-	  scripts_enabled
+		scripts_enabled
 	FROM
-	  host_orbit_info
+		host_orbit_info
 	WHERE host_id = ?`, hostID,
 	)
 	if err != nil {
