@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Get human interpretation from osquery sql',
 
 
-  description: '',
+  description: 'Infer policy information from osquery SQL.',
 
 
   inputs: {
@@ -23,8 +23,8 @@ module.exports = {
       outputFriendlyName: 'Humanesque interpretation',
       outputDescription: 'If the call to the LLM fails, then a success response is sent with an explanation about the failure (e.g. "under heavy load", etc)',
       outputExample: {
-        risks: 'TODO: rachael can put the OS update eample',
-        whatWillProbablyHappenDuringMaintenance: 'TODO: same as above'
+        risks: 'Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.',
+        whatWillProbablyHappenDuringMaintenance: 'We will update your macOS to version 14.4.1 to enhance security and stability.'
       }
     },
 
