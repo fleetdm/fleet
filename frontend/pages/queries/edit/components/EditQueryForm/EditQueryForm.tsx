@@ -59,6 +59,9 @@ import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "edit-query-form";
 
+const INVALID_PLATFORMS_REASON =
+  "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
+
 interface IEditQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
@@ -372,6 +375,14 @@ const EditQueryForm = ({
                 }
                 setIsSaveAsNewLoading(false);
               });
+          } else if (
+            createError.data.errors[0].reason.includes(INVALID_PLATFORMS_REASON)
+          ) {
+            setIsSaveAsNewLoading(false);
+            renderFlash(
+              "error",
+              "Couldn't save query. Please update platforms and try again."
+            );
           } else {
             setIsSaveAsNewLoading(false);
             renderFlash("error", "Could not create query. Please try again.");
