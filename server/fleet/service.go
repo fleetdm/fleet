@@ -18,9 +18,9 @@ import (
 type EnterpriseOverrides struct {
 	HostFeatures   func(context context.Context, host *Host) (*Features, error)
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
-	// UpdateTeamMDMAppleSettings is the team-specific service method for when
-	// a team ID is provided to the UpdateMDMAppleSettings method.
-	UpdateTeamMDMAppleSettings func(ctx context.Context, tm *Team, payload MDMAppleSettingsPayload) error
+	// UpdateTeamMDMDiskEncryption is the team-specific service method for when
+	// a team ID is provided to the UpdateMDMDiskEncryption method.
+	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool) error
 
 	// The next two functions are implemented by the ee/service, and called
 	// properly when called from an ee/service method (e.g. Modify Team), but
@@ -34,6 +34,7 @@ type EnterpriseOverrides struct {
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
+	MDMAppleEditedMacOSUpdates        func(ctx context.Context, teamID *uint, updates MacOSUpdates) error
 }
 
 type OsqueryService interface {
@@ -241,11 +242,11 @@ type Service interface {
 	// GetLabelSpec gets the spec for the label with the given name.
 	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
-	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
-	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
+	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
+	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
 	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
-	GetLabel(ctx context.Context, id uint) (label *Label, err error)
+	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
 	// DeleteLabelByID is for backwards compatibility with the UI
@@ -350,8 +351,8 @@ type Service interface {
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
-	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
-	DeleteHosts(ctx context.Context, ids []uint, opt *HostListOptions, lid *uint) error
+	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
+	DeleteHosts(ctx context.Context, ids []uint, filters *map[string]interface{}) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 	// SearchHosts performs a search on the hosts table using the following criteria:
 	//	- matchQuery is the query SQL
@@ -387,6 +388,21 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+
+	// AddLabelsToHost adds the given label names to the host's label membership.
+	//
+	// If a host is already a member of one of the labels then this operation will only
+	// update the membership row update time.
+	//
+	// Returns an error if any of the labels does not exist or if any of the labels
+	// are not manual.
+	AddLabelsToHost(ctx context.Context, id uint, labels []string) error
+	// RemoveLabelsFromHost removes the given label names from the host's label membership.
+	// Labels that the host are already not a member of are ignored.
+	//
+	// Returns an error if any of the labels does not exist or if any of the labels
+	// are not manual.
+	RemoveLabelsFromHost(ctx context.Context, id uint, labels []string) error
 
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
@@ -596,14 +612,28 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, *PaginationMetadata, error)
-	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software Titles
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
-	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
+	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Vulnerabilities
+
+	// ListVulnerabilities returns a list of vulnerabilities based on the provided options.
+	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	// ListVulnerability returns a vulnerability based on the provided CVE.
+	Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (*VulnerabilityWithMetadata, error)
+	// CountVulnerabilities returns the number of vulnerabilities based on the provided options.
+	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
+	// ListOSVersionsByCVE returns a list of OS versions affected by the provided CVE.
+	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
+	// ListSoftwareByCVE returns a list of software affected by the provided CVE.
+	ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableSoftware, updatedAt time.Time, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -638,18 +668,29 @@ type Service interface {
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*MDMAppleConfigProfile, error)
+	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*MDMAppleDeclaration, error)
+
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
 	// should not be used for new endpoints.
 	GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
 	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
+
+	// GetMDMAppleDeclaration retrieves the specified declaration.
+	GetMDMAppleDeclaration(ctx context.Context, declarationUUID string) (*MDMAppleDeclaration, error)
+
 	// DeleteMDMAppleConfigProfileByDeprecatedID deletes the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
 	// should not be used for new endpoints.
 	DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error
 	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
+
+	// DeleteMDMAppleDeclaration deletes the specified declaration.
+	DeleteMDMAppleDeclaration(ctx context.Context, declarationUUID string) error
+
 	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
 	// specified team.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
@@ -747,9 +788,9 @@ type Service interface {
 	// profile for the given team.
 	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
 
-	// UpdateMDMAppleSettings updates the specified MDM Apple settings for a
+	// UpdateMDMDiskEncryption updates the disk encryption setting for a
 	// specified team or for hosts with no team.
-	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
+	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error
 
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
@@ -901,6 +942,9 @@ type Service interface {
 	// assigned to any team).
 	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
 
+	// ResendHostMDMProfile resends the MDM profile to the host.
+	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution
 
@@ -908,6 +952,11 @@ type Service interface {
 	// result if waitForResult is > 0. If it times out waiting for a result, it
 	// fails with a 504 Gateway Timeout error.
 	RunHostScript(ctx context.Context, request *HostScriptRequestPayload, waitForResult time.Duration) (*HostScriptResult, error)
+
+	// GetScriptIDByName returns the ID of a script matching the provided name and team. If no team
+	// is provided, it will return the ID of the script with the provided name that is not
+	// associated with any team.
+	GetScriptIDByName(ctx context.Context, name string, teamID *uint) (uint, error)
 
 	// GetHostScript returns information about a host script execution.
 	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
@@ -942,4 +991,5 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint) error
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	WipeHost(ctx context.Context, hostID uint) error
 }

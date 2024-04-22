@@ -123,15 +123,35 @@ How to unenroll a host from Fleet:
 
 ## Advanced
 
-
+- [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd installer](#signing-fleetd-installer)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
 - [Using mTLS](#using-mtls)
 - [Specifying update channels](#specifying-update-channels)
 - [Testing osquery queries locally](#testing-osquery-queries-locally)
 - [Finding fleetd logs](#finding-fleetd-logs)
+- [Using system keystore for enroll secret](#using-system-keystore-for-enroll-secret)
 - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
 - [Experimental features](#experimental-features)
+
+### fleetd components
+
+```mermaid
+graph LR;
+    tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
+    fleet_server[Fleet<br>Server];
+    subgraph fleetd
+        orbit[orbit];
+        desktop[Fleet Desktop<br>Tray App];
+        osqueryd[osqueryd];
+        desktop_browser[Fleet Desktop<br> from Browser];
+    end
+    orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
+    desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
+    osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
+    desktop_browser -- "My Device API (TLS)" --> fleet_server;
+    orbit -- "Auto Update (TLS)" --> tuf;
+```
 
 ### Signing fleetd installers
 
@@ -294,6 +314,14 @@ If the `logger_path` agent configuration is set to `filesystem`, fleetd will sen
   - macOS: /opt/orbit/osquery_log
   - Linux: /opt/orbit/osquery_log
 
+### Using system keystore for enroll secret
+
+On macOS and Windows, fleetd will add the enroll secret to the system keystore (Keychain on macOS, Credential Manager on Windows) on launch. Subsequent launches will retrieve the enroll secret from the keystore.
+
+System keystore access can be disabled via `--disable-keystore` flag for the `fleetctl package` command. On macOS, subsequent installations of fleetd must be signed by the same organization as the original installation to access the enroll secret in the keychain.
+
+>**Note:** The keychain is not used on macOS when the enroll secret is provided via MDM profile. Keychain support when passing the enroll secret via MDM profile is coming soon.
+
 ### Generating Windows installers using local WiX toolset
 
 `Applies only to Fleet Premium`
@@ -312,7 +340,7 @@ so:
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
 
->**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://github.com/fleetdm/fleet/blob/fleet-v4.44.0/scripts/macos-install-wine.sh).
+>**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://fleetdm.com/install-wine).
 
 ### Experimental features
 

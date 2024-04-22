@@ -12,7 +12,7 @@ examples: >-
   ```
 columns:
   - name: idle_state
-    type: string
+    type: text
     description: Returns "locked", "idle", or "active".
     required: false
 evented: false

@@ -61,6 +61,7 @@ for system in $SYSTEMS; do
     rm $osqueryd_path
 
     goose_value="$system"
+    goarch_value=${GOARCH:-}
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
     fi
@@ -69,12 +70,19 @@ for system in $SYSTEMS; do
         orbit_target="${orbit_target}.exe"
     fi
 
-    # Compile the latest version of orbit from source.
-    GOOS=$goose_value GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
-
-    # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
-    if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
-        codesign -s "$CODESIGN_IDENTITY" -i com.fleetdm.orbit -f -v --timestamp --options runtime $orbit_target
+    # compiling a macOS-arm64 binary requires CGO and a macOS computer (for
+    # Apple keychain, some tables, etc), if this is the case, compile an
+    # universal binary.
+    #
+    # NOTE(lucas): Cross-compiling orbit for arm64 from Intel macOS currently fails (CGO error).
+    if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+       CGO_ENABLED=1 \
+       CODESIGN_IDENTITY=$CODESIGN_IDENTITY \
+       ORBIT_VERSION=42 \
+       ORBIT_BINARY_PATH=$orbit_target \
+       go run ./orbit/tools/build/build.go
+    else
+      CGO_ENABLED=0 GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \

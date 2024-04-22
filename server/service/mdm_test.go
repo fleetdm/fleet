@@ -20,11 +20,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
-	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -753,6 +753,8 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 	})
 }
 
+// TODO: Add tests for Apple DDM authz?
+
 func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds := new(mock.Store)
 	// while the config profiles are not premium-only, teams are and we want to test with teams.
@@ -805,8 +807,8 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			// profiles.
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			true,
-			true,
+			false,
+			false,
 			false,
 			false,
 		},
@@ -881,7 +883,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			"team gitops, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			true,
-			true,
+			false,
 			true,
 			false,
 		},
@@ -1028,7 +1030,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
+		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"BitLocker profile", 0, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
@@ -1039,7 +1041,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
+		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"team BitLocker profile", 1, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
@@ -1093,7 +1095,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
 		return nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -1300,6 +1302,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 				{Name: "N2", Contents: mobileconfigForTest("N2", "I2")},
 				{Name: "N3", Contents: mobileconfigForTest("N3", "I3")},
+				{Name: "N4", Contents: declBytesForTest("D1", "d1content")},
 			},
 			``,
 		},
@@ -1339,7 +1342,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
-				{Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+				{
+					Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1372,7 +1376,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				<integer>1</integer>
 			</dict>
 			</plist>`),
-				}},
+				},
+			},
 			"unsupported PayloadType(s)",
 		},
 	}
@@ -1516,6 +1521,218 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 				require.NoError(t, err)
 				require.ElementsMatch(t, tc.expect, bcp)
 			}
+		})
+	}
+}
+
+func TestMDMResendConfigProfileAuthz(t *testing.T) {
+	ds := new(mock.Store)
+	// while the config profiles are not premium-only, teams are and we want to test with teams.
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	testCases := []struct {
+		name                  string
+		user                  *fleet.User
+		shouldFailGlobalRead  bool
+		shouldFailTeamRead    bool
+		shouldFailGlobalWrite bool
+		shouldFailTeamWrite   bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			// this is authorized because gitops can access hosts by identifier (the
+			// first authorization check) and then gitops have write-access the
+			// profiles.
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+			true,
+			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer+, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer+, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			// this is authorized because gitops can access hosts by identifier (the
+			// first authorization check) and then gitops have write-access the
+			// profiles.
+			"team gitops, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			true,
+			false,
+			true,
+			false,
+		},
+		{
+			"team gitops, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			true,
+			true,
+			true,
+			true,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	ds.HostLiteFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
+		if hid == 1 {
+			return &fleet.Host{ID: hid, UUID: "host-uuid-1", Platform: "darwin", TeamID: ptr.Uint(1)}, nil
+		} else if hid == 1337 {
+			return &fleet.Host{ID: hid, UUID: "host-uuid-no-team", Platform: "darwin", TeamID: nil}, nil
+		}
+		return nil, &notFoundErr{}
+	}
+	ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMAppleConfigProfile, error) {
+		var tid uint
+		if pid == "a-team-1-profile" {
+			tid = 1
+		}
+		return &fleet.MDMAppleConfigProfile{
+			ProfileUUID: pid,
+			TeamID:      &tid,
+		}, nil
+	}
+	ds.GetHostMDMProfileInstallStatusFunc = func(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
+		return fleet.MDMDeliveryFailed, nil
+	}
+	ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {
+		return nil
+	}
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+
+	checkShouldFail := func(t *testing.T, err error, shouldFail bool) {
+		if !shouldFail {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		}
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			// ds.TeamFunc = mockTeamFuncWithUser(tt.user)
+
+			// test authz resend config profile (no team)
+			err := svc.ResendHostMDMProfile(ctx, 1337, "a-no-team-profile")
+			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
+
+			// test authz resend config profile (team 1)
+			err = svc.ResendHostMDMProfile(ctx, 1, "a-team-1-profile")
+			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 		})
 	}
 }

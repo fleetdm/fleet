@@ -1,3 +1,23 @@
+## Orbit 1.24.0 (Apr 17, 2024)
+
+* Fixed script execution exit codes on windows by casting to signed integers to match windows interpreter.
+
+* In orbit_info table, added desktop_version and scripts_enabled fields.
+
+## Orbit 1.23.0 (Apr 08, 2024)
+
+* Add `parse_json`, `parse_jsonl`, `parse_xml`, and `parse_ini` tables.
+
+* Add exponential backoff to orbit enroll retries.
+
+## Orbit 1.22.0 (Feb 26, 2024)
+
+* Reduce error logs when orbit cannot connect to Fleet.
+
+* Allow configuring a custom osquery database directory (`ORBIT_OSQUERY_DB` environment variable or `--osquery-db` flag).
+
+* Upgrade go version to 1.21.7.
+
 ## Orbit 1.21.0 (Jan 30, 2024)
 
 * For macOS hosts, fleetd now stores and retrieves enroll secret from macOS keychain. This feature is enabled for non-MDM flow. The MDM profile flow will be supported in a future release.

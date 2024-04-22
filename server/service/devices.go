@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
-	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -176,7 +176,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return nil, err
@@ -501,16 +501,22 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
 		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
-	return mobileConfig, nil
+
+	signed, err := mobileconfig.Sign(enrollmentProf, svc.config.MDM)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	return signed, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

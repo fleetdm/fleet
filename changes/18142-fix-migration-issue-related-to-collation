@@ -1,0 +1,1 @@
+* Fixed an issue with the `20240327115617_CreateTableNanoDDMRequests` database migration where it could fail if the database did not default to the `utf8mb4_unicode_ci` collation.

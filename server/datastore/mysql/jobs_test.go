@@ -11,6 +11,9 @@ import (
 
 func TestJobs(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	// call TruncateTables before the first test, because a DB migation may have
+	// created job entries.
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string
@@ -30,7 +33,7 @@ func testQueueAndProcessJobs(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// no jobs yet
-	jobs, err := ds.GetQueuedJobs(ctx, 10)
+	jobs, err := ds.GetQueuedJobs(ctx, 10, time.Time{})
 	require.NoError(t, err)
 	require.Empty(t, jobs)
 
@@ -45,7 +48,7 @@ func testQueueAndProcessJobs(t *testing.T, ds *Datastore) {
 	require.NotZero(t, j2.ID)
 
 	// only j1 is returned
-	jobs, err = ds.GetQueuedJobs(ctx, 10)
+	jobs, err = ds.GetQueuedJobs(ctx, 10, time.Time{})
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 	require.Equal(t, j1.ID, jobs[0].ID)
@@ -58,7 +61,7 @@ func testQueueAndProcessJobs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no jobs queued for now
-	jobs, err = ds.GetQueuedJobs(ctx, 10)
+	jobs, err = ds.GetQueuedJobs(ctx, 10, time.Time{})
 	require.NoError(t, err)
 	require.Empty(t, jobs)
 
@@ -68,7 +71,7 @@ func testQueueAndProcessJobs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// j2 is returned
-	jobs, err = ds.GetQueuedJobs(ctx, 10)
+	jobs, err = ds.GetQueuedJobs(ctx, 10, time.Time{})
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 	require.Equal(t, j2.ID, jobs[0].ID)

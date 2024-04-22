@@ -48,7 +48,7 @@ const PacksTable = ({
   }, [packs, searchString, setFilteredPacks]);
 
   const onQueryChange = useCallback(
-    (queryData) => {
+    (queryData: any) => {
       const { searchQuery } = queryData;
       setSearchString(searchQuery);
     },
@@ -103,12 +103,12 @@ const PacksTable = ({
   return (
     <div className={`${baseClass}`}>
       <TableContainer
-        resultsTitle={"packs"}
+        resultsTitle="packs"
         columnConfigs={tableHeaders}
         data={generateDataSet(filteredPacks)}
         isLoading={isLoading}
-        defaultSortHeader={"pack"}
-        defaultSortDirection={"desc"}
+        defaultSortHeader="pack"
+        defaultSortDirection="desc"
         showMarkAllPages={false}
         isAllPagesSelected={false}
         onQueryChange={onQueryChange}

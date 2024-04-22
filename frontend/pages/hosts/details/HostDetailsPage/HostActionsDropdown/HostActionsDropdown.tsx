@@ -22,6 +22,7 @@ interface IHostActionsDropdownProps {
   mdmName?: string;
   hostPlatform?: string;
   onSelect: (value: string) => void;
+  hostScriptsEnabled: boolean | null;
 }
 
 const HostActionsDropdown = ({
@@ -32,14 +33,15 @@ const HostActionsDropdown = ({
   doesStoreEncryptionKey,
   mdmName,
   hostPlatform = "",
+  hostScriptsEnabled = false,
   onSelect,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
-    isMdmEnabledAndConfigured = false,
-    isSandboxMode = false,
+    isMacMdmEnabledAndConfigured = false,
+    isWindowsMdmEnabledAndConfigured = false,
     currentUser,
   } = useContext(AppContext);
 
@@ -67,10 +69,11 @@ const HostActionsDropdown = ({
       hostMdmEnrollmentStatus ?? ""
     ),
     isFleetMdm: mdmName === "Fleet",
-    isMdmEnabledAndConfigured,
+    isMacMdmEnabledAndConfigured,
+    isWindowsMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
-    isSandboxMode,
     hostMdmDeviceStatus,
+    hostScriptsEnabled,
   });
 
   // No options to render. Exit early
@@ -81,7 +84,7 @@ const HostActionsDropdown = ({
       <Dropdown
         className={`${baseClass}__host-actions-dropdown`}
         onChange={onSelect}
-        placeholder={"Actions"}
+        placeholder="Actions"
         searchable={false}
         options={options}
       />

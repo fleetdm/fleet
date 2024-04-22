@@ -1,0 +1,1 @@
+In GET fleet/hosts/:id response, added orbit_version, fleet_desktop_version, and scripts_enabled fields.

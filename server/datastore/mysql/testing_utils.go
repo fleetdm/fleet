@@ -313,11 +313,12 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
-		"app_config_json":         true,
-		"migration_status_tables": true,
-		"osquery_options":         true,
-		"mdm_delivery_status":     true,
-		"mdm_operation_types":     true,
+		"app_config_json":                  true,
+		"migration_status_tables":          true,
+		"osquery_options":                  true,
+		"mdm_delivery_status":              true,
+		"mdm_operation_types":              true,
+		"mdm_apple_declaration_categories": true,
 	}
 	ctx := context.Background()
 
@@ -444,7 +445,7 @@ func InsertWindowsProfileForTest(t *testing.T, ds *Datastore, teamID uint) strin
 	profUUID := "w" + uuid.NewString()
 	prof := generateDummyWindowsProfile(profUUID)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, ?, ?, ?);`
+		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP);`
 		_, err := q.ExecContext(context.Background(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", profUUID), prof)
 		return err
 	})

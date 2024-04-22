@@ -138,6 +138,24 @@ We tend to use explicit assignment of prop values, instead of object spread synt
 ```
 <ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
+
+### Naming handlers
+When defining component props for handlers, we prefer naming with a more general `onAction`. When
+naming the handler passed into that prop or used in the same component it's defined, we prefer
+either the same `onAction` or, if useful, a more specific `onMoreSpecifiedAction`. E.g.:
+
+```tsx
+<BigSecretComponent
+  onSubmit={onSubmit} 
+/>
+```
+or
+```tsx
+<BigSecretComponent
+  onSubmit={onUpdateBigSecret}
+/>
+```
+
 ### Page component pattern
 
 When creating a **top level page** (e.g. dashboard page, hosts page, policies page)

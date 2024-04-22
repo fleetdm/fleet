@@ -157,6 +157,10 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			h, err := ds.Host(ctx, id)
 			require.NoError(t, err)
 			require.NotNil(t, h)
+			mdmInfo, err := ds.GetHostMDM(ctx, id)
+			require.NoError(t, err)
+			require.NotNil(t, mdmInfo)
+			h.MDMInfo = mdmInfo
 			bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
 			require.NoError(t, err)
 			require.NotNil(t, bls)
@@ -1266,7 +1270,8 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.Empty(t, results)
 }
 
-func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) {
+// enrolls the host in Windows MDM and returns the device's enrollment ID.
+func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 	ctx := context.Background()
 	d1 := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
@@ -1285,6 +1290,7 @@ func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) {
 	require.NoError(t, err)
 	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d1.HostUUID, d1.MDMDeviceID)
 	require.NoError(t, err)
+	return d1.MDMDeviceID
 }
 
 func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
