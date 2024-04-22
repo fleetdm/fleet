@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -14,6 +15,11 @@ import (
 )
 
 func TestExecCmdNonWindows(t *testing.T) {
+	zshPath := "/bin/zsh"
+	if runtime.GOOS == "linux" {
+		zshPath = "/usr/bin/zsh"
+	}
+
 	tests := []struct {
 		name     string
 		contents string
@@ -33,12 +39,12 @@ func TestExecCmdNonWindows(t *testing.T) {
 		},
 		{
 			name:     "zsh shebang",
-			contents: "#!/bin/zsh\nps -o comm= -p $$",
+			contents: "#!" + zshPath + "\nps -o comm= -p $$",
 			output:   "/bin/zsh",
 		},
 		{
 			name:     "zsh shebang with args",
-			contents: "#!/bin/zsh -e\nps -o comm= -p $$",
+			contents: "#!" + zshPath + " -e\nps -o comm= -p $$",
 			output:   "/bin/zsh",
 		},
 		{
