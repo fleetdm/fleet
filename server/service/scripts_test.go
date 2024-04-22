@@ -310,6 +310,7 @@ func TestHostRunScript(t *testing.T) {
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
 			{"valid with posix hashbang", "#!/bin/sh\necho 'a'", ""},
+			{"valid with usr zsh hashbang", "#!/usr/bin/zsh\necho 'a'", ""},
 			{"valid with zsh hashbang", "#!/bin/zsh\necho 'a'", ""},
 			{"valid with zsh hashbang and arguments", "#!/bin/zsh -x\necho 'a'", ""},
 			{"valid with hashbang and spacing", "#! /bin/sh  \necho 'a'", ""},

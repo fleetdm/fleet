@@ -156,6 +156,11 @@ func TestValidateHostScriptContents(t *testing.T) {
 			script:  "#!/bin/zsh\necho 'hello'",
 			wantErr: nil,
 		},
+		{
+			name:    "valid zsh script",
+			script:  "#!/usr/bin/zsh\necho 'hello'",
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range tests {
