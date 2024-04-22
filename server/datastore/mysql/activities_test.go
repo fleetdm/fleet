@@ -640,6 +640,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
 	require.NoError(t, err)
 	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	require.NoError(t, err)
 	require.Len(t, targets.HostIDs, 1)
 
 	// Make some of the activity and associated data older.
@@ -669,6 +670,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	require.NoError(t, err)
 	require.Empty(t, targets.HostIDs)
 	require.Empty(t, targets.LabelIDs)
 	require.Empty(t, targets.TeamIDs)
