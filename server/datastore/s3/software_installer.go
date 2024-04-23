@@ -29,6 +29,7 @@ func NewSoftwareInstallerStore(config config.S3Config) (*SoftwareInstallerStore,
 }
 
 // Get retrieves the requested software installer from S3.
+// It is important that the caller closes the reader when done.
 func (i *SoftwareInstallerStore) Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error) {
 	key := i.keyForInstaller(installerID)
 
@@ -40,7 +41,7 @@ func (i *SoftwareInstallerStore) Get(ctx context.Context, installerID string) (i
 				return nil, int64(0), installerNotFoundError{}
 			}
 		}
-		return nil, int64(0), ctxerr.Wrap(ctx, err, "retrieving installer from store")
+		return nil, int64(0), ctxerr.Wrap(ctx, err, "retrieving software installer from S3 store")
 	}
 	return req.Body, *req.ContentLength, nil
 }
@@ -68,7 +69,7 @@ func (i *SoftwareInstallerStore) Exists(ctx context.Context, installerID string)
 				return false, nil
 			}
 		}
-		return false, ctxerr.Wrap(ctx, err, "checking existence on file store")
+		return false, ctxerr.Wrap(ctx, err, "checking existence of software installer in S3 store")
 	}
 	return true, nil
 }

@@ -1,4 +1,4 @@
-package s3
+package filesystem
 
 import (
 	"bytes"
@@ -15,7 +15,10 @@ import (
 
 func TestSoftwareInstaller(t *testing.T) {
 	ctx := context.Background()
-	store := SetupTestSoftwareInstallerStore(t, "software-installers-unit-test", "prefix")
+
+	dir := t.TempDir()
+	store, err := NewSoftwareInstallerStore(dir)
+	require.NoError(t, err)
 
 	// get a non-existing installer
 	blob, length, err := store.Get(ctx, "no-such-installer")
