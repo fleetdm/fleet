@@ -2,7 +2,6 @@ package mobileconfig
 
 import (
 	"bytes"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"strings"
@@ -89,42 +88,12 @@ func (mc Mobileconfig) isSignedProfile() bool {
 	return !bytes.HasPrefix(bytes.TrimSpace(mc), []byte("<?xml"))
 }
 
-func createCertPool(certs []*x509.Certificate) *x509.CertPool {
-	pool := x509.NewCertPool()
-	for _, cert := range certs {
-		pool.AddCert(cert)
-	}
-	return pool
-}
-
-func verifyProfile(sd *cms.SignedData) error {
-	certs, err := sd.GetCertificates()
-	if err != nil {
-		return fmt.Errorf("get certificates: %w", err)
-	}
-
-	verifyOpts := x509.VerifyOptions{
-		Intermediates: createCertPool(certs),
-		Roots:         createCertPool(certs),
-	}
-
-	_, err = sd.Verify(verifyOpts)
-	if err != nil {
-		return fmt.Errorf("verify mobileconfig: %w", err)
-	}
-	return nil
-}
-
 // getSignedProfileData attempts to parse the signed mobileconfig and extract the
 // profile byte data from it.
 func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
 	signedData, err := cms.ParseSignedData(mc)
 	if err != nil {
 		return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-	}
-	err = verifyProfile(signedData)
-	if err != nil {
-		return nil, fmt.Errorf("could not verify the signed mobileconfig: %w", err)
 	}
 	data, err := signedData.GetData()
 	if err != nil {
