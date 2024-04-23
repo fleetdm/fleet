@@ -254,7 +254,7 @@ They run code that is managed in two places:
 The process below ensures that QA is done before any code is effective and running.
 
 #### How nvd and/or vulnerabilities repositories take code from fleet repo
-The repositories will only take tag-based code from the [fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories are configured to be configured with their specific tag (changing the tag for any of the repos requires a PR).
+The repositories will only take tag-based code from the [fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories use an environment parameter to configure their respective tag (changing the tag for any of the repos requires a PR).
 
 #### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
 1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345.
