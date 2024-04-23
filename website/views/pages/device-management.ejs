@@ -39,8 +39,14 @@
           </div>
         </div>
       </div>
-
-
+      <logo-carousel></logo-carousel>
+      </div>
+    </div>
+      <% if(primaryBuyingSituation){%>
+      <%-  partial('../partials/calendar-banner.partial.ejs') %>
+      <% } %>
+      <div purpose="page-container">
+      <div purpose="page-content" class="mx-auto">
       <%/* Your last MDM migration section */%>
       <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center mb-0">

@@ -11,7 +11,7 @@
         <p>You can come back at any time and pick up where you left off.</p>
         <ajax-form :handle-submitting="handleSubmittingForm" class="contact" :form-errors.sync="formErrors" :form-data="formData['start']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div purpose="form-buttons">
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Start</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Start</ajax-button>
         </div>
         </ajax-form>
       </div>
@@ -51,7 +51,7 @@
         </div>
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="form-buttons">
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -97,7 +97,7 @@
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -145,7 +145,7 @@
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -176,7 +176,7 @@
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -232,7 +232,7 @@
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -278,7 +278,7 @@
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -329,7 +329,7 @@
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -375,7 +375,7 @@
         <cloud-error v-if="cloudError"></cloud-error>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -408,7 +408,7 @@
         <p>You can come back here any time to continue with your deployment.</p>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -519,7 +519,7 @@
         </div>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary">Continue</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
