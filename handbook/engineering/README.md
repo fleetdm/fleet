@@ -242,7 +242,7 @@ The on-call developer is responsible for:
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
 ### Development in vulnerabilities and/or nvd repositories
-The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories continuously create output files that are downloaded and used by our customers. 
+The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories continuously create output files that are downloaded and used by our customers' Fleet servers. 
 They run code that is managed in two places: 
 1. The code and workflows in their respective repository.
 2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo which is copied and run by them. This code starts with the 4 files below but is not limitted to them since other code could be called from them. The process will cover all fleet code using tagging.
