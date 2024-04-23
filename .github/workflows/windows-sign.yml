@@ -16,7 +16,6 @@ jobs:
       - name: Setup Certificate
         run: |
           echo "${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}" | base64 --decode > /d/Certificate_pkcs12.p12
-          cat  /d/Certificate_pkcs12.p12
         shell: bash
 
       - name: Set variables
