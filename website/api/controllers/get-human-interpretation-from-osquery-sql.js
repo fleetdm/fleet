@@ -83,11 +83,12 @@ Please give me all of the above in JSON, with this data shape:
   whatWillProbablyHappenDuringMaintenance: 'TODO'
 }
 \`\`\``;
+    // Fallback message in case LLM API request fails.
+    let failureMessage = 'Failed to generate human interpretation using generative AI.';
 
     let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
     // (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
     // [?] API: https://platform.openai.com/docs/api-reference/chat/create
-    let failureMessage = 'Failed to generate human interpretation using generative AI.';
     let llmReport = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
       model: BASE_MODEL,
       messages: [// https://platform.openai.com/docs/guides/chat/introduction
