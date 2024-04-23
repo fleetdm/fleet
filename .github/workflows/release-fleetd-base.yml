@@ -75,15 +75,15 @@ jobs:
 
       - name: Import package signing keys
         env:
-          APPLE_DEVELOPER_ID_CERTIFICATE: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE }}
-          APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          echo "$APPLE_DEVELOPER_ID_CERTIFICATE" | base64 --decode > certificate.p12
+          echo "$APPLE_INSTALLER_CERTIFICATE" | base64 --decode > certificate.p12
           security create-keychain -p $KEYCHAIN_PASSWORD build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
-          security import certificate.p12 -k build.keychain -P $APPLE_APPLICATION_CERTIFICATE_PASSWORD -T /usr/bin/productsign
+          security import certificate.p12 -k build.keychain -P $APPLE_INSTALLER_CERTIFICATE_PASSWORD -T /usr/bin/productsign
           security set-key-partition-list -S apple-tool:,apple:,productsign: -s -k $KEYCHAIN_PASSWORD build.keychain
           security find-identity -vv
           rm certificate.p12
