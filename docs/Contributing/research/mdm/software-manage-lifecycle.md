@@ -42,30 +42,14 @@ title: DB schema
 ---
 erDiagram
   software_installers ||--|| software : "software_version"
-  software_installers ||--|| software_pre_install_conditions : "pre_install_condition_id"
   software_installers ||--|| scripts : "install_script"
   software_installers ||--|| scripts : "post_install_script"
   software_installers {
     int(10) id PK
     bigint(20) software_version FK
-    int(10) pre_install_condition_id FK
     int(10) install_script FK
     int(10) post_install_script FK
-  }
-
-  software_pre_install_conditions {
-    int(10) id PK
-    text condition
-  }
-
-  host_software_pre_install_conditions ||--|| hosts : "host_id"
-  host_software_pre_install_conditions ||--|| software_pre_install_conditions : "pre_install_condition_id"
-  host_software_pre_install_conditions {
-    int(10) id PK
-    int(10) host_id FK
-    int(10) pre_install_condition_id FK
-    text output
-    varchar(20) status FK "references `host_mdm_status`"
+    text pre_install_condition
   }
 
   host_software_installs ||--|| hosts : "host_id"
@@ -74,6 +58,8 @@ erDiagram
     int(10) id PK
     int(10) host_id FK
     int(10) software_installer_id FK
+    text pre_install_condition_output
+    varchar(20) pre_install_condition_status FK "references `host_mdm_status`"
 
     unique_key host_id_software_installer_id
   }
