@@ -119,5 +119,5 @@ func TestCacheEviction(t *testing.T) {
 	if len(cache.data) < 5 {
 		t.Errorf("sequential run #2: more than 1 record cached (%d)", len(cache.data))
 	}
-	t.Logf("sequentual run #2: cache size %d/%d; %d records cached", cache.size, cache.MaxSize, len(cache.data))
+	t.Logf("sequential run #2: cache size %d/%d; %d records cached", cache.size, cache.MaxSize, len(cache.data))
 }

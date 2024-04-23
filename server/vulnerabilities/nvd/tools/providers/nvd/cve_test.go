@@ -24,9 +24,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 var (
@@ -100,21 +97,14 @@ type cveTestServer struct {
 }
 
 func (ts cveTestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := level.NewFilter(log.NewJSONLogger(os.Stdout), level.AllowInfo())
 	if strings.HasSuffix(r.URL.Path, ".meta") {
-		if _, err := io.Copy(w, bytes.NewBufferString(cveGoldenMetaFile)); err != nil {
-			logger.Log("msg", "ServeHTTP copy .meta error: "+err.Error())
-		}
+		_, _ = io.Copy(w, bytes.NewBufferString(cveGoldenMetaFile))
 		return
 	}
 	switch ts.compression {
 	case "gz":
-		if _, err := io.Copy(w, bytes.NewBuffer(cveGoldenDataFileGz)); err != nil {
-			logger.Log("msg", "ServeHTTP copy .gz error: "+err.Error())
-		}
+		_, _ = io.Copy(w, bytes.NewBuffer(cveGoldenDataFileGz))
 	case "zip":
-		if _, err := io.Copy(w, bytes.NewBuffer(cveGoldenDataFileZip)); err != nil {
-			logger.Log("msg", "ServeHTTP copy .zip error: "+err.Error())
-		}
+		_, _ = io.Copy(w, bytes.NewBuffer(cveGoldenDataFileZip))
 	}
 }

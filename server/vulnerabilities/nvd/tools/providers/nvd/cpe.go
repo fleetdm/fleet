@@ -28,8 +28,6 @@ import (
 
 	"github.com/facebookincubator/flog"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/lib/client"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // CPE defines the CPE data feed for synchronization.
@@ -134,7 +132,6 @@ func (cf cpeFile) baseURL(src SourceConfig) string {
 }
 
 func (cf cpeFile) Sync(ctx context.Context, src SourceConfig, localdir string) error {
-	logger := level.NewFilter(log.NewJSONLogger(os.Stdout), level.AllowInfo())
 	baseURL := cf.baseURL(src)
 	sourceURL := baseURL + cf.DataFile
 	needsUpdate, err := cf.needsUpdate(ctx, sourceURL, localdir)
@@ -160,13 +157,9 @@ func (cf cpeFile) Sync(ctx context.Context, src SourceConfig, localdir string) e
 	// write data file
 	dataFilename := filepath.Join(localdir, cf.DataFile)
 	bakDataFilename := dataFilename + ".bak"
-	if err = xRename(dataFilename, bakDataFilename); err != nil {
-		logger.Log("msg", "xRename dataFilename error: "+err.Error())
-	}
+	_ = xRename(dataFilename, bakDataFilename)
 	if err = xRename(tempDataFilename, dataFilename); err != nil {
-		if err2 := xRename(bakDataFilename, dataFilename); err2 != nil {
-			return err2
-		}
+		_ = xRename(bakDataFilename, dataFilename)
 		return err
 	}
 	os.Remove(bakDataFilename)

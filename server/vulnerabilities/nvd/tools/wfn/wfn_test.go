@@ -15,11 +15,7 @@
 package wfn
 
 import (
-	"os"
 	"testing"
-
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 func TestWFNize(t *testing.T) {
@@ -50,10 +46,7 @@ func TestWFNize(t *testing.T) {
 }
 
 func BenchmarkWFNize(t *testing.B) {
-	logger := level.NewFilter(log.NewJSONLogger(os.Stdout), level.AllowInfo())
 	for i := 0; i < t.N; i++ {
-		if _, err := WFNize("1.8.14.6001"); err != nil {
-			logger.Log("msg", "BenchmarkWFNize error: "+err.Error())
-		}
+		_, _ = WFNize("1.8.14.6001")
 	}
 }
