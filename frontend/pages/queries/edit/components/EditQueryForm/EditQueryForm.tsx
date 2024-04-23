@@ -31,7 +31,7 @@ import {
   INVALID_PLATFORMS_FLASH_MESSAGE,
 } from "utilities/constants";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
-import { IApiError } from "interfaces/errors";
+import { getErrorReason, IApiError } from "interfaces/errors";
 import {
   ISchedulableQuery,
   ICreateQueryRequestBody,
@@ -330,7 +330,8 @@ const EditQueryForm = ({
           renderFlash("success", `Successfully added query.`);
         })
         .catch((createError: { data: IApiError }) => {
-          if (createError.data.errors[0].reason.includes("already exists")) {
+          const createErrorReason = getErrorReason(createError);
+          if (createErrorReason.includes("already exists")) {
             queryAPI
               .create({
                 name: `Copy of ${lastEditedQueryName}`,
@@ -353,9 +354,7 @@ const EditQueryForm = ({
               })
               .catch((createCopyError: { data: IApiError }) => {
                 if (
-                  createCopyError.data.errors[0].reason.includes(
-                    "already exists"
-                  )
+                  getErrorReason(createCopyError).includes("already exists")
                 ) {
                   let teamErrorText;
                   if (apiTeamIdForQuery !== 0) {
@@ -374,9 +373,7 @@ const EditQueryForm = ({
                 }
                 setIsSaveAsNewLoading(false);
               });
-          } else if (
-            createError.data.errors[0].reason.includes(INVALID_PLATFORMS_REASON)
-          ) {
+          } else if (createErrorReason.includes(INVALID_PLATFORMS_REASON)) {
             setIsSaveAsNewLoading(false);
             renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
           } else {
