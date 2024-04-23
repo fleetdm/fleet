@@ -246,29 +246,38 @@ The on-call developer is responsible for:
 [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories run code managed in two places: 
 1. The code and workflows in their repository.
 2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo. These code sections are copied and run by the nvd and vulnerabilities repos.
+   Code areas in [fleet](https://github.com/fleetdm/fleet) repo that affect [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories include:
+   a. TODO: add code sections.
+    
+nvd and vulnerabilities repositories continuously create output files in their predefined cadance. For that reason merging PRs into them or into the relevant code sections in fleet repo, is effective immedtiately upon merge and is considered released and deployed to all customers. 
+Due to this reason we need a special procedure to include a QA phase before merging. 
+(Code merges to other fleet areas go through code review only. QA is later done as part of releasing the fleet server, fleetd or fleetd chrome extention.)
 
-Merging PRs into nvd and/or vulnerabilities repos or into the relevant code sections in fleet repo, is effective immedtiately upon merge and is considered released and deployed to all customers. 
-Due to this reason we need a special procedure to include a QA phase before merging. (Regular code merges go through code review but no QA)
+#### Copying code from fleet-repo
+The repos will only take tag-based code from [fleet](https://github.com/fleetdm/fleet) **main** branch and not the latest code.
+Tags will include PR numbers in them: e.g. VULN_TAG_12345 
+Both repositories are configured to take their own specific tag. (changing the tag requires a PR)
 
-#### Copying code from fellt-repo
-The repos will only take TAG based code from fleet-main and not the latest.
-TAGs will include PR number in them: e.g. VULN_TAG_12345 
-Both repos have a way to configure the specific TAG to pull.
+#### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
+1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345
+2. Merge PR to main after review and approval
+3. Tag fleet-main branch with VULN_TAG_XXXXX (e.g. VULN_TAG_12345)
+4. Fork the relevant repo/s (nvd and/or vulnerabilities) and configure them to use the relevant tag (e.g. VULN_TAG_12345)
+5. Hand over the forked repo/s to QA for testing
+6. Wait for QA approval (see changes below)
+7. After successful QA → Change the tag in [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repos (Using a PR)
 
-#### Dev work in fleet repo code that is copied and run by NVD and/or Vuln repo
------------------------ TODO Sharon: Remove the "NO CHANGE" and "NEW" comments after it's understood by the reviewer of this PR -----------------------
-1. NO CHANGE: Fork the repo.
-2. NO CHANGE: Create a new PR e.g. #12345
-3. NO CHANGE: Merge PR to main after review and approval
-4. NEW: Tag fleet-main branch with VULN_TAG_12345 
-5. NEW: Hand over the forked repo to QA for testing.
-6. NO CHANGE: wait for QA approval (see changes below)
-7. NEW: After successful QA → Change TAG in the repo (Using a PR)
+#### Dev work in nvd and/or vulnerabilities repo/s
+1.Fork [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repo/s
+2. Create a new PR and merge the new code into them
+6. Hand over the forked repo/s to QA for testing
+7. Wait for QA approval (see changes below)
+8. After successful QA create a PR and merge into [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities)
 
 #### QA process:
-1. NO CHANGE: Create test servers
+1. Create test servers
 2. Route the test servers to the test Repo/s
-3. NO CHANGE: QA → Approve or reject
+3. QA → Approve or reject
 
 ### Run Fleet locally for QA purposes
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
