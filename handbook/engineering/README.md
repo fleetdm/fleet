@@ -242,21 +242,16 @@ The on-call developer is responsible for:
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
 ### Development and changes to vulnerabilities and/or nvd repositories
-
-[nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories run code managed in two places: 
-1. The code and workflows in their repository.
+The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories run code that is managed in two places: 
+1. The code and workflows in their respective repository.
 2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo. These code sections are copied and run by the nvd and vulnerabilities repos.
    Code areas in [fleet](https://github.com/fleetdm/fleet) repo that affects [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories include:
    a. TODO: add code sections.
     
-nvd and vulnerabilities repositories continuously create output files in their predefined cadance. For that reason merging PRs into them or into the relevant code sections in fleet repo, is effective immedtiately upon merge and is considered released and deployed to all customers. 
-Due to this reason we need a special procedure to include a QA phase before merging. 
-(Code merges to other fleet areas go through code review only. QA is later done as part of releasing the Fleet server, Fleetd or Fleetd Chrome extention.)
+The nvd and vulnerabilities repositories continuously create output files in their predefined cadance. Therefore, merging PRs into them or into the relevant code sections in fleet repository is effective immedtiately upon merge and is considered released and used by all customers. Due to this reason we need a special procedure to include a QA phase before merging. (Code merges to other fleet areas go through code review only. QA is later done as part of releasing the Fleet server, Fleetd or Fleetd Chrome extention.)
 
 #### Copying code from fleet repo
-The repos will only take tag-based code from [fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code.
-Tags will include PR numbers in them: e.g. VULN_TAG_12345 
-Both repositories are configured to take their own specific tag (changing the tag requires a PR)
+The repositories will only take tag-based code from the [Fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories are configured to take their specific tag (changing the tag requires a PR).
 
 #### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
 1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345
@@ -265,14 +260,14 @@ Both repositories are configured to take their own specific tag (changing the ta
 4. Fork the relevant repo/s (nvd and/or vulnerabilities) and configure them to use the relevant tag (e.g. VULN_TAG_12345)
 5. Hand over the forked repo/s to QA for testing
 6. Wait for QA approval (see QA process below)
-7. After successful QA → Change the tag in [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repos (Using a PR)
+7. After successful QA, change the tag in the [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories (Using a PR)
 
 #### Dev work in nvd and/or vulnerabilities repo/s
 1. Fork [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repo/s
 2. Create a new PR and merge the new code into them
-6. Hand over the forked repo/s to QA for testing
-7. Wait for QA approval (see changes below)
-8. After successful QA create a PR and merge into [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities)
+3. Hand over the forked repo/s to QA for testing
+4. Wait for QA approval (see changes below)
+5. After successful QA create a PR and merge into [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities)
 
 #### QA process:
 1. Create test servers
