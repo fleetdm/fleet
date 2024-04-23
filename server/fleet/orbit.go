@@ -2,9 +2,9 @@ package fleet
 
 import "encoding/json"
 
-// SoftwareInstaller contains the information required to fetch and
+// OrbitSoftwareInstaller contains the information required to fetch and
 // install software from the fleet server
-type SoftwareInstaller struct {
+type OrbitSoftwareInstaller struct {
 	// PreInstallCondition is an query that must succeed for the
 	// install to proced
 	PreInstallCondition string `json:"pre_install_condition,omitempty"`
@@ -50,8 +50,8 @@ type OrbitConfigNotifications struct {
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
 
-	// SoftwareInstallers contains a list of software queued for installation
-	SoftwareInstallers []SoftwareInstaller `json:"software_installers,omitempty"`
+	// OrbitSoftwareInstallers contains a list of software queued for installation
+	OrbitSoftwareInstallers []OrbitSoftwareInstaller `json:"software_installers,omitempty"`
 }
 
 type OrbitConfig struct {
