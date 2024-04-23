@@ -639,14 +639,18 @@ the way that the Fleet server works.
 						initFatal(err, "initializing S3 software installer store")
 					}
 					softwareInstallStore = store
+					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.Bucket)
 				} else {
-					store, err := filesystem.NewSoftwareInstallerStore(os.TempDir()) // TODO(mna): to clarify which directory we use: https://github.com/fleetdm/fleet/issues/18329#issuecomment-2072303528
+					// TODO(mna): to clarify which directory we use: https://github.com/fleetdm/fleet/issues/18329#issuecomment-2072303528
+					installerDir := os.TempDir()
+					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
 					if err != nil {
-						// TODO(mna): should we just log and continue if filesystem fails?
-						initFatal(err, "initializing local filesystem software installer store")
+						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
+						softwareInstallStore = fleet.FailingSoftwareInstallerStore{}
+					} else {
+						softwareInstallStore = store
+						level.Info(logger).Log("msg", "using local filesystem software installer store, this is not suitable for production use", "directory", installerDir)
 					}
-					softwareInstallStore = store
-					level.Info(logger).Log("msg", "using local filesystem software installer store, this is not suitable for production use")
 				}
 
 				svc, err = eeservice.NewService(
