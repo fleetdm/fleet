@@ -2,7 +2,6 @@ package s3
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"path"
 
@@ -11,6 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
+
+const softwareInstallersPrefix = "software-installers"
 
 // SoftwareInstallerStore implements the fleet.SoftwareInstallerStore to store
 // and retrieve software installers from S3.
@@ -72,12 +73,7 @@ func (i *SoftwareInstallerStore) Exists(ctx context.Context, installerID string)
 	return true, nil
 }
 
-// keyForInstaller builds an S3 key to search for the software installer.
+// keyForInstaller builds an S3 key to identify the software installer.
 func (i *SoftwareInstallerStore) keyForInstaller(installerID string) string {
-	file := fmt.Sprintf("%s.%s", executable, installer.Kind)
-	dir := ""
-	if installer.Desktop {
-		dir = desktopPath
-	}
-	return path.Join(i.prefix, installer.EnrollSecret, dir, file)
+	return path.Join(i.prefix, softwareInstallersPrefix, installerID)
 }
