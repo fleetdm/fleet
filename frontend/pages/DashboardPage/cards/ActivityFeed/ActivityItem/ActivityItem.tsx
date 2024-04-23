@@ -763,6 +763,63 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        added declaration (DDM) profile <b>
+          {activity.details?.profile_name}
+        </b>{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        removed declaration (DDM) profile{" "}
+        <b>{activity.details?.profile_name}</b> from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited declaration (DDM) profiles{" "}
+        <b>{activity.details?.profile_name}</b> for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+
+  resentConfigProfile: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.profile_name} configuration profile to{" "}
+        {activity.details?.host_display_name}.
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -918,6 +975,25 @@ const getDetail = (
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
     }
+    case ActivityType.CreatedDeclarationProfile: {
+      return TAGGED_TEMPLATES.createdDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.DeletedDeclarationProfile: {
+      return TAGGED_TEMPLATES.deletedDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.EditedDeclarationProfile: {
+      return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
+    }
+    case ActivityType.ResentConfigurationProfile: {
+      return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }

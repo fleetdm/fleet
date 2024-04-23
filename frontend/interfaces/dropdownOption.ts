@@ -11,4 +11,5 @@ export interface IDropdownOption {
   label: string | JSX.Element;
   value: string | number;
   premiumOnly?: boolean;
+  tooltipContent?: string | JSX.Element;
 }

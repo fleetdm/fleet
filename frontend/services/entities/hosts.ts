@@ -116,7 +116,7 @@ export interface IExportHostsOptions {
 }
 
 export interface IActionByFilter {
-  teamId: number | null;
+  teamId?: number | null;
   query: string;
   status: string;
   labelId?: number;
@@ -315,6 +315,18 @@ export default {
 
     return sendRequest("GET", path);
   },
+  // TODO: change/remove this when backend implments way for client to get
+  // a collection of hosts based on ho  st ids
+  getHosts: (hostIds: number[]) => {
+    return Promise.all(
+      hostIds.map((hostId) => {
+        const { HOSTS } = endpoints;
+        const path = `${HOSTS}/${hostId}`;
+        return sendRequest("GET", path);
+      })
+    );
+  },
+
   loadHosts: ({
     page = 0,
     perPage = 100,
@@ -511,5 +523,11 @@ export default {
   wipeHost: (id: number) => {
     const { HOST_WIPE } = endpoints;
     return sendRequest("POST", HOST_WIPE(id));
+  },
+
+  resendProfile: (hostId: number, profileUUID: string) => {
+    const { HOST_RESEND_PROFILE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
   },
 };

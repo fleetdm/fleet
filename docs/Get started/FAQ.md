@@ -113,7 +113,7 @@ To uninstall the osquery agent, follow the below instructions for your operating
 Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
 
 #### Windows
-Use the "Add or remove programs" dialog to remove Orbit.
+Use the "Add or remove programs" dialog to remove Fleet osquery.
 
 #### Ubuntu
 Run `sudo apt remove fleet-osquery -y`

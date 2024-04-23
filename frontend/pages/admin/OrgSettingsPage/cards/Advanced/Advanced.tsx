@@ -20,9 +20,9 @@ const Advanced = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState({
-    domain: appConfig.smtp_settings.domain || "",
-    verifySSLCerts: appConfig.smtp_settings.verify_ssl_certs || false,
-    enableStartTLS: appConfig.smtp_settings.enable_start_tls,
+    domain: appConfig.smtp_settings?.domain || "",
+    verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
+    enableStartTLS: appConfig.smtp_settings?.enable_start_tls,
     enableHostExpiry:
       appConfig.host_expiry_settings.host_expiry_enabled || false,
     hostExpiryWindow: appConfig.host_expiry_settings.host_expiry_window || 0,
@@ -67,23 +67,11 @@ const Advanced = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       server_settings: {
-        server_url: appConfig.server_settings.server_url || "",
         live_query_disabled: disableLiveQuery,
-        enable_analytics: appConfig.server_settings.enable_analytics,
         query_reports_disabled: disableQueryReports,
         scripts_disabled: disableScripts,
       },
       smtp_settings: {
-        enable_smtp: appConfig.smtp_settings.enable_smtp || false,
-        sender_address: appConfig.smtp_settings.sender_address || "",
-        server: appConfig.smtp_settings.server || "",
-        port: Number(appConfig.smtp_settings.port),
-        authentication_type: appConfig.smtp_settings.authentication_type || "",
-        user_name: appConfig.smtp_settings.user_name || "",
-        password: appConfig.smtp_settings.password || "",
-        enable_ssl_tls: appConfig.smtp_settings.enable_ssl_tls || false,
-        authentication_method:
-          appConfig.smtp_settings.authentication_method || "",
         domain,
         verify_ssl_certs: verifySSLCerts,
         enable_start_tls: enableStartTLS,

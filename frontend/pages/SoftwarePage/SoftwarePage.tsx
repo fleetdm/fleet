@@ -11,7 +11,7 @@ import {
 import {
   IJiraIntegration,
   IZendeskIntegration,
-  IIntegrations,
+  IZendeskJiraIntegrations,
 } from "interfaces/integration";
 import { ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
@@ -186,7 +186,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const vulnWebhookSettings =
     softwareConfig?.webhook_settings?.vulnerabilities_webhook;
   const isVulnWebhookEnabled = !!vulnWebhookSettings?.enable_vulnerabilities_webhook;
-  const isVulnIntegrationEnabled = (integrations?: IIntegrations) => {
+  const isVulnIntegrationEnabled = (
+    integrations?: IZendeskJiraIntegrations
+  ) => {
     return (
       !!integrations?.jira?.some((j) => j.enable_software_vulnerabilities) ||
       !!integrations?.zendesk?.some((z) => z.enable_software_vulnerabilities)

@@ -1049,6 +1049,84 @@ This activity contains the following fields:
 }
 ```
 
+## created_declaration_profile
+
+Generated when a user adds a new macOS declaration to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_declaration_profile
+
+Generated when a user removes a macOS declaration from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_declaration_profile
+
+Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## resent_configuration_profile
+
+Generated when a user resends an MDM configuration profile to a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "profile_name": "Passcode requirements"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

@@ -210,6 +210,15 @@ const UserForm = ({
   };
 
   const validate = (): boolean => {
+    if (!validatePresence(formData.name)) {
+      setErrors({
+        ...errors,
+        name: "Name field must be completed",
+      });
+
+      return false;
+    }
+
     if (!validatePresence(formData.email)) {
       setErrors({
         ...errors,

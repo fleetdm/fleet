@@ -46,7 +46,7 @@ columns:
   - name: uuid
   - name: email
     required: false
-    type: string
+    type: text
     description: Email
     platforms:
       - chrome
@@ -61,5 +61,5 @@ columns:
       - linux
   - name: username
     description: Username
-notes: |
+notes: >-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

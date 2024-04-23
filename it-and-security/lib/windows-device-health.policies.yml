@@ -22,3 +22,4 @@
   description: This policy checks if the end user is required to enter a password, with at least 10 characters, to unlock the host.
   resolution: "As an IT admin, deploy a Windows profile with the DevicePasswordEnabled and MinDevicePasswordLength option documented here: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock"
   platform: windows
+  

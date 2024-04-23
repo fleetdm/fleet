@@ -22,6 +22,7 @@ import {
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
+  isPlatformLabelNameFromAPI,
   PolicyResponse,
 } from "utilities/constants";
 
@@ -134,7 +135,9 @@ const HostsFilterBlock = ({
     if (selectedLabel) {
       const { description, display_text, label_type } = selectedLabel;
       const pillLabel =
-        PLATFORM_LABEL_DISPLAY_NAMES[display_text] ?? display_text;
+        (isPlatformLabelNameFromAPI(display_text) &&
+          PLATFORM_LABEL_DISPLAY_NAMES[display_text]) ||
+        display_text;
 
       return (
         <>
@@ -315,7 +318,7 @@ const HostsFilterBlock = ({
     }`;
 
     // More narrow tooltip than other MDM tooltip
-    const MDM_STATUS_PILL_TOOLTIP: Record<string, JSX.Element> = {
+    const MDM_STATUS_PILL_TOOLTIP: Record<string, React.ReactNode> = {
       automatic: (
         <span>
           MDM was turned on <br />
@@ -336,14 +339,7 @@ const HostsFilterBlock = ({
           can turn MDM off.
         </span>
       ),
-      unenrolled: (
-        <span>
-          Hosts with MDM off <br />
-          don&apos;t receive macOS <br />
-          settings and macOS <br />
-          update encouragement.
-        </span>
-      ),
+      unenrolled: undefined, // no tooltip specified
       pending: (
         <span>
           Hosts ordered using Apple <br />

@@ -34,7 +34,10 @@ module.exports = {
           grant_type: 'refresh_token',// eslint-disable-line camelcase
         },
         headers: { accept: 'application/json' }
-      }).tolerate((err)=>{
+      })
+      .retry({raw:{statusCode: 503}})// Retry requests that respond with "503: Service temporarily unavailable"
+      .retry({raw:{statusCode: 504}})// Retry requests that respond with "504: Endpoint request timed out"
+      .tolerate((err)=>{
         // If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`Could not refresh the token for Vanta connection (id: ${connectionIdAsString}). Full error: ${err}`);
       });

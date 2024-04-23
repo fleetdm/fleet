@@ -4,6 +4,7 @@ import endpoints from "utilities/endpoints";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { OsqueryPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
 // TODO: add platforms to this constant as new ones are supported
 export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
@@ -49,6 +50,11 @@ export interface IOSVersionResponse {
   os_version: IOperatingSystemVersion;
 }
 
+type IGetOSVersionsRequestQueryParams = Record<
+  string,
+  string | number | undefined
+>;
+
 export const getOSVersions = ({
   platform,
   teamId,
@@ -62,16 +68,21 @@ export const getOSVersions = ({
   const { OS_VERSIONS } = endpoints;
   let path = OS_VERSIONS;
 
-  const queryString = buildQueryStringFromParams({
+  const params: IGetOSVersionsRequestQueryParams = {
     platform,
-    team_id: teamId,
     os_name,
     os_version,
     order_key,
     order_direction,
     page,
     per_page,
-  });
+  };
+
+  if (teamId !== API_NO_TEAM_ID) {
+    params.team_id = teamId;
+  }
+
+  const queryString = buildQueryStringFromParams(params);
 
   if (queryString) path += `?${queryString}`;
 
