@@ -7842,6 +7842,7 @@ Add software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
 | team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](#TODO-link-to-docs) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 
@@ -7862,6 +7863,9 @@ Content-Type: multipart/form-data; boundary=------------------------d8c247122f59
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="team_id"
 1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="install_script"
+sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="pre_install_query"
 SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
@@ -8195,6 +8199,7 @@ Returns information about the specified software. By default, `versions` are sor
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
       "uploaded_at": "2024-04-01T14:22:58Z",
+      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "status": {
