@@ -2,8 +2,9 @@ package fleet
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
+
+	"github.com/Masterminds/semver"
 )
 
 // OperatingSystem is an operating system uniquely identified according to its name and version.
@@ -40,12 +41,17 @@ func (os *OperatingSystem) RequiresNudge() (bool, error) {
 		return false, nil
 	}
 
-	versionFloat, err := strconv.ParseFloat(os.Version, 32)
+	version, err := semver.NewVersion(os.Version)
 	if err != nil {
 		return false, fmt.Errorf("parsing macos version \"%s\": %w", os.Version, err)
 	}
 
-	if float32(versionFloat) < 14 {
+	nudgeVersion, err := semver.NewVersion("14")
+	if err != nil {
+		return false, fmt.Errorf("creating constant macos semver: %w", err)
+	}
+
+	if version.LessThan(nudgeVersion) {
 		return true, nil
 	}
 
