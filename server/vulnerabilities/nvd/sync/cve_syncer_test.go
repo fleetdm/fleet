@@ -150,8 +150,10 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	// gzip the vulncheck data
 	testDataPath := filepath.Join("testdata", "cve", "vulncheck_test_data")
 	nvdFile := filepath.Join(testDataPath, "nvdcve-1.1-2024.json")
-	vulncheckFile := filepath.Join(testDataPath, "nvdcve-2.0-122.json")
-	gzipFile := filepath.Join(testDataPath, "nvdcve-2.0-122.json.gz")
+	vulncheckFile1 := filepath.Join(testDataPath, "nvdcve-2.0-122.json")
+	vulncheckFile2 := filepath.Join(testDataPath, "nvdcve-2.0-121.json")
+	gzipFile1 := filepath.Join(testDataPath, "nvdcve-2.0-122.json.gz")
+	gzipFile2 := filepath.Join(testDataPath, "nvdcve-2.0-121.json.gz")
 	zFile := filepath.Join(testDataPath, "vulncheck.zip")
 
 	// backup the original data to new directory
@@ -162,14 +164,20 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	err = copyFile(nvdFile, filepath.Join(backupPath, "nvdcve-1.1-2024.json"))
 	require.NoError(t, err)
 
-	err = copyFile(vulncheckFile, filepath.Join(backupPath, "nvdcve-2.0-122.json"))
+	err = copyFile(vulncheckFile1, filepath.Join(backupPath, "nvdcve-2.0-122.json"))
+	require.NoError(t, err)
+
+	err = copyFile(vulncheckFile2, filepath.Join(backupPath, "nvdcve-2.0-121.json"))
 	require.NoError(t, err)
 
 	// compress the vulncheck file to mimic the real data
-	err = CompressFile(vulncheckFile, gzipFile)
+	err = CompressFile(vulncheckFile1, gzipFile1)
 	require.NoError(t, err)
 
-	err = zipFile(gzipFile, zFile)
+	err = CompressFile(vulncheckFile2, gzipFile2)
+	require.NoError(t, err)
+
+	err = zipFiles([]string{gzipFile1, gzipFile2}, zFile)
 	require.NoError(t, err)
 
 	defer func() {
@@ -180,10 +188,16 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 		err = copyFile(filepath.Join(backupPath, "nvdcve-2.0-122.json"), filepath.Join(testDataPath, "nvdcve-2.0-122.json"))
 		require.NoError(t, err)
 
+		err = copyFile(filepath.Join(backupPath, "nvdcve-2.0-121.json"), filepath.Join(testDataPath, "nvdcve-2.0-121.json"))
+		require.NoError(t, err)
+
 		err = os.RemoveAll(backupPath)
 		require.NoError(t, err)
 
-		err = os.Remove(gzipFile)
+		err = os.Remove(gzipFile1)
+		require.NoError(t, err)
+
+		err = os.Remove(gzipFile2)
 		require.NoError(t, err)
 
 		err = os.Remove(zFile)
