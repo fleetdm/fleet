@@ -60,7 +60,7 @@ jobs:
       timeout-minutes: 5
       if: matrix.os == 'macos-latest'
       run: |
-        brew install docker
+        brew install docker colima
         colima start
 
     - name: Pull fleetdm/wix
