@@ -30,6 +30,7 @@ import (
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -631,6 +632,22 @@ the way that the Fleet server works.
 				if appCfg.MDM.EnabledAndConfigured {
 					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
 				}
+				var softwareInstallStore fleet.SoftwareInstallerStore
+				if config.S3.Bucket != "" {
+					store, err := s3.NewSoftwareInstallerStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 software installer store")
+					}
+					softwareInstallStore = store
+				} else {
+					store, err := filesystem.NewSoftwareInstallerStore(os.TempDir()) // TODO(mna): to clarify which directory we use: https://github.com/fleetdm/fleet/issues/18329#issuecomment-2072303528
+					if err != nil {
+						// TODO(mna): should we just log and continue if filesystem fails?
+						initFatal(err, "initializing local filesystem software installer store")
+					}
+					softwareInstallStore = store
+					level.Info(logger).Log("msg", "using local filesystem software installer store, this is not suitable for production use")
+				}
 
 				svc, err = eeservice.NewService(
 					svc,
@@ -644,6 +661,7 @@ the way that the Fleet server works.
 					mdmPushCertTopic,
 					ssoSessionStore,
 					profileMatcher,
+					softwareInstallStore,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")

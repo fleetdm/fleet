@@ -20,7 +20,7 @@ type SoftwareInstallerStore interface {
 	//
 	// 'installerID' in the signature is really the hex-encoded hash.
 	Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error)
-	Put(ctx context.Context, installerID string, content io.ReadSeeker) (string, error)
+	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	// not strictly required, but could save an upload if we already have this
 	// content.
 	Exists(ctx context.Context, installerID string) (bool, error)
