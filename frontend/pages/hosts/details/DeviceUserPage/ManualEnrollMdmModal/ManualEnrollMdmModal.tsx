@@ -1,15 +1,11 @@
-import React, { useContext, useState } from "react";
-import { useQuery } from "react-query";
-import FileSaver from "file-saver";
+import React from "react";
 
-import { NotificationContext } from "context/notification";
+import endpoints from "utilities/endpoints";
 
-import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import Spinner from "components/Spinner";
 
-import mdmAPI from "services/entities/mdm";
+const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
 
 interface IManualEnrollMdmModalProps {
   onCancel: () => void;
@@ -22,54 +18,8 @@ const ManualEnrollMdmModal = ({
   onCancel,
   token = "",
 }: IManualEnrollMdmModalProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
-
-  const [isDownloadingProfile, setIsDownloadingProfile] = useState(false);
-
-  const {
-    data: enrollmentProfile,
-    error: fetchMdmProfileError,
-    isFetching: isFetchingMdmProfile,
-  } = useQuery<string, Error>(
-    ["enrollment profile"],
-    () => mdmAPI.downloadDeviceUserEnrollmentProfile(token),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-    }
-  );
-
-  const onDownloadProfile = (evt: React.MouseEvent) => {
-    evt.preventDefault();
-    setIsDownloadingProfile(true);
-
-    setTimeout(() => setIsDownloadingProfile(false), 1000);
-
-    if (enrollmentProfile) {
-      const filename = "fleet-mdm-enrollment-profile.mobileconfig";
-      const file = new global.window.File([enrollmentProfile], filename, {
-        type: "application/x-apple-aspen-config",
-      });
-
-      FileSaver.saveAs(file);
-    } else {
-      renderFlash(
-        "error",
-        "Your enrollment profile could not be downloaded. Please try again."
-      );
-    }
-
-    return false;
-  };
-
   const renderModalBody = () => {
-    if (isFetchingMdmProfile) {
-      return <Spinner />;
-    }
-
-    if (fetchMdmProfileError) {
-      return <DataError card />;
-    }
+    const downloadUrl = `/api${DEVICE_USER_MDM_ENROLLMENT_PROFILE(token)}`;
 
     return (
       <div>
@@ -79,26 +29,16 @@ const ManualEnrollMdmModal = ({
         </p>
         <ol>
           <li>
-            {!isFetchingMdmProfile && (
-              <>
-                <span>Download your profile.</span>
-              </>
-            )}
-            {fetchMdmProfileError ? (
-              <span className={`${baseClass}__error`}>
-                {fetchMdmProfileError}
-              </span>
-            ) : (
-              <Button
-                type="button"
-                onClick={onDownloadProfile}
-                variant="brand"
-                isLoading={isDownloadingProfile}
-                className={`${baseClass}__download-button`}
-              >
-                Download
-              </Button>
-            )}
+            <span>Download your profile.</span>
+            <br />
+            {/* TODO: make a link component that appears as a button. */}
+            <a
+              className={`${baseClass}__download-link`}
+              href={downloadUrl}
+              download
+            >
+              Download
+            </a>
           </li>
           <li>Open the profile you just downloaded.</li>
           <li>

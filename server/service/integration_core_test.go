@@ -3780,6 +3780,11 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Empty(t, createResp.Label.HostIDs)
 	lbl1 := createResp.Label.Label
 
+	// try to create a manual label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
+	// try to create a dynamic label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Query: "select 2"}, http.StatusConflict, &createResp)
+
 	// get the label
 	var getResp getLabelResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), nil, http.StatusOK, &getResp)
@@ -3813,6 +3818,11 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, strings.ReplaceAll(t.Name(), "/", "_")+"manual2", createResp.Label.Name)
 	assert.Empty(t, createResp.Label.HostIDs)
 	manualLbl2 := createResp.Label.Label
+
+	// try to create a manual label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
+	// try to create a dynamic label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Query: "select 2"}, http.StatusConflict, &createResp)
 
 	// get the label
 	getResp = getLabelResponse{}
