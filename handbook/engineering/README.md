@@ -251,7 +251,7 @@ The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.c
 The nvd and vulnerabilities repositories continuously create output files in their predefined cadance. Therefore, merging PRs into them or into the relevant code sections in fleet repository is effective immedtiately upon merge and is considered released and used by all customers. Due to this reason we need a special procedure to include a QA phase before merging. (Code merges to other fleet areas go through code review only. QA is later done as part of releasing the Fleet server, Fleetd or Fleetd Chrome extention.)
 
 #### Copying code from fleet repo
-The repositories will only take tag-based code from the [Fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories are configured to take their specific tag (changing the tag requires a PR).
+The repositories will only take tag-based code from the [fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories are configured to take their specific tag (changing the tag requires a PR).
 
 #### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
 1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345.
