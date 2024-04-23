@@ -457,7 +457,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	case err == nil:
 		return uint(id), nil
 	case errors.Is(err, sql.ErrNoRows):
-		return 0, doRetryErr
+		return 0, ctxerr.Wrap(ctx, doRetryErr, "inserting new software version")
 	default:
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
