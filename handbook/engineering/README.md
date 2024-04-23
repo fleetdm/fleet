@@ -246,29 +246,29 @@ The on-call developer is responsible for:
 [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories run code managed in two places: 
 1. The code and workflows in their repository.
 2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo. These code sections are copied and run by the nvd and vulnerabilities repos.
-   Code areas in [fleet](https://github.com/fleetdm/fleet) repo that affect [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories include:
+   Code areas in [fleet](https://github.com/fleetdm/fleet) repo that affects [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories include:
    a. TODO: add code sections.
     
 nvd and vulnerabilities repositories continuously create output files in their predefined cadance. For that reason merging PRs into them or into the relevant code sections in fleet repo, is effective immedtiately upon merge and is considered released and deployed to all customers. 
 Due to this reason we need a special procedure to include a QA phase before merging. 
-(Code merges to other fleet areas go through code review only. QA is later done as part of releasing the fleet server, fleetd or fleetd chrome extention.)
+(Code merges to other fleet areas go through code review only. QA is later done as part of releasing the Fleet server, Fleetd or Fleetd Chrome extention.)
 
-#### Copying code from fleet-repo
-The repos will only take tag-based code from [fleet](https://github.com/fleetdm/fleet) **main** branch and not the latest code.
+#### Copying code from fleet repo
+The repos will only take tag-based code from [fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code.
 Tags will include PR numbers in them: e.g. VULN_TAG_12345 
-Both repositories are configured to take their own specific tag. (changing the tag requires a PR)
+Both repositories are configured to take their own specific tag (changing the tag requires a PR)
 
 #### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
 1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345
-2. Merge PR to main after review and approval
-3. Tag fleet-main branch with VULN_TAG_XXXXX (e.g. VULN_TAG_12345)
+2. Merge PR into fleet main branch after review and approval
+3. Tag fleet main branch with VULN_TAG_XXXXX (e.g. VULN_TAG_12345)
 4. Fork the relevant repo/s (nvd and/or vulnerabilities) and configure them to use the relevant tag (e.g. VULN_TAG_12345)
 5. Hand over the forked repo/s to QA for testing
-6. Wait for QA approval (see changes below)
+6. Wait for QA approval (see QA process below)
 7. After successful QA → Change the tag in [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repos (Using a PR)
 
 #### Dev work in nvd and/or vulnerabilities repo/s
-1.Fork [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repo/s
+1. Fork [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repo/s
 2. Create a new PR and merge the new code into them
 6. Hand over the forked repo/s to QA for testing
 7. Wait for QA approval (see changes below)
