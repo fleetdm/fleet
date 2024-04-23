@@ -145,7 +145,7 @@ const generateTableHeaders = (
               {isPremiumTier && cellProps.row.original.critical && (
                 <>
                   <span
-                    className="tooltip-base"
+                    className="critical-badge"
                     data-tip
                     data-for={`critical-tooltip-${cellProps.row.original.id}`}
                   >
@@ -177,7 +177,7 @@ const generateTableHeaders = (
               {selectedTeamId && !cellProps.row.original.team_id && (
                 <>
                   <span
-                    className="tooltip-base"
+                    className="inherited-badge"
                     data-tip
                     data-for={`inherited-tooltip-${cellProps.row.original.id}`}
                   >

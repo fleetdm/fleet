@@ -272,6 +272,34 @@ const ManagePolicyPage = ({
   );
 
   const {
+    data: teamPoliciesCountIncludeInherited,
+    isFetching: isFetchingTeamCountIncludeInherited,
+    refetch: refetchTeamPoliciesCountIncludeInherited,
+  } = useQuery<
+    IPoliciesCountResponse,
+    Error,
+    number,
+    ITeamPoliciesCountQueryKey[]
+  >(
+    [
+      {
+        scope: "teamPoliciesCountIncludeInherited",
+        query: searchQuery,
+        teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
+        includeInherited: !!teamIdForApi,
+      },
+    ],
+    ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
+    {
+      enabled: isRouteOk && !!teamIdForApi,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
+    }
+  );
+
+  const {
     data: teamPoliciesCount,
     isFetching: isFetchingTeamCount,
     refetch: refetchTeamPoliciesCount,
@@ -286,6 +314,7 @@ const ManagePolicyPage = ({
         scope: "teamPoliciesCount",
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
+        includeInherited: false,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -301,6 +330,9 @@ const ManagePolicyPage = ({
   const canAddOrDeletePolicy: boolean =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;
+  const hasPoliciesToAutomate: boolean = teamIdForApi
+    ? !!(!isFetchingTeamCount && teamPoliciesCount && teamPoliciesCount > 0)
+    : !!(globalPoliciesCount && globalPoliciesCount > 0);
 
   const {
     data: config,
@@ -336,6 +368,7 @@ const ManagePolicyPage = ({
   const refetchPolicies = (teamId?: number) => {
     if (teamId) {
       refetchTeamPolicies();
+      refetchTeamPoliciesCountIncludeInherited();
       refetchTeamPoliciesCount();
     } else {
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
@@ -625,7 +658,8 @@ const ManagePolicyPage = ({
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             renderPoliciesCount={() =>
-              !isFetchingTeamCount && renderPoliciesCount(teamPoliciesCount)
+              !isFetchingTeamCountIncludeInherited &&
+              renderPoliciesCount(teamPoliciesCountIncludeInherited)
             }
             isPremiumTier={isPremiumTier}
             isSandboxMode={isSandboxMode}
@@ -725,17 +759,19 @@ const ManagePolicyPage = ({
           </div>
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
-              {canManageAutomations && automationsConfig && (
-                <div className={`${baseClass}__manage-automations-wrapper`}>
-                  <Dropdown
-                    className={`${baseClass}__manage-automations-dropdown`}
-                    onChange={onSelectAutomationOption}
-                    placeholder="Manage automations"
-                    searchable={false}
-                    options={getAutomationsDropdownOptions()}
-                  />
-                </div>
-              )}
+              {canManageAutomations &&
+                automationsConfig &&
+                hasPoliciesToAutomate && (
+                  <div className={`${baseClass}__manage-automations-wrapper`}>
+                    <Dropdown
+                      className={`${baseClass}__manage-automations-dropdown`}
+                      onChange={onSelectAutomationOption}
+                      placeholder="Manage automations"
+                      searchable={false}
+                      options={getAutomationsDropdownOptions()}
+                    />
+                  </div>
+                )}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
@@ -743,7 +779,7 @@ const ManagePolicyPage = ({
                     className={`${baseClass}__select-policy-button`}
                     onClick={onAddPolicyClick}
                   >
-                    Add a policy
+                    Add policy
                   </Button>
                 </div>
               )}

@@ -18,14 +18,11 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
-  inheritedPage?: number;
-  inheritedPerPage?: number;
-  inheritedOrderKey?: string;
-  inheritedOrderDirection?: "asc" | "desc";
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
   teamId: number;
+  includeInherited?: boolean;
 }
 
 export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
@@ -33,8 +30,8 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId"> {
-  scope: "teamPoliciesCount";
+  extends Pick<IPoliciesApiParams, "query" | "teamId" | "includeInherited"> {
+  scope: "teamPoliciesCountIncludeInherited" | "teamPoliciesCount";
 }
 
 interface IPoliciesCountApiParams {
@@ -137,10 +134,7 @@ export default {
     orderKey = ORDER_KEY,
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
-    inheritedPage,
-    inheritedPerPage,
-    inheritedOrderKey = ORDER_KEY,
-    inheritedOrderDirection: inheritedOrderDir = ORDER_DIRECTION,
+    includeInherited,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -150,10 +144,7 @@ export default {
       orderKey,
       orderDirection: orderDir,
       query,
-      inheritedPage,
-      inheritedPerPage,
-      inheritedOrderKey,
-      inheritedOrderDirection: inheritedOrderDir,
+      includeInherited,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);

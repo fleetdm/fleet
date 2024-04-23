@@ -14,12 +14,6 @@ import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 
 const baseClass = "policies-table";
 
-const TAGGED_TEMPLATES = {
-  hostsByTeamRoute: (teamId: number | undefined | null) => {
-    return `${teamId ? `/?team_id=${teamId}` : ""}`;
-  },
-};
-
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 
@@ -29,7 +23,6 @@ interface IPoliciesTableProps {
   onAddPolicyClick?: () => void;
   onDeletePolicyClick: (selectedTableIds: number[]) => void;
   canAddOrDeletePolicy?: boolean;
-  tableType?: "inheritedPolicies";
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
@@ -49,7 +42,6 @@ const PoliciesTable = ({
   onAddPolicyClick,
   onDeletePolicyClick,
   canAddOrDeletePolicy,
-  tableType,
   currentTeam,
   currentAutomatedPolicies,
   isPremiumTier,
@@ -64,23 +56,18 @@ const PoliciesTable = ({
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  // Inherited table uses the same onQueryChange but require different URL params
   const onTableQueryChange = (newTableQuery: ITableQueryData) => {
     onQueryChange({
       ...newTableQuery,
-      editingInheritedTable: tableType === "inheritedPolicies",
     });
   };
 
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
       graphicName: "empty-policies",
-      header: <>You don&apos;t have any policies</>,
-      info: (
-        <>
-          Add policies to detect device health issues and trigger automations.
-        </>
-      ),
+      header: "You don't have any policies",
+      info:
+        "Add policies to detect device health issues and trigger automations.",
     };
     if (canAddOrDeletePolicy) {
       emptyPolicies.primaryButton = (
@@ -96,9 +83,8 @@ const PoliciesTable = ({
     if (searchQuery) {
       delete emptyPolicies.graphicName;
       delete emptyPolicies.primaryButton;
-      emptyPolicies.header = "No policies match the current search criteria.";
-      emptyPolicies.info =
-        "Expecting to see policies? Try again in a few seconds as the system catches up.";
+      emptyPolicies.header = "No matching policies";
+      emptyPolicies.info = "No policies match the current filters.";
     }
 
     return emptyPolicies;
@@ -118,7 +104,6 @@ const PoliciesTable = ({
           {
             selectedTeamId: currentTeam?.id,
             canAddOrDeletePolicy,
-            tableType,
           },
           policiesList,
           isPremiumTier,
@@ -152,7 +137,6 @@ const PoliciesTable = ({
             primaryButton: emptyState().primaryButton,
           })
         }
-        disableCount={tableType === "inheritedPolicies"}
         renderCount={renderPoliciesCount}
         onQueryChange={onTableQueryChange}
         inputPlaceHolder="Search by name"
