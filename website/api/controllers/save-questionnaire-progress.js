@@ -96,24 +96,24 @@ module.exports = {
     //  - yes-deployed-local: » Stage 3 (Tried Fleet but might not have a use case)
     //  - yes-deployed-long-time: Stage 2 (Tried Fleet long ago but might not fully grasp)
     //  - no: Stage 2 (Never tried Fleet and might not fully grasp)
-    // 'how-many-hosts': No change // TODO (see above -- instead of no change there should be a change)
-    // 'will-you-be-self-hosting': No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    // 'how-many-hosts': Stage 6
+    // 'will-you-be-self-hosting': Stage 6
     // 'what-are-you-working-on-eo-security'
-    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-eo-it'
-    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-does-your-team-manage-vm'
-    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
     // 'what-do-you-manage-mdm'
-    //  - no-use-case-yet: » No change // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
-    // 'is-it-any-good':  // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    // 'is-it-any-good':  Stage 3
     // 'what-did-you-think'
     //  - deploy-fleet-in-environment » Stage 5
-    //  - let-me-think-about-it »  // TODO (see above -- instead of no change there should maybe be a change, sometimes)
+    //  - let-me-think-about-it »  Stage 3
     //  - host-fleet-for-me » N/A (currently not selectable, but should set the user's psychologicalStage to stage 5)
 
     let psychologicalStage = userRecord.psychologicalStage;
@@ -134,17 +134,52 @@ module.exports = {
       }
     } else if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
       if(valueFromFormData === 'no-use-case-yet') {
-        // If this user doe not have a use case for Fleet yet, set their psyStage to 3
-        psychologicalStage = '3 - Intrigued';
+        // If this user does not have a use case for Fleet yet, set their psyStage to 3
+        // Check the user's answer to the previous question
+        let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
+        if(hasUsedFleetAnswer === 'yes-deployed-local'){
+          // If they've tried Fleet locally, set their stage to 3.
+          psychologicalStage = '3 - Intrigued';
+        } else {
+          psychologicalStage = '2 - Aware';
+        }
       } else {// Otherwise, they have a use case and will be set to stage 4.
         psychologicalStage = '4 - Has use case';
+      }
+    } else if(currentStep === 'is-it-any-good') {
+      let currentSelectedBuyingSituation = questionnaireProgress['what-are-you-using-fleet-for'].primaryBuyingSituation;
+      if(currentSelectedBuyingSituation === 'mdm') {
+        // Since the mdm use case question is the only buying situation-sepcific question where a use case can't
+        // be selected,  we'll check the user's previous answers befroe changing their psyStage
+        if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
+          // Check the user's answer to the have-you-ever-used-fleet question.
+          let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
+          if(hasUsedFleetAnswer === 'yes-deployed-local'){
+            // If they've tried Fleet locally, set their stage to 3.
+            psychologicalStage = '3 - Intrigued';
+          } else {
+            psychologicalStage = '2 - Aware';
+          }
+        } else {
+          psychologicalStage = '4 - Has use case';
+        }
+      } else {// For any other selected primary buying situation, since a use case will have been selected, set their psyStage to 4
+        psychologicalStage = '4 - Has use case';
+        // FUTURE: check previous answers for other selected buying situations.
       }
     } else if(currentStep === 'what-did-you-think') {
       // If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
       if(valueFromFormData === 'deploy-fleet-in-environment') {
         psychologicalStage = '5 - Personally confident';
       }
-      // If the user selects let me think about it, their stage will not change.
+      // If the user selects "Let me think about it", their stage will not change (They are sent back to the previous step).
+      // If the user selects "I’d like you to host Fleet for me", the form is not submitted, and they are taken to the /contact page instead. FUTURE: set stage to stage 5.
+    } else if(currentStep === 'how-many-hosts') {
+      // If they have Fleet deployed, they have team buy-in
+      psychologicalStage = '6 - Has team buy-in';
+    } else if(currentStep === 'will-you-be-self-hosting') {
+      // If they have Fleet deployed, they have team buy-in
+      psychologicalStage = '6 - Has team buy-in';
     }//ﬁ
 
     // Send a POST request to Zapier
