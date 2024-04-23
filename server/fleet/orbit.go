@@ -2,6 +2,22 @@ package fleet
 
 import "encoding/json"
 
+// SoftwareInstaller contains the information required to fetch and
+// install software from the fleet server
+type SoftwareInstaller struct {
+	// PreInstallCondition is an query that must succeed for the
+	// install to proced
+	PreInstallCondition string `json:"pre_install_condition,omitempty"`
+	// SoftwareId is the ID of the installer that will be fetched from
+	// the fleet server
+	SoftwareId string `json:"software_id,omitempty"`
+	// InstallScript is the script that will be run to install the
+	// downloaded software package
+	InstallScript string `json:"install_script,omitempty"`
+	// PostInstallScript is run after a successful install
+	PostInstallScript string `json:"post_install_script,omitempty"`
+}
+
 // OrbitConfigNotifications are notifications that the fleet server sends to
 // fleetd (orbit) so that it can run commands or more generally react to this
 // information.
@@ -33,6 +49,9 @@ type OrbitConfigNotifications struct {
 	// EnforceBitLockerEncryption is sent as true if Windows MDM is
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
+
+	// SoftwareInstallers contains a list of software queued for installation
+	SoftwareInstallers []SoftwareInstaller `json:"software_installers,omitempty"`
 }
 
 type OrbitConfig struct {
