@@ -6,6 +6,14 @@ module.exports = {
 
   description: 'Display "Login" page.',
 
+  inputs: {
+    purchaseLicense: {
+      type: 'boolean',
+      description: 'If this query string is provided, this user will be taken directly to the /new-license page after they login.',
+      extendedDescription: 'This value is only present when a user navigates to this page from the /register page if they were redirected to that page from the /new-license page.',
+      defaultsTo: false,
+    }
+  },
 
   exits: {
 
@@ -21,7 +29,7 @@ module.exports = {
   },
 
 
-  fn: async function () {
+  fn: async function ({purchaseLicense}) {
 
     if (this.req.me) {
       if(this.req.me.isSuperAdmin){
@@ -31,7 +39,9 @@ module.exports = {
       }
     }
 
-    return {};
+    return {
+      redirectToLicenseDispenser: purchaseLicense,
+    };
 
   }
 
