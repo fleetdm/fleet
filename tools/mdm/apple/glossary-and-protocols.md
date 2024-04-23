@@ -136,9 +136,9 @@ server (in our context, the Fleet server also acts as the MDM server.)
 To enroll, a client provides a distinguished name and a public key, and the
 server responds with a X.509 certificate.
 
-The CA server might also request a `challengePassword`, which is a shared
-secret that the server uses gate access to certificates, its omission allows
-for unauthenticated authorisation of enrolment requests.
+During enrollment, the SCEP CA server may also require a `challengePassword`,
+a shared secret essential for authenticating certificate access. Its absence could lead to
+unauthorized enrollment requests.
 
 More generally, the protocol is specified in [RFC
 8894](https://datatracker.ietf.org/doc/html/rfc8894) and allows:
@@ -165,21 +165,21 @@ It's composed by three different messages sent by the device to the server.
 
 **Authenticate**
 
-When the MDM payload is being installed, the device tries to establish a
+When the enrollment profile is being installed, the device tries to establish a
 connection with the server. This is when the
 [SCEP](#scep-simple-certificate-enrollment-protocol) exchange takes place.
 
 The device sends its UDID and the [topic](#push-notification-topic) that should
 be used for push notifications.
 
-The server shouldn't assume that the device has installed the MDM payload, as
+The server shouldn't assume that the device has installed the enrollment profile, as
 other payloads in the profile may still fail to install. When the device has
-successfully installed the MDM payload, it sends a `TokenUpdate` message.
+successfully installed the enrollment profile, it sends a `TokenUpdate` message.
 
 **TokenUpdate**
 
 A device sends a token update message to the server when it has installed the
-MDM payload or whenever its device push token, push magic, or unlock token
+enrollment profile or whenever its device push token, push magic, or unlock token
 change. These fields are needed by the server to send the device push
 notifications or passcode resets.
 
@@ -191,7 +191,7 @@ first token update message.
 The device attempts to notify the server when the MDM profile is removed.
 
 - In macOS v10.9, this only happens if the `CheckOutWhenRemoved` key in the
-  [MDM payload](#enrollment-profile) is set to true.
+  enrollment profile is set to `true`.
 - In macOS v10.8, this always happens.
 
 If network conditions don't allow the message to be delivered successfully,
@@ -226,8 +226,8 @@ The workflow looks like:
    `GET https://mdmenrollment.apple.com/devices/sync` to get
    information about newly enrolled devices and changes on devices already
    enrolled.
-3. The MDM server defines and assigns profiles to devices using `POST
+3. The MDM server defines and assigns DEP profiles (JSON) to devices using `POST
    https://mdmenrollment.apple.com/profile` and `PUT
    https://mdmenrollment.apple.com/profile/devices`
-4. The MDM server removes profiles from a device using `DELETE
+4. The MDM server removes DEP profiles (JSON) from a device using `DELETE
    https://mdmenrollment.apple.com/profile/devices`
