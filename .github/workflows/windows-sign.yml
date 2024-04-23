@@ -61,7 +61,7 @@ jobs:
         run: |
           copy victor\hello-world.exe D:\a\stm-github-action-demo\stm-github-action-demo\dist\unsigned.exe
           signtool.exe sign /v /debug /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "D:\a\stm-github-action-demo\stm-github-action-demo\dist\unsigned.exe"
-          type %USERPROFILE%/.signingmanager/logs/smksp.log
+          type %USERPROFILE%\.signingmanager\logs\smksp.log
           signtool.exe verify /v /pa "D:\a\stm-github-action-demo\stm-github-action-demo\dist\unsigned.exe"
         shell: cmd
 
