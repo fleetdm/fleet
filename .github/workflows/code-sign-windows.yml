@@ -2,6 +2,23 @@ name: Code sign Windows binaries with DigiCert KeyLocker KSP
 
 on:
   workflow_call:
+    inputs:
+      filename:
+        description: 'The name of the file to sign'
+        required: true
+        default: 'unsigned.exe'
+        type: string
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE:
+        required: true
+      DIGICERT_KEYLOCKER_PASSWORD:
+        required: true
+      DIGICERT_KEYLOCKER_HOST_URL:
+        required: true
+      DIGICERT_API_KEY:
+        required: true
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT:
+        required: true
 
 jobs:
   code-sign-windows:
@@ -15,8 +32,7 @@ jobs:
       - name: Download unsigned artifact
         uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
-          name: unsigned.exe
-          path: unsigned.exe
+          name: unsigned-windows
 
       - name: Setup certificate
         run: |
@@ -57,13 +73,13 @@ jobs:
       - name: Sign using Windows signtool
         # Debug logs are at: %USERPROFILE%\.signingmanager\logs\smksp.log
         run: |
-          signtool.exe sign /v /debug /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 unsigned.exe
+          signtool.exe sign /v /debug /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ${{ inputs.filename }}
           copy unsigned.exe signed.exe
-          signtool.exe verify /v /pa unsigned.exe
+          signtool.exe verify /v /pa ${{ inputs.filename }}
         shell: cmd
 
       - name: Upload signed artifact
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
-          name: signed.exe
-          path: signed.exe
+          name: signed-windows
+          path: ${{ inputs.filename }}

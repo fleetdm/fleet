@@ -16,12 +16,20 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned.exe
+          name: unsigned-windows
           path: victor/hello-world.exe
 
   code-sign-windows:
     needs: build-windows-exe
     uses: ./.github/workflows/code-sign-windows.yml
+    with:
+      filename: hello-world.exe
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   upload:
     needs: code-sign-windows
@@ -30,11 +38,10 @@ jobs:
       - name: Download signed artifact
         uses: actions/download-artifact@v4
         with:
-          name: signed.exe
-          path: signed.exe
+          name: signed-windows
 
       - name: Upload signed artifact
         uses: actions/upload-artifact@v4
         with:
           name: hello-world.exe
-          path: signed.exe
+          path: hello-world.exe
