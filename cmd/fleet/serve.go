@@ -643,6 +643,9 @@ the way that the Fleet server works.
 				} else {
 					// TODO(mna): to clarify which directory we use: https://github.com/fleetdm/fleet/issues/18329#issuecomment-2072303528
 					installerDir := os.TempDir()
+					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
+						installerDir = dir
+					}
 					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
 					if err != nil {
 						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
