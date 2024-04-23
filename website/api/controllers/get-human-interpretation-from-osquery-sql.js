@@ -58,7 +58,7 @@ module.exports = {
     }//•
 
     // Check the fleet instance url and API key provided
-    let responseFromFleetInstance = await sails.helpers.http.get(fleetInstanceUrl+'/api/v1/fleet/me',{},{'Authorization': 'Bearer ' +fleetApiKey})
+    await sails.helpers.http.get(fleetInstanceUrl+'/api/v1/fleet/me',{},{'Authorization': 'Bearer ' +fleetApiKey})
     .intercept('requestFailed', 'fleetInstanceNotResponding')
     .intercept('non200Response', 'invalidToken')
     .intercept((error)=>{
