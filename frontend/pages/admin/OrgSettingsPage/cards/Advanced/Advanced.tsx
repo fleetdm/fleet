@@ -27,9 +27,10 @@ const Advanced = ({
       appConfig.host_expiry_settings.host_expiry_enabled || false,
     hostExpiryWindow: appConfig.host_expiry_settings.host_expiry_window || 0,
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
+    disableScripts: appConfig.server_settings.scripts_disabled || false,
+    disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
-    disableScripts: appConfig.server_settings.scripts_disabled || false,
   });
 
   const {
@@ -40,6 +41,7 @@ const Advanced = ({
     hostExpiryWindow,
     disableLiveQuery,
     disableScripts,
+    disableAIFeatures,
     disableQueryReports,
   } = formData;
 
@@ -70,6 +72,7 @@ const Advanced = ({
         live_query_disabled: disableLiveQuery,
         query_reports_disabled: disableQueryReports,
         scripts_disabled: disableScripts,
+        ai_features_disabled: disableAIFeatures,
       },
       smtp_settings: {
         domain,
@@ -215,6 +218,25 @@ const Advanced = ({
             }
           >
             Disable scripts
+          </Checkbox>
+          <Checkbox
+            onChange={handleInputChange}
+            name="disableAIFeatures"
+            value={disableAIFeatures}
+            parseTarget
+            tooltipContent={
+              <>
+                When enabled, disables AI features such as pre-filling forms
+                <br />
+                with LLM-generated descriptions.{" "}
+                <em>
+                  (Default: <strong>Off</strong>)
+                </em>
+              </>
+            }
+            helpText="Only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
+          >
+            Disable generative AI features
           </Checkbox>
           <Checkbox
             onChange={handleInputChange}
