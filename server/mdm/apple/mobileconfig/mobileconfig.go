@@ -9,8 +9,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 
-	// we are using this package as we were having issues with signed apple
-	// mobile config profiles and the pcks7 package we were using before.
+	// we are using this package as we were having issues with pasrsing signed apple
+	// mobileconfig profiles with the pcks7 package we were using before.
 	cms "github.com/github/smimesign/ietf-cms"
 	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 	"howett.net/plist"
