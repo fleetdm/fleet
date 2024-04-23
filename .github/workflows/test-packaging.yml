@@ -56,19 +56,12 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: Install Docker
-      timeout-minutes: 20
+    - name: Install Colima
+      timeout-minutes: 5
       if: matrix.os == 'macos-latest'
       run: |
-        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
-        brew install --cask docker.rb
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
-          sleep 1;
-        done
-        echo "Docker is ready."
+        brew install docker
+        colima start
 
     - name: Pull fleetdm/wix
       # Run in background while other steps complete to speed up the workflow
