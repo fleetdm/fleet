@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-13]
+        os: [ubuntu-latest, macos-latest]
         go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ${{ matrix.os }}
 
@@ -55,13 +55,6 @@ jobs:
       uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
       with:
         egress-policy: audit
-
-    - name: Install Colima
-      timeout-minutes: 5
-      if: matrix.os == 'macos-13'
-      run: |
-        brew install docker colima
-        colima start
 
     - name: Pull fleetdm/wix
       # Run in background while other steps complete to speed up the workflow
@@ -76,7 +69,7 @@ jobs:
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
     - name: Install wine and wix
-      if: matrix.os == 'macos-13'
+      if: matrix.os == 'macos-latest'
       run: |
         ./scripts/macos-install-wine.sh -n
         wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
@@ -117,5 +110,5 @@ jobs:
       run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
     - name: Build MSI (using local Wix)
-      if: matrix.os == 'macos-13'
+      if: matrix.os == 'macos-latest'
       run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix
