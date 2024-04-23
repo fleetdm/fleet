@@ -9,6 +9,16 @@ module.exports = {
 
   inputs: {
 
+    fleetInstanceUrl: {
+      type: 'string',
+      required: true,
+    },
+
+    fleetApiKey: {
+      type: 'string',
+      required: true,
+    },
+
     sql: {
       type: 'string',
       required: true
@@ -28,15 +38,34 @@ module.exports = {
       }
     },
 
+    fleetInstanceNotResponding: {
+      description: 'A http request to the user\'s Fleet instance failed.',
+      statusCode: 404,
+    },
+
+    invalidToken: {
+      description: 'The provided token for the api-only user could not be used to authorize requests from fleetdm.com',
+      statusCode: 403,
+    },
+
   },
 
 
-  fn: async function ({sql}) {
+  fn: async function ({fleetInstanceUrl, fleetApiKey, sql}) {
 
     if (!sails.config.custom.openAiSecret) {
       throw new Error('sails.config.custom.openAiSecret not set.');
     }//•
 
+    // Check the fleet instance url and API key provided
+    let responseFromFleetInstance = await sails.helpers.http.get(fleetInstanceUrl+'/api/v1/fleet/me',{},{'Authorization': 'Bearer ' +fleetApiKey})
+    .intercept('requestFailed', 'fleetInstanceNotResponding')
+    .intercept('non200Response', 'invalidToken')
+    .intercept((error)=>{
+      return new Error(`When sending a request to a Fleet instance's /me endpoint to verify the token, an error occurred: ${error}`);
+    });
+
+    // Build our prompt
     let prompt = `Given this osquery policy: aka a query which either passes (≥1 row) or fails (0 rows) for a given laptop, what risks might we anticipate from that laptop having failed the policy?
 
 Here is the query:
