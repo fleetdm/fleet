@@ -165,8 +165,8 @@
     }
   }
 
-  .critical-tooltip {
-    text-align: left;
+  .critical-tooltip,
+  .inherited-tooltip {
     font-weight: $regular;
   }
 
@@ -184,8 +184,31 @@
               display: flex; // required for inline icon
               gap: $pad-xsmall;
 
-              .tooltip-base {
+              // Underlines only the name text
+              &:hover {
+                text-decoration: none;
+
+                .policy-name-text {
+                  text-decoration: underline;
+                }
+              }
+
+              .tooltip-base,
+              .inherited-badge {
                 display: inline-flex;
+              }
+
+              .inherited-badge {
+                display: flex;
+                padding: 4px;
+                justify-content: center;
+                align-items: center;
+                gap: 4px;
+                font-weight: $bold;
+                font-size: $xxx-small;
+                color: $core-fleet-black;
+                border-radius: 4px;
+                background: $ui-vibrant-blue-10;
               }
 
               .policy-name-text {
