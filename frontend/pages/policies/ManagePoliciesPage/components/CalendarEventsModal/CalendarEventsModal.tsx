@@ -14,6 +14,7 @@ import Graphic from "components/Graphic";
 import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
 import { syntaxHighlight } from "utilities/helpers";
+import Icon from "components/Icon";
 
 const baseClass = "calendar-events-modal";
 
@@ -170,23 +171,30 @@ const CalendarEventsModal = ({
     return (
       <div className="form-field">
         <div className="form-field__label">Policies:</div>
-        {formData.policies.map((policy) => {
-          const { isChecked, name, id } = policy;
-          return (
-            <div key={id}>
-              <Checkbox
-                value={isChecked}
-                name={name}
-                // can't use parseTarget as value needs to be set to !currentValue
-                onChange={() => {
-                  onPolicyEnabledChange({ name, value: !isChecked });
-                }}
-              >
-                {name}
-              </Checkbox>
-            </div>
-          );
-        })}
+        <div className="automated-policies-section">
+          {formData.policies.map((policy) => {
+            const { isChecked, name, id } = policy;
+            return (
+              <div className="checkbox-row" id={`checkbox-row--${id}`} key={id}>
+                <Checkbox
+                  value={isChecked}
+                  name={name}
+                  // can't use parseTarget as value needs to be set to !currentValue
+                  onChange={() => {
+                    onPolicyEnabledChange({ name, value: !isChecked });
+                  }}
+                >
+                  {name}
+                </Checkbox>
+                <div>
+                  <Button variant="text-link">
+                    <Icon name="eye" /> Preview
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
         <span className="form-field__help-text">
           A calendar event will be created for end users if one of their hosts
           fail any of these policies.{" "}
