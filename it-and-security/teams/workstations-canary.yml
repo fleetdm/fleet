@@ -1,4 +1,4 @@
-name: "💻🐣Workstations (canary)"
+name: "💻🐣 Workstations (canary)"
 team_settings:
   features:
     enable_host_users: true
@@ -56,6 +56,11 @@ agent_options:
                 - indirect_object_identifier
                 - indirect_object_identifier_type
                 - last_modified
+  update_channels:
+    # We want to use these hosts to smoke test edge releases.
+    osqueryd: edge
+    orbit: edge
+    desktop: edge
 controls:
   enable_disk_encryption: true
   macos_settings:
@@ -86,7 +91,7 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-03-15"
+    deadline: "2024-04-28"
     minimum_version: "14.4"
   windows_settings:
     custom_settings: null
@@ -106,6 +111,7 @@ policies:
   - path: ../lib/linux-device-health.policies.yml
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
+  - path: ../lib/collect-fleetd-information.yml
   - path: ../lib/collect-usb-devices.queries.yml
   - path: ../lib/collect-vs-code-extensions.queries.yml
   - path: ../lib/collect-software-permissions-system.queries.yml

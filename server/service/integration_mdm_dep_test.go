@@ -272,12 +272,12 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 	}
 
-	// expected commands: install fleetd, install bootstrap, install profiles
+	// expected commands: install fleetd, install bootstrap, install CA, install profiles
 	// (custom one and fleetd configuration) (not expected: account
 	// configuration, since enrollment_reference not set)
-	require.Len(t, cmds, 4)
+	require.Len(t, cmds, 5)
 	var installProfileCount, installEnterpriseCount, otherCount int
-	var profileCustomSeen, profileFleetdSeen bool
+	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen bool
 	for _, cmd := range cmds {
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
@@ -286,6 +286,8 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 				profileCustomSeen = true
 			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
 				profileFleetdSeen = true
+			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
+				profileFleetCASeen = true
 			}
 
 		case "InstallEnterpriseApplication":
@@ -294,11 +296,12 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			otherCount++
 		}
 	}
-	require.Equal(t, 2, installProfileCount)
+	require.Equal(t, 3, installProfileCount)
 	require.Equal(t, 2, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
 	require.True(t, profileCustomSeen)
 	require.True(t, profileFleetdSeen)
+	require.True(t, profileFleetCASeen)
 
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
@@ -307,19 +310,9 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 		require.Empty(t, pending)
 	} else {
-		// get the worker's pending job from the future, there should be a DEP
-		// release device task
-		pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
-		require.NoError(t, err)
-		require.Len(t, pending, 1)
-		releaseJob := pending[0]
-		require.Equal(t, 0, releaseJob.Retries)
-		require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
-
-		// update the job so that it can run immediately
-		releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
-		_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
-		require.NoError(t, err)
+		// there should be a Release Device pending job in the near future, expect
+		// it and schedule it to run now.
+		s.expectAndScheduleReleaseDeviceJob(t)
 
 		// run the worker to process the DEP release
 		s.runWorker()
@@ -352,6 +345,24 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 }
 
+func (s *integrationMDMTestSuite) expectAndScheduleReleaseDeviceJob(t *testing.T) {
+	ctx := context.Background()
+
+	// get the worker's pending job from the future, there should be a DEP
+	// release device task
+	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	releaseJob := pending[0]
+	require.Equal(t, 0, releaseJob.Retries)
+	require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+	// update the job so that it can run immediately
+	releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
+	_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
+	require.NoError(t, err)
+}
+
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	t := s.T()
 
@@ -362,6 +373,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: ""},
 		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: "modified"},
 	}
+
+	// set release device manually to true so there is no job enqueued at a later
+	// time to release the device (this is not what this test is about)
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, map[string]any{
+		"enable_release_device_manually": true,
+	})), http.StatusNoContent)
 
 	profileAssignmentReqs := []profileAssignmentReq{}
 
@@ -467,6 +484,9 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkNoJobsPending := func() {
 		pending, err := s.ds.GetQueuedJobs(context.Background(), 1, time.Time{})
 		require.NoError(t, err)
+		if len(pending) > 0 {
+			t.Logf("found unexpected pending job %s scheduled for %v ('now' is %v):\n%s\n", pending[0].Name, pending[0].NotBefore, time.Now().UTC(), string(*pending[0].Args))
+		}
 		require.Empty(t, pending)
 	}
 

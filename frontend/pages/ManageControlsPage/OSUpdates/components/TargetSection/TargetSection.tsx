@@ -59,16 +59,6 @@ const getDefaultWindowsGracePeriodDays = ({
     : teamConfig?.mdm?.windows_updates.grace_period_days?.toString() ?? "";
 };
 
-export const generateKey = (args: GetDefaultFnParams) => {
-  return (
-    `${args.currentTeamId}-` +
-    `${getDefaultMacOSDeadline(args)}-` +
-    `${getDefaultMacOSVersion(args)}-` +
-    `${getDefaultWindowsDeadlineDays(args)}-` +
-    `${getDefaultWindowsGracePeriodDays(args)}`
-  );
-};
-
 interface ITargetSectionProps {
   appConfig: IConfig;
   currentTeamId: number;
