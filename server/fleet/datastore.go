@@ -545,6 +545,9 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
+	// GetHostOperatingSystem returns the operating system information
+	// for a given host.
+	GetHostOperatingSystem(ctx context.Context, hostID uint) (*OperatingSystem, error)
 	// ListOperationsSystems returns all operating systems (id, name, version)
 	ListOperatingSystems(ctx context.Context) ([]OperatingSystem, error)
 	// ListOperatingSystemsForPlatform returns all operating systems for the given platform.
@@ -966,6 +969,10 @@ type Datastore interface {
 	// to the specified profile uuid.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
 
+	// DeleteMDMAppleDeclartionByName deletes a DDM profile by its name for the
+	// specified team (or no team).
+	DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error
+
 	BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, payload []*MDMAppleProfilePayload) error
 
 	// DeleteMDMAppleConfigProfileByTeamAndIdentifier deletes a configuration
@@ -1349,6 +1356,9 @@ type Datastore interface {
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
+
+	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
+	SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

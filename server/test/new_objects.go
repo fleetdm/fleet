@@ -156,6 +156,12 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 			LabelType:           fleet.LabelTypeBuiltIn,
 			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 		},
+		{
+			Name:                fleet.BuiltinLabelMacOS14Plus,
+			Query:               "select 1 from os_version where platform = 'darwin' and major >= 14;",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
 	}
 
 	names := fleet.ReservedLabelNames()

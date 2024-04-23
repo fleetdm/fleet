@@ -3780,6 +3780,11 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Empty(t, createResp.Label.HostIDs)
 	lbl1 := createResp.Label.Label
 
+	// try to create a manual label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
+	// try to create a dynamic label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Query: "select 2"}, http.StatusConflict, &createResp)
+
 	// get the label
 	var getResp getLabelResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), nil, http.StatusOK, &getResp)
@@ -3813,6 +3818,11 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, strings.ReplaceAll(t.Name(), "/", "_")+"manual2", createResp.Label.Name)
 	assert.Empty(t, createResp.Label.HostIDs)
 	manualLbl2 := createResp.Label.Label
+
+	// try to create a manual label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
+	// try to create a dynamic label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Query: "select 2"}, http.StatusConflict, &createResp)
 
 	// get the label
 	getResp = getLabelResponse{}
@@ -6846,7 +6856,6 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 
 func (s *integrationTestSuite) TestSearchTargets() {
 	t := s.T()
-
 	hosts := s.createHosts(t)
 
 	var builtinNames []string
@@ -6874,7 +6883,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
-	require.Len(t, searchResp.Targets.Labels, 0)         // labels have been omitted
+	require.Len(t, searchResp.Targets.Labels, 0)         // All built-in labels have been omitted (pre-selected)
 	require.Len(t, searchResp.Targets.Teams, 0)
 
 	searchResp = searchTargetsResponse{}
@@ -6888,7 +6897,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, 1)
-	require.Len(t, searchResp.Targets.Labels, 1)
+	require.Len(t, searchResp.Targets.Labels, 1) // with a match query, only matching label names and "All Hosts" can be returned (here, only all hosts)
 	require.Len(t, searchResp.Targets.Teams, 0)
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
 }

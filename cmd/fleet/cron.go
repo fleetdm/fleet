@@ -1014,6 +1014,7 @@ func newMDMProfileManager(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 	loggingDebug bool,
+	cfg config.MDMConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -1022,12 +1023,22 @@ func newMDMProfileManager(
 		// cron interval as we scale to more hosts.
 		defaultInterval = 30 * time.Second
 	)
+
+	if !cfg.IsAppleSCEPSet() {
+		return nil, ctxerr.New(ctx, "SCEP configuration is required")
+	}
+
+	cert, _, _, err := cfg.AppleSCEP()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting Apple SCEP keypair")
+	}
+
 	logger = kitlog.With(logger, "cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+			return service.ReconcileAppleProfiles(ctx, ds, commander, logger, cert)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
