@@ -245,7 +245,7 @@ The on-call developer is responsible for:
 The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories run code that is managed in two places: 
 1. The code and workflows in their respective repository.
 2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo. These code sections are copied and run by the nvd and vulnerabilities repos.
-   Code areas in [fleet](https://github.com/fleetdm/fleet) repo that affects [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories include:
+   Code areas in [fleet](https://github.com/fleetdm/fleet) repo that affect [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories include:
    a. TODO: add code sections.
     
 The nvd and vulnerabilities repositories continuously create output files in their predefined cadance. Therefore, merging PRs into them or into the relevant code sections in fleet repository is effective immedtiately upon merge and is considered released and used by all customers. Due to this reason we need a special procedure to include a QA phase before merging. (Code merges to other fleet areas go through code review only. QA is later done as part of releasing the Fleet server, Fleetd or Fleetd Chrome extention.)
