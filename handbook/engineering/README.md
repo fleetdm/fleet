@@ -254,25 +254,25 @@ The nvd and vulnerabilities repositories continuously create output files in the
 The repositories will only take tag-based code from the [Fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories are configured to take their specific tag (changing the tag requires a PR).
 
 #### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
-1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345
-2. Merge PR into fleet main branch after review and approval
-3. Tag fleet main branch with VULN_TAG_XXXXX (e.g. VULN_TAG_12345)
-4. Fork the relevant repo/s (nvd and/or vulnerabilities) and configure them to use the relevant tag (e.g. VULN_TAG_12345)
-5. Hand over the forked repo/s to QA for testing
-6. Wait for QA approval (see QA process below)
-7. After successful QA, change the tag in the [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories (Using a PR)
+1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345.
+2. Merge PR into fleet main branch after review and approval.
+3. Tag fleet main branch with VULN_TAG_XXXXX (e.g. VULN_TAG_12345).
+4. Fork the relevant repo/s (nvd and/or vulnerabilities) and configure them to use the relevant tag (e.g. VULN_TAG_12345).
+5. Hand over the forked repo/s to QA for testing.
+6. Wait for QA approval (see QA process below).
+7. After successful QA, change the tag in the [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories (Using a PR).
 
 #### Dev work in nvd and/or vulnerabilities repo/s
-1. Fork [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repo/s
-2. Create a new PR and merge the new code into them
-3. Hand over the forked repo/s to QA for testing
-4. Wait for QA approval (see changes below)
-5. After successful QA create a PR and merge into [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities)
+1. Fork [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repo/s.
+2. Create a new PR and merge the new code into them.
+3. Hand over the forked repo/s to QA for testing.
+4. Wait for QA approval (see changes below).
+5. After successful QA create a PR and merge into [nvd](https://github.com/fleetdm/nvd) and/or [vulnerabilities](https://github.com/fleetdm/vulnerabilities).
 
 #### QA process:
-1. Create test servers
-2. Route the test servers to the test Repo/s
-3. QA → Approve or reject
+1. Create test servers.
+2. Route the test servers to the test Repo/s.
+3. QA → Approve or reject.
 
 ### Run Fleet locally for QA purposes
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
