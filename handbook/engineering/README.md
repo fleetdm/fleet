@@ -241,14 +241,14 @@ The on-call developer is responsible for:
 3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field.
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
-### Make changes to vulnerabilitie-repo and NVD-repo
+### Development and changes to vulnerabilities and/or nvd repositories
 
-NVD-repo and Vulnerability-repo have two code locations that affect them. 
-1. Their own code (within the repository itself).
-2. Code sections in Fleet main repo that is being copied and run.
+[nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories run code managed in two places: 
+1. The code and workflows in their repository.
+2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo. These code sections are copied and run by the nvd and vulnerabilities repos.
 
-Merging PRs into NVD-repo and/or Vulnerability-repo or into the relevant code sections in fleet repo, has an immediate effect of releasing and deploying to all customers without QA. 
-Due to this reason we need a special procedure for merging code into them.
+Merging PRs into nvd and/or vulnerabilities repos or into the relevant code sections in fleet repo, is effective immedtiately upon merge and is considered released and deployed to all customers. 
+Due to this reason we need a special procedure to include a QA phase before merging. (Regular code merges go through code review but no QA)
 
 #### Copying code from fellt-repo
 The repos will only take TAG based code from fleet-main and not the latest.
