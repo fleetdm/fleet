@@ -1,11 +1,11 @@
-name: Sign with DigiCert KeyLocker KSP
+name: Test Windows code signing
 
 on:
   pull_request:
 
 jobs:
-  windows-sign-test:
-    runs-on: windows-latest
+  build-windows-exe:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
@@ -13,61 +13,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Certificate
-        run: |
-          echo "${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}" | base64 --decode > /d/Certificate_pkcs12.p12
-          openssl pkcs12 -in /d/Certificate_pkcs12.p12 -nodes -passin pass:${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }} | openssl x509 -noout -subject
-        shell: bash
-
-      - name: Set variables
-        id: variables
-        run: |
-          dir
-          echo "::set-output name=version::${GITHUB_REF#refs/tags/v}"
-          echo "::set-output name=KEYPAIR_NAME::gt-standard-keypair"
-          echo "::set-output name=CERTIFICATE_NAME::gt-certificate"
-          echo "SM_HOST=${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}" >> "$GITHUB_ENV"
-          echo "SM_API_KEY=${{ secrets.DIGICERT_API_KEY }}" >> "$GITHUB_ENV"
-          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
-          echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}" >> "$GITHUB_ENV"
-          echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH
-          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
-          echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" >> $GITHUB_PATH
-        shell: bash
-
-      - name: Download Keylocker KSP on windows
-        run: |
-          curl https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" --fail-with-body -o Keylockertools-windows-x64.msi
-        shell: cmd
-
-      - name: Install Keylocker KSP on windows
-        run: |
-          msiexec /i Keylockertools-windows-x64.msi /quiet /qn
-          smksp_registrar.exe list
-          smctl.exe keypair ls
-          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
-        shell: cmd
-
-      - name: Certificates Sync
-        run: |
-          smctl windows certsync
-        shell: cmd
-
-      - name: Create Signed Directory
-        run: |
-          mkdir D:\a\stm-github-action-demo\stm-github-action-demo\dist\
-        shell: cmd
-
-      - name: Signing using Signtool
-        run: |
-          copy victor\hello-world.exe D:\a\stm-github-action-demo\stm-github-action-demo\dist\unsigned.exe
-          signtool.exe sign /v /debug /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "D:\a\stm-github-action-demo\stm-github-action-demo\dist\unsigned.exe"
-          signtool.exe verify /v /pa "D:\a\stm-github-action-demo\stm-github-action-demo\dist\unsigned.exe"
-        shell: cmd
-
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
-          name: windows-latest
-          path: |
-            dist
+          name: unsigned.exe
+          path: victor/hello-world.exe
+
+  code-sign-windows:
+    needs: build-windows-exe
+    uses: ./.github/workflows/code-sign-windows.yml
+
+  upload:
+    needs: code-sign-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download signed artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: signed.exe
+          path: signed.exe
+
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hello-world.exe
+          path: signed.exe
