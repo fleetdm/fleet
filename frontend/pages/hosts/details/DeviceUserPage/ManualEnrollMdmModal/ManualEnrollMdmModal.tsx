@@ -30,6 +30,7 @@ const ManualEnrollMdmModal = ({
         <ol>
           <li>
             <span>Download your profile.</span>
+            <br />
             {/* TODO: make a link component that appears as a button. */}
             <a
               className={`${baseClass}__download-link`}
