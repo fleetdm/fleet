@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@types/dompurify": "3.0.2",
-    "@types/validator": "13.11.9",
     "ace-builds": "1.4.12",
     "axios": "1.6.0",
     "core-js": "3.25.1",
@@ -117,6 +116,7 @@
     "@types/react-tooltip": "4.2.4",
     "@types/sockjs-client": "1.5.1",
     "@types/uuid": "8.3.4",
+    "@types/validator": "13.11.9",
     "@typescript-eslint/eslint-plugin": "5.58.0",
     "@typescript-eslint/parser": "5.58.0",
     "autoprefixer": "10.4.19",
