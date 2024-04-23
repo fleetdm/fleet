@@ -13,7 +13,7 @@ jobs:
           egress-policy: audit
 
       - name: Download unsigned artifact
-        uses: actions/download-artifact@v9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
           name: unsigned.exe
           path: unsigned.exe
