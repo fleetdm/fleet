@@ -53,5 +53,6 @@ module.exports.policies = {
   'try-fleet/view-explore-data': true,
   'try-fleet/view-query-report': true,
   'deliver-talk-to-us-form-submission': true,
+  'get-human-interpretation-from-osquery-sql': true,
   'customers/view-new-license': true,
 };
