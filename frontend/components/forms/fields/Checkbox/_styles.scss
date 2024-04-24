@@ -60,7 +60,7 @@
 
   &__tick {
     @include size(20px);
-    @include position(absolute, 0 null null 0);
+    position: absolute;
     display: inline-block;
     cursor: pointer;
 
@@ -86,6 +86,14 @@
         background-color: $ui-fleet-black-25;
       }
       cursor: default;
+    }
+
+    &--small {
+      @include size(16px);
+
+      &::after {
+        @include size(16px);
+      }
     }
 
     &--indeterminate {

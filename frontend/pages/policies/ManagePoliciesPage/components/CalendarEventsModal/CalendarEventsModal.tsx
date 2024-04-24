@@ -183,11 +183,12 @@ const CalendarEventsModal = ({
                   onChange={() => {
                     onPolicyEnabledChange({ name, value: !isChecked });
                   }}
+                  smallTick
                 >
                   {name}
                 </Checkbox>
                 <div>
-                  <Button variant="text-link">
+                  <Button variant="text-icon">
                     <Icon name="eye" /> Preview
                   </Button>
                 </div>

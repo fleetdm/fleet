@@ -42,13 +42,22 @@
       align-items: center;
       align-self: stretch;
       border-bottom: 1px solid $ui-fleet-black-10;
-      background: $core-white;
 
       &:hover {
         background: $ui-off-white;
+        cursor: pointer;
+
+        label {
+          cursor: pointer;
+        }
+      }
+
+      &:first-child {
+        border-radius: 4px 4px 0 0;
       }
 
       &:last-child {
+        border-radius: 0 0 4px 4px;
         border-bottom: none;
       }
     }
