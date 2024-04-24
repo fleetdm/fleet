@@ -62,9 +62,35 @@ func (s *SoftwareInstaller) AuthzType() string {
 // SoftwareInstallerStatus represents the status of a software installer package.
 type SoftwareInstallerStatus struct {
 	// Installed is the number of hosts that have the software package installed.
-	Installed int `json:"installed" db:"installed"`
+	Installed uint `json:"installed" db:"installed"`
 	// Pending is the number of hosts that have the software package pending installation.
-	Pending int `json:"pending" db:"pending"`
+	Pending uint `json:"pending" db:"pending"`
 	// Failed is the number of hosts that have the software package installation failed.
-	Failed int `json:"failed" db:"failed"`
+	Failed uint `json:"failed" db:"failed"`
+}
+
+// HostSoftwareInstaller represents a software installer package that has been installed on a host.
+type HostSoftwareInstallerResult struct {
+	// InstallUUID is the unique identifier for the software install operation associated with the host.
+	InstallUUID string `json:"install_uuid" db:"install_uuid"`
+	// SoftwareTitle is the title of the software.
+	SoftwareTitle string `json:"software_title" db:"software_title"`
+	// SoftwareVersion is the version of the software.
+	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
+	// SoftwarePackage is the name package of the software installer package.
+	SoftwarePackage string `json:"software_package" db:"software_package"`
+	// HostID is the ID of the host.
+	HostID uint `json:"host_id" db:"host_id"`
+	// HostDisplayName is the display name of the host.
+	HostDisplayName string `json:"host_display_name" db:"host_display_name"`
+	// Status is the status of the software installer package on the host.
+	Status string `json:"status" db:"status"`
+	// Detail is the detail of the software installer package on the host.
+	Detail string `json:"detail" db:"detail"`
+	// Output is the output of the software installer package on the host.
+	Output string `json:"output" db:"output"`
+	// PreInstallQueryOutput is the output of the pre-install query on the host.
+	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
+	// PostInstallScriptOutput is the output of the post-install script on the host.
+	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
 }
