@@ -7,6 +7,11 @@ on:
         description: 'The name of the file to sign'
         required: true
         type: string
+      download_name:
+        description: 'The name of the artifact to download'
+        required: false
+        default: 'unsigned-windows'
+        type: string
       upload_name:
         description: 'The name of the artifact to upload'
         required: false
@@ -39,7 +44,7 @@ jobs:
       - name: Download unsigned artifact
         uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
-          name: unsigned-windows
+          name: ${{ inputs.download_name }}
 
       - name: Setup certificate
         run: |

@@ -1,7 +1,7 @@
 name: Test Windows code signing
 
 on:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   build-windows-exe:

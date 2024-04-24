@@ -1,7 +1,6 @@
 name: GoReleaser Orbit
 
 on:
-  pull_request:
   push:
    tags:
      - 'orbit-*'
