@@ -245,7 +245,7 @@ The on-call developer is responsible for:
 The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories continuously create output files that are downloaded and used by our customers' Fleet servers. 
 They run code that is managed in two places: 
 1. The code and workflows in their respective repository.
-2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo which is copied and run by them. This code starts with the 4 files below but is not limitted to them since other code could be called from them. The process will cover all fleet code using tagging.
+2. Code sections in [fleet](https://github.com/fleetdm/fleet) repo, which are copied and run by them. This code starts with the four files below but is not limited to them since other code could be called from them. The process will cover all fleet code using tagging.
    - cmd/cve/generate.go
    - cmd/cpe/generate.go
    - cmd/msrc/generate.go
