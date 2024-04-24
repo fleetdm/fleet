@@ -24,6 +24,10 @@ runs:
   steps:
     - name: Upload file to R2
       shell: bash
+      env:
+        R2_ENDPOINT: ${{ inputs.r2_endpoint }}
+        R2_ACCESS_KEY_ID: ${{ inputs.r2_access_key_id }}
+        R2_ACCESS_KEY_SECRET: ${{ inputs.r2_access_key_secret }}
       run: |
         sudo ./.github/scripts/rclone-install.sh
         mkdir -p ~/.config/rclone
@@ -32,8 +36,8 @@ runs:
         provider = Cloudflare
         region = auto
         no_check_bucket = true
-        access_key_id = ${{ inputs.r2_access_key_id }}
-        secret_access_key = ${{ inputs.r2_access_key_secret }}
-        endpoint = ${{ inputs.r2_endpoint }}
+        access_key_id = $R2_CHROME_ACCESS_KEY_ID
+        secret_access_key = $R2_CHROME_ACCESS_KEY_SECRET
+        endpoint = $R2_ENDPOINT
         " > ~/.config/rclone/rclone.conf
-        rclone copy ${{ inputs.filename}} r2:${{ inputs.r2_bucket }}/
+        rclone copy -v ${{ inputs.filename}} r2:${{ inputs.r2_bucket }}/
