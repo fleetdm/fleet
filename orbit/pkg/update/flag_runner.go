@@ -1,6 +1,7 @@
 package update
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,103 +25,64 @@ import (
 // It uses an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
 // with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
-	configFetcher OrbitConfigFetcher
-	opt           FlagUpdateOptions
-	cancel        chan struct{}
+	queueOrbitRestart context.CancelFunc
+	opt               FlagUpdateOptions
 }
 
 // FlagUpdateOptions is options provided for the flag update runner
 type FlagUpdateOptions struct {
-	// CheckInterval is the interval to check for updates
-	CheckInterval time.Duration
 	// RootDir is the root directory for orbit state
 	RootDir string
 }
 
 // NewFlagRunner creates a new runner with provided options
 // The runner must be started with Execute
-func NewFlagRunner(configFetcher OrbitConfigFetcher, opt FlagUpdateOptions) *FlagRunner {
+func NewFlagReceiver(queueOrbitRestart context.CancelFunc, opt FlagUpdateOptions) *FlagRunner {
 	return &FlagRunner{
-		configFetcher: configFetcher,
-		opt:           opt,
-		cancel:        make(chan struct{}),
+		queueOrbitRestart: queueOrbitRestart,
+		opt:               opt,
 	}
-}
-
-// Execute starts the loop checking for updates
-func (r *FlagRunner) Execute() error {
-	log.Debug().Msg("starting flag updater")
-
-	ticker := time.NewTicker(r.opt.CheckInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-r.cancel:
-			return nil
-		case <-ticker.C:
-			log.Debug().Msg("calling flags update")
-			didUpdate, err := r.DoFlagsUpdate()
-			if err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "flags updates failed")
-			}
-			if didUpdate {
-				log.Info().Msg("flags updated, exiting")
-				return nil
-			}
-			ticker.Reset(r.opt.CheckInterval)
-		}
-	}
-}
-
-// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
-func (r *FlagRunner) Interrupt(err error) {
-	close(r.cancel)
-	log.Error().Err(err).Msg("interrupt for flags updater")
 }
 
 // DoFlagsUpdate checks for update of flags from Fleet
 // It gets the flags from the Fleet server, and compares them to locally stored flagfile (if it exists)
 // If the flag comparison from disk and server are not equal, it writes the flags to disk, and returns true
-func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
+func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 	flagFileExists := true
 
 	// first off try and read osquery.flags from disk
 	osqueryFlagMapFromFile, err := readFlagFile(r.opt.RootDir)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return false, err
+			return err
 		}
 		// flag file may not exist on disk on first "boot"
 		flagFileExists = false
 	}
 
-	// next GetConfig from Fleet API
-	config, err := r.configFetcher.GetConfig()
-	if err != nil {
-		return false, fmt.Errorf("error getting flags from fleet: %w", err)
-	}
 	if len(config.Flags) == 0 {
 		// command_line_flags not set in YAML, nothing to do
-		return false, nil
+		return nil
 	}
 
 	osqueryFlagMapFromFleet, err := getFlagsFromJSON(config.Flags)
 	if err != nil {
-		return false, fmt.Errorf("error parsing flags: %w", err)
+		return fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	// compare both flags, if they are equal, nothing to do
 	if flagFileExists && reflect.DeepEqual(osqueryFlagMapFromFile, osqueryFlagMapFromFleet) {
-		return false, nil
+		return nil
 	}
 
 	// flags are not equal, write the fleet flags to disk
 	err = writeFlagFile(r.opt.RootDir, osqueryFlagMapFromFleet)
 	if err != nil {
-		return false, fmt.Errorf("error writing flags to disk: %w", err)
+		return fmt.Errorf("error writing flags to disk: %w", err)
 	}
-	return true, nil
+
+	r.queueOrbitRestart()
+	return nil
 }
 
 // ExtensionRunner is a specialized runner to periodically check and update flags from Fleet

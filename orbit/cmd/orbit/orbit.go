@@ -824,20 +824,21 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
 		}
 
-		const orbitFlagsUpdateInterval = 30 * time.Second
-		flagRunner := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
-			CheckInterval: orbitFlagsUpdateInterval,
-			RootDir:       c.String("root-dir"),
+		flagUpdateReciver := update.NewFlagReceiver(orbitClient.UpdateCancelFunc, update.FlagUpdateOptions{
+			RootDir: c.String("root-dir"),
 		})
-		// Try performing a flags update to use latest configured osquery flags from get-go.
-		// This also takes care of populating the server's capabilities as it calls the orbit
-		// config endpoint.
-		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
-			// Just log, OK to continue, since flagRunner will retry
-			// in flagRunner.Execute.
-			log.Debug().Err(err).Msg("initial flags update failed")
+
+		initialConfig, err := orbitClient.GetConfig()
+		if err != nil {
+			log.Error().Msg("initial update failed")
 		}
-		g.Add(flagRunner.Execute, flagRunner.Interrupt)
+		if err := flagUpdateReciver.Run(initialConfig); err != nil {
+			log.Error().Msg("initial flag update failed")
+		}
+
+		orbitClient.RegisterConfigReceiver(flagUpdateReciver)
+
+		g.Add(orbitClient.ExecuteConfigReceivers, orbitClient.InterruptConfigReceivers)
 
 		if !c.Bool("disable-updates") {
 			const serverOverridesInterval = 30 * time.Second
@@ -870,7 +871,7 @@ func main() {
 		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			const orbitExtensionUpdateInterval = 60 * time.Second
-			extRunner := update.NewExtensionConfigUpdateRunner(configFetcher, update.ExtensionUpdateOptions{
+			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
 				CheckInterval: orbitExtensionUpdateInterval,
 				RootDir:       c.String("root-dir"),
 			}, updateRunner)

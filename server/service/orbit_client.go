@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -44,7 +45,32 @@ type OrbitClient struct {
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
 
+	// Interfaces that will receive updated configs
 	ConfigReceivers []update.OrbitConfigReceiver
+	// How frequently a new config will be fetched
+	UpdateInterval   time.Duration
+	UpdateContext    context.Context
+	UpdateCancelFunc context.CancelFunc
+}
+
+func (oc *OrbitClient) ExecuteConfigReceivers() error {
+	ticker := time.NewTicker(oc.UpdateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-oc.UpdateContext.Done():
+			return nil
+		case <-ticker.C:
+			err := oc.RunConfigReceivers()
+			log.Error().Msg(err.Error())
+		}
+	}
+}
+
+func (oc *OrbitClient) InterruptConfigReceivers(err error) {
+	log.Error().Msg(err.Error())
+	oc.UpdateCancelFunc()
 }
 
 // time-to-live for config cache
@@ -100,8 +126,9 @@ type OnGetConfigErrFuncs struct {
 }
 
 var (
-	netErrInterval            = 5 * time.Minute
-	configRetryOnNetworkError = 30 * time.Second
+	netErrInterval                     = 5 * time.Minute
+	configRetryOnNetworkError          = 30 * time.Second
+	defaultOrbitConfigReceiverInterval = 30 * time.Second
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -134,6 +161,7 @@ func NewOrbitClient(
 		hostInfo:          orbitHostInfo,
 		enrolled:          false,
 		onGetConfigErrFns: onGetConfigErrFns,
+		UpdateInterval:    defaultOrbitConfigReceiverInterval,
 	}, nil
 }
 
