@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS host_software_installs (
   post_install_condition_exit_code int(10) DEFAULT NULL,
 
   created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  uploaded_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
 
