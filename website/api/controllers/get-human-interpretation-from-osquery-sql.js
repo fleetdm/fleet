@@ -90,10 +90,10 @@ Please give me all of the above in JSON, with this data shape:
       report = JSON.parse(openAiResponse.choices[0].message.content);
     } catch (err) {
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
-      report = { 
-        risks: failureMessage, 
+      report = {
+        risks: failureMessage,
         whatWillProbablyHappenDuringMaintenance: failureMessage
-      }
+      };
     }
 
     return report;
