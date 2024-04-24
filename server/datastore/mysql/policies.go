@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -603,8 +604,11 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 //
 // Currently, ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+	// Use the same DB for all operations in this method for performance
+	queryerContext := ds.writer(ctx)
+
 	// Preprocess specs and group them by team
-	teamNameToID := make(map[string]uint)
+	teamNameToID := make(map[string]uint, 1)
 	teamIDToPolicies := make(map[uint][]*fleet.PolicySpec, 1)
 
 	// Get the team IDs
@@ -616,8 +620,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		if !ok {
 			if spec.Team != "" {
 				// if team name is not empty, it must have a team ID; otherwise teamID defaults to 0 value
-				err := sqlx.GetContext(ctx, ds.reader(ctx), &teamID, `SELECT id FROM teams WHERE name = ?`, spec.Team)
+				err := sqlx.GetContext(ctx, queryerContext, &teamID, `SELECT id FROM teams WHERE name = ?`, spec.Team)
 				if err != nil {
+					if errors.Is(err, sql.ErrNoRows) {
+						return ctxerr.Wrap(ctx, notFound("Team").WithName(spec.Team), "get team id")
+					}
 					return ctxerr.Wrap(ctx, err, "get team id")
 				}
 			}
@@ -654,7 +661,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			return ctxerr.Wrap(ctx, err, "building query to get policies by name")
 		}
 		policies := make([]policyLite, 0, len(teamPolicySpecs))
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...)
+		err = sqlx.SelectContext(ctx, queryerContext, &policies, query, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting policies by name")
 		}
