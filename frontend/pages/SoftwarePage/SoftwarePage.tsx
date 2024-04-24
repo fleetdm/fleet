@@ -110,6 +110,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
+    isTeamAdmin,
+    isTeamMaintainer,
     isPremiumTier,
     isSandboxMode,
   } = useContext(AppContext);
@@ -142,6 +144,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
+  const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
 
   const {
     currentTeamId,
@@ -218,12 +221,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
 
-  const canManageAutomations =
-    isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
-
   const toggleManageAutomationsModal = useCallback(() => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
   }, [setShowManageAutomationsModal, showManageAutomationsModal]);
+
+  const toggleAddSoftwareModal = useCallback(() => {
+    setShowAddSoftwareModal(!showAddSoftwareModal);
+  }, [showAddSoftwareModal]);
 
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
@@ -295,6 +299,37 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     );
   };
 
+  const renderPageActions = () => {
+    const canManageAutomations =
+      isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
+
+    const canAddSoftware =
+      isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+
+    return (
+      <div className={`${baseClass}__action-buttons`}>
+        {canManageAutomations && isSoftwareConfigLoaded && (
+          <Button
+            onClick={toggleManageAutomationsModal}
+            className={`${baseClass}__manage-automations button`}
+            variant="text-link"
+          >
+            <span>Manage automations</span>
+          </Button>
+        )}
+        {canAddSoftware && (
+          <Button
+            onClick={toggleAddSoftwareModal}
+            className={`${baseClass}__add-software button`}
+            variant="brand"
+          >
+            <span>Add software</span>
+          </Button>
+        )}
+      </div>
+    );
+  };
+
   const renderHeaderDescription = () => {
     return (
       <p>
@@ -358,15 +393,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
               <div className={`${baseClass}__title`}>{renderTitle()}</div>
             </div>
           </div>
-          {canManageAutomations && isSoftwareConfigLoaded && (
-            <Button
-              onClick={toggleManageAutomationsModal}
-              className={`${baseClass}__manage-automations button`}
-              variant="brand"
-            >
-              <span>Manage automations</span>
-            </Button>
-          )}
+          {renderPageActions()}
         </div>
         <div className={`${baseClass}__description`}>
           {renderHeaderDescription()}
