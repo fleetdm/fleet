@@ -641,7 +641,6 @@ the way that the Fleet server works.
 					softwareInstallStore = store
 					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.Bucket)
 				} else {
-					// TODO(mna): to clarify which directory we use: https://github.com/fleetdm/fleet/issues/18329#issuecomment-2072303528
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
 						installerDir = dir
