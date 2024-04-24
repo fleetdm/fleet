@@ -46,9 +46,8 @@ func ExtractMSIMetadata(b []byte) (name, version string, err error) {
 
 		name := msiDecodeName(ee.Name())
 		fmt.Println(name, ee.Type)
-		if name == "Table.File" {
-			fmt.Println("===stream===", name)
 
+		if name == "Table._StringData" {
 			rr, err := c.ReadStream(ee)
 			if err != nil {
 				return "", "", fmt.Errorf("opening file stream %s: %w", name, err)
@@ -58,35 +57,47 @@ func ExtractMSIMetadata(b []byte) (name, version string, err error) {
 			if err != nil {
 				return "", "", fmt.Errorf("reading file stream %s: %w", name, err)
 			}
-			//if bytes.Contains(b, []byte("ProductVersion")) {
-			//	fmt.Println("ProductVersion found")
-			//}
-			//if bytes.Contains(b, []byte("ProductName")) {
-			//	fmt.Println("ProductName found")
-			//}
-			fmt.Printf("%x\n", b[:9])
+			fmt.Println(string(b))
 
 			br := bytes.NewReader(b)
 			doc, err := mscfb.New(br)
 			if err != nil {
-				return "", "", fmt.Errorf("parsing table: %w", err)
+				fmt.Println(">>>> failed parsing table ", name, err)
+				continue
+				//return "", "", fmt.Errorf("parsing table: %w", err)
 			}
-			//for _, f := range doc.File {
-			//	fmt.Println("=========stream file=====", f.Name)
-			//	var b []byte
-			//	_, err := f.Read(b)
-			//	if err != nil {
-			//		if err == io.EOF {
-			//			fmt.Println("EOF")
-			//			continue
-			//		}
-			//		return "", "", fmt.Errorf("rrrrrrrrrrrrrread table: %w", err)
-			//	}
-			//	fmt.Println(">>>", strconv.Quote(string(b)), "<<<")
-			//}
-
-			fmt.Println(doc)
+			_ = doc
 		}
+		//if bytes.Contains(b, []byte("ProductVersion")) {
+		//	fmt.Println("ProductVersion found")
+		//}
+		//if bytes.Contains(b, []byte("ProductName")) {
+		//	fmt.Println("ProductName found")
+		//}
+		//fmt.Printf("%x\n", b[:9])
+
+		//br := bytes.NewReader(b)
+		//doc, err := mscfb.New(br)
+		//if err != nil {
+		//	fmt.Println(">>>> failed parsing table ", name, err)
+		//	continue
+		//	//return "", "", fmt.Errorf("parsing table: %w", err)
+		//}
+		//for _, f := range doc.File {
+		//	fmt.Println("=========stream file=====", f.Name)
+		//	var b []byte
+		//	_, err := f.Read(b)
+		//	if err != nil {
+		//		if err == io.EOF {
+		//			fmt.Println("EOF")
+		//			continue
+		//		}
+		//		return "", "", fmt.Errorf("rrrrrrrrrrrrrread table: %w", err)
+		//	}
+		//	fmt.Println(">>>", strconv.Quote(string(b)), "<<<")
+		//}
+
+		//fmt.Println(doc)
 	}
 
 	return "", "", nil
