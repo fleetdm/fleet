@@ -241,7 +241,7 @@ The on-call developer is responsible for:
 3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field.
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
-### Development in vulnerabilities and/or nvd repositories
+### Development in vulnerabilities and nvd repositories
 The [nvd](https://github.com/fleetdm/nvd) and [vulnerabilities](https://github.com/fleetdm/vulnerabilities) repositories continuously create output files that are downloaded and used by our customers' Fleet servers. 
 They run code that is managed in two places: 
 1. The code and workflows in their respective repository.
@@ -253,8 +253,8 @@ They run code that is managed in two places:
 
 The process below ensures that QA is done before any code is effective and running.
 
-#### How nvd and/or vulnerabilities repositories take code from fleet repo
-The repositories will only take tag-based code from the [fleet](https://github.com/fleetdm/fleet) 'main' branch and not the latest code. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories use an environment parameter to configure their respective tag (changing the tag for any of the repos requires a PR).
+#### How do nvd and vulnerabilities repositories take code from fleet repo
+The repositories will only take tag-based code from the [fleet](https://github.com/fleetdm/fleet) 'main' branch, not the latest one. Tags will include PR numbers in them, e.g. VULN_TAG_12345. Both repositories use an environment parameter to configure their respective tag (changing the tag for any of the repos requires a PR).
 
 #### Dev work in fleet repo code area that is copied and run by nvd and/or vulnerabilities repos
 1. Create a new PR into [fleet](https://github.com/fleetdm/fleet) e.g. #12345.
