@@ -28,6 +28,7 @@ import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
+import AddSoftwareModal from "./components/AddSoftwareModal";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -306,23 +307,21 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
+    if (!isSoftwareConfigLoaded) return null;
+
     return (
       <div className={`${baseClass}__action-buttons`}>
-        {canManageAutomations && isSoftwareConfigLoaded && (
+        {canManageAutomations && (
           <Button
             onClick={toggleManageAutomationsModal}
-            className={`${baseClass}__manage-automations button`}
+            className={`${baseClass}__manage-automations`}
             variant="text-link"
           >
             <span>Manage automations</span>
           </Button>
         )}
         {canAddSoftware && (
-          <Button
-            onClick={toggleAddSoftwareModal}
-            className={`${baseClass}__add-software button`}
-            variant="brand"
-          >
+          <Button onClick={toggleAddSoftwareModal} variant="brand">
             <span>Add software</span>
           </Button>
         )}
@@ -411,6 +410,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             softwareVulnerabilityWebhookEnabled={isVulnWebhookEnabled}
             currentDestinationUrl={vulnWebhookSettings?.destination_url || ""}
             recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
+          />
+        )}
+        {showAddSoftwareModal && currentTeamId && (
+          <AddSoftwareModal
+            teamId={currentTeamId}
+            onExit={toggleAddSoftwareModal}
           />
         )}
       </div>
