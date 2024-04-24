@@ -2,6 +2,7 @@ package file
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/saferwall/pe"
 )
@@ -39,5 +40,5 @@ func ExtractPEMetadata(b []byte) (name, version string, err error) {
 	if err != nil {
 		return "", "", fmt.Errorf("error parsing PE version resources: %w", err)
 	}
-	return v["ProductName"], v["ProductVersion"], nil
+	return strings.TrimSpace(v["ProductName"]), strings.TrimSpace(v["ProductVersion"]), nil
 }

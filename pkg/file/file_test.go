@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -89,4 +90,47 @@ func TestExists(t *testing.T) {
 	exists, err = file.Exists(filepath.Join(tmp, "dir"))
 	require.NoError(t, err)
 	assert.False(t, exists)
+}
+
+// TestExtractInstallerMetadata tests the ExtractInstallerMetadata function. It
+// calls the function for every file under testdata/installers and checks that
+// it returns the expected metadata by comparing it to the software name and
+// version in the filename.
+//
+// The filename should have the following format:
+//
+//	<software_name>$<version>[$<anything>].<extension>
+//
+// That is, it breaks the file name at the dollar sign and the first part is
+// the expected name, the second is the expected version. Note that by default,
+// files in testdata/installers are NOT included in git, so the test files must
+// be added manually (for size and licenses considerations). Why the dollar
+// sign? Because dots, dashes and underlines are more likely to be part of the
+// name or version.
+func TestExtractInstallerMetadata(t *testing.T) {
+	dents, err := os.ReadDir(filepath.Join("testdata", "installers"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, dent := range dents {
+		if !dent.Type().IsRegular() || strings.HasPrefix(dent.Name(), ".") {
+			continue
+		}
+		t.Run(dent.Name(), func(t *testing.T) {
+			parts := strings.Split(strings.TrimSuffix(dent.Name(), filepath.Ext(dent.Name())), "$")
+			if len(parts) < 2 {
+				t.Fatalf("invalid filename, expected at least 2 sections, got %d: %s", len(parts), dent.Name())
+			}
+			wantName, wantVersion := parts[0], parts[1]
+
+			content, err := os.ReadFile(filepath.Join("testdata", "installers", dent.Name()))
+			require.NoError(t, err)
+
+			name, version, err := file.ExtractInstallerMetadata(dent.Name(), content)
+			require.NoError(t, err)
+			assert.Equal(t, wantName, name)
+			assert.Equal(t, wantVersion, version)
+		})
+	}
 }
