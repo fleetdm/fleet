@@ -1,10 +1,31 @@
-import React from "react";
+import React, { useState } from "react";
 
 import Modal from "components/Modal";
-import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Button from "components/buttons/Button";
+import AddSoftwareForm from "../AddSoftwareForm";
 
 const baseClass = "add-software-modal";
+
+interface IAllTeamsMessageProps {
+  onExit: () => void;
+}
+
+const AllTeamsMessage = ({ onExit }: IAllTeamsMessageProps) => {
+  return (
+    <>
+      <p>
+        Please select a team first. Software can&apos;t be added when{" "}
+        <b>All teams</b> is selected.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button variant="brand" onClick={onExit}>
+          Done
+        </Button>
+      </div>
+    </>
+  );
+};
 
 interface IAddSoftwareModalProps {
   teamId: number;
@@ -12,26 +33,7 @@ interface IAddSoftwareModalProps {
 }
 
 const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
-  console.log(teamId);
-  const renderAllTeamsMessage = () => {
-    return (
-      <>
-        <p>
-          Please select a team first. Software can&apos;t be added when{" "}
-          <b>All teams</b> is selected.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button variant="brand" onClick={onExit}>
-            Done
-          </Button>
-        </div>
-      </>
-    );
-  };
-
-  const renderForm = () => {
-    return <p>Form</p>;
-  };
+  const [isUploading, setIsUploading] = useState(true);
 
   return (
     <Modal
@@ -41,9 +43,11 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
       className={baseClass}
     >
       <>
-        {teamId === APP_CONTEXT_ALL_TEAMS_ID
-          ? renderAllTeamsMessage()
-          : renderForm()}
+        {teamId === APP_CONTEXT_ALL_TEAMS_ID ? (
+          <AllTeamsMessage onExit={onExit} />
+        ) : (
+          <AddSoftwareForm isUploading={isUploading} />
+        )}
       </>
     </Modal>
   );

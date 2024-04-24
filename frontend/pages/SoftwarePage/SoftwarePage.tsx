@@ -412,9 +412,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
           />
         )}
-        {showAddSoftwareModal && currentTeamId && (
+        {true && (
           <AddSoftwareModal
-            teamId={currentTeamId}
+            teamId={currentTeamId ?? 0}
             onExit={toggleAddSoftwareModal}
           />
         )}
