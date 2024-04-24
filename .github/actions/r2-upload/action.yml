@@ -36,8 +36,8 @@ runs:
         provider = Cloudflare
         region = auto
         no_check_bucket = true
-        access_key_id = $R2_CHROME_ACCESS_KEY_ID
-        secret_access_key = $R2_CHROME_ACCESS_KEY_SECRET
+        access_key_id = $R2_ACCESS_KEY_ID
+        secret_access_key = $R2_ACCESS_KEY_SECRET
         endpoint = $R2_ENDPOINT
         " > ~/.config/rclone/rclone.conf
-        rclone copy --verbose ${{ inputs.filename}} r2:${{ inputs.r2_bucket }}/
+        rclone copy --verbose ${{ inputs.filename }} r2:${{ inputs.r2_bucket }}/
