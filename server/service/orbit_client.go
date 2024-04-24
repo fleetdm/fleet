@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -42,6 +43,8 @@ type OrbitClient struct {
 
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
+
+	ConfigReceivers []update.OrbitConfigReceiver
 }
 
 // time-to-live for config cache
@@ -132,6 +135,43 @@ func NewOrbitClient(
 		enrolled:          false,
 		onGetConfigErrFns: onGetConfigErrFns,
 	}, nil
+}
+
+func (oc *OrbitClient) RunConfigReceivers() error {
+	config, err := oc.GetConfig()
+	if err != nil {
+		return fmt.Errorf("RunReceivers get config: %w", err)
+	}
+
+	var errs []error
+	var errMu sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(len(oc.ConfigReceivers))
+
+	for _, receiver := range oc.ConfigReceivers {
+		receiver := receiver
+		go func() {
+			err := receiver.Run(config)
+			if err != nil {
+				errMu.Lock()
+				errs = append(errs, err)
+				errMu.Unlock()
+			}
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+
+	if len(errs) != 0 {
+		return errors.Join(errs...)
+	}
+
+	return nil
+}
+
+func (oc *OrbitClient) RegisterConfigReceiver(cr update.OrbitConfigReceiver) {
+	oc.ConfigReceivers = append(oc.ConfigReceivers, cr)
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
