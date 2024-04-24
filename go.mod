@@ -30,7 +30,7 @@ require (
 	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.1
-	github.com/facebookincubator/nvdtools v0.1.6-0.20231010102659-d14ce526f176
+	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c
 	github.com/fatih/color v1.15.0
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
@@ -205,7 +205,6 @@ require (
 	github.com/elastic/go-sysinfo v1.7.1 // indirect
 	github.com/elastic/go-windows v1.0.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
