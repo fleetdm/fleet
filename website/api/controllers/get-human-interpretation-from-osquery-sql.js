@@ -82,7 +82,6 @@ Please give me all of the above in JSON, with this data shape:
             }
           }
         ]
-        
       };
     });
 
