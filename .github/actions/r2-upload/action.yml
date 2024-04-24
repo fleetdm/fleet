@@ -40,4 +40,4 @@ runs:
         secret_access_key = $R2_CHROME_ACCESS_KEY_SECRET
         endpoint = $R2_ENDPOINT
         " > ~/.config/rclone/rclone.conf
-        rclone copy -v ${{ inputs.filename}} r2:${{ inputs.r2_bucket }}/
+        rclone copy --verbose ${{ inputs.filename}} r2:${{ inputs.r2_bucket }}/
