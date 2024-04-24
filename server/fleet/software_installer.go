@@ -66,7 +66,7 @@ type SoftwareInstallerStatusSummary struct {
 	// Pending is the number of hosts that have the software package pending installation.
 	Pending uint `json:"pending" db:"pending"`
 	// Failed is the number of hosts that have the software package installation failed.
-	Failed int `json:"failed" db:"failed"`
+	Failed uint `json:"failed" db:"failed"`
 }
 
 // SoftwareInstallerStatus represents the status of a software installer package on a host.
