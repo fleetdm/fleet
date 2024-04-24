@@ -2429,18 +2429,19 @@ Lists the software installed on the current device.
   "software_titles": [
     {
       "id": 123,
-      "name": "Google Chrome.app"
-      "versions": ["121.0"]
-      "source": "apps"
-      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+      "name": "Google Chrome.app",
+      "versions": ["121.0"],
+      "source": "apps",
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
       "status": "failed",
       "detail": "Software is installed, but script after installation failed."
     },
     {
       "id": 127,
-      "name": "Firefox.app"
-      "versions": ["118.0, 119.0"]
-      "source": "apps"
+      "name": "Firefox.app",
+      "self_service": true,
+      "versions": ["118.0, 119.0"],
+      "source": "apps",
       "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
       "status": "installed",
       "detail": ""
@@ -2458,6 +2459,26 @@ Lists the software installed on the current device.
 }
 ```
 
+#### Install self-service software
+
+Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
+
+`POST /api/v1/fleet/device/{token}/software/install/:software_title_id`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | **Required**. The device's authentication token. |
+| software_title_id | string | path | **Required**. The software title's ID. |
+
+##### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
+
+##### Default response
+
+`Status: 202`
 
 #### Get device's policies
 
