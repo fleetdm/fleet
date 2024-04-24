@@ -19,6 +19,11 @@ defaults:
 permissions:
   contents: read
 
+env:
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
+  R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
+  R2_BUCKET: download-testing # Production: download | Testing: download-testing
+
 jobs:
   check-for-fleetd-component-updates:
     runs-on: ubuntu-latest
@@ -60,7 +65,6 @@ jobs:
         with:
           name: latest-meta.json
           path: latest-meta.json
-          retention-days: 5
 
   update-fleetd-base-pkg:
     needs: [check-for-fleetd-component-updates]
@@ -107,24 +111,13 @@ jobs:
           mv fleet-osquery*.pkg fleetd-base.pkg
 
       - name: Upload package
-        env:
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
-          R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
-          R2_BUCKET: download-testing # Production: download | Testing: download-testing
-        run: |
-          sudo ./.github/scripts/rclone-install.sh
-          mkdir -p ~/.config/rclone
-          echo "[r2]
-          type = s3
-          provider = Cloudflare
-          region = auto
-          no_check_bucket = true
-          access_key_id = $R2_ACCESS_KEY_ID
-          secret_access_key = $R2_ACCESS_KEY_SECRET
-          endpoint = $R2_ENDPOINT
-          " > ~/.config/rclone/rclone.conf
-          rclone copy fleetd-base.pkg r2:$R2_BUCKET/
+        uses: ./.github/actions/r2-upload
+        with:
+          filename: fleetd-base.pkg
+          r2_endpoint: ${{ secrets.R2_ENDPOINT }}
+          r2_access_key_id: $R2_ACCESS_KEY_ID
+          r2_access_key_secret: $R2_ACCESS_KEY_SECRET
+          r2_bucket: $R2_BUCKET
 
   update-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
@@ -151,24 +144,13 @@ jobs:
           mv fleet-osquery*.msi fleetd-base.msi
 
       - name: Upload package
-        env:
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
-          R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
-          R2_BUCKET: download-testing # Production: download | Testing: download-testing
-        run: |
-          sudo ./.github/scripts/rclone-install.sh
-          mkdir -p ~/.config/rclone
-          echo "[r2]
-          type = s3
-          provider = Cloudflare
-          region = auto
-          no_check_bucket = true
-          access_key_id = $R2_ACCESS_KEY_ID
-          secret_access_key = $R2_ACCESS_KEY_SECRET
-          endpoint = $R2_ENDPOINT
-          " > ~/.config/rclone/rclone.conf
-          rclone copy fleetd-base.msi r2:$R2_BUCKET/
+        uses: ./.github/actions/r2-upload
+        with:
+          filename: fleetd-base.msi
+          r2_endpoint: ${{ secrets.R2_ENDPOINT }}
+          r2_access_key_id: $R2_ACCESS_KEY_ID
+          r2_access_key_secret: $R2_ACCESS_KEY_SECRET
+          r2_bucket: $R2_BUCKET
 
   update-meta-json:
     needs: [update-fleetd-base-pkg, update-fleetd-base-msi]
@@ -193,22 +175,11 @@ jobs:
       - name: Rename latest-meta.json to meta.json
         run: mv latest-meta.json meta.json
 
-      - name: Upload meta.json to R2
-        env:
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
-          R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
-          R2_BUCKET: download-testing # Production: download | Testing: download-testing
-        run: |
-          sudo ./.github/scripts/rclone-install.sh
-          mkdir -p ~/.config/rclone
-          echo "[r2]
-          type = s3
-          provider = Cloudflare
-          region = auto
-          no_check_bucket = true
-          access_key_id = $R2_ACCESS_KEY_ID
-          secret_access_key = $R2_ACCESS_KEY_SECRET
-          endpoint = $R2_ENDPOINT
-          " > ~/.config/rclone/rclone.conf
-          rclone copy meta.json r2:$R2_BUCKET/
+      - name: Upload meta.json
+        uses: ./.github/actions/r2-upload
+        with:
+          filename: meta.json
+          r2_endpoint: ${{ secrets.R2_ENDPOINT }}
+          r2_access_key_id: $R2_ACCESS_KEY_ID
+          r2_access_key_secret: $R2_ACCESS_KEY_SECRET
+          r2_bucket: $R2_BUCKET

@@ -25,7 +25,7 @@ runs:
     - name: Upload file to R2
       shell: bash
       run: |
-        ./.github/scripts/rclone-install.sh
+        sudo ./.github/scripts/rclone-install.sh
         mkdir -p ~/.config/rclone
         echo "[r2]
         type = s3
