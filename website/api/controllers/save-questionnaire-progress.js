@@ -132,54 +132,58 @@ module.exports = {
         // Otherwise, we'll just assume liu're only aware.  Maybe liu don't fully grasp what Fleet can do.
         psychologicalStage = '2 - Aware';
       }
-    } else if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
-      if(valueFromFormData === 'no-use-case-yet') {
-        // If this user does not have a use case for Fleet yet, set their psyStage to 3
-        // Check the user's answer to the previous question
-        let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
-        if(hasUsedFleetAnswer === 'yes-deployed-local'){
-          // If they've tried Fleet locally, set their stage to 3.
-          psychologicalStage = '3 - Intrigued';
-        } else {
-          psychologicalStage = '2 - Aware';
-        }
-      } else {// Otherwise, they have a use case and will be set to stage 4.
-        psychologicalStage = '4 - Has use case';
-      }
-    } else if(currentStep === 'is-it-any-good') {
+    } else {
+      // If the user submitted any other step, we'll set variables using the answers to the previosu questions.
+      // Get the user's selected primaryBuyingSiutation.
       let currentSelectedBuyingSituation = questionnaireProgress['what-are-you-using-fleet-for'].primaryBuyingSituation;
-      if(currentSelectedBuyingSituation === 'mdm') {
-        // Since the mdm use case question is the only buying situation-sepcific question where a use case can't
-        // be selected,  we'll check the user's previous answers befroe changing their psyStage
-        if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
-          // Check the user's answer to the have-you-ever-used-fleet question.
-          let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
+      // Get the user's answer to the "Have you ever used Fleet?" question.
+      let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
+      if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
+        if(valueFromFormData === 'no-use-case-yet') {
+          // Check the user's answer to the previous question
           if(hasUsedFleetAnswer === 'yes-deployed-local'){
             // If they've tried Fleet locally, set their stage to 3.
             psychologicalStage = '3 - Intrigued';
           } else {
             psychologicalStage = '2 - Aware';
           }
-        } else {
+        } else {// Otherwise, they have a use case and will be set to stage 4.
           psychologicalStage = '4 - Has use case';
         }
-      } else {// For any other selected primary buying situation, since a use case will have been selected, set their psyStage to 4
-        psychologicalStage = '4 - Has use case';
-        // FUTURE: check previous answers for other selected buying situations.
-      }
-    } else if(currentStep === 'what-did-you-think') {
-      // If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
-      if(valueFromFormData === 'deploy-fleet-in-environment') {
-        psychologicalStage = '5 - Personally confident';
-      }
-      // If the user selects "Let me think about it", their stage will not change (They are sent back to the previous step).
-      // If the user selects "I’d like you to host Fleet for me", the form is not submitted, and they are taken to the /contact page instead. FUTURE: set stage to stage 5.
-    } else if(currentStep === 'how-many-hosts') {
-      // If they have Fleet deployed, they have team buy-in
-      psychologicalStage = '6 - Has team buy-in';
-    } else if(currentStep === 'will-you-be-self-hosting') {
-      // If they have Fleet deployed, they have team buy-in
-      psychologicalStage = '6 - Has team buy-in';
+      } else if(currentStep === 'is-it-any-good') {
+        if(currentSelectedBuyingSituation === 'mdm') {
+          // Since the mdm use case question is the only buying situation-sepcific question where a use case can't
+          // be selected,  we'll check the user's previous answers befroe changing their psyStage
+          if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
+            // Check the user's answer to the have-you-ever-used-fleet question.
+            if(hasUsedFleetAnswer === 'yes-deployed-local'){
+              // If they've tried Fleet locally, set their stage to 3.
+              psychologicalStage = '3 - Intrigued';
+            } else {
+              psychologicalStage = '2 - Aware';
+            }
+          } else {
+            psychologicalStage = '4 - Has use case';
+          }
+        } else {// For any other selected primary buying situation, since a use case will have been selected, set their psyStage to 4
+          psychologicalStage = '4 - Has use case';
+          // FUTURE: check previous answers for other selected buying situations.
+        }
+      } else if(currentStep === 'what-did-you-think') {
+        // If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
+        if(valueFromFormData === 'deploy-fleet-in-environment') {
+          psychologicalStage = '5 - Personally confident';
+        }
+        // If the user selects "Let me think about it", their stage will not change (They are sent back to the previous step).
+        // If the user selects "I’d like you to host Fleet for me", the form is not submitted, and they are taken to the /contact page instead. FUTURE: set stage to stage 5.
+      } else if(currentStep === 'how-many-hosts') {
+        // If they have Fleet deployed, they have team buy-in
+        psychologicalStage = '6 - Has team buy-in';
+      } else if(currentStep === 'will-you-be-self-hosting') {
+        // If they have Fleet deployed, they have team buy-in
+        psychologicalStage = '6 - Has team buy-in';
+      }//ﬁ
+
     }//ﬁ
 
     // Send a POST request to Zapier
