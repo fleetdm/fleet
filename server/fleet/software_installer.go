@@ -37,10 +37,34 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 type SoftwareInstaller struct {
 	// TeamID is the ID of the team. A value of nil means it is scoped to hosts that are assigned to
 	// no team.
-	TeamID *uint `json:"team_id"`
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// Name is the name of the software package.
+	Name string `json:"name" db:"name"`
+	// Version is the version of the software package.
+	Version string `json:"version" db:"version"`
+	// UploadedAt is the time the software package was uploaded.
+	UploadedAt string `json:"uploaded_at" db:"uploaded_at"`
+	// InstallerID is the unique identifier for the software package.
+	InstallerID string `json:"-" db:"installer_id"`
+	// InstallScript is the script to run to install the software package.
+	InstallScript string `json:"install_script" db:"install_script"`
+	// PreInstallQuery is the query to run as a condition to installing the software package.
+	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
+	// PostInstallScript is the script to run after installing the software package.
+	PostInstallScript string `json:"post_install_script"`
 }
 
 // AuthzType implements authz.AuthzTyper.
 func (s *SoftwareInstaller) AuthzType() string {
 	return "software_installer"
+}
+
+// SoftwareInstallerStatus represents the status of a software installer package.
+type SoftwareInstallerStatus struct {
+	// Installed is the number of hosts that have the software package installed.
+	Installed int `json:"installed" db:"installed"`
+	// Pending is the number of hosts that have the software package pending installation.
+	Pending int `json:"pending" db:"pending"`
+	// Failed is the number of hosts that have the software package installation failed.
+	Failed int `json:"failed" db:"failed"`
 }
