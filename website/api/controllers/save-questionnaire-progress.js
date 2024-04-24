@@ -133,7 +133,7 @@ module.exports = {
         psychologicalStage = '2 - Aware';
       }
     } else {
-      // If the user submitted any other step, we'll set variables using the answers to the previosu questions.
+      // If the user submitted any other step, we'll set variables using the answers to the previous questions.
       // Get the user's selected primaryBuyingSiutation.
       let currentSelectedBuyingSituation = questionnaireProgress['what-are-you-using-fleet-for'].primaryBuyingSituation;
       // Get the user's answer to the "Have you ever used Fleet?" question.
