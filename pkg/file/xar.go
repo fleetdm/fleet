@@ -144,6 +144,8 @@ func ExtractXARMetadata(b []byte) (name, version string, err error) {
 			// the distribution file can be compressed differently than the TOC, the
 			// actual compression is specified in the Encoding.Style field.
 			if strings.Contains(f.Data.Encoding.Style, "x-gzip") {
+				// despite the name, x-gzip fails to decode with the gzip package
+				// (invalid header), but it works with zlib.
 				zr, err := zlib.NewReader(fileReader)
 				if err != nil {
 					return "", "", fmt.Errorf("create zlib reader: %w", err)
