@@ -10,4 +10,10 @@
       margin: 0
     }
   }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
 }

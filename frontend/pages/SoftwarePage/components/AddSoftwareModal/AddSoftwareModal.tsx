@@ -1,9 +1,12 @@
 import React, { useState } from "react";
 
-import Modal from "components/Modal";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+
 import AddSoftwareForm from "../AddSoftwareForm";
+import { IAddSoftwareFormData } from "../AddSoftwareForm/AddSoftwareForm";
 
 const baseClass = "add-software-modal";
 
@@ -33,7 +36,12 @@ interface IAddSoftwareModalProps {
 }
 
 const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
-  const [isUploading, setIsUploading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const onAddSoftware = (formData: IAddSoftwareFormData) => {
+    console.log("formData", formData);
+    // setIsUploading(true);
+  };
 
   return (
     <Modal
@@ -46,7 +54,11 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
         {teamId === APP_CONTEXT_ALL_TEAMS_ID ? (
           <AllTeamsMessage onExit={onExit} />
         ) : (
-          <AddSoftwareForm isUploading={isUploading} />
+          <AddSoftwareForm
+            isUploading={isUploading}
+            onCancel={onExit}
+            onSubmit={onAddSoftware}
+          />
         )}
       </>
     </Modal>
