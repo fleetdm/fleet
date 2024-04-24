@@ -7865,6 +7865,9 @@ Content-Type: multipart/form-data; boundary=------------------------d8c247122f59
 Content-Disposition: form-data; name="team_id"
 1
 --------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="self_service"
+true
+--------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="install_script"
 sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
 --------------------------d8c247122f594ba0
