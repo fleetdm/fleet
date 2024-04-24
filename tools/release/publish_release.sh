@@ -76,7 +76,8 @@ usage() {
     echo "  -f, --force            Skip all confirmations"
     echo "  -h, --help             Display this help message and exit"
     echo "  -g, --tag              Run the tag step"
-    echo "  -m, --minor            Increment to a minor version instead of patch (Required if including non-bugs"
+    echo "  -m, --minor            Increment to a minor version instead of patch (Required if including non-bugs)"
+    echo "  -n, --announce_only    Announce the release only, do not publish the release."
     echo "  -o, --open_api_key     Set the Open API key for calling out to ChatGPT"
     echo "  -p, --print            If the release is already drafted then print out the helpful info"
     echo "  -q, --quiet            This will skip notifying in slack"
@@ -196,7 +197,7 @@ build_changelog() {
         prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
         if [[ "$main_release" == "true" ]]; then
             # Place to make a main targeted prompt
-            prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
+            prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules: Organize updates into three categories: Endpoint Operations, Device Management (MDM), and Vulnerability Management, with all bug fixes and misc. improvements listed under "Bug fixes and improvements". Start each entry with a past tense verb, using hyphens for bullet points. Include specific details for new features, bug fixes, API changes, and any necessary user actions. Note changes in user interfaces, system feedback, and significant architectural updates. Highlight mandatory actions and major impacts, especially for system administrators. Order seemingly important features at the top of their respective lists.'
         fi
 
         content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
@@ -325,6 +326,44 @@ print_announce_info() {
     fi
 }
 
+general_announce_info() {
+    if [[ "$main_release" == "true" ]]; then
+        article_url="https://fleetdm.com/releases/fleet-$target_milestone"
+        article_published=`curl -is "$article_url" | head -n 1 | awk '{print $2}'`
+        if [[ "$article_published" != "200" ]]; then
+            echo "Could't find article at '$article_url'"
+            exit 1
+        fi
+
+        # TODO Publish Linkedin post about release article here and save url
+        linkedin_post_url=""
+    fi
+    echo "========================================================================="
+    echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
+    echo "========================================================================="
+    # Slack
+    slack_hook_url=https://hooks.slack.com/services
+    app_id=T019PP37ALW
+    announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag"
+    if [[ "$main_release" == "true" ]]; then
+        announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nRelease article: $article_url\nLinkedIn post: $linkedin_post_url"
+    fi
+
+    echo -e $announce_text
+
+    if [ "$quiet" = "false" ]; then
+        if [ "$dry_run" = "false" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"$announce_text\"}" \
+                $slack_hook_url/$app_id/$SLACK_GENERAL_TOKEN
+
+            curl -X POST -H 'Content    -type: application/json' \
+                --data "{\"text\":\"$announce_text\nDogfood Deployed $dogfood_deploy\"}" \
+                $slack_hook_url/$app_id/$SLACK_HELP_INFRA_TOKEN
+        fi
+    fi
+}
+
 update_release_notes() {
     if [ "$dry_run" = "false" ]; then
         if [ ! -f temp_changelog ]; then
@@ -412,62 +451,34 @@ tag() {
 
 publish() {
     if [ "$dry_run" = "false" ]; then
-        if [[ "$main_release" == "true" ]]; then
-            article_url="https://fleetdm.com/releases/fleet-$target_milestone"
-            article_published=`curl -is "$article_url" | head -n 1 | awk '{print $2}'`
-            if [[ "$article_published" != "200" ]]; then
-                echo "Coulndn't find article at '$article_url'"
-                exit 1
-            fi
+        if [ "$announce_only" = "false" ]; then
+            # TODO more checks to validate we are ready to publish
+            gh release edit --draft=false --latest $next_tag
+            gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+            show_spinner 200
+            dogfood_deploy=`gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'`
+            cd tools/fleetctl-npm && npm publish
 
-            # TODO Publish Linkedin post about release article here and save url
-            linkedin_post_url=""
-        fi
-        # TODO more checks to validate we are ready to publish
-        gh release edit --draft=false --latest $next_tag
-        gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
-        show_spinner 200
-        echo "========================================================================="
-        echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
-        echo "========================================================================="
-        dogfood_deploy=`gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'`
-        cd tools/fleetctl-npm && npm publish
+            issues=`gh issue list -m $target_milestone --json number | jq -r '.[] | .number'`
+            for iss in $issues; do
+                is_story=`gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story`
+                # close all non-stories
+                if [[ "$is_story" == "" ]]; then
+                    echo "Closing #$iss"
+                    gh issue close $iss
+                fi
+            done
 
-        issues=`gh issue list -m $target_milestone --json number | jq -r '.[] | .number'`
-        for iss in $issues; do
-            is_story=`gh issue view $iss --json labels | jq -r '.labels | .[] | .name' | grep story`
-            # close all non-stories
-            if [[ "$is_story" == "" ]]; then
-                echo "Closing #$iss"
-                gh issue close $iss
-            fi
-        done
-
-        echo "Closing milestone"
-        gh api repos/fleetdm/fleet/milestones/$target_milestone_number -f state=closed
-
-        # Slack
-        slack_hook_url=https://hooks.slack.com/services
-        app_id=T019PP37ALW
-        announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nUpgrade now: https://fleetdm.com/docs/deploying/upgrading-fleet"
-        if [[ "$main_release" == "true" ]]; then
-            announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nUpgrade now: https://fleetdm.com/docs/deploying/upgrading-fleet\nRelease Article: $article_url\nLinkedIn Post: $linkedin_post_url"
-        fi
-
-        echo $announce_text
-
-        if [ "$quiet" = "false" ]; then
-            curl -X POST -H 'Content-type: application/json' \
-                --data "{\"text\":\"$announce_text\"}" \
-                $slack_hook_url/$app_id/$SLACK_GENERAL_TOKEN
-
-            curl -X POST -H 'Content-type: application/json' \
-                --data "{\"text\":\"$announce_text\nDogfood Deployed $dogfood_deploy\"}" \
-                $slack_hook_url/$app_id/$SLACK_HELP_INFRA_TOKEN
+            echo "Closing milestone"
+            gh api repos/fleetdm/fleet/milestones/$target_milestone_number -f state=closed
         fi
     else
         echo "DRYRUN: Would have published $next_tag / deployed to dogfood / closed non-stories / closed milestone / announced in slack"
     fi
+
+    echo "Send general announce" 
+    # Send general announcement in #general
+    general_announce_info
 }
 
 # Validate we have all commands required to perform this script
@@ -478,6 +489,7 @@ cherry_pick_resolved=false
 dry_run=false
 force=false
 minor=false
+announce_only=false
 open_api_key=""
 start_version=""
 target_date=""
@@ -499,6 +511,7 @@ for arg in "$@"; do
     "--force") set -- "$@" "-f" ;;
     "--help") set -- "$@" "-h" ;;
     "--minor") set -- "$@" "-m" ;;
+    "--announce_only") set -- "$@" "-n" ;;
     "--open_api_key") set -- "$@" "-o" ;;
     "--print") set -- "$@" "-p" ;;
     "--quiet") set -- "$@" "-q" ;;
@@ -513,7 +526,7 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "acdfhgmo:pqrs:t:uv:" opt; do
+while getopts "acdfhgmno:pqrs:t:uv:" opt; do
     case "$opt" in
         a) main_release=true ;;
         c) cherry_pick_resolved=true ;;
@@ -522,6 +535,7 @@ while getopts "acdfhgmo:pqrs:t:uv:" opt; do
         h) usage; exit 0 ;;
         g) do_tag=true ;;
         m) minor=true ;;
+        n) announce_only=true ;;
         o) open_api_key=$OPTARG ;;
         p) print_info=true ;;
         q) quiet=true ;;
@@ -663,7 +677,6 @@ if [[ "$target_milestone_number" == "" ]]; then
     exit 1
 fi
 echo "Found milestone $target_milestone with number $target_milestone_number"
-
 
 if [ "$print_info" = "true" ]; then
     print_announce_info

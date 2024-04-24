@@ -552,6 +552,7 @@ module.exports.routes = {
   'POST /api/v1/admin/build-license-key': { action: 'admin/build-license-key' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
+  'POST /api/v1/get-human-interpretation-from-osquery-sql': { action: 'get-human-interpretation-from-osquery-sql', csrf: false },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
