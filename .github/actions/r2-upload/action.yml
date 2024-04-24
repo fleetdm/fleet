@@ -1,0 +1,39 @@
+name: R2 upload
+description: Upload a file to R2
+# Schema: https://json.schemastore.org/github-action.json
+
+inputs:
+  filename:
+    description: 'Name of the file to upload'
+    required: true
+  r2_endpoint:
+    description: 'R2 endpoint'
+    required: true
+  r2_access_key_id:
+    description: 'R2 access key ID'
+    required: true
+  r2_access_key_secret:
+    description: 'R2 access key secret'
+    required: true
+  r2_bucket:
+    description: 'R2 bucket'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Upload file to R2
+      shell: bash
+      run: |
+        ./.github/scripts/rclone-install.sh
+        mkdir -p ~/.config/rclone
+        echo "[r2]
+        type = s3
+        provider = Cloudflare
+        region = auto
+        no_check_bucket = true
+        access_key_id = ${{ inputs.r2_access_key_id }}
+        secret_access_key = ${{ inputs.r2_access_key_secret }}
+        endpoint = ${{ inputs.r2_endpoint }}
+        " > ~/.config/rclone/rclone.conf
+        rclone copy ${{ inputs.filename}} r2:${{ inputs.r2_bucket }}/

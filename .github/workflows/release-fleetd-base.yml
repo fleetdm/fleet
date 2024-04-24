@@ -112,7 +112,7 @@ jobs:
           R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
           R2_BUCKET: download-testing # Production: download | Testing: download-testing
         run: |
-          ./.github/scripts/install-rclone.sh
+          ./.github/scripts/rclone-install.sh
           mkdir -p ~/.config/rclone
           echo "[r2]
           type = s3
@@ -155,7 +155,7 @@ jobs:
           R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
           R2_BUCKET: download-testing # Production: download | Testing: download-testing
         run: |
-          ./.github/scripts/install-rclone.sh
+          ./.github/scripts/rclone-install.sh
           mkdir -p ~/.config/rclone
           echo "[r2]
           type = s3
@@ -194,7 +194,7 @@ jobs:
           R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
           R2_BUCKET: download-testing # Production: download | Testing: download-testing
         run: |
-          ./.github/scripts/install-rclone.sh
+          ./.github/scripts/rclone-install.sh
           mkdir -p ~/.config/rclone
           echo "[r2]
           type = s3
