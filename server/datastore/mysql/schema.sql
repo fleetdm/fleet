@@ -1503,7 +1503,7 @@ CREATE TABLE `software_installers` (
   `pre_install_query` text COLLATE utf8mb4_unicode_ci,
   `install_script_content_id` int(10) unsigned NOT NULL,
   `post_install_script_content_id` int(10) unsigned DEFAULT NULL,
-  `storage_id` binary(16) NOT NULL,
+  `storage_id` binary(64) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_software_installers_version` (`software_id`),

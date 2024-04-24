@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS software_installers (
   post_install_script_content_id int(10) unsigned DEFAULT NULL,
 
   -- used to track the ID retrieved from the storage containing the installer bytes
-  storage_id binary(16) NOT NULL,
+  storage_id binary(64) NOT NULL,
 
   created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
