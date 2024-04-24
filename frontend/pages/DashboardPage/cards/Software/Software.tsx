@@ -94,7 +94,7 @@ const Software = ({
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"software"}
+                  resultsTitle="software"
                   emptyComponent={() => (
                     <EmptySoftwareTable
                       isCollectingSoftware={isCollectingInventory}
@@ -121,7 +121,7 @@ const Software = ({
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"software"}
+                  resultsTitle="software"
                   emptyComponent={() => (
                     <EmptySoftwareTable
                       isCollectingSoftware={isCollectingInventory}

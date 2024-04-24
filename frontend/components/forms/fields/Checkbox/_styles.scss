@@ -22,6 +22,25 @@
         border: solid 2px $core-vibrant-blue;
       }
 
+      &:hover {
+        &::after {
+          background-color: $core-vibrant-blue-over;
+          border: solid 2px $core-vibrant-blue-over;
+        }
+      }
+
+      &--disabled {
+        &::after {
+          @include disabled-checkbox;
+        }
+
+        &:hover {
+          &::after {
+            @include disabled-checkbox;
+          }
+        }
+      }
+
       &::before {
         @include position(absolute, 50% null null 50%);
         transform: rotate(45deg);
@@ -34,6 +53,7 @@
         border-top: 0;
         border-left: 0;
         content: "";
+        z-index: 9;
       }
     }
   }
@@ -42,6 +62,7 @@
     @include size(20px);
     @include position(absolute, 0 null null 0);
     display: inline-block;
+    cursor: pointer;
 
     &::after {
       @include size(20px);
@@ -54,17 +75,32 @@
       background-color: $core-white;
       visibility: visible;
     }
+    &:hover {
+      &::after {
+        border: solid 2px $core-vibrant-blue-over;
+      }
+    }
 
     &--disabled {
       &::after {
         background-color: $ui-fleet-black-25;
       }
+      cursor: default;
     }
 
     &--indeterminate {
       &::after {
         background-color: $core-vibrant-blue;
         border: solid 1px $core-vibrant-blue;
+      }
+
+      &:hover {
+        &::after {
+          &::after {
+            background-color: $core-vibrant-blue-over;
+            border: solid 1px $core-vibrant-blue-over;
+          }
+        }
       }
 
       &::before {
@@ -86,6 +122,10 @@
     padding-left: $pad-small;
     display: inline-block;
     vertical-align: top;
+
+    &--disabled {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &__label-tooltip {

@@ -1,0 +1,1 @@
+- Fix a bug where `null` or excluded `smtp_settings` caused a UI 500.

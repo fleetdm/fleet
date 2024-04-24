@@ -1,4 +1,7 @@
-import { ProfileOperationType } from "interfaces/mdm";
+import {
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  ProfileOperationType,
+} from "interfaces/mdm";
 
 import { IconNames } from "components/icons";
 import {
@@ -8,6 +11,10 @@ import {
 
 import { OsSettingsTableStatusValue } from "../OSSettingsTableConfig";
 import TooltipInnerContentActionRequired from "./components/Tooltip/ActionRequired";
+
+export const isDiskEncryptionProfile = (profileName: string) => {
+  return profileName === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME;
+};
 
 export type ProfileDisplayOption = {
   statusText: string;
@@ -22,28 +29,35 @@ type OperationTypeOption = Record<
 
 type ProfileDisplayConfig = Record<ProfileOperationType, OperationTypeOption>;
 
+const MAC_PROFILE_VERIFIED_DISPLAY_CONFIG: ProfileDisplayOption = {
+  statusText: "Verified",
+  iconName: "success",
+  tooltip: (innerProps) =>
+    innerProps.isDiskEncryptionProfile
+      ? "The host turned disk encryption on and sent the key to Fleet. " +
+        "Fleet verified with osquery."
+      : "The host applied the setting. Fleet verified with osquery. " +
+        "Declaration profiles are verified with DDM.",
+} as const;
+
+const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
+  statusText: "Verifying",
+  iconName: "success-outline",
+  tooltip: (innerProps) =>
+    innerProps.isDiskEncryptionProfile
+      ? "The host acknowledged the MDM command to turn on disk encryption. " +
+        "Fleet is verifying with osquery and retrieving the disk encryption key. " +
+        "This may take up to one hour."
+      : "The host acknowledged the MDM command to apply the setting. Fleet is " +
+        "verifying with osquery.",
+} as const;
+
 export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   install: {
-    verified: {
-      statusText: "Verified",
-      iconName: "success",
-      tooltip: (innerProps) =>
-        innerProps.isDiskEncryptionProfile
-          ? "The host turned disk encryption on and sent the key to Fleet. " +
-            "Fleet verified with osquery."
-          : "The host applied the setting. Fleet verified with osquery.",
-    },
-    verifying: {
-      statusText: "Verifying",
-      iconName: "success-outline",
-      tooltip: (innerProps) =>
-        innerProps.isDiskEncryptionProfile
-          ? "The host acknowledged the MDM command to turn on disk encryption. " +
-            "Fleet is verifying with osquery and retrieving the disk encryption key. " +
-            "This may take up to one hour."
-          : "The host acknowledged the MDM command to apply the setting. Fleet is " +
-            "verifying with osquery.",
-    },
+    verified: MAC_PROFILE_VERIFIED_DISPLAY_CONFIG,
+    success: MAC_PROFILE_VERIFIED_DISPLAY_CONFIG,
+    verifying: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
+    acknowledged: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
     pending: {
       statusText: "Enforcing (pending)",
       iconName: "pending-outline",
@@ -79,6 +93,8 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     action_required: null, // should not be reached
     verified: null, // should not be reached
     verifying: null, // should not be reached
+    success: null, // should not be reached
+    acknowledged: null, // should not be reached
     failed: {
       statusText: "Failed",
       iconName: "error",
@@ -89,7 +105,8 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
 
 type WindowsDiskEncryptionDisplayConfig = Omit<
   OperationTypeOption,
-  "action_required"
+  // windows disk encryption does not have these states
+  "action_required" | "success" | "acknowledged"
 >;
 
 export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig = {

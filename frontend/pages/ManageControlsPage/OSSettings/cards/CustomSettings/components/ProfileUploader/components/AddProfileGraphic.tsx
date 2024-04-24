@@ -3,7 +3,7 @@ import React from "react";
 import Graphic from "components/Graphic";
 
 const ALLOWED_FILE_TYPES_MESSAGE =
-  "Configuration profile (.mobileconfig for macOS or .xml for Windows)";
+  "Configuration profile (.mobileconfig and .json for macOS or .xml for Windows)";
 
 const ProfileGraphic = ({
   baseClass,
@@ -16,7 +16,7 @@ const ProfileGraphic = ({
     <Graphic
       key={`file-configuration-profile-graphic`}
       className={`${baseClass}__graphic`}
-      name={"file-configuration-profile"}
+      name="file-configuration-profile"
     />
     {showMessage && (
       <span className={`${baseClass}__profile-graphic--message`}>

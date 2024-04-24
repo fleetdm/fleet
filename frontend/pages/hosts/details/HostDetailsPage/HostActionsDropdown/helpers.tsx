@@ -5,8 +5,6 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-
 import {
   HostMdmDeviceStatusUIState,
   isDeviceStatusUpdating,
@@ -44,11 +42,11 @@ const DEFAULT_OPTIONS = [
     value: "lock",
     disabled: false,
   },
-  // {
-  //   label: "Wipe",
-  //   value: "wipe",
-  //   disabled: false,
-  // },
+  {
+    label: "Wipe",
+    value: "wipe",
+    disabled: false,
+  },
   {
     label: "Unlock",
     value: "unlock",
@@ -74,10 +72,11 @@ interface IHostActionConfigOptions {
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
   isFleetMdm: boolean;
-  isMdmEnabledAndConfigured: boolean;
+  isMacMdmEnabledAndConfigured: boolean;
+  isWindowsMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
-  isSandboxMode: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
+  hostScriptsEnabled: boolean | null;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -93,11 +92,11 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isTeamMaintainer,
     isEnrolledInMdm,
     isFleetMdm,
-    isMdmEnabledAndConfigured,
+    isMacMdmEnabledAndConfigured,
   } = config;
   return (
     config.hostPlatform === "darwin" &&
-    isMdmEnabledAndConfigured &&
+    isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
     isFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -107,22 +106,20 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
 const canLockHost = ({
   isPremiumTier,
   hostPlatform,
-  isMdmEnabledAndConfigured,
+  isMacMdmEnabledAndConfigured,
   isEnrolledInMdm,
   isFleetMdm,
   isGlobalAdmin,
   isGlobalMaintainer,
-  isGlobalObserver,
   isTeamAdmin,
   isTeamMaintainer,
-  isTeamObserver,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
   // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
   const canLockDarwin =
     hostPlatform === "darwin" &&
     isFleetMdm &&
-    isMdmEnabledAndConfigured &&
+    isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
   return (
@@ -131,12 +128,7 @@ const canLockHost = ({
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
       canLockDarwin) &&
-    (isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isGlobalObserver ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
-      isTeamObserver)
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
 
@@ -150,23 +142,23 @@ const canWipeHost = ({
   isTeamObserver,
   isFleetMdm,
   isEnrolledInMdm,
-  isMdmEnabledAndConfigured,
+  isMacMdmEnabledAndConfigured,
+  isWindowsMdmEnabledAndConfigured,
   hostPlatform,
+  hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  // TODO: remove when we work on wipe issue.
-  return false;
+  const hostMdmEnabled =
+    (hostPlatform === "darwin" && isMacMdmEnabledAndConfigured) ||
+    (hostPlatform === "windows" && isWindowsMdmEnabledAndConfigured);
 
   // macOS and Windows hosts have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
-  const canWipeMacOrWindows =
-    (hostPlatform === "darwin" || hostPlatform === "windows") &&
-    isFleetMdm &&
-    isMdmEnabledAndConfigured &&
-    isEnrolledInMdm;
+  const canWipeMacOrWindows = hostMdmEnabled && isFleetMdm && isEnrolledInMdm;
 
   return (
     isPremiumTier &&
-    (hostPlatform === "linux" || canWipeMacOrWindows) &&
+    hostMdmDeviceStatus === "unlocked" &&
+    (isLinuxLike(hostPlatform) || canWipeMacOrWindows) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalObserver ||
@@ -180,20 +172,18 @@ const canUnlock = ({
   isPremiumTier,
   isGlobalAdmin,
   isGlobalMaintainer,
-  isGlobalObserver,
   isTeamAdmin,
   isTeamMaintainer,
-  isTeamObserver,
   isFleetMdm,
   isEnrolledInMdm,
-  isMdmEnabledAndConfigured,
+  isMacMdmEnabledAndConfigured,
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  const canLockDarwin =
+  const canUnlockDarwin =
     hostPlatform === "darwin" &&
     isFleetMdm &&
-    isMdmEnabledAndConfigured &&
+    isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
   // "unlocking" for a macOS host means that somebody saw the unlock pin, but
@@ -206,13 +196,8 @@ const canUnlock = ({
   return (
     isPremiumTier &&
     isValidState &&
-    (isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isGlobalObserver ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
-      isTeamObserver) &&
-    (canLockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };
 
@@ -251,7 +236,7 @@ const canRunScript = ({
   );
 };
 
-const filterOutOptions = (
+const removeUnavailableOptions = (
   options: IDropdownOption[],
   config: IHostActionConfigOptions
 ) => {
@@ -279,9 +264,9 @@ const filterOutOptions = (
     options = options.filter((option) => option.value !== "lock");
   }
 
-  // if (!canWipeHost(config)) {
-  //   options = options.filter((option) => option.value !== "wipe");
-  // }
+  if (!canWipeHost(config)) {
+    options = options.filter((option) => option.value !== "wipe");
+  }
 
   if (!canUnlock(config)) {
     options = options.filter((option) => option.value !== "unlock");
@@ -295,32 +280,52 @@ const filterOutOptions = (
   return options;
 };
 
-const setOptionsAsDisabled = (
+const modifyOptions = (
   options: IDropdownOption[],
-  { isHostOnline, isSandboxMode, hostMdmDeviceStatus }: IHostActionConfigOptions
+  {
+    isHostOnline,
+    hostMdmDeviceStatus,
+    hostScriptsEnabled,
+    hostPlatform,
+  }: IHostActionConfigOptions
 ) => {
+  // Available tooltips for disabled options
+  const getDropdownOptionTooltipContent = (value: string | number) => {
+    const tooltipAction: Record<string, string> = {
+      runScript: "run scripts on",
+      wipe: "wipe",
+      lock: "lock",
+      unlock: "unlock",
+    };
+    if (tooltipAction[value]) {
+      return (
+        <>
+          To {tooltipAction[value]} this host, deploy the
+          <br />
+          fleetd agent with --enable-scripts and
+          <br />
+          refetch host vitals
+        </>
+      );
+    }
+    if (!isHostOnline && value === "query") {
+      return <>You can&apos;t query an offline host.</>;
+    }
+  };
+
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
       option.disabled = true;
+      option.tooltipContent = getDropdownOptionTooltipContent(option.value);
     });
   };
 
   let optionsToDisable: IDropdownOption[] = [];
-  if (!isHostOnline) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter(
-        (option) => option.value === "query" || option.value === "mdmOff"
-      )
-    );
-  }
-  if (isSandboxMode) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "transfer")
-    );
-  }
   if (
+    !isHostOnline ||
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
-    hostMdmDeviceStatus === "locked"
+    hostMdmDeviceStatus === "locked" ||
+    hostMdmDeviceStatus === "wiped"
   ) {
     optionsToDisable = optionsToDisable.concat(
       options.filter(
@@ -329,6 +334,32 @@ const setOptionsAsDisabled = (
     );
   }
 
+  // null intentionally excluded from this condition:
+  // scripts_enabled === null means this agent is not an orbit agent, or this agent is version
+  // <=1.23.0 which is not collecting the scripts enabled info
+  // in each of these cases, we maintain these options
+  if (hostScriptsEnabled === false) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "runScript")
+    );
+    if (isLinuxLike(hostPlatform)) {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter(
+          (option) =>
+            option.value === "lock" ||
+            option.value === "unlock" ||
+            option.value === "wipe"
+        )
+      );
+    }
+    if (hostPlatform === "windows") {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter(
+          (option) => option.value === "lock" || option.value === "unlock"
+        )
+      );
+    }
+  }
   disableOptions(optionsToDisable);
   return options;
 };
@@ -342,28 +373,11 @@ const setOptionsAsDisabled = (
 export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   // deep clone to always start with a fresh copy of the default options.
   let options: IDropdownOption[] = cloneDeep([...DEFAULT_OPTIONS]);
-  options = filterOutOptions(options, config);
+  options = removeUnavailableOptions(options, config);
 
   if (options.length === 0) return options;
 
-  options = setOptionsAsDisabled(options, config);
-
-  if (config.isSandboxMode) {
-    const premiumOnlyOptions: IDropdownOption[] = options.filter(
-      (option) => !!option.premiumOnly
-    );
-
-    premiumOnlyOptions.forEach((option) => {
-      option.label = (
-        <span>
-          {option.label}
-          <PremiumFeatureIconWithTooltip
-            tooltipPositionOverrides={{ leftAdj: 2 }}
-          />
-        </span>
-      );
-    });
-  }
+  options = modifyOptions(options, config);
 
   return options;
 };

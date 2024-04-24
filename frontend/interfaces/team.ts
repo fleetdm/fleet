@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 import { IConfigFeatures, IWebhookSettings } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
-import { IIntegrations } from "./integration";
+import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
 
 export default PropTypes.shape({
@@ -56,7 +56,8 @@ export interface ITeam extends ITeamSummary {
     macos_setup: {
       bootstrap_package: string | null;
       enable_end_user_authentication: boolean;
-      macos_setup_assistant: string | null; // TODO: types?
+      macos_setup_assistant: string | null;
+      enable_release_device_manually: boolean | null;
     };
     windows_updates: {
       deadline_days: number | null;
@@ -74,7 +75,7 @@ export interface ITeam extends ITeamSummary {
  */
 export type ITeamWebhookSettings = Pick<
   IWebhookSettings,
-  "vulnerabilities_webhook" | "failing_policies_webhook"
+  "vulnerabilities_webhook" | "failing_policies_webhook" | "host_status_webhook"
 >;
 
 /**
@@ -82,7 +83,7 @@ export type ITeamWebhookSettings = Pick<
  */
 export interface ITeamAutomationsConfig {
   webhook_settings: ITeamWebhookSettings;
-  integrations: IIntegrations;
+  integrations: ITeamIntegrations;
 }
 
 /**

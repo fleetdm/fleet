@@ -107,9 +107,9 @@ const generateTableHeaders = (
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {
-      label: "Edit",
+      label: "Rename",
       disabled: false,
-      value: "edit",
+      value: "rename",
     },
     {
       label: "Delete",

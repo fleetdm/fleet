@@ -32,7 +32,7 @@ export default class TableSystemInfo extends Table {
     let warningsArray = [];
 
     // @ts-expect-error @types/chrome doesn't yet have instanceID.
-    const uuid = (await chrome.instanceID.getID()) as string;
+    const uuid = await chrome.instanceID.getID();
     let devMode = false;
     if (!chrome.enterprise) {
       const { installType } = await chrome.management.getSelf();

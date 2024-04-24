@@ -5,7 +5,7 @@ import {
   IIntegrationFormData,
   IIntegrationTableData,
   IIntegration,
-  IIntegrations,
+  IZendeskJiraIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
 
@@ -26,7 +26,7 @@ interface IIntegrationFormProps {
     integrationDestination: string
   ) => void;
   integrationEditing?: IIntegrationTableData;
-  integrations: IIntegrations;
+  integrations: IZendeskJiraIntegrations;
   integrationEditingUrl?: string;
   integrationEditingUsername?: string;
   integrationEditingEmail?: string;
@@ -275,7 +275,7 @@ const IntegrationForm = ({
                     formData.apiToken === "" ||
                     formData.groupId === 0)
               }
-              className={"tooltip"}
+              className="tooltip"
             >
               <Button
                 type="submit"

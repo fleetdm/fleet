@@ -13,33 +13,17 @@ module.exports = {
 
   fn: async function ({ dry }) {
 
-    let path = require('path');
-    let YAML = require('yaml');
-    let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isObject(sails.config.builtStaticContent.rituals)) {
+      throw new Error('Missing, incomplete, or invalid configuration. Could not create issues for todays rituals, please try running `sails run build-static-content` and try running this script again.');
+    }
+
     let baseHeaders = {// (for github api)
       'User-Agent': 'Fleetie pie',
       'Authorization': `token ${sails.config.custom.githubAccessToken}`
     };
 
-    // Find all the files in the top level /handbook folder and it's sub-folders
-    let FILES_IN_HANDBOOK_FOLDER = await sails.helpers.fs.ls.with({
-      dir: path.join(topLvlRepoPath, '/handbook'),
-      depth: 3
-    });
-    // Filter the list of filenames to get the rituals YAML files.
-    let ritualYamlPaths = FILES_IN_HANDBOOK_FOLDER.filter((filePath)=>{
-      return _.endsWith(filePath, 'rituals.yml');
-    });
-    for (let ritualSource of ritualYamlPaths) {
-      // Load rituals
-      let pathToRituals = path.resolve(topLvlRepoPath, ritualSource);
-      let rituals = [];
-      let ritualsYml = await sails.helpers.fs.read(pathToRituals);
-      try {
-        rituals = YAML.parse(ritualsYml, { prettyErrors: true });
-      } catch (err) {
-        throw new Error(`Could not parse the YAMl for rituals at ${pathToRituals} on line ${err.linePos.start.line}. To resolve, make sure the YAML is valid, and try again: ` + err.stack);
-      }
+    for (let ritualSource in sails.config.builtStaticContent.rituals) {
+      let rituals = sails.config.builtStaticContent.rituals[ritualSource];
       for (let ritual of rituals) {
         // For each ritual, we'll:
         //  - Convert the ritual's frequency into milliseconds.
@@ -80,19 +64,14 @@ module.exports = {
         let nextIssueShouldBeCreatedAt = ritualStartedAt + ((Math.floor(howManyRitualsCycles) + 1) * ritualsFrequencyInMs);
         // Get the amount of this ritual's cycle remaining.
         let amountOfCycleRemainingTillNextRitual = (Math.floor(howManyRitualsCycles) - howManyRitualsCycles) + 1;
-        // If amountOfCycleRemainingTillNextRitual is 0, then it is time to create a new issue for this ritual (Note: This will probably never happen)
-        if(amountOfCycleRemainingTillNextRitual === 0 || amountOfCycleRemainingTillNextRitual === -0){
+        // Get the number of milliseconds until the next issue for this ritual will be created.
+        let timeToNextRitualInMs = amountOfCycleRemainingTillNextRitual * ritualsFrequencyInMs;
+        if(_.startsWith(ritual.frequency, 'Daily')) {// Using _.startsWith() to handle frequencies with emoji ("Daily ⏰") and with out ("Daily")
+          // Since this script runs once a day, we'll always create issues for daily rituals.
           isItTimeToCreateANewIssue = true;
-        } else {
-          // Otherwise, get the number of milliseconds until the next issue for this ritual will be created.
-          let timeToNextRitualInMs = amountOfCycleRemainingTillNextRitual * ritualsFrequencyInMs;
-          // Since this script runs once a day at the same time, we'll create issues we'll create issues for
-          if(_.startsWith(ritual.frequency, 'Daily')) {// Using _.startsWith() to handle frequencies with emoji ("Daily ⏰") and with out ("Daily")
-            isItTimeToCreateANewIssue = true;
-          } else if(timeToNextRitualInMs < 86400000) {
-            // If the next occurance of this ritual is in less than 24 hours (before this script runs again), we'll create an issue for it.
-            isItTimeToCreateANewIssue = true;
-          }
+        } else if(timeToNextRitualInMs === ritualsFrequencyInMs) {
+          // For any other frequency, we'll check to see if the calculated timeToNextRitualInMs is the same as the rituals frequency.
+          isItTimeToCreateANewIssue = true;
         }
         // Skip to the next ritual if it isn't time yet.
         if (!isItTimeToCreateANewIssue) {

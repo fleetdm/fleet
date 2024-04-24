@@ -12,6 +12,10 @@ import (
 const (
 	MDMPlatformApple     = "apple"
 	MDMPlatformMicrosoft = "microsoft"
+
+	MDMAppleDeclarationUUIDPrefix = "d"
+	MDMAppleProfileUUIDPrefix     = "a"
+	MDMWindowsProfileUUIDPrefix   = "w"
 )
 
 type AppleMDM struct {
@@ -192,7 +196,8 @@ type MDMCommandResult struct {
 	HostUUID string `json:"host_uuid" db:"host_uuid"`
 	// CommandUUID is the unique identifier of the command.
 	CommandUUID string `json:"command_uuid" db:"command_uuid"`
-	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	// Status is the command status. One of Acknowledged, Error, or NotNow for
+	// Apple, or 200, 400, etc for Windows.
 	Status string `json:"status" db:"status"`
 	// UpdatedAt is the last update timestamp of the command result.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
@@ -412,6 +417,24 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 	}
 }
 
+func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfigProfilePayload {
+	var tid *uint
+	if decl.TeamID != nil && *decl.TeamID > 0 {
+		tid = decl.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID: decl.DeclarationUUID,
+		TeamID:      tid,
+		Name:        decl.Name,
+		Identifier:  decl.Identifier,
+		Platform:    "darwin",
+		Checksum:    []byte(decl.Checksum),
+		CreatedAt:   decl.CreatedAt,
+		UploadedAt:  decl.UploadedAt,
+		Labels:      decl.Labels,
+	}
+}
+
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
@@ -512,14 +535,4 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	}
 
 	return len(pathLabelCounts) == 0
-}
-
-// MDMHostActionAuthz is used to check authorization for executing MDM actions on a host, e.g. lock,
-// unlock, wipe, etc.
-type MDMHostActionAuthz struct {
-	TeamID *uint `json:"team_id"` // required for authorization by team
-}
-
-func (m MDMHostActionAuthz) AuthzType() string {
-	return "mdm_action"
 }

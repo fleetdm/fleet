@@ -1,9 +1,9 @@
 /* eslint-disable react/prop-types */
 
 import React from "react";
-import { Row } from "react-table";
+import { Column, Row } from "react-table";
 
-import { IDataColumn } from "interfaces/datatable_config";
+import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -11,26 +11,20 @@ import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIss
 import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon/Icon";
 
-interface ICellProps {
-  cell: {
-    value: string;
-  };
-  row: {
-    original: IHost;
-  };
-}
+export type ITargestInputHostTableConfig = Column<IHost>;
+type ITableStringCellProps = IStringCellProps<IHost>;
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateTableHeaders = (
-  handleRowRemove?: (value: Row) => void
-): IDataColumn[] => {
+  handleRowRemove?: (value: Row<IHost>) => void
+): ITargestInputHostTableConfig[] => {
   const deleteHeader = handleRowRemove
     ? [
         {
           id: "delete",
           Header: "",
-          Cell: (cellProps: { row: Row }): JSX.Element => (
+          Cell: (cellProps: ITableStringCellProps) => (
             <div onClick={() => handleRowRemove(cellProps.row)}>
               <Icon name="close-filled" />
             </div>
@@ -42,10 +36,9 @@ export const generateTableHeaders = (
 
   return [
     {
-      title: "Host",
       Header: "Host",
       accessor: "display_name",
-      Cell: (cellProps: ICellProps) => {
+      Cell: (cellProps: ITableStringCellProps) => {
         return (
           <LiveQueryIssueCell
             displayName={cellProps.cell.value}
@@ -59,32 +52,27 @@ export const generateTableHeaders = (
     // TODO: Consider removing status column from selected hosts table because
     // status info is not refreshed once a target has been selected
     {
-      title: "Status",
       Header: "Status",
       disableSortBy: true,
       accessor: "status",
       Cell: (cellProps) => <StatusIndicator value={cellProps.cell.value} />,
     },
     {
-      title: "Private IP address",
       Header: "Private IP address",
       accessor: "primary_ip",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "MAC address",
       Header: "MAC address",
       accessor: "primary_mac",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "OS",
       Header: "OS",
       accessor: "os_version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Osquery",
       Header: "Osquery",
       accessor: "osquery_version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,

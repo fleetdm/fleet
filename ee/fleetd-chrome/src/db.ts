@@ -1,7 +1,6 @@
 import SQLiteAsyncESMFactory from "wa-sqlite/dist/wa-sqlite-async.mjs";
 import * as SQLite from "wa-sqlite";
 
-// Alphabetical order
 import Table from "./tables/Table";
 import TableChromeExtensions from "./tables/chrome_extensions";
 import TableDiskInfo from "./tables/disk_info";
@@ -34,7 +33,6 @@ export default class VirtualDatabase {
     this.sqlite3 = sqlite3;
     this.db = db;
 
-    // Alphabetical order
     VirtualDatabase.register(
       sqlite3,
       db,
@@ -81,7 +79,25 @@ export default class VirtualDatabase {
     await this.sqlite3.exec(this.db, sql, (row, columns) => {
       // map each row to object
       rows.push(
-        Object.fromEntries(columns.map((_, i) => [columns[i], row[i]]))
+        Object.fromEntries(
+          columns.map((_, i) => {
+            let [colName, val] = [columns[i], row[i]];
+            if (typeof val !== "string") {
+              if (typeof val === "boolean") {
+                val = val === true ? "1" : "0";
+              } else if (val && val.toString) {
+                val = val.toString();
+              } else {
+                this.warnings?.push({
+                  column: colName,
+                  error_message: `Value is not a string and doesn't have a toString method: ${val}`,
+                });
+                val = null;
+              }
+            }
+            return [colName, val];
+          })
+        )
       );
     });
     return { data: rows, warnings: this.warnings };

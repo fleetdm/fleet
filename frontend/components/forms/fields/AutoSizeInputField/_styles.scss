@@ -13,13 +13,13 @@
 
   .input-sizer {
     display: inline-grid;
-    vertical-align: top;
     align-items: center;
     position: relative;
 
     &::after,
     input,
     textarea {
+      white-space: pre-wrap;
       width: auto;
       grid-area: 1 / 2;
       resize: none;
@@ -35,7 +35,6 @@
     &::after {
       content: attr(data-value) " ";
       visibility: hidden;
-      white-space: pre-wrap;
     }
   }
 }

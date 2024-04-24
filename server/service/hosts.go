@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -24,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
+	"github.com/go-kit/kit/log/level"
 	"github.com/gocarina/gocsv"
 )
 
@@ -93,7 +95,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		if id == nil {
 			id = req.Opts.SoftwareIDFilter
 		}
-		software, err = svc.SoftwareByID(ctx, *id, false)
+		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -103,7 +105,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareTitleIDFilter != nil {
 		var err error
 
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter)
+		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, nil)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -194,6 +196,16 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		}
 	}
 
+	if opt.PopulatePolicies {
+		for _, host := range hosts {
+			hp, err := svc.ds.ListPoliciesForHost(ctx, host)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID))
+			}
+			host.Policies = &hp
+		}
+	}
+
 	return hosts, nil
 }
 
@@ -207,17 +219,10 @@ var (
 	deleteHostsSkipAuthorization = false
 )
 
-type deleteHostsFilters struct {
-	MatchQuery string           `json:"query"`
-	Status     fleet.HostStatus `json:"status"`
-	LabelID    *uint            `json:"label_id"`
-	TeamID     *uint            `json:"team_id"`
-}
-
 type deleteHostsRequest struct {
 	IDs []uint `json:"ids"`
 	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
-	Filters *deleteHostsFilters `json:"filters"`
+	Filters *map[string]interface{} `json:"filters"`
 }
 
 type deleteHostsResponse struct {
@@ -232,18 +237,6 @@ func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
-	var listOpts *fleet.HostListOptions
-	var labelID *uint
-	if req.Filters != nil {
-		listOpts = &fleet.HostListOptions{
-			ListOptions: fleet.ListOptions{
-				MatchQuery: req.Filters.MatchQuery,
-			},
-			StatusFilter: req.Filters.Status,
-			TeamFilter:   req.Filters.TeamID,
-		}
-		labelID = req.Filters.LabelID
-	}
 
 	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
 	// and allow the delete operation to proceed.
@@ -251,7 +244,7 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	deleteDone := make(chan bool, 1)
 	ctx = context.WithoutCancel(ctx) // to make sure DB operations don't get killed after we return a 202
 	go func() {
-		err = svc.DeleteHosts(ctx, req.IDs, listOpts, labelID)
+		err = svc.DeleteHosts(ctx, req.IDs, req.Filters)
 		if err != nil {
 			// logging the error for future debug in case we already sent http.StatusAccepted
 			logging.WithErr(ctx, err)
@@ -273,8 +266,13 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}
 }
 
-func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts *fleet.HostListOptions, lid *uint) error {
+func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[string]interface{}) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	opts, lid, err := hostListOptionsFromFilters(filter)
+	if err != nil {
 		return err
 	}
 
@@ -657,7 +655,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err
 	}
 
@@ -667,7 +665,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	}
 
 	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); err != nil {
 		return nil, err
 	}
 
@@ -775,7 +773,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
 	}
 	if len(serials) > 0 {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -852,12 +850,8 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint `json:"team_id"`
-	Filters struct {
-		MatchQuery string           `json:"query"`
-		Status     fleet.HostStatus `json:"status"`
-		LabelID    *uint            `json:"label_id"`
-	} `json:"filters"`
+	TeamID  *uint                   `json:"team_id"`
+	Filters *map[string]interface{} `json:"filters"`
 }
 
 type addHostsToTeamByFilterResponse struct {
@@ -868,13 +862,7 @@ func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
 
 func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamByFilterRequest)
-	listOpt := fleet.HostListOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: req.Filters.MatchQuery,
-		},
-		StatusFilter: req.Filters.Status,
-	}
-	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
+	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, req.Filters)
 	if err != nil {
 		return addHostsToTeamByFilterResponse{Err: err}, nil
 	}
@@ -882,7 +870,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 	return addHostsToTeamByFilterResponse{}, err
 }
 
-func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt fleet.HostListOptions, lid *uint) error {
+func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
 	// This is currently treated as a "team write". If we ever give users
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
@@ -891,7 +879,16 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 		return err
 	}
 
-	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, opt, lid)
+	opt, lid, err := hostListOptionsFromFilters(filters)
+	if err != nil {
+		return err
+	}
+
+	if opt == nil {
+		return &fleet.BadRequestError{Message: "filters must be specified"}
+	}
+
+	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
 	if err != nil {
 		return err
 	}
@@ -911,7 +908,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
 	}
 	if len(serials) > 0 {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -1034,17 +1031,30 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			if !ac.MDM.WindowsEnabledAndConfigured {
 				break
 			}
+
 			if license.IsPremium(ctx) {
-				hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+				// we include disk encryption status only for premium so initialize it to default struct
+				host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
+				// ensure host mdm info is loaded (we don't know if our caller populated it)
+				err := svc.ensureHostMDMInfo(ctx, host)
 				switch {
+				case err != nil && fleet.IsNotFound(err):
+					// assume host is unmanaged, log for debugging, and move on
+					level.Debug(svc.logger).Log("msg", "cannot determine bitlocker status because no mdm info for host", "host_id", host.ID)
 				case err != nil:
-					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
-				case hde != nil:
-					host.MDM.OSSettings.DiskEncryption = *hde
+					return nil, ctxerr.Wrap(ctx, err, "ensure host mdm info")
 				default:
-					host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
+					hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
+					}
+					if hde != nil {
+						// overwrite the default disk encryption status
+						host.MDM.OSSettings.DiskEncryption = *hde
+					}
 				}
 			}
+
 			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
@@ -1093,7 +1103,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.MacOSSetup = macOSSetup
 
-	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
 	}
@@ -1104,10 +1114,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.PendingAction = ptr.String("")
 	// device status
 	switch {
-	case mdmActions.IsLocked():
-		host.MDM.DeviceStatus = ptr.String("locked")
 	case mdmActions.IsWiped():
 		host.MDM.DeviceStatus = ptr.String("wiped")
+	case mdmActions.IsLocked():
+		host.MDM.DeviceStatus = ptr.String("locked")
 	}
 
 	// pending action, if any
@@ -1120,13 +1130,28 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		host.MDM.PendingAction = ptr.String("wipe")
 	}
 
+	host.Policies = policies
 	return &fleet.HostDetail{
 		Host:      *host,
 		Labels:    labels,
 		Packs:     packs,
-		Policies:  policies,
 		Batteries: &bats,
 	}, nil
+}
+
+func (svc *Service) ensureHostMDMInfo(ctx context.Context, host *fleet.Host) error {
+	if host.MDMInfo == nil {
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil {
+			return err
+		}
+		host.MDMInfo = mdmInfo
+	}
+	if host.MDMInfo == nil {
+		// this should not happen, but just in case
+		return ctxerr.New(ctx, fmt.Sprintf("nil mdm info for host %d", host.ID))
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1821,17 +1846,33 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
-	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
-	if err != nil && fleet.IsNotFound(err) {
-		// differentiate case where team was added after UpdateOSVersions last ran
-		if teamID != nil && *teamID > 0 {
-			// most of the time, team should exist so checking here saves unnecessary db calls
-			_, err := svc.ds.Team(ctx, *teamID)
-			if err != nil {
-				return nil, count, nil, err
-			}
+	if teamID != nil {
+		// This auth check ensures we return 403 if the user doesn't have access to the team
+		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+			return nil, count, nil, err
 		}
-		// if team exists but stats have not yet been gathered, return empty JSON array
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
+		}
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, count, nil, fleet.ErrNoContext
+	}
+	osVersions, err := svc.ds.OSVersions(
+		ctx, &fleet.TeamFilter{
+			User:            vc.User,
+			IncludeObserver: true,
+			TeamID:          teamID,
+		}, platform, name, version,
+	)
+	if err != nil && fleet.IsNotFound(err) {
+		// It is possible that os exists, but aggregation job has not run yet.
 		osVersions = &fleet.OSVersions{}
 	} else if err != nil {
 		return nil, count, nil, err
@@ -1905,22 +1946,56 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return getOSVersionResponse{Err: err}, nil
 	}
+	if osVersion == nil {
+		osVersion = &fleet.OSVersion{}
+	}
 
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
 
 func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, nil, err
 	}
 
-	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
+	if teamID != nil {
+		// This auth check ensures we return 403 if the user doesn't have access to the team
+		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+			return nil, nil, err
+		}
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
+		}
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, fleet.ErrNoContext
+	}
+	osVersion, updateTime, err := svc.ds.OSVersion(
+		ctx, osID, &fleet.TeamFilter{
+			User:            vc.User,
+			IncludeObserver: true,
+			TeamID:          teamID,
+		},
+	)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			// We return an empty result here to be consistent with the fleet/os_versions behavior.
+			// It is possible the os version exists, but the aggregation job has not run yet.
+			return nil, nil, nil
+		}
 		return nil, nil, err
 	}
 
-	if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
-		return nil, nil, err
+	if osVersion != nil {
+		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return osVersion, updateTime, nil
@@ -2134,4 +2209,227 @@ func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite,
 	}
 
 	return host, nil
+}
+
+func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostListOptions, *uint, error) {
+	var labelID *uint
+
+	if filter == nil {
+		return nil, nil, nil
+	}
+
+	opt := fleet.HostListOptions{}
+
+	for k, v := range *filter {
+		switch k {
+		case "label_id":
+			if l, ok := v.(float64); ok { // json unmarshals numbers as float64
+				lid := uint(l)
+				labelID = &lid
+			} else {
+				return nil, nil, badRequest("label_id must be a number")
+			}
+		case "team_id":
+			if teamID, ok := v.(float64); ok { // json unmarshals numbers as float64
+				teamID := uint(teamID)
+				opt.TeamFilter = &teamID
+			} else {
+				return nil, nil, badRequest("team_id must be a number")
+			}
+		case "status":
+			status, ok := v.(string)
+			if !ok {
+				return nil, nil, badRequest("status must be a string")
+			}
+			if !fleet.HostStatus(status).IsValid() {
+				return nil, nil, badRequest("status must be one of: new, online, offline, missing")
+			}
+			opt.StatusFilter = fleet.HostStatus(status)
+		case "query":
+			query, ok := v.(string)
+			if !ok {
+				return nil, nil, badRequest("query must be a string")
+			}
+			if query == "" {
+				return nil, nil, badRequest("query must not be empty")
+			}
+			opt.MatchQuery = query
+
+		default:
+			return nil, nil, badRequest(fmt.Sprintf("unknown filter key: %s", k))
+		}
+	}
+
+	return &opt, labelID, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Labels
+////////////////////////////////////////////////////////////////////////////////
+
+type addLabelsToHostRequest struct {
+	ID     uint     `url:"id"`
+	Labels []string `json:"labels"`
+}
+
+type addLabelsToHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r addLabelsToHostResponse) error() error { return r.Err }
+
+func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*addLabelsToHostRequest)
+	if err := svc.AddLabelsToHost(ctx, req.ID, req.Labels); err != nil {
+		return addLabelsToHostResponse{Err: err}, nil
+	}
+	return addLabelsToHostResponse{}, nil
+}
+
+func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []string) error {
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "load host")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWriteHostLabel); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames)
+	if err != nil {
+		return err
+	}
+	if len(labelIDs) == 0 {
+		return nil
+	}
+
+	if err := svc.ds.AddLabelsToHost(ctx, host.ID, labelIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "add labels to host")
+	}
+
+	return nil
+}
+
+type removeLabelsFromHostRequest struct {
+	ID     uint     `url:"id"`
+	Labels []string `json:"labels"`
+}
+
+type removeLabelsFromHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r removeLabelsFromHostResponse) error() error { return r.Err }
+
+func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*removeLabelsFromHostRequest)
+	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
+		return removeLabelsFromHostResponse{Err: err}, nil
+	}
+	return removeLabelsFromHostResponse{}, nil
+}
+
+func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelNames []string) error {
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "load host")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWriteHostLabel); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames)
+	if err != nil {
+		return err
+	}
+	if len(labelIDs) == 0 {
+		return nil
+	}
+
+	if err := svc.ds.RemoveLabelsFromHost(ctx, host.ID, labelIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove labels from host")
+	}
+
+	return nil
+}
+
+func (svc *Service) validateLabelNames(ctx context.Context, action string, labelNames []string) ([]uint, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
+
+	// Filter out empty label string.
+	for i, labelName := range labelNames {
+		if labelName == "" {
+			labelNames = append(labelNames[:i], labelNames[i+1:]...)
+			break
+		}
+	}
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	var labelsNotFound []string
+	for _, labelName := range labelNames {
+		if _, ok := labels[labelName]; !ok {
+			labelsNotFound = append(labelsNotFound, "\""+labelName+"\"")
+		}
+	}
+
+	if len(labelsNotFound) > 0 {
+		sort.Slice(labelsNotFound, func(i, j int) bool {
+			// Ignore quotes to sort.
+			return labelsNotFound[i][1:len(labelsNotFound[i])-1] < labelsNotFound[j][1:len(labelsNotFound[j])-1]
+		})
+		return nil, &fleet.BadRequestError{
+			Message: fmt.Sprintf(
+				"Couldn't %s labels. Labels not found: %s. All labels must exist.",
+				action,
+				strings.Join(labelsNotFound, ", "),
+			),
+		}
+	}
+
+	var dynamicLabels []string
+	for labelName, labelID := range labels {
+		label, _, err := svc.ds.Label(ctx, labelID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load label from id")
+		}
+		if label.LabelMembershipType != fleet.LabelMembershipTypeManual {
+			dynamicLabels = append(dynamicLabels, "\""+labelName+"\"")
+		}
+	}
+
+	if len(dynamicLabels) > 0 {
+		sort.Slice(dynamicLabels, func(i, j int) bool {
+			// Ignore quotes to sort.
+			return dynamicLabels[i][1:len(dynamicLabels[i])-1] < dynamicLabels[j][1:len(dynamicLabels[j])-1]
+		})
+		return nil, &fleet.BadRequestError{
+			Message: fmt.Sprintf(
+				"Couldn't %s labels. Labels are dynamic: %s. Dynamic labels can not be assigned to hosts manually.",
+				action,
+				strings.Join(dynamicLabels, ", "),
+			),
+		}
+	}
+
+	labelIDs := make([]uint, 0, len(labels))
+	for _, labelID := range labels {
+		labelIDs = append(labelIDs, labelID)
+	}
+
+	return labelIDs, nil
 }

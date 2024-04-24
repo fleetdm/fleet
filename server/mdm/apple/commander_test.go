@@ -3,10 +3,10 @@ package apple_mdm
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -15,7 +15,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/google/uuid"
+	"github.com/groob/plist"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 func TestMDMAppleCommander(t *testing.T) {
@@ -28,7 +31,10 @@ func TestMDMAppleCommander(t *testing.T) {
 		pushFactory,
 		stdlogfmt.New(),
 	)
-	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher, config.MDMConfig{
+		AppleSCEPCert: "../../service/testdata/server.pem",
+		AppleSCEPKey:  "../../service/testdata/server.key",
+	})
 
 	// TODO(roberto): there's a data race in the mock when more
 	// than one host ID is provided because the pusher uses one
@@ -41,7 +47,11 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 		require.NotNil(t, cmd)
 		require.Equal(t, cmd.Command.RequestType, "InstallProfile")
-		require.Contains(t, string(cmd.Raw), base64.StdEncoding.EncodeToString(mc))
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+		require.NoError(t, err)
+		require.Equal(t, string(p7.Content), string(mc))
 		return nil, nil
 	}
 
@@ -104,7 +114,7 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 
-	host := &fleet.Host{ID: 1, UUID: "A"}
+	host := &fleet.Host{ID: 1, UUID: "A", Platform: "darwin"}
 	cmdUUID = uuid.New().String()
 	mdmStorage.EnqueueDeviceLockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command, pin string) error {
 		require.NotNil(t, gotHost)
@@ -112,12 +122,29 @@ func TestMDMAppleCommander(t *testing.T) {
 		require.Equal(t, host.UUID, gotHost.UUID)
 		require.Equal(t, "DeviceLock", cmd.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), cmdUUID)
+		require.Len(t, pin, 6)
 		return nil
 	}
 	err = cmdr.DeviceLock(ctx, host, cmdUUID)
 	require.NoError(t, err)
 	require.True(t, mdmStorage.EnqueueDeviceLockCommandFuncInvoked)
 	mdmStorage.EnqueueDeviceLockCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
+
+	cmdUUID = uuid.New().String()
+	mdmStorage.EnqueueDeviceWipeCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command) error {
+		require.NotNil(t, gotHost)
+		require.Equal(t, host.ID, gotHost.ID)
+		require.Equal(t, host.UUID, gotHost.UUID)
+		require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		return nil
+	}
+	err = cmdr.EraseDevice(ctx, host, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueDeviceWipeCommandFuncInvoked)
+	mdmStorage.EnqueueDeviceWipeCommandFuncInvoked = false
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 }

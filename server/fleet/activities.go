@@ -83,6 +83,13 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
+	ActivityTypeWipedHost{},
+
+	ActivityTypeCreatedDeclarationProfile{},
+	ActivityTypeDeletedDeclarationProfile{},
+	ActivityTypeEditedDeclarationProfile{},
+
+	ActivityTypeResentConfigurationProfile{},
 }
 
 type ActivityDetails interface {
@@ -1234,6 +1241,20 @@ type ActivityTypeEditedWindowsProfile struct {
 	TeamName *string `json:"team_name"`
 }
 
+func (a ActivityTypeEditedWindowsProfile) ActivityName() string {
+	return "edited_windows_profile"
+}
+
+func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
 type ActivityTypeLockedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -1283,17 +1304,113 @@ func (a ActivityTypeUnlockedHost) Documentation() (activity, details, detailsExa
 }`
 }
 
-func (a ActivityTypeEditedWindowsProfile) ActivityName() string {
-	return "edited_windows_profile"
+type ActivityTypeWipedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
 }
 
-func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.`,
+func (a ActivityTypeWipedHost) ActivityName() string {
+	return "wiped_host"
+}
+
+func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to wipe a host.`,
 		`This activity contains the following fields:
-- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeCreatedDeclarationProfile struct {
+	ProfileName string  `json:"profile_name"`
+	Identifier  string  `json:"identifier"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedDeclarationProfile) ActivityName() string {
+	return "created_declaration_profile"
+}
+
+func (a ActivityTypeCreatedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user adds a new macOS declaration to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
   "team_id": 123,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedDeclarationProfile struct {
+	ProfileName string  `json:"profile_name"`
+	Identifier  string  `json:"identifier"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedDeclarationProfile) ActivityName() string {
+	return "deleted_declaration_profile"
+}
+
+func (a ActivityTypeDeletedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user removes a macOS declaration from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedDeclarationProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
+	return "edited_declaration_profile"
+}
+
+func (a ActivityTypeEditedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeResentConfigurationProfile struct {
+	HostID          *uint   `json:"host_id"`
+	HostDisplayName *string `json:"host_display_name"`
+	ProfileName     string  `json:"profile_name"`
+}
+
+func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
+	return "resent_configuration_profile"
+}
+
+func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user resends an MDM configuration profile to a host.`,
+		`This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "profile_name": The name of the configuration profile.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "profile_name": "Passcode requirements"
 }`
 }
 

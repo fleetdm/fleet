@@ -8,12 +8,12 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
+import { getTableColumnsFromSql } from "utilities/helpers";
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
-import ShowQueryModal from "components/modals/ShowQueryModal";
 import TooltipWrapper from "components/TooltipWrapper";
 import EmptyTable from "components/EmptyTable";
 
@@ -46,7 +46,6 @@ const QueryReport = ({
 }: IQueryReportProps): JSX.Element => {
   const { lastEditedQueryName, lastEditedQueryBody } = useContext(QueryContext);
 
-  const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
   );
@@ -54,9 +53,13 @@ const QueryReport = ({
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
+      const tableColumns = getTableColumnsFromSql(lastEditedQueryBody);
+
       const newColumnConfigs = generateReportColumnConfigsFromResults(
-        flattenResults(queryReport.results)
+        flattenResults(queryReport.results),
+        tableColumns
       );
+
       // Update tableHeaders if new headers are found
       if (newColumnConfigs !== columnConfigs) {
         setColumnConfigs(newColumnConfigs);
@@ -77,22 +80,9 @@ const QueryReport = ({
     );
   };
 
-  const onShowQueryModal = () => {
-    setShowQueryModal(!showQueryModal);
-  };
-
   const renderTableButtons = () => {
     return (
       <div className={`${baseClass}__results-cta`}>
-        <Button
-          className={`${baseClass}__show-query-btn`}
-          onClick={onShowQueryModal}
-          variant="text-icon"
-        >
-          <>
-            Show query <Icon name="eye" />
-          </>
-        </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
@@ -149,8 +139,8 @@ const QueryReport = ({
               <EmptyTable
                 className={baseClass}
                 graphicName="empty-software"
-                header={"Nothing to report yet"}
-                info={"This query has returned no data so far."}
+                header="Nothing to report yet"
+                info="This query has returned no data so far."
               />
             );
           }}
@@ -170,17 +160,7 @@ const QueryReport = ({
     );
   };
 
-  return (
-    <div className={`${baseClass}__wrapper`}>
-      {renderTable()}
-      {showQueryModal && (
-        <ShowQueryModal
-          query={lastEditedQueryBody}
-          onCancel={onShowQueryModal}
-        />
-      )}
-    </div>
-  );
+  return <div className={`${baseClass}__wrapper`}>{renderTable()}</div>;
 };
 
 export default QueryReport;

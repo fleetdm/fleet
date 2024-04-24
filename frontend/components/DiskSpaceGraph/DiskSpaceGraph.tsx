@@ -5,7 +5,7 @@ import { COLORS } from "styles/var/colors";
 
 interface IDiskSpaceGraphProps {
   baseClass: string;
-  gigsDiskSpaceAvailable: number | string;
+  gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
   id: string;
   platform: string;
@@ -20,6 +20,10 @@ const DiskSpaceGraph = ({
   platform,
   tooltipPosition = "top",
 }: IDiskSpaceGraphProps): JSX.Element => {
+  if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
+    return <span className={`${baseClass}__data`}>No data available</span>;
+  }
+
   const getDiskSpaceIndicatorColor = (): string => {
     // return space-dependent graph colors for mac and windows hosts, green for linux
     if (platform === "darwin" || platform === "windows") {
@@ -44,10 +48,6 @@ const DiskSpaceGraph = ({
     return undefined;
   })();
 
-  if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
-    return <span className={`${baseClass}__data`}>No data available</span>;
-  }
-
   return (
     <span className={`${baseClass}__data`}>
       <div
@@ -67,7 +67,7 @@ const DiskSpaceGraph = ({
       </div>
       {diskSpaceTooltipText && (
         <ReactTooltip
-          className={"disk-space-tooltip"}
+          className="disk-space-tooltip"
           place={tooltipPosition}
           type="dark"
           effect="solid"

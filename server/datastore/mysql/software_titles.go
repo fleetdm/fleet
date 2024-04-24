@@ -12,7 +12,14 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+	var teamFilter string
+	if teamID != nil {
+		teamFilter = fmt.Sprintf("sthc.team_id = %d", *teamID)
+	} else {
+		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
+	}
+
 	selectSoftwareTitleStmt := fmt.Sprintf(`
 SELECT
 	st.id,
@@ -24,12 +31,14 @@ SELECT
 FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 WHERE st.id = ? AND %s
+AND sthc.hosts_count > 0
 GROUP BY
 	st.id,
 	st.name,
 	st.source,
 	st.browser
-	`, ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc"))
+	`, teamFilter,
+	)
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
 		if err == sql.ErrNoRows {
@@ -38,7 +47,7 @@ GROUP BY
 		return nil, ctxerr.Wrap(ctx, err, "get software title")
 	}
 
-	selectSoftwareVersionsStmt, args, err := ds.selectSoftwareVersionsSQL([]uint{id}, tmFilter, true)
+	selectSoftwareVersionsStmt, args, err := ds.selectSoftwareVersionsSQL([]uint{id}, teamID, tmFilter, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building versions statement")
 	}
@@ -111,6 +120,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	// (like a JSON) object for nested arrays.
 	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
 		titleIDs,
+		nil,
 		tmFilter,
 		false,
 	)
@@ -223,7 +233,16 @@ GROUP BY st.id`
 	return stmt, args
 }
 
-func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, tmFilter fleet.TeamFilter, withCounts bool) (string, []any, error) {
+func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tmFilter fleet.TeamFilter, withCounts bool) (
+	string, []any, error,
+) {
+	var teamFilter string
+	if teamID != nil {
+		teamFilter = fmt.Sprintf("shc.team_id = %d", *teamID)
+	} else {
+		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "shc")
+	}
+
 	selectVersionsStmt := `
 SELECT
 	s.title_id,
@@ -243,7 +262,7 @@ GROUP BY s.id`
 		extraSelect = "MAX(shc.hosts_count) AS hosts_count,"
 	}
 
-	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect, ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "shc"))
+	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect, teamFilter)
 
 	selectVersionsStmt, args, err := sqlx.In(selectVersionsStmt, titleIDs)
 	if err != nil {

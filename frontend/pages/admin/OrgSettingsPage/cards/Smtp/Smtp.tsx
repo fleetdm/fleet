@@ -31,16 +31,16 @@ const Smtp = ({
   const { isPremiumTier } = useContext(AppContext);
 
   const [formData, setFormData] = useState<any>({
-    enableSMTP: appConfig.smtp_settings.enable_smtp || false,
-    smtpSenderAddress: appConfig.smtp_settings.sender_address || "",
-    smtpServer: appConfig.smtp_settings.server || "",
-    smtpPort: appConfig.smtp_settings.port,
-    smtpEnableSSLTLS: appConfig.smtp_settings.enable_ssl_tls || false,
-    smtpAuthenticationType: appConfig.smtp_settings.authentication_type || "",
-    smtpUsername: appConfig.smtp_settings.user_name || "",
-    smtpPassword: appConfig.smtp_settings.password || "",
+    enableSMTP: appConfig.smtp_settings?.enable_smtp || false,
+    smtpSenderAddress: appConfig.smtp_settings?.sender_address || "",
+    smtpServer: appConfig.smtp_settings?.server || "",
+    smtpPort: appConfig.smtp_settings?.port,
+    smtpEnableSSLTLS: appConfig.smtp_settings?.enable_ssl_tls || false,
+    smtpAuthenticationType: appConfig.smtp_settings?.authentication_type || "",
+    smtpUsername: appConfig.smtp_settings?.user_name || "",
+    smtpPassword: appConfig.smtp_settings?.password || "",
     smtpAuthenticationMethod:
-      appConfig.smtp_settings.authentication_method || "",
+      appConfig.smtp_settings?.authentication_method || "",
   });
 
   const {
@@ -116,9 +116,6 @@ const Smtp = ({
         password: smtpPassword,
         enable_ssl_tls: smtpEnableSSLTLS,
         authentication_method: smtpAuthenticationMethod,
-        domain: appConfig.smtp_settings.domain || "",
-        verify_ssl_certs: appConfig.smtp_settings.verify_ssl_certs || false,
-        enable_start_tls: appConfig.smtp_settings.enable_start_tls,
       },
     };
 
@@ -282,13 +279,13 @@ const Smtp = ({
             !sesConfigured ? (
               <small
                 className={`smtp-options smtp-options--${
-                  appConfig.smtp_settings.configured
+                  appConfig.smtp_settings?.configured
                     ? "configured"
                     : "notconfigured"
                 }`}
               >
                 <em>
-                  {appConfig.smtp_settings.configured
+                  {appConfig.smtp_settings?.configured
                     ? "CONFIGURED"
                     : "NOT CONFIGURED"}
                 </em>

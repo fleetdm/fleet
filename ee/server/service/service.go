@@ -8,9 +8,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/micromdm/nanodep/storage"
 )
 
 // Service wraps a free Service and implements additional premium functionality on top of it.
@@ -22,7 +22,7 @@ type Service struct {
 	config            config.FleetConfig
 	clock             clock.Clock
 	authz             *authz.Authorizer
-	depStorage        storage.AllStorage
+	depStorage        storage.AllDEPStorage
 	mdmAppleCommander fleet.MDMAppleCommandIssuer
 	mdmPushCertTopic  string
 	ssoSessionStore   sso.SessionStore
@@ -37,7 +37,7 @@ func NewService(
 	config config.FleetConfig,
 	mailService fleet.MailService,
 	c clock.Clock,
-	depStorage storage.AllStorage,
+	depStorage storage.AllDEPStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
 	mdmPushCertTopic string,
 	sso sso.SessionStore,
@@ -68,7 +68,7 @@ func NewService(
 	svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
 		HostFeatures:                      eeservice.HostFeatures,
 		TeamByIDOrName:                    eeservice.teamByIDOrName,
-		UpdateTeamMDMAppleSettings:        eeservice.updateTeamMDMAppleSettings,
+		UpdateTeamMDMDiskEncryption:       eeservice.updateTeamMDMDiskEncryption,
 		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
 		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,
@@ -76,6 +76,7 @@ func NewService(
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
 		MDMWindowsEnableOSUpdates:         eeservice.mdmWindowsEnableOSUpdates,
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
+		MDMAppleEditedMacOSUpdates:        eeservice.mdmAppleEditedMacOSUpdates,
 	})
 
 	return eeservice, nil

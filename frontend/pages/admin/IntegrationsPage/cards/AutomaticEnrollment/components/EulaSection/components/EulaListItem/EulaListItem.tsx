@@ -48,7 +48,7 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
             name="external-link"
             size="medium"
             className={`${baseClass}__external-icon`}
-            color={"ui-fleet-black-75"}
+            color="ui-fleet-black-75"
           />
         </Button>
         <Button

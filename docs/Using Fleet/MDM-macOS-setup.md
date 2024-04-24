@@ -30,6 +30,8 @@ For the MDM protocol to function, we need to generate the four following files:
 
 The APNs certificates serve as authentication between Fleet and Apple, while the SCEP certificates serve as authentication between Fleet and hosts.
 
+> To prevent abuse, please use your work email. If your email isn't accepted, please make sure it's not on this [list of blocked emails].(https://github.com/fleetdm/fleet/blob/d5df23964b0b52f1d442b66ffe4451dc2a9ef969/website/api/controllers/deliver-apple-csr.js#L60)
+
 Use either of the following methods to generate the necessary files:
 
 #### Fleet UI
@@ -232,7 +234,7 @@ Set Fleet to be the MDM for all future Macs purchased via Apple or an authorized
 
 All hosts that automatically enroll will be assigned to the default team. If no default team is set, then the host will be placed in "No team". 
 
-> A host can be transferred to a new (not default) team before it enrolls. Learn how [here](./Teams.md#transfer-hosts-to-a-team).
+> A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 
 Use either of the following methods to change the default team:
 
