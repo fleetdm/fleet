@@ -472,14 +472,13 @@ publish() {
             echo "Closing milestone"
             gh api repos/fleetdm/fleet/milestones/$target_milestone_number -f state=closed
         fi
-
-        # Send general announcement in #general
-        general_announce_info
     else
         echo "DRYRUN: Would have published $next_tag / deployed to dogfood / closed non-stories / closed milestone / announced in slack"
-         # Dry run general announce info
-        general_announce_info
     fi
+
+    echo "Send general announce" 
+    # Send general announcement in #general
+    general_announce_info
 }
 
 # Validate we have all commands required to perform this script
