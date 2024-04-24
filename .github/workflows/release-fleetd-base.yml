@@ -1,6 +1,7 @@
 name: Upload fleetd base to https://download.fleetdm.com
 
 on:
+  pull_request:
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 3 * * *' # Nightly 3AM UTC
@@ -19,6 +20,7 @@ permissions:
   contents: read
 
 env:
+  R2_ENDPOINT: $${{ secrets.R2_ENDPOINT }}
   R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
   R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
   R2_BUCKET: download-testing # Production: download | Testing: download-testing
@@ -52,7 +54,8 @@ jobs:
           curl -O $BASE_URL/meta.json
           if diff latest-meta.json meta.json >/dev/null 2>&1
           then
-            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "update_needed=false"
+            echo "update_needed=true" >> $GITHUB_OUTPUT
           else
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
@@ -113,10 +116,6 @@ jobs:
         uses: ./.github/actions/r2-upload
         with:
           filename: fleetd-base.pkg
-          r2_endpoint: ${{ secrets.R2_ENDPOINT }}
-          r2_access_key_id: ${{ env.R2_ACCESS_KEY_ID }}
-          r2_access_key_secret: ${{ env.R2_ACCESS_KEY_SECRET }}
-          r2_bucket: ${{ env.R2_BUCKET }}
 
   update-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
@@ -148,10 +147,6 @@ jobs:
         uses: ./.github/actions/r2-upload
         with:
           filename: fleetd-base.msi
-          r2_endpoint: ${{ secrets.R2_ENDPOINT }}
-          r2_access_key_id: ${{ env.R2_ACCESS_KEY_ID }}
-          r2_access_key_secret: ${{ env.R2_ACCESS_KEY_SECRET }}
-          r2_bucket: ${{ env.R2_BUCKET }}
 
   update-meta-json:
     needs: [update-fleetd-base-pkg, update-fleetd-base-msi]
@@ -182,7 +177,3 @@ jobs:
         uses: ./.github/actions/r2-upload
         with:
           filename: meta.json
-          r2_endpoint: ${{ secrets.R2_ENDPOINT }}
-          r2_access_key_id: ${{ env.R2_ACCESS_KEY_ID }}
-          r2_access_key_secret: ${{ env.R2_ACCESS_KEY_SECRET }}
-          r2_bucket: ${{ env.R2_BUCKET }}
