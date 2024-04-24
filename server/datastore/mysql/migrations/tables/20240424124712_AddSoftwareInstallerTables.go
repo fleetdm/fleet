@@ -83,10 +83,10 @@ CREATE TABLE IF NOT EXISTS host_software_installs (
   install_script_exit_code int(10) DEFAULT NULL,
 
   -- Output of the post-script run after the software is installed
-  post_install_condition_output text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  post_install_script_output text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 
   -- Exit code of the post-script run after the software is installed
-  post_install_condition_exit_code int(10) DEFAULT NULL,
+  post_install_script_exit_code int(10) DEFAULT NULL,
 
   created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   uploaded_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
