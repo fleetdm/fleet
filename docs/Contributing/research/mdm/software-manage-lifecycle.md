@@ -42,8 +42,8 @@ title: DB schema
 ---
 erDiagram
   software_installers ||--|| software : "software_version"
-  software_installers ||--|| scripts : "install_script"
-  software_installers ||--|| scripts : "post_install_script"
+  software_installers ||--|| script_contents : "install_script"
+  software_installers ||--|| script_contents : "post_install_script"
   software_installers {
     int(10) id PK
     bigint(20) software_version FK
@@ -64,7 +64,7 @@ erDiagram
     unique_key host_id_software_installer_id
   }
 
-  scripts {
+  script_contents {
     int(10) id PK
   }
 
