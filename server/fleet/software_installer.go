@@ -44,12 +44,12 @@ type SoftwareInstaller struct {
 	Version string `json:"version" db:"version"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt string `json:"uploaded_at" db:"uploaded_at"`
-	// InstallerID is the unique identifier for the software package.
-	InstallerID string `json:"-" db:"installer_id"`
+	// InstallerID is the unique identifier for the software package metadata in Fleet.
+	InstallerID uint `json:"-" db:"installer_id"`
 	// InstallScript is the script to run to install the software package.
 	InstallScript string `json:"install_script" db:"install_script"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
-	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
+	PreInstallQuery string `json:"pre_install_query" db:"pre_install_condition"`
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script"`
 }
@@ -59,36 +59,45 @@ func (s *SoftwareInstaller) AuthzType() string {
 	return "software_installer"
 }
 
-// SoftwareInstallerStatus represents the status of a software installer package.
-type SoftwareInstallerStatus struct {
+// SoftwareInstallerStatusSummary represents aggregated status metrics for a software installer package.
+type SoftwareInstallerStatusSummary struct {
 	// Installed is the number of hosts that have the software package installed.
 	Installed uint `json:"installed" db:"installed"`
 	// Pending is the number of hosts that have the software package pending installation.
 	Pending uint `json:"pending" db:"pending"`
 	// Failed is the number of hosts that have the software package installation failed.
-	Failed uint `json:"failed" db:"failed"`
+	Failed int `json:"failed" db:"failed"`
 }
+
+// SoftwareInstallerStatus represents the status of a software installer package on a host.
+type SoftwareInstallerStatus string
+
+var (
+	SoftwareInstallerPending   SoftwareInstallerStatus = "pending"
+	SoftwareInstallerFailed    SoftwareInstallerStatus = "failed"
+	SoftwareInstallerInstalled SoftwareInstallerStatus = "installed"
+)
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
 type HostSoftwareInstallerResult struct {
 	// InstallUUID is the unique identifier for the software install operation associated with the host.
-	InstallUUID string `json:"install_uuid" db:"install_uuid"`
+	InstallUUID string `json:"install_uuid" db:"execution_id"`
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
 	// SoftwareVersion is the version of the software.
 	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
-	// SoftwarePackage is the name package of the software installer package.
+	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
 	// HostDisplayName is the display name of the host.
 	HostDisplayName string `json:"host_display_name" db:"host_display_name"`
 	// Status is the status of the software installer package on the host.
-	Status string `json:"status" db:"status"`
+	Status SoftwareInstallerStatus `json:"status" db:"status"`
 	// Detail is the detail of the software installer package on the host.
 	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
-	Output string `json:"output" db:"output"`
+	Output string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
 	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
