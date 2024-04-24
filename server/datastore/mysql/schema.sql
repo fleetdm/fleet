@@ -488,15 +488,19 @@ CREATE TABLE `host_software_installed_paths` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_software_installs` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `execution_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `host_id` int(10) unsigned NOT NULL,
   `software_installer_id` int(10) unsigned NOT NULL,
-  `pre_install_condition_output` text COLLATE utf8mb4_unicode_ci,
+  `pre_install_query_output` text COLLATE utf8mb4_unicode_ci,
   `install_script_output` text COLLATE utf8mb4_unicode_ci,
   `install_script_exit_code` int(10) DEFAULT NULL,
   `post_install_condition_output` text COLLATE utf8mb4_unicode_ci,
   `post_install_condition_exit_code` int(10) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_software_installs_host_installer` (`host_id`,`software_installer_id`),
+  UNIQUE KEY `idx_host_software_installs_execution_id` (`execution_id`),
   KEY `fk_host_software_installs_installer_id` (`software_installer_id`),
   CONSTRAINT `fk_host_software_installs_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1496,15 +1500,17 @@ CREATE TABLE `software_host_counts` (
 CREATE TABLE `software_installers` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `software_id` bigint(20) unsigned DEFAULT NULL,
-  `pre_install_condition` text COLLATE utf8mb4_unicode_ci,
-  `install_script_id` int(10) unsigned NOT NULL,
-  `post_install_script_id` int(10) unsigned DEFAULT NULL,
+  `pre_install_query` text COLLATE utf8mb4_unicode_ci,
+  `install_script_content_id` int(10) unsigned NOT NULL,
+  `post_install_script_content_id` int(10) unsigned DEFAULT NULL,
+  `storage_id` binary(16) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_software_installers_version` (`software_id`),
-  KEY `fk_software_installers_install_script_id` (`install_script_id`),
-  KEY `fk_software_installers_post_install_script_id` (`post_install_script_id`),
-  CONSTRAINT `fk_software_installers_install_script_id` FOREIGN KEY (`install_script_id`) REFERENCES `script_contents` (`id`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_software_installers_post_install_script_id` FOREIGN KEY (`post_install_script_id`) REFERENCES `script_contents` (`id`) ON UPDATE CASCADE,
+  KEY `fk_software_installers_install_script_content_id` (`install_script_content_id`),
+  KEY `fk_software_installers_post_install_script_content_id` (`post_install_script_content_id`),
+  CONSTRAINT `fk_software_installers_install_script_content_id` FOREIGN KEY (`install_script_content_id`) REFERENCES `script_contents` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_installers_post_install_script_content_id` FOREIGN KEY (`post_install_script_content_id`) REFERENCES `script_contents` (`id`) ON UPDATE CASCADE,
   CONSTRAINT `fk_software_installers_version` FOREIGN KEY (`software_id`) REFERENCES `software` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
