@@ -31,7 +31,7 @@ module.exports = {
   },
 
 
-  fn: async function ({fleetInstanceUrl, fleetApiKey, sql}) {
+  fn: async function ({sql}) {
 
     if (!sails.config.custom.openAiSecret) {
       throw new Error('sails.config.custom.openAiSecret not set.');
