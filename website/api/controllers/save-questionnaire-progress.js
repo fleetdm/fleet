@@ -113,7 +113,7 @@ module.exports = {
     // 'is-it-any-good': Stage 2/3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
     // 'what-did-you-think'
     //  - deploy-fleet-in-environment » Stage 5
-    //  - let-me-think-about-it »  Stage 3
+    //  - let-me-think-about-it »  Stage 2
     //  - host-fleet-for-me » N/A (currently not selectable, but should set the user's psychologicalStage to stage 5)
 
     let psychologicalStage = userRecord.psychologicalStage;
@@ -175,8 +175,10 @@ module.exports = {
         // If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
         if(valueFromFormData === 'deploy-fleet-in-environment') {
           psychologicalStage = '5 - Personally confident';
+        } else if(valueFromFormData === 'let-me-think-about-it') {
+        // If the user selects "Let me think about it", their stage change to 2
+          psychologicalStage = '2 - Aware';
         }
-        // If the user selects "Let me think about it", their stage will not change (They are sent back to the previous step).
         // If the user selects "I’d like you to host Fleet for me", the form is not submitted, and they are taken to the /contact page instead. FUTURE: set stage to stage 5.
       } else if(currentStep === 'how-many-hosts') {
         // If they have Fleet deployed, they have team buy-in
