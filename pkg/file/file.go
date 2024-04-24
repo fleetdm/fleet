@@ -22,6 +22,8 @@ func ExtractInstallerMetadata(filename string, b []byte) (name, version string, 
 		return ExtractPEMetadata(b)
 	case ".pkg":
 		return ExtractXARMetadata(b)
+	case ".msi":
+		return ExtractMSIMetadata(b)
 	default:
 		return "", "", fmt.Errorf("unsupported file type: %s", ext)
 	}
