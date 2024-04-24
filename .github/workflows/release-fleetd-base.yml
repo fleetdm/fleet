@@ -49,7 +49,8 @@ jobs:
           curl -O $BASE_URL/meta.json
           if diff latest-meta.json meta.json >/dev/null 2>&1
           then
-            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "overwriting update_needed=false"
+            echo "update_needed=true" >> $GITHUB_OUTPUT
           else
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
@@ -105,7 +106,7 @@ jobs:
           R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
           R2_BUCKET: download-testing # Production: download | Testing: download-testing
         run: |
-          brew install rclone
+          ./.github/scripts/install-rclone.sh
           mkdir -p ~/.config/rclone
           echo "[r2]
           type = s3
@@ -143,7 +144,7 @@ jobs:
           R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
           R2_BUCKET: download-testing # Production: download | Testing: download-testing
         run: |
-          sudo apt-get install rclone
+          ./.github/scripts/install-rclone.sh
           mkdir -p ~/.config/rclone
           echo "[r2]
           type = s3
@@ -175,7 +176,7 @@ jobs:
           R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
           R2_BUCKET: download-testing # Production: download | Testing: download-testing
         run: |
-          sudo apt-get install rclone
+          ./.github/scripts/install-rclone.sh
           mkdir -p ~/.config/rclone
           echo "[r2]
           type = s3
