@@ -6,7 +6,11 @@ on:
       filename:
         description: 'The name of the file to sign'
         required: true
-        default: 'unsigned.exe'
+        type: string
+      upload_name:
+        description: 'The name of the artifact to upload'
+        required: false
+        default: 'signed-windows'
         type: string
     secrets:
       DIGICERT_KEYLOCKER_CERTIFICATE:
@@ -20,9 +24,12 @@ on:
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   code-sign-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -81,5 +88,5 @@ jobs:
       - name: Upload signed artifact
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
-          name: signed-windows
+          name: ${{ inputs.upload_name }}
           path: ${{ inputs.filename }}
