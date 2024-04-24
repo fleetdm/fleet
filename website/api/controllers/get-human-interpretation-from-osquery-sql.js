@@ -75,7 +75,6 @@ Please give me all of the above in JSON, with this data shape:
       Authorization: `Bearer ${sails.config.custom.openAiSecret}`
     })
     .tolerate((err)=>{
-      // FUTURE: Actual negotiate errors instead of just pretending it works but sending back garbage.
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
       return;
     });
@@ -83,6 +82,7 @@ Please give me all of the above in JSON, with this data shape:
     // Get data into expected formaat
     let report;
     if (!llmReport) {// If LLM could not be reached…
+      // FUTURE: Actually negotiate errors instead of just pretending it works but sending back garbage.
       report = {
         risks: failureMessage,
         whatWillProbablyHappenDuringMaintenance: failureMessage
