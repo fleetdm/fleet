@@ -49,12 +49,10 @@ Remember to minimize the number of words used!
 
 Please give me all of the above in JSON, with this data shape:
 
-\`\`\`
 {
   risks: 'TODO',
   whatWillProbablyHappenDuringMaintenance: 'TODO'
-}
-\`\`\``;
+}`;
     // Fallback message in case LLM API request fails.
     let failureMessage = 'Failed to generate human interpretation using generative AI.';
 
@@ -93,7 +91,10 @@ Please give me all of the above in JSON, with this data shape:
       report = JSON.parse(openAiResponse.choices[0].message.content);
     } catch (err) {
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
-      report = `{ "risks": "${failureMessage}", "whatWillProbablyHappenDuringMaintenance": "${failureMessage}" }`
+      report = { 
+        risks: failureMessage, 
+        whatWillProbablyHappenDuringMaintenance: failureMessage
+      }
     }
 
     return report;
