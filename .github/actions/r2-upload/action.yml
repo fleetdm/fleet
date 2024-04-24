@@ -4,6 +4,7 @@ description: Upload a file to R2
 
 inputs:
   filename:
+    # Future improvement: accept array of filenames as JSON string, and loop over it like in https://www.starkandwayne.com/blog/bash-for-loop-over-json-array-using-jq/index.html
     description: 'Name of the file to upload'
     required: true
   r2_endpoint:

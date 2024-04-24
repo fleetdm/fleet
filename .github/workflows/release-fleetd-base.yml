@@ -54,8 +54,7 @@ jobs:
           curl -O $BASE_URL/meta.json
           if diff latest-meta.json meta.json >/dev/null 2>&1
           then
-            echo "overwriting update_needed=false"
-            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "update_needed=false" >> $GITHUB_OUTPUT
           else
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
