@@ -3692,6 +3692,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "id": 121,
       "name": "Google Chrome.app",
       "package_available_for_install": "GoogleChrome.pkg",
+      "self_service": "true",
       "source": "apps",
       "bundle_identifier": "com.google.Chrome",
       "status": "failed",
