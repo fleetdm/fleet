@@ -17,17 +17,18 @@ import (
 type Service struct {
 	fleet.Service
 
-	ds                fleet.Datastore
-	logger            kitlog.Logger
-	config            config.FleetConfig
-	clock             clock.Clock
-	authz             *authz.Authorizer
-	depStorage        storage.AllDEPStorage
-	mdmAppleCommander fleet.MDMAppleCommandIssuer
-	mdmPushCertTopic  string
-	ssoSessionStore   sso.SessionStore
-	depService        *apple_mdm.DEPService
-	profileMatcher    fleet.ProfileMatcher
+	ds                   fleet.Datastore
+	logger               kitlog.Logger
+	config               config.FleetConfig
+	clock                clock.Clock
+	authz                *authz.Authorizer
+	depStorage           storage.AllDEPStorage
+	mdmAppleCommander    fleet.MDMAppleCommandIssuer
+	mdmPushCertTopic     string
+	ssoSessionStore      sso.SessionStore
+	depService           *apple_mdm.DEPService
+	profileMatcher       fleet.ProfileMatcher
+	softwareInstallStore fleet.SoftwareInstallerStore
 }
 
 func NewService(
@@ -42,6 +43,7 @@ func NewService(
 	mdmPushCertTopic string,
 	sso sso.SessionStore,
 	profileMatcher fleet.ProfileMatcher,
+	softwareInstallStore fleet.SoftwareInstallerStore,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -49,18 +51,19 @@ func NewService(
 	}
 
 	eeservice := &Service{
-		Service:           svc,
-		ds:                ds,
-		logger:            logger,
-		config:            config,
-		clock:             c,
-		authz:             authorizer,
-		depStorage:        depStorage,
-		mdmAppleCommander: mdmAppleCommander,
-		mdmPushCertTopic:  mdmPushCertTopic,
-		ssoSessionStore:   sso,
-		depService:        apple_mdm.NewDEPService(ds, depStorage, logger),
-		profileMatcher:    profileMatcher,
+		Service:              svc,
+		ds:                   ds,
+		logger:               logger,
+		config:               config,
+		clock:                c,
+		authz:                authorizer,
+		depStorage:           depStorage,
+		mdmAppleCommander:    mdmAppleCommander,
+		mdmPushCertTopic:     mdmPushCertTopic,
+		ssoSessionStore:      sso,
+		depService:           apple_mdm.NewDEPService(ds, depStorage, logger),
+		profileMatcher:       profileMatcher,
+		softwareInstallStore: softwareInstallStore,
 	}
 
 	// Override methods that can't be easily overriden via

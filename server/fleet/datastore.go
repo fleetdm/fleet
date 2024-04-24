@@ -34,7 +34,9 @@ type CarveStore interface {
 }
 
 // InstallerStore is used to communicate to a blob storage containing pre-built
-// fleet-osquery installers
+// fleet-osquery installers. This was originally implemented to support the
+// Fleet Sandbox and is not expected to be used outside of this:
+// https://fleetdm.com/docs/configuration/fleet-server-configuration#packaging
 type InstallerStore interface {
 	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installer Installer) (string, error)
