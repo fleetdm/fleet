@@ -76,10 +76,12 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout Code to get install-rclone.sh script
+      - name: Checkout code needed for R2 upload
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          sparse-checkout: .github/scripts/rclone-install.sh
+          sparse-checkout: |
+            .github/actions/r2-upload/action.yml
+            .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
 
       - name: Install fleetctl
@@ -129,10 +131,12 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout Code to get install-rclone.sh script
+      - name: Checkout code needed for R2 upload
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          sparse-checkout: .github/scripts/rclone-install.sh
+          sparse-checkout: |
+            .github/actions/r2-upload/action.yml
+            .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
 
       - name: Install fleetctl
@@ -161,10 +165,12 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout Code to get install-rclone.sh script
+      - name: Checkout code needed for R2 upload
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          sparse-checkout: .github/scripts/rclone-install.sh
+          sparse-checkout: |
+            .github/actions/r2-upload/action.yml
+            .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
 
       - name: Download latest-meta.json artifact
