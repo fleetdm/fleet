@@ -1,1 +1,0 @@
-* Fixed the error message so that it indicates if a conflict error on uploading an Apple profile was caused by the profile's name or its identifier.
