@@ -31,6 +31,7 @@ func ExtractPEMetadata(b []byte) (name, version string, err error) {
 	if err != nil {
 		return "", "", fmt.Errorf("error creating PE file: %w", err)
 	}
+	defer pep.Close()
 
 	if err := pep.Parse(); err != nil {
 		return "", "", fmt.Errorf("error parsing PE file: %w", err)

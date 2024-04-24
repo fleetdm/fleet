@@ -65,18 +65,24 @@ func ExtractDebMetadata(b []byte) (name, version string, err error) {
 func parseControl(r io.Reader, ext string) (name, version string, err error) {
 	switch ext {
 	case ".gz":
-		r, err = gzip.NewReader(r)
+		gz, err := gzip.NewReader(r)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create gzip reader: %w", err)
+		}
+		defer gz.Close()
+		r = gz
+
 	case ".bz2":
 		r = bzip2.NewReader(r)
 	case ".xz":
 		r, err = xz.NewReader(r, 0)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create xz reader: %w", err)
+		}
 	case "":
 		// uncompressed
 	default:
-		err = errors.New("unrecognized compression on control.tar: " + ext)
-	}
-	if err != nil {
-		return "", "", err
+		return "", "", errors.New("unrecognized compression on control.tar: " + ext)
 	}
 
 	tr := tar.NewReader(r)
