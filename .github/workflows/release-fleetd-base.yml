@@ -72,6 +72,12 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout Code to get install-rclone.sh script
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          sparse-checkout: .github/scripts/rclone-install.sh
+          sparse-checkout-cone-mode: false
+
       - name: Install fleetctl
         run: npm install -g fleetctl
 
@@ -99,12 +105,6 @@ jobs:
         run: |
           fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
           mv fleet-osquery*.pkg fleetd-base.pkg
-
-      - name: Checkout Code to get install-rclone.sh script
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        with:
-          sparse-checkout: .github/scripts/rclone-install.sh
-          sparse-checkout-cone-mode: false
 
       - name: Upload package
         env:
@@ -136,6 +136,12 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout Code to get install-rclone.sh script
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          sparse-checkout: .github/scripts/rclone-install.sh
+          sparse-checkout-cone-mode: false
+
       - name: Install fleetctl
         run: npm install -g fleetctl
 
@@ -143,12 +149,6 @@ jobs:
         run: |
           fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
           mv fleet-osquery*.msi fleetd-base.msi
-
-      - name: Checkout Code to get install-rclone.sh script
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        with:
-          sparse-checkout: .github/scripts/rclone-install.sh
-          sparse-checkout-cone-mode: false
 
       - name: Upload package
         env:
@@ -179,6 +179,12 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout Code to get install-rclone.sh script
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          sparse-checkout: .github/scripts/rclone-install.sh
+          sparse-checkout-cone-mode: false
+
       - name: Download latest-meta.json artifact
         uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
         with:
@@ -186,12 +192,6 @@ jobs:
 
       - name: Rename latest-meta.json to meta.json
         run: mv latest-meta.json meta.json
-
-      - name: Checkout Code to get install-rclone.sh script
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        with:
-          sparse-checkout: .github/scripts/rclone-install.sh
-          sparse-checkout-cone-mode: false
 
       - name: Upload meta.json to R2
         env:
