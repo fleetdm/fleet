@@ -704,7 +704,7 @@ WHERE
 	return devices, nil
 }
 
-func (ds *Datastore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
@@ -717,20 +717,20 @@ func (ds *Datastore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHos
 func ingestMDMAppleDeviceFromCheckinDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	mdmHost fleet.MDMAppleHostDetails,
+	mdmHost *fleet.Host,
 	logger log.Logger,
 	appCfg *fleet.AppConfig,
 ) error {
-	if mdmHost.SerialNumber == "" {
+	if mdmHost.HardwareSerial == "" {
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected device serial number but got empty string")
 	}
-	if mdmHost.UDID == "" {
+	if mdmHost.UUID == "" {
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected unique device id but got empty string")
 	}
 
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	matchID, _, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UDID, mdmHost.SerialNumber)
+	matchID, _, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg)
@@ -747,7 +747,7 @@ func updateMDMAppleHostDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	mdmHost fleet.MDMAppleHostDetails,
+	mdmHost *fleet.Host,
 	appCfg *fleet.AppConfig,
 ) error {
 	updateStmt := `
@@ -763,13 +763,13 @@ func updateMDMAppleHostDB(
 	if _, err := tx.ExecContext(
 		ctx,
 		updateStmt,
-		mdmHost.SerialNumber,
-		mdmHost.UDID,
-		mdmHost.Model,
+		mdmHost.HardwareSerial,
+		mdmHost.UUID,
+		mdmHost.HardwareModel,
 		"darwin",
 		1,
 		// Set osquery_host_id to the device UUID only if it is not already set.
-		mdmHost.UDID,
+		mdmHost.UUID,
 		hostID,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "update mdm apple host")
@@ -790,7 +790,7 @@ func updateMDMAppleHostDB(
 func insertMDMAppleHostDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	mdmHost fleet.MDMAppleHostDetails,
+	mdmHost *fleet.Host,
 	logger log.Logger,
 	appCfg *fleet.AppConfig,
 ) error {
@@ -809,13 +809,13 @@ func insertMDMAppleHostDB(
 	res, err := tx.ExecContext(
 		ctx,
 		insertStmt,
-		mdmHost.SerialNumber,
-		mdmHost.UDID,
-		mdmHost.Model,
+		mdmHost.HardwareSerial,
+		mdmHost.UUID,
+		mdmHost.HardwareModel,
 		"darwin",
 		"2000-01-01 00:00:00",
 		"2000-01-01 00:00:00",
-		mdmHost.UDID,
+		mdmHost.UUID,
 		1,
 	)
 	if err != nil {
@@ -829,17 +829,18 @@ func insertMDMAppleHostDB(
 	if id < 1 {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host unexpected last insert id")
 	}
-	host := fleet.Host{ID: uint(id), HardwareModel: mdmHost.Model, HardwareSerial: mdmHost.SerialNumber}
 
-	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, host); err != nil {
+	mdmHost.ID = uint(id)
+
+	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *mdmHost); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 	}
 
-	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, host); err != nil {
+	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, *mdmHost); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, host.ID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, mdmHost.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 	return nil
@@ -1125,28 +1126,56 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
-func (ds *Datastore) deleteMDMAppleProfilesForHost(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
-	_, err := tx.ExecContext(ctx, `
-                    DELETE FROM host_mdm_apple_profiles
-                    WHERE host_uuid = ?`, uuid)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "removing all profiles from host")
+func (ds *Datastore) deleteMDMProfilesForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
+
+	tableMap := map[string][]string{
+		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"windows": {"host_mdm_windows_profiles"},
 	}
+
+	tables, ok := tableMap[platform]
+	if !ok {
+		return ctxerr.Errorf(ctx, "unsupported platform %s", platform)
+	}
+
+	for _, table := range tables {
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+                    DELETE FROM %s
+                    WHERE host_uuid = ?`, table), uuid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "removing all %s from host %s", table, uuid)
+		}
+	}
+
 	return nil
 }
 
-func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error {
+func (ds *Datastore) MDMWindowsTurnOff(ctx context.Context, uuid string) error {
+	return nil
+}
+
+func (ds *Datastore) MDMAppleTurnOff(ctx context.Context, uuid string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var hostID uint
-		row := tx.QueryRowxContext(ctx, `SELECT id FROM hosts WHERE uuid = ?`, uuid)
-		err := row.Scan(&hostID)
+		err := sqlx.GetContext(
+			ctx, tx, &hostID,
+			`SELECT id FROM hosts WHERE uuid = ? LIMIT 1`, uuid,
+		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting host id from UUID")
 		}
 
-		// NOTE: set installed_from_dep = 0 so DEP host will not be counted as pending after it unenrolls.
+		// NOTE: set installed_from_dep = 0 so DEP host will not be
+		// counted as pending after it unenrolls.
 		_, err = tx.ExecContext(ctx, `
-			UPDATE host_mdm SET enrolled = 0, installed_from_dep = 0, server_url = '', mdm_id = NULL WHERE host_id = ?`, hostID)
+			UPDATE host_mdm
+			SET
+			  enrolled = 0,
+			  installed_from_dep = 0,
+			  server_url = '',
+			  mdm_id = NULL
+			WHERE
+			  host_id = ?`, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clearing host_mdm for host")
 		}
@@ -1155,16 +1184,11 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 		// host manually, the device won't Acknowledge any more requests (eg:
 		// to delete profiles) and profiles are automatically removed on
 		// unenrollment.
-		if err := ds.deleteMDMAppleProfilesForHost(ctx, tx, uuid); err != nil {
+		if err := ds.deleteMDMProfilesForHost(ctx, tx, uuid, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting profiles for host")
 		}
 
-		_, err = tx.ExecContext(ctx, `
-                    DELETE FROM host_disk_encryption_keys
-                    WHERE host_id = ?`, hostID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing all profiles from host")
-		}
+		// TODO: think other stuff that needs to be reset
 
 		return nil
 	})
@@ -3368,29 +3392,27 @@ WHERE
 	return nil
 }
 
-func (ds *Datastore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) MDMAppleResetEnrollment(ctx context.Context, hostUUID string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// it's okay if we didn't update any rows, `nano_enrollments` entries
-		// are created on `TokenUpdate`, and this function is called on
-		// `Authenticate` to make sure we start on a clean state if a host is
-		// re-enrolling.
-		_, err := tx.ExecContext(ctx, `UPDATE nano_enrollments SET token_update_tally = 0 WHERE id = ?`, hostUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "resetting nano_enrollments")
-		}
-
 		// Deleting profiles from this table will cause all profiles to
 		// be re-delivered on the next cron run.
-		if err := ds.deleteMDMAppleProfilesForHost(ctx, tx, hostUUID); err != nil {
+		if err := ds.deleteMDMProfilesForHost(ctx, tx, hostUUID, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting profiles status")
 		}
 
 		// Deleting the matching entry on this table will cause
 		// the aggregate report to show this host as 'pending' to
 		// install the bootstrap package.
-		_, err = tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+		_, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting host_mdm_apple_bootstrap_packages")
+		}
+
+		_, err = tx.ExecContext(ctx, `
+                    DELETE FROM host_disk_encryption_keys
+                    WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)`, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing all profiles from host")
 		}
 
 		return nil
