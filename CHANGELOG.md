@@ -1,3 +1,54 @@
+## Fleet 4.49.0 (Apr 24, 2024)
+
+### Endpoint operations
+
+- Added integration with Google Calendar for policy compliance events.
+- Added new API endpoints to add/remove manual labels to/from a host.
+- Updated the `POST /api/v1/fleet/labels` and `PATCH /api/v1/fleet/labels/{id}` endpoints to support creation and update of manual labels.
+- Implemented changes in `fleetctl gitops` for batch processing queries and policies.
+- Enabled setting host status webhook at the team level via REST API and fleetctl apply/gitops.
+
+### Device management (MDM)
+
+- Added API functionality for creating DDM declarations, both individually and as a batch.
+- Added creation or update of macOS DDM profile to enforce OS Updates settings whenever the settings are changed.
+- Updated `fleetctl run-script` to include new `--team` and `--script-name` flags.
+- Displayed disk encryption status in macOS as "verifying" while verifying the escrowed key.
+- Added the `enable_release_device_manually` configuration setting for teams and no team, which controls the automatic release of a macOS DEP-enrolled device.
+- Updated the `POST /api/v1/fleet/hosts/:id/wipe` Fleet Premium API endpoint to support remote wiping a host.
+- Added the `enable_release_device_manually` configuration, which affects macOS automatic enrollment profile settings.
+
+### Vulnerability management
+
+- Ignored Valve Corporation's Steam client's vulnerabilities on Windows and macOS due to retrieval challenges of the true version.
+- Updated the GET fleet/os_versions and GET fleet/os_versions/[id] to restrict team users from accessing os versions on hosts from other teams.
+
+### Bug fixes and improvements
+
+- Upgraded Golang version to 1.21.7.
+- Added a minimum supported node version in the `package.json`.
+- Made block_id mismatch errors more informative as 400s instead of 500s.
+- Added Windows MDM support to the `osquery-perf` host-simulation command.
+- Updated calendar events automations to not show error validation on enabling the feature.
+- Migrated MDM-related endpoints to new paths while maintaining support for old endpoints indefinitely.
+- Added a missing database index to the MDM Windows enrollments table to improve performance at scale.
+- Added cross-platform check for duplicate MDM profiles names in batch set MDM profiles API.
+- Fixed a bug where Microsoft Edge was not reporting vulnerabilities.
+- Fixed an issue with the `20240327115617_CreateTableNanoDDMRequests` database migration.
+- Fixed the error message to indicate if a conflict on uploading an Apple profile was caused by the profile's name or its identifier.
+- Fixed license checks to allow migration and restoring DEP devices during trial.
+- Fixed a 500 error in MySQL 8 and when DB user has insufficient privileges for `fleetctl debug db-locks` and `fleetctl debug db-innodb-status`.
+- Fixed a bug where values not derived from "actual" fleetd-chrome tables were not being displayed correctly.
+- Fixed a bug where values were not being rendered in host-specific query reports.
+- Fixed an issue with automatic release of the device after setup when a DDM profile is pending.
+- Fixed UI issues: alignment bugs, padding around empty states, tooltip rendering, and incorrect rendering of the global Host status expiry settings page.
+- Fixed a bug where `null` or excluded `smtp_settings` caused a UI 500 error.
+- Fixed an issue where a bad request response from a 3rd party MDM solution would result in a 500 error in Fleet during MDM migration.
+- Fixed a bug where updating policy name could result in multiple policies with the same name in a team.
+- Fixed potential server panic when events are created with calendar integration, but then global calendar integration is disabled.
+- Fixed fleetctl gitops dry-run validation issues when enabling calendar integration for the first time.
+- Fixed a bug where all Windows MDM enrollments were detected as automatic.
+
 ## Fleet 4.48.3 (Apr 16, 2024)
 
 ### Bug fixes
