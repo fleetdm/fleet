@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  R2_ENDPOINT: $${{ secrets.R2_ENDPOINT }}
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
   R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
   R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
   R2_BUCKET: download-testing # Production: download | Testing: download-testing
