@@ -553,6 +553,7 @@ const ManagePolicyPage = ({
   };
 
   const onDeletePolicyClick = (selectedTableIds: number[]): void => {
+    console.log("selectedTableIds", selectedTableIds);
     toggleDeletePolicyModal();
     setSelectedPolicyIds(selectedTableIds);
   };

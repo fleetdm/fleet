@@ -1,6 +1,5 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
-import PATHS from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary } from "interfaces/team";
