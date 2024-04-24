@@ -110,7 +110,7 @@ module.exports = {
     // 'what-do-you-manage-mdm'
     //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
-    // 'is-it-any-good':  Stage 3
+    // 'is-it-any-good': Stage 2/3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
     // 'what-did-you-think'
     //  - deploy-fleet-in-environment » Stage 5
     //  - let-me-think-about-it »  Stage 3
@@ -158,7 +158,7 @@ module.exports = {
           // be selected,  we'll check the user's previous answers befroe changing their psyStage
           if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
             // Check the user's answer to the have-you-ever-used-fleet question.
-            if(hasUsedFleetAnswer === 'yes-deployed-local'){
+            if(hasUsedFleetAnswer === 'yes-deployed-local') {
               // If they've tried Fleet locally, set their stage to 3.
               psychologicalStage = '3 - Intrigued';
             } else {
