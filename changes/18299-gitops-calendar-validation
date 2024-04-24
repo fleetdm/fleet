@@ -1,1 +1,0 @@
-Fixed fleetctl gitops dry-run validation issues when enabling calendar integration for the first time.
