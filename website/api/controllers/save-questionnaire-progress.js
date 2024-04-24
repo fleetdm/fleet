@@ -119,7 +119,9 @@ module.exports = {
     let psychologicalStage = userRecord.psychologicalStage;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
-    if(currentStep === 'what-are-you-using-fleet-for') {
+    if(currentStep === 'start') {
+      // There is change when the user completes the start step.
+    } else if(currentStep === 'what-are-you-using-fleet-for') {
       psychologicalStage = '2 - Aware';
     } else if(currentStep === 'have-you-ever-used-fleet') {
       if(['yes-deployed', 'yes-recently-deployed'].includes(valueFromFormData)) {
