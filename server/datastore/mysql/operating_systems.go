@@ -139,23 +139,12 @@ func getOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.
 // upsertHostOperatingSystemDB upserts the host operating system table
 // with the operating system id for the given host ID
 func upsertHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, osID uint) error {
-	res, err := tx.ExecContext(ctx, "UPDATE host_operating_system SET os_id = ? WHERE host_id = ?", osID, hostID)
-	if err != nil {
-		return err
-	}
-
-	if n, _ := res.RowsAffected(); n > 0 {
-		// update success
-		return nil
-	}
-
-	// no row to update so insert new row
-	_, err = tx.ExecContext(ctx, "INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)", hostID, osID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)
+				ON DUPLICATE KEY UPDATE os_id = VALUES(os_id)`, hostID, osID,
+	)
+	return err
 }
 
 // getIDHostOperatingSystemDB queries the `host_operating_system` table and returns the
