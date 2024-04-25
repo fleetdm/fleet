@@ -91,7 +91,7 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
     try {
       report = JSON.parse(openAiResponse.choices[0].message.content);
     } catch (err) {
-      sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
+      sails.log.warn('When trying to parse a JSON report returned from the Open AI API, an error occurred. Error details from JSON.parse: '+err.stack+'\n Report returned from Open AI:'+openAiResponse.choices[0].message.content);
       report = {
         risks: failureMessage,
         whatWillProbablyHappenDuringMaintenance: failureMessage
