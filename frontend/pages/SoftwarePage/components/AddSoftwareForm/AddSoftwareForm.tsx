@@ -5,6 +5,10 @@ import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
+import RevealButton from "components/buttons/RevealButton";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
+import FleetAce from "components/FleetAce";
 
 const baseClass = "add-software-form";
 
@@ -35,6 +39,12 @@ const AddSoftwareForm = ({
   onCancel,
   onSubmit,
 }: IAddSoftwareFormProps) => {
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
+  const [showPostInstallScript, setShowPostInstallScript] = useState(false);
+  const [preInstallCondition, setPreinstallCondition] = useState(false);
+  const [postInstallScript, setPostinstallScript] = useState(false);
+
   const [formData, setFormData] = useState<IAddSoftwareFormData>({
     software: null,
     installScript: "",
@@ -77,6 +87,49 @@ const AddSoftwareForm = ({
               helpText="Fleet will run this command on hosts to install software."
             />
           )}
+          <div className={`${baseClass}__advanced-options`}>
+            <RevealButton
+              className={`${baseClass}__accordion-title`}
+              isShowing={showAdvancedOptions}
+              showText="Hide advanced options"
+              hideText="Show advanced options"
+              caretPosition="after"
+              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+            />
+            {showAdvancedOptions && (
+              <div>
+                <Checkbox
+                  value={showPreInstallCondition}
+                  onChange={() =>
+                    setShowPreInstallCondition(!showPreInstallCondition)
+                  }
+                >
+                  Pre-install confition
+                </Checkbox>
+                {showPreInstallCondition && (
+                  <FleetAce
+                    onChange={(value) => console.log(value)}
+                    label="Query"
+                    helpText="Software will be installed only if the query returns results "
+                  />
+                )}
+                <Checkbox
+                  value={showPostInstallScript}
+                  onChange={() =>
+                    setShowPostInstallScript(!showPostInstallScript)
+                  }
+                >
+                  Post-install script
+                </Checkbox>
+                {showPostInstallScript && (
+                  <FleetAce
+                    onChange={(value) => console.log(value)}
+                    helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+                  />
+                )}
+              </div>
+            )}
+          </div>
           <div className="modal-cta-wrap">
             <Button type="submit" variant="brand" disabled={false}>
               Add software
