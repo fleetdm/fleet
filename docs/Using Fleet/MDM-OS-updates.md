@@ -22,6 +22,12 @@ Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-ap
 
 ### macOS
 
+When a minimum version is enforced, the end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes, and then every 10 minutes.   
+
+If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
+
+### macOS (below version 14.0)
+
 End users are encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
 
 ![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
