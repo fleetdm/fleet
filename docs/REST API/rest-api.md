@@ -2517,10 +2517,10 @@ Returns the information of the specified host.
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 > Note:
-> - `orbit_version == null` means this agent is not an orbit agent
-> - `fleet_desktop_version == null` means this agent is not an orbit agent, or this agent is version <=1.23.0 which is not collecting the desktop version
-> - `fleet_desktop_version == ""` means this agent is an orbit agent but does not have fleet desktop
-> - `scripts_enabled == null` means this agent is not an orbit agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
+> - `orbit_version: null` means this agent is not a fleetd agent
+> - `fleet_desktop_version: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the desktop version
+> - `fleet_desktop_version: ""` means this agent is a fleetd agent but does not have fleet desktop
+> - `scripts_enabled: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
 
 ### Get host by identifier
 
