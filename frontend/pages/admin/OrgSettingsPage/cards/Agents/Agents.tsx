@@ -81,9 +81,9 @@ const Agents = ({
         <SectionHeader title="Agent options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
-            Agent options configure Fleet's agent (fleetd). When you update agent
-            options, they will be applied the next time a host checks in to
-            Fleet.{" "}
+            Agent options configure Fleet&apos;s agent (fleetd). When you update
+            agent options, they will be applied the next time a host checks in
+            to Fleet.{" "}
             <CustomLink
               url="https://fleetdm.com/docs/configuration/agent-configuration"
               text="Learn more about agent options"

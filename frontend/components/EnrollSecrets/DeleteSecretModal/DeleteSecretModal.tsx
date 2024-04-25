@@ -50,7 +50,8 @@ const DeleteSecretModal = ({
             unable to enroll.
           </p>
           <p>
-            Hosts that enrolled with this secret will not get updates to agent options.
+            Hosts that enrolled with this secret will not get updates to agent
+            options.
           </p>
           <p>
             Follow this guide to{" "}
