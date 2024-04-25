@@ -30,7 +30,7 @@ func packageCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "package",
 		Aliases:     nil,
-		Usage:       "Create a fleetd package",
+		Usage:       "Create a fleetd agent",
 		Description: "An easy way to create fully boot-strapped installer packages for Windows, macOS, or Linux",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
