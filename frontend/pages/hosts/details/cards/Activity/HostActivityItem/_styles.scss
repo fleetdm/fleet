@@ -54,13 +54,12 @@
   }
 
   &:last-child {
-    .past-activity__dash {
+    .host-activity-item__dash {
       border-right: none;
     }
 
-    .past-activity__details {
+    .host-activity-item__details-wrapper {
       padding-bottom: $pad-xxlarge;
     }
   }
-
 }

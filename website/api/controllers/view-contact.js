@@ -33,7 +33,6 @@ module.exports = {
     // Respond with view.
     return {
       formToShow,
-      prefillFormDataFromUserRecord: this.req.me ? true : false// FUTURE: move to frontend.
     };
 
   }

@@ -1,0 +1,29 @@
+.label-form {
+  &__label-title,
+  &__label-description {
+    width: 100%;
+    resize: vertical;
+  }
+
+  &__label-platform {
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-fleet-black;
+    padding-bottom: $pad-large;
+
+    p {
+      padding-bottom: $pad-small;
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+
+    .title {
+      font-weight: $bold;
+    }
+
+    .help-text {
+      color: $core-fleet-blue;
+      padding-top: $pad-small;
+    }
+  }
+}
