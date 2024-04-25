@@ -3918,7 +3918,7 @@ Adds manual labels to a host.
 
 ### Remove labels from host
 
-The endpoint can be used to remove manual labels from a host.
+Removes manual labels from a host.
 
 `DELETE /api/v1/fleet/hosts/:id/labels`
 
