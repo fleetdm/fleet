@@ -84,7 +84,7 @@ jobs:
           make desktop-app-tar-gz
 
       - name: Upload desktop.app.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: desktop.app.tar.gz
           path: desktop.app.tar.gz
@@ -153,7 +153,7 @@ jobs:
           make desktop-linux
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: desktop.tar.gz
           path: desktop.tar.gz
