@@ -15,6 +15,7 @@ import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
 import { syntaxHighlight } from "utilities/helpers";
 import Icon from "components/Icon";
+import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 
 const baseClass = "calendar-events-modal";
 
@@ -69,6 +70,9 @@ const CalendarEventsModal = ({
     false
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
+  const [selectedPolicyToPreview, setSelectedPolicyToPreview] = useState<
+    IPolicy | undefined
+  >();
 
   // Used on URL change only when URL error exists and always on attempting to save
   const validateForm = (newFormData: ICalendarEventsFormData) => {
@@ -167,6 +171,7 @@ const CalendarEventsModal = ({
     );
   };
 
+  console.log("middle showPreviewCalendarEvent", showPreviewCalendarEvent);
   const renderPolicies = () => {
     return (
       <div className="form-field">
@@ -188,7 +193,15 @@ const CalendarEventsModal = ({
                   {name}
                 </Checkbox>
                 <div>
-                  <Button variant="text-icon">
+                  <Button
+                    variant="text-icon"
+                    onClick={() => {
+                      setSelectedPolicyToPreview(
+                        policies.find((p) => p.id === id)
+                      );
+                      togglePreviewCalendarEvent();
+                    }}
+                  >
                     <Icon name="eye" /> Preview
                   </Button>
                 </div>
@@ -206,26 +219,6 @@ const CalendarEventsModal = ({
           />
         </span>
       </div>
-    );
-  };
-  const renderPreviewCalendarEventModal = () => {
-    return (
-      <Modal
-        title="Calendar event preview"
-        width="large"
-        onExit={togglePreviewCalendarEvent}
-        className="calendar-event-preview"
-      >
-        <>
-          <p>A similar event will appear in the end user&apos;s calendar:</p>
-          <Graphic name="calendar-event-preview" />
-          <div className="modal-cta-wrap">
-            <Button onClick={togglePreviewCalendarEvent} variant="brand">
-              Done
-            </Button>
-          </div>
-        </>
-      </Modal>
     );
   };
 
@@ -269,7 +262,10 @@ const CalendarEventsModal = ({
         <Button
           type="button"
           variant="text-link"
-          onClick={togglePreviewCalendarEvent}
+          onClick={() => {
+            setSelectedPolicyToPreview(undefined);
+            togglePreviewCalendarEvent();
+          }}
         >
           Preview calendar event
         </Button>
@@ -319,9 +315,16 @@ const CalendarEventsModal = ({
     </div>
   );
 
+  console.log("bottom showPreviewCalendarEvent", showPreviewCalendarEvent);
   if (showPreviewCalendarEvent) {
-    return renderPreviewCalendarEventModal();
+    return (
+      <CalendarEventPreviewModal
+        onCancel={togglePreviewCalendarEvent}
+        policy={selectedPolicyToPreview}
+      />
+    );
   }
+
   return (
     <Modal
       title="Calendar events"

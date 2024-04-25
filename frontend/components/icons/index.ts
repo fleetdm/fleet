@@ -1,5 +1,6 @@
 import Arrow from "./Arrow";
 import ArrowInternalLink from "./ArrowInternalLink";
+import Calendar from "./Calendar";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import ChevronLeft from "./ChevronLeft";
@@ -58,6 +59,7 @@ import Refresh from "./Refresh";
 export const ICON_MAP = {
   arrow: Arrow,
   "arrow-internal-link": ArrowInternalLink,
+  calendar: Calendar,
   "calendar-check": CalendarCheck,
   "chevron-left": ChevronLeft,
   "chevron-right": ChevronRight,

@@ -1,0 +1,50 @@
+.calendar-event-preview-modal {
+  p {
+    margin: 24px 0;
+  }
+  &__preview {
+    display: flex;
+    padding: 40px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+    align-self: stretch;
+    border-radius: 16px;
+    border: 1px solid $ui-fleet-black-10;
+    background: $core-white;
+  }
+
+  &__preview-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    align-self: stretch;
+
+    &__square {
+      display: flex;
+      height: 30px;
+      align-items: center;
+      gap: 10px;
+    }
+    &__info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+    }
+  }
+
+  &__preview-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    align-self: stretch;
+  }
+
+  &__preview-invitee {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    align-self: stretch;
+  }
+}
