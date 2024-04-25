@@ -844,6 +844,27 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, gpol.Name, ts.InheritedPolicies[0].Name)
 	assert.Equal(t, gpol.ID, ts.InheritedPolicies[0].ID)
 
+	// Test merge inherited
+	ltParams := listTeamPoliciesRequest{
+		MergeInherited: true,
+		Opts: fleet.ListOptions{
+			OrderKey:       "team_id",
+			OrderDirection: fleet.OrderDescending,
+		},
+	}
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), ltParams, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 2)
+	require.Nil(t, ts.InheritedPolicies)
+	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
+	assert.Equal(t, "select * from osquery;", ts.Policies[0].Query)
+	assert.Equal(t, "Some description", ts.Policies[0].Description)
+	require.NotNil(t, ts.Policies[0].Resolution)
+	assert.Equal(t, "some team resolution", *ts.Policies[0].Resolution)
+	assert.Equal(t, gpol.Name, ts.Policies[1].Name)
+	assert.Equal(t, gpol.ID, ts.Policies[1].ID)
+
+	// Test delete
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
 	deletePolicyResp := deleteTeamPoliciesResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team1.ID), deletePolicyParams, http.StatusOK, &deletePolicyResp)
@@ -2840,7 +2861,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// edited macos min version activity got created
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
 	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2022-01-01")})
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2022-01-01"),
+	})
 
 	// get the appconfig
 	acResp = appConfigResponse{}
@@ -2864,7 +2886,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// another edited macos min version activity got created
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
 	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01")})
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01"),
+	})
 
 	// update something unrelated - the transparency url
 	acResp = appConfigResponse{}
@@ -2875,7 +2898,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
 	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01")})
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01"),
+	})
 
 	// clear the macos requirement
 	acResp = appConfigResponse{}

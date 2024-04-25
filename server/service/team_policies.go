@@ -106,6 +106,7 @@ type listTeamPoliciesRequest struct {
 	InheritedPerPage        uint                 `query:"inherited_per_page,optional"`
 	InheritedOrderDirection fleet.OrderDirection `query:"inherited_order_direction,optional"`
 	InheritedOrderKey       string               `query:"inherited_order_key,optional"`
+	MergeInherited          bool                 `query:"merge_inherited,optional"`
 }
 
 type listTeamPoliciesResponse struct {
@@ -126,14 +127,14 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 		OrderKey:       req.InheritedOrderKey,
 	}
 
-	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions)
+	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited)
 	if err != nil {
 		return listTeamPoliciesResponse{Err: err}, nil
 	}
 	return listTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -144,6 +145,11 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 
 	if _, err := svc.ds.Team(ctx, teamID); err != nil {
 		return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	}
+
+	if mergeInherited {
+		p, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts)
+		return p, nil, err
 	}
 
 	return svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts)

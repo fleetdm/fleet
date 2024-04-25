@@ -562,6 +562,14 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 	return teamPolicies, inheritedPolicies, err
 }
 
+func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, teamID, opts, fleet.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return append(teamPolicies, inheritedPolicies...), nil
+}
+
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, &teamID)
 }
