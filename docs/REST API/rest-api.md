@@ -2364,7 +2364,10 @@ Returns the information of the specified host.
     "hostname": "23cfc9caacf0",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
     "platform": "rhel",
-    "osquery_version": "4.5.1",
+    "osquery_version": "5.12.0",
+    "orbit_version": "1.22.0",
+    "fleet_desktop_version": "1.22.0",
+    "scripts_enabled": true,
     "os_version": "CentOS Linux 8.3.2011",
     "build": "",
     "platform_like": "rhel",
@@ -2540,6 +2543,12 @@ Returns the information of the specified host.
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
+
+> Note:
+> - `orbit_version: null` means this agent is not a fleetd agent
+> - `fleet_desktop_version: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the desktop version
+> - `fleet_desktop_version: ""` means this agent is a fleetd agent but does not have fleet desktop
+> - `scripts_enabled: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
 
 ### Get host by identifier
 
