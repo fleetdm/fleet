@@ -827,59 +827,29 @@ func main() {
 		flagUpdateReciver := update.NewFlagReceiver(orbitClient.UpdateCancelFunc, update.FlagUpdateOptions{
 			RootDir: c.String("root-dir"),
 		})
-
-		initialConfig, err := orbitClient.GetConfig()
-		if err != nil {
-			log.Error().Msg("initial update failed")
-		}
-		if err := flagUpdateReciver.Run(initialConfig); err != nil {
-			log.Error().Msg("initial flag update failed")
-		}
-
 		orbitClient.RegisterConfigReceiver(flagUpdateReciver)
 
-		g.Add(orbitClient.ExecuteConfigReceivers, orbitClient.InterruptConfigReceivers)
-
 		if !c.Bool("disable-updates") {
-			const serverOverridesInterval = 30 * time.Second
-			serverOverridesRunner := newServerOverridesRunner(
-				orbitClient,
+			serverOverridesReceiver := newServerOverridesReveiver(
 				c.String("root-dir"),
-				serverOverridesInterval,
 				fallbackServerOverridesConfig{
 					OsquerydPath: osquerydPath,
 					DesktopPath:  desktopPath,
 				},
 				c.Bool("fleet-desktop"),
+				orbitClient.UpdateCancelFunc,
 			)
-			// Perform initial run to update overrides as soon as possible.
-			didUpdate, err := serverOverridesRunner.run()
-			if err != nil {
-				// Just log, OK to continue, since serverOverridesRunner will retry
-				// in serverOverridesRunner.Execute.
-				log.Debug().Err(err).Msg("initial flags update failed")
-			}
-			if didUpdate {
-				log.Info().Msg("exiting due to early update of server overrides")
-				return nil
-			}
-			g.Add(serverOverridesRunner.Execute, serverOverridesRunner.Interrupt)
+
+			orbitClient.RegisterConfigReceiver(serverOverridesReceiver)
 		}
 
 		// only setup extensions autoupdate if we have enabled updates
 		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
 		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			const orbitExtensionUpdateInterval = 60 * time.Second
-			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
-				CheckInterval: orbitExtensionUpdateInterval,
-				RootDir:       c.String("root-dir"),
-			}, updateRunner)
-
-			if _, err := extRunner.DoExtensionConfigUpdate(); err != nil {
-				// just log, OK to continue since this will get retry
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial update to fetch extensions from /config API failed")
-			}
+			extRunner := update.NewExtensionConfigUpdateRunner(update.ExtensionUpdateOptions{
+				RootDir: c.String("root-dir"),
+			}, updateRunner, orbitClient.UpdateCancelFunc)
 
 			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
 			_, err := updateRunner.UpdateAction()
@@ -906,8 +876,15 @@ func main() {
 			default:
 				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "error with extensions.load file at "+extensionAutoLoadFile)
 			}
-			g.Add(extRunner.Execute, extRunner.Interrupt)
+
+			orbitClient.RegisterConfigReceiver(extRunner)
 		}
+
+		if err := orbitClient.RunConfigReceivers(); err != nil {
+			log.Error().Msgf("failed initial config fetch: %s", err)
+		}
+
+		g.Add(orbitClient.ExecuteConfigReceivers, orbitClient.InterruptConfigReceivers)
 
 		var trw *token.ReadWriter
 		if c.Bool("fleet-desktop") {
@@ -1665,87 +1642,50 @@ func writeSecret(enrollSecret string, orbitRoot string) error {
 
 // serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.
 type serverOverridesRunner struct {
-	configFetcher  update.OrbitConfigFetcher
-	interval       time.Duration
-	rootDir        string
-	fallbackCfg    fallbackServerOverridesConfig
-	desktopEnabled bool
-	cancel         chan struct{}
+	rootDir           string
+	fallbackCfg       fallbackServerOverridesConfig
+	desktopEnabled    bool
+	cancel            chan struct{}
+	queueOrbitRestart context.CancelFunc
 }
 
-// newServerOverridesRunner creates a runner for updating server overrides configuration with values fetched from Fleet.
-func newServerOverridesRunner(
-	configFetcher update.OrbitConfigFetcher,
+// newServerOverridesReveiver creates a runner for updating server overrides configuration with values fetched from Fleet.
+func newServerOverridesReveiver(
 	rootDir string,
-	interval time.Duration,
 	fallbackCfg fallbackServerOverridesConfig,
 	desktopEnabled bool,
+	queueOrbitRestart context.CancelFunc,
 ) *serverOverridesRunner {
 	return &serverOverridesRunner{
-		configFetcher:  configFetcher,
-		interval:       interval,
-		rootDir:        rootDir,
-		fallbackCfg:    fallbackCfg,
-		desktopEnabled: desktopEnabled,
-		cancel:         make(chan struct{}),
+		rootDir:           rootDir,
+		fallbackCfg:       fallbackCfg,
+		desktopEnabled:    desktopEnabled,
+		cancel:            make(chan struct{}),
+		queueOrbitRestart: queueOrbitRestart,
 	}
 }
 
-// Execute starts the loop that polls for server overrides configuration from Fleet.
-func (r *serverOverridesRunner) Execute() error {
-	log.Debug().Msg("starting server overrides runner")
-
-	ticker := time.NewTicker(r.interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-r.cancel:
-			return nil
-		case <-ticker.C:
-			log.Debug().Msg("calling server overrides run")
-			didUpdate, err := r.run()
-			if err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "server overrides run failed")
-			}
-			if didUpdate {
-				log.Info().Msg("server overrides updated, exiting")
-				return nil
-			}
-		}
-	}
-}
-
-// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
-func (r *serverOverridesRunner) Interrupt(err error) {
-	close(r.cancel)
-	log.Error().Err(err).Msg("interrupt for server overrides runner")
-}
-
-func (r *serverOverridesRunner) run() (bool, error) {
+func (r *serverOverridesRunner) Run(orbitCfg *fleet.OrbitConfig) error {
 	overrideCfg, err := loadServerOverrides(r.rootDir)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	orbitCfg, err := r.configFetcher.GetConfig()
-	if err != nil {
-		return false, err
-	}
 	if orbitCfg.UpdateChannels == nil {
 		// Server is not setting or doesn't know of
 		// this feature (old server version), so nothing to do.
-		return false, nil
+		return nil
 	}
 
 	if cfgsDiffer(overrideCfg, orbitCfg, r.desktopEnabled) {
 		if err := r.updateServerOverrides(orbitCfg); err != nil {
-			return false, err
+			return err
 		}
-		return true, nil
+		r.queueOrbitRestart()
+		return nil
 	}
 
-	return false, nil
+	return nil
 }
 
 // cfgsDiffer returns whether the local server overrides differ from the fetched remotely.

@@ -63,13 +63,13 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 			return nil
 		case <-ticker.C:
 			err := oc.RunConfigReceivers()
-			log.Error().Msg(err.Error())
+			log.Error().Err(err)
 		}
 	}
 }
 
 func (oc *OrbitClient) InterruptConfigReceivers(err error) {
-	log.Error().Msg(err.Error())
+	log.Error().Err(err)
 	oc.UpdateCancelFunc()
 }
 
