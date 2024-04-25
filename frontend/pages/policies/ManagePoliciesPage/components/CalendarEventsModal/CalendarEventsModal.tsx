@@ -75,7 +75,7 @@ const CalendarEventsModal = ({
     const { url: newUrl } = newFormData;
     if (
       formData.enabled &&
-      !validURL({ url: newUrl || "", protocol: "http" })
+      !validURL({ url: newUrl || "", protocols: ["http", "https"] })
     ) {
       const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
       errors.url = `${errorPrefix} a valid resolution webhook URL`;

@@ -1,20 +1,13 @@
+// https://github.com/validatorjs/validator.js/blob/master/README.md#validators
+
+import isURL from "validator/lib/isURL";
+
 interface IValidUrl {
   url: string;
-  /**  Validate protocol specified; http validates both http and https */
-  protocol?: "http" | "https";
+  /**  Validate protocols specified */
+  protocols?: ("http" | "https")[];
 }
 
-export default ({ url, protocol }: IValidUrl): boolean => {
-  try {
-    const newUrl = new URL(url);
-    if (protocol === "http") {
-      return newUrl.protocol === "http:" || newUrl.protocol === "https:";
-    }
-    if (protocol === "https") {
-      return newUrl.protocol === "https:";
-    }
-    return true;
-  } catch (e) {
-    return false;
-  }
+export default ({ url, protocols }: IValidUrl): boolean => {
+  return isURL(url, { protocols });
 };
