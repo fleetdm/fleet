@@ -121,28 +121,98 @@ const ManageQueriesPage = ({
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
 
-  const {
-    data: enhancedQueries,
-    error: queriesError,
-    isFetching: isFetchingQueries,
-    refetch: refetchQueries,
-  } = useQuery<
-    IEnhancedQuery[],
-    Error,
-    IEnhancedQuery[],
-    IQueryKeyQueriesLoadAll[]
-  >(
-    [{ scope: "queries", teamId: teamIdForApi }],
-    ({ queryKey: [{ teamId }] }) =>
-      queriesAPI
-        .loadAll(teamId, teamId !== API_ALL_TEAMS_ID)
-        .then(({ queries }) => queries.map(enhanceQuery)),
+  // const {
+  //   data: enhancedQueries,
+  //   error: queriesError,
+  //   isFetching: isFetchingQueries,
+  //   refetch: refetchQueries,
+  // } = useQuery<
+  //   IEnhancedQuery[],
+  //   Error,
+  //   IEnhancedQuery[],
+  //   IQueryKeyQueriesLoadAll[]
+  // >(
+  //   [{ scope: "queries", teamId: teamIdForApi }],
+  //   ({ queryKey: [{ teamId }] }) =>
+  //     queriesAPI
+  //       .loadAll(teamId, teamId !== API_ALL_TEAMS_ID)
+  //       .then(({ queries }) => queries.map(enhanceQuery)),
+  //   {
+  //     refetchOnWindowFocus: false,
+  //     enabled: isRouteOk,
+  //     staleTime: 5000,
+  //   }
+  // );
+
+  // TODO - restore API call
+  const rawTestqueries: ISchedulableQuery[] = [
+    // global query
     {
-      refetchOnWindowFocus: false,
-      enabled: isRouteOk,
-      staleTime: 5000,
-    }
-  );
+      created_at: "2024-03-22T19:01:20Z",
+      updated_at: "2024-03-22T19:01:20Z",
+      id: 5,
+      team_id: null,
+      interval: 0,
+      platform: "linux",
+      min_osquery_version: "",
+      automations_enabled: false,
+      logging: "snapshot",
+      name: "Get OpenSSL versions",
+      description: "Retrieves the OpenSSL version.",
+      query:
+        "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
+      saved: true,
+      observer_can_run: false,
+      author_id: 1,
+      author_name: "J Cob",
+      author_email: "jacob@fleetdm.com",
+      packs: [],
+      stats: {
+        system_time_p50: null,
+        system_time_p95: null,
+        user_time_p50: null,
+        user_time_p95: null,
+        total_executions: 0,
+      },
+      discard_data: false,
+    },
+    // team query
+    {
+      created_at: "2024-04-25T04:16:09Z",
+      updated_at: "2024-04-25T04:16:09Z",
+      id: 93,
+      team_id: 1,
+      interval: 3600,
+      platform: "",
+      min_osquery_version: "",
+      automations_enabled: false,
+      logging: "snapshot",
+      name: "A1",
+      description: "",
+      query: "SELECT * FROM osquery_info;",
+      saved: true,
+      observer_can_run: false,
+      author_id: 1,
+      author_name: "J Cob",
+      author_email: "jacob@fleetdm.com",
+      packs: [],
+      stats: {
+        system_time_p50: null,
+        system_time_p95: null,
+        user_time_p50: null,
+        user_time_p95: null,
+        total_executions: 0,
+      },
+      discard_data: false,
+    },
+  ];
+  const [queriesError, refetchQueries, isFetchingQueries, enhancedQueries] = [
+    null,
+    () => undefined,
+    false,
+    // rawTestqueries.map(enhanceQuery),
+    [] as IEnhancedQuery[],
+  ];
 
   const automatedQueryIds = useMemo(() => {
     return enhancedQueries
@@ -344,29 +414,28 @@ const ManageQueriesPage = ({
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
           </div>
-          <div className={`${baseClass}__action-button-container`}>
-            {(isGlobalAdmin || isTeamAdmin) && (
-              <Button
-                onClick={onManageAutomationsClick}
-                className={`${baseClass}__manage-automations button`}
-                variant="inverse"
-              >
-                Manage automations
-              </Button>
-            )}
-            {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) &&
-              !!enhancedQueries?.length && (
-                <>
-                  <Button
-                    variant="brand"
-                    className={`${baseClass}__create-button`}
-                    onClick={onCreateQueryClick}
-                  >
-                    {isObserverPlus ? "Live query" : "Add query"}
-                  </Button>
-                </>
+          {!!enhancedQueries?.length && (
+            <div className={`${baseClass}__action-button-container`}>
+              {(isGlobalAdmin || isTeamAdmin) && (
+                <Button
+                  onClick={onManageAutomationsClick}
+                  className={`${baseClass}__manage-automations button`}
+                  variant="inverse"
+                >
+                  Manage automations
+                </Button>
               )}
-          </div>
+              {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) && (
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__create-button`}
+                  onClick={onCreateQueryClick}
+                >
+                  {isObserverPlus ? "Live query" : "Add query"}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         <div className={`${baseClass}__description`}>
           <p>

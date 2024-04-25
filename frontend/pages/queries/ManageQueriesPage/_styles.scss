@@ -184,6 +184,13 @@
         }
       }
     }
+    .empty-table {
+      &__additional-info {
+        * {
+          font-size: $xx-small;
+        }
+      }
+    }
   }
   .reveal-button {
     .component__tooltip-wrapper__underline {

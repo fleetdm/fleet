@@ -219,7 +219,6 @@ const QueriesTable = ({
     const emptyQueries: IEmptyTableProps = {
       graphicName: "empty-queries",
       header: "You don't have any queries",
-      info: "A query is a specific question you can ask about your devices.",
     };
     if (searchQuery) {
       delete emptyQueries.graphicName;
@@ -232,7 +231,7 @@ const QueriesTable = ({
           Create a new query, or{" "}
           <CustomLink
             url="https://fleetdm.com/docs/using-fleet/standard-query-library"
-            text="import Fleet’s standard query library"
+            text="import Fleet's standard query library"
             newTab
           />
         </>
@@ -243,7 +242,7 @@ const QueriesTable = ({
           className={`${baseClass}__create-button`}
           onClick={onCreateQueryClick}
         >
-          Create new query
+          Add query
         </Button>
       );
     }
