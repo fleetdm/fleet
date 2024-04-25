@@ -42,7 +42,7 @@ func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
 	return oc
 }
 
-type ReceiverFunc func(*fleet.OrbitConfig) error
+type ReceiverFunc func(cfg *fleet.OrbitConfig) error
 
 func (f ReceiverFunc) Run(cfg *fleet.OrbitConfig) error {
 	return f(cfg)
@@ -98,12 +98,16 @@ func TestConfigReceiverErrors(t *testing.T) {
 	efunc2 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		return err2
 	})
+	pfunc := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+		panic("woah")
+	})
 
 	client := clientWithConfig(&fleet.OrbitConfig{})
 	client.RegisterConfigReceiver(efunc1)
 	client.RegisterConfigReceiver(rfunc1)
 	client.RegisterConfigReceiver(efunc2)
 	client.RegisterConfigReceiver(rfunc2)
+	client.RegisterConfigReceiver(pfunc)
 
 	err := client.RunConfigReceivers()
 	require.ErrorIs(t, err, err1)

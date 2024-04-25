@@ -179,13 +179,21 @@ func (oc *OrbitClient) RunConfigReceivers() error {
 	for _, receiver := range oc.ConfigReceivers {
 		receiver := receiver
 		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					errMu.Lock()
+					errs = append(errs, fmt.Errorf("panic occured in receiver: %v", err))
+					errMu.Unlock()
+				}
+				wg.Done()
+			}()
+
 			err := receiver.Run(config)
 			if err != nil {
 				errMu.Lock()
 				errs = append(errs, err)
 				errMu.Unlock()
 			}
-			wg.Done()
 		}()
 	}
 
