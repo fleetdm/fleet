@@ -49,6 +49,8 @@ module.exports = {
   fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization}) {
     require('assert')(sails.config.custom.iqSecret);
 
+    let RX_TECHNOLOGY_CATEGORIES = /(device|security|endpoint|configuration management|data management platforms|mobility management|identity|information technology|IT$|employee experience|apple)/i;
+
     // [?] https://developer.leadiq.com/#query-searchPeople
     // [?] https://developer.leadiq.com/#definition-SearchPeopleInput
     // [?] https://graphql.org/learn/serving-over-http/
@@ -135,7 +137,9 @@ module.exports = {
         numberOfEmployees: foundPosition.companyInfo.numberOfEmployees || 0,
         emailDomain: emailDomain? emailDomain : foundPosition.companyInfo.domain || '',
         linkedinCompanyPageUrl: foundPosition.companyInfo.linkedinUrl || '',
-        technologies: foundPosition.companyInfo.technologies? foundPosition.companyInfo.technologies.filter((tech) => tech.category.match(/(device|security|endpoint|identity)/i)).map((tech) => ({ name: tech.name, category: tech.category })) : []
+        technologies: foundPosition.companyInfo.technologies? foundPosition.companyInfo.technologies
+          .filter((tech) => tech.category.match(RX_TECHNOLOGY_CATEGORIES))
+          .map((tech) => ({ name: tech.name, category: tech.category })) : []
       };
     } else {
       let report = await sails.helpers.http.get('https://api.leadiq.com/graphql', {
@@ -171,8 +175,10 @@ module.exports = {
           numberOfEmployees: foundEmployer.numberOfEmployees || 0,
           emailDomain: emailDomain? emailDomain : foundEmployer.domain || '',
           linkedinCompanyPageUrl: foundEmployer.linkedinUrl || '',
-          technologies: foundEmployer.technologies? foundEmployer.technologies.filter((tech) => tech.category.match(/(device|security|endpoint|identity)/i)).map((tech) => ({ name: tech.name, category: tech.category })) : []
-        };
+          technologies: foundEmployer.technologies? foundEmployer.technologies
+            .filter((tech) => tech.category.match(RX_TECHNOLOGY_CATEGORIES))
+            .map((tech) => ({ name: tech.name, category: tech.category })) : []
+        };// process.stdout.write(JSON.stringify(employer.technologies,0,2));
       }
     }//ﬁ
 
