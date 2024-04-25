@@ -3889,7 +3889,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 ### Add labels to host
 
-The endpoint can be used to add manual labels only. 
+The endpoint can be used to add manual labels to a host. 
 
 `POST /api/v1/fleet/hosts/:id/labels`
 
@@ -3899,7 +3899,6 @@ The endpoint can be used to add manual labels only.
 | ---- | ------- | ---- | ---------------------------- |
 | labels   | list | body | The list of label names to add to the host. |
 
-Note: Assigning labels that are already assigned to a host will return success.
 
 #### Example
 
@@ -3919,7 +3918,7 @@ Note: Assigning labels that are already assigned to a host will return success.
 
 ### Remove labels from host
 
-The endpoint can be used to add manual labels only.
+The endpoint can be used to remove manual labels from a host.
 
 `DELETE /api/v1/fleet/hosts/:id/labels`
 
@@ -3929,7 +3928,6 @@ The endpoint can be used to add manual labels only.
 | ---- | ------- | ---- | ---------------------------- |
 | labels   | list | body | The list of label names to delete from the host. |
 
-Note: Removing labels that aren't assigned to a host will return success.
 
 #### Example
 
