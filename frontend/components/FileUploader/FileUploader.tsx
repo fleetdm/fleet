@@ -5,6 +5,7 @@ import Button from "components/buttons/Button";
 import Card from "components/Card";
 import { GraphicNames } from "components/graphics";
 import Graphic from "components/Graphic";
+import Icon from "components/Icon";
 
 const baseClass = "file-uploader";
 
@@ -35,6 +36,11 @@ interface IFileUploaderProps {
   /** The text to display on the upload button */
   buttonMessage?: string;
   className?: string;
+  /** renders the button to open the file uploader to appear as a button or
+   * a link.
+   * @default "button"
+   */
+  buttonType?: "button" | "link";
   onFileUpload: (files: FileList | null) => void;
 }
 
@@ -48,10 +54,13 @@ const FileUploader = ({
   isLoading = false,
   accept,
   buttonMessage = "Upload",
+  buttonType = "button",
   className,
   onFileUpload,
 }: IFileUploaderProps) => {
   const classes = classnames(baseClass, className);
+
+  const buttonVariant = buttonType === "button" ? "brand" : "text-icon";
 
   const renderGraphics = () => {
     const graphicNamesArr =
@@ -73,10 +82,13 @@ const FileUploader = ({
       )}
       <Button
         className={`${baseClass}__upload-button`}
-        variant="brand"
+        variant={buttonVariant}
         isLoading={isLoading}
       >
-        <label htmlFor="upload-file">{buttonMessage}</label>
+        <label htmlFor="upload-file">
+          {buttonType === "link" && <Icon name="upload" />}
+          <span>{buttonMessage}</span>
+        </label>
       </Button>
       <input
         accept={accept}

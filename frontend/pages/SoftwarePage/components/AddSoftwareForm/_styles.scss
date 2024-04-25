@@ -16,4 +16,8 @@
     flex-direction: column;
     gap: $pad-large;
   }
+
+  &__file-uploader {
+    box-sizing: border-box;
+  }
 }

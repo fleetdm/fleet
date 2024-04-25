@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
+import FileUploader from "components/FileUploader";
 
 const baseClass = "add-software-form";
 
@@ -41,6 +42,12 @@ const AddSoftwareForm = ({
     postInstallScript: "",
   });
 
+  const onFileUpload = (files: FileList | null) => {
+    if (files && files.length) {
+      setFormData({ ...formData, software: files[0] });
+    }
+  };
+
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
@@ -53,6 +60,14 @@ const AddSoftwareForm = ({
         <UploadingSoftware />
       ) : (
         <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
+          <FileUploader
+            graphicName={"file-pkg"}
+            message=".pkg, .msi, .exe, or .deb"
+            onFileUpload={onFileUpload}
+            buttonMessage="Choose file"
+            buttonType="link"
+            className={`${baseClass}__file-uploader`}
+          />
           {formData.software && (
             <InputField
               value={formData.installScript}
