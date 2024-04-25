@@ -1,0 +1,186 @@
+module.exports = {
+
+
+  friendlyName: 'Get enriched',
+
+
+  description: 'Search for the contact indicated and return enriched data.',
+
+
+  inputs: {
+
+    emailAddress: { type: 'string', defaultsTo: '', },
+    linkedinUrl: { type: 'string', defaultsTo: '', },
+    firstName: { type: 'string', defaultsTo: '', },
+    lastName: { type: 'string', defaultsTo: '', },
+    organization: { type: 'string', defaultsTo: '', },
+
+  },
+
+
+  exits: {
+
+    success: {
+      outputFriendlyName: 'Enriched contact',
+      outputType: {
+        person: {
+          emailAddress: 'string',
+          linkedinUrl: 'string',
+          firstName: 'string',
+          lastName: 'string',
+          organization: 'string',
+          title: 'string',
+          phone: 'string',
+        },
+        employer: {
+          organization: 'string',
+          emailDomain: 'string',
+          linkedinCompanyPageUrl: 'string',
+          numberOfEmployees: 'number',
+        }
+      }
+    },
+
+  },
+
+
+  fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization}) {
+    require('assert')(sails.config.custom.iqSecret);
+
+    // [?] https://developer.leadiq.com/#query-searchPeople
+    // [?] https://developer.leadiq.com/#definition-SearchPeopleInput
+    // [?] https://graphql.org/learn/serving-over-http/
+    let emailDomain = emailAddress.match(/@([^@]+)$/) && emailAddress.match(/@([^@]+)$/)[1] || '';
+
+    let searchExpr = `{
+      ${emailAddress? 'email: '+ JSON.stringify(emailAddress) : ''}
+      ${linkedinUrl? 'linkedinUrl: '+ JSON.stringify(linkedinUrl) : ''}
+      ${firstName? 'firstName: '+ JSON.stringify(firstName) : ''}
+      ${lastName? 'lastName: '+ JSON.stringify(lastName) : ''}
+      ${organization || emailDomain ? (`company: {
+        ${organization? 'name: '+ JSON.stringify(organization) : ''}
+        ${emailDomain? 'domain: '+ JSON.stringify(emailDomain)+' '+'emailDomain: '+ JSON.stringify(emailDomain) : ''}
+        searchInPastCompanies: false
+        strict: false
+      }`) : ''}
+    }`; //sails.log('GraphQL query:',searchExpr);
+    let report = await sails.helpers.http.get('https://api.leadiq.com/graphql', {
+      query: `{ searchPeople(input: ${searchExpr}) {
+          totalResults
+          results {
+            _id
+            name { first last }
+            linkedin { linkedinId linkedinUrl status updatedAt }
+            profiles { network id username url status updatedAt }
+            location { country areaLevel1 city fullAddress type status updatedAt }
+            personalPhones { value type status verificationStatus }
+            currentPositions {
+              title
+              emails { value type status }
+              phones { value type status verificationStatus }
+              companyInfo {
+                name
+                domain
+                country
+                address
+                linkedinUrl
+                numberOfEmployees
+                technologies { name category parentCategory attributes categories }
+              }
+            }
+          }
+        }
+      }`,
+    }, {
+      Authorization: `Basic ${sails.config.custom.iqSecret}`,
+      'content-type': 'application/json'
+    });
+    // .tolerate((err)=>{
+    //   sails.log('Failed to generate haiku using OpenAI.  Error details from OpenAI:',err);
+    //   return { errors: [err.], data: [0] }
+    // });
+
+    if (report.errors) {
+      sails.log.warn('Errors returned from IQ API when attempting to search for a matching contact:',report.errors);
+    }
+
+    // sails.log('person search results:',require('util').inspect(report.data.searchPeople.results, {depth:null}));
+    let foundPerson = report.data.searchPeople.results[0]; //sails.log('Found person:',foundPerson);
+    let foundPosition = foundPerson && foundPerson.currentPositions && foundPerson.currentPositions.length >= 1 ? foundPerson.currentPositions[0] : undefined;
+
+    let person;
+    if (foundPerson) {
+      person = {
+        emailAddress: emailAddress? emailAddress : foundPosition && foundPosition.emails[0]? foundPosition.emails[0].value : '',
+        linkedinUrl: linkedinUrl? linkedinUrl : foundPerson.linkedin.linkedinUrl,
+        firstName: firstName? firstName : foundPerson.name.first,
+        lastName: lastName? lastName : foundPerson.name.last,
+        organization: organization? organization : foundPosition? foundPosition.companyInfo.name : '',
+        title: foundPosition? foundPosition.title : '',
+        phone: foundPerson.personalPhones[0] && foundPerson.personalPhones[0].status !== 'Suppressed' ? foundPerson.personalPhones[0].value : '',
+      };
+    }//ﬁ
+
+
+
+
+
+    // If no person was found, then try and look up the organization by itself.
+    let employer;
+    if (foundPosition) {
+      employer = {
+        organization: organization? organization : foundPosition.companyInfo.name || '',
+        numberOfEmployees: foundPosition.companyInfo.numberOfEmployees || 0,
+        emailDomain: emailDomain? emailDomain : foundPosition.companyInfo.domain || '',
+        linkedinCompanyPageUrl: foundPosition.companyInfo.linkedinUrl || '',
+        technologies: foundPosition.companyInfo.technologies? foundPosition.companyInfo.technologies.filter((tech) => tech.category.match(/(device|security|endpoint|identity)/i)).map((tech) => ({ name: tech.name, category: tech.category })) : []
+      };
+    } else {
+      let report = await sails.helpers.http.get('https://api.leadiq.com/graphql', {
+        query: `{ searchCompany(input: {
+          ${organization? 'name: '+ JSON.stringify(organization) : ''}
+          ${emailDomain? 'domain: '+ JSON.stringify(emailDomain) : ''}
+        }) {
+            totalResults
+            results {
+              name
+              domain
+              country
+              address
+              numberOfEmployees
+              linkedinUrl
+              technologies { name category parentCategory attributes categories }
+            }
+          }
+        }`
+      }, {
+        Authorization: `Basic ${sails.config.custom.iqSecret}`,
+        'content-type': 'application/json'
+      });
+      // sails.log('company search report:',report);
+
+      if (report.errors) {
+        sails.log.warn('Errors returned from IQ API when attempting to search directly for a matching organization:',report.errors);
+      }
+      let foundEmployer = report.data.searchCompany.results[0]; //sails.log(foundEmployer);
+      if (foundEmployer) {
+        employer = {
+          organization: organization? organization : foundEmployer.name || '',
+          numberOfEmployees: foundEmployer.numberOfEmployees || 0,
+          emailDomain: emailDomain? emailDomain : foundEmployer.domain || '',
+          linkedinCompanyPageUrl: foundEmployer.linkedinUrl || '',
+          technologies: foundEmployer.technologies? foundEmployer.technologies.filter((tech) => tech.category.match(/(device|security|endpoint|identity)/i)).map((tech) => ({ name: tech.name, category: tech.category })) : []
+        };
+      }
+    }//ﬁ
+
+    return {
+      person,
+      employer
+    };
+
+  }
+
+
+};
+
