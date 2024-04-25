@@ -89,7 +89,7 @@ const IntegrationForm = ({
   const validateForm = () => {
     let error = null;
 
-    if (url && !validUrl({ url, protocol: "https" })) {
+    if (url && !validUrl({ url, protocols: ["https"] })) {
       error = `${url} is not a valid HTTPS URL`;
     }
 

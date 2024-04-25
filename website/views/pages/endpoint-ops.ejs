@@ -71,12 +71,22 @@
         </div>
       <% } %>
       <div purpose="testimonial-videos" class="d-flex">
-        <div purpose="testimonial-video" @click="clickOpenVideoModal('austin-anderson')">
+        <%if(primaryBuyingSituation === 'eo-security'){%>
+        <div purpose="testimonial-video" class="austin-anderson mx-auto" @click="clickOpenVideoModal('austin-anderson')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
-        <div purpose="testimonial-video" @click="clickOpenVideoModal('nick-fohs')">
+        <%} else if(primaryBuyingSituation === 'eo-it') {%>
+        <div purpose="testimonial-video" class="nick-fohs mx-auto" @click="clickOpenVideoModal('nick-fohs')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
+        <% } else { %>
+        <div purpose="testimonial-video" class="austin-anderson" @click="clickOpenVideoModal('austin-anderson')">
+          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
+        </div>
+        <div purpose="testimonial-video" class="nick-fohs" @click="clickOpenVideoModal('nick-fohs')">
+          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
+        </div>
+        <% } %>
       </div>
     </div>
     <logo-carousel></logo-carousel>

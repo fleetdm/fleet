@@ -384,7 +384,7 @@ func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		return ctxerr.Wrap(ctx, err, "getting cooldowns")
 	}
 	if len(serialsByTeamId) == 0 {
-		logger.Log("msg", "no cooldowns to process")
+		level.Info(logger).Log("msg", "no cooldowns to process")
 		return nil
 	}
 
@@ -394,7 +394,7 @@ func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			logger.Log("msg", "no cooldowns", "team_id", teamID)
 			continue
 		}
-		logger.Log("msg", "processing cooldowns", "team_id", teamID, "serials", serials)
+		level.Info(logger).Log("msg", "processing cooldowns", "team_id", teamID, "serials", serials)
 
 		var tid *uint
 		if teamID != 0 {

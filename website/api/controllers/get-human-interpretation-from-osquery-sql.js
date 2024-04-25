@@ -49,19 +49,19 @@ Remember to minimize the number of words used!
 
 Please give me all of the above in JSON, with this data shape:
 
-\`\`\`
 {
   risks: 'TODO',
   whatWillProbablyHappenDuringMaintenance: 'TODO'
 }
-\`\`\``;
+
+Please do not add any text outside of the JSON report or wrap it in a code fence.`;
     // Fallback message in case LLM API request fails.
     let failureMessage = 'Failed to generate human interpretation using generative AI.';
 
     let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
     // (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
     // [?] API: https://platform.openai.com/docs/api-reference/chat/create
-    let llmReport = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
+    let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
       model: BASE_MODEL,
       messages: [// https://platform.openai.com/docs/guides/chat/introduction
         {
@@ -76,21 +76,26 @@ Please give me all of the above in JSON, with this data shape:
     })
     .tolerate((err)=>{
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
-      return;
+      return {
+        choices: [
+          {
+            message: {
+              content: `{ "risks": "${failureMessage}", "whatWillProbablyHappenDuringMaintenance": "${failureMessage}" }`
+            }
+          }
+        ]
+      };
     });
 
-    // Get data into expected formaat
     let report;
-    if (!llmReport) {// If LLM could not be reached…
-      // FUTURE: Actually negotiate errors instead of just pretending it works but sending back garbage.
+    try {
+      report = JSON.parse(openAiResponse.choices[0].message.content);
+    } catch (err) {
+      sails.log.warn('When trying to parse a JSON report returned from the Open AI API, an error occurred. Error details from JSON.parse: '+err.stack+'\n Report returned from Open AI:'+openAiResponse.choices[0].message.content);
       report = {
         risks: failureMessage,
         whatWillProbablyHappenDuringMaintenance: failureMessage
       };
-    } else {// Otherwise, descriptions were successfully generated…
-      let llmMessage = llmReport.choices[0].message.content;
-      llmMessage = llmMessage.replace(/\`\`\`/g, '');
-      report = JSON.parse(llmMessage);
     }
 
     return report;

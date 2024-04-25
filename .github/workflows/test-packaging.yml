@@ -63,7 +63,7 @@ jobs:
 
     - name: Run Colima
       if: startsWith(matrix.os, 'macos')
-      timeout-minutes: 5
+      timeout-minutes: 10
       # notes:
       # - docker to install the docker CLI and interact with the Colima
       #   container runtime
