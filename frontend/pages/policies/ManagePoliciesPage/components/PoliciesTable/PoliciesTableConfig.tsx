@@ -8,7 +8,6 @@ import {
   millisecondsToMinutes,
 } from "date-fns";
 import ReactTooltip from "react-tooltip";
-import { HeaderProps, Row } from "react-table";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -20,82 +19,8 @@ import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 import { COLORS } from "styles/var/colors";
+import configUtils from "components/TableContainer/utilities/config_utils";
 import PassingColumnHeader from "../PassingColumnHeader";
-
-interface GetConditionalSelectHeaderCheckboxProps {
-  /** react-table's header props */
-  headerProps: React.PropsWithChildren<HeaderProps<any>>;
-  /** A predicate - based on your business logic - to determine whether a given row should be selectable */
-  checkIfRowIsSelectable: (row: Row<any>) => boolean;
-}
-
-const getConditionalSelectHeaderCheckboxProps = ({
-  headerProps,
-  checkIfRowIsSelectable,
-}: GetConditionalSelectHeaderCheckboxProps) => {
-  // Note that in my comments I differentiate between the standard logic and the logic for the conditional select
-  const checkIfAllSelectableRowsSelected = (rows: Row<any>[]) =>
-    rows.filter(checkIfRowIsSelectable).every((row) => row.isSelected);
-  // Standard: Here we define the selection type for the next click: Select Page
-  const isSelectPage = headerProps.page
-    // For conditional select: Filter the rows based on your business logic
-    .filter(checkIfRowIsSelectable)
-    // Standard: `isSelectPage === true` if some of the rows are not yet selected
-    // This (standard) logic might be confusing to understand at first, but - as a side note - the idea is as follows:
-    // This is the variable that defines whether the header props that will be received FOR THE NEXT CLICK will be for Select Page or for Select All
-    // Try to play this out in your head:
-    //  - Initially, none of the rows are selected, so when we clicking the button initially, we will select only the (selectable) rows on the page (i.e. Select Page), hence the next click will be for Select All, hence `isSelectPage` will be `false`
-    //  - When clicking again, we will select the rest of the (selectable) rows (i.e. Select All). The next click will again be Select All (for de-selecting all), hence `isSelectPage` will be `false`
-    //  - Finally, when clicking again, we will de-select all rows. The next click will be for Select Page, hence `isSelectPage` will `true`
-    .some((row) => !row.isSelected);
-
-  // Standard: Get the props based on Select Page / Select All
-  // const checkboxProps = isSelectPage
-  //   ? headerProps.getToggleAllPageRowsSelectedProps()
-  //   : headerProps.getToggleAllRowsSelectedProps();
-
-  const checkboxProps = headerProps.getToggleAllRowsSelectedProps();
-
-  // TODO: remove disabled option
-  // For conditional select: The header checkbox should be:
-  //   - checked if all selectable rows are selected
-  //   - indeterminate if only some selectable rows are selected (but not all)
-  const disabled = headerProps.rows.filter(checkIfRowIsSelectable).length === 0;
-  const checked =
-    !disabled && checkIfAllSelectableRowsSelected(headerProps.rows);
-  const indeterminate =
-    !checked && headerProps.rows.some((row) => row.isSelected);
-
-  console.log("checked", checked);
-  console.log("indeterminate", indeterminate);
-  // For conditional select: This is where the magic happens
-  const onChange = () => {
-    // If we're in Select All and all selectable rows are already selected: deselect all rows
-    if (!isSelectPage && checkIfAllSelectableRowsSelected(headerProps.rows)) {
-      headerProps.rows.forEach((row) => {
-        headerProps.toggleRowSelected(row.id, false);
-      });
-    } else {
-      // Otherwise:
-      // First, define the rows to work with: if we're in Select Page, use `headerProps.page`, otherwise (Select All) use headerProps.rows
-      const rows = isSelectPage ? headerProps.page : headerProps.rows;
-      // Then select every selectable row
-      rows.forEach((row) => {
-        const rowChecked = checkIfRowIsSelectable(row);
-        headerProps.toggleRowSelected(row.id, rowChecked);
-      });
-    }
-  };
-
-  // For conditional select: override checked, indeterminate and onChange - to enforce conditional select based on our business logic
-  return {
-    ...checkboxProps,
-    value: checked,
-    indeterminate,
-    onChange,
-    disabled,
-  };
-};
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -385,32 +310,12 @@ const generateTableHeaders = (
   tableHeaders.unshift({
     id: "selection",
     Header: (headerProps: any) => {
-      // const props = headerProps.getToggleAllRowsSelectedProps();
-
-      // const customOnChange = () => {
-      //   const isSelectingAllRows = !props.checked;
-      //   headerProps.toggleAllRowsSelected();
-      //   // if selecting all, deselect inherited rows
-      //   if (isSelectingAllRows) {
-      //     console.log("headerProps", headerProps);
-
-      //     // iterate over cellProps.data
-      //     // find ones with team id null
-      //     // uncheck them
-      //     // if (headerProps.data.team_id === null)
-      //   }
-      // };
-
-      // const checkboxProps = {
-      //   value: props.checked,
-      //   indeterminate: props.indeterminate,
-      //   onChange: customOnChange,
-      // };
-
-      const checkboxProps = getConditionalSelectHeaderCheckboxProps({
-        headerProps,
-        checkIfRowIsSelectable: (row) => row.original.team_id !== null,
-      });
+      const checkboxProps = configUtils.getConditionalSelectHeaderCheckboxProps(
+        {
+          headerProps,
+          checkIfRowIsSelectable: (row) => row.original.team_id !== null,
+        }
+      );
       return <Checkbox {...checkboxProps} />;
     },
     Cell: (cellProps: ICellProps): JSX.Element => {
