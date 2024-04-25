@@ -101,7 +101,6 @@ interface IDataColumn {
 
 interface IGenerateTableHeaders {
   currentUser: IUser;
-  isInherited?: boolean;
   currentTeamId?: number;
 }
 
@@ -109,7 +108,6 @@ interface IGenerateTableHeaders {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = ({
   currentUser,
-  isInherited = false,
   currentTeamId,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
@@ -246,7 +244,7 @@ const generateTableHeaders = ({
       ),
     },
   ];
-  if (!isOnlyObserver && !isInherited) {
+  if (!isOnlyObserver) {
     tableHeaders.splice(0, 0, {
       id: "selection",
       Header: (cellProps: IHeaderProps): JSX.Element => {

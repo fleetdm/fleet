@@ -38,11 +38,7 @@ interface IQueriesTableProps {
     order_key?: string;
     order_direction?: "asc" | "desc";
     team_id?: string;
-    inherited_order_key?: string;
-    inherited_order_direction?: "asc" | "desc";
-    inherited_page?: string;
   };
-  isInherited?: boolean;
   currentTeamId?: number;
 }
 
@@ -94,7 +90,6 @@ const QueriesTable = ({
   isAnyTeamObserverPlus,
   router,
   queryParams,
-  isInherited = false,
   currentTeamId,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
@@ -112,28 +107,14 @@ const QueriesTable = ({
     DEFAULT_PLATFORM)();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
-  const initialInheritedSortHeader = (() =>
-    (queryParams?.inherited_order_key as "name" | "failing_host_count") ??
-    DEFAULT_SORT_HEADER)();
-  const initialInheritedSortDirection = (() =>
-    (queryParams?.inherited_order_direction as "asc" | "desc") ??
-    DEFAULT_SORT_DIRECTION)();
-  const initialInheritedPage = (() =>
-    queryParams && queryParams.inherited_page
-      ? parseInt(queryParams?.inherited_page, 10)
-      : 0)();
 
   // Source of truth is state held within TableContainer. That state is initialized using URL
   // params, then subsquent updates to that state are pushed to the URL.
   const searchQuery = initialSearchQuery;
   const platform = initialPlatform;
-  const page = isInherited ? initialInheritedPage : initialPage;
-  const sortDirection = isInherited
-    ? initialInheritedSortDirection
-    : initialSortDirection;
-  const sortHeader = isInherited
-    ? initialInheritedSortHeader
-    : initialSortHeader;
+  const page = initialPage;
+  const sortDirection = initialSortDirection;
+  const sortHeader = initialSortHeader;
 
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
@@ -148,37 +129,19 @@ const QueriesTable = ({
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
 
-      // Updates main query table URL params
-      // No change to inherited query table URL params
-      if (!isInherited) {
-        newQueryParams.order_key = newSortHeader;
-        newQueryParams.order_direction = newSortDirection;
-        newQueryParams.platform = platform; // must set from URL
-        newQueryParams.page = newPageIndex;
-        newQueryParams.query = newSearchQuery;
-        // Reset page number to 0 for new filters
-        if (
-          newSortDirection !== sortDirection ||
-          newSortHeader !== sortHeader ||
-          newSearchQuery !== searchQuery
-        ) {
-          newQueryParams.page = "0";
-        }
-      }
-
-      // Updates inherited query table URL params
-      // No change to main query table URL params
-      if (isInherited) {
-        newQueryParams.inherited_order_key = newSortHeader;
-        newQueryParams.inherited_order_direction = newSortDirection;
-        newQueryParams.inherited_page = newPageIndex;
-        // Reset page number to 0 for new filters
-        if (
-          newSortDirection !== initialInheritedSortDirection ||
-          newSortHeader !== initialInheritedSortHeader
-        ) {
-          newQueryParams.inherited_page = "0";
-        }
+      // Updates URL params
+      newQueryParams.order_key = newSortHeader;
+      newQueryParams.order_direction = newSortDirection;
+      newQueryParams.platform = platform; // must set from URL
+      newQueryParams.page = newPageIndex;
+      newQueryParams.query = newSearchQuery;
+      // Reset page number to 0 for new filters
+      if (
+        newSortDirection !== sortDirection ||
+        newSortHeader !== sortHeader ||
+        newSearchQuery !== searchQuery
+      ) {
+        newQueryParams.page = "0";
       }
 
       newQueryParams.team_id = queryParams?.team_id;
@@ -194,17 +157,11 @@ const QueriesTable = ({
 
   const onClientSidePaginationChange = useCallback(
     (pageIndex: number) => {
-      const newQueryParams = isInherited
-        ? {
-            ...queryParams,
-            inherited_page: pageIndex, // update inherited page index
-            query: searchQuery,
-          }
-        : {
-            ...queryParams,
-            page: pageIndex, // update main table index
-            query: searchQuery,
-          };
+      const newQueryParams = {
+        ...queryParams,
+        page: pageIndex, // update main table index
+        query: searchQuery,
+      };
 
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
@@ -222,9 +179,8 @@ const QueriesTable = ({
     };
     if (searchQuery) {
       delete emptyQueries.graphicName;
-      emptyQueries.header = "No queries match the current search criteria";
-      emptyQueries.info =
-        "Expecting to see queries? Try again in a few seconds as the system catches up.";
+      emptyQueries.header = "No matching queries";
+      emptyQueries.info = "No queries match the current filters.";
     } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
       emptyQueries.additionalInfo = (
         <>
@@ -277,28 +233,24 @@ const QueriesTable = ({
   };
 
   const columnConfigs = useMemo(
-    () =>
-      currentUser &&
-      generateColumnConfigs({ currentUser, isInherited, currentTeamId }),
-    [currentUser, isInherited, currentTeamId]
+    () => currentUser && generateColumnConfigs({ currentUser, currentTeamId }),
+    [currentUser, currentTeamId]
   );
 
-  const searchable =
-    !(queriesList?.length === 0 && searchQuery === "") && !isInherited;
+  const searchable = !(queriesList?.length === 0 && searchQuery === "");
 
   const trimmedSearchQuery = searchQuery.trim();
   return columnConfigs && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
-        disableCount={isInherited}
         resultsTitle="queries"
         columnConfigs={columnConfigs}
         data={queriesList}
-        filters={{ name: isInherited ? "" : trimmedSearchQuery }}
+        filters={{ name: trimmedSearchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-        defaultSearchQuery={isInherited ? "" : trimmedSearchQuery}
+        defaultSearchQuery={trimmedSearchQuery}
         defaultPageIndex={page}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
@@ -316,9 +268,7 @@ const QueriesTable = ({
         isAllPagesSelected={false}
         searchable={searchable}
         searchQueryColumn="name"
-        customControl={
-          searchable && !isInherited ? renderPlatformDropdown : undefined
-        }
+        customControl={searchable ? renderPlatformDropdown : undefined}
         isClientSidePagination
         onClientSidePaginationChange={onClientSidePaginationChange}
         isClientSideFilter
@@ -329,7 +279,8 @@ const QueriesTable = ({
           variant: "text-icon",
           onActionButtonClick: onDeleteQueryClick,
         }}
-        selectedDropdownFilter={!isInherited ? platform : undefined}
+        selectedDropdownFilter={platform}
+        show0Count
       />
     </div>
   ) : (

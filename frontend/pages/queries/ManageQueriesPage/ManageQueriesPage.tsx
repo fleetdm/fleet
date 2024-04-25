@@ -49,9 +49,6 @@ interface IManageQueriesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       team_id?: string;
-      inherited_order_key?: string;
-      inherited_order_direction?: "asc" | "desc";
-      inherited_page?: string;
     };
     search: string;
   };
@@ -210,8 +207,8 @@ const ManageQueriesPage = ({
     null,
     () => undefined,
     false,
-    // rawTestqueries.map(enhanceQuery),
-    [] as IEnhancedQuery[],
+    rawTestqueries.map(enhanceQuery),
+    // [] as IEnhancedQuery[],
   ];
 
   const automatedQueryIds = useMemo(() => {
