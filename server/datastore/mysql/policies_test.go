@@ -742,7 +742,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
-		OrderKey: "name",
+		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
 	})
 	require.NoError(t, err)
