@@ -2819,7 +2819,7 @@ func ReconcileAppleDeclarations(
 	}
 
 	if len(changedHosts) == 0 {
-		logger.Log("msg", "no hosts with changed declarations")
+		level.Info(logger).Log("msg", "no hosts with changed declarations")
 		return nil
 	}
 
@@ -2828,7 +2828,7 @@ func ReconcileAppleDeclarations(
 		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
 	}
 
-	logger.Log("msg", "sent DeclarativeManagement command", "host_number", len(changedHosts))
+	level.Info(logger).Log("msg", "sent DeclarativeManagement command", "host_number", len(changedHosts))
 
 	return nil
 }

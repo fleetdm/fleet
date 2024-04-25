@@ -1,3 +1,0 @@
-Ignoring Valve Corporation's Steam client's vulnerabilities on Windows and macOS
-  - On Windows and macOS, the true version of the Steam client (like 2021-04-10) cannot be retrieved by standard methods used on other software. We would need to create custom logic to retrieve the version of the Steam client.
-  - Steam client automatically updates itself, so security risk is somewhat mitigated.

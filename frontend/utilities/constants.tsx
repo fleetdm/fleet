@@ -424,3 +424,9 @@ export const DEFAULT_USE_QUERY_OPTIONS = {
   retry: 3,
   refetchOnWindowFocus: false,
 };
+
+export const INVALID_PLATFORMS_REASON =
+  "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
+
+export const INVALID_PLATFORMS_FLASH_MESSAGE =
+  "Couldn't save query. Please update platforms and try again.";
