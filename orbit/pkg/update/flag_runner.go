@@ -201,23 +201,23 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 		if err := r.updateRunner.updater.UpdateMetadata(); err != nil {
 			// Consider this a non-fatal error since it will be common to be offline
 			// or otherwise unable to retrieve the metadata.
-			return false, fmt.Errorf("update metadata: %w", err)
+			return fmt.Errorf("update metadata: %w", err)
 		}
 
 		if err := r.updateRunner.StoreLocalHash(targetName); err != nil {
 			// we do not want orbit to restart
-			return false, fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
+			return fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
 		}
 
 		sb.WriteString(path + "\n")
 	}
 	if err := os.WriteFile(extensionAutoLoadFile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
-		return false, fmt.Errorf("error writing extensions autoload file: %w", err)
+		return fmt.Errorf("error writing extensions autoload file: %w", err)
 	}
 
 	// we do not want orbit to restart
 	// runner.UpdateAction() will fetch the new targets and restart for us if needed
-	return false, nil
+	return nil
 }
 
 // getFlagsFromJSON converts a json document of the form
