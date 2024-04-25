@@ -37,6 +37,7 @@ export interface ITeamPoliciesCountQueryKey
 interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
+  includeInherited?: boolean;
 }
 
 const ORDER_KEY = "name";
@@ -154,8 +155,7 @@ export default {
       throw new Error("Invalid team id");
     }
 
-    console.log("teamId", teamId);
-    if (teamId) {
+    if (teamId === 2) {
       return new Promise((resolve, reject) => {
         console.log(
           "createMockPoliciesResponse()",
@@ -170,17 +170,27 @@ export default {
   getCount: async ({
     query,
     teamId,
+    includeInherited = true,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId"
+    "query" | "teamId" | "includeInherited"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
     const queryParams = {
       query,
+      includeInherited,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
+
+    // Example testing code
+    if (teamId === 2) {
+      // if (includeInherited === false) {
+      //   return { count: 0 };
+      // }
+      return { count: 3 };
+    }
 
     return sendRequest("GET", path.concat(`?${queryString}`));
   },

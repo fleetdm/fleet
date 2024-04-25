@@ -327,6 +327,8 @@ const ManagePolicyPage = ({
     }
   );
 
+  console.log("teamPoliciesCount", teamPoliciesCount);
+
   const canAddOrDeletePolicy: boolean =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;

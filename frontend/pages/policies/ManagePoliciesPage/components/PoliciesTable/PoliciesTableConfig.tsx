@@ -174,7 +174,7 @@ const generateTableHeaders = (
                   </ReactTooltip>
                 </>
               )}
-              {selectedTeamId && !cellProps.row.original.team_id && (
+              {selectedTeamId !== -1 && !cellProps.row.original.team_id && (
                 <>
                   <span
                     className="inherited-badge"
