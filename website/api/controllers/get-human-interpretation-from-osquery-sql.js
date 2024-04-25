@@ -52,7 +52,9 @@ Please give me all of the above in JSON, with this data shape:
 {
   risks: 'TODO',
   whatWillProbablyHappenDuringMaintenance: 'TODO'
-}`;
+}
+
+Please do not add any text outside of the JSON report or wrap it in a code fence.`;
     // Fallback message in case LLM API request fails.
     let failureMessage = 'Failed to generate human interpretation using generative AI.';
 
