@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -53,10 +54,16 @@ func TestConfigReceiverCalls(t *testing.T) {
 	testmsg := json.RawMessage("testing")
 
 	rfunc1 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+		if !reflect.DeepEqual(cfg.Flags, testmsg) {
+			return errors.New("not equal testmsg")
+		}
 		called1 = true
 		return nil
 	})
 	rfunc2 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+		if !reflect.DeepEqual(cfg.Flags, testmsg) {
+			return errors.New("not equal testmsg")
+		}
 		called2 = true
 		return nil
 	})
