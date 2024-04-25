@@ -14,7 +14,7 @@ import { generateTableHeaders } from "./LabelHostTargetTableConfig";
 
 const baseClass = "ManualLabelForm";
 
-const LABEL_TARGET_HOSTS_INPUT_LABEL = "Select hosts";
+export const LABEL_TARGET_HOSTS_INPUT_LABEL = "Select hosts";
 const LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER =
   "Search name, hostname, or serial number";
 const DEBOUNCE_DELAY = 500;
