@@ -37,7 +37,7 @@ jobs:
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
       # supply-chain integrity goals, so we hack around it by replacing the tag.
       - name: Replace tag
-        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/victor-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Import signing keys
         env:
@@ -91,7 +91,7 @@ jobs:
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
       # supply-chain integrity goals, so we hack around it by replacing the tag.
       - name: Replace tag
-        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/victor-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
@@ -124,7 +124,7 @@ jobs:
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
       # supply-chain integrity goals, so we hack around it by replacing the tag.
       - name: Replace tag
-        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/victor-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
