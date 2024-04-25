@@ -21,7 +21,8 @@ module.exports = {
   exits: {
 
     success: {
-      outputFriendlyName: 'Enriched contact',
+      outputFriendlyName: 'Report',
+      outputDescription: 'All available, enriched info about this person and their current employer.',
       outputType: {
         person: {
           emailAddress: 'string',
@@ -34,9 +35,10 @@ module.exports = {
         },
         employer: {
           organization: 'string',
+          numberOfEmployees: 'number',
           emailDomain: 'string',
           linkedinCompanyPageUrl: 'string',
-          numberOfEmployees: 'number',
+          technologies: [{name: 'string', category: 'string'}]
         }
       }
     },
