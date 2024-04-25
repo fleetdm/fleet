@@ -100,14 +100,14 @@ const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
 const generateTableHeaders = (
   options: {
     selectedTeamId?: number | null;
-    canAddOrDeletePolicy?: boolean;
+    hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
   },
   policiesList: IPolicyStats[] = [],
   isPremiumTier?: boolean,
   isSandboxMode?: boolean
 ): IDataColumn[] => {
-  const { selectedTeamId, canAddOrDeletePolicy } = options;
+  const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
 
   // Figure the time since the host counts were updated.
   // First, find first policy item with host_count_updated_at.
@@ -303,7 +303,7 @@ const generateTableHeaders = (
     },
   ];
 
-  if (!canAddOrDeletePolicy) {
+  if (!hasPermissionAndPoliciesToDelete) {
     return tableHeaders;
   }
 

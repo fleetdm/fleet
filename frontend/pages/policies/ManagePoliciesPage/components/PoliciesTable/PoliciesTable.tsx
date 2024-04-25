@@ -22,6 +22,7 @@ interface IPoliciesTableProps {
   onAddPolicyClick?: () => void;
   onDeletePolicyClick: (selectedTableIds: number[]) => void;
   canAddOrDeletePolicy?: boolean;
+  hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
@@ -41,6 +42,7 @@ const PoliciesTable = ({
   onAddPolicyClick,
   onDeletePolicyClick,
   canAddOrDeletePolicy,
+  hasPoliciesToDelete,
   currentTeam,
   currentAutomatedPolicies,
   isPremiumTier,
@@ -91,18 +93,17 @@ const PoliciesTable = ({
 
   const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
+  const hasPermissionAndPoliciesToDelete =
+    canAddOrDeletePolicy && hasPoliciesToDelete;
+
   return (
-    <div
-      className={`${baseClass} ${
-        canAddOrDeletePolicy ? "" : "hide-selection-column"
-      }`}
-    >
+    <div className={baseClass}>
       <TableContainer
         resultsTitle="policies"
         columnConfigs={generateTableHeaders(
           {
             selectedTeamId: currentTeam?.id,
-            canAddOrDeletePolicy,
+            hasPermissionAndPoliciesToDelete,
           },
           policiesList,
           isPremiumTier,

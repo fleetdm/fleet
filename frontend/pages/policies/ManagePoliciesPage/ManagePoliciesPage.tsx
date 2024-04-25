@@ -330,7 +330,7 @@ const ManagePolicyPage = ({
   const canAddOrDeletePolicy: boolean =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;
-  const hasPoliciesToAutomate: boolean = teamIdForApi
+  const hasPoliciesToAutomateOrDelete: boolean = teamIdForApi
     ? !!(!isFetchingTeamCount && teamPoliciesCount && teamPoliciesCount > 0)
     : !!(globalPoliciesCount && globalPoliciesCount > 0);
 
@@ -553,7 +553,6 @@ const ManagePolicyPage = ({
   };
 
   const onDeletePolicyClick = (selectedTableIds: number[]): void => {
-    console.log("selectedTableIds", selectedTableIds);
     toggleDeletePolicyModal();
     setSelectedPolicyIds(selectedTableIds);
   };
@@ -640,7 +639,6 @@ const ManagePolicyPage = ({
     );
   };
 
-  console.log("teamPolicies", teamPolicies);
   const renderMainTable = () => {
     return !isRouteOk || (isPremiumTier && !userTeams) ? (
       <Spinner />
@@ -656,6 +654,7 @@ const ManagePolicyPage = ({
             onAddPolicyClick={onAddPolicyClick}
             onDeletePolicyClick={onDeletePolicyClick}
             canAddOrDeletePolicy={canAddOrDeletePolicy}
+            hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             renderPoliciesCount={() =>
@@ -679,6 +678,7 @@ const ManagePolicyPage = ({
             onAddPolicyClick={onAddPolicyClick}
             onDeletePolicyClick={onDeletePolicyClick}
             canAddOrDeletePolicy={canAddOrDeletePolicy}
+            hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             isPremiumTier={isPremiumTier}
@@ -762,7 +762,7 @@ const ManagePolicyPage = ({
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations &&
                 automationsConfig &&
-                hasPoliciesToAutomate && (
+                hasPoliciesToAutomateOrDelete && (
                   <div className={`${baseClass}__manage-automations-wrapper`}>
                     <Dropdown
                       className={`${baseClass}__manage-automations-dropdown`}
