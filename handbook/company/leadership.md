@@ -40,7 +40,7 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
 
 
-
+For vendor contracts with a spend of $10,000 or less, the head of business operations can sign the contract in place of the CEO.  
 
 
 > **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
