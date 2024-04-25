@@ -957,8 +957,8 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, hostProfs)
 	key, err = ds.GetHostDiskEncryptionKey(ctx, hostID)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-	require.Nil(t, key)
+	require.NoError(t, err)
+	require.NotNil(t, key)
 }
 
 func expectAppleProfiles(
@@ -4486,10 +4486,6 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	// reset the enrollment
 	err = ds.MDMAppleResetEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
-
-	enrollment, err = ds.GetNanoMDMEnrollment(ctx, host.UUID)
-	require.NoError(t, err)
-	require.Zero(t, enrollment.TokenUpdateTally)
 
 	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)

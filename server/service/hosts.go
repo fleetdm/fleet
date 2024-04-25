@@ -285,13 +285,38 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
-	//	if len(ids) > 0 {
-	//		err := svc.checkWriteForHostIDs(ctx, ids)
-	//		if err != nil {
-	//			return err
-	//		}
-	//		return svc.ds.DeleteHosts(ctx, ids)
-	//	}
+	doDelete := func(hostIDs []uint, hosts []*fleet.Host) error {
+		if err := svc.ds.DeleteHosts(ctx, hostIDs); err != nil {
+			return err
+		}
+
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		for _, host := range hosts {
+			if host.Platform == "darwin" || host.Platform == "windows" {
+				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+					Action:   mdmlifecycle.HostActionDelete,
+					Host:     host,
+					Platform: host.Platform,
+				})
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	if len(ids) > 0 {
+		if err := svc.checkWriteForHostIDs(ctx, ids); err != nil {
+			return err
+		}
+
+		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, ids)
+		if err != nil {
+			return err
+		}
+
+		return doDelete(ids, hosts)
+	}
 
 	if opts == nil {
 		opts = &fleet.HostListOptions{}
@@ -311,20 +336,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		return err
 	}
 
-	if err := svc.ds.DeleteHosts(ctx, hostIDs); err != nil {
-		return err
-	}
-
-	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
-	for _, host := range hosts {
-		err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
-			Action: mdmlifecycle.HostActionDelete,
-			Host:   host,
-		})
-		return err
-	}
-
-	return nil
+	return doDelete(hostIDs, hosts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -734,14 +746,16 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host")
 	}
 
-	mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
-	err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
-		Action:   mdmlifecycle.HostActionDelete,
-		Platform: host.Platform,
-		Host:     host,
-	})
+	if host.Platform == "windows" || host.Platform == "darwin" {
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+			Action:   mdmlifecycle.HostActionDelete,
+			Platform: host.Platform,
+			Host:     host,
+		})
+	}
 
-	return ctxerr.Wrap(ctx, err, "TODO")
+	return ctxerr.Wrap(ctx, err, "deleting host")
 }
 
 ////////////////////////////////////////////////////////////////////////////////
