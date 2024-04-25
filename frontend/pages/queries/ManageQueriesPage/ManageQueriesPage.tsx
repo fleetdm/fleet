@@ -15,13 +15,13 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 import { SupportedPlatform } from "interfaces/platform";
-import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
   IEnhancedQuery,
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
 import { DEFAULT_QUERY } from "utilities/constants";
@@ -32,7 +32,6 @@ import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import RevealButton from "components/buttons/RevealButton";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
@@ -120,14 +119,13 @@ const ManageQueriesPage = ({
   );
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
-  const [showInheritedQueries, setShowInheritedQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
 
   const {
-    data: curTeamEnhancedQueries,
-    error: curTeamQueriesError,
-    isFetching: isFetchingCurTeamQueries,
-    refetch: refetchCurTeamQueries,
+    data: enhancedQueries,
+    error: queriesError,
+    isFetching: isFetchingQueries,
+    refetch: refetchQueries,
   } = useQuery<
     IEnhancedQuery[],
     Error,
@@ -137,7 +135,7 @@ const ManageQueriesPage = ({
     [{ scope: "queries", teamId: teamIdForApi }],
     ({ queryKey: [{ teamId }] }) =>
       queriesAPI
-        .loadAll(teamId)
+        .loadAll(teamId, teamId !== API_ALL_TEAMS_ID)
         .then(({ queries }) => queries.map(enhanceQuery)),
     {
       refetchOnWindowFocus: false,
@@ -146,37 +144,13 @@ const ManageQueriesPage = ({
     }
   );
 
-  // If a team is selected, inherit global queries
-  const {
-    data: globalEnhancedQueries,
-    error: globalQueriesError,
-    isFetching: isFetchingGlobalQueries,
-    refetch: refetchGlobalQueries,
-  } = useQuery<
-    IEnhancedQuery[],
-    Error,
-    IEnhancedQuery[],
-    IQueryKeyQueriesLoadAll[]
-  >(
-    [{ scope: "queries", teamId: API_ALL_TEAMS_ID }],
-    ({ queryKey: [{ teamId }] }) =>
-      queriesAPI
-        .loadAll(teamId)
-        .then(({ queries }) => queries.map(enhanceQuery)),
-    {
-      refetchOnWindowFocus: false,
-      enabled: isRouteOk && isAnyTeamSelected,
-      staleTime: 5000,
-    }
-  );
-
   const automatedQueryIds = useMemo(() => {
-    return curTeamEnhancedQueries
-      ? curTeamEnhancedQueries
+    return enhancedQueries
+      ? enhancedQueries
           .filter((query) => query.automations_enabled)
           .map((query) => query.id)
       : [];
-  }, [curTeamEnhancedQueries]);
+  }, [enhancedQueries]);
 
   useEffect(() => {
     const path = location.pathname + location.search;
@@ -203,11 +177,6 @@ const ManageQueriesPage = ({
     toggleDeleteQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };
-
-  const refetchAllQueries = useCallback(() => {
-    refetchCurTeamQueries();
-    refetchGlobalQueries();
-  }, [refetchCurTeamQueries, refetchGlobalQueries]);
 
   const toggleManageAutomationsModal = useCallback(() => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
@@ -237,7 +206,7 @@ const ManageQueriesPage = ({
         `Successfully deleted ${bulk ? "queries" : "query"}.`
       );
       setResetSelectedRows(true);
-      refetchAllQueries();
+      refetchQueries();
     } catch (errorResponse) {
       renderFlash(
         "error",
@@ -249,7 +218,7 @@ const ManageQueriesPage = ({
       toggleDeleteQueryModal();
       setIsUpdatingQueries(false);
     }
-  }, [refetchAllQueries, selectedQueryIds, toggleDeleteQueryModal]);
+  }, [refetchQueries, selectedQueryIds, toggleDeleteQueryModal]);
 
   const renderHeader = () => {
     if (isPremiumTier) {
@@ -271,17 +240,17 @@ const ManageQueriesPage = ({
     return <h1>Queries</h1>;
   };
 
-  const renderCurrentScopeQueriesTable = () => {
-    if (isFetchingCurTeamQueries) {
+  const renderQueriesTable = () => {
+    if (isFetchingQueries) {
       return <Spinner />;
     }
-    if (curTeamQueriesError) {
+    if (queriesError) {
       return <TableDataError />;
     }
     return (
       <QueriesTable
-        queriesList={curTeamEnhancedQueries || []}
-        isLoading={isFetchingCurTeamQueries}
+        queriesList={enhancedQueries || []}
+        isLoading={isFetchingQueries}
         onCreateQueryClick={onCreateQueryClick}
         onDeleteQueryClick={onDeleteQueryClick}
         isOnlyObserver={isOnlyObserver}
@@ -290,66 +259,6 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={queryParams}
       />
-    );
-  };
-
-  const renderShowInheritedQueriesTableButton = () => {
-    const inheritedQueryCount = globalEnhancedQueries?.length;
-    return (
-      <RevealButton
-        isShowing={showInheritedQueries}
-        className={baseClass}
-        hideText={`Hide ${inheritedQueryCount} inherited quer${
-          inheritedQueryCount === 1 ? "y" : "ies"
-        }`}
-        showText={`Show ${inheritedQueryCount} inherited quer${
-          inheritedQueryCount === 1 ? "y" : "ies"
-        }`}
-        caretPosition="before"
-        tooltipContent={
-          <>
-            Queries from the &quot;All teams&quot;
-            <br />
-            schedule run on this team&apos;s hosts.
-          </>
-        }
-        onClick={() => {
-          setShowInheritedQueries(!showInheritedQueries);
-        }}
-      />
-    );
-  };
-
-  const renderInheritedQueriesTable = () => {
-    if (isFetchingGlobalQueries) {
-      return <Spinner />;
-    }
-    if (globalQueriesError) {
-      return <TableDataError />;
-    }
-    return (
-      <QueriesTable
-        queriesList={globalEnhancedQueries || []}
-        isLoading={isFetchingGlobalQueries}
-        onCreateQueryClick={onCreateQueryClick}
-        onDeleteQueryClick={onDeleteQueryClick}
-        isOnlyObserver={isOnlyObserver}
-        isObserverPlus={isObserverPlus}
-        isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
-        router={router}
-        queryParams={queryParams}
-        isInherited
-        currentTeamId={currentTeamId}
-      />
-    );
-  };
-
-  const renderInheritedQueriesSection = () => {
-    return (
-      <>
-        {renderShowInheritedQueriesTableButton()}
-        {showInheritedQueries && renderInheritedQueriesTable()}
-      </>
     );
   };
 
@@ -382,7 +291,7 @@ const ManageQueriesPage = ({
       try {
         await Promise.all(updateAutomatedQueries).then(() => {
           renderFlash("success", `Successfully updated query automations.`);
-          refetchAllQueries();
+          refetchQueries();
         });
       } catch (errorResponse) {
         renderFlash(
@@ -394,7 +303,7 @@ const ManageQueriesPage = ({
         setIsUpdatingAutomations(false);
       }
     },
-    [refetchAllQueries, automatedQueryIds, toggleManageAutomationsModal]
+    [refetchQueries, automatedQueryIds, toggleManageAutomationsModal]
   );
 
   const renderModals = () => {
@@ -414,7 +323,7 @@ const ManageQueriesPage = ({
             onCancel={toggleManageAutomationsModal}
             isShowingPreviewDataModal={showPreviewDataModal}
             togglePreviewDataModal={togglePreviewDataModal}
-            availableQueries={curTeamEnhancedQueries}
+            availableQueries={enhancedQueries}
             automatedQueryIds={automatedQueryIds}
             logDestination={config?.logging.result.plugin || ""}
           />
@@ -446,7 +355,7 @@ const ManageQueriesPage = ({
               </Button>
             )}
             {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) &&
-              !!curTeamEnhancedQueries?.length && (
+              !!enhancedQueries?.length && (
                 <>
                   <Button
                     variant="brand"
@@ -466,11 +375,7 @@ const ManageQueriesPage = ({
               : "Gather data about all hosts."}
           </p>
         </div>
-        {renderCurrentScopeQueriesTable()}
-        {isAnyTeamSelected &&
-          globalEnhancedQueries &&
-          globalEnhancedQueries?.length > 0 &&
-          renderInheritedQueriesSection()}
+        {renderQueriesTable()}
         {renderModals()}
       </div>
     </MainContent>

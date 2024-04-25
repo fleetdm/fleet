@@ -69,8 +69,9 @@ interface IHeaderGroup extends HeaderGroup {
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
-// This data table uses react-table for implementation. The relevant documentation of the library
-// can be found here https://react-table.tanstack.com/docs/api/useTable
+// This data table uses react-table for implementation. The relevant v7 documentation of the library
+// can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
+
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
@@ -141,6 +142,7 @@ const DataTable = ({
     setFilter, // sets a specific column-level filter
     setAllFilters, // sets all of the column-level filters; rows are included in filtered results only if each column filter return true
     setGlobalFilter, // sets the global filter; this serves as a global free text search across all columns (excluding only those where `disableGlobalFilter: true`)
+    getToggleAllPageRowsSelectedProps,
   } = useTable(
     {
       columns,
