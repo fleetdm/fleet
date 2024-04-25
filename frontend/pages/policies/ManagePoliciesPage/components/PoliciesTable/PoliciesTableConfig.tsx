@@ -310,12 +310,31 @@ const generateTableHeaders = (
   tableHeaders.unshift({
     id: "selection",
     Header: (headerProps: any) => {
-      const checkboxProps = configUtils.getConditionalSelectHeaderCheckboxProps(
+      // When viewing team policies select all checkbox accounts for not selecting inherited policies
+      const teamCheckboxProps = configUtils.getConditionalSelectHeaderCheckboxProps(
         {
           headerProps,
           checkIfRowIsSelectable: (row) => row.original.team_id !== null,
         }
       );
+
+      // Regular table selection logic
+      const {
+        getToggleAllRowsSelectedProps,
+        toggleAllRowsSelected,
+      } = headerProps;
+      const { checked, indeterminate } = getToggleAllRowsSelectedProps();
+
+      const regularCheckboxProps = {
+        value: checked,
+        indeterminate,
+        onChange: () => {
+          toggleAllRowsSelected();
+        },
+      };
+
+      const checkboxProps =
+        selectedTeamId !== -1 ? teamCheckboxProps : regularCheckboxProps;
       return <Checkbox {...checkboxProps} />;
     },
     Cell: (cellProps: ICellProps): JSX.Element => {
@@ -325,9 +344,11 @@ const generateTableHeaders = (
         onChange: () => cellProps.row.toggleRowSelected(),
       };
 
-      if (cellProps.row.original.team_id === null) {
+      // When viewing team policies and a row is an inherited policy, do not render checkbox
+      if (selectedTeamId !== -1 && cellProps.row.original.team_id === null) {
         return <></>;
       }
+
       return <Checkbox {...checkboxProps} />;
     },
     disableHidden: true,
