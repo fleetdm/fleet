@@ -1,7 +1,7 @@
 name: pwd_policy
 platforms:
   - darwin
-description: Password Policiy (e.g max failed password attempts).
+description: Password Policy (e.g., max failed password attempts).
 columns:
   - name: max_failed_attempts
     type: integer
