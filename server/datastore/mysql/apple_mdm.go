@@ -1126,7 +1126,9 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
-func (ds *Datastore) deleteMDMProfilesForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
+// deleteMDMOSCustomSettingsForHost deletes configuration profiles and
+// declarations for a host based on its platform.
+func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
 
 	tableMap := map[string][]string{
 		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
@@ -1150,19 +1152,19 @@ func (ds *Datastore) deleteMDMProfilesForHost(ctx context.Context, tx sqlx.ExtCo
 	return nil
 }
 
-func (ds *Datastore) MDMWindowsTurnOff(ctx context.Context, uuid string) error {
-	return nil
-}
-
-func (ds *Datastore) MDMAppleTurnOff(ctx context.Context, uuid string) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var hostID uint
+func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var host fleet.Host
 		err := sqlx.GetContext(
-			ctx, tx, &hostID,
-			`SELECT id FROM hosts WHERE uuid = ? LIMIT 1`, uuid,
+			ctx, tx, &host,
+			`SELECT id, platform FROM hosts WHERE uuid = ? LIMIT 1`, uuid,
 		)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting host id from UUID")
+			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
+		}
+
+		if host.Platform != "darwin" && host.Platform != "windows" {
+			return ctxerr.Errorf(ctx, "unsupported host platform: %s", host.Platform)
 		}
 
 		// NOTE: set installed_from_dep = 0 so DEP host will not be
@@ -1175,7 +1177,7 @@ func (ds *Datastore) MDMAppleTurnOff(ctx context.Context, uuid string) error {
 			  server_url = '',
 			  mdm_id = NULL
 			WHERE
-			  host_id = ?`, hostID)
+			  host_id = ?`, host.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clearing host_mdm for host")
 		}
@@ -1184,13 +1186,16 @@ func (ds *Datastore) MDMAppleTurnOff(ctx context.Context, uuid string) error {
 		// host manually, the device won't Acknowledge any more requests (eg:
 		// to delete profiles) and profiles are automatically removed on
 		// unenrollment.
-		if err := ds.deleteMDMProfilesForHost(ctx, tx, uuid, "darwin"); err != nil {
+		if err := ds.deleteMDMOSCustomSettingsForHost(ctx, tx, uuid, host.Platform); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting profiles for host")
 		}
 
-		// TODO: think other stuff that needs to be reset
+		// NOTE: intentionally keeping disk encryption keys and bootstrap
+		// package information.
 
-		return nil
+		// request a refetch to update any eventually consistent stale information.
+		err = updateHostRefetchRequestedDB(ctx, tx, host.ID, true)
+		return ctxerr.Wrap(ctx, err, "setting host refetch requested")
 	})
 }
 
@@ -3392,27 +3397,52 @@ WHERE
 	return nil
 }
 
-func (ds *Datastore) MDMAppleResetEnrollment(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var host fleet.Host
+		err := sqlx.GetContext(
+			ctx, tx, &host,
+			`SELECT id, platform FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
+		}
+
+		if host.Platform != "darwin" && host.Platform != "windows" {
+			return ctxerr.Errorf(ctx, "unsupported host platform: %s", host.Platform)
+		}
+
 		// Deleting profiles from this table will cause all profiles to
 		// be re-delivered on the next cron run.
-		if err := ds.deleteMDMProfilesForHost(ctx, tx, hostUUID, "darwin"); err != nil {
+		if err := ds.deleteMDMOSCustomSettingsForHost(ctx, tx, hostUUID, host.Platform); err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting profiles status")
 		}
 
-		// Deleting the matching entry on this table will cause
-		// the aggregate report to show this host as 'pending' to
-		// install the bootstrap package.
-		_, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "resetting host_mdm_apple_bootstrap_packages")
-		}
-
+		// Delete any stored disk encryption keys. This covers cases
+		// where hosts re-enroll without sending a CheckOut message
+		// first, for example:
+		//
+		// - IT admin wiping the host locally
+		// - Host restoring from a back-up
+		//
+		// This also means that somebody running `sudo profiles renew
+		// --type enrollment` will report disk encryption as "pending"
+		// for a short period of time.
 		_, err = tx.ExecContext(ctx, `
                     DELETE FROM host_disk_encryption_keys
-                    WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)`, hostUUID)
+                    WHERE host_id = ?`, host.ID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing all profiles from host")
+			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
+		}
+
+		if host.Platform == "darwin" {
+			// Deleting the matching entry on this table will cause
+			// the aggregate report to show this host as 'pending' to
+			// install the bootstrap package.
+			_, err = tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_mdm_apple_bootstrap_packages")
+			}
 		}
 
 		return nil

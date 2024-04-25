@@ -1933,7 +1933,3 @@ func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host
 		return nil
 	})
 }
-
-func (ds *Datastore) MDMWindowsResetEnrollment(ctx context.Context, hostUUID string) error {
-	return nil
-}

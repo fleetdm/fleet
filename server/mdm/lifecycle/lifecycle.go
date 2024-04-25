@@ -11,15 +11,26 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+// HostAction is a supported MDM lifecycle action that can be performed on a
+// host.
 type HostAction string
 
 const (
-	HostActionTurnOn  HostAction = "turn-on"
+	// HostActionTurnOn performs tasks right after a host turns on MDM.
+	HostActionTurnOn HostAction = "turn-on"
+	// HostActionTurnOn performs tasks right after a host turns off MDM.
 	HostActionTurnOff HostAction = "turn-off"
-	HostActionReset   HostAction = "reset"
-	HostActionDelete  HostAction = "delete"
+	// HostActionTurnOn perform tasks to reset mdm-related information.
+	HostActionReset HostAction = "reset"
+	// HostActionDelete perform tasks to cleanup MDM information when a
+	// host is deleted from fleet.
+	HostActionDelete HostAction = "delete"
 )
 
+// HostOptions are the options that can be provided for an action.
+//
+// Not all options are required for all actions, each individual action should
+// validate that it receives the required information.
 type HostOptions struct {
 	Action          HostAction
 	Platform        string
@@ -36,6 +47,7 @@ type HostLifecycle struct {
 	logger kitlog.Logger
 }
 
+// New creates a new HostLifecycle struct
 func New(ds fleet.Datastore, logger kitlog.Logger) *HostLifecycle {
 	return &HostLifecycle{
 		ds:     ds,
@@ -63,7 +75,7 @@ func (t *HostLifecycle) doDarwin(ctx context.Context, opts HostOptions) error {
 		return t.darwinTurnOn(ctx, opts)
 
 	case HostActionTurnOff:
-		return t.uuidAction(ctx, t.ds.MDMAppleTurnOff, opts)
+		return t.uuidAction(ctx, t.ds.MDMTurnOff, opts)
 
 	case HostActionReset:
 		return t.darwinReset(ctx, opts)
@@ -80,21 +92,21 @@ func (t *HostLifecycle) doDarwin(ctx context.Context, opts HostOptions) error {
 func (t *HostLifecycle) doWindows(ctx context.Context, opts HostOptions) error {
 	switch opts.Action {
 	case HostActionReset, HostActionTurnOn:
-		return t.uuidAction(ctx, t.ds.MDMWindowsResetEnrollment, opts)
+		return t.uuidAction(ctx, t.ds.MDMResetEnrollment, opts)
 
 	case HostActionDelete, HostActionTurnOff:
-		return t.uuidAction(ctx, t.ds.MDMWindowsTurnOff, opts)
+		return t.uuidAction(ctx, t.ds.MDMTurnOff, opts)
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown action %s", opts.Action)
 	}
 }
 
-type uuidFn func(context.Context, string) error
+type uuidFn func(ctx context.Context, uuid string) error
 
 func (t *HostLifecycle) uuidAction(ctx context.Context, action uuidFn, opts HostOptions) error {
 	if opts.UUID == "" {
-		return ctxerr.New(ctx, "UUID option is required for this action")
+		return ctxerr.New(ctx, "UUID and Platform options are required for this action")
 	}
 
 	return action(ctx, opts.UUID)
@@ -114,7 +126,7 @@ func (t *HostLifecycle) darwinReset(ctx context.Context, opts HostOptions) error
 		return ctxerr.Wrap(ctx, err, "upserting mdm host")
 	}
 
-	err := t.ds.MDMAppleResetEnrollment(ctx, opts.UUID)
+	err := t.ds.MDMResetEnrollment(ctx, opts.UUID)
 	return ctxerr.Wrap(ctx, err, "reset mdm enrollment")
 }
 

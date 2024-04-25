@@ -899,7 +899,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.MDMAppleTurnOffFunc = func(ctx context.Context, uuid string) error {
+	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) error {
 		return nil
 	}
 
@@ -1049,7 +1049,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		return nil
 	}
 
-	ds.MDMAppleResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -1068,7 +1068,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
-	require.True(t, ds.MDMAppleResetEnrollmentFuncInvoked)
+	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
 func TestMDMAuthenticateADE(t *testing.T) {
@@ -1109,7 +1109,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		return nil
 	}
 
-	ds.MDMAppleResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -1128,7 +1128,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
-	require.True(t, ds.MDMAppleResetEnrollmentFuncInvoked)
+	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
 func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
@@ -1154,7 +1154,7 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.MDMAppleResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
 		return nil
 	}
 	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host) error {
@@ -1175,7 +1175,7 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	require.False(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.False(t, ds.NewActivityFuncInvoked)
-	require.False(t, ds.MDMAppleResetEnrollmentFuncInvoked)
+	require.False(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
 func TestMDMTokenUpdate(t *testing.T) {
@@ -1261,7 +1261,7 @@ func TestMDMCheckout(t *testing.T) {
 	ctx := context.Background()
 	uuid, serial, installedFromDEP, displayName := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook"
 
-	ds.MDMAppleTurnOffFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMTurnOffFunc = func(ctx context.Context, hostUUID string) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -1298,7 +1298,7 @@ func TestMDMCheckout(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.True(t, ds.MDMAppleTurnOffFuncInvoked)
+	require.True(t, ds.MDMTurnOffFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
 }

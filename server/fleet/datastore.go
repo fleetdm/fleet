@@ -568,11 +568,10 @@ type Datastore interface {
 	// upgraded from a prior version).
 	CleanupHostOperatingSystems(ctx context.Context) error
 
-	// MDMAppleTurnOff TODO
-	MDMAppleTurnOff(ctx context.Context, uuid string) error
-
-	// MDMWindowsTurnOff TODO
-	MDMWindowsTurnOff(ctx context.Context, uuid string) error
+	// MDMTurnOff updates Fleet host information related to MDM when a
+	// host tuns off MDM. Anything related to the protocol itself is
+	// managed separately.
+	MDMTurnOff(ctx context.Context, uuid string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -1044,20 +1043,16 @@ type Datastore interface {
 	// joined (nil for no team), and an error.
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, *uint, error)
 
-	// MDMAppleUpsertHost creates a new Fleet host record for an MDM-enrolled device that is
-	// not already enrolled in Fleet.
-	// TODO: improve description
+	// MDMAppleUpsertHost creates or matches a Fleet host record for an
+	// MDM-enrolled device.
 	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host) error
 
 	// RestoreMDMApplePendingDEPHost restores a host that was previously deleted from Fleet.
 	RestoreMDMApplePendingDEPHost(ctx context.Context, host *Host) error
 
-	// MDMAppleResetEnrollment resets all tables with enrollment-related
+	// MDMResetEnrollment resets all tables with enrollment-related
 	// information if a matching row for the host exists.
-	MDMAppleResetEnrollment(ctx context.Context, hostUUID string) error
-
-	// MDMWindowsResetEnrollment TODO
-	MDMWindowsResetEnrollment(ctx context.Context, hostUUID string) error
+	MDMResetEnrollment(ctx context.Context, hostUUID string) error
 
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
