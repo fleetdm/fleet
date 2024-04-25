@@ -3889,7 +3889,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 ### Add labels to host
 
-The endpoint can be used to add manual labels to a host. 
+Adds manual labels to a host. 
 
 `POST /api/v1/fleet/hosts/:id/labels`
 
