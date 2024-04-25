@@ -1,0 +1,2 @@
+- UI Change: Team queries page renders team level and inherited queries in a single table set by a new merge_inherited API parameter
+- UI Change: Team policies page renders team level and inherited policies in a single table set by a new merge_inherited API parameter
