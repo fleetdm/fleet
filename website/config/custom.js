@@ -89,7 +89,8 @@ module.exports.custom = {
   // Other integrations:
   // openAiSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
-
+  // salesforceIntegrationUsername: undefined,
+  // salesforceIntegrationPasskey: undefined,
 
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
