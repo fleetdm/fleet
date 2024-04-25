@@ -25,7 +25,7 @@ If you are not using the latest version of osquery, you can create a config YAML
 fleetctl apply --force -f config.yaml
 ```
 
-You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
+You can verify that your agent options are valid by using [the `fleetctl apply` command](https://fleetdm.com/docs/using-fleet/fleetctl-cli) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
 Existing options will be overwritten by the application of this file.
 
