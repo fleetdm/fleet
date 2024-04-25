@@ -18,18 +18,16 @@ const getConditionalSelectHeaderCheckboxProps = ({
   const checkIfAllSelectableRowsSelected = (rows: Row<any>[]) =>
     rows.filter(checkIfRowIsSelectable).every((row) => row.isSelected);
   // Note: This is where we would include disabled logic if we needed it
+
+  // Naming matches react-table v7 https://react-table-v7-docs.netlify.app/docs/api/useRowSelect#instance-properties
+  // getToggleAllPageRowsSelectedProps: Function(props) => props
   const checked = checkIfAllSelectableRowsSelected(headerProps.rows);
   const indeterminate =
     !checked && headerProps.rows.some((row) => row.isSelected);
 
-  // Conditional logic adds filtering for the rows if the row is selectable
-  const isSelectPage = headerProps.page
-    .filter(checkIfRowIsSelectable)
-    .some((row) => !row.isSelected);
-
   const onChange = () => {
-    // If all rows are already selected, deselect all selectable rows on the page
-    if (!isSelectPage && checkIfAllSelectableRowsSelected(headerProps.rows)) {
+    // If all selectable rows are already selected, deselect all selectable rows on the page
+    if (checkIfAllSelectableRowsSelected(headerProps.rows)) {
       headerProps.rows.forEach((row) => {
         headerProps.toggleRowSelected(row.id, false);
       });

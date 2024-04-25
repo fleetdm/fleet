@@ -108,7 +108,7 @@ const generateTableHeaders = (
   isSandboxMode?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
-
+  const viewingTeamPolicies = selectedTeamId !== -1;
   // Figure the time since the host counts were updated.
   // First, find first policy item with host_count_updated_at.
   const updatedAt =
@@ -174,7 +174,7 @@ const generateTableHeaders = (
                   </ReactTooltip>
                 </>
               )}
-              {selectedTeamId !== -1 && !cellProps.row.original.team_id && (
+              {viewingTeamPolicies && !cellProps.row.original.team_id && (
                 <>
                   <span
                     className="inherited-badge"
@@ -333,11 +333,13 @@ const generateTableHeaders = (
         },
       };
 
-      const checkboxProps =
-        selectedTeamId !== -1 ? teamCheckboxProps : regularCheckboxProps;
+      const checkboxProps = viewingTeamPolicies
+        ? teamCheckboxProps
+        : regularCheckboxProps;
       return <Checkbox {...checkboxProps} />;
     },
     Cell: (cellProps: ICellProps): JSX.Element => {
+      const inheritedPolicy = !cellProps.row.original.team_id;
       const props = cellProps.row.getToggleRowSelectedProps();
       const checkboxProps = {
         value: props.checked,
@@ -345,7 +347,7 @@ const generateTableHeaders = (
       };
 
       // When viewing team policies and a row is an inherited policy, do not render checkbox
-      if (selectedTeamId !== -1 && cellProps.row.original.team_id === null) {
+      if (viewingTeamPolicies && inheritedPolicy) {
         return <></>;
       }
 
