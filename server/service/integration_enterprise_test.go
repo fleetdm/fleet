@@ -809,7 +809,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	require.Len(t, ts.InheritedPolicies, 0)
 
 	// create a global policy
-	gpol, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "TestGlobalPolicy", Query: "SELECT 1"})
+	gpol, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "Policy1 Global", Query: "SELECT 1"})
 	require.NoError(t, err)
 	defer func() {
 		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{gpol.ID})
@@ -817,7 +817,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	}()
 
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "TestQuery2",
+		Name:           "Policy2 TestQuery2",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
@@ -835,7 +835,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	ts = listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
-	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
+	assert.Equal(t, "Policy2 TestQuery2", ts.Policies[0].Name)
 	assert.Equal(t, "select * from osquery;", ts.Policies[0].Query)
 	assert.Equal(t, "Some description", ts.Policies[0].Description)
 	require.NotNil(t, ts.Policies[0].Resolution)
@@ -848,7 +848,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	ltParams := listTeamPoliciesRequest{
 		MergeInherited: true,
 		Opts: fleet.ListOptions{
-			OrderKey:       "team_id",
+			OrderKey:       "name",
 			OrderDirection: fleet.OrderDescending,
 		},
 	}
@@ -856,7 +856,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), ltParams, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 2)
 	require.Nil(t, ts.InheritedPolicies)
-	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
+	assert.Equal(t, "Policy2 TestQuery2", ts.Policies[0].Name)
 	assert.Equal(t, "select * from osquery;", ts.Policies[0].Query)
 	assert.Equal(t, "Some description", ts.Policies[0].Description)
 	require.NotNil(t, ts.Policies[0].Resolution)
