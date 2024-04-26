@@ -1030,7 +1030,11 @@ func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			AdditionalQueries:       &additional,
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	mockClock := clock.NewMockClock()
@@ -1314,7 +1318,10 @@ func TestLabelQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -3019,7 +3026,10 @@ func TestPolicyQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -3216,7 +3226,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Features: fleet.Features{
-				EnableHostUsers: true,
+				EnableHostUsers:         true,
+				EnableSoftwareInventory: true,
 			},
 			WebhookSettings: fleet.WebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
@@ -3484,7 +3495,10 @@ func TestLiveQueriesFailing(t *testing.T) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
