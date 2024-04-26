@@ -17,6 +17,8 @@ const CalendarEventPreviewModal = ({
   onCancel,
   policy,
 }: ICalendarEventPreviewModalProps): JSX.Element => {
+  const showGenericPreview = !policy?.description || !policy?.resolution;
+
   return (
     <Modal
       title="Calendar event preview"
@@ -26,13 +28,13 @@ const CalendarEventPreviewModal = ({
     >
       <>
         <span>
-          {policy ? (
+          {showGenericPreview ? (
+            "What end users see:"
+          ) : (
             <>
               End users failing only <strong>{policy.name}</strong> policy will
               see:
             </>
-          ) : (
-            "What end users see:"
           )}
         </span>
         <div className={`${baseClass}__preview`}>
@@ -63,15 +65,15 @@ const CalendarEventPreviewModal = ({
               <br /> <br />
               <strong>Why it matters</strong>
               <br />
-              {policy
-                ? policy.description
-                : "Acme, Inc. needs to make sure your device meets the organization's requirements."}
+              {showGenericPreview
+                ? "Acme, Inc. needs to make sure your device meets the organization's requirements."
+                : policy.description}
               <br /> <br />
               <strong>What we&apos;ll do</strong>
               <br />
-              {policy
-                ? policy.resolution
-                : "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."}
+              {showGenericPreview
+                ? "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+                : policy.resolution}
             </div>
           </div>
           <div className={`${baseClass}__preview-invitee`}>
@@ -84,17 +86,17 @@ const CalendarEventPreviewModal = ({
           </div>
         </div>
         <div className={`${baseClass}__footer`}>
-          {policy ? (
+          {showGenericPreview ? (
+            <>
+              Users failing only a single policy will see a more specific
+              explanation.
+            </>
+          ) : (
             <>
               <strong>Why it matters</strong> and{" "}
               <strong>What we&apos;ll do</strong> are populated by the
               policy&apos;s <strong>Description</strong> and{" "}
               <strong>Resolution</strong> respectively.
-            </>
-          ) : (
-            <>
-              Users failing only a single policy will see a more specific
-              explanation.
             </>
           )}
         </div>

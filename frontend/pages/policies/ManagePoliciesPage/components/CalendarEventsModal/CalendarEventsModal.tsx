@@ -200,6 +200,7 @@ const CalendarEventsModal = ({
                       );
                       togglePreviewCalendarEvent();
                     }}
+                    className="checkbox-row__preview-button"
                   >
                     <Icon name="eye" /> Preview
                   </Button>

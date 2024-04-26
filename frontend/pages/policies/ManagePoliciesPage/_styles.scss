@@ -216,12 +216,20 @@
       align-self: stretch;
       border-bottom: 1px solid $ui-fleet-black-10;
 
+      &__preview-button {
+        visibility: hidden;
+      }
+
       &:hover {
         background: $ui-off-white;
         cursor: pointer;
 
         label {
           cursor: pointer;
+        }
+
+        .checkbox-row__preview-button {
+          visibility: visible;
         }
       }
 
