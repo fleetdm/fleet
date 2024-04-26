@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 
+import { AppContext } from "context/app";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -17,7 +18,10 @@ const CalendarEventPreviewModal = ({
   onCancel,
   policy,
 }: ICalendarEventPreviewModalProps): JSX.Element => {
+  const { config } = useContext(AppContext);
+
   const showGenericPreview = !policy?.description || !policy?.resolution;
+  const orgName = config?.org_info.org_name;
 
   return (
     <Modal
@@ -58,7 +62,7 @@ const CalendarEventPreviewModal = ({
               <Icon name="text" />
             </div>
             <div className={`${baseClass}__preview-info__text`}>
-              Acme, Inc. reserved this time to make some changes to Anna&apos;s
+              {orgName} reserved this time to make some changes to Anna&apos;s
               MacBook Pro.
               <br />
               Please leave your computer on and connected to power.
@@ -66,7 +70,7 @@ const CalendarEventPreviewModal = ({
               <strong>Why it matters</strong>
               <br />
               {showGenericPreview
-                ? "Acme, Inc. needs to make sure your device meets the organization's requirements."
+                ? `${orgName} needs to make sure your device meets the organization's requirements.`
                 : policy.description}
               <br /> <br />
               <strong>What we&apos;ll do</strong>
