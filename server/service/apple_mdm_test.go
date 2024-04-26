@@ -2104,8 +2104,6 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	contents1 := []byte("test-content-1")
 	contents2 := []byte("test-content-2")
 	contents4 := []byte("test-content-4")
-	signingCert, _, _, err := mdmConfig.AppleSCEP()
-	require.NoError(t, err)
 
 	p1, p2, p3, p4 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
 	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
@@ -2318,7 +2316,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			failedCount++
 			require.Len(t, payload, 0)
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), signingCert)
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), mdmConfig)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
@@ -2354,7 +2352,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeRemove
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), signingCert)
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), mdmConfig)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
@@ -2407,7 +2405,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeInstall
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), signingCert)
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger(), mdmConfig)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
