@@ -126,7 +126,7 @@ Resources:
 
 - https://en.wikipedia.org/wiki/Public_key_infrastructure#Certificate_authorities
 
-## SCEP summary
+### SCEP summary
 
 SCEP is a [PKI](#pki-public-key-infrastructure) protocol that allows devices to
 request certificates from a [CA](#ca-certificate-authoriy) (in our context, the
@@ -149,19 +149,21 @@ More generally, the protocol is specified in [RFC
 - Certificate query
 - Query (not perform) certificate revocation
 
-## MDM Protocol summary
+### MDM Protocol summary
 
 This is a rough summary of the [MDM Protocol
 Reference](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf).
 
 The protocol is composed by the MDM Check-in protocol and the main MDM protocol.
 
-### MDM Check-in Protocol
+#### MDM Check-in Protocol
 
 Used during initialization, validates if the device can be enrolled and
 notifies the server.
 
 It's composed by three different messages sent by the device to the server.
+
+Check-in requests are also used to implement [DDM](#ddm-declarative-device-management) on top of the MDM protocol.
 
 **Authenticate**
 
@@ -197,7 +199,7 @@ The device attempts to notify the server when the MDM profile is removed.
 If network conditions don't allow the message to be delivered successfully,
 the device makes no further attempts to send the message.
 
-### Main MDM Protocol
+#### Main MDM Protocol
 
 After the device is enrolled, the server (at some point in the future) sends
 out a push notification to the device, then:
@@ -211,7 +213,7 @@ out a push notification to the device, then:
 To see all available commands, look under "Support for macOS Requests" in the
 MDM Protocol Reference.
 
-## DEP Workflow Summary
+### DEP Workflow Summary
 
 In order to get information about devices enrolled through DEP, the MDM server
 needs to communicate with Apple servers periodically.
@@ -231,3 +233,110 @@ The workflow looks like:
    https://mdmenrollment.apple.com/profile/devices`
 4. The MDM server removes DEP profiles (JSON) from a device using `DELETE
    https://mdmenrollment.apple.com/profile/devices`
+
+### DDM: Declarative Device Management
+
+Declarative device management is an update to the existing protocol for device management that can be used in combination with the existing MDM protocol capabilities. It allows the device to asynchronously apply settings and report status back to the MDM server without constant polling.
+
+Some new MDM features will only be available through DDM.
+
+All DDM messages are JSON messages embedded (base64 encoded) within XML messages (because DDM is built on top of the existing MDM protocol).
+- DDM uses the `DeclarativeManagement` MDM command, used to enable DDM and set a set of declarations for the device (from server to device).
+- DDM uses the `CheckIn` MDM command to send `DeclarativeManagement` commands from device to MDM server.
+
+Resources: 
+- [WWDC21](https://developer.apple.com/videos/play/wwdc2021/10131)
+- [WWDC22](https://developer.apple.com/videos/play/wwdc2022/10046)
+- [WWDC23](https://developer.apple.com/videos/play/wwdc2023/10041)
+
+#### Declarations
+
+There are four types of declarations:
+- `configuration`: These are similar to pre-DDM configuration profiles.
+- `activation`: Sets of configurations applied atomically. (Activations have "predicates".) When device changes (e.g. OS updates) the predicates are re-evaluated by the device autonomously.
+- `asset`: Used to specify additional data needed by configurations (e.g. images). (For large data URLs can be used.) This helps taking personal data out of configurations.
+- `management`: Used to convey properties of the overall management state to the device, like organization information and MDM server capabilities.
+
+Sample "configuration" declaration sent to a device:
+```json
+{
+   "Type": "com.apple.configuration.passcode.settings", // Which policy a configuration represents.
+   "Identifier": "9CE37E5F-1B54-4366-91B5-ABA8405F8DAA", // This declaration's unique ID. Device uses this to sync declarations.
+   "ServerToken": "6AD801B6-3A11-487E-A7E9-56A595E64034", // Revision ID of this declaration. Device uses this to sync declarations.
+   "Payload": { // Keys and values pertinent to the declaration type.
+      "RequirePasscode": true,
+      "RequireComplexPasscode": true,
+      "MinimumLength": 6 
+      ...
+   } 
+}
+```
+Sample "activation" declaration sent to a device:
+```json
+{
+   "Type": "com.apple.activation.simple", // Which policy a configuration represents.
+   "Identifier": "6B073EF0-2645-413E-A3F1-30C7E3DD99E9", // This declaration's unique ID. Device uses this to sync declarations.
+   "ServerToken": "1168E904-975E-4B92-B231-582DCC9EC5BD", // Revision ID of this declaration. Device uses this to sync declarations.
+   "Payload": { // Keys and values pertinent to the declaration type.
+      "StandardConfigurations": [ // "Identifier" keys of the configurations.
+         "9CE37E5F-1B54-4366-91B5-ABA8405F8DAA", 
+         "4848424C-3933-43CC-9CE6-EFCE5DEC31FB"
+      ]
+   },
+   "Predicate": "(device.model.family == 'iPad')"
+}
+```
+
+#### Status channel
+
+Instead of the MDM server polling devices, the devices themselves can report their statuses and any updates in their state to the MDM server.
+An MDM server subscribes to specific "status items" using "status subscription configurations".
+The device then sends initial and subsequent status reports when a subscribed item changes.
+Status items are key-paths (same as the ones used in activation predicates).
+
+"Status subscription configuration" example:
+```json
+{
+   "Type": "com.apple.configuration.management.status-subscriptions",
+   "Identifier": "6B073EF0-2645-413E-A3F1-30C7E3DD99E9", // This declaration's unique ID. Device uses this to sync declarations.
+   "ServerToken": "1168E904-975E-4B92-B231-582DCC9EC5BD", // Revision ID of this declaration. Device uses this to sync declarations.
+   "Payload": { // Keys and values pertinent to the declaration type.
+      "StatusItems": [
+         {"Name": "device.operating-system.version"},
+         {"Name": "device.operating-system.family"},
+         {"Name": "device.model.family"}
+      ]
+   },
+   "Predicate": "(device.model.family == 'iPad')"
+}
+```
+Corresponding device's initial status report:
+```json
+{
+   "StatusItems": {
+      "device": {
+         "model": {
+            "family": "iPhone"
+         },
+         "operating-system": {
+            "version": 14.5,
+            "family": "iOS"
+         }
+      }
+   },
+   "Errors": []
+}
+```
+And corresponding device's status report after upgrading:
+```json
+{
+   "StatusItems": {
+      "device": {
+         "operating-system": {
+            "version": 14.5,
+         }
+      }
+   },
+   "Errors": []
+}
+```
