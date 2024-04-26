@@ -259,7 +259,10 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 	context.Background(),
 	config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}},
 	nil,
-	&fleet.Features{EnableHostUsers: true},
+	&fleet.Features{
+		EnableHostUsers:         true,
+		EnableSoftwareInventory: true,
+	},
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
@@ -1468,7 +1471,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1658,7 +1664,10 @@ func TestDetailQueries(t *testing.T) {
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1707,9 +1716,8 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +2 for software inventory (+1 for the main software query +1 software_vscode_extensions)
 	// +1 for fleet_no_policies_wildcard
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+2+1, len(queries)) {
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1975,9 +1983,8 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +2 software inventory (+1 main software query and +1 software extra query )
 	// +1 fleet_no_policies_wildcard query
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2+1, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -3763,5 +3770,19 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, log.NewNopLogger())
 			require.Equal(t, tc.resultsOut, tc.resultsIn)
 		})
+	}
+}
+
+func TestDetailQueriesLinuxDistros(t *testing.T) {
+	for _, linuxPlatform := range fleet.HostLinuxOSs {
+		m := expectedDetailQueriesForPlatform(linuxPlatform)
+		require.Contains(t, m, "users")
+		require.Contains(t, m, "network_interface_unix")
+		require.Contains(t, m, "disk_space_unix")
+		require.Contains(t, m, "os_unix_like")
+		require.Contains(t, m, "orbit_info")
+		require.Contains(t, m, "disk_encryption_linux")
+		require.Contains(t, m, "software_vscode_extensions")
+		require.Contains(t, m, "software_linux")
 	}
 }
