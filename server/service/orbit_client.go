@@ -133,6 +133,9 @@ func NewOrbitClient(
 	}
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
 	return &OrbitClient{
 		nodeKeyFilePath:   nodeKeyFilePath,
 		baseClient:        bc,
@@ -141,6 +144,8 @@ func NewOrbitClient(
 		enrolled:          false,
 		onGetConfigErrFns: onGetConfigErrFns,
 		UpdateInterval:    defaultOrbitConfigReceiverInterval,
+		UpdateContext:     ctx,
+		UpdateCancelFunc:  cancelFunc,
 	}, nil
 }
 

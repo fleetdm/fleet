@@ -69,9 +69,9 @@ type OrbitConfigReceiver interface {
 	Run(*OrbitConfig) error
 }
 
-type OrbitReceiverFunc func(cfg *OrbitConfig) error
+type OrbitConfigReceiverFunc func(cfg *OrbitConfig) error
 
-func (f OrbitReceiverFunc) Run(cfg *OrbitConfig) error {
+func (f OrbitConfigReceiverFunc) Run(cfg *OrbitConfig) error {
 	return f(cfg)
 }
 

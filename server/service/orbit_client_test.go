@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -36,7 +37,11 @@ func TestGetConfig(t *testing.T) {
 }
 
 func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
-	oc := &OrbitClient{}
+	ctx, cancel := context.WithCancel(context.Background())
+	oc := &OrbitClient{
+		UpdateContext:    ctx,
+		UpdateCancelFunc: cancel,
+	}
 	oc.configCache.config = cfg
 	oc.configCache.lastUpdated = time.Now().Add(1 * time.Hour)
 	return oc
@@ -47,14 +52,14 @@ func TestConfigReceiverCalls(t *testing.T) {
 
 	testmsg := json.RawMessage("testing")
 
-	rfunc1 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	rfunc1 := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		if !reflect.DeepEqual(cfg.Flags, testmsg) {
 			return errors.New("not equal testmsg")
 		}
 		called1 = true
 		return nil
 	})
-	rfunc2 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	rfunc2 := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		if !reflect.DeepEqual(cfg.Flags, testmsg) {
 			return errors.New("not equal testmsg")
 		}
@@ -76,24 +81,24 @@ func TestConfigReceiverCalls(t *testing.T) {
 func TestConfigReceiverErrors(t *testing.T) {
 	var called1, called2 bool
 
-	rfunc1 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	rfunc1 := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		called1 = true
 		return nil
 	})
-	rfunc2 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	rfunc2 := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		called2 = true
 		return nil
 	})
 	err1 := errors.New("error1")
 	err2 := errors.New("error2")
-	efunc1 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	efunc1 := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		return err1
 	})
-	efunc2 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	efunc2 := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		return err2
 	})
 	// Make sure we don't get stuck or crash on receiver panic
-	pfunc := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	pfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		panic("woah")
 	})
 
@@ -110,4 +115,69 @@ func TestConfigReceiverErrors(t *testing.T) {
 
 	require.True(t, called1)
 	require.True(t, called2)
+}
+
+func TestExecuteConfigReceiversCancel(t *testing.T) {
+	client := clientWithConfig(&fleet.OrbitConfig{})
+	client.UpdateInterval = time.Nanosecond
+
+	var calls1, calls2 int
+	requiredCalls := 4
+
+	cfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+		calls1++
+		if calls1 == requiredCalls {
+			client.UpdateCancelFunc()
+		}
+		return nil
+	})
+
+	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+		calls2++
+		return nil
+	})
+
+	client.RegisterConfigReceiver(cfunc)
+	client.RegisterConfigReceiver(rfunc)
+
+	err := client.ExecuteConfigReceivers()
+
+	require.Nil(t, err)
+	require.Equal(t, requiredCalls, calls1)
+	require.Equal(t, requiredCalls, calls2)
+}
+
+func TestExecuteConfigReceiversInterrupt(t *testing.T) {
+	client := clientWithConfig(&fleet.OrbitConfig{})
+	client.UpdateInterval = 200 * time.Millisecond
+
+	var called bool
+
+	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+		called = true
+		return nil
+	})
+
+	client.RegisterConfigReceiver(rfunc)
+
+	finChan := make(chan error, 1)
+
+	go func() {
+		finChan <- client.ExecuteConfigReceivers()
+	}()
+
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		client.UpdateCancelFunc()
+	}()
+
+	select {
+	case err := <-finChan:
+		require.Nil(t, err)
+		require.True(t, called)
+	case <-time.NewTimer(2 * time.Second).C:
+		require.Fail(t, "receiver interrupt cancel didn't work")
+	}
+
+	client.UpdateCancelFunc()
 }
