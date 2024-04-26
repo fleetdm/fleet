@@ -20,4 +20,24 @@
   &__file-uploader {
     box-sizing: border-box;
   }
+
+  &__selected-file {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+
+    &--details {
+      &--name {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+
+      &--platform {
+        font-size: $xx-small;
+        color: $ui-fleet-black-75;
+      }
+    }
+  }
 }

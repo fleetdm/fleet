@@ -1,15 +1,25 @@
 import React, { useState } from "react";
-import { noop } from "lodash";
+
+import { getPlatformDisplayName } from "utilities/file/fileUtils";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
-import { on } from "events";
+
+import ProfileGraphic from "pages/ManageControlsPage/OSSettings/cards/CustomSettings/components/ProfileUploader/components/AddProfileGraphic";
+
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions/AddSoftwareAdvancedOptions";
 
 const baseClass = "add-software-form";
+
+const getFileDetails = (file: File) => {
+  return {
+    name: file.name,
+    platform: getPlatformDisplayName(file),
+  };
+};
 
 const UploadingSoftware = () => {
   return (
@@ -19,6 +29,28 @@ const UploadingSoftware = () => {
     </div>
   );
 };
+
+// TODO: if we reuse this one more time, we should consider moving this
+// into FileUploader or make another component. Currently we have this in
+// AddProfileModal.tsx and here.
+const FileDetails = ({
+  details: { name, platform },
+}: {
+  details: {
+    name: string;
+    platform: string;
+  };
+}) => (
+  <div className={`${baseClass}__selected-file`}>
+    <ProfileGraphic baseClass={baseClass} />
+    <div className={`${baseClass}__selected-file--details`}>
+      <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
+      <div className={`${baseClass}__selected-file--details--platform`}>
+        {platform}
+      </div>
+    </div>
+  </div>
+);
 
 export interface IAddSoftwareFormData {
   software: File | null;
@@ -46,14 +78,13 @@ const AddSoftwareForm = ({
   });
 
   const onFileUpload = (files: FileList | null) => {
-    if (files && files.length) {
+    if (files && files.length > 0) {
       setFormData({ ...formData, software: files[0] });
     }
   };
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
-
     onSubmit(formData);
   };
 
@@ -83,6 +114,11 @@ const AddSoftwareForm = ({
             buttonMessage="Choose file"
             buttonType="link"
             className={`${baseClass}__file-uploader`}
+            filePreview={
+              formData.software && (
+                <FileDetails details={getFileDetails(formData.software)} />
+              )
+            }
           />
           {formData.software && (
             <InputField

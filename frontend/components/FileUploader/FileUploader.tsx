@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode, useState } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -41,6 +41,7 @@ interface IFileUploaderProps {
    * @default "button"
    */
   buttonType?: "button" | "link";
+  filePreview?: ReactNode;
   onFileUpload: (files: FileList | null) => void;
 }
 
@@ -53,14 +54,26 @@ const FileUploader = ({
   additionalInfo,
   isLoading = false,
   accept,
+  filePreview,
+  className,
   buttonMessage = "Upload",
   buttonType = "button",
-  className,
   onFileUpload,
 }: IFileUploaderProps) => {
-  const classes = classnames(baseClass, className);
+  const [isFileSelected, setIsFileSelected] = useState(false);
 
+  const classes = classnames(baseClass, className, {
+    [`${baseClass}__file-preview`]: filePreview !== undefined && isFileSelected,
+  });
   const buttonVariant = buttonType === "button" ? "brand" : "text-icon";
+
+  const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    onFileUpload(files);
+    setIsFileSelected(true);
+
+    e.target.value = "";
+  };
 
   const renderGraphics = () => {
     const graphicNamesArr =
@@ -73,32 +86,36 @@ const FileUploader = ({
       />
     ));
   };
+
   return (
     <Card color="gray" className={classes}>
-      <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
-      <p className={`${baseClass}__message`}>{message}</p>
-      {additionalInfo && (
-        <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+      {isFileSelected && filePreview ? (
+        filePreview
+      ) : (
+        <>
+          <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
+          <p className={`${baseClass}__message`}>{message}</p>
+          {additionalInfo && (
+            <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+          )}
+          <Button
+            className={`${baseClass}__upload-button`}
+            variant={buttonVariant}
+            isLoading={isLoading}
+          >
+            <label htmlFor="upload-file">
+              {buttonType === "link" && <Icon name="upload" />}
+              <span>{buttonMessage}</span>
+            </label>
+          </Button>
+          <input
+            accept={accept}
+            id="upload-file"
+            type="file"
+            onChange={onFileSelect}
+          />
+        </>
       )}
-      <Button
-        className={`${baseClass}__upload-button`}
-        variant={buttonVariant}
-        isLoading={isLoading}
-      >
-        <label htmlFor="upload-file">
-          {buttonType === "link" && <Icon name="upload" />}
-          <span>{buttonMessage}</span>
-        </label>
-      </Button>
-      <input
-        accept={accept}
-        id="upload-file"
-        type="file"
-        onChange={(e) => {
-          onFileUpload(e.target.files);
-          e.target.value = "";
-        }}
-      />
     </Card>
   );
 };
