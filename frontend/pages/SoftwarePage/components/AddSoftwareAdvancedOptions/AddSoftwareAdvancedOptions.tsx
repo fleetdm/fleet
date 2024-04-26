@@ -57,6 +57,7 @@ const AddSoftwareAdvancedOptions = ({
               value={preInstallCondition}
               label="Query"
               name="preInstallQuery"
+              maxLines={10}
               onChange={onChangePreInstallCondition}
               helpText={
                 <>
@@ -80,8 +81,10 @@ const AddSoftwareAdvancedOptions = ({
           {showPostInstallScript && (
             <FleetAce
               focus
+              wrapEnabled
               value={postInstallScript}
               name="postInstallScript"
+              maxLines={10}
               onChange={onChangePostInstallScript}
               helpText="Shell (macOS and Linux) or PowerShell (Windows)."
             />

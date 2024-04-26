@@ -7,8 +7,7 @@ import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
-
-import ProfileGraphic from "pages/ManageControlsPage/OSSettings/cards/CustomSettings/components/ProfileUploader/components/AddProfileGraphic";
+import Graphic from "components/Graphic";
 
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions/AddSoftwareAdvancedOptions";
 
@@ -42,7 +41,7 @@ const FileDetails = ({
   };
 }) => (
   <div className={`${baseClass}__selected-file`}>
-    <ProfileGraphic baseClass={baseClass} />
+    <Graphic name="file-pkg" />
     <div className={`${baseClass}__selected-file--details`}>
       <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
       <div className={`${baseClass}__selected-file--details--platform`}>

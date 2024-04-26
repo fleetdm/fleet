@@ -30,6 +30,7 @@ export interface IFleetAceProps {
   name?: string;
   value?: string;
   readOnly?: boolean;
+  maxLines?: number;
   showGutter?: boolean;
   wrapEnabled?: boolean;
   /** @depricated use the prop `className` instead */
@@ -55,6 +56,7 @@ const FleetAce = ({
   name = "query-editor",
   value,
   readOnly,
+  maxLines = 20,
   showGutter = true,
   wrapEnabled = false,
   wrapperClassName,
@@ -253,7 +255,7 @@ const FleetAce = ({
         fontSize={fontSize}
         mode="fleet"
         minLines={2}
-        maxLines={20}
+        maxLines={maxLines}
         name={name}
         onChange={onChange}
         onBlur={onBlurHandler}
