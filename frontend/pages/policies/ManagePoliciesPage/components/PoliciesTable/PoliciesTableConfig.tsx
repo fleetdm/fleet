@@ -191,7 +191,7 @@ const generateTableHeaders = (
                     id={`inherited-tooltip-${cellProps.row.original.id}`}
                     backgroundColor={COLORS["tooltip-bg"]}
                   >
-                    This policy is inherited.
+                    This policy runs on all hosts.
                   </ReactTooltip>
                 </>
               )}
