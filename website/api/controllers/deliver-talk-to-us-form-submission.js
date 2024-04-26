@@ -73,6 +73,15 @@ module.exports = {
     if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
+
+    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress,
+      firstName,
+      lastName,
+      organization: organization,
+      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : 'Vulnerability management',
+    });
+
     await sails.helpers.http.post.with({
       url: 'https://hooks.zapier.com/hooks/catch/3627242/3cxwxdo/',
       data: {
