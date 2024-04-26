@@ -119,7 +119,7 @@ func TestConfigReceiverErrors(t *testing.T) {
 
 func TestExecuteConfigReceiversCancel(t *testing.T) {
 	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.UpdateInterval = time.Nanosecond
+	client.UpdateInterval = 100 * time.Millisecond
 
 	var calls1, calls2 int
 	requiredCalls := 4
