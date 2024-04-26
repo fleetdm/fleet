@@ -99,10 +99,6 @@ module.exports = {
       Authorization: `Basic ${sails.config.custom.iqSecret}`,
       'content-type': 'application/json'
     });
-    // .tolerate((err)=>{
-    //   sails.log('Failed to generate haiku using OpenAI.  Error details from OpenAI:',err);
-    //   return { errors: [err.], data: [0] }
-    // });
 
     if (report.errors) {
       sails.log.warn('Errors returned from IQ API when attempting to search for a matching contact:',report.errors);
@@ -135,7 +131,7 @@ module.exports = {
       employer = {
         organization: organization? organization : foundPosition.companyInfo.name || '',
         numberOfEmployees: foundPosition.companyInfo.numberOfEmployees || 0,
-        emailDomain: emailDomain? emailDomain : foundPosition.companyInfo.domain || '',
+        emailDomain:( foundPosition.companyInfo.domain? foundPosition.companyInfo.domain : emailDomain )|| '',
         linkedinCompanyPageUrl: foundPosition.companyInfo.linkedinUrl || '',
         technologies: foundPosition.companyInfo.technologies? foundPosition.companyInfo.technologies
           .filter((tech) => tech.category.match(RX_TECHNOLOGY_CATEGORIES))

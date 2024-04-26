@@ -38,7 +38,7 @@ module.exports = {
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
     require('assert')(sails.config.custom.salesforceIntegrationPasskey);
     let jsforce = require('jsforce');
-
+    console.log(firstName, lastName, emailAddress, primaryBuyingSituation, numberOfHosts);
     let salesforceConnection = new jsforce.Connection({
       loginUrl : 'https://fleetdm.my.salesforce.com'
     });
@@ -66,6 +66,7 @@ module.exports = {
       LastName: contactRecord.LastName,
       Email: contactRecord.Email,
       Website: contactRecord.Website,
+      // eslint-disable-next-line camelcase
       of_hosts__c: contactRecord.of_hosts__c,
       // eslint-disable-next-line camelcase
       Primary_buying_scenario__c: contactRecord.Primary_buying_situation__c,
@@ -77,9 +78,9 @@ module.exports = {
       Contact_associated_by_website__c: salesforceContactId,
       // eslint-disable-next-line camelcase
       Account__c: salesforceAccountId,
-      OwnerId: contactRecord.OwnerId
+      OwnerId: accountRecord.OwnerId
     });
-    console.log(lead);
+    console.log(`Created lead! ${lead}`);
 
     // TODO handle duplicate leads:
   }
