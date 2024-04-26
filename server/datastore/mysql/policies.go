@@ -15,6 +15,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -134,30 +135,34 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
-	return ds.cleanupPolicy(ctx, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats)
+	return cleanupPolicy(ctx, ds.writer(ctx), p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger)
 }
 
-func (ds *Datastore) cleanupPolicy(
-	ctx context.Context, policyID uint, policyPlatform string, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool,
+func cleanupPolicy(
+	ctx context.Context, extContext sqlx.ExtContext, policyID uint, policyPlatform string, shouldRemoveAllPolicyMemberships bool,
+	removePolicyStats bool, logger kitlog.Logger,
 ) error {
 	var err error
 	if shouldRemoveAllPolicyMemberships {
-		err = ds.cleanupPolicyMembershipForPolicy(ctx, policyID)
+		err = cleanupPolicyMembershipForPolicy(ctx, extContext, policyID)
 	} else {
-		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), policyID, policyPlatform)
+		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, extContext, policyID, policyPlatform)
 	}
 	if err != nil {
 		return err
 	}
 	if removePolicyStats {
 		// delete all policy stats for the policy
-		// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-		err = ds.withRetryTxx(
-			ctx, func(tx sqlx.ExtContext) error {
-				_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
-				return err
-			},
-		)
+		fn := func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
+			return err
+		}
+		if _, isDB := extContext.(*sqlx.DB); isDB {
+			// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
+			err = withRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
+		} else {
+			err = fn(extContext)
+		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup policy stats")
 		}
@@ -729,8 +734,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 								removePolicyStats = true
 							}
 						}
-						if err = ds.cleanupPolicy(
-							ctx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats,
+						if err = cleanupPolicy(
+							ctx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
 						); err != nil {
 							return err
 						}
@@ -852,7 +857,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerCo
 
 // cleanupPolicyMembership is similar to cleanupPolicyMembershipOnPolicyUpdate but without the platform constraints.
 // Used when we want to remove all policy membership.
-func (ds *Datastore) cleanupPolicyMembershipForPolicy(ctx context.Context, policyID uint) error {
+func cleanupPolicyMembershipForPolicy(ctx context.Context, exec sqlx.ExecerContext, policyID uint) error {
 	// delete all policy memberships for the policy
 	delStmt := `
 		DELETE
@@ -867,7 +872,7 @@ func (ds *Datastore) cleanupPolicyMembershipForPolicy(ctx context.Context, polic
 			pm.policy_id = ?
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, delStmt, policyID)
+	_, err := exec.ExecContext(ctx, delStmt, policyID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
 	}
