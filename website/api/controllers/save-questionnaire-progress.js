@@ -94,7 +94,7 @@ module.exports = {
     // 'what-do-you-manage-mdm'
     //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
-    // 'is-it-any-good':  Stage 3
+    // 'is-it-any-good':  Stage 2/3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
     // 'what-did-you-think'
     //  - deploy-fleet-in-environment » Stage 5
     //  - let-me-think-about-it »  Stage 3
@@ -103,7 +103,12 @@ module.exports = {
     let psychologicalStage = userRecord.psychologicalStage;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
-    if(currentStep === 'what-are-you-using-fleet-for') {
+    // console.log('currentStep:', currentStep)
+    // console.log('answer selected:', valueFromFormData)
+    // console.log('current psyStage:', psychologicalStage)
+    if(currentStep === 'start') {
+      psychologicalStage = '2 - Aware';
+    } else if(currentStep === 'what-are-you-using-fleet-for') {
       psychologicalStage = '2 - Aware';
     } else if(currentStep === 'have-you-ever-used-fleet') {
       if(['yes-deployed', 'yes-recently-deployed'].includes(valueFromFormData)) {
@@ -161,25 +166,33 @@ module.exports = {
         // If the user selects "Let me think about it", their stage will not change (They are sent back to the previous step).
         // If the user selects "I’d like you to host Fleet for me", the form is not submitted, and they are taken to the /contact page instead. FUTURE: set stage to stage 5.
       } else if(currentStep === 'how-many-hosts') {
-        // If they have Fleet deployed, they have team buy-in
-        psychologicalStage = '6 - Has team buy-in';
+        if(['yes-deployed', 'yes-recently-deployed'].includes(hasUsedFleetAnswer)) {
+          // If the user has Fleet deployed, set their stage to 6.
+          psychologicalStage = '6 - Has team buy-in';
+        } else {
+          psychologicalStage = '5 - Personally confident';
+        }
       } else if(currentStep === 'will-you-be-self-hosting') {
-        // If they have Fleet deployed, they have team buy-in
-        psychologicalStage = '6 - Has team buy-in';
+        if(['yes-deployed', 'yes-recently-deployed'].includes(hasUsedFleetAnswer)) {
+          // If the user has Fleet deployed, set their stage to 6.
+          psychologicalStage = '6 - Has team buy-in';
+        } else {
+          psychologicalStage = '5 - Personally confident';
+        }
       }//ﬁ
-
     }//ﬁ
 
-
-
-    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-      emailAddress: this.req.me.emailAddress,
-      firstName: this.req.me.firstName,
-      lastName: this.req.me.lastName,
-      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-      organization: this.req.me.organization,
-      psychologicalStage,
-    });
+    if(psychologicalStage !== userRecord.psychologicalStage){
+      await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: this.req.me.emailAddress,
+        firstName: this.req.me.firstName,
+        lastName: this.req.me.lastName,
+        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+        organization: this.req.me.organization,
+        psychologicalStage,
+      });
+      // console.log('New psyStage:', psychologicalStage);
+    }
     // TODO: send all other answers to Salesforce (when there are fields for them)
 
     // await sails.helpers.http.post.with({

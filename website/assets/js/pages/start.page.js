@@ -103,7 +103,12 @@ parasails.registerPage('start', {
           this.currentStep = 'what-are-you-using-fleet-for';
           break;
         case 'how-many-hosts':
-          this.currentStep = 'have-you-ever-used-fleet';
+          let fleetUseStatus = this.formData['have-you-ever-used-fleet'].fleetUseStatus;
+          if(fleetUseStatus === 'yes-recently-deployed' || fleetUseStatus === 'yes-deployed') {
+            this.currentStep = 'have-you-ever-used-fleet';
+          } else {
+            this.currentStep = 'what-did-you-think';
+          }
           break;
         case 'will-you-be-self-hosting':
           this.currentStep = 'how-many-hosts';
@@ -211,6 +216,8 @@ parasails.registerPage('start', {
         case 'what-did-you-think':
           if(this.formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it'){
             nextStepInForm = 'is-it-any-good';
+          } else if(this.formData['what-did-you-think'].whatDidYouThink === 'host-fleet-for-me') {
+            nextStepInForm = 'how-many-hosts';
           } else {
             nextStepInForm = 'deploy-fleet-in-your-environment';
           }
