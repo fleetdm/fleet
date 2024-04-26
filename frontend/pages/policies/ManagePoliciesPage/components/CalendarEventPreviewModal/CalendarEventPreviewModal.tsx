@@ -27,7 +27,7 @@ const CalendarEventPreviewModal = ({
       className={baseClass}
     >
       <>
-        <p>
+        <span>
           {policy ? (
             <>
               End users failing only <strong>{policy.name}</strong> policy will
@@ -36,36 +36,44 @@ const CalendarEventPreviewModal = ({
           ) : (
             "What end users see:"
           )}
-        </p>
+        </span>
         <div className={`${baseClass}__preview`}>
           <div className={`${baseClass}__preview-header`}>
-            <div className={`${baseClass}__preview-header__square`}>
-              <div />
+            <div className={`${baseClass}__preview-header__square-wrapper`}>
+              <div className={`${baseClass}__preview-header__square`} />
             </div>
             <div className={`${baseClass}__preview-header__info`}>
-              Scheduled maintenance
+              <div className={`${baseClass}__preview-header__title`}>
+                💻 🚫 Scheduled maintenance
+              </div>
+              <div className={`${baseClass}__preview-header__time`}>
+                <span>Friday, April 5</span>
+                <span>⋅</span>
+                <span>5-5:30pm</span>
+              </div>
             </div>
           </div>
           <div className={`${baseClass}__preview-info`}>
             <div className={`${baseClass}__preview-info__icon`}>
-              <div />
+              <Icon name="text" />
             </div>
             <div className={`${baseClass}__preview-info__text`}>
-              <p>
-                Acme, Inc. reserved this time to make some changes to
-                Anna&apos;s MacBook Pro. Please leave your computer on and
-                connected to power.
-              </p>
-              <p>
-                <strong>Why it matters</strong>
-                <br />
-                {policy?.description}
-              </p>
-              <p>
-                <strong>What we&apos;ll do</strong>
-                <br />
-                {policy?.resolution}
-              </p>
+              Acme, Inc. reserved this time to make some changes to Anna&apos;s
+              MacBook Pro.
+              <br />
+              Please leave your computer on and connected to power.
+              <br /> <br />
+              <strong>Why it matters</strong>
+              <br />
+              {policy
+                ? policy.description
+                : "Acme, Inc. needs to make sure your device meets the organization's requirements."}
+              <br /> <br />
+              <strong>What we&apos;ll do</strong>
+              <br />
+              {policy
+                ? policy.resolution
+                : "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."}
             </div>
           </div>
           <div className={`${baseClass}__preview-invitee`}>
@@ -77,19 +85,21 @@ const CalendarEventPreviewModal = ({
             </div>
           </div>
         </div>
-        {policy ? (
-          <p>
-            <strong>Why it matters</strong> and{" "}
-            <strong>What we&apos;ll do</strong> are populated by the
-            policy&apos;s <strong>Description</strong> and{" "}
-            <strong>Resolution</strong> respectively.
-          </p>
-        ) : (
-          <p>
-            Users failing only a single policy will see a more specific
-            explanation.
-          </p>
-        )}
+        <div className={`${baseClass}__footer`}>
+          {policy ? (
+            <>
+              <strong>Why it matters</strong> and{" "}
+              <strong>What we&apos;ll do</strong> are populated by the
+              policy&apos;s <strong>Description</strong> and{" "}
+              <strong>Resolution</strong> respectively.
+            </>
+          ) : (
+            <>
+              Users failing only a single policy will see a more specific
+              explanation.
+            </>
+          )}
+        </div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel} variant="brand">
             Done

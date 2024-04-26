@@ -48,6 +48,7 @@ import Clock from "./Clock";
 import Copy from "./Copy";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
+import Text from "./Text";
 import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
@@ -86,6 +87,7 @@ export const ICON_MAP = {
   eye: Eye,
   pencil: Pencil,
   search: Search,
+  text: Text,
   transfer: Transfer,
   trash: TrashCan,
   success: Success,

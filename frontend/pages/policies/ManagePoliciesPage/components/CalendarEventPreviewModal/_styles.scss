@@ -1,7 +1,10 @@
 .calendar-event-preview-modal {
-  p {
-    margin: 24px 0;
+  .modal__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
+
   &__preview {
     display: flex;
     padding: 40px;
@@ -20,17 +23,34 @@
     gap: 24px;
     align-self: stretch;
 
-    &__square {
+    &__square-wrapper {
       display: flex;
       height: 30px;
       align-items: center;
       gap: 10px;
+    }
+
+    &__square {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      background: $ui-vibrant-blue-50;
     }
     &__info {
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: flex-start;
+    }
+    &__title {
+      font-family: Inter;
+      font-size: $medium;
+      line-height: 30px; /* 150% */
+    }
+    &__time {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
   }
 
@@ -46,5 +66,15 @@
     align-items: flex-start;
     gap: 24px;
     align-self: stretch;
+  }
+
+  &__footer {
+    color: $ui-fleet-black-75;
+    font-size: $xx-small;
+    line-height: 18px; /* 150% */
+  }
+
+  .modal-cta-wrap {
+    margin-top: 0; // Defer to new gap styling
   }
 }
