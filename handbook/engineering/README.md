@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#team) and [with
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | CTO                             | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Engineering Manager             | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
-| Quality Assurance               | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
+| Quality Assurance               | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
 | Developer                       | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
 
 ## Contact us
