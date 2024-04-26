@@ -14,7 +14,7 @@ type DiskEncryptionRunner struct {
 	isRunning atomic.Bool
 }
 
-func ApplyDiskEncryptionRunnerMiddleware() OrbitConfigReceiver {
+func ApplyDiskEncryptionRunnerMiddleware() fleet.OrbitConfigReceiver {
 	return &DiskEncryptionRunner{}
 }
 

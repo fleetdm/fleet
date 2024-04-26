@@ -17,7 +17,7 @@ type SwiftDialogDownloaderOptions struct {
 
 func ApplySwiftDialogDownloaderMiddleware(
 	runner *Runner,
-) OrbitConfigReceiver {
+) fleet.OrbitConfigReceiver {
 	return &SwiftDialogDownloader{UpdateRunner: runner}
 }
 

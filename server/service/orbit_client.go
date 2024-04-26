@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -46,7 +45,7 @@ type OrbitClient struct {
 	TestNodeKey string
 
 	// Interfaces that will receive updated configs
-	ConfigReceivers []update.OrbitConfigReceiver
+	ConfigReceivers []fleet.OrbitConfigReceiver
 	// How frequently a new config will be fetched
 	UpdateInterval   time.Duration
 	UpdateContext    context.Context
@@ -186,7 +185,7 @@ func (oc *OrbitClient) RunConfigReceivers() error {
 	return nil
 }
 
-func (oc *OrbitClient) RegisterConfigReceiver(cr update.OrbitConfigReceiver) {
+func (oc *OrbitClient) RegisterConfigReceiver(cr fleet.OrbitConfigReceiver) {
 	oc.ConfigReceivers = append(oc.ConfigReceivers, cr)
 }
 

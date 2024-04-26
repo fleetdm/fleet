@@ -50,7 +50,7 @@ type NudgeConfigFetcherOptions struct {
 	runNudgeFn func(execPath, configPath string) error
 }
 
-func ApplyNudgeConfigReceiverMiddleware(opt NudgeConfigFetcherOptions) OrbitConfigReceiver {
+func ApplyNudgeConfigReceiverMiddleware(opt NudgeConfigFetcherOptions) fleet.OrbitConfigReceiver {
 	return &NudgeConfigReceiver{opt: opt}
 }
 

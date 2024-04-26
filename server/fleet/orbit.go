@@ -65,6 +65,16 @@ type OrbitConfig struct {
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
 }
 
+type OrbitConfigReceiver interface {
+	Run(*OrbitConfig) error
+}
+
+type OrbitReceiverFunc func(cfg *OrbitConfig) error
+
+func (f OrbitReceiverFunc) Run(cfg *OrbitConfig) error {
+	return f(cfg)
+}
+
 // OrbitUpdateChannels hold the update channels that can be configured in fleetd agents.
 type OrbitUpdateChannels struct {
 	// Orbit holds the orbit channel.

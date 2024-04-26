@@ -42,25 +42,19 @@ func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
 	return oc
 }
 
-type ReceiverFunc func(cfg *fleet.OrbitConfig) error
-
-func (f ReceiverFunc) Run(cfg *fleet.OrbitConfig) error {
-	return f(cfg)
-}
-
 func TestConfigReceiverCalls(t *testing.T) {
 	var called1, called2 bool
 
 	testmsg := json.RawMessage("testing")
 
-	rfunc1 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	rfunc1 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		if !reflect.DeepEqual(cfg.Flags, testmsg) {
 			return errors.New("not equal testmsg")
 		}
 		called1 = true
 		return nil
 	})
-	rfunc2 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	rfunc2 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		if !reflect.DeepEqual(cfg.Flags, testmsg) {
 			return errors.New("not equal testmsg")
 		}
@@ -82,23 +76,24 @@ func TestConfigReceiverCalls(t *testing.T) {
 func TestConfigReceiverErrors(t *testing.T) {
 	var called1, called2 bool
 
-	rfunc1 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	rfunc1 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		called1 = true
 		return nil
 	})
-	rfunc2 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	rfunc2 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		called2 = true
 		return nil
 	})
 	err1 := errors.New("error1")
 	err2 := errors.New("error2")
-	efunc1 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	efunc1 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		return err1
 	})
-	efunc2 := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	efunc2 := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		return err2
 	})
-	pfunc := ReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+	// Make sure we don't get stuck or crash on receiver panic
+	pfunc := fleet.OrbitReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		panic("woah")
 	})
 

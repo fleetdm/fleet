@@ -51,7 +51,7 @@ type renewEnrollmentProfileConfigReceiver struct {
 	fleetURL string
 }
 
-func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration, fleetURL string) OrbitConfigReceiver {
+func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration, fleetURL string) fleet.OrbitConfigReceiver {
 	return &renewEnrollmentProfileConfigReceiver{Frequency: frequency, fleetURL: fleetURL}
 }
 
@@ -153,7 +153,7 @@ func ApplyWindowsMDMEnrollmentFetcherMiddleware(
 	frequency time.Duration,
 	hostUUID string,
 	nodeKeyGetter OrbitNodeKeyGetter,
-) OrbitConfigReceiver {
+) fleet.OrbitConfigReceiver {
 	return &windowsMDMEnrollmentConfigReceiver{
 		Frequency:     frequency,
 		HostUUID:      hostUUID,
@@ -295,7 +295,7 @@ type runScriptsConfigReceiver struct {
 
 func ApplyRunScriptsConfigFetcherMiddleware(
 	scriptsEnabled bool, scriptsClient scripts.Client,
-) (OrbitConfigReceiver, func() bool) {
+) (fleet.OrbitConfigReceiver, func() bool) {
 	scriptsFetcher := &runScriptsConfigReceiver{
 		ScriptsExecutionEnabled:            scriptsEnabled,
 		ScriptsClient:                      scriptsClient,
@@ -434,7 +434,7 @@ type windowsMDMBitlockerConfigReceiver struct {
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
 	frequency time.Duration,
 	encryptionResult DiskEncryptionKeySetter,
-) OrbitConfigReceiver {
+) fleet.OrbitConfigReceiver {
 	return &windowsMDMBitlockerConfigReceiver{
 		Frequency:        frequency,
 		EncryptionResult: encryptionResult,
