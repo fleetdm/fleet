@@ -73,7 +73,7 @@ module.exports = {
     await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
 
     let salesforceAccountId;
-    if(!organization && !enrichmentData.employer){
+    if(!enrichmentData.employer || !enrichmentData.employer.emailDomain) {
       // Special sacraficial meat cave where the contacts with no organization go.
       // https://fleetdm.lightning.force.com/lightning/r/Account/0014x000025JC8DAAW/view
       salesforceAccountId = '0014x000025JC8DAAW';
