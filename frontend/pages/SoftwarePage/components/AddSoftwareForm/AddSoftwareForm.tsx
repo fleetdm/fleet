@@ -23,7 +23,7 @@ const UploadingSoftware = () => {
 export interface IAddSoftwareFormData {
   software: File | null;
   installScript: string;
-  preInstallQuery: string;
+  preInstallCondition: string;
   postInstallScript: string;
 }
 
@@ -41,7 +41,7 @@ const AddSoftwareForm = ({
   const [formData, setFormData] = useState<IAddSoftwareFormData>({
     software: null,
     installScript: "",
-    preInstallQuery: "",
+    preInstallCondition: "",
     postInstallScript: "",
   });
 
@@ -57,8 +57,12 @@ const AddSoftwareForm = ({
     onSubmit(formData);
   };
 
+  const onChangeInstallScript = (value: string) => {
+    setFormData({ ...formData, installScript: value });
+  };
+
   const onChangePreInstallCondition = (value: string) => {
-    setFormData({ ...formData, preInstallQuery: value });
+    setFormData({ ...formData, preInstallCondition: value });
   };
 
   const onChangePostInstallScript = (value: string) => {
@@ -73,6 +77,7 @@ const AddSoftwareForm = ({
         <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
           <FileUploader
             graphicName={"file-pkg"}
+            accept=".pkg,.msi,.exe,.deb"
             message=".pkg, .msi, .exe, or .deb"
             onFileUpload={onFileUpload}
             buttonMessage="Choose file"
@@ -82,7 +87,7 @@ const AddSoftwareForm = ({
           {formData.software && (
             <InputField
               value={formData.installScript}
-              onChange={on}
+              onChange={onChangeInstallScript}
               name="install script"
               label="Install script"
               tooltip="For security agents, add the script provided by the vendor."
@@ -90,6 +95,8 @@ const AddSoftwareForm = ({
             />
           )}
           <AddSoftwareAdvancedOptions
+            preInstallCondition={formData.preInstallCondition}
+            postInstallScript={formData.postInstallScript}
             onChangePreInstallCondition={onChangePreInstallCondition}
             onChangePostInstallScript={onChangePostInstallScript}
           />

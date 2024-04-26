@@ -6,23 +6,21 @@ import React, { useState } from "react";
 const baseClass = "add-software-advanced-options";
 
 interface IAddSoftwareAdvancedOptionsProps {
+  preInstallCondition: string;
+  postInstallScript: string;
   onChangePreInstallCondition: (value: string) => void;
   onChangePostInstallScript: (value: string) => void;
 }
 
 const AddSoftwareAdvancedOptions = ({
+  preInstallCondition,
+  postInstallScript,
   onChangePreInstallCondition,
   onChangePostInstallScript,
 }: IAddSoftwareAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
-
-  const onChangeShowAdvancedOptions = () => {
-    setShowAdvancedOptions(!showAdvancedOptions);
-    onChangePreInstallCondition("");
-    onChangePostInstallScript("");
-  };
 
   const onChangePreInstallCheckbox = () => {
     setShowPreInstallCondition(!showPreInstallCondition);
@@ -42,7 +40,7 @@ const AddSoftwareAdvancedOptions = ({
         showText="Advanced options"
         hideText="Advanced options"
         caretPosition="after"
-        onClick={onChangeShowAdvancedOptions}
+        onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
       />
       {showAdvancedOptions && (
         <div className={`${baseClass}__input-fields`}>
@@ -55,6 +53,7 @@ const AddSoftwareAdvancedOptions = ({
           {showPreInstallCondition && (
             <FleetAce
               focus
+              value={preInstallCondition}
               label="Query"
               name="preInstallQuery"
               onChange={onChangePreInstallCondition}
@@ -70,6 +69,7 @@ const AddSoftwareAdvancedOptions = ({
           {showPostInstallScript && (
             <FleetAce
               focus
+              value={postInstallScript}
               name="postInstallScript"
               onChange={onChangePostInstallScript}
               helpText="Shell (macOS and Linux) or PowerShell (Windows)."
