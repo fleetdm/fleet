@@ -1,14 +1,13 @@
 import React, { useState } from "react";
+import { noop } from "lodash";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
-import RevealButton from "components/buttons/RevealButton";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
-import FleetAce from "components/FleetAce";
+import { on } from "events";
+import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions/AddSoftwareAdvancedOptions";
 
 const baseClass = "add-software-form";
 
@@ -39,12 +38,6 @@ const AddSoftwareForm = ({
   onCancel,
   onSubmit,
 }: IAddSoftwareFormProps) => {
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
-  const [showPostInstallScript, setShowPostInstallScript] = useState(false);
-  const [preInstallCondition, setPreinstallCondition] = useState(false);
-  const [postInstallScript, setPostinstallScript] = useState(false);
-
   const [formData, setFormData] = useState<IAddSoftwareFormData>({
     software: null,
     installScript: "",
@@ -64,6 +57,14 @@ const AddSoftwareForm = ({
     onSubmit(formData);
   };
 
+  const onChangePreInstallCondition = (value: string) => {
+    setFormData({ ...formData, preInstallQuery: value });
+  };
+
+  const onChangePostInstallScript = (value: string) => {
+    setFormData({ ...formData, postInstallScript: value });
+  };
+
   return (
     <div className={baseClass}>
       {isUploading ? (
@@ -81,55 +82,17 @@ const AddSoftwareForm = ({
           {formData.software && (
             <InputField
               value={formData.installScript}
+              onChange={on}
               name="install script"
               label="Install script"
               tooltip="For security agents, add the script provided by the vendor."
               helpText="Fleet will run this command on hosts to install software."
             />
           )}
-          <div className={`${baseClass}__advanced-options`}>
-            <RevealButton
-              className={`${baseClass}__accordion-title`}
-              isShowing={showAdvancedOptions}
-              showText="Hide advanced options"
-              hideText="Show advanced options"
-              caretPosition="after"
-              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-            />
-            {showAdvancedOptions && (
-              <div>
-                <Checkbox
-                  value={showPreInstallCondition}
-                  onChange={() =>
-                    setShowPreInstallCondition(!showPreInstallCondition)
-                  }
-                >
-                  Pre-install confition
-                </Checkbox>
-                {showPreInstallCondition && (
-                  <FleetAce
-                    onChange={(value) => console.log(value)}
-                    label="Query"
-                    helpText="Software will be installed only if the query returns results "
-                  />
-                )}
-                <Checkbox
-                  value={showPostInstallScript}
-                  onChange={() =>
-                    setShowPostInstallScript(!showPostInstallScript)
-                  }
-                >
-                  Post-install script
-                </Checkbox>
-                {showPostInstallScript && (
-                  <FleetAce
-                    onChange={(value) => console.log(value)}
-                    helpText="Shell (macOS and Linux) or PowerShell (Windows)."
-                  />
-                )}
-              </div>
-            )}
-          </div>
+          <AddSoftwareAdvancedOptions
+            onChangePreInstallCondition={onChangePreInstallCondition}
+            onChangePostInstallScript={onChangePostInstallScript}
+          />
           <div className="modal-cta-wrap">
             <Button type="submit" variant="brand" disabled={false}>
               Add software

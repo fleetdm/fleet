@@ -32,7 +32,9 @@ export interface IFleetAceProps {
   readOnly?: boolean;
   showGutter?: boolean;
   wrapEnabled?: boolean;
+  /** @depricated use the prop `className` instead */
   wrapperClassName?: string;
+  className?: string;
   helpText?: string;
   labelActionComponent?: React.ReactNode;
   style?: React.CSSProperties;
@@ -56,6 +58,7 @@ const FleetAce = ({
   showGutter = true,
   wrapEnabled = false,
   wrapperClassName,
+  className,
   helpText,
   style,
   onBlur,
@@ -64,7 +67,7 @@ const FleetAce = ({
   handleSubmit = noop,
 }: IFleetAceProps): JSX.Element => {
   const editorRef = useRef<ReactAce>(null);
-  const wrapperClass = classnames(wrapperClassName, baseClass, {
+  const wrapperClass = classnames(className, wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
   });
 
