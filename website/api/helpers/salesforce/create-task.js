@@ -1,6 +1,6 @@
 module.exports = {
 
-
+  // TODO: Change this into "create activity" instead (and create github issues for tasks instead)
   friendlyName: 'Create task',
 
 
