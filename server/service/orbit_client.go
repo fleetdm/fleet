@@ -47,8 +47,11 @@ type OrbitClient struct {
 	// Interfaces that will receive updated configs
 	ConfigReceivers []fleet.OrbitConfigReceiver
 	// How frequently a new config will be fetched
-	UpdateInterval   time.Duration
-	UpdateContext    context.Context
+	UpdateInterval time.Duration
+	// Canelable context used by ExecuteConfigReceivers to cancel the
+	// update loop
+	UpdateContext context.Context
+	// Cancel func for UpdateContext
 	UpdateCancelFunc context.CancelFunc
 }
 
