@@ -41,6 +41,9 @@ interface IFileUploaderProps {
    * @default "button"
    */
   buttonType?: "button" | "link";
+  /** If provided FileUploader will display this component when the file is
+   * selected. This is used for previewing the file before uploading.
+   */
   filePreview?: ReactNode;
   onFileUpload: (files: FileList | null) => void;
 }

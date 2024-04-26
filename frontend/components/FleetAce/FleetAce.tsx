@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { ReactNode, useCallback, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
 import { IAceEditor } from "react-ace/lib/types";
@@ -35,7 +35,7 @@ export interface IFleetAceProps {
   /** @depricated use the prop `className` instead */
   wrapperClassName?: string;
   className?: string;
-  helpText?: string;
+  helpText?: ReactNode;
   labelActionComponent?: React.ReactNode;
   style?: React.CSSProperties;
   onBlur?: (editor?: IAceEditor) => void;

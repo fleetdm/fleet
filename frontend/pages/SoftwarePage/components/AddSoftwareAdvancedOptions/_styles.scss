@@ -10,4 +10,8 @@
     flex-direction: column;
     gap: $pad-medium;
   }
+
+  &__table-link {
+    font-size: $xx-small;
+  }
 }

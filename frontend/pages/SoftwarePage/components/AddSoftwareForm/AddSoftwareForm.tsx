@@ -31,7 +31,7 @@ const UploadingSoftware = () => {
 };
 
 // TODO: if we reuse this one more time, we should consider moving this
-// into FileUploader or make another component. Currently we have this in
+// into FileUploader as a default preview. Currently we have this in
 // AddProfileModal.tsx and here.
 const FileDetails = ({
   details: { name, platform },
@@ -137,7 +137,11 @@ const AddSoftwareForm = ({
             onChangePostInstallScript={onChangePostInstallScript}
           />
           <div className="modal-cta-wrap">
-            <Button type="submit" variant="brand" disabled={false}>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={Boolean(!formData.software)}
+            >
               Add software
             </Button>
             <Button onClick={onCancel} variant="inverse">

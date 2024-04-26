@@ -1,3 +1,4 @@
+import CustomLink from "components/CustomLink";
 import FleetAce from "components/FleetAce";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -57,7 +58,17 @@ const AddSoftwareAdvancedOptions = ({
               label="Query"
               name="preInstallQuery"
               onChange={onChangePreInstallCondition}
-              helpText="Software will be installed only if the query returns results "
+              helpText={
+                <>
+                  Software will be installed only if the{" "}
+                  <CustomLink
+                    className={`${baseClass}__table-link`}
+                    text="query returns results"
+                    url="https://fleetdm.com/tables"
+                    newTab
+                  />
+                </>
+              }
             />
           )}
           <Checkbox
