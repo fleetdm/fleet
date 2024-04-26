@@ -219,7 +219,6 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	case <-time.After(10 * time.Second):
 		t.Error("Timeout: stats not deleted for testQueriesDelete")
 	}
-
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
@@ -770,7 +769,7 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListQueries(
 		context.Background(),
 		fleet.ListQueryOptions{
-			TeamID: &team.ID,
+			TeamID:         &team.ID,
 			MergeInherited: true,
 		},
 	)
