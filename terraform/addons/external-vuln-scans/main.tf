@@ -20,6 +20,11 @@ locals {
       valueFrom = v
     }
   ]
+  repository_credentials = var.fleet_config.repository_credentials != "" ? {
+    repositoryCredentials = {
+      credentialsParameter = var.fleet_config.repository_credentials
+    }
+  } : {}
 }
 
 resource "aws_ecs_service" "fleet" {
@@ -52,11 +57,12 @@ resource "aws_ecs_task_definition" "vuln-processing" {
 
   container_definitions = jsonencode(concat([
     {
-      name        = "fleet-vuln-processing"
-      image       = var.fleet_config.image
-      essential   = true
-      networkMode = "awsvpc"
-      secrets     = local.secrets
+      name                  = "fleet-vuln-processing"
+      image                 = var.fleet_config.image
+      essential             = true
+      networkMode           = "awsvpc"
+      secrets               = local.secrets
+      repositoryCredentials = local.repository_credentials
       ulimits = [
         {
           name      = "nofile"

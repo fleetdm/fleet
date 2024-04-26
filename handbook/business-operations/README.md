@@ -318,6 +318,13 @@ Within 60 days of the end of the year, follow these steps:
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
+### Fix a laptop that's not checking in
+
+It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything).  When this happens, Fleet's takes the following steps to remotely fix the laptop and get it checking in to Fleet again:
+
+1. TODO
+2. TODO
+
 ### Enroll a macOS host in dogfood
 When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
 You can confirm that the device has been ordered correctly by following these steps:
