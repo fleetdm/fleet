@@ -102,7 +102,7 @@ jobs:
     - name: Run tests
       run: |
           run() {
-            GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT -run='$1'" \
+            GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $1" \
             TEST_LOCK_FILE_PATH=$(pwd)/lock \
             NETWORK_TEST=1 \
             REDIS_TEST=1 \
@@ -115,8 +115,8 @@ jobs:
           }
 
           make test-go-deps
-          run '^TestIntegrations', 'integration' &
-          run '^(?!TestIntegrations)' 'base' &
+          run '-run=^TestIntegrations', 'integration' &
+          run '-skip=^TestIntegrations' 'base' &
           wait
 
     - name: Combine test output
