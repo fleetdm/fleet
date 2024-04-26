@@ -867,11 +867,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, gpol.Name, ts.Policies[1].Name)
 	assert.Equal(t, gpol.ID, ts.Policies[1].ID)
 
-	ltcParams := countTeamPoliciesRequest{
-		MergeInherited: true,
-	}
 	countResp := countTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), ltcParams, http.StatusOK, &countResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.Nil(t, countResp.Err)
 	require.Equal(t, 2, countResp.Count)
 
