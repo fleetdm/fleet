@@ -111,9 +111,10 @@ jobs:
             SAML_IDP_TEST=1 \
             MAIL_TEST=1 \
             NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
-            make test-go 2>&1 | tee /tmp/gotest-$2.log
+            make test-go-no-deps 2>&1 | tee /tmp/gotest-$2.log
           }
 
+          make test-go-deps
           run '^TestIntegrations', 'integration' &
           run '^(?!TestIntegrations)' 'base' &
 
@@ -123,8 +124,8 @@ jobs:
     - name: Combine test output
       if: always()
       run: |
-        wait
         cat /tmp/gotest-*.log > /tmp/gotest.log
+        cat /tmp/gotest.log
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
