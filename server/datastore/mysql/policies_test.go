@@ -712,7 +712,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	gpol, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
-		Name:        "existing-query-global-1",
+		Name:        "query1 global",
 		Query:       "select 1;",
 		Description: "query1 desc",
 		Resolution:  "query1 resolution",
@@ -723,7 +723,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	p, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
-		Name:        "query1",
+		Name:        "query2 team1",
 		Query:       "select 1;",
 		Description: "query1 desc",
 		Resolution:  "query1 resolution",
@@ -734,7 +734,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
-		Name:        "query2",
+		Name:        "query3 team2",
 		Query:       "select 2;",
 		Description: "query2 desc",
 		Resolution:  "query2 resolution",
@@ -744,6 +744,17 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
+	})
+	require.NoError(t, err)
+
+	require.Len(t, merged, 2)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, p.ID, merged[1].ID)
+
+	// Test list options affect both global and team policies
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderDescending,
 	})
 	require.NoError(t, err)
 
