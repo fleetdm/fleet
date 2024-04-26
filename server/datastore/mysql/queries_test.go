@@ -765,6 +765,27 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	test.QueryElementsMatch(t, queries, []*fleet.Query{teamQ1, teamQ2, teamQ3})
+
+	// test merge inherited
+	queries, err = ds.ListQueries(
+		context.Background(),
+		fleet.ListQueryOptions{
+			TeamID: &team.ID,
+			MergeInherited: true,
+		},
+	)
+	require.NoError(t, err)
+	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3, teamQ1, teamQ2, teamQ3})
+
+	// merge inherited ignored for global queries
+	queries, err = ds.ListQueries(
+		context.Background(),
+		fleet.ListQueryOptions{
+			MergeInherited: true,
+		},
+	)
+	require.NoError(t, err)
+	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3})
 }
 
 func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
