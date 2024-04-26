@@ -824,7 +824,7 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
 		}
 
-		flagUpdateReciver := update.NewFlagReceiver(orbitClient.UpdateCancelFunc, update.FlagUpdateOptions{
+		flagUpdateReciver := update.NewFlagReceiver(orbitClient.ReceiverUpdateCancelFunc, update.FlagUpdateOptions{
 			RootDir: c.String("root-dir"),
 		})
 		orbitClient.RegisterConfigReceiver(flagUpdateReciver)
@@ -837,7 +837,7 @@ func main() {
 					DesktopPath:  desktopPath,
 				},
 				c.Bool("fleet-desktop"),
-				orbitClient.UpdateCancelFunc,
+				orbitClient.ReceiverUpdateCancelFunc,
 			)
 
 			orbitClient.RegisterConfigReceiver(serverOverridesReceiver)
@@ -849,7 +849,7 @@ func main() {
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			extRunner := update.NewExtensionConfigUpdateRunner(update.ExtensionUpdateOptions{
 				RootDir: c.String("root-dir"),
-			}, updateRunner, orbitClient.UpdateCancelFunc)
+			}, updateRunner, orbitClient.ReceiverUpdateCancelFunc)
 
 			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
 			_, err := updateRunner.UpdateAction()

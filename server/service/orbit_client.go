@@ -47,12 +47,12 @@ type OrbitClient struct {
 	// Interfaces that will receive updated configs
 	ConfigReceivers []fleet.OrbitConfigReceiver
 	// How frequently a new config will be fetched
-	UpdateInterval time.Duration
+	ReceiverUpdateInterval time.Duration
 	// Canelable context used by ExecuteConfigReceivers to cancel the
 	// update loop
-	UpdateContext context.Context
-	// Cancel func for UpdateContext
-	UpdateCancelFunc context.CancelFunc
+	ReceiverUpdateContext context.Context
+	// Cancel func for ReceiverUpdateContext
+	ReceiverUpdateCancelFunc context.CancelFunc
 }
 
 // time-to-live for config cache
@@ -140,15 +140,15 @@ func NewOrbitClient(
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	return &OrbitClient{
-		nodeKeyFilePath:   nodeKeyFilePath,
-		baseClient:        bc,
-		enrollSecret:      enrollSecret,
-		hostInfo:          orbitHostInfo,
-		enrolled:          false,
-		onGetConfigErrFns: onGetConfigErrFns,
-		UpdateInterval:    defaultOrbitConfigReceiverInterval,
-		UpdateContext:     ctx,
-		UpdateCancelFunc:  cancelFunc,
+		nodeKeyFilePath:          nodeKeyFilePath,
+		baseClient:               bc,
+		enrollSecret:             enrollSecret,
+		hostInfo:                 orbitHostInfo,
+		enrolled:                 false,
+		onGetConfigErrFns:        onGetConfigErrFns,
+		ReceiverUpdateInterval:   defaultOrbitConfigReceiverInterval,
+		ReceiverUpdateContext:    ctx,
+		ReceiverUpdateCancelFunc: cancelFunc,
 	}, nil
 }
 
@@ -198,12 +198,12 @@ func (oc *OrbitClient) RegisterConfigReceiver(cr fleet.OrbitConfigReceiver) {
 }
 
 func (oc *OrbitClient) ExecuteConfigReceivers() error {
-	ticker := time.NewTicker(oc.UpdateInterval)
+	ticker := time.NewTicker(oc.ReceiverUpdateInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-oc.UpdateContext.Done():
+		case <-oc.ReceiverUpdateContext.Done():
 			return nil
 		case <-ticker.C:
 			err := oc.RunConfigReceivers()
@@ -214,7 +214,7 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 
 func (oc *OrbitClient) InterruptConfigReceivers(err error) {
 	log.Error().Err(err)
-	oc.UpdateCancelFunc()
+	oc.ReceiverUpdateCancelFunc()
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
