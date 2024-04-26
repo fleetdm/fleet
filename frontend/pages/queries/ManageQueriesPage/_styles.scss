@@ -96,6 +96,8 @@
         }
         &__table {
           thead {
+            // maintain height when select header is removed
+            height: 52.3833px;
             .name__header {
               width: auto;
             }
