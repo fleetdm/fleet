@@ -14,6 +14,7 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import { SupportedPlatform } from "interfaces/platform";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -102,6 +103,7 @@ interface IDataColumn {
 interface IGenerateTableHeaders {
   currentUser: IUser;
   currentTeamId?: number;
+  omitSelectionColumn?: boolean;
 }
 
 // NOTE: cellProps come from react-table
@@ -109,6 +111,7 @@ interface IGenerateTableHeaders {
 const generateTableHeaders = ({
   currentUser,
   currentTeamId,
+  omitSelectionColumn = false,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
 
@@ -244,7 +247,7 @@ const generateTableHeaders = ({
       ),
     },
   ];
-  if (!isOnlyObserver) {
+  if (!isOnlyObserver && !omitSelectionColumn) {
     tableHeaders.splice(0, 0, {
       id: "selection",
       Header: (cellProps: IHeaderProps): JSX.Element => {
@@ -264,6 +267,13 @@ const generateTableHeaders = ({
         return <Checkbox {...checkboxProps} />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
+        const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
+        const isInheritedQuery =
+          (cellProps.row.original.team_id ?? undefined) === API_ALL_TEAMS_ID;
+        if (viewingTeamScope && isInheritedQuery) {
+          // can't select inherited queries
+          return <></>;
+        }
         const { row } = cellProps;
         const { checked } = row.getToggleRowSelectedProps();
         const checkboxProps = {

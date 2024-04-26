@@ -178,7 +178,7 @@ const ManageQueriesPage = ({
       created_at: "2024-04-25T04:16:09Z",
       updated_at: "2024-04-25T04:16:09Z",
       id: 93,
-      team_id: 1,
+      team_id: 2,
       interval: 3600,
       platform: "",
       min_osquery_version: "",
@@ -325,6 +325,7 @@ const ManageQueriesPage = ({
         isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
         router={router}
         queryParams={queryParams}
+        currentTeamId={teamIdForApi}
       />
     );
   };

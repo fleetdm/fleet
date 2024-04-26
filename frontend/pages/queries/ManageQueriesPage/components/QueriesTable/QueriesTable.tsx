@@ -3,8 +3,9 @@ import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
-import { IQuery } from "interfaces/query";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
+import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
@@ -17,13 +18,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 import generateColumnConfigs from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
-
-interface IQueryTableData extends IQuery {
-  performance: string;
-  platforms: string[];
-}
 interface IQueriesTableProps {
-  queriesList: IQueryTableData[] | null;
+  queriesList: IEnhancedQuery[] | null;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
@@ -232,9 +228,23 @@ const QueriesTable = ({
     );
   };
 
+  const onlyInheritedQueries = useMemo(() => {
+    if (currentTeamId === API_ALL_TEAMS_ID) {
+      // global scope
+      return false;
+    }
+    return !queriesList?.some((query) => query.team_id === currentTeamId);
+  }, [currentTeamId, queriesList]);
+
   const columnConfigs = useMemo(
-    () => currentUser && generateColumnConfigs({ currentUser, currentTeamId }),
-    [currentUser, currentTeamId]
+    () =>
+      currentUser &&
+      generateColumnConfigs({
+        currentUser,
+        currentTeamId,
+        omitSelectionColumn: onlyInheritedQueries,
+      }),
+    [currentUser, currentTeamId, onlyInheritedQueries]
   );
 
   const searchable = !(queriesList?.length === 0 && searchQuery === "");
