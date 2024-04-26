@@ -1,5 +1,3 @@
-/* This component is used for creating and editing both global and team scheduled queries */
-
 import React from "react";
 
 import Modal from "components/Modal";

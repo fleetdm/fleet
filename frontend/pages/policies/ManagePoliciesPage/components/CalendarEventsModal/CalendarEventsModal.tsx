@@ -171,7 +171,6 @@ const CalendarEventsModal = ({
     );
   };
 
-  console.log("middle showPreviewCalendarEvent", showPreviewCalendarEvent);
   const renderPolicies = () => {
     return (
       <div className="form-field">
@@ -315,7 +314,6 @@ const CalendarEventsModal = ({
     </div>
   );
 
-  console.log("bottom showPreviewCalendarEvent", showPreviewCalendarEvent);
   if (showPreviewCalendarEvent) {
     return (
       <CalendarEventPreviewModal
