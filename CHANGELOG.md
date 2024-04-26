@@ -1,3 +1,9 @@
+## Fleet 4.49.1 (Apr 26, 2024)
+
+### Bug fixes
+
+* Fixed a bug that prevented the Fleet server from starting if Windows MDM was configured but Apple MDM wasn't.
+
 ## Fleet 4.49.0 (Apr 24, 2024)
 
 ### Endpoint operations

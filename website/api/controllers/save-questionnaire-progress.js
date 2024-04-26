@@ -94,10 +94,10 @@ module.exports = {
     // 'what-do-you-manage-mdm'
     //  - no-use-case-yet: » Stage 2/3 (depends on answer from 'have-you-ever-used-fleet' step)
     //  - All other options » Stage 4
-    // 'is-it-any-good':  Stage 2/3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
+    // 'is-it-any-good': Stage 2/3/4 (depends on answer from 'have-you-ever-used-fleet' & the buying situation specific step)
     // 'what-did-you-think'
     //  - deploy-fleet-in-environment » Stage 5
-    //  - let-me-think-about-it »  Stage 3
+    //  - let-me-think-about-it »  Stage 2
     //  - host-fleet-for-me » N/A (currently not selectable, but should set the user's psychologicalStage to stage 5)
 
     let psychologicalStage = userRecord.psychologicalStage;
@@ -107,7 +107,7 @@ module.exports = {
     // console.log('answer selected:', valueFromFormData)
     // console.log('current psyStage:', psychologicalStage)
     if(currentStep === 'start') {
-      psychologicalStage = '2 - Aware';
+      // There is change when the user completes the start step.
     } else if(currentStep === 'what-are-you-using-fleet-for') {
       psychologicalStage = '2 - Aware';
     } else if(currentStep === 'have-you-ever-used-fleet') {
@@ -145,7 +145,7 @@ module.exports = {
           // be selected,  we'll check the user's previous answers befroe changing their psyStage
           if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
             // Check the user's answer to the have-you-ever-used-fleet question.
-            if(hasUsedFleetAnswer === 'yes-deployed-local'){
+            if(hasUsedFleetAnswer === 'yes-deployed-local') {
               // If they've tried Fleet locally, set their stage to 3.
               psychologicalStage = '3 - Intrigued';
             } else {
@@ -159,11 +159,12 @@ module.exports = {
           // FUTURE: check previous answers for other selected buying situations.
         }
       } else if(currentStep === 'what-did-you-think') {
-        // If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
-        if(valueFromFormData === 'deploy-fleet-in-environment') {
+        // If the user selects "Let me think about it", set their psyStage to 2.
+        if(valueFromFormData === 'let-me-think-about-it') {
+          psychologicalStage = '2 - Aware';
+        } else {// If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
           psychologicalStage = '5 - Personally confident';
         }
-        // If the user selects "Let me think about it", their stage will not change (They are sent back to the previous step).
         // If the user selects "I’d like you to host Fleet for me", the form is not submitted, and they are taken to the /contact page instead. FUTURE: set stage to stage 5.
       } else if(currentStep === 'how-many-hosts') {
         if(['yes-deployed', 'yes-recently-deployed'].includes(hasUsedFleetAnswer)) {
@@ -182,17 +183,15 @@ module.exports = {
       }//ﬁ
     }//ﬁ
 
-    if(psychologicalStage !== userRecord.psychologicalStage){
-      await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-        emailAddress: this.req.me.emailAddress,
-        firstName: this.req.me.firstName,
-        lastName: this.req.me.lastName,
-        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        organization: this.req.me.organization,
-        psychologicalStage,
-      });
-      // console.log('New psyStage:', psychologicalStage);
-    }
+    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: this.req.me.emailAddress,
+      firstName: this.req.me.firstName,
+      lastName: this.req.me.lastName,
+      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+      organization: this.req.me.organization,
+      psychologicalStage,
+    });
+    // console.log('New psyStage:', psychologicalStage);
     // TODO: send all other answers to Salesforce (when there are fields for them)
 
     // await sails.helpers.http.post.with({
