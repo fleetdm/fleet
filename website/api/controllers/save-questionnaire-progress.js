@@ -103,9 +103,6 @@ module.exports = {
     let psychologicalStage = userRecord.psychologicalStage;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
-    // console.log('currentStep:', currentStep)
-    // console.log('answer selected:', valueFromFormData)
-    // console.log('current psyStage:', psychologicalStage)
     if(currentStep === 'start') {
       // There is change when the user completes the start step.
     } else if(currentStep === 'what-are-you-using-fleet-for') {
@@ -183,15 +180,17 @@ module.exports = {
       }//ﬁ
     }//ﬁ
 
-    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-      emailAddress: this.req.me.emailAddress,
-      firstName: this.req.me.firstName,
-      lastName: this.req.me.lastName,
-      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-      organization: this.req.me.organization,
-      psychologicalStage,
-    });
-    // console.log('New psyStage:', psychologicalStage);
+
+    if(psychologicalStage !== userRecord.psychologicalStage) {
+      await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: this.req.me.emailAddress,
+        firstName: this.req.me.firstName,
+        lastName: this.req.me.lastName,
+        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+        organization: this.req.me.organization,
+        psychologicalStage,
+      });
+    }
     // TODO: send all other answers to Salesforce (when there are fields for them)
 
     // await sails.helpers.http.post.with({
