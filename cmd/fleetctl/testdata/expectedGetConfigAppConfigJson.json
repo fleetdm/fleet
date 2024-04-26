@@ -35,6 +35,10 @@
 			"host_expiry_enabled": false,
 			"host_expiry_window": 0
 		},
+		"activity_expiry_settings": {
+			"activity_expiry_enabled": false,
+			"activity_expiry_window": 0
+		},
 		"features": {
 			"enable_host_users": true,
 			"enable_software_inventory": false

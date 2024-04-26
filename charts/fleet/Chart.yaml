@@ -8,7 +8,7 @@ version: v6.0.2
 home: https://github.com/fleetdm/fleet
 sources:
   - https://github.com/fleetdm/fleet.git
-appVersion: v4.48.3
+appVersion: v4.49.0
 dependencies:
   - name: mysql
     condition: mysql.enabled
