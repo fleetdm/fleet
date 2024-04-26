@@ -271,7 +271,7 @@ const generateTableHeaders = ({
         const isInheritedQuery =
           (cellProps.row.original.team_id ?? undefined) === API_ALL_TEAMS_ID;
         if (viewingTeamScope && isInheritedQuery) {
-          // can't select inherited queries
+          // disallow selecting inherited queries
           return <></>;
         }
         const { row } = cellProps;

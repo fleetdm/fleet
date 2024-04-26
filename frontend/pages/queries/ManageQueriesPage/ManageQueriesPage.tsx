@@ -179,6 +179,7 @@ const ManageQueriesPage = ({
       updated_at: "2024-04-25T04:16:09Z",
       id: 93,
       team_id: 2,
+      // team_id: null,
       interval: 3600,
       platform: "",
       min_osquery_version: "",
@@ -210,6 +211,14 @@ const ManageQueriesPage = ({
     rawTestqueries.map(enhanceQuery),
     // [] as IEnhancedQuery[],
   ];
+
+  const onlyInheritedQueries = useMemo(() => {
+    if (teamIdForApi === API_ALL_TEAMS_ID) {
+      // global scope
+      return false;
+    }
+    return !enhancedQueries?.some((query) => query.team_id === teamIdForApi);
+  }, [teamIdForApi, enhancedQueries]);
 
   const automatedQueryIds = useMemo(() => {
     return enhancedQueries
@@ -317,6 +326,7 @@ const ManageQueriesPage = ({
     return (
       <QueriesTable
         queriesList={enhancedQueries || []}
+        onlyInheritedQueries={onlyInheritedQueries}
         isLoading={isFetchingQueries}
         onCreateQueryClick={onCreateQueryClick}
         onDeleteQueryClick={onDeleteQueryClick}
@@ -414,7 +424,7 @@ const ManageQueriesPage = ({
           </div>
           {!!enhancedQueries?.length && (
             <div className={`${baseClass}__action-button-container`}>
-              {(isGlobalAdmin || isTeamAdmin) && (
+              {(isGlobalAdmin || isTeamAdmin) && !onlyInheritedQueries && (
                 <Button
                   onClick={onManageAutomationsClick}
                   className={`${baseClass}__manage-automations button`}

@@ -20,6 +20,7 @@ import generateColumnConfigs from "./QueriesTableConfig";
 const baseClass = "queries-table";
 interface IQueriesTableProps {
   queriesList: IEnhancedQuery[] | null;
+  onlyInheritedQueries: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
@@ -78,6 +79,7 @@ const PLATFORM_FILTER_OPTIONS = [
 
 const QueriesTable = ({
   queriesList,
+  onlyInheritedQueries,
   isLoading,
   onDeleteQueryClick,
   onCreateQueryClick,
@@ -227,14 +229,6 @@ const QueriesTable = ({
       />
     );
   };
-
-  const onlyInheritedQueries = useMemo(() => {
-    if (currentTeamId === API_ALL_TEAMS_ID) {
-      // global scope
-      return false;
-    }
-    return !queriesList?.some((query) => query.team_id === currentTeamId);
-  }, [currentTeamId, queriesList]);
 
   const columnConfigs = useMemo(
     () =>
