@@ -71,6 +71,12 @@ module.exports = {
       `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
     });
 
+    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: emailAddress,
+      firstName: firstName,
+      lastName: lastName,
+    });
+
 
     // Send a POST request to Zapier
     await sails.helpers.http.post(

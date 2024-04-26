@@ -1,6 +1,6 @@
 module.exports = {
 
-
+  // TODO: This isn't a thing anymore, we can delete it.
   friendlyName: 'Deliver MDM beta signup',
 
 

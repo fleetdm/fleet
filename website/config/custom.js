@@ -85,6 +85,13 @@ module.exports.custom = {
   // ||  (Or if you don't need billing, feel free to remove them.)
   //--------------------------------------------------------------------------
 
+
+  // Other integrations:
+  // openAiSecret: undefined,
+  // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
+  // salesforceIntegrationUsername: undefined,
+  // salesforceIntegrationPasskey: undefined,
+
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
   //  ██║  ██║██████╔╝██║███████╗
@@ -286,10 +293,52 @@ module.exports.custom = {
     '/': ['lukeheath'] // Future update this
   },
 
+  //  ███████╗ ██████╗██╗  ██╗███████╗███╗   ███╗ █████╗
+  //  ██╔════╝██╔════╝██║  ██║██╔════╝████╗ ████║██╔══██╗
+  //  ███████╗██║     ███████║█████╗  ██╔████╔██║███████║
+  //  ╚════██║██║     ██╔══██║██╔══╝  ██║╚██╔╝██║██╔══██║
+  //  ███████║╚██████╗██║  ██║███████╗██║ ╚═╝ ██║██║  ██║
+  //  ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝
+  //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
   versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.11.0',
 
+  //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
+  //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
+  //  █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗      ██║  ██║███████║   ██║   ███████║
+  //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝      ██║  ██║██╔══██║   ██║   ██╔══██║
+  //  ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗    ██████╔╝██║  ██║   ██║   ██║  ██║
+  //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
+  //
+  // Config variables in this section are used for the /try-fleet/explore-data page on fleetdm.com
+
+  // For sending requests to a Fleet instance:
+  // fleetBaseUrlForQueryReports: '…',
+  // fleetTokenForQueryReports: '…',
+
+  // The API ID of the team of hosts created for query reports.
+  // teamApidForQueryReports:
+
+  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
+  // queryIdsByTableName: {…}
+
+  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
+  // hostIdsByHostPlatform: {…}
+
+  //  ███╗   ███╗██╗███████╗ ██████╗
+  //  ████╗ ████║██║██╔════╝██╔════╝
+  //  ██╔████╔██║██║███████╗██║
+  //  ██║╚██╔╝██║██║╚════██║██║
+  //  ██║ ╚═╝ ██║██║███████║╚██████╗
+  //  ╚═╝     ╚═╝╚═╝╚══════╝ ╚═════╝
+  //
+  /***************************************************************************
+  *                                                                          *
+  * Any other custom config this Sails app should use during development.    *
+  * (and possibly in ALL environments, if not overridden in config/env/)     *
+  *                                                                          *
+  ***************************************************************************/
 
   // FUTURE: Consolidate these two lists of email domains (And maybe find another word for banned)
   // For the deliver-apple-csr webhook:
@@ -339,34 +388,6 @@ module.exports.custom = {
     'ymail.com',
   ],
 
-  //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
-  //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
-  //  █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗      ██║  ██║███████║   ██║   ███████║
-  //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝      ██║  ██║██╔══██║   ██║   ██╔══██║
-  //  ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗    ██████╔╝██║  ██║   ██║   ██║  ██║
-  //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
-  //
-  // Config variables in this section are used for the /try-fleet/explore-data page on fleetdm.com
-
-  // For sending requests to a Fleet instance:
-  // fleetBaseUrlForQueryReports: '…',
-  // fleetTokenForQueryReports: '…',
-
-  // The API ID of the team of hosts created for query reports.
-  // teamApidForQueryReports:
-
-  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
-  // queryIdsByTableName: {…}
-
-  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
-  // hostIdsByHostPlatform: {…}
-
-  /***************************************************************************
-  *                                                                          *
-  * Any other custom config this Sails app should use during development.    *
-  * (and possibly in ALL environments, if not overridden in config/env/)     *
-  *                                                                          *
-  ***************************************************************************/
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
 
