@@ -53,26 +53,6 @@ type OrbitClient struct {
 	UpdateCancelFunc context.CancelFunc
 }
 
-func (oc *OrbitClient) ExecuteConfigReceivers() error {
-	ticker := time.NewTicker(oc.UpdateInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-oc.UpdateContext.Done():
-			return nil
-		case <-ticker.C:
-			err := oc.RunConfigReceivers()
-			log.Error().Err(err)
-		}
-	}
-}
-
-func (oc *OrbitClient) InterruptConfigReceivers(err error) {
-	log.Error().Err(err)
-	oc.UpdateCancelFunc()
-}
-
 // time-to-live for config cache
 const configCacheTTL = 3 * time.Second
 
@@ -208,6 +188,26 @@ func (oc *OrbitClient) RunConfigReceivers() error {
 
 func (oc *OrbitClient) RegisterConfigReceiver(cr update.OrbitConfigReceiver) {
 	oc.ConfigReceivers = append(oc.ConfigReceivers, cr)
+}
+
+func (oc *OrbitClient) ExecuteConfigReceivers() error {
+	ticker := time.NewTicker(oc.UpdateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-oc.UpdateContext.Done():
+			return nil
+		case <-ticker.C:
+			err := oc.RunConfigReceivers()
+			log.Error().Err(err)
+		}
+	}
+}
+
+func (oc *OrbitClient) InterruptConfigReceivers(err error) {
+	log.Error().Err(err)
+	oc.UpdateCancelFunc()
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.

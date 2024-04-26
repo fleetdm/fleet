@@ -405,10 +405,6 @@ type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err er
 type execDecryptVolumeFunc func(volumeID string) error
 
 type windowsMDMBitlockerConfigReceiver struct {
-	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
-	// for actually returning the orbit configuration or an error.
-	Fetcher OrbitConfigFetcher
-
 	// Frequency is the minimum amount of time that must pass between two
 	// executions of the windows MDM enrollment attempt.
 	Frequency time.Duration
