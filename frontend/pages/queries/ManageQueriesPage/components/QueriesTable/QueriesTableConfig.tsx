@@ -25,6 +25,7 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import InheritedBadge from "components/InheritedBadge";
 import { COLORS } from "styles/var/colors";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
@@ -115,6 +116,7 @@ const generateTableHeaders = ({
   omitSelectionColumn = false,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
+  const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -154,6 +156,11 @@ const generateTableHeaders = ({
                     </ReactTooltip>
                   </>
                 )}
+                {viewingTeamScope &&
+                  // inherited
+                  cellProps.row.original.team_id !== currentTeamId && (
+                    <InheritedBadge tooltipContent="This query runs on all hosts." />
+                  )}
               </>
             }
             path={PATHS.QUERY_DETAILS(
@@ -249,7 +256,6 @@ const generateTableHeaders = ({
     },
   ];
   if (!isOnlyObserver && !omitSelectionColumn) {
-    const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
     tableHeaders.unshift({
       id: "selection",
       // Header: (headerProps: IHeaderProps): JSX.Element => {

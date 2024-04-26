@@ -159,7 +159,7 @@ const ManageQueriesPage = ({
       query:
         "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
       saved: true,
-      observer_can_run: false,
+      observer_can_run: true,
       author_id: 1,
       author_name: "J Cob",
       author_email: "jacob@fleetdm.com",
@@ -218,7 +218,7 @@ const ManageQueriesPage = ({
       description: "",
       query: "SELECT * FROM osquery_info;",
       saved: true,
-      observer_can_run: false,
+      observer_can_run: true,
       author_id: 1,
       author_name: "J Cob",
       author_email: "jacob@fleetdm.com",

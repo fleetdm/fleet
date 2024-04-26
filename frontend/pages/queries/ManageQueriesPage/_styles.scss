@@ -131,12 +131,21 @@
               .query-name-cell {
                 display: flex; // required for inline icon
                 gap: $pad-xsmall;
-
-                .children-wrapper {
+                text-decoration: none;
+                align-items: center;
+                &:hover {
                   .query-name-text {
-                    text-overflow: ellipsis;
-                    overflow: hidden;
+                    text-decoration: underline;
                   }
+                }
+
+                .query-name-text {
+                  text-overflow: ellipsis;
+                  overflow: hidden;
+                }
+
+                .inherited-badge {
+                  overflow: initial;
                 }
               }
               .query-icon {
