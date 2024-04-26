@@ -867,7 +867,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, gpol.Name, ts.Policies[1].Name)
 	assert.Equal(t, gpol.ID, ts.Policies[1].ID)
 
-
 	ltcParams := countTeamPoliciesRequest{
 		MergeInherited: true,
 	}
