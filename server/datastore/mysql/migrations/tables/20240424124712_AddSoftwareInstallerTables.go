@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS software_installers (
   -- used to track the ID retrieved from the storage containing the installer bytes
   storage_id binary(64) NOT NULL,
 
-  created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  uploaded_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
 
