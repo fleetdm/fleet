@@ -911,6 +911,8 @@ type CleanMacOSMDMLockFunc func(ctx context.Context, hostUUID string) error
 
 type CleanupUnusedScriptContentsFunc func(ctx context.Context) error
 
+type CleanupActivitiesAndAssociatedDataFunc func(ctx context.Context, maxCount int, expiryWindowDays int) error
+
 type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
 
 type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
@@ -2255,6 +2257,9 @@ type DataStore struct {
 
 	CleanupUnusedScriptContentsFunc        CleanupUnusedScriptContentsFunc
 	CleanupUnusedScriptContentsFuncInvoked bool
+
+	CleanupActivitiesAndAssociatedDataFunc        CleanupActivitiesAndAssociatedDataFunc
+	CleanupActivitiesAndAssociatedDataFuncInvoked bool
 
 	WipeHostViaScriptFunc        WipeHostViaScriptFunc
 	WipeHostViaScriptFuncInvoked bool
@@ -5388,6 +5393,13 @@ func (s *DataStore) CleanupUnusedScriptContents(ctx context.Context) error {
 	s.CleanupUnusedScriptContentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupUnusedScriptContentsFunc(ctx)
+}
+
+func (s *DataStore) CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiryWindowDays int) error {
+	s.mu.Lock()
+	s.CleanupActivitiesAndAssociatedDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupActivitiesAndAssociatedDataFunc(ctx, maxCount, expiryWindowDays)
 }
 
 func (s *DataStore) WipeHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {

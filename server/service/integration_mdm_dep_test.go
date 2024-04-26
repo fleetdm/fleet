@@ -272,12 +272,12 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.NoError(t, err)
 	}
 
-	// expected commands: install fleetd, install bootstrap, install profiles
+	// expected commands: install fleetd, install bootstrap, install CA, install profiles
 	// (custom one and fleetd configuration) (not expected: account
 	// configuration, since enrollment_reference not set)
-	require.Len(t, cmds, 4)
+	require.Len(t, cmds, 5)
 	var installProfileCount, installEnterpriseCount, otherCount int
-	var profileCustomSeen, profileFleetdSeen bool
+	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen bool
 	for _, cmd := range cmds {
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
@@ -286,6 +286,8 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 				profileCustomSeen = true
 			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
 				profileFleetdSeen = true
+			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
+				profileFleetCASeen = true
 			}
 
 		case "InstallEnterpriseApplication":
@@ -294,11 +296,12 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			otherCount++
 		}
 	}
-	require.Equal(t, 2, installProfileCount)
+	require.Equal(t, 3, installProfileCount)
 	require.Equal(t, 2, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
 	require.True(t, profileCustomSeen)
 	require.True(t, profileFleetdSeen)
+	require.True(t, profileFleetCASeen)
 
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any

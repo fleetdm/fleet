@@ -3780,6 +3780,11 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Empty(t, createResp.Label.HostIDs)
 	lbl1 := createResp.Label.Label
 
+	// try to create a manual label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
+	// try to create a dynamic label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Query: "select 2"}, http.StatusConflict, &createResp)
+
 	// get the label
 	var getResp getLabelResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), nil, http.StatusOK, &getResp)
@@ -3813,6 +3818,11 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, strings.ReplaceAll(t.Name(), "/", "_")+"manual2", createResp.Label.Name)
 	assert.Empty(t, createResp.Label.HostIDs)
 	manualLbl2 := createResp.Label.Label
+
+	// try to create a manual label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
+	// try to create a dynamic label with the same name
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Query: "select 2"}, http.StatusConflict, &createResp)
 
 	// get the label
 	getResp = getLabelResponse{}
@@ -6105,6 +6115,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "free", acResp.License.Tier)
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
+	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -6146,6 +6158,30 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// and it did not update the appconfig
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Contains(t, string(*acResp.AgentOptions), `"logger_plugin": "tls"`) // default agent options has this setting
+
+	// Invalid activity expiry window.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "activity_expiry_enabled": true,
+        "activity_expiry_window": -1
+    }
+  }`), http.StatusUnprocessableEntity, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	require.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	// Valid activity expiry window.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "activity_expiry_enabled": true,
+        "activity_expiry_window": 42
+    }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 
 	// test a change that does clear the agent options (the field is provided but empty).
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{

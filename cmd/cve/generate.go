@@ -30,6 +30,8 @@ const emptyData = `{
   "CVE_Items" : [ ]
 }`
 
+var cleanEnvVar = "VULNERABILITIES_CLEAN"
+
 func main() {
 	dbDir := flag.String("db_dir", "/tmp/vulndbs", "Path to the vulnerability database")
 	debug := flag.Bool("debug", false, "Sets debug mode")
@@ -46,22 +48,23 @@ func main() {
 		panic(err)
 	}
 
-	// Download the last released NVD feed
-	logger.Log("msg", "Downloading latest release")
-	maxRetries := 3
-	for i := 0; i < maxRetries; i++ {
-		err := downloadLatestRelease(*dbDir, *debug, logger)
-		if err == nil {
-			break
-		}
+	if os.Getenv(cleanEnvVar) == "false" {
+		logger.Log("msg", "Downloading latest release")
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			err := downloadLatestRelease(*dbDir, *debug, logger)
+			if err == nil {
+				break
+			}
 
-		if i == maxRetries-1 {
-			logger.Log("msg", "Failed to download latest release. Continuing with full NVD Sync", "err", err)
-			break
-		}
+			if i == maxRetries-1 {
+				logger.Log("msg", "Failed to download latest release. Continuing with full NVD Sync", "err", err)
+				break
+			}
 
-		logger.Log("msg", "Failed to download latest release. Retrying in 30 seconds", "err", err)
-		time.Sleep(30 * time.Second)
+			logger.Log("msg", "Failed to download latest release. Retrying in 30 seconds", "err", err)
+			time.Sleep(30 * time.Second)
+		}
 	}
 
 	// Sync the CVE files

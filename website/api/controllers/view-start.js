@@ -25,6 +25,9 @@ module.exports = {
     if (userHasExistingSubscription) {
       throw {redirect: '/customers/dashboard'};
     }
+    if(this.req.me.isSuperAdmin){
+      throw {redirect: '/admin/generate-license'};
+    }
     if(this.req.me.lastSubmittedGetStartedQuestionnaireStep && !_.isEmpty(this.req.me.getStartedQuestionnaireAnswers)){
       let currentStep = this.req.me.lastSubmittedGetStartedQuestionnaireStep;
       let previouslyAnsweredQuestions = this.req.me.getStartedQuestionnaireAnswers;

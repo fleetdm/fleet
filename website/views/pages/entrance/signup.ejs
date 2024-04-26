@@ -6,7 +6,7 @@
     </div>
     <div purpose="customer-portal-form" class="card card-body">
       <div purpose="login-link">
-        <a href="/login">I have an account</a>
+        <a :href="loginSlug">I have an account</a>
       </div>
       <ajax-form action="signup" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
         <div class="form-group">

@@ -546,7 +546,7 @@ the way that the Fleet server works.
 				} else {
 					mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 				}
-				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 				ddmService = service.NewMDMAppleDDMService(ds, logger)
 				appCfg.MDM.EnabledAndConfigured = true
@@ -640,7 +640,7 @@ the way that the Fleet server works.
 					mailService,
 					clock.C,
 					depStorage,
-					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
 					mdmPushCertTopic,
 					ssoSessionStore,
 					profileMatcher,
@@ -697,7 +697,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					var commander *apple_mdm.MDMAppleCommander
 					if appCfg.MDM.EnabledAndConfigured {
-						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 					}
 					return newCleanupsAndAggregationSchedule(
 						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander,
@@ -740,7 +740,7 @@ the way that the Fleet server works.
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				var commander *apple_mdm.MDMAppleCommander
 				if appCfg.MDM.EnabledAndConfigured {
-					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 				}
 				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
@@ -761,9 +761,10 @@ the way that the Fleet server works.
 						ctx,
 						instanceID,
 						ds,
-						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
 						logger,
 						config.Logging.Debug,
+						config.MDM,
 					)
 				}); err != nil {
 					initFatal(err, "failed to register mdm_apple_profile_manager schedule")
