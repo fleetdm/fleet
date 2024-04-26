@@ -1,31 +1,43 @@
 import React from "react";
+import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
-import { createMockMdmSolution } from "__mocks__/mdmMock";
+import { createMockMdmSummaryMdmSolution } from "__mocks__/mdmMock";
 
 import MDM from "./MDM";
 
 describe("MDM Card", () => {
-  it("render the correct number of MDM solutions", () => {
+  it("rolls up the data by mdm solution name and render the correct number of MDM solutions", () => {
     render(
       <MDM
+        onClickMdmSolution={noop}
         error={null}
         isFetching={false}
         mdmStatusData={[]}
         mdmSolutions={[
-          createMockMdmSolution(),
-          createMockMdmSolution({ id: 2 }),
+          createMockMdmSummaryMdmSolution(),
+          createMockMdmSummaryMdmSolution({ id: 2 }),
+          createMockMdmSummaryMdmSolution({ name: "Test Solution", id: 3 }),
+          createMockMdmSummaryMdmSolution({ name: "Test Solution", id: 4 }),
+          createMockMdmSummaryMdmSolution({ name: "Test Solution 2", id: 5 }),
+          // "" should render a row of "Unknown"
+          createMockMdmSummaryMdmSolution({ name: "", id: 8 }),
+          createMockMdmSummaryMdmSolution({ name: "", id: 9 }),
         ]}
       />
     );
 
-    expect(screen.getAllByText("MDM Solution").length).toBe(2);
+    expect(screen.getAllByText("MDM Solution").length).toBe(1);
+    expect(screen.getAllByText("Test Solution").length).toBe(1);
+    expect(screen.getAllByText("Test Solution 2").length).toBe(1);
+    expect(screen.getAllByText("Unknown").length).toBe(1);
   });
 
   it("render the correct number of Enrollment status", async () => {
     const { user } = renderWithSetup(
       <MDM
+        onClickMdmSolution={noop}
         error={null}
         isFetching={false}
         mdmStatusData={[

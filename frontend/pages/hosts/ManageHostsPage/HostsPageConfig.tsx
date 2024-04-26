@@ -13,7 +13,6 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "status",
   "mdm_id",
   "mdm_enrollment_status",
-  "os_id",
   "os_name",
   "os_version",
   "munki_issue_id",

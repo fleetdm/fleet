@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -149,11 +150,12 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	features := appConfig.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
-			OrgInfo:               appConfig.OrgInfo,
-			ServerSettings:        appConfig.ServerSettings,
-			Features:              features,
-			VulnerabilitySettings: appConfig.VulnerabilitySettings,
-			HostExpirySettings:    appConfig.HostExpirySettings,
+			OrgInfo:                appConfig.OrgInfo,
+			ServerSettings:         appConfig.ServerSettings,
+			Features:               features,
+			VulnerabilitySettings:  appConfig.VulnerabilitySettings,
+			HostExpirySettings:     appConfig.HostExpirySettings,
+			ActivityExpirySettings: appConfig.ActivityExpirySettings,
 
 			SMTPSettings: smtpSettings,
 			SSOSettings:  ssoSettings,
@@ -326,6 +328,37 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
+	// EnableDiskEncryption is an optjson.Bool field in order to support the
+	// legacy field under "mdm.macos_settings". If the field provided to the
+	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
+	// null) and no legacy field overwrites it, leave it unchanged (as if not
+	// provided).
+
+	// TODO: move this logic to the AppConfig unmarshaller? we need to do
+	// this because we unmarshal twice into appConfig:
+	//
+	// 1. To get the JSON value from the database
+	// 2. To update fields with the incoming values
+	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
+	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
+		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
+	}
+	// this is to handle the case where `enable_release_device_manually: null` is
+	// passed in the request payload, which should be treated as "not present/not
+	// changed" by the PATCH. We should really try to find a more general way to
+	// handle this.
+	if !oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		// this makes a DB migration unnecessary, will update the field to its default false value as necessary
+		oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if newAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = newAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually
+	} else {
+		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually
+	}
+
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
 		// this "warning" is returned only in dry-run mode, and if no other errors
@@ -342,6 +375,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	if appConfig.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "Fleet server URL must be present")
+	}
+
+	if appConfig.ActivityExpirySettings.ActivityExpiryEnabled && appConfig.ActivityExpirySettings.ActivityExpiryWindow < 1 {
+		invalid.Append("activity_expiry_settings.activity_expiry_window", "must be greater than 0")
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {
@@ -367,15 +404,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.ServerSettings.EnableAnalytics = true
 	}
 
-	// TODO: move this logic to the AppConfig unmarshaller? we need to do
-	// this because we unmarshal twice into appConfig:
-	//
-	// 1. To get the JSON value from the database
-	// 2. To update fields with the incoming values
-	if newAppConfig.MDM.EnableDiskEncryption.Valid {
-		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
-	}
-
+	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
@@ -468,6 +497,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 	}
+	// If google_calendar is null, we keep the existing setting. If it's not null, we update.
+	if newAppConfig.Integrations.GoogleCalendar == nil {
+		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
+	}
 
 	if !license.IsPremium() {
 		// reset transparency url to empty for downgraded licenses
@@ -528,6 +561,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// activity
 	if oldAppConfig.MDM.MacOSUpdates.MinimumVersion.Value != appConfig.MDM.MacOSUpdates.MinimumVersion.Value ||
 		oldAppConfig.MDM.MacOSUpdates.Deadline.Value != appConfig.MDM.MacOSUpdates.Deadline.Value {
+		if license.IsPremium() {
+			// macOS updates are premium feature
+			if err := svc.EnterpriseOverrides.MDMAppleEditedMacOSUpdates(ctx, nil, appConfig.MDM.MacOSUpdates); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update DDM profile after macOS updates change")
+			}
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
@@ -665,6 +705,9 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.macos_setup_assistant", ErrMissingLicense.Error())
 	}
+	if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value && !license.IsPremium() {
+		invalid.Append("macos_setup.enable_release_device_manually", ErrMissingLicense.Error())
+	}
 	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
 	}
@@ -682,6 +725,11 @@ func (svc *Service) validateMDM(
 
 		if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
 			invalid.Append("macos_setup.macos_setup_assistant",
+				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value {
+			invalid.Append("macos_setup.enable_release_device_manually",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
@@ -785,7 +833,7 @@ func (svc *Service) validateMDM(
 		// TODO: Should we validate MDM configured on here too?
 
 		if mdm.MacOSMigration.Enable {
-			if license.Tier != fleet.TierPremium {
+			if !license.IsPremium() {
 				invalid.Append("macos_migration.enable", ErrMissingLicense.Error())
 				return nil
 			}

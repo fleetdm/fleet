@@ -1,1 +1,0 @@
-* Add two new API endpoints to run a live query SQL on one host: `POST /api/latest/fleet/hosts/identifier/{identifier}/query` and `POST /api/_version_/fleet/hosts/{id}/query`.

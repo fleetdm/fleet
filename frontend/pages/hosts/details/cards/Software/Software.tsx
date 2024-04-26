@@ -13,6 +13,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import Card from "components/Card";
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -23,7 +24,7 @@ import {
   generateSoftwareTableData,
 } from "./SoftwareTableConfig";
 
-const baseClass = "host-details";
+const baseClass = "software-card";
 
 export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
@@ -163,14 +164,14 @@ const SoftwareTable = ({
     [deviceUser, router, pathname]
   );
 
-  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+  const handleVulnFilterDropdownChange = (isFilterVulnerable: boolean) => {
     const nextPath = getNextLocationPath({
       pathPrefix,
       routeTemplate,
       queryParams: {
         ...queryParams,
         page: 0,
-        vulnerable: isFilterVulnerable,
+        vulnerable: isFilterVulnerable.toString(),
       },
     });
     router?.replace(nextPath);
@@ -206,8 +207,13 @@ const SoftwareTable = ({
   };
 
   return (
-    <div className="section section--software">
-      <p className="section__header">Software</p>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
+      <p className="card__header">Software</p>
 
       {software?.length ? (
         <>
@@ -261,7 +267,7 @@ const SoftwareTable = ({
           isFilterVulnerable={filterVuln}
         />
       )}
-    </div>
+    </Card>
   );
 };
 export default SoftwareTable;

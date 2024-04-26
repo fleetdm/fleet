@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
@@ -18,8 +18,8 @@ import {
 } from "interfaces/macadmins";
 import {
   IMdmStatusCardData,
-  IMdmSolution,
   IMdmSummaryResponse,
+  IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
 import { SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
@@ -61,6 +61,7 @@ import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
+import MdmSolutionModal from "./components/MdmSolutionModal";
 
 const baseClass = "dashboard-page";
 
@@ -132,10 +133,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [showMdmCard, setShowMdmCard] = useState(true);
   const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showMdmSolutionModal, setShowMdmSolutionModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
-  const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
+  const [mdmSolutions, setMdmSolutions] = useState<
+    IMdmSummaryMdmSolution[] | null
+  >([]);
+
+  const selectedMdmSolutionName = useRef<string>("");
 
   const [munkiIssuesData, setMunkiIssuesData] = useState<
     IMunkiIssuesAggregate[]
@@ -282,7 +288,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             setSoftwareTitleDetail(
               <LastUpdatedText
                 lastUpdatedAt={data.counts_updated_at}
-                whatToRetrieve={"software"}
+                whatToRetrieve="software"
               />
             );
           setShowSoftwareCard(true);
@@ -344,7 +350,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setMdmTitleDetail(
           <LastUpdatedText
             lastUpdatedAt={counts_updated_at}
-            whatToRetrieve={"MDM information"}
+            whatToRetrieve="MDM information"
           />
         );
         const statusData: IMdmStatusCardData[] = [
@@ -385,7 +391,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setMunkiTitleDetail(
         <LastUpdatedText
           lastUpdatedAt={counts_updated_at}
-          whatToRetrieve={"Munki"}
+          whatToRetrieve="Munki"
         />
       );
     },
@@ -614,6 +620,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             mdmSolutions={mdmSolutions}
             selectedPlatformLabelId={selectedPlatformLabelId}
             selectedTeamId={currentTeamId}
+            onClickMdmSolution={(mdmSolution) => {
+              selectedMdmSolutionName.current = mdmSolution.name;
+              setShowMdmSolutionModal(true);
+            }}
           />
         ),
       })}
@@ -713,6 +723,28 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     );
   };
 
+  const renderMdmSolutionModal = () => {
+    if (!mdmSolutions) {
+      return null;
+    }
+
+    const selectedMdmSolutions = mdmSolutions?.filter(
+      (solution) => solution.name === selectedMdmSolutionName.current
+    );
+
+    return (
+      <MdmSolutionModal
+        mdmSolutions={selectedMdmSolutions}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+        selectedTeamId={currentTeamId}
+        onCancel={() => {
+          setShowMdmSolutionModal(false);
+          selectedMdmSolutionName.current = "";
+        }}
+      />
+    );
+  };
+
   const renderDashboardHeader = () => {
     if (isPremiumTier) {
       if (userTeams) {
@@ -785,6 +817,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         </div>
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
+        {showMdmSolutionModal && renderMdmSolutionModal()}
       </div>
     </MainContent>
   );

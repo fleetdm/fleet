@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -331,36 +332,38 @@ func TestGetHosts(t *testing.T) {
 		return []*fleet.HostPolicy{
 			{
 				PolicyData: fleet.PolicyData{
-					ID:          1,
-					Name:        "query1",
-					Query:       defaultPolicyQuery,
-					Description: "Some description",
-					AuthorID:    ptr.Uint(1),
-					AuthorName:  "Alice",
-					AuthorEmail: "alice@example.com",
-					Resolution:  ptr.String("Some resolution"),
-					TeamID:      ptr.Uint(1),
+					ID:                    1,
+					Name:                  "query1",
+					Query:                 defaultPolicyQuery,
+					Description:           "Some description",
+					AuthorID:              ptr.Uint(1),
+					AuthorName:            "Alice",
+					AuthorEmail:           "alice@example.com",
+					Resolution:            ptr.String("Some resolution"),
+					TeamID:                ptr.Uint(1),
+					CalendarEventsEnabled: true,
 				},
 				Response: "passes",
 			},
 			{
 				PolicyData: fleet.PolicyData{
-					ID:          2,
-					Name:        "query2",
-					Query:       defaultPolicyQuery,
-					Description: "",
-					AuthorID:    ptr.Uint(1),
-					AuthorName:  "Alice",
-					AuthorEmail: "alice@example.com",
-					Resolution:  nil,
-					TeamID:      nil,
+					ID:                    2,
+					Name:                  "query2",
+					Query:                 defaultPolicyQuery,
+					Description:           "",
+					AuthorID:              ptr.Uint(1),
+					AuthorName:            "Alice",
+					AuthorEmail:           "alice@example.com",
+					Resolution:            nil,
+					TeamID:                nil,
+					CalendarEventsEnabled: false,
 				},
 				Response: "fails",
 			},
 		}, nil
 	}
 
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
@@ -620,7 +623,7 @@ func TestGetSoftwareTitles(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
 		return []fleet.SoftwareTitle{
 			{
@@ -942,6 +945,7 @@ apiVersion: v1
 kind: label
 spec:
   description: some description
+  hosts: null
   id: 32
   label_membership_type: dynamic
   name: label1
@@ -952,14 +956,15 @@ apiVersion: v1
 kind: label
 spec:
   description: some other description
+  hosts: null
   id: 33
   label_membership_type: dynamic
   name: label2
   platform: linux
   query: select 42;
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
-{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic"}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "labels"}))
@@ -988,13 +993,14 @@ apiVersion: v1
 kind: label
 spec:
   description: some description
+  hosts: null
   id: 32
   label_membership_type: dynamic
   name: label1
   platform: windows
   query: select 1;
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))
@@ -1455,9 +1461,9 @@ func TestGetQuery(t *testing.T) {
 				Platform:           "linux",
 				Logging:            "differential",
 			}, nil
-		} else {
-			return nil, &notFoundError{}
 		}
+
+		return nil, &notFoundError{}
 	}
 
 	expectedYaml := `---
@@ -2205,7 +2211,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
@@ -2213,6 +2219,17 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
 		return nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
@@ -2365,7 +2382,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 					CommandUUID: commandUUID,
 					Status:      "200",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
-					RequestType: "test",
 					Payload:     []byte(winPayloadXML),
 					Result:      []byte(winResultXML),
 				},
@@ -2374,7 +2390,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 					CommandUUID: commandUUID,
 					Status:      "500",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
-					RequestType: "test",
 					Payload:     []byte(winPayloadXML),
 					Result:      []byte(winResultXML),
 				},
@@ -2518,89 +2533,89 @@ func TestGetMDMCommandResults(t *testing.T) {
 	})
 
 	t.Run("windows command results", func(t *testing.T) {
-		expectedOutput := strings.TrimSpace(`+-----------+----------------------+------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
-|    ID     |         TIME         | TYPE | STATUS | HOSTNAME |                                           PAYLOAD                                           |                                      RESULTS                                       |
-+-----------+----------------------+------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
-| valid-cmd | 2023-04-04T15:29:00Z | test |    200 | host1    | <Atomic>                                                                                    | <SyncML xmlns="SYNCML:SYNCML1.2">                                                  |
-|           |                      |      |        |          |   <!-- CmdID generated by Fleet -->                                                         |   <SyncHdr>                                                                        |
-|           |                      |      |        |          |   <CmdID>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdID>                                       |     <VerDTD>1.2</VerDTD>                                                           |
-|           |                      |      |        |          |   <Replace>                                                                                 |     <VerProto>DM/1.2</VerProto>                                                    |
-|           |                      |      |        |          |     <!-- CmdID generated by Fleet -->                                                       |     <SessionID>48</SessionID>                                                      |
-|           |                      |      |        |          |     <CmdID>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdID>                                     |     <MsgID>2</MsgID>                                                               |
-|           |                      |      |        |          |     <Item>                                                                                  |     <Target>                                                                       |
-|           |                      |      |        |          |       <Target>                                                                              |       <LocURI>https://roperzh-fleet.ngrok.io/api/mdm/microsoft/management</LocURI> |
-|           |                      |      |        |          |         <LocURI>./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI> |     </Target>                                                                      |
-|           |                      |      |        |          |       </Target>                                                                             |     <Source>                                                                       |
-|           |                      |      |        |          |       <Meta>                                                                                |       <LocURI>1F28CCBDCE02AE44BD2AAC3C0B9AD4DE</LocURI>                            |
-|           |                      |      |        |          |         <Format xmlns="syncml:metinf">int</Format>                                          |     </Source>                                                                      |
-|           |                      |      |        |          |       </Meta>                                                                               |   </SyncHdr>                                                                       |
-|           |                      |      |        |          |       <Data>1</Data>                                                                        |   <SyncBody>                                                                       |
-|           |                      |      |        |          |     </Item>                                                                                 |     <Status>                                                                       |
-|           |                      |      |        |          |   </Replace>                                                                                |       <CmdID>1</CmdID>                                                             |
-|           |                      |      |        |          | </Atomic>                                                                                   |       <MsgRef>1</MsgRef>                                                           |
-|           |                      |      |        |          |                                                                                             |       <CmdRef>0</CmdRef>                                                           |
-|           |                      |      |        |          |                                                                                             |       <Cmd>SyncHdr</Cmd>                                                           |
-|           |                      |      |        |          |                                                                                             |       <Data>200</Data>                                                             |
-|           |                      |      |        |          |                                                                                             |     </Status>                                                                      |
-|           |                      |      |        |          |                                                                                             |     <Status>                                                                       |
-|           |                      |      |        |          |                                                                                             |       <CmdID>2</CmdID>                                                             |
-|           |                      |      |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
-|           |                      |      |        |          |                                                                                             |       <CmdRef>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdRef>                        |
-|           |                      |      |        |          |                                                                                             |       <Cmd>Atomic</Cmd>                                                            |
-|           |                      |      |        |          |                                                                                             |       <Data>200</Data>                                                             |
-|           |                      |      |        |          |                                                                                             |     </Status>                                                                      |
-|           |                      |      |        |          |                                                                                             |     <Status>                                                                       |
-|           |                      |      |        |          |                                                                                             |       <CmdID>3</CmdID>                                                             |
-|           |                      |      |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
-|           |                      |      |        |          |                                                                                             |       <CmdRef>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdRef>                        |
-|           |                      |      |        |          |                                                                                             |       <Cmd>Replace</Cmd>                                                           |
-|           |                      |      |        |          |                                                                                             |       <Data>200</Data>                                                             |
-|           |                      |      |        |          |                                                                                             |     </Status>                                                                      |
-|           |                      |      |        |          |                                                                                             |     <Final/>                                                                       |
-|           |                      |      |        |          |                                                                                             |   </SyncBody>                                                                      |
-|           |                      |      |        |          |                                                                                             | </SyncML>                                                                          |
-|           |                      |      |        |          |                                                                                             |                                                                                    |
-+-----------+----------------------+------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
-| valid-cmd | 2023-04-04T15:29:00Z | test |    500 | host2    | <Atomic>                                                                                    | <SyncML xmlns="SYNCML:SYNCML1.2">                                                  |
-|           |                      |      |        |          |   <!-- CmdID generated by Fleet -->                                                         |   <SyncHdr>                                                                        |
-|           |                      |      |        |          |   <CmdID>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdID>                                       |     <VerDTD>1.2</VerDTD>                                                           |
-|           |                      |      |        |          |   <Replace>                                                                                 |     <VerProto>DM/1.2</VerProto>                                                    |
-|           |                      |      |        |          |     <!-- CmdID generated by Fleet -->                                                       |     <SessionID>48</SessionID>                                                      |
-|           |                      |      |        |          |     <CmdID>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdID>                                     |     <MsgID>2</MsgID>                                                               |
-|           |                      |      |        |          |     <Item>                                                                                  |     <Target>                                                                       |
-|           |                      |      |        |          |       <Target>                                                                              |       <LocURI>https://roperzh-fleet.ngrok.io/api/mdm/microsoft/management</LocURI> |
-|           |                      |      |        |          |         <LocURI>./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI> |     </Target>                                                                      |
-|           |                      |      |        |          |       </Target>                                                                             |     <Source>                                                                       |
-|           |                      |      |        |          |       <Meta>                                                                                |       <LocURI>1F28CCBDCE02AE44BD2AAC3C0B9AD4DE</LocURI>                            |
-|           |                      |      |        |          |         <Format xmlns="syncml:metinf">int</Format>                                          |     </Source>                                                                      |
-|           |                      |      |        |          |       </Meta>                                                                               |   </SyncHdr>                                                                       |
-|           |                      |      |        |          |       <Data>1</Data>                                                                        |   <SyncBody>                                                                       |
-|           |                      |      |        |          |     </Item>                                                                                 |     <Status>                                                                       |
-|           |                      |      |        |          |   </Replace>                                                                                |       <CmdID>1</CmdID>                                                             |
-|           |                      |      |        |          | </Atomic>                                                                                   |       <MsgRef>1</MsgRef>                                                           |
-|           |                      |      |        |          |                                                                                             |       <CmdRef>0</CmdRef>                                                           |
-|           |                      |      |        |          |                                                                                             |       <Cmd>SyncHdr</Cmd>                                                           |
-|           |                      |      |        |          |                                                                                             |       <Data>200</Data>                                                             |
-|           |                      |      |        |          |                                                                                             |     </Status>                                                                      |
-|           |                      |      |        |          |                                                                                             |     <Status>                                                                       |
-|           |                      |      |        |          |                                                                                             |       <CmdID>2</CmdID>                                                             |
-|           |                      |      |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
-|           |                      |      |        |          |                                                                                             |       <CmdRef>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdRef>                        |
-|           |                      |      |        |          |                                                                                             |       <Cmd>Atomic</Cmd>                                                            |
-|           |                      |      |        |          |                                                                                             |       <Data>200</Data>                                                             |
-|           |                      |      |        |          |                                                                                             |     </Status>                                                                      |
-|           |                      |      |        |          |                                                                                             |     <Status>                                                                       |
-|           |                      |      |        |          |                                                                                             |       <CmdID>3</CmdID>                                                             |
-|           |                      |      |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
-|           |                      |      |        |          |                                                                                             |       <CmdRef>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdRef>                        |
-|           |                      |      |        |          |                                                                                             |       <Cmd>Replace</Cmd>                                                           |
-|           |                      |      |        |          |                                                                                             |       <Data>200</Data>                                                             |
-|           |                      |      |        |          |                                                                                             |     </Status>                                                                      |
-|           |                      |      |        |          |                                                                                             |     <Final/>                                                                       |
-|           |                      |      |        |          |                                                                                             |   </SyncBody>                                                                      |
-|           |                      |      |        |          |                                                                                             | </SyncML>                                                                          |
-|           |                      |      |        |          |                                                                                             |                                                                                    |
-+-----------+----------------------+------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+		expectedOutput := strings.TrimSpace(`+-----------+----------------------+----------------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+|    ID     |         TIME         |      TYPE      | STATUS | HOSTNAME |                                           PAYLOAD                                           |                                      RESULTS                                       |
++-----------+----------------------+----------------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | InstallProfile |    200 | host1    | <Atomic>                                                                                    | <SyncML xmlns="SYNCML:SYNCML1.2">                                                  |
+|           |                      |                |        |          |   <!-- CmdID generated by Fleet -->                                                         |   <SyncHdr>                                                                        |
+|           |                      |                |        |          |   <CmdID>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdID>                                       |     <VerDTD>1.2</VerDTD>                                                           |
+|           |                      |                |        |          |   <Replace>                                                                                 |     <VerProto>DM/1.2</VerProto>                                                    |
+|           |                      |                |        |          |     <!-- CmdID generated by Fleet -->                                                       |     <SessionID>48</SessionID>                                                      |
+|           |                      |                |        |          |     <CmdID>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdID>                                     |     <MsgID>2</MsgID>                                                               |
+|           |                      |                |        |          |     <Item>                                                                                  |     <Target>                                                                       |
+|           |                      |                |        |          |       <Target>                                                                              |       <LocURI>https://roperzh-fleet.ngrok.io/api/mdm/microsoft/management</LocURI> |
+|           |                      |                |        |          |         <LocURI>./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI> |     </Target>                                                                      |
+|           |                      |                |        |          |       </Target>                                                                             |     <Source>                                                                       |
+|           |                      |                |        |          |       <Meta>                                                                                |       <LocURI>1F28CCBDCE02AE44BD2AAC3C0B9AD4DE</LocURI>                            |
+|           |                      |                |        |          |         <Format xmlns="syncml:metinf">int</Format>                                          |     </Source>                                                                      |
+|           |                      |                |        |          |       </Meta>                                                                               |   </SyncHdr>                                                                       |
+|           |                      |                |        |          |       <Data>1</Data>                                                                        |   <SyncBody>                                                                       |
+|           |                      |                |        |          |     </Item>                                                                                 |     <Status>                                                                       |
+|           |                      |                |        |          |   </Replace>                                                                                |       <CmdID>1</CmdID>                                                             |
+|           |                      |                |        |          | </Atomic>                                                                                   |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>0</CmdRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Cmd>SyncHdr</Cmd>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Status>                                                                       |
+|           |                      |                |        |          |                                                                                             |       <CmdID>2</CmdID>                                                             |
+|           |                      |                |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdRef>                        |
+|           |                      |                |        |          |                                                                                             |       <Cmd>Atomic</Cmd>                                                            |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Status>                                                                       |
+|           |                      |                |        |          |                                                                                             |       <CmdID>3</CmdID>                                                             |
+|           |                      |                |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdRef>                        |
+|           |                      |                |        |          |                                                                                             |       <Cmd>Replace</Cmd>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Final/>                                                                       |
+|           |                      |                |        |          |                                                                                             |   </SyncBody>                                                                      |
+|           |                      |                |        |          |                                                                                             | </SyncML>                                                                          |
+|           |                      |                |        |          |                                                                                             |                                                                                    |
++-----------+----------------------+----------------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | InstallProfile |    500 | host2    | <Atomic>                                                                                    | <SyncML xmlns="SYNCML:SYNCML1.2">                                                  |
+|           |                      |                |        |          |   <!-- CmdID generated by Fleet -->                                                         |   <SyncHdr>                                                                        |
+|           |                      |                |        |          |   <CmdID>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdID>                                       |     <VerDTD>1.2</VerDTD>                                                           |
+|           |                      |                |        |          |   <Replace>                                                                                 |     <VerProto>DM/1.2</VerProto>                                                    |
+|           |                      |                |        |          |     <!-- CmdID generated by Fleet -->                                                       |     <SessionID>48</SessionID>                                                      |
+|           |                      |                |        |          |     <CmdID>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdID>                                     |     <MsgID>2</MsgID>                                                               |
+|           |                      |                |        |          |     <Item>                                                                                  |     <Target>                                                                       |
+|           |                      |                |        |          |       <Target>                                                                              |       <LocURI>https://roperzh-fleet.ngrok.io/api/mdm/microsoft/management</LocURI> |
+|           |                      |                |        |          |         <LocURI>./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI> |     </Target>                                                                      |
+|           |                      |                |        |          |       </Target>                                                                             |     <Source>                                                                       |
+|           |                      |                |        |          |       <Meta>                                                                                |       <LocURI>1F28CCBDCE02AE44BD2AAC3C0B9AD4DE</LocURI>                            |
+|           |                      |                |        |          |         <Format xmlns="syncml:metinf">int</Format>                                          |     </Source>                                                                      |
+|           |                      |                |        |          |       </Meta>                                                                               |   </SyncHdr>                                                                       |
+|           |                      |                |        |          |       <Data>1</Data>                                                                        |   <SyncBody>                                                                       |
+|           |                      |                |        |          |     </Item>                                                                                 |     <Status>                                                                       |
+|           |                      |                |        |          |   </Replace>                                                                                |       <CmdID>1</CmdID>                                                             |
+|           |                      |                |        |          | </Atomic>                                                                                   |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>0</CmdRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Cmd>SyncHdr</Cmd>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Status>                                                                       |
+|           |                      |                |        |          |                                                                                             |       <CmdID>2</CmdID>                                                             |
+|           |                      |                |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdRef>                        |
+|           |                      |                |        |          |                                                                                             |       <Cmd>Atomic</Cmd>                                                            |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Status>                                                                       |
+|           |                      |                |        |          |                                                                                             |       <CmdID>3</CmdID>                                                             |
+|           |                      |                |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdRef>                        |
+|           |                      |                |        |          |                                                                                             |       <Cmd>Replace</Cmd>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Final/>                                                                       |
+|           |                      |                |        |          |                                                                                             |   </SyncBody>                                                                      |
+|           |                      |                |        |          |                                                                                             | </SyncML>                                                                          |
+|           |                      |                |        |          |                                                                                             |                                                                                    |
++-----------+----------------------+----------------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
 `)
 
 		platform = "windows"
@@ -2644,6 +2659,14 @@ func TestGetMDMCommands(t *testing.T) {
 				Status:      "200",
 				Hostname:    "host2",
 			},
+			// This represents a command generated by fleet as part of a Windows profile
+			{
+				HostUUID:    "h2",
+				CommandUUID: "u3",
+				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
+				Status:      "200",
+				Hostname:    "host2",
+			},
 		}, nil
 	}
 
@@ -2668,6 +2691,8 @@ func TestGetMDMCommands(t *testing.T) {
 | u1 | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
 +----+----------------------+---------------------------------------+--------------+----------+
 | u2 | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
++----+----------------------+---------------------------------------+--------------+----------+
+| u3 | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
 +----+----------------------+---------------------------------------+--------------+----------+
 `))
 }

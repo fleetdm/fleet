@@ -63,7 +63,7 @@ export default {
         "all-hosts",
         "alerts",
         "logout",
-        "user-settings",
+        "account",
         "clipboard",
         "list-select",
         "grid-select",

@@ -1,1 +1,0 @@
-* Fixed a bug that would cause OS Settings to never get verified if the MySQL config of Fleet's database has `only_full_group_by` mode enabled (enabled by default).

@@ -25,7 +25,11 @@ import InfoBanner from "components/InfoBanner";
 import Icon from "components/Icon/Icon";
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  HOST_ABOUT_DATA,
+  HOST_SUMMARY_DATA,
+} from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -205,39 +209,9 @@ const DeviceUserPage = ({
     }
   );
 
-  const titleData = normalizeEmptyValues(
-    pick(host, [
-      "id",
-      "status",
-      "issues",
-      "memory",
-      "cpu_type",
-      "os_version",
-      "osquery_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-      "percent_disk_space_available",
-      "gigs_disk_space_available",
-      "team_name",
-      "platform",
-      "mdm",
-    ])
-  );
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(
-    pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-      "public_ip",
-      "geolocation",
-      "batteries",
-      "detail_updated_at",
-    ])
-  );
+  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
@@ -392,8 +366,7 @@ const DeviceUserPage = ({
               </InfoBanner>
             )}
             <HostSummaryCard
-              titleData={titleData}
-              diskEncryptionEnabled={host?.disk_encryption_enabled}
+              summaryData={summaryData}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleOSSettingsModal={toggleOSSettingsModal}
@@ -472,10 +445,12 @@ const DeviceUserPage = ({
             policy={selectedPolicy}
           />
         )}
-        {showOSSettingsModal && (
+        {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            platform={host?.platform}
-            hostMDMData={host?.mdm}
+            canResendProfiles={false}
+            hostId={host.id}
+            platform={host.platform}
+            hostMDMData={host.mdm}
             onClose={toggleOSSettingsModal}
           />
         )}

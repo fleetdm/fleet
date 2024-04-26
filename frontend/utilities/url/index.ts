@@ -36,6 +36,7 @@ interface IMutuallyExclusiveHostParams {
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
+  vulnerability?: string;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
@@ -118,6 +119,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   osName,
   osVersion,
   osSettings,
+  vulnerability,
   diskEncryptionStatus,
   bootstrapPackageStatus,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
@@ -155,6 +157,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { os_version_id: osVersionId };
     case !!osName && !!osVersion:
       return { os_name: osName, os_version: osVersion };
+    case !!vulnerability:
+      return { vulnerability };
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
     case !!osSettings:

@@ -130,7 +130,7 @@ describe("AddHostsModal", () => {
     render(
       <AddHostsModal
         isAnyTeamSelected={false}
-        currentTeamName={"Apples"}
+        currentTeamName="Apples"
         isLoading={false}
         onCancel={noop}
         openEnrollSecretModal={noop}

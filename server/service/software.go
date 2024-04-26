@@ -2,9 +2,15 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -119,7 +125,8 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 /////////////////////////////////////////////////////////////////////////////////
 
 type getSoftwareRequest struct {
-	ID uint `url:"id"`
+	ID     uint  `url:"id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getSoftwareResponse struct {
@@ -132,7 +139,7 @@ func (r getSoftwareResponse) error() error { return r.Err }
 func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareRequest)
 
-	software, err := svc.SoftwareByID(ctx, req.ID, false)
+	software, err := svc.SoftwareByID(ctx, req.ID, req.TeamID, false)
 	if err != nil {
 		return getSoftwareResponse{Err: err}, nil
 	}
@@ -140,14 +147,47 @@ func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return getSoftwareResponse{Software: software}, nil
 }
 
-func (svc *Service) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*fleet.Software, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	software, err := svc.ds.SoftwareByID(ctx, id, includeCVEScores)
+	if teamID != nil {
+		// This auth check ensures we return 403 if the user doesn't have access to the team
+		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
+		}
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	software, err := svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores, &fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	})
 	if err != nil {
-		return nil, err
+		if fleet.IsNotFound(err) && teamID == nil {
+			// here we use a global admin as filter because we want
+			// to check if the software version exists
+			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+			if _, err = svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores, &filter); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
+			}
+
+			return nil, fleet.NewPermissionError("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.")
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
 	}
 
 	return software, nil

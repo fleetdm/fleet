@@ -2,7 +2,10 @@ import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IActivityDetails } from "interfaces/activity";
-import { IActivitiesResponse } from "services/entities/activities";
+import {
+  IPastActivitiesResponse,
+  IUpcomingActivitiesResponse,
+} from "services/entities/activities";
 
 import Card from "components/Card";
 import TabsWrapper from "components/TabsWrapper";
@@ -45,7 +48,7 @@ const UpcomingTooltip = () => {
 
 interface IActivityProps {
   activeTab: "past" | "upcoming";
-  activities?: IActivitiesResponse;
+  activities?: IPastActivitiesResponse | IUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
   upcomingCount: number;
@@ -68,7 +71,12 @@ const Activity = ({
 }: IActivityProps) => {
   // TODO: add count to upcoming activities tab when available via API
   return (
-    <Card borderRadiusSize="large" includeShadow className={baseClass}>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
           <Spinner />
@@ -93,7 +101,7 @@ const Activity = ({
           </TabList>
           <TabPanel>
             <PastActivityFeed
-              activities={activities}
+              activities={activities as IPastActivitiesResponse | undefined}
               onDetailsClick={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
@@ -103,7 +111,7 @@ const Activity = ({
           <TabPanel>
             <UpcomingTooltip />
             <UpcomingActivityFeed
-              activities={activities}
+              activities={activities as IUpcomingActivitiesResponse | undefined}
               onDetailsClick={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}

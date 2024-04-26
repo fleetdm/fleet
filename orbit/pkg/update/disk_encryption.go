@@ -22,7 +22,7 @@ func ApplyDiskEncryptionRunnerMiddleware(f OrbitConfigFetcher) *DiskEncryptionRu
 func (d *DiskEncryptionRunner) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := d.fetcher.GetConfig()
 	if err != nil {
-		log.Info().Err(err).Msg("calling GetConfig from DiskEncryptionFetcher")
+		log.Debug().Err(err).Msg("calling GetConfig from DiskEncryptionFetcher")
 		return nil, err
 	}
 

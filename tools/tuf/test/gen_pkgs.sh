@@ -29,6 +29,7 @@ set -ex
 # USE_FLEET_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
 # USE_UPDATE_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
 # FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST: Alternative host:port to use for the Fleet Desktop browser URLs.
+# DEBUG: Whether or not to build the package with --debug.
 
 if [ -n "$GENERATE_PKG" ]; then
     echo "Generating pkg..."
@@ -40,7 +41,7 @@ if [ -n "$GENERATE_PKG" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -64,7 +65,7 @@ if [ -n "$GENERATE_DEB" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -87,7 +88,7 @@ if [ -n "$GENERATE_RPM" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -110,7 +111,7 @@ if [ -n "$GENERATE_MSI" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \

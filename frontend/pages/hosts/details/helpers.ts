@@ -1,5 +1,4 @@
 /** Helpers used across the host details and my device pages and components. */
-import { is } from "date-fns/locale";
 import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
 import {
   IHostMdmProfile,
@@ -39,7 +38,9 @@ export type HostMdmDeviceStatusUIState =
   | "unlocked"
   | "locked"
   | "unlocking"
-  | "locking";
+  | "locking"
+  | "wiped"
+  | "wiping";
 
 // Exclude the empty string from HostPendingAction as that doesn't represent a
 // valid device status.
@@ -51,9 +52,11 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   locked: "locked",
   unlock: "unlocking",
   lock: "locking",
+  wiped: "wiped",
+  wipe: "wiping",
 };
 
-const deviceUpdatingStates = ["unlocking", "locking"] as const;
+const deviceUpdatingStates = ["unlocking", "locking", "wiping"] as const;
 
 /**
  * Gets the current UI state for the host device status. This helps us know what
@@ -74,7 +77,7 @@ export const getHostDeviceStatusUIState = (
 };
 
 /**
- * Helps check if our device status UI state is in an updating state.
+ * Checks if our device status UI state is in an updating state.
  */
 export const isDeviceStatusUpdating = (
   deviceStatus: HostMdmDeviceStatusUIState

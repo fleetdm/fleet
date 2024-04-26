@@ -267,6 +267,20 @@ spec:
           - name: {{ $key }}
             value: {{ $value | quote }}
           {{- end }}
+          ## APEND ENVIRONMENT VARIABLES FROM SECRETS/CMs
+          {{- range .Values.envsFrom }}
+          - name: {{ .name }}
+            valueFrom:
+          {{- if .valueFrom.configMapKeyRef }}
+              configMapKeyRef:
+                name: {{ .valueFrom.configMapKeyRef.name }}
+                key: {{ .valueFrom.configMapKeyRef.key }}
+          {{- else if .valueFrom.secretKeyRef }}
+              secretKeyRef:
+                name: {{ .valueFrom.secretKeyRef.name }}
+                key: {{ .valueFrom.secretKeyRef.key }}
+          {{- end }}
+          {{- end }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

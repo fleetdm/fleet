@@ -30,7 +30,7 @@ export default [
     title: `Settings | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: PATHS.USER_SETTINGS,
+    path: PATHS.ACCOUNT,
     title: `Settings | My account | ${DOCUMENT_TITLE_SUFFIX}`,
   },
 ];

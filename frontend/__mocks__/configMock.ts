@@ -46,6 +46,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     host_expiry_enabled: false,
     host_expiry_window: 0,
   },
+  activity_expiry_settings: {
+    activity_expiry_enabled: true,
+    activity_expiry_window: 90,
+  },
   agent_options: "",
   license: {
     tier: "free",
@@ -76,6 +80,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   integrations: {
     jira: [],
     zendesk: [],
+    google_calendar: [],
   },
   logging: {
     debug: false,
@@ -145,6 +150,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       bootstrap_package: "",
       enable_end_user_authentication: false,
       macos_setup_assistant: null,
+      enable_release_device_manually: false,
     },
     macos_migration: {
       enable: false,

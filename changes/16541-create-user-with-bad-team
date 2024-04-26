@@ -1,1 +1,0 @@
-Improved error message when creating a new user (via API or fleetctl) with a team that does not exist.

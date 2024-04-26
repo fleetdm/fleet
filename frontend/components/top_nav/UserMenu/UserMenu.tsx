@@ -28,7 +28,7 @@ const UserMenu = ({
   currentUser,
   isSandboxMode = false,
 }: IUserMenuProps): JSX.Element => {
-  const accountNavigate = onNavItemClick(PATHS.USER_SETTINGS);
+  const accountNavigate = onNavItemClick(PATHS.ACCOUNT);
   const dropdownItems = [
     {
       label: "My account",

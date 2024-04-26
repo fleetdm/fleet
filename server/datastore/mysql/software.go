@@ -1124,7 +1124,7 @@ func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source 
 	return nil
 }
 
-func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
+func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
 	q := dialect.From(goqu.I("software").As("s")).
 		Select(
 			"s.id",
@@ -1151,6 +1151,13 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 		)
 
+	if tmFilter != nil {
+		q = q.LeftJoin(
+			goqu.I("software_host_counts").As("shc"),
+			goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
+		)
+	}
+
 	if includeCVEScores {
 		q = q.
 			LeftJoin(
@@ -1169,7 +1176,21 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 
 	q = q.Where(goqu.I("s.id").Eq(id))
 	// filter software that is not associated with any hosts
-	q = q.Where(goqu.L("EXISTS (SELECT 1 FROM host_software WHERE software_id = ? LIMIT 1)", id))
+	if teamID == nil {
+		q = q.Where(goqu.L("EXISTS (SELECT 1 FROM host_software WHERE software_id = ? LIMIT 1)", id))
+	} else {
+		// if teamID filter is used, host counts need to be up-to-date
+		q = q.Where(
+			goqu.L(
+				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0)", id, *teamID,
+			),
+		)
+	}
+
+	// filter by teams
+	if tmFilter != nil {
+		q = q.Where(goqu.L(ds.whereFilterGlobalOrTeamIDByTeams(*tmFilter, "shc")))
+	}
 
 	sql, args, err := q.ToSQL()
 	if err != nil {

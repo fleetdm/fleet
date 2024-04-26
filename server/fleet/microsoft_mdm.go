@@ -969,8 +969,12 @@ type SyncMLCmd struct {
 	// which can be found under <Atomic> elements.
 	//
 	// NOTE: in theory Atomics can have anything except Get verbs, but
-	// for the moment we're not allowing anything besides Replaces
+	// for the moment we're not allowing anything besides Replaces and Adds
 	ReplaceCommands []SyncMLCmd `xml:"Replace,omitempty"`
+
+	// AddCommands is a catch-all for any nested <Add> commands,
+	// which can be found under <Atomic> elements.
+	AddCommands []SyncMLCmd `xml:"Add,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1450,7 +1454,7 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 // MDMWindowsProfilePayload for a command that was used to deliver a
 // configuration profile.
 //
-// Profiles are groups of `<Replace>` commands wrapped in an `<Atomic>`, both
+// Profiles are groups of `<Replace>` or `<Add>` commands wrapped in an `<Atomic>`, both
 // the top-level atomic and each replace have different CmdID values and Status
 // responses. For example a profile might look like:
 //
@@ -1520,6 +1524,12 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 			return nil, err
 		}
 		for _, nested := range syncML.ReplaceCommands {
+			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+			}
+		}
+
+		for _, nested := range syncML.AddCommands {
 			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
 				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
 			}

@@ -14,6 +14,7 @@ import paths from "router/paths";
 
 import SideNav from "../components/SideNav";
 import ORG_SETTINGS_NAV_ITEMS from "./OrgSettingsNavItems";
+import { DeepPartial } from "./cards/constants";
 
 interface IOrgSettingsPageProps {
   params: Params;
@@ -50,7 +51,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   });
 
   const onFormSubmit = useCallback(
-    (formUpdates: Partial<IConfig>) => {
+    (formUpdates: DeepPartial<IConfig>) => {
       if (!appConfig) {
         return false;
       }

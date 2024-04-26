@@ -6,6 +6,7 @@ import {
   ISoftwareVulnerability,
 } from "interfaces/software";
 import PATHS from "router/paths";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
@@ -13,6 +14,10 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 
+interface ISoftwareTitleDetailsTableConfigProps {
+  router: InjectedRouter;
+  teamId?: number;
+}
 interface ICellProps {
   cell: {
     value: number | string | ISoftwareVulnerability[];
@@ -40,7 +45,10 @@ interface IVulnCellProps extends ICellProps {
   };
 }
 
-const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
+const generateSoftwareTitleDetailsTableConfig = ({
+  router,
+  teamId,
+}: ISoftwareTitleDetailsTableConfigProps) => {
   const tableHeaders = [
     {
       title: "Version",
@@ -49,17 +57,22 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
       accessor: "version",
       Cell: (cellProps: IVersionCellProps): JSX.Element => {
         const { id } = cellProps.row.original;
+        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
+          id.toString()
+        )}?${teamQueryParam}`;
+
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
-          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
+          router?.push(softwareVersionDetailsPath);
         };
 
         // TODO: make only text clickable
         return (
           <LinkCell
             className="name-link"
-            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
+            path={softwareVersionDetailsPath}
             customOnClick={onClickSoftware}
             value={cellProps.cell.value}
           />
@@ -88,20 +101,30 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
       disableSortBy: true,
       accessor: "hosts_count",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={cellProps.cell.value} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                software_version_id: cellProps.row.original.id,
-              }}
-              className="software-link"
-            />
-          </span>
-        </span>
+        <TextCell value={cellProps.cell.value} />
       ),
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  software_version_id: cellProps.row.original.id,
+                  team_id: teamId,
+                }}
+                className="software-link"
+                rowHover
+              />
+            )}
+          </>
+        );
+      },
     },
   ];
 

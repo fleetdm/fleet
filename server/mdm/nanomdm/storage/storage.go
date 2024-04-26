@@ -5,6 +5,7 @@ package storage
 import (
 	"context"
 	"crypto/tls"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
@@ -62,7 +63,7 @@ type CertAuthStore interface {
 	HasCertHash(r *mdm.Request, hash string) (bool, error)
 	EnrollmentHasCertHash(r *mdm.Request, hash string) (bool, error)
 	IsCertHashAssociated(r *mdm.Request, hash string) (bool, error)
-	AssociateCertHash(r *mdm.Request, hash string) error
+	AssociateCertHash(r *mdm.Request, hash string, certNotValidAfter time.Time) error
 }
 
 // StoreMigrator retrieves MDM check-ins

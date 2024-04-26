@@ -13,7 +13,7 @@ import (
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
-	"github.com/micromdm/scep/v2/depot"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 )
 
 // SCEPDepot is a MySQL-backed SCEP certificate depot.

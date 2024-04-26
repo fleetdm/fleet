@@ -50,7 +50,7 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"before"}
+        caretPosition="before"
       />
     );
 
@@ -64,7 +64,7 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"after"}
+        caretPosition="after"
       />
     );
 
@@ -79,7 +79,7 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"before"}
+        caretPosition="before"
         tooltipContent={TOOLTIP_CONTENT}
       />
     );

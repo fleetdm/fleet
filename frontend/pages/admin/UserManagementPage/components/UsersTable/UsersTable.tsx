@@ -30,7 +30,7 @@ import EditUserModal from "../EditUserModal";
 
 const EmptyUsersTable = () => (
   <EmptyTable
-    header="No users match the current criteria."
+    header="No users match the current criteria"
     info="Expecting to see users? Try again in a few seconds as the system catches up."
   />
 );
@@ -151,9 +151,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   // FUNCTIONS
 
-  const goToUserSettingsPage = useCallback(() => {
-    const { USER_SETTINGS } = paths;
-    router.push(USER_SETTINGS);
+  const goToAccountPage = useCallback(() => {
+    const { ACCOUNT } = paths;
+    router.push(ACCOUNT);
   }, [router]);
 
   const onActionSelect = useCallback(
@@ -172,7 +172,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           toggleResetSessionsUserModal(user);
           break;
         case "editMyAccount":
-          goToUserSettingsPage();
+          goToAccountPage();
           break;
         default:
           return null;
@@ -184,7 +184,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       toggleDeleteUserModal,
       toggleResetPasswordUserModal,
       toggleResetSessionsUserModal,
-      goToUserSettingsPage,
+      goToAccountPage,
     ]
   );
 
@@ -225,9 +225,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       invitesAPI
         .create(requestData)
         .then(() => {
+          const senderAddressMessage = config?.smtp_settings?.sender_address
+            ? ` from ${config?.smtp_settings?.sender_address}`
+            : "";
           renderFlash(
             "success",
-            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
+            `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
           );
           toggleCreateUserModal();
           refetchInvites();
@@ -302,7 +305,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
     if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}`;
+      const senderAddressMessage = config?.smtp_settings?.sender_address
+        ? ` from ${config?.smtp_settings?.sender_address}`
+        : "";
+      userUpdatedFlashMessage += `: A confirmation email was sent${senderAddressMessage} to ${formData.email}`;
     }
     const userUpdatedEmailError =
       "A user with this email address already exists";
@@ -463,7 +469,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         onSubmit={onEditUser}
         availableTeams={teams || []}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.smtp_settings.configured || false}
+        smtpConfigured={config?.smtp_settings?.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isSsoEnabled={userData?.sso_enabled}
@@ -483,10 +489,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         onCancel={toggleCreateUserModal}
         onSubmit={onCreateUserSubmit}
         availableTeams={teams || []}
-        defaultGlobalRole={"observer"}
+        defaultGlobalRole="observer"
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.smtp_settings.configured || false}
+        smtpConfigured={config?.smtp_settings?.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isUpdatingUsers={isUpdatingUsers}
@@ -557,9 +563,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           columnConfigs={tableHeaders}
           data={tableData}
           isLoading={loadingTableData}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search by name or email"}
+          defaultSortHeader="name"
+          defaultSortDirection="asc"
+          inputPlaceHolder="Search by name or email"
           actionButton={{
             name: "create user",
             buttonText: "Create user",

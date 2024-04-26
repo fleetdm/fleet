@@ -22,11 +22,19 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appCfg, nil
 		}
+		os := &fleet.OperatingSystem{
+			Platform: "darwin",
+			Version:  "12.2",
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return os, nil
+		}
 		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ctx = test.HostContext(ctx, &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			ID:            1,
 			MDMInfo: &fleet.HostMDM{
 				IsServer:         false,
 				InstalledFromDep: true,
@@ -65,7 +73,13 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appCfg, nil
 		}
-
+		os := &fleet.OperatingSystem{
+			Platform: "darwin",
+			Version:  "12.2",
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return os, nil
+		}
 		team := fleet.Team{ID: 1}
 		teamMDM := fleet.TeamMDM{}
 		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
@@ -81,6 +95,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 
 		ctx = test.HostContext(ctx, &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			ID:            1,
 			TeamID:        ptr.Uint(team.ID),
 			MDMInfo: &fleet.HostMDM{
 				IsServer:         false,
@@ -120,6 +135,13 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		os := &fleet.OperatingSystem{
+			Platform: "darwin",
+			Version:  "12.2",
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return os, nil
+		}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
 		appCfg.MDM.MacOSUpdates.Deadline = optjson.SetString("2022-04-01")
 		appCfg.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("2022-04-01")
@@ -192,5 +214,104 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				Name:             fleet.WellKnownMDMFleet,
 			}})
 
+	})
+
+	t.Run("no-nudge on macos versions greater than 14", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		os := &fleet.OperatingSystem{
+			Platform: "darwin",
+			Version:  "12.2",
+		}
+		host := &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+			MDMInfo: &fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         true,
+				Name:             fleet.WellKnownMDMFleet,
+			}}
+
+		team := fleet.Team{ID: 1}
+		teamMDM := fleet.TeamMDM{}
+		teamMDM.MacOSUpdates.Deadline = optjson.SetString("2022-04-01")
+		teamMDM.MacOSUpdates.MinimumVersion = optjson.SetString("12.1")
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, team.ID, teamID)
+			return &teamMDM, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return ptr.RawMessage(json.RawMessage(`{}`)), nil
+		}
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+
+		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
+		appCfg.MDM.MacOSUpdates.Deadline = optjson.SetString("2022-04-01")
+		appCfg.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("12.3")
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return os, nil
+		}
+		ctx = test.HostContext(ctx, host)
+
+		// Version < 14 gets nudge
+		host.ID = 1
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, cfg.NudgeConfig)
+		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
+
+		// Version > 14 gets no nudge
+		os.Version = "14.1"
+		ds.GetHostOperatingSystemFuncInvoked = false
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Empty(t, cfg.NudgeConfig)
+		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
+
+		// windows gets no nudge
+		os.Platform = "windows"
+		ds.GetHostOperatingSystemFuncInvoked = false
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Empty(t, cfg.NudgeConfig)
+		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
+
+		//// team section below
+		host.TeamID = ptr.Uint(team.ID)
+		os.Platform = "darwin"
+		os.Version = "12.1"
+
+		// Version < 14 gets nudge
+		host.ID = 1
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, cfg.NudgeConfig)
+		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
+
+		// Version > 14 gets no nudge
+		os.Version = "14.1"
+		ds.GetHostOperatingSystemFuncInvoked = false
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Empty(t, cfg.NudgeConfig)
+		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
+
+		// windows gets no nudge
+		os.Platform = "windows"
+		ds.GetHostOperatingSystemFuncInvoked = false
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Empty(t, cfg.NudgeConfig)
+		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
 	})
 }

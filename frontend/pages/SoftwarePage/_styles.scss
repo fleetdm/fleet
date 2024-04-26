@@ -58,6 +58,10 @@
   }
 
   &__wrapper {
+    .component__tabs-wrapper {
+      margin-bottom: $pad-xxlarge;
+    }
+
     .table-container {
       .software-icon {
         width: 24px;

@@ -18,8 +18,9 @@ import (
 	"testing"
 	"time"
 
-	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/tokenpki"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -93,6 +94,7 @@ type ServerConfig struct {
 	Keepalive                   bool   `yaml:"keepalive"`
 	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
 	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
+	FrequentCleanupsEnabled     bool   `yaml:"frequent_cleanups_enabled"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -594,6 +596,20 @@ func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
 }
 
+func (m *MDMConfig) AppleAPNsTopic() (string, error) {
+	apnsCert, _, _, err := m.AppleAPNs()
+	if err != nil {
+		return "", fmt.Errorf("parsing APNs certificates: %w", err)
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert.Leaf)
+	if err != nil {
+		return "", fmt.Errorf("extracting topic from APNs certificate: %w", err)
+	}
+
+	return mdmPushCertTopic, nil
+}
+
 // AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
@@ -803,7 +819,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("redis.max_open_conns", 0, "Redis maximum open connections, 0 means no limit")
 	man.addConfigDuration("redis.conn_max_lifetime", 0, "Redis maximum amount of time a connection may be reused, 0 means no limit")
 	man.addConfigDuration("redis.idle_timeout", 240*time.Second, "Redis maximum amount of time a connection may stay idle, 0 means no limit")
-	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
+	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
 	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 
@@ -826,6 +842,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.sandbox_enabled", false,
 		"When enabled, Fleet limits some features for the Sandbox")
 	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
+	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
@@ -1176,6 +1193,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			Keepalive:                   man.getConfigBool("server.keepalive"),
 			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
 			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
+			FrequentCleanupsEnabled:     man.getConfigBool("server.frequent_cleanups_enabled"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),

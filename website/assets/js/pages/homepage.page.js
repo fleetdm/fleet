@@ -4,7 +4,6 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: undefined,
-    selectedCategory: 'device-management'
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -21,12 +20,6 @@ parasails.registerPage('homepage', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-
-    clickOpenChatWidget: function() {
-      if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open();
-      }
-    },
 
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;

@@ -1,0 +1,10 @@
+.host-mdm-status-cell {
+  display: inline-flex;
+  flex-direction: row;
+  text-wrap: nowrap;
+  gap: $pad-small;
+
+  .tooltip__tooltip-text {
+    text-wrap: wrap;
+  }
+}

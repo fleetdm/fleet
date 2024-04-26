@@ -1,0 +1,6 @@
+- name: Linux - Enable disk encryption
+  query: SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';
+  critical: false
+  description: This policy checks if disk encryption is enabled.
+  resolution: As an IT admin, deploy an image that includes disk encryption.
+  platform: linux

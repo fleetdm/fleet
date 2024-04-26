@@ -12,16 +12,39 @@ You can read about the company's positioning and product strategy in ["🎐 Why 
 ### Competition
 We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private Google doc).
 
-### Directly responsible individuals (DRIs)
+## Directly responsible individuals (DRIs)
 | Responsibility | DRI |
 | -------------- | --- |
-| Intentionality of Fleet's interfaces | noahtalerman |
-| Best practices for using Fleet | noahtalerman | 
-| What goes in a release | lukeheath |
-| Engineering output and architecture | lukeheath |
+| Intentionality of Fleet's interfaces | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ |
+| Best practices for using Fleet | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ | 
+| What goes in a release | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_ |
+| Engineering output and architecture | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_ |
+| Structure and intentionality of the [Docs](https://fleetdm.com/docs/get-started/why-fleet)| [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_ |
+| Design and content of the [Docs](https://fleetdm.com/docs/get-started/why-fleet) | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_ |
+| API design | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_ |
+
+
+### Docs
+This page details processes related to maintaining and updating the ([Fleet docs](https://fleetdm.com/docs)).
+
+When someone asks a question in a public channel, it's safe to assume they aren't the only person looking for an answer. 
+
+To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
+
+Fleet's goal is to answer every question with a link to the docs and/or result in a documentation update.
+
+
+## Fleetdm.com
+Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a website request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=website-request.md&title=Request%3A+__________________________) on the #g-digital-experience kanban board. 
+
+Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
+
+The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.
+
 
 ## Marketing programs
 Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through events, community support, [social media](#social-media), conversation-starting, [ads](#ads), video, and articles.
+
 
 ### Social media
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
@@ -37,18 +60,29 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
+#### Fleet on LinkedIn
+Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/demand#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/demand#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
+
+
 ### Ads
 Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
 
 ### Events
-It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
+It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
+
+#### Event lead follow-up
+Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. It is up to Head of Demand to make sure this process is followed.
+
+1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
+2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
+3. Demand will determine appropriate follow-up to each potential lead, and sales will be notified of actions needed immediately following.
 
 ### Podcast
 Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
-
+<!-- TODO: Find a way to link to the meetings section below and make it make sense-->
 ### Video
-Fleet's utilization of YouTube is an essential component of our commitment to nurturing a strong and informed user community. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it.
+Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
 
 ## Meetings
 - **Plan to join meetings on time.** At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
@@ -91,7 +125,7 @@ All invitations to meetings are welcomed, and quickly considering them is a top 
 
 > **Note:** Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
 
-To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
+To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=custom-request.md&title=%7BMeeting%20request%3A%20) at-mentioning the [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
 - **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/digital-experience#process-the-ceos-calendar).
 - **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
@@ -103,16 +137,28 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 
 ### Shared calendars
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
-
 Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/digital-experience#contact-us) and the appropriate DRI will reply with feedback.
 
 
+## Skip-level 1:1 meetings 
+
+Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#performance-feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
+1. Create a copy of the ["Skip-level 1:1 agenda template"](https://docs.google.com/document/d/191wiy-_a9XBMndLlM97iOwUF6a-0PtkbboQ2FCUIy6w/copy) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
+2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager's supervisor and title the calendar event by copying your skip-level agenda title and appending "[no shadows]" to the end (this tells other team members that this is a private conversation).
+
+> **If you're scheduling with the CEO** please [get help](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo) before adding events to the calendar.
+
+3. Link the skip-level agenda in the calendar event description before saving.
+
+
 ### Zoom
+
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
 Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
 
 ### Recording meetings
+
 Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
   - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
@@ -175,6 +221,7 @@ We use these prefixes to organize the Fleet Slack:
  * ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
 
 ### Slack communications and best practices
+- We use [channels over DMs](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels).
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
@@ -186,15 +233,15 @@ If you need to track content from a Slack channel (ie. #g-sales), you can automa
 
 **Fleet Free:**
 
-| Impact Level | Definition | Preferred Contact | Response Time |
+| Impact level | Definition | Preferred contact | Response time |
 |:---|:---|:---|:---|
-| All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
+| All inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
 
 > **Note:** If you're using Fleet Free, you can also access community support by [opening a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) in the [Fleet GitHub](https://github.com/fleetdm/fleet/) repository.
 
 **Fleet Premium:**
 
-| Impact Level | Definition | Preferred Contact | Response Time |
+| Impact level | Definition | Preferred contact | Response time |
 |:-----|:----|:----|:-----|
 | Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
 | High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
@@ -208,8 +255,8 @@ If you need to track content from a Slack channel (ie. #g-sales), you can automa
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
 
 
-## Github
-Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platform to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+## GitHub
+Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 
 ### GitHub labels
 Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
@@ -230,6 +277,7 @@ Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to
 > - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 > - `story` A user story.
 > -  `prospect-` A customer prospect.
+> - `P-` A [priority level](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs).
 > - `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
 
 ### Process new requests
@@ -241,6 +289,19 @@ To process intake team members will:
 - If the goal/user story is unclear, assign the issue to the requestor and at-mention them in an issue comment asking to clarify the intended action. 
 - If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.  
 
+### Estimation points
+Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
+
+We use the following story points to estimate website tasks:
+
+| Story point | Time |
+|:---|:--------------|
+| 1  | 1 to 2 hours  |
+| 2  | 2 to 4 hours  |
+| 3  | 1 day         |
+| 5  | 1 to 2 days   |
+| 8  | Up to a week  |
+| 13 | 1 to 2 weeks  |
 
 ### Making a pull request
 Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
@@ -253,6 +314,8 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 5. Request a review from the page maintainer, and finally, press “Create pull request.”
 6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
 8. Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
+
+> Note: Pages in the `./docs/Contributing/` folder and folders with a underscore prefix (e.g., `./docs/Deploy/_kubernetes/`) are not included in the documentation on the Fleet website.
 
 ### Merging changes
 When merging a PR to the master branch of the [Fleet repo](https://github.com/fleetdm/fleet), remember that whatever you merge gets deployed live immediately. Ensure that the appropriate quality checks have been completed before merging. [Learn about the website QA process](#quality).
@@ -351,7 +414,7 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 ### Brex
 
 #### Non-travel purchases that exceed a Brex cardholder's limit
-For non-travel purchases that would require an increase in the Brex cardholder's limit, please [make a request](https://fleetdm.com/handbook/business-operations#contact-us) with following information:
+For non-travel purchases that would require an increase in the Brex cardholder's limit ($2,000 by default), please [make a request](https://fleetdm.com/handbook/business-operations#contact-us) with following information:
 - The nature of the purchase (i.e. SaaS subscription and what it's used for)
 - The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
 - Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
@@ -378,7 +441,9 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 - Individualized expenses should include the team member's name explicitly in the name of the expense.
 - If multiple team members use the same vendor for an individualized expense (for example, "WeWork"), use a separate row for each individualized expense.  (For example: "Coworking, Mungojerry (WeWork)" and "Coworking, Jennyanydots (WeWork)")
 - Individualized expenses are always attributed to the  "🔦 Business operations" department.
-- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.   
+- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.
+
+For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify the Business Operations department.  
 
 
 ## Travel
@@ -447,7 +512,7 @@ You can learn more about how Fleet approaches security in the [security handbook
 
 
 ## Vendor questionnaires 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies) and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires) 
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 ## Getting a contract signed
 If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
@@ -668,7 +733,9 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
   - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
   - Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
   - Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
-  - Don’t sound formal, sound welcoming so that anyone can understand. Translate "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)" into "ease of use" or "readability". 
+  - Don’t sound formal, sound welcoming so that anyone can understand. Translate "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)" into "ease of use" or "readability".
+    - Disarm puffery for engineers by replacing puffery with real data.
+    - Disarm puffery for the business by replacing puffery with ROI/RTO  (how much time and/or money is it going save the business?  Forget the details.  When will it pay itself back?)
   - Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
   - Create headings that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). 
   - Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. 
@@ -1132,259 +1199,9 @@ If the mermaid syntax is incorrect, the diagram will be replaced with an image d
 graph TD;
     A--D
 ```
-## Website
-
-This page details processes related to maintaining and updating the Fleet website ([fleetdm.com](https://fleetdm.com)).
-
-### Responsibilities
-
-The [website group](https://fleetdm.com/handbook/company/product-groups#website-group) is responsible for production and maintenance of the Fleet website.
-
-### Website Rituals
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
-| Generate latest schema | once every 3 weeks | After each sprint, generate the latest tables json file to incorporate any new schema documentation. | Eric Shaw |
-
-
-### Website roadmap
-
-View planned changes to the website on the website group's [sprint board](https://app.zenhub.com/workspaces/g-website-6451748b4eb15200131d4bab/board?sprints=none).
-
-### Requesting changes
-
-See Marketing [intake](https://fleetdm.com/handbook/digital-experience#contact-us) for more information on how the website team prioritizes new requests. Bugs are always prioritized first.
-
-### Wireframes
-
-Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com.
-
-See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
-
-### Design reviews
-
-We hold regular design review sessions to evaluate, revise, and approve wireframes before moving into production.
-
-Design review sessions are hosted by [Mike Thomas](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.
-
-### Estimation sessions
-
-We use estimation sessions to estimate the effort required to complete a prioritized task. 
-
-Through these sessions, we can:
-
-- Confirm that wireframes are complete before moving to production.
-- Consider all edge cases and requirements that may have been with during wireframing.
-- Avoid having the engineer make choices for “unknowns” during production.
-- More accurately plan and prioritize upcoming tasks.
-
-#### Story points
-
-Story points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
-
-We use the following story points to estimate website tasks:
-
-| Story point | Time |
-|:---|:---|
-| 1 | 1 to 2 hours |
-| 2 | 2 to 4 hours |
-| 3 | 1 day |
-| 5 | 1 to 2 days |
-| 8 | Up to a week |
-| 13 | 1 to 2 weeks |
-
-### Quality
-
-Quality assurance (QA) checks must be completed before changes to the website can be merged. Read on to learn about the quality assurance process for the website.
-
-> **Important:** A PR to the website should not be merged until the quality assurance process has been successfully completed.
-
-#### Manual QA
-
-The product manager of the website group is responsible for making sure that manual QA steps have been added to requests.
-
-#### Writing QA steps
-
-QA steps are step-by-step instructions used to confirm that changed to the website function as expected. They should be simple and clear enough for anybody to follow. Example steps are included in [the “Website request” issue template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&template=website-request.md&title=Request%3A+__________________________).
-
-#### Actioning QA steps
-
-[View the website locally](#test-changes-to-the-website) and follow the QA steps in the request ticket to test changes.
-
-QA steps should be actioned when a request has been moved into the “Review/QA” column of the website product board. PRs to the website should not be merged until QA has been completed.
-
-A successful QA check can be indicated by leaving a comment in the conversation thread of the PR. 
-
-#### Additional QA
-
-In addition to the steps above. All website changes must be thoroughly checked at all breakpoints and a [browser compatibility](#browser-compatibility) test should be carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes can go live.
-
-### Testing changes
-
-When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
-
-- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
-- [Node.js](https://nodejs.org/en/download/)
-- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
-
-Once you have the above follow these steps:
-
-1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
-    
-    > Note: If this is your first time running this script, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
-
-
-2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
-  - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
-  - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
-    
-    > You can use the `--skipGithubRequests` flag to skip requests made to GitHub if you get rate-limited by GitHub’s API while running this script. 
-    > 
-    > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
-
-    >Note: When this script runs, the website's configuration file ([`website/.sailsrc`](https://github.com/fleetdm/fleet/blob/main/website/.sailsrc)) will automatically be updated with information the website uses to display content built from Markdown and YAML. Changes to this file should never be committed to the GitHub repo. If you want to exclude changes to this file in any PRs you make, you can run this terminal command in your local copy of the Fleet repo: `git update-index --assume-unchanged ./website/.sailsrc`.
-
-3. Once the script is complete, start the website server. From the `website/` folder:
-  - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
-  - **With Sails.js installed globally:** start the server by running `sails lift`.
-4. When the server has started, the Fleet website will be available at [http://localhost:2024](http://localhost:2024)
-    
-  > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
-
-
-#### The "Deploy Fleet Website" GitHub action failed
-If the action fails, please complete the following steps:
-1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
-2. Select "Roll back to here" on the second to most recent deploy.
-3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action. 
-
-### Browser compatibility
-
-A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../../docs/Using-Fleet/Supported-browsers.md).
-
-- We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
-- Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
-- Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
-- If in doubt about anything regarding design or layout, please reach out to the Design team.
-
-### Error handling
-
-#### Responding to a 5xx error on fleetdm.com
-
-Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
-* investigate the problem to determine the root cause.
-* identify affected users.
-* escalate if necessary.
-* understand and remediate the problem.
-* notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
-* Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future.
-
-#### Incident post-mortems
-
-When conducting an incident post-mortem, answer the following three questions:
-
-1. Impact: What impact did this error have? How many humans experienced this error, if any, and who were they?
-2. Root Cause: Why did this error happen?
-3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error. 
-
-### Vulnerability monitoring
-
-Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
-
-### Landing pages and website experiments
-
-Experimental pages are short-lived, temporary landing pages intended for a small audience. All experiments and landing pages need to go through the standard [drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes) before they are created.
-
-Website experiments and landing pages live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
-
-Some examples of experiments that would live behind the `/imagine` url:
-- A flyer for a meetup "Free shirt to the person who can solve this riddle!"
-- A landing page for a movie screening presented by Fleet
-- A landing page for a private event
-- A landing page for an ad campaign that is running for 4 weeks.
-- An A/B test on product positioning
-- A giveaway page for a conference
-- Table-top signage for a conference booth or meetup
-
-The Fleet website has a built-in landing page generator that can be used to quickly create a new page that lives under the /imagine/ url.
-
-To generate a new page, you'll need: 
-
-- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
-- [Node.js](https://nodejs.org/en/download/)
-- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
-
-1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
-    
-    > Note: If this is your first time running the website locally, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
-
-2. Call the `landing-page` generator by running `node ./node_modules/sails/bin/sails generate landing-page [page-name]`, replacing `[page-name]` with the kebab-cased name (words seperated by dashes `-`) of your page.
-
-3. After the files have been generated, you'll need to manually update the website's routes. To do this, copy and paste the generated route for the new page to the "Imagine" section of `website/config/routes.js`.
-
-4. Next you need to update the stylesheets so that the page can inherit the correct styles. To do this, copy and paste the generated import statement to the "Imagine" section of `website/assets/styles/importer.less`.
-
-5. Start the website by running `node ./node_modules/sails/bin/sails lift` (or `sails lift` if you have Sails installed globally). The new landing page will be availible at `http://localhost:1337/imagine/{page-name}`.
-
-6. Replace the lorum ipsum and placeholder images on the generated page with the page's real content, and add a meta description and title by changing the `pageTitleForMeta` and `pageDescriptionForMeta in the page's `locals` in `website/config/routes.js`.
-
-
-### How to export images for the website
-In Figma:
-1. Select the layers you want to export.
-2. Confirm export settings and naming convention:
-  * Item name - color variant - (CSS)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
-  * Note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview, the image would actually have dimensions of 32x32px but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
-  * File extension might be .jpg or .png.
-  * Avoid using SVGs or icon fonts.
-3. Click the __Export__ button.
-
-### Website services
-
-#### Cloudflare
-
-We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. Cloudflare offers a free, user-friendly, and cloud-agnostic interface that allows authorized team members to manage all our domains easily.
-If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) Zach Wasserman in Slack for an invitation.
-
-
-To make DNS changes in Cloudflare:
-1. Log into your Cloudflare account and select the "Fleet" account.
-2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
-3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
-
-#### Heroku
-
-TODO: Document.
-
-#### Algolia
-
-TODO: Document.
-
-### Docs
-
-This page details processes related to maintaining and updating the ([Fleet docs](https://fleetdm.com/docs)).
-
-When someone asks a question in a public channel, it's safe to assume they aren't the only person looking for an answer. 
-
-To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
-
-Fleet's goal is to answer every question with a link to the docs and/or result in a documentation update.
-
-#### Documentation DRIs
-
-TODO: Document.
-
-#### Tracking
-
-When responding to a question or issue in the [#fleet channel of the osquery Slack workspace](https://fleetdm.com/slack), push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
-
-- proposed change to the documentation.
-- documentation link that was sent as a response.
-- link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
-- **Note:** When submitting any pull request that changes Markdown files in the docs, request an editor review from Kathy Satterlee, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
 
 
 ## Commonly used terms
-
 This glossary provides definitions to commonly used terms within our space.
 
 | Term | Meaning | 
@@ -1454,6 +1271,49 @@ This glossary provides definitions to commonly used terms within our space.
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
+##### Website
+Please see 📖[handbook/company/communications#fleetdm-com](https://fleetdm.com/handbook/company/communications#fleetdm-com).
+
+##### Responsibilities
+Please see 📖[handbook/digital-experience#responsibilities](https://fleetdm.com/handbook/digital-experience#responsibilities).
+
+##### Website Rituals
+Please see 📖[handbook/digital-experience#rituals](https://fleetdm.com/handbook/digital-experience#rituals).
+
+##### Website roadmap
+Please see 📖[handbook/digital-experience#contact-us](https://fleetdm.com/handbook/digital-experience#contact-us).
+
+##### Requesting changes
+Please see 📖[handbook/digital-experience#contact-us](https://fleetdm.com/handbook/digital-experience#contact-us).
+
+Please see 📖[handbook/digital-experience#qa-a-change-to-fleetdm-com](https://fleetdm.com/handbook/digital-experience#qa-a-change-to-fleetdm-com) for below.
+##### Quality
+##### Manual QA
+##### Writing QA steps
+##### Actioning QA steps
+##### Additional QA
+##### Error handling
+Please see 📖[handbook/digital-experience#qa-a-change-to-fleetdm-com](https://fleetdm.com/handbook/digital-experience#qa-a-change-to-fleetdm-com) for above.
+
+##### Responding to a 5xx error on fleetdm.com
+Please see 📖[handbook/digital-experience#respond-to-a-5xx-error-on-fleetdm-com](https://fleetdm.com/handbook/digital-experience#respond-to-a-5xx-error-on-fleetdm-com).
+
+##### The "Deploy Fleet Website" GitHub action failed
+Please see 📖[handbook/digital-experience#re-run-the-deploy-fleet-website-action](https://fleetdm.com/handbook/digital-experience#re-run-the-deploy-fleet-website-action).
+
+##### Vulnerability monitoring
+Please see 📖[handbook/digital-experience#check-production-dependencies-of-fleetdm.com](https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm.com).
+
+##### Landing pages and website experiments
+Please see 📖[handbook/digital-experience#generate-a-new-landing-page](https://fleetdm.com/handbook/digital-experience#generate-a-new-landing-page).
+
+
+##### How to export images for the website
+Please see 📖[handbook/digital-experience#export-an-image-for-fleetdm-com](https://fleetdm.com/handbook/digital-experience#export-an-image-for-fleetdm-com).
+
+##### Incident post-mortems
+Please see 📖[handbook/digital-experience#export-an-image-for-fleetdm-com](https://fleetdm.com/handbook/digital-experience#export-an-image-for-fleetdm-com).
+
 Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment) for below.
 ##### Equipment retention and replacement
 ##### Returning equipment
@@ -1463,10 +1323,25 @@ Please see 📖[handbook/company/communications#purchase-company-issued-equipmen
 Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment) for above.
 
 ##### Purchasing a company-issued device
-Please see 📖[handbook/business-operations/#secure-company-issued-equipment-for-a-team-member](https://fleetdm.com/handbook/business-operations/#secure-company-issued-equipment-for-a-team-member).
+Please see 📖[handbook/business-operations#secure-company-issued-equipment-for-a-team-member](https://fleetdm.com/handbook/business-operations#secure-company-issued-equipment-for-a-team-member).
 
 ##### Company travel
 Please see 📖[handbook/company/communications#travel](https://fleetdm.com/handbook/company/communications#travel).
+
+##### Estimation sessions
+Please see 📖[handbook/company/product-groups#user-story-discovery](https://fleetdm.com/handbook/company/product-groups#user-story-discovery).
+
+##### Website services
+Please see 📖[handbook/digital-experience](https://fleetdm.com/handbook/digital-experience).
+
+##### Testing changes
+Please see 📖[handbook/digital-experience#test-fleetdm-com-locally](https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally).
+
+##### Cloudflare
+Please see 📖[handbook/digital-experience#edit-a-dns-record](https://fleetdm.com/handbook/digital-experience#edit-a-dns-record).
+
+##### Incident post-mortems
+Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fleetdm.com/handbook/product-groups#perform-an-incident-postmortem).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛰️ Communications">

@@ -123,7 +123,8 @@ const QueriesTable = ({
       ? parseInt(queryParams?.inherited_page, 10)
       : 0)();
 
-  // Never set as state as URL is source of truth
+  // Source of truth is state held within TableContainer. That state is initialized using URL
+  // params, then subsquent updates to that state are pushed to the URL.
   const searchQuery = initialSearchQuery;
   const platform = initialPlatform;
   const page = isInherited ? initialInheritedPage : initialPage;
@@ -222,7 +223,7 @@ const QueriesTable = ({
     };
     if (searchQuery) {
       delete emptyQueries.graphicName;
-      emptyQueries.header = "No queries match the current search criteria.";
+      emptyQueries.header = "No queries match the current search criteria";
       emptyQueries.info =
         "Expecting to see queries? Try again in a few seconds as the system catches up.";
     } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
@@ -286,6 +287,7 @@ const QueriesTable = ({
   const searchable =
     !(queriesList?.length === 0 && searchQuery === "") && !isInherited;
 
+  const trimmedSearchQuery = searchQuery.trim();
   return columnConfigs && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
@@ -293,11 +295,11 @@ const QueriesTable = ({
         resultsTitle="queries"
         columnConfigs={columnConfigs}
         data={queriesList}
-        filters={{ name: isInherited ? "" : searchQuery }}
+        filters={{ name: isInherited ? "" : trimmedSearchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-        defaultSearchQuery={isInherited ? "" : searchQuery}
+        defaultSearchQuery={isInherited ? "" : trimmedSearchQuery}
         defaultPageIndex={page}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"

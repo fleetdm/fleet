@@ -1032,3 +1032,252 @@ func Test_buildWildcardMatchPhrase(t *testing.T) {
 		})
 	}
 }
+
+func TestWhereFilterGlobalOrTeamIDByTeams(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		filter   fleet.TeamFilter
+		expected string
+	}{
+		// No teams or global role
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{Teams: []fleet.UserTeam{}},
+			},
+			expected: "FALSE",
+		},
+
+		// Global role
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			},
+			expected: "hosts.team_id = 0",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			},
+			expected: "hosts.team_id = 0",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id = 0",
+		},
+
+		// Team roles
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+					},
+				},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+					},
+				},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id IN (1)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 2}},
+					},
+				},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id IN (1,2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+						// Invalid role should be ignored
+						{Role: "bad", Team: fleet.Team{ID: 37}},
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+						{Role: fleet.RoleAdmin, Team: fleet.Team{ID: 3}},
+						// Invalid role should be ignored
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2,3)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				TeamID: ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(3),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(2),
+			},
+			expected: "hosts.team_id = 2",
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			ds := &Datastore{logger: log.NewNopLogger()}
+			sql := ds.whereFilterGlobalOrTeamIDByTeams(tt.filter, "hosts")
+			assert.Equal(t, tt.expected, sql)
+		})
+	}
+}
+
+func TestBatchProcessDB(t *testing.T) {
+	type testData struct {
+		id    int
+		value string
+	}
+
+	payload := []interface{}{
+		&testData{id: 1, value: "a"},
+		&testData{id: 2, value: "b"},
+		&testData{id: 3, value: "c"},
+	}
+
+	generateValueArgs := func(item interface{}) (string, []any) {
+		p := item.(*testData)
+		valuePart := "(?, ?),"
+		args := []any{p.id, p.value}
+		return valuePart, args
+	}
+
+	t.Run("TestEmptyPayload", func(t *testing.T) {
+		executeBatch := func(valuePart string, args []any) error {
+			return errors.New("execute shouldn't be called for an empty payload")
+		}
+		err := batchProcessDB([]interface{}{}, 1000, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+	})
+
+	t.Run("TestSingleBatch", func(t *testing.T) {
+		callCount := 0
+		executeBatch := func(valuePart string, args []any) error {
+			callCount++
+			require.Equal(t, 2, len(args)/2) // each item adds 2 args
+			return nil
+		}
+		err := batchProcessDB(payload[:2], 2, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+		require.Equal(t, 1, callCount)
+	})
+
+	t.Run("TestMultipleBatches", func(t *testing.T) {
+		callCount := 0
+		executeBatch := func(valuePart string, args []any) error {
+			callCount++
+			require.Equal(t, 2/callCount, len(args)/2) // each item adds 2 args
+			return nil
+		}
+		err := batchProcessDB(payload, 2, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+		require.Equal(t, 2, callCount)
+	})
+}

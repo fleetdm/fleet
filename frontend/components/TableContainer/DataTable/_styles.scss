@@ -211,6 +211,10 @@ $shadow-transition-width: 10px;
         max-width: 500px;
         word-wrap: break-word;
 
+        &.linkToFilteredHosts__cell {
+          text-align: right;
+        }
+
         &.selection__cell {
           width: 0px;
           padding: 0 $pad-medium;

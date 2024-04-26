@@ -15,8 +15,10 @@ import {
   BootstrapPackageStatus,
   IMdmSolution,
   MdmProfileStatus,
+  MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import { PolicyResponse } from "utilities/constants";
 
 export interface ISortOption {
   key: string;
@@ -72,6 +74,7 @@ export interface ILoadHostsOptions {
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
+  vulnerability?: string;
   munkiIssueId?: number;
   device_mapping?: boolean;
   columns?: string;
@@ -101,19 +104,40 @@ export interface IExportHostsOptions {
   lowDiskSpaceHosts?: number;
   osId?: number;
   osName?: string;
+  osVersionId?: number;
   osVersion?: string;
+  vulnerability?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IActionByFilter {
-  teamId: number | null;
+  teamId?: number | null;
   query: string;
   status: string;
   labelId?: number;
+  currentTeam?: number | null;
+  policyId?: number | null;
+  policyResponse?: PolicyResponse;
+  softwareId?: number | null;
+  softwareTitleId?: number | null;
+  softwareVersionId?: number | null;
+  osName?: string;
+  osVersion?: string;
+  osVersionId?: number | null;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
+  mdmId?: number | null;
+  mdmEnrollmentStatus?: MdmEnrollmentStatus;
+  munkiIssueId?: number | null;
+  lowDiskSpaceHosts?: number | null;
+  osSettings?: MdmProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
+  vulnerability?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -170,14 +194,53 @@ export default {
 
     return sendRequest("POST", HOSTS_DELETE, { ids: hostIds });
   },
-  destroyByFilter: ({ teamId, query, status, labelId }: IActionByFilter) => {
+  destroyByFilter: ({
+    teamId,
+    query,
+    status,
+    labelId,
+    policyId,
+    policyResponse,
+    softwareId,
+    softwareTitleId,
+    softwareVersionId,
+    osName,
+    osVersion,
+    osVersionId,
+    macSettingsStatus,
+    bootstrapPackageStatus,
+    mdmId,
+    mdmEnrollmentStatus,
+    munkiIssueId,
+    lowDiskSpaceHosts,
+    osSettings,
+    diskEncryptionStatus,
+    vulnerability,
+  }: IActionByFilter) => {
     const { HOSTS_DELETE } = endpoints;
     return sendRequest("POST", HOSTS_DELETE, {
       filters: {
-        query,
+        query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
         team_id: teamId,
+        policy_id: policyId,
+        policy_response: policyResponse,
+        software_id: softwareId,
+        software_title_id: softwareTitleId,
+        software_version_id: softwareVersionId,
+        os_name: osName,
+        os_version: osVersion,
+        os_version_id: osVersionId,
+        macos_settings: macSettingsStatus,
+        bootstrap_package: bootstrapPackageStatus,
+        mdm_id: mdmId,
+        mdm_enrollment_status: mdmEnrollmentStatus,
+        munki_issue_id: munkiIssueId,
+        low_disk_space: lowDiskSpaceHosts,
+        os_settings: osSettings,
+        os_settings_disk_encryption: diskEncryptionStatus,
+        vulnerability,
       },
     });
   },
@@ -192,15 +255,20 @@ export default {
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
+    const osName = options?.osName;
+    const osVersionId = options?.osVersionId;
+    const osVersion = options?.osVersion;
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
+    const bootstrapPackageStatus = options?.bootstrapPackageStatus;
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
     const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
+    const vulnerability = options?.vulnerability;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -226,9 +294,14 @@ export default {
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        osName,
+        osVersionId,
+        osVersion,
         lowDiskSpaceHosts,
         osSettings,
+        bootstrapPackageStatus,
         diskEncryptionStatus,
+        vulnerability,
       }),
       status,
       label_id: label,
@@ -242,6 +315,18 @@ export default {
 
     return sendRequest("GET", path);
   },
+  // TODO: change/remove this when backend implments way for client to get
+  // a collection of hosts based on ho  st ids
+  getHosts: (hostIds: number[]) => {
+    return Promise.all(
+      hostIds.map((hostId) => {
+        const { HOSTS } = endpoints;
+        const path = `${HOSTS}/${hostId}`;
+        return sendRequest("GET", path);
+      })
+    );
+  },
+
   loadHosts: ({
     page = 0,
     perPage = 100,
@@ -261,6 +346,7 @@ export default {
     osVersionId,
     osName,
     osVersion,
+    vulnerability,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -299,6 +385,7 @@ export default {
         osVersionId,
         osName,
         osVersion,
+        vulnerability,
         diskEncryptionStatus,
         osSettings,
         bootstrapPackageStatus,
@@ -353,14 +440,50 @@ export default {
     query,
     status,
     labelId,
+    currentTeam,
+    policyId,
+    policyResponse,
+    softwareId,
+    softwareTitleId,
+    softwareVersionId,
+    osName,
+    osVersion,
+    osVersionId,
+    macSettingsStatus,
+    bootstrapPackageStatus,
+    mdmId,
+    mdmEnrollmentStatus,
+    munkiIssueId,
+    lowDiskSpaceHosts,
+    osSettings,
+    diskEncryptionStatus,
+    vulnerability,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
       team_id: teamId,
       filters: {
-        query,
+        query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
+        team_id: currentTeam,
+        policy_id: policyId,
+        policy_response: policyResponse,
+        software_id: softwareId,
+        software_title_id: softwareTitleId,
+        software_version_id: softwareVersionId,
+        os_name: osName,
+        os_version: osVersion,
+        os_version_id: osVersionId,
+        macos_settings: macSettingsStatus,
+        bootstrap_package: bootstrapPackageStatus,
+        mdm_id: mdmId,
+        mdm_enrollment_status: mdmEnrollmentStatus,
+        munki_issue_id: munkiIssueId,
+        low_disk_space: lowDiskSpaceHosts,
+        os_settings: osSettings,
+        os_settings_disk_encryption: diskEncryptionStatus,
+        vulnerability,
       },
     });
   },
@@ -391,8 +514,20 @@ export default {
     const { HOST_LOCK } = endpoints;
     return sendRequest("POST", HOST_LOCK(id));
   },
+
   unlockHost: (id: number): Promise<IUnlockHostResponse> => {
     const { HOST_UNLOCK } = endpoints;
     return sendRequest("POST", HOST_UNLOCK(id));
+  },
+
+  wipeHost: (id: number) => {
+    const { HOST_WIPE } = endpoints;
+    return sendRequest("POST", HOST_WIPE(id));
+  },
+
+  resendProfile: (hostId: number, profileUUID: string) => {
+    const { HOST_RESEND_PROFILE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
   },
 };

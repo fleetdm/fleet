@@ -16,18 +16,24 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -38,14 +44,15 @@ import (
 
 func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
-	redisPool fleet.RedisPool
+	redisPool        fleet.RedisPool
+	calendarSchedule *schedule.Schedule
 
 	lq *live_query_mock.MockLiveQuery
 }
@@ -55,20 +62,36 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 
 	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
 	s.lq = live_query_mock.New(s.T())
+	var calendarSchedule *schedule.Schedule
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
 		Pool:           s.redisPool,
+		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
 		Logger:         log.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS: true,
+		StartCronSchedules: []TestNewScheduleFunc{
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					// We set 24-hour interval so that it only runs when triggered.
+					var err error
+					calendarSchedule, err = cron.NewCalendarSchedule(ctx, s.T().Name(), s.ds, 24*time.Hour, log.NewJSONLogger(os.Stdout))
+					return calendarSchedule, err
+				}
+			},
+		},
+	}
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		config.Logger = kitlog.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
 	s.cachedTokens = make(map[string]string)
+	s.calendarSchedule = calendarSchedule
 }
 
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
@@ -82,12 +105,33 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// create a team through the service so it initializes the agent ops
 	teamName := t.Name() + "team1"
+	teamNameDecomposed := teamName + "ᄀ" + "ᅡ" // Add a decomposed Unicode character
 	team := &fleet.Team{
-		Name:        teamName,
+		Name:        teamNameDecomposed,
 		Description: "desc team1",
 	}
+	teamName = teamName + "가"
 
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
+
+	// Create global calendar integration
+	calendarEmail := "service@example.com"
+	calendarWebhookUrl := "https://example.com/webhook"
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": "testKey"
+				},
+				"domain": "example.com"
+			}]
+		}
+	}`, calendarEmail,
+		)), http.StatusOK,
+	)
 
 	// updates a team, no secret is provided so it will keep the one generated
 	// automatically when the team was created.
@@ -141,8 +185,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
 			// it did get marshalled, and then when unmarshalled it was set (but
 			// null).
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
@@ -155,11 +200,43 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// an activity was created for team spec applied
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
 
-	// dry-run with invalid windows updates
+	// Create team policy
+	teamPolicy, err := s.ds.NewTeamPolicy(
+		context.Background(), team.ID, nil, fleet.PolicyPayload{Name: "TestSpecTeamPolicy", Query: "SELECT 1"},
+	)
+	require.NoError(t, err)
+	defer func() {
+		_, err = s.ds.DeleteTeamPolicies(context.Background(), team.ID, []uint{teamPolicy.ID})
+		require.NoError(t, err)
+	}()
+
+	// Apply calendar integration
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
 				"name": teamName,
+				"integrations": map[string]any{
+					"google_calendar": map[string]any{
+						"enable_calendar_events": true,
+						"webhook_url":            calendarWebhookUrl,
+					},
+				},
+			},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NotNil(t, team.Config.Integrations.GoogleCalendar)
+	assert.Equal(t, calendarWebhookUrl, team.Config.Integrations.GoogleCalendar.WebhookURL)
+	assert.True(t, team.Config.Integrations.GoogleCalendar.Enable)
+
+	// dry-run with invalid windows updates
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamNameDecomposed,
 				"mdm": map[string]any{
 					"windows_updates": map[string]any{
 						"deadline_days":     -1,
@@ -177,7 +254,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name": teamName,
+				"name": teamNameDecomposed,
 				"mdm": map[string]any{
 					"windows_updates": map[string]any{
 						"deadline_days":     1,
@@ -202,8 +279,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -223,8 +301,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -246,8 +325,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -259,7 +339,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name":          teamName,
+				"name":          teamNameDecomposed,
 				"agent_options": agentOpts,
 			},
 		},
@@ -288,7 +368,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name":          teamName,
+				"name":          teamNameDecomposed,
 				"agent_options": agentOpts,
 				"mdm": map[string]any{
 					"macos_settings": map[string]any{
@@ -335,6 +415,40 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+
+	// dry-run with macos enable release device set to false, no error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"enable_release_device_manually": false,
+					},
+				},
+			},
+		},
+	}
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
+
+	// dry-run with macos enable release device manually set to true
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"enable_release_device_manually": true,
+					},
+				},
+			},
+		},
+	}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't update macos_setup because MDM features aren't turned on in Fleet.")
 
 	// dry-run with invalid host_expiry_settings.host_expiry_window
 	teamSpecs = map[string]any{
@@ -895,13 +1009,23 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/teams", team4, http.StatusUnprocessableEntity, &tmResp)
 
-	// list teams
+	// list teams matching name of one team
 	var listResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
 	require.Len(t, listResp.Teams, 1)
 	assert.Equal(t, team.Name, listResp.Teams[0].Name)
 	assert.NotNil(t, listResp.Teams[0].Config.AgentOptions)
 	tm1ID := listResp.Teams[0].ID
+
+	// same as above, with leading/trailing whitespace
+	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", " "+name+" ", "per_page", "2")
+	require.Len(t, listResp.Teams, 1)
+	assert.Equal(t, team.Name, listResp.Teams[0].Name)
+	assert.NotNil(t, listResp.Teams[0].Config.AgentOptions)
+
+	// same as above, no match
+	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", " nope ", "per_page", "2")
+	require.Len(t, listResp.Teams, 0)
 
 	// get team
 	var getResp getTeamResponse
@@ -962,6 +1086,21 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// invalid team host expiry (<= 0)
 	modifyExpiry.HostExpirySettings.HostExpiryWindow = 0
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusUnprocessableEntity, &tmResp)
+
+	// Modify team's calendar config
+	modifyCalendar := fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
+				WebhookURL: "https://example.com/modified",
+			},
+		},
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyCalendar, http.StatusOK, &tmResp)
+	assert.Equal(t, modifyCalendar.Integrations.GoogleCalendar, tmResp.Team.Config.Integrations.GoogleCalendar)
+
+	// Illegal team calendar config
+	modifyCalendar.Integrations.GoogleCalendar.Enable = true
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyCalendar, http.StatusUnprocessableEntity, &tmResp)
 
 	// list team users
 	var usersResp listUsersResponse
@@ -1313,9 +1452,15 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
+		HostStatusWebhook: &fleet.HostStatusWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com/host_status_webhook",
+		},
 	}}, http.StatusOK, &tmResp)
 	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com", tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://example.com/host_status_webhook", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 
 	// add an unknown automation - does not exist at the global level
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
@@ -1906,8 +2051,9 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			GracePeriodDays: optjson.SetInt(2),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -2042,6 +2188,34 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	}, http.StatusUnprocessableEntity, &tmResp)
 }
 
+func (s *integrationEnterpriseTestSuite) assertMacOSUpdatesDeclaration(teamID *uint, expected *fleet.MacOSUpdates) {
+	t := s.T()
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+
+	var declUUID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(context.Background(), q, &declUUID,
+			`SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`, teamID, mdm.FleetMacOSUpdatesProfileName)
+		if expected == nil {
+			require.Error(t, err)
+			return nil
+		}
+		return err
+	})
+
+	if expected == nil {
+		// we already validated that the declaration did not exist
+		return
+	}
+	decl, err := s.ds.GetMDMAppleDeclaration(context.Background(), declUUID)
+	require.NoError(t, err)
+
+	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetOSVersion": "%s"`, expected.MinimumVersion.Value))
+	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT12:00:00"`, expected.Deadline.Value))
+}
+
 func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	t := s.T()
 
@@ -2056,31 +2230,40 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	require.Equal(t, team.Name, tmResp.Team.Name)
 	team.ID = tmResp.Team.ID
 
+	// no OS updates settings at the moment
+	s.assertMacOSUpdatesDeclaration(&team.ID, nil)
+
 	// modify the team's config
+	updates := &fleet.MacOSUpdates{
+		MinimumVersion: optjson.SetString("10.15.0"),
+		Deadline:       optjson.SetString("2021-01-01"),
+	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
-			"macos_updates": &fleet.MacOSUpdates{
-				MinimumVersion: optjson.SetString("10.15.0"),
-				Deadline:       optjson.SetString("2021-01-01"),
-			},
+			"macos_updates": updates,
 		},
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
 
+	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+
 	// only update the deadline
+	updates = &fleet.MacOSUpdates{
+		MinimumVersion: optjson.SetString("10.15.0"),
+		Deadline:       optjson.SetString("2025-10-01"),
+	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
-			"macos_updates": &fleet.MacOSUpdates{
-				MinimumVersion: optjson.SetString("10.15.0"),
-				Deadline:       optjson.SetString("2025-10-01"),
-			},
+			"macos_updates": updates,
 		},
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
+
+	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
 
 	// setting the windows updates doesn't alter the macos updates
 	tmResp = teamResponse{}
@@ -2100,6 +2283,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), "", lastActivity)
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), ``, 0)
 
+	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+
 	// sending a nil MDM or MacOSUpdate config doesn't modify anything
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": nil,
@@ -2114,6 +2299,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	// no new activity is created
 	s.lastActivityMatches("", "", lastActivity)
 
+	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+
 	// sending macos settings but no macos_updates does not change the macos updates
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
@@ -2127,6 +2314,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	// no new activity is created
 	s.lastActivityMatches("", "", lastActivity)
 
+	s.assertMacOSUpdatesDeclaration(&team.ID, updates)
+
 	// sending empty MacOSUpdate fields empties both fields
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
@@ -2139,6 +2328,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
+
+	s.assertMacOSUpdatesDeclaration(&team.ID, nil)
 
 	// error checks:
 
@@ -2648,6 +2839,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 
 	// edited macos min version activity got created
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
+	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2022-01-01")})
 
 	// get the appconfig
 	acResp = appConfigResponse{}
@@ -2670,6 +2863,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 
 	// another edited macos min version activity got created
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
+	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01")})
 
 	// update something unrelated - the transparency url
 	acResp = appConfigResponse{}
@@ -2679,6 +2874,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
+	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01")})
 
 	// clear the macos requirement
 	acResp = appConfigResponse{}
@@ -2695,6 +2892,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 
 	// edited macos min version activity got created with empty requirement
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
+	s.assertMacOSUpdatesDeclaration(nil, nil)
 
 	// update again with empty macos requirement
 	acResp = appConfigResponse{}
@@ -2711,6 +2909,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
+	s.assertMacOSUpdatesDeclaration(nil, nil)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
@@ -3133,6 +3332,279 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	}
 }
 
+func (s *integrationEnterpriseTestSuite) TestHostHealth() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "hostid1"),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(t.Name() + "nodekey1"),
+		UUID:            t.Name() + "uuid1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OSVersion:       "Mac OS X 10.14.6",
+		Platform:        "darwin",
+		CPUType:         "cpuType",
+		TeamID:          ptr.Uint(team.ID),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	passingTeamPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, nil, fleet.PolicyPayload{
+		Name:       "Passing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+	})
+	require.NoError(t, err)
+
+	failingTeamPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, nil, fleet.PolicyPayload{
+		Name:       "Failing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+		Critical:   true,
+	})
+	require.NoError(t, err)
+
+	passingGlobalPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
+		Name:       "Passing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+	})
+	require.NoError(t, err)
+
+	failingGlobalPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
+		Name:       "Failing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+		Critical:   false,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingGlobalPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingGlobalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingTeamPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingTeamPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+
+	hh := getHostHealthResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
+	require.Equal(t, host.ID, hh.HostID)
+	assert.NotNil(t, hh.HostHealth)
+	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
+	assert.Equal(t, 2, hh.HostHealth.FailingPoliciesCount)
+	assert.Equal(t, ptr.Int(1), hh.HostHealth.FailingCriticalPoliciesCount)
+	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
+		ID:         failingTeamPolicy.ID,
+		Name:       failingTeamPolicy.Name,
+		Resolution: failingTeamPolicy.Resolution,
+		Critical:   ptr.Bool(true),
+	})
+	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
+		ID:         failingGlobalPolicy.ID,
+		Name:       failingGlobalPolicy.Name,
+		Resolution: failingGlobalPolicy.Resolution,
+		Critical:   ptr.Bool(false),
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
+	t := s.T()
+	var resp listVulnerabilitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+
+	// Invalid Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "foo", "order_direction", "asc")
+
+	// EE Only Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "cvss_score", "order_direction", "asc")
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		UUID:            t.Name() + "2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
+		Name:     "Windows 11 Enterprise 22H2",
+		Version:  "10.0.19042.1234",
+		Platform: "windows",
+	})
+	require.NoError(t, err)
+	allos, err := s.ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+	var os fleet.OperatingSystem
+	for _, o := range allos {
+		if o.ID > os.ID {
+			os = o
+		}
+	}
+
+	err = s.ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID:              os.ID,
+		CVE:               "CVE-2021-1234",
+		ResolvedInVersion: ptr.String("10.0.19043.2013"),
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	res, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+	})
+	require.NoError(t, err)
+	sw := res.Inserted[0]
+
+	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: sw.ID,
+		CVE:        "CVE-2021-1235",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// insert CVEMeta
+	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "CVE-2021-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1234",
+		},
+		{
+			CVE:              "CVE-2021-1235",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.6),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1235",
+		},
+	})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(s.T(), resp.Vulnerabilities, 2)
+	require.Equal(t, resp.Count, uint(2))
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+	require.Empty(t, resp.Err)
+
+	expected := map[string]struct {
+		fleet.CVE
+		HostCount   uint
+		DetailsLink string
+		Source      fleet.VulnerabilitySource
+	}{
+		"CVE-2021-1234": {
+			HostCount:   1,
+			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			CVE: fleet.CVE{
+				CVE:              "CVE-2021-1234",
+				CVSSScore:        ptr.Float64Ptr(7.5),
+				EPSSProbability:  ptr.Float64Ptr(0.5),
+				CISAKnownExploit: ptr.BoolPtr(true),
+				CVEPublished:     ptr.TimePtr(mockTime),
+				Description:      ptr.StringPtr("Test CVE 2021-1234"),
+			},
+		},
+		"CVE-2021-1235": {
+			HostCount:   1,
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
+			CVE: fleet.CVE{
+				CVE:              "CVE-2021-1235",
+				CVSSScore:        ptr.Float64Ptr(5.4),
+				EPSSProbability:  ptr.Float64Ptr(0.6),
+				CISAKnownExploit: ptr.BoolPtr(false),
+				CVEPublished:     ptr.TimePtr(mockTime),
+				Description:      ptr.StringPtr("Test CVE 2021-1235"),
+			},
+		},
+	}
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Equal(t, expectedVuln.CVE.CVE, vuln.CVE.CVE)
+	}
+
+	// EE Exploit Filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "exploit", "true")
+	require.Len(t, resp.Vulnerabilities, 1)
+	require.Equal(t, "CVE-2021-1234", resp.Vulnerabilities[0].CVE.CVE)
+
+	// Test Team Filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, resp.Vulnerabilities, 2)
+	require.Equal(t, uint(2), resp.Count)
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+	require.Empty(t, resp.Err)
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Equal(t, expectedVuln.CVE.CVE, vuln.CVE.CVE)
+	}
+
+	var gResp getVulnerabilityResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
+	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Equal(t, ptr.StringPtr("Test CVE 2021-1234"), gResp.Vulnerability.Description)
+	require.Equal(t, ptr.Float64Ptr(7.5), gResp.Vulnerability.CVSSScore)
+	require.Equal(t, ptr.BoolPtr(true), gResp.Vulnerability.CISAKnownExploit)
+	require.Equal(t, ptr.Float64Ptr(0.5), gResp.Vulnerability.EPSSProbability)
+	require.Equal(t, ptr.TimePtr(mockTime), gResp.Vulnerability.CVEPublished)
+	require.Len(t, gResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
+	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
+	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
+	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
+	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
+}
+
 func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	t := s.T()
 
@@ -3146,13 +3618,16 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// set operating system information on a host
 	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
-	var osID uint
+	var osinfo struct {
+		ID          uint `db:"id"`
+		OSVersionID uint `db:"os_version_id"`
+	}
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &osID,
-			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
+		return sqlx.GetContext(context.Background(), q, &osinfo,
+			`SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
 			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
 	})
-	require.Greater(t, osID, uint(0))
+	require.Greater(t, osinfo.ID, uint(0))
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
@@ -3160,7 +3635,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	expected := resp.Hosts[0]
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osinfo.ID))
 	require.Len(t, resp.Hosts, 1)
 	require.Equal(t, expected, resp.Hosts[0])
 
@@ -3169,7 +3644,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// insert OS Vulns
 	_, err := s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: osID,
+		OSID: osinfo.ID,
 		CVE:  "CVE-2021-1234",
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
@@ -3203,20 +3678,95 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, *vulnMeta[0].CISAKnownExploit, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CISAKnownExploit)
 	require.Equal(t, *vulnMeta[0].Published, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVEPublished)
 	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
+	expectedOSVersion := osVersionsResp.OSVersions[0]
 
 	var osVersionResp getOSVersionResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", 1), nil, http.StatusOK, &osVersionResp)
-	require.Equal(t, &osVersionsResp.OSVersions[0], osVersionResp.OSVersion)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
+
+	// OS versions with invalid team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
+		"99999",
+	)
+
+	// Create team and ask for the OS versions from the team (with no hosts) -- should get 404.
+	tr := teamResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String("os_versions_team"),
+			},
+		}, http.StatusOK, &tr,
+	)
+	osVersionResp = getOSVersionResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id",
+		fmt.Sprintf("%d", tr.Team.ID),
+	)
+	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
+	team0, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{hosts[0].ID}))
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team.ID))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team0.ID, []uint{hosts[0].ID}))
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team0.ID))
 	require.Len(t, osVersionsResp.OSVersions, 0)
 
 	// return err if team_id is invalid
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "team_id", "invalid")
+
+	// Create another team and a team user
+	team1, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			ID:          42,
+			Name:        "team1-os_version",
+			Description: "desc team1",
+		},
+	)
+	require.NoError(t, err)
+	// Create a new admin for team1.
+	password := test.GoodPassword
+	email := "admin-team1-os_version@example.com"
+	u := &fleet.User{
+		Name:       "admin team1",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team1,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, u.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+
+	s.setTokenForTest(t, email, test.GoodPassword)
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+	// team1 user does not have access to team0 host
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp)
+	assert.Empty(t, osVersionsResp.OSVersions)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
+	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
+
+	// Move host from team0 to team1
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp)
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	assert.Equal(t, expectedOSVersion, osVersionsResp.OSVersions[0])
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
+
+	// Team user is forbidden to access invalid team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
+		"99999",
+	)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
@@ -3248,9 +3798,21 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	var reqCSRResp requestMDMAppleCSRResponse
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
+
+	// setting enable release device manually requires MDM
+	res := s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+
+	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+	}`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't update macos_setup because MDM features aren't turned on in Fleet.`)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
+	t := s.T()
 	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
 
 	createPol1 := &globalPolicyResponse{}
@@ -3263,7 +3825,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 		Critical:    true,
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol1Req, http.StatusOK, &createPol1)
-	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
+	allEqual(t, createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &globalPolicyResponse{}
 	createPol2Req := &globalPolicyRequest{
@@ -3275,16 +3837,22 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 		Critical:    false,
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol2Req, http.StatusOK, &createPol2)
-	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
+	allEqual(t, createPol2Req, createPol2.Policy, fields...)
 
 	listPol := &listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
-	require.Len(s.T(), listPol.Policies, 2)
+	require.Len(t, listPol.Policies, 2)
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
 	})
-	require.Equal(s.T(), createPol1.Policy, listPol.Policies[0])
-	require.Equal(s.T(), createPol2.Policy, listPol.Policies[1])
+	require.Equal(t, createPol1.Policy, listPol.Policies[0])
+	require.Equal(t, createPol2.Policy, listPol.Policies[1])
+
+	// match policy by name with leading/trailing whitespace
+	listPolByName := &listGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPolByName, "query", " name1 ")
+	require.Len(t, listPolByName.Policies, 1)
+	require.Equal(t, listPolByName.Policies[0].Name, "name1")
 
 	patchPol1Req := &modifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -3298,7 +3866,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	patchPol1 := &modifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
-	allEqual(s.T(), patchPol1Req, patchPol1.Policy, fields...)
+	allEqual(t, patchPol1Req, patchPol1.Policy, fields...)
 
 	patchPol2Req := &modifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -3312,25 +3880,25 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	patchPol2 := &modifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
-	allEqual(s.T(), patchPol2Req, patchPol2.Policy, fields...)
+	allEqual(t, patchPol2Req, patchPol2.Policy, fields...)
 
 	listPol = &listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
-	require.Len(s.T(), listPol.Policies, 2)
+	require.Len(t, listPol.Policies, 2)
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
 	})
 	// not using require.Equal because "PATCH policies" returns the wrong updated timestamp.
-	allEqual(s.T(), patchPol1.Policy, listPol.Policies[0], fields...)
-	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
+	allEqual(t, patchPol1.Policy, listPol.Policies[0], fields...)
+	allEqual(t, patchPol2.Policy, listPol.Policies[1], fields...)
 
 	getPol2 := &getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), nil, http.StatusOK, getPol2)
-	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+	require.Equal(t, listPol.Policies[1], getPol2.Policy)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
-	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled"}
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -3341,24 +3909,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	createPol1 := &teamPolicyResponse{}
 	createPol1Req := &teamPolicyRequest{
-		Query:       "query",
-		Name:        "name1",
-		Description: "description",
-		Resolution:  "resolution",
-		Platform:    "linux",
-		Critical:    true,
+		Query:                 "query",
+		Name:                  "name1",
+		Description:           "description",
+		Resolution:            "resolution",
+		Platform:              "linux",
+		Critical:              true,
+		CalendarEventsEnabled: true,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &teamPolicyResponse{}
 	createPol2Req := &teamPolicyRequest{
-		Query:       "query",
-		Name:        "name2",
-		Description: "description",
-		Resolution:  "resolution",
-		Platform:    "linux",
-		Critical:    false,
+		Query:                 "query",
+		Name:                  "name2",
+		Description:           "description",
+		Resolution:            "resolution",
+		Platform:              "linux",
+		Critical:              false,
+		CalendarEventsEnabled: false,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
 	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
@@ -3374,12 +3944,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol1Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String("newName1"),
-			Query:       ptr.String("newQuery"),
-			Description: ptr.String("newDescription"),
-			Resolution:  ptr.String("newResolution"),
-			Platform:    ptr.String("windows"),
-			Critical:    ptr.Bool(false),
+			Name:                  ptr.String("newName1"),
+			Query:                 ptr.String("newQuery"),
+			Description:           ptr.String("newDescription"),
+			Resolution:            ptr.String("newResolution"),
+			Platform:              ptr.String("windows"),
+			Critical:              ptr.Bool(false),
+			CalendarEventsEnabled: ptr.Bool(false),
 		},
 	}
 	patchPol1 := &modifyTeamPolicyResponse{}
@@ -3388,12 +3959,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol2Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String("newName2"),
-			Query:       ptr.String("newQuery"),
-			Description: ptr.String("newDescription"),
-			Resolution:  ptr.String("newResolution"),
-			Platform:    ptr.String("windows"),
-			Critical:    ptr.Bool(true),
+			Name:                  ptr.String("newName2"),
+			Query:                 ptr.String("newQuery"),
+			Description:           ptr.String("newDescription"),
+			Resolution:            ptr.String("newResolution"),
+			Platform:              ptr.String("windows"),
+			Critical:              ptr.Bool(true),
+			CalendarEventsEnabled: ptr.Bool(true),
 		},
 	}
 	patchPol2 := &modifyTeamPolicyResponse{}
@@ -3673,7 +4245,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
 }
 
-// TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.
+// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
@@ -3688,7 +4260,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
 		NodeKey:  ptr.String(t.Name() + "1"),
 		UUID:     t.Name() + "1",
-		Hostname: t.Name() + "foo.local",
+		Hostname: strings.Replace(t.Name()+"foo.local", "/", "_", -1),
 	})
 	require.NoError(t, err)
 	t1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -3701,6 +4273,19 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	require.NoError(t, err)
 	t3, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "Zoo",
+	})
+	require.NoError(t, err)
+	team1Host, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  ptr.String(t.Name() + "2"),
+		UUID:     t.Name() + "2",
+		Hostname: strings.Replace(t.Name()+"zoo.local", "/", "_", -1),
+		TeamID:   &t1.ID,
+	})
+	require.NoError(t, err)
+	globalHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  ptr.String(t.Name() + "3"),
+		UUID:     t.Name() + "3",
+		Hostname: strings.Replace(t.Name()+"global.local", "/", "_", -1),
 	})
 	require.NoError(t, err)
 	acr := appConfigResponse{}
@@ -3809,6 +4394,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	require.NoError(t, u3.SetPassword(test.GoodPassword, 10, 10))
 	_, err = s.ds.NewUser(context.Background(), u3)
 	require.NoError(t, err)
+	manualLabel1, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                "manualLabel1",
+		Query:               "SELECT 2;",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
 
 	//
 	// Start running permission tests with user gitops1.
@@ -3820,6 +4411,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
+
+	// Attempt to retrieve a host by identifier should succeed
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK, &getHostResponse{})
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusForbidden, &listHostsResponse{})
@@ -3837,8 +4431,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	clr := createLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
 		LabelPayload: fleet.LabelPayload{
-			Name:  ptr.String("foo"),
-			Query: ptr.String("SELECT 1;"),
+			Name:  "foo",
+			Query: "SELECT 1;",
 		},
 	}, http.StatusOK, &clr)
 
@@ -3869,8 +4463,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/versions/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 
-	// Attempt to read app config, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusForbidden, &appConfigResponse{})
+	// Attempt to read app config, should pass.
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &appConfigResponse{})
 
 	// Attempt to write app config, should allow.
 	acr = appConfigResponse{}
@@ -3884,6 +4478,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}`), http.StatusOK, &acr)
 	require.True(t, acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.Enable)
 	require.Equal(t, "https://foobar.example.com", acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.DestinationURL)
+
+	// Attempt to add/remove manual labels to/from a host.
+	var addLabelsToHostResp addLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", h1.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+	var removeLabelsFromHostResp removeLabelsFromHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", h1.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
 
 	// Attempt to run live queries synchronously, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/queries/run", runLiveQueryRequest{
@@ -4257,6 +4861,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to remove a query from the team's schedule, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", t1.ID, ttsqr.Scheduled.ID), deleteTeamScheduleRequest{}, http.StatusOK, &deleteTeamScheduleResponse{})
 
+	// Attempt to add/remove a manual label from a team host, should allow.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &addLabelsToHostResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusOK, &removeLabelsFromHostResp)
+
+	// Attempt to add/remove a manual label from a global host, should not allow.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), addLabelsToHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &addLabelsToHostResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", globalHost.ID), removeLabelsFromHostRequest{
+		Labels: []string{manualLabel1.Name},
+	}, http.StatusForbidden, &removeLabelsFromHostResp)
+
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
 
@@ -4451,9 +5071,9 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, "Script contents must not be empty.")
 
 	// attempt to run an overly long script
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script is too large.")
+	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
 
 	// make sure the host is still seen as "online"
 	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
@@ -4558,12 +5178,12 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// attempt to sync run an empty script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script contents must not be empty.")
+	require.Contains(t, errMsg, "One of 'script_id', 'script_contents', or 'script_name' is required.")
 
 	// attempt to sync run an overly long script
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script is too large.")
+	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
 
 	// make sure the host is still seen as "online"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
@@ -4684,6 +5304,27 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.True(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptHostTimeoutErrMsg)
 
+	// Disable scripts on the host
+	scriptsEnabled := false
+	err = s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: scriptsEnabled, Valid: true},
+	)
+	require.NoError(t, err)
+	s.DoJSON(
+		"POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"},
+		http.StatusUnprocessableEntity, &runResp,
+	)
+	s.DoJSON(
+		"POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"},
+		http.StatusUnprocessableEntity, &runResp,
+	)
+	// Re-enable scripts on the host
+	scriptsEnabled = true
+	err = s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), host.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: scriptsEnabled, Valid: true},
+	)
+	require.NoError(t, err)
+
 	// make the host "offline"
 	err = s.ds.MarkHostsSeen(context.Background(), []uint{host.ID}, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
@@ -4696,6 +5337,25 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// attempt to create an async script execution request, succeeds because script is added to queue.
 	s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted)
+
+	// attempt to run a script on a plain osquery host
+	plainOsqueryHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   ptr.String("plain-osquery-host"),
+		NodeKey:         ptr.String("plain-osquery-host"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", "plain-osquery-host"),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -4729,7 +5389,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run with both script contents and id
 	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of "script_id" or "script_contents" can be provided.`)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_contents' is allowed.`)
 
 	// attempt to run with unknown script id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusNotFound)
@@ -4819,6 +5479,36 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.True(t, runSyncResp.HostTimeout)
 	require.Contains(t, runSyncResp.Message, fleet.RunScriptHostTimeoutErrMsg)
 
+	// attempt to run sync with both script contents and script id
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_contents' is allowed.`)
+
+	// attempt to run sync with both script contents and script name
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
+
+	// attempt to run sync with both script id and script name
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
+
+	// attempt to run sync with both script contents and team id
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+
+	// attempt to run sync with both script id and team id
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+
+	// attempt to run sync without script contents, script id, or script name
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
+
 	// deleting the saved script does not impact the pending script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", savedNoTmScript.ID), nil, http.StatusNoContent)
 
@@ -4857,6 +5547,69 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusConflict, &runResp)
+
+	// set up a new host, new team, and some new scripts
+	host2 := createOrbitEnrolledHost(t, "linux", "f1337", s.ds)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+	savedNoTmScript2, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "f1337.sh",
+		ScriptContents: "echo 'ALL YOUR BASE ARE BELONG TO US'",
+	})
+	require.NoError(t, err)
+	savedTmScript2, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         &tm2.ID,
+		Name:           "f1337.sh",
+		ScriptContents: "echo 'ALL YOUR BASE ARE BELONG TO US'",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, savedNoTmScript2.ID, savedTmScript2.ID)
+
+	// make sure the new host is seen as "online"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host2.ID}, time.Now())
+	require.NoError(t, err)
+
+	// attempt to run sync with a script that does not exist on the specified team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Script 'f1337.sh' doesn’t exist.`)
+
+	// attempt to run sync with an existing team script that belongs to a team different from the host's team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The script does not belong to the same team`)
+
+	// create a valid sync script execution request by script name, fails because the
+	// request will time-out waiting for a result.
+	var runSyncResp2 runScriptSyncResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh"}, http.StatusRequestTimeout, &runSyncResp2)
+	require.Equal(t, host2.ID, runSyncResp2.HostID)
+	require.NotEmpty(t, runSyncResp2.ExecutionID)
+	require.NotNil(t, runSyncResp2.ScriptID)
+	require.Equal(t, savedNoTmScript2.ID, *runSyncResp2.ScriptID)
+	require.Equal(t, "echo 'ALL YOUR BASE ARE BELONG TO US'", runSyncResp2.ScriptContents)
+	require.True(t, runSyncResp2.HostTimeout)
+	require.Contains(t, runSyncResp2.Message, fleet.RunScriptHostTimeoutErrMsg)
+
+	// attempt to run a script on a plain osquery host
+	plainOsqueryHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   ptr.String("plain-osquery-host-2"),
+		NodeKey:         ptr.String("plain-osquery-host-2"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", "plain-osquery-host-2"),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
@@ -5129,10 +5882,10 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// file content is too large
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.sh", []byte(strings.Repeat("a", 10001)), s.token, nil)
+		"script2.sh", []byte(strings.Repeat("a", fleet.SavedScriptMaxRuneLen+1)), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
+	require.Contains(t, errMsg, "Script is too large. It's limited to 500,000 characters")
 
 	// invalid hashbang
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -5468,18 +6221,40 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
 INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output, sync_request)
+	host_script_results (%s host_id, created_at, execution_id, exit_code, script_content_id, output, sync_request)
 VALUES
 	(%s ?,?,?,?,?,?, 1)`
 
 		args := []interface{}{}
+		var scID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(ctx, `
+INSERT INTO
+	script_contents (md5_checksum, contents, created_at)
+VALUES
+	(?,?,?)`,
+				uuid.NewString(),
+				"echo test-script-details-timeout",
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+
+			scID = uint(id)
+			return nil
+		})
 		if script.ID == 0 {
 			stmt = fmt.Sprintf(stmt, "", "")
 		} else {
 			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
 			args = append(args, script.ID)
 		}
-		args = append(args, hostID, createdAt, execID, exitCode, script.ScriptContents, "")
+		args = append(args, hostID, createdAt, execID, exitCode, scID, "")
 
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
@@ -5688,22 +6463,43 @@ VALUES
 
 	t.Run("get script results user message", func(t *testing.T) {
 		// add a script with an older created_at timestamp
-		var oldScriptID uint
+		var oldScriptID, oldScriptContentsID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			// create script_contents first
 			res, err := tx.ExecContext(ctx, `
 INSERT INTO
-	scripts (name, script_contents, created_at, updated_at)
+	script_contents (md5_checksum, contents, created_at)
 VALUES
-	(?,?,?,?)`,
-				"test-script-details-timeout.sh",
+	(?,?,?)`,
+
+				uuid.NewString(),
 				"echo test-script-details-timeout",
-				now.Add(-1*time.Hour),
 				now.Add(-1*time.Hour),
 			)
 			if err != nil {
 				return err
 			}
 			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+
+			oldScriptContentsID = uint(id)
+
+			res, err = tx.ExecContext(ctx, `
+INSERT INTO
+	scripts (name, script_content_id, created_at, updated_at)
+VALUES
+	(?,?,?,?)`,
+				"test-script-details-timeout.sh",
+				oldScriptContentsID,
+				now.Add(-1*time.Hour),
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err = res.LastInsertId()
 			if err != nil {
 				return err
 			}
@@ -5755,7 +6551,7 @@ VALUES
 			},
 		} {
 			t.Run(c.name, func(t *testing.T) {
-				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
+				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, ScriptContentID: oldScriptContentsID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
 
 				var resp getScriptResultResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", "test-user-message_"+c.name), nil, http.StatusOK, &resp)
@@ -6159,7 +6955,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// create a couple of teams and add tmHost to one
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
-	_, err = s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{tmHost.ID}))
 
@@ -6368,8 +7164,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		{
 			Name:          "foo",
 			Source:        "homebrew",
-			VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host
-			HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host
+			VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host in the team
+			HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host in the team
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.1", Vulnerabilities: nil}, // NOTE: this only includes versions present in the team
 			},
@@ -6471,6 +7267,99 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		},
 	}, resp.SoftwareTitles)
 
+	// match software title by name with leading whitespace
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "  ba",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
+			},
+		},
+	}, resp.SoftwareTitles)
+
+	// match software title by name with trailing whitespace
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ba  ",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
+			},
+		},
+	}, resp.SoftwareTitles)
+
+	// match software title by name with leading and trailing whitespace
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "  ba  ",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
+			},
+		},
+	}, resp.SoftwareTitles)
+
 	// find the ID of "foo"
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -6504,6 +7393,26 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		},
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
+	// valid title for team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	softwareTitlesMatch(
+		[]fleet.SoftwareTitle{
+			{
+				Name:          "foo",
+				Source:        "homebrew",
+				VersionsCount: 1,
+				HostsCount:    1,
+				Versions: []fleet.SoftwareVersion{
+					{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
+				},
+			},
+		}, []fleet.SoftwareTitle{*stResp.SoftwareTitle},
+	)
+
 	// find the ID of "bar"
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -6535,9 +7444,65 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			},
 		},
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+
+	// invalid title for team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+
+	// add bar tmHost
+	software = []fleet.Software{
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+	}
+	_, err = s.ds.UpdateHostSoftware(context.Background(), tmHost.ID, software)
+	require.NoError(t, err)
+
+	// calculate hosts counts
+	hostsCountTs = time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	// valid title with vulnerabilities
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	softwareTitlesMatch(
+		[]fleet.SoftwareTitle{
+			{
+				Name:          "bar",
+				Source:        "apps",
+				VersionsCount: 1,
+				HostsCount:    1,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.4",
+						Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
+						HostsCount:      ptr.Uint(1),
+					},
+				},
+			},
+		}, []fleet.SoftwareTitle{*stResp.SoftwareTitle},
+	)
+
+	// Team without hosts
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", fmt.Sprintf("%d", team2.ID),
+	)
+
+	// Non-existent team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", "99999",
+	)
 }
 
-func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
+func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
 	ctx := context.Background()
 	t := s.T()
 
@@ -6559,19 +7524,44 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
-	// try to lock/unlock the Windows host, fails because Windows MDM must be enabled
+	// try to lock/unlock/wipe the Windows host, fails because Windows MDM must be enabled
 	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", winHost.ID), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", winHost.ID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", winHost.ID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 
-	// try to lock/unlock the Linux host succeeds, no MDM constraints
+	// Disable scripts on Linux host
+	err := s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), linuxHost.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: false, Valid: true},
+	)
+	require.NoError(t, err)
+	// try to lock/unlock/wipe the Linux host. Fails because scripts are not enabled.
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't lock host. To lock, deploy the fleetd agent with --enable-scripts")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't unlock host. To unlock, deploy the fleetd agent with --enable-scripts")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't wipe host. To wipe, deploy the fleetd agent with --enable-scripts")
+
+	// Enable scripts on Linux host
+	err = s.ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), linuxHost.ID, "1.22.0", sql.NullString{}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
+
+	// try to lock/unlock/wipe the Linux host succeeds, no MDM constraints
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusNoContent)
 
 	// simulate a successful script result for the lock command
-	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost.ID, linuxHost.FleetPlatform())
+	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost)
 	require.NoError(t, err)
 
 	var orbitScriptResp orbitPostScriptResultResponse
@@ -6593,6 +7583,12 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "unlock", *getHostResp.Host.MDM.PendingAction)
+
+	// attempting to Wipe the linux host fails due to pending unlock, not because
+	// of MDM not enabled
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host cannot be wiped until unlock is complete.")
 }
 
 // checks that the specified team/no-team has the Windows OS Updates profile with
@@ -6650,4 +7646,1010 @@ func (s *integrationEnterpriseTestSuite) createHosts(t *testing.T, platforms ...
 		hosts = append(hosts, host)
 	}
 	return hosts
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
+	t := s.T()
+	ctx := context.Background()
+	// create two hosts, one belongs to team1 and one has no team
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	tmHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "tm"),
+		NodeKey:         ptr.String(t.Name() + "tm"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()+"tm"),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// Create two teams, team1 and team2.
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{tmHost.ID})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		ID:          43,
+		Name:        "team2",
+		Description: "desc team2",
+	})
+	require.NoError(t, err)
+
+	allSoftware := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+	}
+	// add all the software entries to the "no team host"
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, allSoftware)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+
+	// add only one version of "foo" to the team host
+	_, err = s.ds.UpdateHostSoftware(ctx, tmHost.ID, []fleet.Software{allSoftware[0]})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, tmHost, false))
+
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	// add variations of user roles to different teams
+	extraTestUsers := make(map[string]fleet.User)
+	for k, u := range map[string]struct {
+		Email      string
+		GlobalRole *string
+		Teams      *[]fleet.UserTeam
+	}{
+		"team-1-admin": {
+			Email: "team-1-admin@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team1,
+				Role: fleet.RoleAdmin,
+			}}),
+		},
+		"team-1-maintainer": {
+			Email: "team-1-maintainer@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team1,
+				Role: fleet.RoleMaintainer,
+			}}),
+		},
+		"team-1-observer": {
+			Email: "team-1-observer@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team1,
+				Role: fleet.RoleObserver,
+			}}),
+		},
+		"team-2-admin": {
+			Email: "team-2-admin@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team2,
+				Role: fleet.RoleAdmin,
+			}}),
+		},
+		"team-2-maintainer": {
+			Email: "team-2-maintainer@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team2,
+				Role: fleet.RoleMaintainer,
+			}}),
+		},
+		"team-2-observer": {
+			Email: "team-2-observer@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team2,
+				Role: fleet.RoleObserver,
+			}}),
+		},
+	} {
+		uu := u
+		cur := createUserResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+			UserPayload: fleet.UserPayload{
+				Email:                    &uu.Email,
+				Password:                 &test.GoodPassword,
+				Name:                     &uu.Email,
+				Teams:                    uu.Teams,
+				AdminForcedPasswordReset: ptr.Bool(false),
+			},
+		}, http.StatusOK, &cur)
+		extraTestUsers[k] = *cur.User
+	}
+
+	// List all software titles with an admin
+	var listSoftwareTitlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResp)
+
+	var softwareFoo, softwareBar *fleet.SoftwareTitle
+	for _, s := range listSoftwareTitlesResp.SoftwareTitles {
+		s := s
+		switch s.Name {
+		case "foo":
+			softwareFoo = &s
+		case "bar":
+			softwareBar = &s
+		}
+	}
+	require.NotNil(t, softwareFoo)
+	require.NotNil(t, softwareBar)
+
+	var teamFooVersion *fleet.SoftwareVersion
+	for _, sv := range softwareFoo.Versions {
+		sv := sv
+		if sv.Version == "0.0.1" {
+			teamFooVersion = &sv
+		}
+	}
+	require.NotNil(t, teamFooVersion)
+
+	for _, tc := range []struct {
+		name                 string
+		user                 fleet.User
+		shouldFailGlobalRead bool
+		shouldFailTeamRead   bool
+	}{
+		{
+			name:                 "global-admin",
+			user:                 s.users["admin1@example.com"],
+			shouldFailGlobalRead: false,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "global-maintainer",
+			user:                 s.users["user1@example.com"],
+			shouldFailGlobalRead: false,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "global-observer",
+			user:                 s.users["user2@example.com"],
+			shouldFailGlobalRead: false,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "team-admin-belongs-to-team",
+			user:                 extraTestUsers["team-1-admin"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "team-maintainer-belongs-to-team",
+			user:                 extraTestUsers["team-1-maintainer"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "team-observer-belongs-to-team",
+			user:                 extraTestUsers["team-1-observer"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "team-admin-does-not-belong-to-team",
+			user:                 extraTestUsers["team-2-admin"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   true,
+		},
+		{
+			name:                 "team-maintainer-does-not-belong-to-team",
+			user:                 extraTestUsers["team-2-maintainer"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   true,
+		},
+		{
+			name:                 "team-observer-does-not-belong-to-team",
+			user:                 extraTestUsers["team-2-observer"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// to make the request as the user
+			s.token = s.getTestToken(tc.user.Email, test.GoodPassword)
+
+			if tc.shouldFailGlobalRead {
+				// List all software titles
+				var listSoftwareTitlesResp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResp)
+
+				// List all software versions
+				var resp listSoftwareVersionsResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareTitlesRequest{}, http.StatusForbidden, &resp)
+
+				// Get a global software title
+				var getSoftwareTitleResp getSoftwareTitleResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+
+				// Get a global software version
+				var getSoftwareResp getSoftwareResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+
+				// Get a global software vesion using the deprecated endpoint
+				getSoftwareResp = getSoftwareResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+
+				// Get a count of software vesions using the deprecated endpoint
+				var countSoftwareResp countSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
+
+				// List all software versions using the deprecated endpoint
+				var softwareListResp listSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
+			} else {
+				// List all software titles
+				var listSoftwareTitlesResp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResp)
+				require.Equal(t, 2, listSoftwareTitlesResp.Count)
+				require.NotEmpty(t, listSoftwareTitlesResp.CountsUpdatedAt)
+
+				// List all software versions
+				var resp listSoftwareVersionsResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &resp)
+				require.Equal(t, 3, resp.Count)
+				require.NotEmpty(t, resp.CountsUpdatedAt)
+
+				// Get a global software title
+				var getSoftwareTitleResp getSoftwareTitleResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResp)
+
+				// Get a global software version
+				var getSoftwareResp getSoftwareResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+
+				// Get a global software vesion using the deprecated endpoint
+				getSoftwareResp = getSoftwareResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+
+				// Get a global count of software vesions using the deprecated endpoint
+				var countSoftwareResp countSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResp)
+				require.Equal(t, 3, countSoftwareResp.Count)
+
+				// List all software versions using the deprecated endpoint
+				var softwareListResp listSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &softwareListResp)
+				require.Equal(t, countSoftwareResp.Count, 3)
+			}
+
+			if tc.shouldFailTeamRead {
+				// List all software titles for a team
+				var listSoftwareTitlesResp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &listSoftwareTitlesResp)
+
+				// List software versions for a team.
+				var resp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &resp)
+
+				// Get a team software title
+				var getSoftwareTitleResp getSoftwareTitleResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+
+				// Get a team software version
+				var getSoftwareResp getSoftwareResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+
+				// Get a team software vesion using the deprecated endpoint
+				getSoftwareResp = getSoftwareResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+
+				// Get a count of team software vesions using the deprecated endpoint
+				var countSoftwareResp countSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
+
+				// List all software versions using the deprecated endpoint for a team
+				var softwareListResp listSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
+			} else {
+				// List all software titles for a team
+				var listSoftwareTitlesResp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{TeamID: &team1.ID}}, http.StatusOK, &listSoftwareTitlesResp)
+				require.Equal(t, 1, listSoftwareTitlesResp.Count)
+				require.NotEmpty(t, listSoftwareTitlesResp.CountsUpdatedAt)
+
+				// List software versions for a team.
+				var resp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &resp)
+				require.Equal(t, 1, resp.Count)
+				require.NotEmpty(t, resp.CountsUpdatedAt)
+
+				// Get a team software title
+				var getSoftwareTitleResp getSoftwareTitleResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResp)
+
+				// Get a team software version
+				var getSoftwareResp getSoftwareResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+
+				// Get a team software vesion using the deprecated endpoint
+				getSoftwareResp = getSoftwareResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+
+				// Get a team count of software vesions using the deprecated endpoint
+				var countSoftwareResp countSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &countSoftwareResp)
+				require.Equal(t, 1, countSoftwareResp.Count)
+
+				// List all software versions using the deprecated endpoint for a team
+				var softwareListResp listSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &softwareListResp)
+				require.Equal(t, countSoftwareResp.Count, 1)
+			}
+		})
+	}
+
+	// set the admin token again to avoid breaking other tests
+	s.token = s.getTestAdminToken()
+}
+
+func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
+	ctx := context.Background()
+	t := s.T()
+	t.Cleanup(func() {
+		calendar.ClearMockEvents()
+	})
+	currentAppCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
+		require.NoError(t, err)
+	})
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team2",
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + name),
+			NodeKey:         ptr.String(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host1Team1 := newHost("host1", &team1.ID)
+	host2Team1 := newHost("host2", &team1.ID)
+	host3Team2 := newHost("host3", &team2.ID)
+	host4Team2 := newHost("host4", &team2.ID)
+	_ = newHost("host5", nil) // global host
+
+	team1Policy1Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy1Calendar",
+			Query:                 "SELECT 1;",
+			CalendarEventsEnabled: true,
+		},
+	)
+	require.NoError(t, err)
+	team1Policy2, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy2",
+			Query:                 "SELECT 2;",
+			CalendarEventsEnabled: true,
+		},
+	)
+	require.NoError(t, err)
+	team2Policy1Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team2Policy1Calendar",
+			Query:                 "SELECT 3;",
+			CalendarEventsEnabled: true,
+		},
+	)
+	require.NoError(t, err)
+	team2Policy2, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team2Policy2",
+			Query:                 "SELECT 4;",
+			CalendarEventsEnabled: false,
+		},
+	)
+	require.NoError(t, err)
+	globalPolicy, err := s.ds.NewGlobalPolicy(
+		ctx, nil, fleet.PolicyPayload{
+			Name:                  "globalPolicy",
+			Query:                 "SELECT 5;",
+			CalendarEventsEnabled: false,
+		},
+	)
+	require.NoError(t, err)
+
+	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
+		var (
+			results  = make(map[string]json.RawMessage)
+			statuses = make(map[string]interface{})
+			messages = make(map[string]string)
+		)
+		for policyID, policyResult := range policyResults {
+			distributedQueryName := hostPolicyQueryPrefix + fmt.Sprint(policyID)
+			switch {
+			case policyResult == nil:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 1
+				messages[distributedQueryName] = "policy failed execution"
+			case *policyResult:
+				results[distributedQueryName] = json.RawMessage(`[{"1": "1"}]`)
+				statuses[distributedQueryName] = 0
+			case !*policyResult:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 0
+			}
+		}
+		return submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  results,
+			Statuses: statuses,
+			Messages: messages,
+			Stats:    map[string]*fleet.Stats{},
+		}
+	}
+
+	// host1Team1 is failing a calendar policy and not a non-calendar policy (no results for global).
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2.ID:         ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host2Team1 is passing the calendar policy but not the non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host2Team1,
+		map[uint]*bool{
+			team2Policy1Calendar.ID: ptr.Bool(true),
+			team2Policy2.ID:         ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host3Team2 is passing team2Policy1Calendar and failing the global policy
+	// (not results for team2Policy2).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host3Team2,
+		map[uint]*bool{
+			team2Policy1Calendar.ID: ptr.Bool(true),
+			team2Policy2.ID:         nil,
+			globalPolicy.ID:         ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host4Team2 is not returning results for the calendar policy, failing the non-calendar
+	// policy and passing the global policy.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host4Team2,
+		map[uint]*bool{
+			team2Policy1Calendar.ID: nil,
+			team2Policy2.ID:         ptr.Bool(false),
+			globalPolicy.ID:         ptr.Bool(true),
+		},
+	), http.StatusOK, &distributedResp)
+
+	// Trigger the calendar cron with the global feature is disabled.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// No calendar events were created.
+	allCalendarEvents, err := s.ds.ListCalendarEvents(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, allCalendarEvents)
+
+	// Set global configuration for the calendar feature.
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
+		{
+			Domain: "example.com",
+			ApiKey: map[string]string{
+				fleet.GoogleCalendarEmail: "calendar-mock@example.com",
+			},
+		},
+	}
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second) // Wait 2 seconds for the app config cache to clear.
+
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// No calendar events were created because we are missing enabling it on the teams.
+	allCalendarEvents, err = s.ds.ListCalendarEvents(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, allCalendarEvents)
+
+	// Run distributed/write for host4Team2 again, it should not attempt to trigger the webhook because
+	// it's disabled for the teams.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host4Team2,
+		map[uint]*bool{
+			team2Policy1Calendar.ID: nil,
+			team2Policy2.ID:         ptr.Bool(false),
+			globalPolicy.ID:         ptr.Bool(true),
+		},
+	), http.StatusOK, &distributedResp)
+
+	var (
+		team1Fired   int
+		team1FiredMu sync.Mutex
+	)
+
+	team1WebhookFired := make(chan struct{})
+	team1WebhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "POST", r.Method)
+		requestBodyBytes, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		t.Logf("team1 webhook request: %s\n", requestBodyBytes)
+		team1FiredMu.Lock()
+		team1Fired++
+		team1WebhookFired <- struct{}{}
+		team1FiredMu.Unlock()
+	}))
+	t.Cleanup(func() {
+		team1WebhookServer.Close()
+	})
+
+	team1.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
+		Enable:     true,
+		WebhookURL: team1WebhookServer.URL,
+	}
+	team1, err = s.ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	var (
+		team2Fired   int
+		team2FiredMu sync.Mutex
+	)
+
+	team2WebhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "POST", r.Method)
+		requestBodyBytes, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		t.Logf("team2 webhook request: %s\n", requestBodyBytes)
+		team2FiredMu.Lock()
+		team2Fired++
+		team2FiredMu.Unlock()
+	}))
+	t.Cleanup(func() {
+		team2WebhookServer.Close()
+	})
+
+	team2.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
+		Enable:     true,
+		WebhookURL: team2WebhookServer.URL,
+	}
+	team2, err = s.ds.SaveTeam(ctx, team2)
+	require.NoError(t, err)
+
+	//
+	// Same distributed/write as before but they should not fire yet.
+	//
+
+	// host1Team1 is failing a calendar policy and not a non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2.ID:         ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host2Team1 is passing the calendar policy but not the non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host2Team1,
+		map[uint]*bool{
+			team2Policy1Calendar.ID: ptr.Bool(true),
+			team2Policy2.ID:         ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host3Team2 is passing team2Policy1Calendar and failing the global policy
+	// (not results for team2Policy2).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host3Team2,
+		map[uint]*bool{
+			team2Policy1Calendar.ID: ptr.Bool(true),
+			team2Policy2.ID:         nil,
+			globalPolicy.ID:         ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host4Team2 is not returning results for the calendar policy, failing the non-calendar
+	// policy and passing the global policy.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host4Team2,
+		map[uint]*bool{
+			team2Policy1Calendar.ID: nil,
+			team2Policy2.ID:         ptr.Bool(false),
+			globalPolicy.ID:         ptr.Bool(true),
+		},
+	), http.StatusOK, &distributedResp)
+
+	team1FiredMu.Lock()
+	require.Zero(t, team1Fired)
+	team1FiredMu.Unlock()
+
+	team2FiredMu.Lock()
+	require.Zero(t, team2Fired)
+	team2FiredMu.Unlock()
+
+	// Trigger the calendar cron, global feature enabled, team1 enabled, team2 not yet enabled
+	// and hosts do not have an associated email yet.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	team1CalendarEvents, err := s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Empty(t, team1CalendarEvents)
+
+	// Add an email but of another domain.
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host1Team1.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host1Team1.ID,
+			Email:  "user@other.com",
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	// Trigger the calendar cron, global feature enabled, team1 enabled, team2 not yet enabled
+	// and hosts do not have an associated email for the domain yet.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Empty(t, team1CalendarEvents)
+
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host1Team1.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host1Team1.ID,
+			Email:  "user1@example.com",
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	// Trigger the calendar cron, global feature enabled, team1 enabled, team2 not yet enabled
+	// and host1Team1 has a domain email associated.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// An event should be generated for host1Team1
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	require.NotZero(t, team1CalendarEvents[0].ID)
+	require.Equal(t, "user1@example.com", team1CalendarEvents[0].Email)
+	require.NotZero(t, team1CalendarEvents[0].StartTime)
+	require.NotZero(t, team1CalendarEvents[0].EndTime)
+
+	calendar.SetMockEventsToNow()
+
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		// Update updated_at so the event gets updated (the event is updated every 30 minutes)
+		_, err := db.ExecContext(ctx,
+			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 HOUR) WHERE id = ?`, team1CalendarEvents[0].ID)
+		if err != nil {
+			return err
+		}
+		// Set host1Team1 as online.
+		if _, err := db.ExecContext(ctx,
+			`UPDATE host_seen_times SET seen_time = CURRENT_TIMESTAMP WHERE host_id = ?`, host1Team1.ID); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	// Trigger the calendar cron, global feature enabled, team1 enabled, team2 not yet enabled
+	// and host1Team1 has a domain email associated.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// Check that refetch on the host was set.
+	host, err := s.ds.Host(ctx, host1Team1.ID)
+	require.NoError(t, err)
+	require.True(t, host.RefetchRequested)
+
+	// host1Team1 is failing a calendar policy and not a non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2.ID:         ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host2Team1 is passing the calendar policy but not the non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host2Team1,
+		map[uint]*bool{
+			team2Policy1Calendar.ID: ptr.Bool(true),
+			team2Policy2.ID:         ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	select {
+	case <-team1WebhookFired:
+	case <-time.After(5 * time.Second):
+		t.Error("timeout waiting for team1 webhook to fire")
+	}
+
+	// Trigger again, nothing should fire as webhook has already fired.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	team1FiredMu.Lock()
+	require.Equal(t, 1, team1Fired)
+	team1FiredMu.Unlock()
+	team2FiredMu.Lock()
+	require.Equal(t, 0, team2Fired)
+	team2FiredMu.Unlock()
+
+	// Make host1Team1 pass all policies.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2.ID:         ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// Trigger calendar should cleanup the events.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// Events in the user calendar should not be cleaned up because they are not in the future.
+	mockEvents := calendar.ListGoogleMockEvents()
+	require.NotEmpty(t, mockEvents)
+
+	// Event should be cleaned up from our database.
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Empty(t, team1CalendarEvents)
+}
+
+func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
+	ctx := context.Background()
+	t := s.T()
+	t.Cleanup(func() {
+		calendar.ClearMockEvents()
+	})
+	currentAppCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
+		require.NoError(t, err)
+	})
+
+	// Set global configuration for the calendar feature.
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
+		{
+			Domain: "example.com",
+			ApiKey: map[string]string{
+				fleet.GoogleCalendarEmail: "calendar-mock@example.com",
+			},
+		},
+	}
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second) // Wait 2 seconds for the app config cache to clear.
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team2",
+	})
+	require.NoError(t, err)
+
+	team1.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
+		Enable:     true,
+		WebhookURL: "https://foo.example.com",
+	}
+	team1, err = s.ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+	team2.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
+		Enable:     true,
+		WebhookURL: "https://foo.example.com",
+	}
+	team2, err = s.ds.SaveTeam(ctx, team2)
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + name),
+			NodeKey:         ptr.String(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host1 := newHost("host1", &team1.ID)
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host1.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host1.ID,
+			Email:  "user1@example.com",
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	team1Policy1, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy1",
+			Query:                 "SELECT 1;",
+			CalendarEventsEnabled: true,
+		},
+	)
+	require.NoError(t, err)
+	team2Policy1, err := s.ds.NewTeamPolicy(
+		ctx, team2.ID, nil, fleet.PolicyPayload{
+			Name:                  "team2Policy1",
+			Query:                 "SELECT 2;",
+			CalendarEventsEnabled: true,
+		},
+	)
+	require.NoError(t, err)
+
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1,
+		map[uint]*bool{
+			team1Policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	team1CalendarEvents, err := s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+
+	// Check the calendar was created on the DB.
+	hostCalendarEvent, calendarEvent, err := s.ds.GetHostCalendarEventByEmail(ctx, "user1@example.com")
+	require.NoError(t, err)
+
+	// Transfer host to team2.
+	err = s.ds.AddHostsToTeam(ctx, &team2.ID, []uint{host1.ID})
+	require.NoError(t, err)
+
+	// host1 is failing team2's policy too.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1,
+		map[uint]*bool{
+			team2Policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// Check the calendar event entry was reused.
+	hostCalendarEvent2, calendarEvent2, err := s.ds.GetHostCalendarEventByEmail(ctx, "user1@example.com")
+	require.NoError(t, err)
+	require.Equal(t, calendarEvent2.ID, calendarEvent.ID)
+	require.Equal(t, hostCalendarEvent2.CalendarEventID, hostCalendarEvent.CalendarEventID)
+
+	// Transfer host to global.
+	err = s.ds.AddHostsToTeam(ctx, nil, []uint{host1.ID})
+	require.NoError(t, err)
+
+	// Move event to two days ago (to clean up the calendar event)
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx,
+			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 49 HOUR) WHERE id = ?`, team1CalendarEvents[0].ID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// Calendar event is cleaned up.
+	_, _, err = s.ds.GetHostCalendarEventByEmail(ctx, "user1@example.com")
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
+	var (
+		results  = make(map[string]json.RawMessage)
+		statuses = make(map[string]interface{})
+		messages = make(map[string]string)
+	)
+	for policyID, policyResult := range policyResults {
+		distributedQueryName := hostPolicyQueryPrefix + fmt.Sprint(policyID)
+		switch {
+		case policyResult == nil:
+			results[distributedQueryName] = json.RawMessage(`[]`)
+			statuses[distributedQueryName] = 1
+			messages[distributedQueryName] = "policy failed execution"
+		case *policyResult:
+			results[distributedQueryName] = json.RawMessage(`[{"1": "1"}]`)
+			statuses[distributedQueryName] = 0
+		case !*policyResult:
+			results[distributedQueryName] = json.RawMessage(`[]`)
+			statuses[distributedQueryName] = 0
+		}
+	}
+	return submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  results,
+		Statuses: statuses,
+		Messages: messages,
+		Stats:    map[string]*fleet.Stats{},
+	}
+}
+
+func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *schedule.Schedule, timeout time.Duration) {
+	// Following code assumes (for simplicity) only triggered runs.
+	stats, err := ds.GetLatestCronStats(ctx, s.Name())
+	require.NoError(t, err)
+	var previousRunID int
+	if len(stats) > 0 {
+		previousRunID = stats[0].ID
+	}
+
+	_, err = s.Trigger()
+	require.NoError(t, err)
+
+	timeoutCh := time.After(timeout)
+	for {
+		stats, err := ds.GetLatestCronStats(ctx, s.Name())
+		require.NoError(t, err)
+		if len(stats) > 0 && stats[0].ID > previousRunID && stats[0].Status == fleet.CronStatsStatusCompleted {
+			t.Logf("cron %s:%d done", s.Name(), stats[0].ID)
+			return
+		}
+		select {
+		case <-timeoutCh:
+			t.Fatalf("timeout waiting for schedule %s to complete", s.Name())
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
 }

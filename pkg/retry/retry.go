@@ -6,18 +6,26 @@ import (
 )
 
 type config struct {
-	interval    time.Duration
-	maxAttempts int
+	initialInterval   time.Duration
+	backoffMultiplier int
+	maxAttempts       int
 }
 
 // Option allows to configure the behavior of retry.Do
 type Option func(*config)
 
-// WithRetryInterval allows to specify a custom duration to wait
+// WithInterval allows to specify a custom duration to wait
 // between retries.
 func WithInterval(i time.Duration) Option {
 	return func(c *config) {
-		c.interval = i
+		c.initialInterval = i
+	}
+}
+
+// WithBackoffMultiplier allows to specify the backoff multiplier between retries.
+func WithBackoffMultiplier(m int) Option {
+	return func(c *config) {
+		c.backoffMultiplier = m
 	}
 }
 
@@ -37,16 +45,17 @@ func WithMaxAttempts(a int) Option {
 // seconds
 func Do(fn func() error, opts ...Option) error {
 	cfg := &config{
-		interval: 30 * time.Second,
+		initialInterval: 30 * time.Second,
 	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
 
 	attempts := 0
-	ticker := time.NewTicker(cfg.interval)
+	ticker := time.NewTicker(cfg.initialInterval)
 	defer ticker.Stop()
 
+	backoff := 1
 	for {
 		attempts++
 		err := fn()
@@ -56,6 +65,12 @@ func Do(fn func() error, opts ...Option) error {
 
 		if cfg.maxAttempts != 0 && attempts >= cfg.maxAttempts {
 			return err
+		}
+
+		if cfg.backoffMultiplier != 0 {
+			interval := time.Duration(backoff) * cfg.initialInterval
+			backoff *= cfg.backoffMultiplier
+			ticker.Reset(interval)
 		}
 
 		<-ticker.C

@@ -20,7 +20,7 @@ const ShowQueryModal = ({
 }: IShowQueryModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Query"}
+      title="Query"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}

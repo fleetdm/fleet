@@ -45,7 +45,36 @@ export const enforceFleetSentenceCasing = (s: string) => {
 
   return resArr.join(" ").trim();
 };
+
+/**
+ * Pluralizes a word based on the entitiy count and the desired suffixes. If no
+ * suffixes are provided, the default suffix "s" is used.
+ *
+ * @param count The number of items.
+ * @param root The root of the word, omitting any suffixs.
+ * @param pluralSuffix The suffix to add to the root if the count is not 1.
+ * @param singularSuffix The suffix to add to the root if the count is 1.
+ * @returns A string with the root and the appropriate suffix.
+ *
+ * @example
+ * pluralize(1, "hero", "es", "") // "hero"
+ * pluralize(0, "hero", "es", "") // "heroes"
+ * pluralize(1, "fair", "ies", "y") // "fairy"
+ * pluralize(2, "fair", "ies", "y") // "fairies"
+ * pluralize(1, "dragon") // "dragon"
+ * pluralize(2, "dragon") // "dragons"
+ */
+export const pluralize = (
+  count: number,
+  root: string,
+  pluralSuffix = "s",
+  singularSuffix = ""
+) => {
+  return `${root}${count !== 1 ? pluralSuffix : singularSuffix}`;
+};
+
 export default {
   capitalize,
   capitalizeRole,
+  pluralize,
 };

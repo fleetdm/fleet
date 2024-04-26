@@ -15,7 +15,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.8.0"
+  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.8.1"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -120,12 +120,6 @@ module "ses-free" {
   source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=tf-mod-addon-ses-v1.0.0"
   zone_id = aws_route53_zone.free.zone_id
   domain  = "free.fleetdm.com"
-}
-
-module "waf-free" {
-  source = "github.com/fleetdm/fleet//terraform/addons/waf-alb?ref=tf-mod-addon-waf-alb-v1.0.0"
-  name   = local.customer_free
-  lb_arn = module.free.byo-db.alb.lb_arn
 }
 
 module "migrations_free" {

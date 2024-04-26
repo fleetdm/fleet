@@ -10,17 +10,17 @@ describe("TextCell", () => {
   });
 
   it("renders a default value when `value` is empty", () => {
-    render(<TextCell value={""} />);
+    render(<TextCell value="" />);
     expect(screen.getByText(DEFAULT_EMPTY_CELL_VALUE)).toBeInTheDocument();
   });
 
   it("renders a default value when `value` is empty after formatting", () => {
-    render(<TextCell value={"foo"} formatter={() => ""} />);
+    render(<TextCell value="foo" formatter={() => ""} />);
     expect(screen.getByText(DEFAULT_EMPTY_CELL_VALUE)).toBeInTheDocument();
   });
 
   it("uses the provided formatter function", () => {
-    render(<TextCell value={"foo"} formatter={() => "bar"} />);
+    render(<TextCell value="foo" formatter={() => "bar"} />);
     expect(screen.getByText("bar")).toBeInTheDocument();
   });
 });

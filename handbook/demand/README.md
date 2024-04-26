@@ -23,7 +23,7 @@ The Demand department is directly responsible for growing awareness of Fleet and
 1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
 2. Mark submission as seen with the "👀" emoji.
 3. Within 4 business hours, use the [best practices template (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks.
-4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in [#help-solutions-consulting](https://fleetdm.slack.com/archives/C05HZ2LHEL8). If an SC is unavailable, post in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5) or [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) and notify @on-call.
+4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
 5. log in to [Salesforce](https://fleetdm.lightning.force.com/lightning/o/Lead/list?filterName=00B4x00000DtaRDEAZ) and search the lead list by first name and match the corresponding email to find the right lead.
 6. Enrich each lead with company information and buying situation.
 7. If a lead is completed or out of ICP, update the lead status in Salesforce to "Closed" or "Disqualified". If within ICP at-mention the [Head of Revenue Operations](https://fleetdm.com/handbook/digital-experience#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel and move lead to their name in SFDC.
@@ -43,6 +43,13 @@ To propose an ad, or a change to an ad:
 5. Make revisions and re-attend the meeting as needed until the planned change is executed.
 7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
+### Promote a post on LinkedIn
+
+1. Create a classic campaign under ["Experiments"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D) following the YYYY-MM-DD.buying-situation - ad description with a goal of website visits or engagement to run for two weeks.
+2. Choose the appropriate audience according to the buying situation and disable audience expansion and the LinkedIn audience network. 
+3. When creating the ad for the new campaign, select "browse existing content" and find the post under the employee tab.
+4. Launch campaign once approved.
+
 ### Settle event strategy
 The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  The Head of Business Operations is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
 
@@ -61,15 +68,11 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
 ### Optimize ads through experimentation
 Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
 
-[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
-1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
-2. Test one headline change for two weeks
-3. Pause the ad with the lower CTR
-4. Duplicate best-performing ad
-5. Test one description change for two weeks
-6. Pause the ad with the lower CTR
-7. Repeat this process
+Here's how:
+1. Remove all but the top 5 performing ads in [each LinkedIn campaign in the "Evergreen awareness" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678329963%5D).
+2. Replace the ad in [each Linkedin campaign in the "ABM maneuvers" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B633848103%5D) so that it matches the top performer.
 
+<!-- TODO: either delete this or expand
 [**LinkedIn**:](https://www.linkedin.com/campaignmanager/) Ad experimentation on LinkedIn Campaign Manager for better click-through rate (CTR)
 1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
 2. Test one intro text change for two weeks
@@ -78,6 +81,16 @@ Fleet improves click-through rates in their campaigns to make the most of their 
 5. Test headline change for two weeks
 6. Pause the ad with the lower CTR
 7. Repeat this process
+
+[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
+1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
+2. Test one headline change for two weeks
+3. Pause the ad with the lower CTR
+4. Duplicate best-performing ad
+5. Test one description change for two weeks
+6. Pause the ad with the lower CTR
+7. Repeat this process
+-->
 
 
 ### Process pending swag requests from the website

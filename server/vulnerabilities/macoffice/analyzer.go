@@ -84,7 +84,7 @@ func getStoredVulnerabilities(
 	ds fleet.Datastore,
 	softwareID uint,
 ) ([]fleet.SoftwareVulnerability, error) {
-	storedSoftware, err := ds.SoftwareByID(ctx, softwareID, false)
+	storedSoftware, err := ds.SoftwareByID(ctx, softwareID, nil, false, nil)
 	if err != nil {
 		return nil, err
 	}

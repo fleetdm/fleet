@@ -45,6 +45,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
@@ -137,6 +138,9 @@ const ManageHostsPage = ({
     isFreeTier,
     isSandboxMode,
     setFilteredHostsPath,
+    setFilteredPoliciesPath,
+    setFilteredQueriesPath,
+    setFilteredSoftwarePath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -241,6 +245,7 @@ const ManageHostsPage = ({
     os_name: osName,
     os_version: osVersion,
   } = queryParams;
+  const vulnerability = queryParams?.vulnerability;
   const munkiIssueId =
     queryParams?.munki_issue_id !== undefined
       ? parseInt(queryParams.munki_issue_id, 10)
@@ -383,6 +388,7 @@ const ManageHostsPage = ({
         osVersionId,
         osName,
         osVersion,
+        vulnerability,
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
@@ -425,6 +431,7 @@ const ManageHostsPage = ({
         osVersionId,
         osName,
         osVersion,
+        vulnerability,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
         bootstrapPackageStatus,
@@ -824,6 +831,8 @@ const ManageHostsPage = ({
         newQueryParams.os_version_id = osVersionId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
+      } else if (vulnerability) {
+        newQueryParams.vulnerability = vulnerability;
       } else if (osSettingsStatus) {
         newQueryParams[PARAMS.OS_SETTINGS] = osSettingsStatus;
       } else if (diskEncryptionStatus && isPremiumTier) {
@@ -871,6 +880,7 @@ const ManageHostsPage = ({
       osSettingsStatus,
       diskEncryptionStatus,
       bootstrapPackageStatus,
+      vulnerability,
     ]
   );
 
@@ -880,6 +890,11 @@ const ManageHostsPage = ({
       // tableQueryData)
       handleTeamChange(teamId);
       handleResetPageIndex();
+      // Must clear other page paths or the team might accidentally switch
+      // When navigating from host details
+      setFilteredSoftwarePath("");
+      setFilteredQueriesPath("");
+      setFilteredPoliciesPath("");
     },
     [handleTeamChange]
   );
@@ -1009,7 +1024,11 @@ const ManageHostsPage = ({
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not delete label. Please try again.");
+      if (getErrorReason(error).includes("built-in")) {
+        renderFlash("error", "Built-in labels can’t be modified or deleted.");
+      } else {
+        renderFlash("error", "Could not delete label. Please try again.");
+      }
     } finally {
       setIsUpdatingLabel(false);
     }
@@ -1025,22 +1044,38 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  // Bulk transfer is hidden for defined unsupportedFilters
   const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
 
     const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
-    let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
-    if (isAllMatchingHostsSelected) {
-      const labelId = selectedLabel?.id;
-
-      action = hostsAPI.transferToTeamByFilter({
-        teamId,
-        query: searchQuery,
-        status,
-        labelId,
-      });
-    }
+    const action = isAllMatchingHostsSelected
+      ? hostsAPI.transferToTeamByFilter({
+          teamId,
+          query: searchQuery,
+          status,
+          labelId: selectedLabel?.id,
+          currentTeam: teamIdForApi,
+          policyId,
+          policyResponse,
+          softwareId,
+          softwareTitleId,
+          softwareVersionId,
+          osName,
+          osVersionId,
+          osVersion,
+          macSettingsStatus,
+          bootstrapPackageStatus,
+          mdmId,
+          mdmEnrollmentStatus,
+          munkiIssueId,
+          lowDiskSpaceHosts,
+          osSettings: osSettingsStatus,
+          diskEncryptionStatus,
+          vulnerability,
+        })
+      : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     try {
       await action;
@@ -1063,19 +1098,34 @@ const ManageHostsPage = ({
     }
   };
 
+  // Bulk delete is hidden for defined unsupportedFilters
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
-
-    const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
-    const labelId = selectedLabel?.id;
 
     try {
       await (isAllMatchingHostsSelected
         ? hostsAPI.destroyByFilter({
-            teamId,
+            teamId: teamIdForApi,
             query: searchQuery,
             status,
-            labelId,
+            labelId: selectedLabel?.id,
+            policyId,
+            policyResponse,
+            softwareId,
+            softwareTitleId,
+            softwareVersionId,
+            osName,
+            osVersionId,
+            osVersion,
+            macSettingsStatus,
+            bootstrapPackageStatus,
+            mdmId,
+            mdmEnrollmentStatus,
+            munkiIssueId,
+            lowDiskSpaceHosts,
+            osSettings: osSettingsStatus,
+            diskEncryptionStatus,
+            vulnerability,
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
@@ -1256,10 +1306,12 @@ const ManageHostsPage = ({
         isOnlyObserver,
       });
 
-      const columnAccessors = tableColumns
-        .map((column) => (column.accessor ? column.accessor : ""))
-        .filter((element) => element);
-      visibleColumns = columnAccessors.join(",");
+      const columnIds = tableColumns
+        .map((column) => (column.id ? column.id : ""))
+        // "selection" colum does not include any relevent data for the CSV
+        // so we filter it out.
+        .filter((element) => element !== "" && element !== "selection");
+      visibleColumns = columnIds.join(",");
     }
 
     let options = {
@@ -1278,9 +1330,12 @@ const ManageHostsPage = ({
       mdmEnrollmentStatus,
       munkiIssueId,
       lowDiskSpaceHosts,
-      os_version_id: osVersionId,
-      os_name: osName,
-      os_version: osVersion,
+      osName,
+      osVersionId,
+      osVersion,
+      osSettings: osSettingsStatus,
+      bootstrapPackageStatus,
+      vulnerability,
       visibleColumns,
     };
 
@@ -1396,7 +1451,7 @@ const ManageHostsPage = ({
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
           graphicName: "empty-hosts",
-          header: "Hosts will show up here once they’re added to Fleet.",
+          header: "Hosts will show up here once they’re added to Fleet",
           info:
             "Expecting to see hosts? Try again in a few seconds as the system catches up.",
         };
@@ -1407,7 +1462,8 @@ const ManageHostsPage = ({
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
         } else if (canEnrollHosts) {
           emptyHosts.header = "Add your hosts to Fleet";
-          emptyHosts.info = "Generate an installer to add your own hosts.";
+          emptyHosts.info =
+            "Generate Fleet's agent (fleetd) to add your own hosts.";
           emptyHosts.primaryButton = (
             <Button variant="brand" onClick={toggleAddHostsModal} type="button">
               Add hosts
@@ -1464,6 +1520,27 @@ const ManageHostsPage = ({
       return emptyHosts;
     };
 
+    // Shortterm fix for #17257
+    const unsupportedFilter = !!(
+      policyId ||
+      policyResponse ||
+      softwareId ||
+      softwareTitleId ||
+      softwareVersionId ||
+      osName ||
+      osVersionId ||
+      osVersion ||
+      macSettingsStatus ||
+      bootstrapPackageStatus ||
+      mdmId ||
+      mdmEnrollmentStatus ||
+      munkiIssueId ||
+      lowDiskSpaceHosts ||
+      osSettingsStatus ||
+      diskEncryptionStatus ||
+      vulnerability
+    );
+
     return (
       <TableContainer
         resultsTitle="hosts"
@@ -1495,7 +1572,7 @@ const ManageHostsPage = ({
           onActionButtonClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
-        showMarkAllPages
+        showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
@@ -1604,6 +1681,7 @@ const ManageHostsPage = ({
               osSettingsStatus,
               diskEncryptionStatus,
               bootstrapPackageStatus,
+              vulnerability,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}

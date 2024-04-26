@@ -37,3 +37,8 @@ variable "security_groups" {
   type     = list(string)
   nullable = false
 }
+
+variable "vuln_service" {
+  default = ""
+}
+

@@ -26,7 +26,7 @@ const TeamHostExpiryToggle = ({
         hosts expire after {globalHostExpiryWindow} days.{" "}
         {!teamExpiryEnabled && (
           <Link
-            to={""}
+            to=""
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               setTeamExpiryEnabled(true);
@@ -48,32 +48,26 @@ const TeamHostExpiryToggle = ({
       <Checkbox
         name="enableHostExpiry"
         onChange={setTeamExpiryEnabled}
-        value={teamExpiryEnabled || globalHostExpiryEnabled}
-        wrapperClassName={
-          globalHostExpiryEnabled
-            ? `${baseClass}__disabled-team-host-expiry-toggle`
-            : ""
-        }
+        value={teamExpiryEnabled || globalHostExpiryEnabled} // Still shows checkmark if global expiry is enabled though the checkbox will be disabled.
+        disabled={globalHostExpiryEnabled}
         helpText={renderHelpText()}
         tooltipContent={
-          !globalHostExpiryEnabled && (
-            <>
-              When enabled, allows automatic cleanup of
+          <>
+            When enabled, allows automatic cleanup of
+            <br />
+            hosts that have not communicated with Fleet in
+            <br />
+            the number of days specified in the{" "}
+            <strong>
+              Host expiry
               <br />
-              hosts that have not communicated with Fleet in
-              <br />
-              the number of days specified in the{" "}
-              <strong>
-                Host expiry
-                <br />
-                window
-              </strong>{" "}
-              setting.{" "}
-              <em>
-                (Default: <strong>Off</strong>)
-              </em>
-            </>
-          )
+              window
+            </strong>{" "}
+            setting.{" "}
+            <em>
+              (Default: <strong>Off</strong>)
+            </em>
+          </>
         }
       >
         Enable host expiry

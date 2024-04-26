@@ -11,6 +11,9 @@
 
   &__hidden {
     visibility: hidden;
+    .fleet-checkbox__tick:after {
+      visibility: hidden;
+    }
   }
 
   &__content {

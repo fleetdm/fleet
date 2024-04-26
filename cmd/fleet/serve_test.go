@@ -21,6 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -28,8 +30,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
-	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -255,7 +255,7 @@ func TestAutomationsSchedule(t *testing.T) {
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
-	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, daysCount int) (int, int, error) {
+	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, teamID *uint, daysCount int) (int, []uint, error) {
 		defer func() {
 			select {
 			case <-calledOnce:
@@ -268,7 +268,7 @@ func TestAutomationsSchedule(t *testing.T) {
 				close(calledOnce)
 			}
 		}()
-		return 10, 6, nil
+		return 10, []uint{1, 2, 3, 4, 5, 6}, nil
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -304,7 +304,9 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		// we should not get this far before we see the directory being created
 		return nil, errors.New("shouldn't happen")
 	}
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{}, nil
 	}
 	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
@@ -452,7 +454,9 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 		return nil
 	}
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{
 			CountsUpdatedAt: time.Now(),
 			OSVersions: []fleet.OSVersion{

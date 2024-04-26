@@ -3,6 +3,7 @@ package pgsql
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
@@ -39,7 +40,7 @@ func (s *PgSQLStorage) IsCertHashAssociated(r *mdm.Request, hash string) (bool, 
 }
 
 // AssociateCertHash "DO NOTHING" on duplicated keys
-func (s *PgSQLStorage) AssociateCertHash(r *mdm.Request, hash string) error {
+func (s *PgSQLStorage) AssociateCertHash(r *mdm.Request, hash string, _ time.Time) error {
 	_, err := s.db.ExecContext(
 		r.Context, `
 INSERT INTO cert_auth_associations (id, sha256)

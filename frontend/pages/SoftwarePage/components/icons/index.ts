@@ -59,6 +59,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   ie_extensions: Extension,
   chocolatey_packages: Package,
   pkg_packages: Package,
+  vscode_extensions: Extension,
 } as const;
 
 export const SOFTWARE_ICON_SIZES: Record<string, string> = {

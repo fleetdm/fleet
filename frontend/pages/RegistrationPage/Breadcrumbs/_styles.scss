@@ -71,7 +71,6 @@
 
     &--active {
       font-weight: $bold;
-      color: $core-white;
     }
 
     &--1 {
@@ -97,7 +96,7 @@
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background-color: $core-white;
+          background: $core-white;
           background-size: auto;
           z-index: 2;
         }

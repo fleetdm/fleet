@@ -62,6 +62,8 @@ module "rds" {
   skip_final_snapshot             = true
   snapshot_identifier             = var.rds_config.snapshot_identifier
 
+  preferred_maintenance_window = var.rds_config.preferred_maintenance_window
+
   cluster_tags = var.rds_config.cluster_tags
 }
 

@@ -29,7 +29,7 @@ import BackLink from "components/BackLink";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
 import DeleteTeamModal from "../components/DeleteTeamModal";
-import EditTeamModal from "../components/EditTeamModal";
+import RenameTeamModal from "../components/RenameTeamModal";
 import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../../components/AddHostsModal";
@@ -131,7 +131,7 @@ const TeamDetailsWrapper = ({
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
-  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [showRenameTeamModal, setShowRenameTeamModal] = useState(false);
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -224,10 +224,10 @@ const TeamDetailsWrapper = ({
     setShowDeleteTeamModal(!showDeleteTeamModal);
   }, [showDeleteTeamModal, setShowDeleteTeamModal]);
 
-  const toggleEditTeamModal = useCallback(() => {
-    setShowEditTeamModal(!showEditTeamModal);
+  const toggleRenameTeamModal = useCallback(() => {
+    setShowRenameTeamModal(!showRenameTeamModal);
     setBackendValidators({});
-  }, [showEditTeamModal, setShowEditTeamModal, setBackendValidators]);
+  }, [showRenameTeamModal, setShowRenameTeamModal, setBackendValidators]);
 
   const onSaveSecret = async (enrollSecretString: string) => {
     // Creates new list of secrets removing selected secret and adding new secret
@@ -316,7 +316,7 @@ const TeamDetailsWrapper = ({
       const updatedAttrs = generateUpdateData(currentTeamDetails, formData);
       // no updates, so no need for a request.
       if (!updatedAttrs) {
-        toggleEditTeamModal();
+        toggleRenameTeamModal();
         return;
       }
 
@@ -341,13 +341,13 @@ const TeamDetailsWrapper = ({
           renderFlash("error", "Could not create team. Please try again.");
         }
       } finally {
-        toggleEditTeamModal();
+        toggleRenameTeamModal();
         setIsUpdatingTeams(false);
       }
     },
     [
       currentTeamDetails,
-      toggleEditTeamModal,
+      toggleRenameTeamModal,
       teamIdForApi,
       renderFlash,
       refetchTeams,
@@ -423,10 +423,10 @@ const TeamDetailsWrapper = ({
                 },
                 {
                   type: "secondary",
-                  label: "Edit team",
+                  label: "Rename team",
                   buttonVariant: "text-icon",
                   iconSvg: "pencil",
-                  onClick: toggleEditTeamModal,
+                  onClick: toggleRenameTeamModal,
                 },
                 {
                   type: "secondary",
@@ -511,9 +511,9 @@ const TeamDetailsWrapper = ({
             isUpdatingTeams={isUpdatingTeams}
           />
         )}
-        {showEditTeamModal && (
-          <EditTeamModal
-            onCancel={toggleEditTeamModal}
+        {showRenameTeamModal && (
+          <RenameTeamModal
+            onCancel={toggleRenameTeamModal}
             onSubmit={onEditSubmit}
             defaultName={currentTeamDetails.name}
             backendValidators={backendValidators}

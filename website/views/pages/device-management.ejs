@@ -1,4 +1,4 @@
-<div id="device-management" v-cloak>
+<div id="device-management-page" v-cloak>
   <div purpose="page-container">
     <div purpose="page-content" class="mx-auto">
       <div purpose="hero">
@@ -13,13 +13,13 @@
           <div purpose="hero-text">
             <strong>Your last MDM migration</strong>
             <p>Even if you've never done an MDM migration, you've probably heard it's hard.  Fleet makes it easy to get your data in and get it out.</p>
-            <strong>Simplify your tools</strong>
-            <p>Deploy a modern Mac-first MDM that’s purpose-built to manage your Apple, Windows, and Linux computers.</p>
-            <strong>Implement “zero trust” faster</strong>
-            <p>Use Fleet to enforce conditional access checking at login. (It's pretty easy to customize whatever you need.)</p>
+            <strong>Tidy up your tools</strong>
+            <p>Deploy a modern Mac-first MDM purpose-built for IT engineers and cross-training. Use principles from DevOps to manage Apple, Windows, and Linux computers declaratively.</p>
+            <strong>“Zero” trust, fewer tickets</strong>
+            <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
             <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
-              <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-              <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
+              <a purpose="cta-button" href="/register">Start now</a>
+              <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
             </div>
           </div>
         </div>
@@ -39,8 +39,14 @@
           </div>
         </div>
       </div>
-
-
+      <logo-carousel></logo-carousel>
+      </div>
+    </div>
+      <% if(primaryBuyingSituation){%>
+      <%-  partial('../partials/calendar-banner.partial.ejs') %>
+      <% } %>
+      <div purpose="page-container">
+      <div purpose="page-content" class="mx-auto">
       <%/* Your last MDM migration section */%>
       <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center mb-0">
@@ -52,7 +58,7 @@
             <p>Even if you've never done an MDM migration, you've probably heard it's hard.  Fleet makes it easy to get your data in <i>and</i> get it out.</p>
             <div purpose="checklist" class="flex-column d-flex">
             <p>Ramp up to modern management faster with the latest compliance standards and security features built in.</p>
-            <p>Reclaim lost engineering hours and leave clicky-clicky manual entry in the past. (There's a great GUI if you like clicking.)</p>
+            <p>Work the way that's best for your entire IT team with both GitOps and a modern GUI.</p>
             <p>Lower barriers to integration with an intentional API-first design and surprisingly easy access to data. Everything you can do in the UI, you can do with the API.</p>
             </div>
           </div>
@@ -62,8 +68,8 @@
       <%/* Simplify your tools section */%>
       <div purpose="page-section">
         <div purpose="feature-headline">
-          <h2>Simplify your tools</h2>
-          <p>Deploy a modern Mac-first MDM that’s purpose-built to manage your Apple, Windows, and Linux computers.</p>
+          <h2>Tidy up your tools</h2>
+          <p>Deploy a modern Mac-first MDM purpose-built for IT engineers and cross-training. Use principles from DevOps to manage Apple, Windows, and Linux computers declaratively.</p>
         </div>
 
         <div purpose="two-column-features" class="mx-auto">
@@ -97,6 +103,16 @@
           </div>
         </div>
 
+        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h3>Manage devices like code</h3>
+            <p>Manage your IT infrastructure in any browser or <a target="_blank" href="https://github.com/fleetdm/fleet-gitops">use git</a> to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
+          </div>
+          <div purpose="feature-image" class="right">
+            <img alt="ClickOps or DevOps" src="/images/device-management-clickops-or-devops-380x280@2x.png">
+          </div>
+        </div>
+
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
           <div purpose="feature-image" class="left">
             <img alt="Absolute certainty" src="/images/device-management-absolute-certainty-380x320@2x.png">
@@ -113,42 +129,33 @@
           </div>
         </div>
 
-        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-          <div purpose="feature-text" class="d-flex flex-column">
-            <h3>Manage devices like code</h3>
-            <p>Manage your IT infrastructure in any browser or <a target="_blank" href="https://github.com/fleetdm/fleet-gitops">use git</a> to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
-          </div>
-          <div purpose="feature-image" class="right">
-            <img alt="ClickOps or DevOps" src="/images/device-management-clickops-or-devops-380x280@2x.png">
-          </div>
-        </div>
       </div>
       <%/* Implement “zero trust” faster section */%>
       <div purpose="page-section">
         <div purpose="feature-headline" style="max-width: 580px;">
-          <h2>Implement “zero trust” faster</h2>
-          <p>Use Fleet to enforce conditional access checking at login. (It's pretty easy to customize whatever you need.)</p>
+          <h2>“Zero” trust, fewer tickets</h2>
+          <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
         </div>
 
         <div purpose="three-column-features" class="mx-auto">
           <div purpose="feature-row" class="d-flex flex-md-row flex-column align-items-md-start align-items-center justify-content-center">
 
             <div purpose="feature-column" class="ml-md-0">
-              <img alt="Control the login experience" src="/images/device-management-icon-control-login-experience-48x48@2x.png" class="mx-auto mx-sm-0">
-              <h5>Control the login experience</h5>
-              <p>Ensure that only healthy, up-to-date devices can log in and access company data and resources with conditional access.</p>
+              <img alt="Get in front of the IdP" src="/images/device-management-icon-control-login-experience-48x48@2x.png" class="mx-auto mx-sm-0">
+              <h5>Get in front of the IdP</h5>
+              <p>Gate access with <a href="https://fleetdm.com/queries">common device trust policies</a> from industry peers, or roll out your own device health checks using system data and events.</p>
             </div>
 
             <div purpose="feature-column">
-              <img alt="Manage device posture" src="/images/device-management-icon-manage-device-posture-48x48@2x.png">
-              <h5>Manage device posture</h5>
-              <p>Find vulnerable software, track progress for security remediation project deadlines, and enforce due dates with automations and tickets.</p>
+              <img alt="Step-by-step instructions" src="/images/device-management-icon-step-by-step-48x48@2x.png">
+              <h5>Step-by-step instructions</h5>
+              <p>Show resolution steps or use <a href="https://medium.com/pinterest-engineering/enforcing-device-authn-compliance-at-pinterest-a74938cb089b" target="_blank">custom HTML</a> to show employees what they need to do to restore their access without waiting on a ticket. Then give it back automatically, as soon as the problems are fixed.</p>
             </div>
 
             <div purpose="feature-column" class="mr-md-0 mb-0">
-              <img alt="Simplify health checks" src="/images/device-management-icon-simplify-health-checks-48x48@2x.png">
-              <h5>Simplify health checks</h5>
-              <p>Use <a href="https://fleetdm.com/queries">common health checks</a> from industry peers, or easily create your own with low-level access to system data and events.</p>
+              <img alt="Manage device posture" src="/images/device-management-icon-manage-device-posture-48x48@2x.png">
+              <h5>Live retry</h5>
+              <p>Give people a way to get back to work quickly and minimize downtime. Fleet’s live query API instantly re-checks the OS version and other device state so users don’t get locked out.</p>
             </div>
           </div>
         </div>
@@ -156,11 +163,12 @@
       <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
           <div purpose="feature-text" class="d-flex flex-column">
-            <h2>Absolute certainty</h2>
-            <p>Reduce time wasted hunting down whether a change happened. Actually verify that settings are applied using real data pulled from your users' devices.</p>
+            <h2>Shorten the feedback loop</h2>
+            <p>Spend less time debugging whether changes actually happened. Auto-verify using real data pulled from your users' devices.</p>
             <div purpose="checklist" class="flex-column d-flex">
               <p>Use a git repo as the source of truth to reduce errors (submitting the wrong patch, configuration setting etc)</p>
               <p>Every change to a policy or security control is tracked and auditable in Fleet’s history, or via the repo commit log</p>
+              <p>Instantly reveal failed patches and broken settings with osquery to shorten the feedback loop and uncover problems sooner.</p>
             </div>
           </div>
           <div purpose="feature-image" class="right">
@@ -193,7 +201,7 @@
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
         <h4>Who else uses Fleet?</h4>
-        <h2>Empowering IT teams</h2>
+        <h2>Empowering <%= ['vm', 'eo-security'].includes(primaryBuyingSituation) ? 'security and IT' : 'IT' %> teams, globally</h2>
       </div>
     </div>
 
@@ -204,8 +212,8 @@
         <h4>Device management (MDM)</h4>
         <h2>Manage everything in one place</h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-          <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
+          <a purpose="cta-button" href="/register">Start now</a>
+          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
         </div>
       </div>
     </div>

@@ -45,6 +45,10 @@ func (ds *Datastore) UpdateHostOperatingSystem(ctx context.Context, hostID uint,
 	})
 }
 
+func (ds *Datastore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+	return getHostOperatingSystemDB(ctx, ds.reader(ctx), hostID)
+}
+
 // getOrGenerateOperatingSystemDB queries the `operating_systems` table with the
 // name, version, arch, and kernel_version of the given operating system. If found,
 // it returns the record including the associated ID. If not found, it returns a call
@@ -168,11 +172,11 @@ func getIDHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID 
 // getIDHostOperatingSystemDB queries the `operating_systems` table and returns the
 // operating system record associated with the given host ID based on a subquery
 // of the `host_operating_system` table.
-func getHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) (*fleet.OperatingSystem, error) {
+func getHostOperatingSystemDB(ctx context.Context, tx sqlx.QueryerContext, hostID uint) (*fleet.OperatingSystem, error) {
 	var os fleet.OperatingSystem
 	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version, os_version_id FROM operating_systems WHERE id = (SELECT os_id FROM host_operating_system WHERE host_id = ?)"
 	if err := sqlx.GetContext(ctx, tx, &os, stmt, hostID); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "getting host os")
 	}
 	return &os, nil
 }

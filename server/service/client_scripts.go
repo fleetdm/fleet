@@ -11,12 +11,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte) (*fleet.HostScriptResult, error) {
+func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte, scriptName string, teamID uint) (*fleet.HostScriptResult, error) {
 	verb, path := "POST", "/api/latest/fleet/scripts/run/sync"
 
 	req := fleet.HostScriptRequestPayload{
-		HostID:         hostID,
-		ScriptContents: string(scriptContents),
+		HostID:     hostID,
+		ScriptName: scriptName,
+		TeamID:     teamID,
+	}
+	if len(scriptContents) > 0 {
+		req.ScriptContents = string(scriptContents)
 	}
 
 	var result fleet.HostScriptResult
@@ -48,6 +52,11 @@ func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte) (*fleet.H
 
 		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
 
+	case http.StatusPaymentRequired:
+		if teamID > 0 {
+			return nil, errors.New("Team id parameter requires Fleet Premium license.")
+		}
+		fallthrough // if no team id, fall through to default error message
 	default:
 		msg, err := extractServerErrMsg(verb, path, res)
 		if err != nil {

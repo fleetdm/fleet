@@ -3,6 +3,8 @@ import { OsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IconNames } from "components/icons";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -24,7 +26,13 @@ export const DEFAULT_GRAVATAR_LINK_FALLBACK =
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
-export const FREQUENCY_DROPDOWN_OPTIONS = [
+export const ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { value: 30, label: "30 days" },
+  { value: 60, label: "60 days" },
+  { value: 90, label: "90 days" },
+];
+
+export const FREQUENCY_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { value: 0, label: "Never" },
   { value: 300, label: "Every 5 minutes" },
   { value: 600, label: "Every 10 minutes" },
@@ -35,6 +43,19 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 43200, label: "Every 12 hours" },
   { value: 86400, label: "Every day" },
   { value: 604800, label: "Every week" },
+];
+export const HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { label: "1%", value: 1 },
+  { label: "5%", value: 5 },
+  { label: "10%", value: 10 },
+  { label: "25%", value: 25 },
+];
+
+export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { label: "1 day", value: 1 },
+  { label: "3 days", value: 3 },
+  { label: "7 days", value: 7 },
+  { label: "14 days", value: 14 },
 ];
 
 export const GITHUB_NEW_ISSUE_LINK =
@@ -170,6 +191,25 @@ export const DEFAULT_CAMPAIGN_STATE = {
   campaign: { ...DEFAULT_CAMPAIGN },
 };
 
+const PLATFORM_LABEL_NAMES_FROM_API = [
+  "All Hosts",
+  "All Linux",
+  "CentOS Linux",
+  "macOS",
+  "MS Windows",
+  "Red Hat Linux",
+  "Ubuntu Linux",
+  "chrome",
+] as const;
+
+type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
+
+export const isPlatformLabelNameFromAPI = (
+  s: string
+): s is PlatformLabelNameFromAPI => {
+  return PLATFORM_LABEL_NAMES_FROM_API.includes(s as PlatformLabelNameFromAPI);
+};
+
 export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   darwin: "macOS",
   macOS: "macOS",
@@ -179,10 +219,13 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   Linux: "Linux",
   chrome: "ChromeOS",
   ChromeOS: "ChromeOS",
-};
+} as const;
 
 // as returned by the TARGETS API; based on display_text
-export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
+export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
+  PlatformLabelNameFromAPI,
+  string
+> = {
   "All Hosts": "All hosts",
   "All Linux": "Linux",
   "CentOS Linux": "CentOS Linux",
@@ -191,7 +234,7 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
   "Red Hat Linux": "Red Hat Linux",
   "Ubuntu Linux": "Ubuntu Linux",
   chrome: "ChromeOS",
-};
+} as const;
 
 export const PLATFORM_LABEL_DISPLAY_ORDER = [
   "macOS",
@@ -200,9 +243,12 @@ export const PLATFORM_LABEL_DISPLAY_ORDER = [
   "Red Hat Linux",
   "Ubuntu Linux",
   "MS Windows",
-];
+] as const;
 
-export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
+export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
+  PlatformLabelNameFromAPI,
+  string
+> = {
   "All Hosts": "all",
   "All Linux": "platform",
   "CentOS Linux": "platform",
@@ -211,6 +257,28 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
   "Red Hat Linux": "platform",
   "Ubuntu Linux": "platform",
   chrome: "platform",
+} as const;
+
+export const PLATFORM_TYPE_ICONS: Record<
+  Extract<
+    PlatformLabelNameFromAPI,
+    "All Linux" | "macOS" | "MS Windows" | "chrome"
+  >,
+  IconNames
+> = {
+  "All Linux": "linux",
+  macOS: "darwin",
+  "MS Windows": "windows",
+  chrome: "chrome",
+} as const;
+
+export const hasPlatformTypeIcon = (
+  s: string
+): s is Extract<
+  PlatformLabelNameFromAPI,
+  "All Linux" | "macOS" | "MS Windows" | "chrome"
+> => {
+  return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
 interface IPlatformDropdownOptions {
@@ -265,6 +333,21 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
   },
 ];
 
+export const EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All vulnerabilities",
+    value: false,
+    helpText: "All vulnerabilities detected on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Exploited vulnerabilities",
+    value: true,
+    helpText: "Vulnerabilities that have been actively exploited in the wild.",
+  },
+];
+
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (automatic)": (
@@ -277,12 +360,7 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (manual)": (
     <span>MDM was turned on manually. End users can turn MDM off.</span>
   ),
-  Off: (
-    <span>
-      Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS
-      update encouragement.
-    </span>
-  ),
+  Off: undefined, // no tooltip specified
   Pending: (
     <span>
       Hosts ordered via Apple Business Manager <br /> (ABM). These will
@@ -307,3 +385,54 @@ export const EMPTY_AGENT_OPTIONS = {
 export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
+
+export const HOST_SUMMARY_DATA = [
+  "id",
+  "status",
+  "issues",
+  "memory",
+  "cpu_type",
+  "platform",
+  "os_version",
+  "osquery_version",
+  "orbit_version",
+  "fleet_desktop_version",
+  "enroll_secret_name",
+  "detail_updated_at",
+  "percent_disk_space_available",
+  "gigs_disk_space_available",
+  "team_name",
+  "disk_encryption_enabled",
+  "display_name", // Not rendered on my device page
+];
+
+export const HOST_ABOUT_DATA = [
+  "seen_time",
+  "uptime",
+  "last_enrolled_at",
+  "hardware_model",
+  "hardware_serial",
+  "primary_ip",
+  "public_ip",
+  "geolocation",
+  "batteries",
+  "detail_updated_at",
+  "last_restarted_at",
+];
+
+export const HOST_OSQUERY_DATA = [
+  "config_tls_refresh",
+  "logger_tls_period",
+  "distributed_interval",
+];
+
+export const DEFAULT_USE_QUERY_OPTIONS = {
+  retry: 3,
+  refetchOnWindowFocus: false,
+};
+
+export const INVALID_PLATFORMS_REASON =
+  "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
+
+export const INVALID_PLATFORMS_FLASH_MESSAGE =
+  "Couldn't save query. Please update platforms and try again.";

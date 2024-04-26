@@ -57,7 +57,7 @@ const NoResults = ({
     return (
       <EmptyTable
         graphicName="collecting-results"
-        header={"Collecting results..."}
+        header="Collecting results..."
         info={collectingResultsInfo()}
       />
     );

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,12 +14,86 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanodepClient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli/v2"
 )
+
+type withDS struct {
+	suite *suite.Suite
+	ds    *mysql.Datastore
+}
+
+func (ts *withDS) SetupSuite(dbName string) {
+	t := ts.suite.T()
+	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
+	test.AddAllHostsLabel(t, ts.ds)
+
+	// Set up the required fields on AppConfig
+	appConf, err := ts.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConf.OrgInfo.OrgName = "FleetTest"
+	appConf.ServerSettings.ServerURL = "https://example.org"
+	err = ts.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+}
+
+func (ts *withDS) TearDownSuite() {
+	_ = ts.ds.Close()
+}
+
+type withServer struct {
+	withDS
+
+	server *httptest.Server
+	users  map[string]fleet.User
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (ts *withServer) getTestToken(email string, password string) string {
+	params := loginRequest{
+		Email:    email,
+		Password: password,
+	}
+	j, err := json.Marshal(&params)
+	require.NoError(ts.suite.T(), err)
+
+	requestBody := io.NopCloser(bytes.NewBuffer(j))
+	resp, err := http.Post(ts.server.URL+"/api/latest/fleet/login", "application/json", requestBody)
+	require.NoError(ts.suite.T(), err)
+	defer func() { _ = resp.Body.Close() }()
+	assert.Equal(ts.suite.T(), http.StatusOK, resp.StatusCode)
+
+	jsn := struct {
+		User  *fleet.User         `json:"user"`
+		Token string              `json:"token"`
+		Err   []map[string]string `json:"errors,omitempty"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.NoError(ts.suite.T(), err)
+	require.Len(ts.suite.T(), jsn.Err, 0)
+
+	return jsn.Token
+}
+
+var testBMToken = &nanodepClient.OAuth1Tokens{
+	ConsumerKey:       "test_consumer",
+	ConsumerSecret:    "test_secret",
+	AccessToken:       "test_access_token",
+	AccessSecret:      "test_access_secret",
+	AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+}
 
 // runServerWithMockedDS runs the fleet server with several mocked DS methods.
 //

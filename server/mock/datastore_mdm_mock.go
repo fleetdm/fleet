@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -47,13 +48,15 @@ type EnrollmentHasCertHashFunc func(r *mdm.Request, hash string) (bool, error)
 
 type IsCertHashAssociatedFunc func(r *mdm.Request, hash string) (bool, error)
 
-type AssociateCertHashFunc func(r *mdm.Request, hash string) error
+type AssociateCertHashFunc func(r *mdm.Request, hash string, certNotValidAfter time.Time) error
 
 type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- interface{}) error
 
 type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, error)
 
 type EnqueueDeviceLockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error
+
+type EnqueueDeviceWipeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
 
 type MDMAppleStore struct {
 	StoreAuthenticateFunc        StoreAuthenticateFunc
@@ -118,6 +121,9 @@ type MDMAppleStore struct {
 
 	EnqueueDeviceLockCommandFunc        EnqueueDeviceLockCommandFunc
 	EnqueueDeviceLockCommandFuncInvoked bool
+
+	EnqueueDeviceWipeCommandFunc        EnqueueDeviceWipeCommandFunc
+	EnqueueDeviceWipeCommandFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -241,11 +247,11 @@ func (fs *MDMAppleStore) IsCertHashAssociated(r *mdm.Request, hash string) (bool
 	return fs.IsCertHashAssociatedFunc(r, hash)
 }
 
-func (fs *MDMAppleStore) AssociateCertHash(r *mdm.Request, hash string) error {
+func (fs *MDMAppleStore) AssociateCertHash(r *mdm.Request, hash string, certNotValidAfter time.Time) error {
 	fs.mu.Lock()
 	fs.AssociateCertHashFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.AssociateCertHashFunc(r, hash)
+	return fs.AssociateCertHashFunc(r, hash, certNotValidAfter)
 }
 
 func (fs *MDMAppleStore) RetrieveMigrationCheckins(p0 context.Context, p1 chan<- interface{}) error {
@@ -267,4 +273,11 @@ func (fs *MDMAppleStore) EnqueueDeviceLockCommand(ctx context.Context, host *fle
 	fs.EnqueueDeviceLockCommandFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.EnqueueDeviceLockCommandFunc(ctx, host, cmd, pin)
+}
+
+func (fs *MDMAppleStore) EnqueueDeviceWipeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
+	fs.mu.Lock()
+	fs.EnqueueDeviceWipeCommandFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnqueueDeviceWipeCommandFunc(ctx, host, cmd)
 }

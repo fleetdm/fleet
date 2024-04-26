@@ -159,4 +159,21 @@
       vertical-align: sub;
     }
   }
+  .linkToFilteredHosts__header {
+    width: 120px;
+  }
+
+  // This hides View all host link unless the row is hovered
+  tr {
+    .row-hover-link {
+      opacity: 0;
+      transition: 250ms;
+      text-overflow: none;
+    }
+    &:hover {
+      .row-hover-link {
+        opacity: 1;
+      }
+    }
+  }
 }

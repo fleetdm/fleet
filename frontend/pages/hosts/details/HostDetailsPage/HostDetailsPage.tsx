@@ -13,7 +13,7 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
-  IActivitiesResponse,
+  IPastActivitiesResponse,
   IUpcomingActivitiesResponse,
 } from "services/entities/activities";
 import hostAPI from "services/entities/hosts";
@@ -46,7 +46,12 @@ import {
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  HOST_SUMMARY_DATA,
+  HOST_ABOUT_DATA,
+  HOST_OSQUERY_DATA,
+} from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -85,6 +90,7 @@ import {
   HostMdmDeviceStatusUIState,
   getHostDeviceStatusUIState,
 } from "../helpers";
+import WipeModal from "./modals/WipeModal";
 
 const baseClass = "host-details";
 
@@ -140,6 +146,7 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
+    currentTeam,
   } = useContext(AppContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -159,6 +166,7 @@ const HostDetailsPage = ({
   );
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
+  const [showWipeModal, setShowWipeModal] = useState(false);
   const [scriptDetailsId, setScriptDetailsId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -361,9 +369,9 @@ const HostDetailsPage = ({
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
-    IActivitiesResponse,
+    IPastActivitiesResponse,
     Error,
-    IActivitiesResponse,
+    IPastActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -457,48 +465,11 @@ const HostDetailsPage = ({
     setPathname(location.pathname + location.search);
   }, [location]);
 
-  const titleData = normalizeEmptyValues(
-    pick(host, [
-      "id",
-      "status",
-      "issues",
-      "memory",
-      "cpu_type",
-      "platform",
-      "os_version",
-      "osquery_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-      "percent_disk_space_available",
-      "gigs_disk_space_available",
-      "team_name",
-      "display_name",
-    ])
-  );
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(
-    pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-      "public_ip",
-      "geolocation",
-      "batteries",
-      "detail_updated_at",
-      "last_restarted_at",
-    ])
-  );
+  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
-  const osqueryData = normalizeEmptyValues(
-    pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
-    ])
-  );
+  const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
@@ -596,7 +567,8 @@ const HostDetailsPage = ({
   const onQueryHostCustom = () => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+      PATHS.NEW_QUERY() +
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
     );
   };
 
@@ -604,7 +576,7 @@ const HostDetailsPage = ({
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
     );
   };
 
@@ -676,6 +648,9 @@ const HostDetailsPage = ({
       case "unlock":
         setShowUnlockHostModal(true);
         break;
+      case "wipe":
+        setShowWipeModal(true);
+        break;
       default: // do nothing
     }
   };
@@ -700,6 +675,7 @@ const HostDetailsPage = ({
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
         mdmName={mdm?.name}
+        hostScriptsEnabled={host.scripts_enabled}
       />
     );
   };
@@ -795,8 +771,7 @@ const HostDetailsPage = ({
           />
         </div>
         <HostSummaryCard
-          titleData={titleData}
-          diskEncryptionEnabled={host?.disk_encryption_enabled}
+          summaryData={summaryData}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
@@ -957,9 +932,12 @@ const HostDetailsPage = ({
         )}
         {showOSSettingsModal && (
           <OSSettingsModal
-            platform={host?.platform}
-            hostMDMData={host?.mdm}
+            canResendProfiles
+            hostId={host.id}
+            platform={host.platform}
+            hostMDMData={host.mdm}
             onClose={toggleOSSettingsModal}
+            onProfileResent={refetchHostDetails}
           />
         )}
         {showUnenrollMdmModal && !!host && (
@@ -1007,6 +985,14 @@ const HostDetailsPage = ({
               host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
             }}
             onClose={() => setShowUnlockHostModal(false)}
+          />
+        )}
+        {showWipeModal && (
+          <WipeModal
+            id={host.id}
+            hostName={host.display_name}
+            onSuccess={() => setHostMdmDeviceState("wiping")}
+            onClose={() => setShowWipeModal(false)}
           />
         )}
       </>

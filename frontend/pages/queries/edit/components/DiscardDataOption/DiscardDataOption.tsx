@@ -46,7 +46,7 @@ const DiscardDataOption = ({
             {"globally disabled."}
           </TooltipWrapper>{" "}
           <Link
-            to={""}
+            to=""
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               setForceEditDiscardData(true);

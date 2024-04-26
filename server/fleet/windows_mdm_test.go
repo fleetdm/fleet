@@ -39,10 +39,10 @@ func TestValidateUserProvided(t *testing.T) {
 </SyncML>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
-			name: "Invalid top level element",
+			name: "Add top level element",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 <Add>
@@ -52,7 +52,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Add>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements.",
+			wantErr: "",
 		},
 		{
 			name: "Reserved LocURI",
@@ -139,7 +139,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Add>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "",
 		},
 		{
 			name: "XML with Replace and Alert",
@@ -157,7 +157,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Alert>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Atomic",
@@ -175,7 +175,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Atomic>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Delete",
@@ -193,7 +193,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Delete>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Exec",
@@ -211,7 +211,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Exec>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Get",
@@ -229,7 +229,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Get>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Results",
@@ -247,7 +247,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Results>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Status",
@@ -265,7 +265,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Status>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with elements not defined in the protocol",
@@ -283,7 +283,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Foo>
 `),
 			},
-			wantErr: "Only <Replace> supported as a top level element. Make sure you don't have other top level elements",
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "invalid XML with mismatched tags",
@@ -359,7 +359,8 @@ func TestValidateUserProvided(t *testing.T) {
     <Data>Invalid & Data</Data>
   </Item>
 </Replace>
-`)},
+`),
+			},
 			wantErr: "The file should include valid XML",
 		},
 		{

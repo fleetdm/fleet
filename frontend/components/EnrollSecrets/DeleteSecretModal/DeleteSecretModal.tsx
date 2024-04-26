@@ -36,7 +36,7 @@ const DeleteSecretModal = ({
     <Modal
       onExit={toggleDeleteSecretModal}
       onEnter={onDeleteSecret}
-      title={"Delete secret"}
+      title="Delete secret"
       className={baseClass}
     >
       <div className={baseClass}>
@@ -50,9 +50,8 @@ const DeleteSecretModal = ({
             unable to enroll.
           </p>
           <p>
-            Any enrolled hosts using this secret will not receive updates
-            through Orbit including updates to agent options and command line
-            flags.
+            Hosts that enrolled with this secret will not get updates to agent
+            options.
           </p>
           <p>
             Follow this guide to{" "}

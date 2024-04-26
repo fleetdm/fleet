@@ -78,14 +78,14 @@ const PackQueriesTable = ({
           columnConfigs={tableHeaders}
           data={tableData}
           isLoading={isLoadingPackQueries}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search queries"}
+          defaultSortHeader="name"
+          defaultSortDirection="asc"
+          inputPlaceHolder="Search queries"
           onQueryChange={onTableQueryChange}
-          resultsTitle={"queries"}
+          resultsTitle="queries"
           emptyComponent={() =>
             EmptyTable({
-              header: "No queries match your search criteria.",
+              header: "No queries match your search criteria",
               info: "Try a different search.",
             })
           }
@@ -113,7 +113,7 @@ const PackQueriesTable = ({
           <p>Your pack has no queries.</p>
           <Button
             onClick={onAddPackQuery}
-            variant={"text-icon"}
+            variant="text-icon"
             className={`${baseClass}__no-queries-action-button`}
           >
             <>

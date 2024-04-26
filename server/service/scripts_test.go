@@ -32,8 +32,8 @@ func TestHostRunScript(t *testing.T) {
 		}
 	}
 
-	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now()}
-	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now()}
+	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}
+	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now(), OrbitNodeKey: ptr.String("def")}
 	nonExistingHost := &fleet.Host{ID: 3, Hostname: "no-such-host", TeamID: nil}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -283,6 +283,17 @@ func TestHostRunScript(t *testing.T) {
 					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: nonExistingHost.ID, ScriptContents: "abc"}, 0)
 					checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 				}
+
+				// test auth for run sync saved script by name
+				if tt.scriptID != nil {
+					ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
+						return *tt.scriptID, nil
+					}
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: 1}, 1)
+					checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: teamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: 1}, 1)
+					checkAuthErr(t, tt.shouldFailTeamWrite, err)
+				}
 			})
 		}
 	})
@@ -294,7 +305,8 @@ func TestHostRunScript(t *testing.T) {
 			wantErr string
 		}{
 			{"empty script", "", "Script contents must not be empty."},
-			{"overly long script", strings.Repeat("a", 10001), "Script is too large."},
+			{"overly long script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1), "Script is too large."},
+			{"large script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen), ""},
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
 			{"valid with hashbang", "#!/bin/sh\necho 'a'", ""},

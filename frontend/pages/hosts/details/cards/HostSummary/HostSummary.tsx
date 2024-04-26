@@ -13,6 +13,8 @@ import getHostStatusTooltipText from "pages/hosts/helpers";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import Card from "components/Card";
+import DataSet from "components/DataSet";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
@@ -22,7 +24,6 @@ import StatusIndicator from "components/StatusIndicator";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
-import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 import {
@@ -102,9 +103,8 @@ interface IBootstrapPackageData {
 }
 
 interface IHostSummaryProps {
-  titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
-  diskEncryptionEnabled?: boolean;
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
   toggleOSSettingsModal?: () => void;
@@ -164,9 +164,8 @@ const getHostDiskEncryptionTooltipMessage = (
 };
 
 const HostSummary = ({
-  titleData,
+  summaryData,
   bootstrapPackageData,
-  diskEncryptionEnabled,
   isPremiumTier,
   isSandboxMode = false,
   toggleOSSettingsModal,
@@ -180,10 +179,14 @@ const HostSummary = ({
   osSettings,
   hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
-  const { status, platform } = titleData;
+  const {
+    status,
+    platform,
+    disk_encryption_enabled: diskEncryptionEnabled,
+  } = summaryData;
 
   const renderRefetch = () => {
-    const isOnline = titleData.status === "online";
+    const isOnline = summaryData.status === "online";
     let isDisabled = false;
     let tooltip: React.ReactNode = <></>;
 
@@ -216,50 +219,65 @@ const HostSummary = ({
   };
 
   const renderIssues = () => (
-    <div className="info-flex__item info-flex__item--title">
-      <span className="info-flex__header">
-        Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}
-      </span>
-      <span className="info-flex__data">
-        <span
-          className="host-issue tooltip tooltip__tooltip-icon"
-          data-tip
-          data-for="host-issue-count"
-          data-tip-disable={false}
-        >
-          <Icon name="error-outline" color="ui-fleet-black-50" />
-        </span>
-        <ReactTooltip
-          place="bottom"
-          effect="solid"
-          backgroundColor={COLORS["tooltip-bg"]}
-          id="host-issue-count"
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Failing policies ({titleData.issues.failing_policies_count})
+    <DataSet
+      title={<>Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}</>}
+      value={
+        <>
+          <span
+            className="host-issue tooltip tooltip__tooltip-icon"
+            data-tip
+            data-for="host-issue-count"
+            data-tip-disable={false}
+          >
+            <Icon name="error-outline" color="ui-fleet-black-50" />
           </span>
-        </ReactTooltip>
-        <span className={"info-flex__data__text"}>
-          {titleData.issues.total_issues_count}
-        </span>
-      </span>
-    </div>
+          <ReactTooltip
+            place="bottom"
+            effect="solid"
+            backgroundColor={COLORS["tooltip-bg"]}
+            id="host-issue-count"
+            data-html
+          >
+            <span className={`tooltip__tooltip-text`}>
+              Failing policies ({summaryData.issues.failing_policies_count})
+            </span>
+          </ReactTooltip>
+          <span>{summaryData.issues.total_issues_count}</span>
+        </>
+      }
+    />
   );
 
   const renderHostTeam = () => (
-    <div className="info-flex__item info-flex__item--title">
-      <span className="info-flex__header">Team</span>
-      <span className={`info-flex__data`}>
-        {titleData.team_name ? (
-          `${titleData.team_name}`
+    <DataSet
+      title="Team"
+      value={
+        summaryData.team_name !== "---" ? (
+          `${summaryData.team_name}`
         ) : (
-          <span className="info-flex__no-team">No team</span>
-        )}
-      </span>
-    </div>
+          <span className="no-team">No team</span>
+        )
+      }
+    />
   );
 
+  const renderDiskSpaceSummary = () => {
+    return (
+      <DataSet
+        title="Disk space"
+        value={
+          <DiskSpaceGraph
+            baseClass="info-flex"
+            gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
+            percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
+            id={`disk-space-tooltip-${summaryData.id}`}
+            platform={platform}
+            tooltipPosition="bottom"
+          />
+        }
+      />
+    );
+  };
   const renderDiskEncryptionSummary = () => {
     // TODO: improve this typing, platforms!
     if (!["darwin", "windows", "chrome"].includes(platform)) {
@@ -269,20 +287,68 @@ const HostSummary = ({
       platform,
       diskEncryptionEnabled
     );
+
     let statusText;
-    if (platform === "chrome") {
-      statusText = "Always on";
-    } else {
-      statusText = diskEncryptionEnabled ? "On" : "Off";
+    switch (true) {
+      case platform === "chrome":
+        statusText = "Always on";
+        break;
+      case diskEncryptionEnabled === true:
+        statusText = "On";
+        break;
+      case diskEncryptionEnabled === false:
+        statusText = "Off";
+        break;
+      default:
+        // something unexpected happened on the way to this component, display whatever we got or
+        // "Unknown" to draw attention to the issue.
+        statusText = diskEncryptionEnabled || "Unknown";
     }
+
     return (
-      <div className="info-flex__item info-flex__item--title">
-        <span className="info-flex__header">Disk encryption</span>
-        <TooltipWrapper tipContent={tooltipMessage}>
-          {statusText}
-        </TooltipWrapper>
-      </div>
+      <DataSet
+        title="Disk encryption"
+        value={
+          <TooltipWrapper tipContent={tooltipMessage}>
+            {statusText}
+          </TooltipWrapper>
+        }
+      />
     );
+  };
+
+  const renderAgentSummary = () => {
+    if (platform === "chrome") {
+      return <DataSet title="Agent" value={summaryData.osquery_version} />;
+    }
+    if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
+      return (
+        <DataSet
+          title="Agent"
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  osquery: {summaryData.osquery_version}
+                  <br />
+                  Orbit: {summaryData.orbit_version}
+                  {summaryData.fleet_desktop_version !==
+                    DEFAULT_EMPTY_CELL_VALUE && (
+                    <>
+                      <br />
+                      Fleet Desktop: {summaryData.fleet_desktop_version}
+                    </>
+                  )}
+                </>
+              }
+            >
+              {summaryData.orbit_version}
+            </TooltipWrapper>
+          }
+        />
+      );
+    }
+    return <DataSet title="Osquery" value={summaryData.osquery_version} />;
   };
 
   const renderSummary = () => {
@@ -304,19 +370,25 @@ const HostSummary = ({
     }
 
     return (
-      <div className="info-flex">
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Status</span>
-          <StatusIndicator
-            value={status || ""} // temporary work around of integration test bug
-            tooltip={{
-              tooltipText: getHostStatusTooltipText(status),
-              position: "bottom",
-            }}
-          />
-        </div>
-
-        {(titleData.issues?.total_issues_count > 0 || isSandboxMode) &&
+      <Card
+        borderRadiusSize="large"
+        includeShadow
+        largePadding
+        className={`${baseClass}-card`}
+      >
+        <DataSet
+          title="Status"
+          value={
+            <StatusIndicator
+              value={status || ""} // temporary work around of integration test bug
+              tooltip={{
+                tooltipText: getHostStatusTooltipText(status),
+                position: "bottom",
+              }}
+            />
+          }
+        />
+        {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
           isPremiumTier &&
           renderIssues()}
 
@@ -330,64 +402,48 @@ const HostSummary = ({
           mdmName?.includes("Fleet") && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
-            <HostSummaryIndicator title="OS settings">
-              <OSSettingsIndicator
-                profiles={hostMdmProfiles}
-                onClick={toggleOSSettingsModal}
-              />
-            </HostSummaryIndicator>
+            <DataSet
+              title="OS settings"
+              value={
+                <OSSettingsIndicator
+                  profiles={hostMdmProfiles}
+                  onClick={toggleOSSettingsModal}
+                />
+              }
+            />
           )}
 
         {bootstrapPackageData?.status && (
-          <HostSummaryIndicator title="Bootstrap package">
-            <BootstrapPackageIndicator
-              status={bootstrapPackageData.status}
-              onClick={toggleBootstrapPackageModal}
-            />
-          </HostSummaryIndicator>
+          <DataSet
+            title="Bootstrap package"
+            value={
+              <BootstrapPackageIndicator
+                status={bootstrapPackageData.status}
+                onClick={toggleBootstrapPackageModal}
+              />
+            }
+          />
         )}
 
-        {platform !== "chrome" && (
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Disk space</span>
-            <DiskSpaceGraph
-              baseClass="info-flex"
-              gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
-              percentDiskSpaceAvailable={titleData.percent_disk_space_available}
-              id={`disk-space-tooltip-${titleData.id}`}
-              platform={platform}
-              tooltipPosition="bottom"
-            />
-          </div>
-        )}
+        {platform !== "chrome" && renderDiskSpaceSummary()}
 
         {renderDiskEncryptionSummary()}
 
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Memory</span>
-          <span className="info-flex__data">
-            {wrapFleetHelper(humanHostMemory, titleData.memory)}
-          </span>
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Processor type</span>
-          <span className="info-flex__data">{titleData.cpu_type}</span>
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Operating system</span>
-          <span className="info-flex__data">{titleData.os_version}</span>
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Osquery</span>
-          <span className="info-flex__data">{titleData.osquery_version}</span>
-        </div>
-      </div>
+        <DataSet
+          title="Memory"
+          value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
+        />
+        <DataSet title="Processor type" value={summaryData.cpu_type} />
+        <DataSet title="Operating system" value={summaryData.os_version} />
+
+        {renderAgentSummary()}
+      </Card>
     );
   };
 
-  const lastFetched = titleData.detail_updated_at ? (
+  const lastFetched = summaryData.detail_updated_at ? (
     <HumanTimeDiffWithFleetLaunchCutoff
-      timeString={titleData.detail_updated_at}
+      timeString={summaryData.detail_updated_at}
     />
   ) : (
     ": unavailable"
@@ -430,7 +486,7 @@ const HostSummary = ({
             <h1 className="display-name">
               {deviceUser
                 ? "My device"
-                : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
+                : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
 
             {renderDeviceStatusTag()}
@@ -444,9 +500,7 @@ const HostSummary = ({
         </div>
         {renderActionButtons()}
       </div>
-      <div className="section title">
-        <div className="title__inner">{renderSummary()}</div>
-      </div>
+      {renderSummary()}
     </div>
   );
 };

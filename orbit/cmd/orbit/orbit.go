@@ -495,6 +495,7 @@ func main() {
 			}
 
 			// Get current version of osquery
+			log.Info().Msgf("orbit version: %s", build.Version)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
 				log.Info().Err(err).Msg("Could not find local osqueryd executable")
@@ -782,6 +783,14 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			&service.OnGetConfigErrFuncs{
+				DebugErrFunc: func(err error) {
+					log.Debug().Err(err).Msg("get config")
+				},
+				OnNetErrFunc: func(err error) {
+					log.Info().Err(err).Msg("network error")
+				},
+			},
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -795,7 +804,9 @@ func main() {
 			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
-		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
+		configFetcher, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
+			configFetcher, c.Bool("enable-scripts"), orbitClient,
+		)
 
 		switch runtime.GOOS {
 		case "darwin":
@@ -1054,6 +1065,14 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			&service.OnGetConfigErrFuncs{
+				DebugErrFunc: func(err error) {
+					log.Debug().Err(err).Msg("get config")
+				},
+				OnNetErrFunc: func(err error) {
+					log.Info().Err(err).Msg("network error")
+				},
+			},
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -1063,6 +1082,20 @@ func main() {
 		checkerClient.GetServerCapabilities().Copy(orbitClient.GetServerCapabilities())
 		g.Add(capabilitiesChecker.actor())
 
+		var desktopVersion string
+		if c.Bool("fleet-desktop") {
+			runPath := desktopPath
+			if runtime.GOOS == "darwin" {
+				runPath = filepath.Join(desktopPath, "Contents", "MacOS", constant.DesktopAppExecName)
+			}
+			desktopVersion, err = update.GetVersion(runPath)
+			if err == nil && desktopVersion != "" {
+				log.Info().Msgf("Found fleet-desktop version: %s", desktopVersion)
+			} else {
+				desktopVersion = "unknown"
+			}
+		}
+
 		registerExtensionRunner(
 			&g,
 			r.ExtensionSocketPath(),
@@ -1071,8 +1104,10 @@ func main() {
 				c.String("orbit-channel"),
 				c.String("osqueryd-channel"),
 				c.String("desktop-channel"),
+				desktopVersion,
 				trw,
 				startTime,
+				scriptsEnabledFn,
 			)),
 		)
 
@@ -1563,7 +1598,7 @@ func (f *capabilitiesChecker) execute() error {
 	// Do an initial ping to store the initial capabilities if needed
 	if len(f.client.GetServerCapabilities()) == 0 {
 		if err := f.client.Ping(); err != nil {
-			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+			logging.LogErrIfEnvNotSetDebug(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 		}
 	}
 
@@ -1573,7 +1608,7 @@ func (f *capabilitiesChecker) execute() error {
 			oldCapabilities := f.client.GetServerCapabilities()
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+				logging.LogErrIfEnvNotSetDebug(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 				continue
 			}
 			newCapabilities := f.client.GetServerCapabilities()

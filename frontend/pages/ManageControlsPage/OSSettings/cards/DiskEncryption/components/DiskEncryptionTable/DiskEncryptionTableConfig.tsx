@@ -86,10 +86,7 @@ const defaultTableHeaders: IDataColumn[] = [
     ),
     disableSortBy: true,
     accessor: "macosHosts",
-    Cell: ({
-      cell: { value: aggregateCount },
-      row: { original },
-    }: ICellProps) => {
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return (
         <div className="disk-encryption-table__aggregate-table-data">
           <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
@@ -108,21 +105,32 @@ const defaultTableHeaders: IDataColumn[] = [
     ),
     disableSortBy: true,
     accessor: "windowsHosts",
-    Cell: ({
-      cell: { value: aggregateCount },
-      row: { original },
-    }: ICellProps) => {
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return (
-        <div className="disk-encryption-table__aggregate-table-data">
-          <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
-          <ViewAllHostsLink
-            className="view-hosts-link"
-            queryParams={{
-              [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: original.status.value,
-              team_id: original.teamId,
-            }}
-          />
-        </div>
+        <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
+      );
+    },
+  },
+  {
+    title: "",
+    Header: "",
+    accessor: "linkToFilteredHosts",
+    disableSortBy: true,
+    Cell: (cellProps: ICellProps) => {
+      return (
+        <>
+          {cellProps.row.original && (
+            <ViewAllHostsLink
+              className="view-hosts-link"
+              queryParams={{
+                [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]:
+                  cellProps.row.original.status.value,
+                team_id: cellProps.row.original.teamId,
+              }}
+              rowHover
+            />
+          )}
+        </>
       );
     },
   },
@@ -179,8 +187,6 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
       "These hosts will receive the MDM command to turn off disk encryption when the hosts come online.",
   },
 };
-
-type StatusEntry = [DiskEncryptionStatus, IDiskEncryptionStatusAggregate];
 
 // Order of the status column. We want the order to always be the same.
 const STATUS_ORDER = [

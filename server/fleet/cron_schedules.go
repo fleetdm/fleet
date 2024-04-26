@@ -14,12 +14,14 @@ type CronScheduleName string
 const (
 	CronAppleMDMDEPProfileAssigner CronScheduleName = "apple_mdm_dep_profile_assigner"
 	CronCleanupsThenAggregation    CronScheduleName = "cleanups_then_aggregation"
+	CronFrequentCleanups           CronScheduleName = "frequent_cleanups"
 	CronUsageStatistics            CronScheduleName = "usage_statistics"
 	CronVulnerabilities            CronScheduleName = "vulnerabilities"
 	CronAutomations                CronScheduleName = "automations"
 	CronWorkerIntegrations         CronScheduleName = "integrations"
 	CronActivitiesStreaming        CronScheduleName = "activities_streaming"
 	CronMDMAppleProfileManager     CronScheduleName = "mdm_apple_profile_manager"
+	CronCalendar                   CronScheduleName = "calendar"
 )
 
 type CronSchedulesService interface {

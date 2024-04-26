@@ -17,11 +17,11 @@
   dri: "3kindsoffish"
 -
   task: "Optimize ads"
-  startedOn: "2023-09-25"
-  frequency: "Biweekly"
-  description: "Apply an ad variation to each ad every two weeks."
+  startedOn: "2024-02-26"
+  frequency: "Weekly"
+  description: "Remove all but the top 5 perfoming ads in each evergreen campaign. Make sure ABM campaigns are using top performing evergreen ads."
   moreInfoUrl: "https://fleetdm.com/handbook/demand#optimize-ads-through-experimentation"
-  dri: "drewBakerfdm"
+  dri: "3kindsoffish"
 -
   task: "Process pending swag requests from the website" # Title that will actually show in rituals table
   startedOn: "2023-09-20" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday

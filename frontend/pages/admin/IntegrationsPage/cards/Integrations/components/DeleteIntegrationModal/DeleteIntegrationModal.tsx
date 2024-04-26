@@ -22,7 +22,7 @@ const DeleteIntegrationModal = ({
 }: IDeleteIntegrationModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Delete integration"}
+      title="Delete integration"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}

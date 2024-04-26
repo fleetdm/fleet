@@ -1,0 +1,1 @@
+- Added flag to enable deletion of old activities and associated data in cleanup cron job (`activity_expiry_settings.activity_expiry_enabled` and `activity_expiry_settings.activity_expiry_window`). The cleanup cron job deletes up to 5000 expired activities on each hourly run (thus, up to ~120,000 expired activities are cleaned up a day).

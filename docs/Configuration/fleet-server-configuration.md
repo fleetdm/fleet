@@ -203,7 +203,7 @@ The maximum open connections to the database.
   ```
 
 - Note: Fleet server uses SQL prepared statements, and the default setting of MySQL DB server's [max_prepared_stmt_count](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_prepared_stmt_count)
-may need to be adjusted for large deployments. This setting should be greater than or equal to:
+  may need to be adjusted for large deployments. This setting should be greater than or equal to:
 ```
 FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
 ```
@@ -522,8 +522,7 @@ The maximum time a Redis connection may stay idle. A value of 0 means no limit.
 ##### redis_conn_wait_timeout
 
 The maximum time to wait for a Redis connection if the max_open_conns
-limit is reached. A value of 0 means no wait. This is ignored if Redis is not
-running in cluster mode.
+limit is reached. A value of 0 means no wait.
 
 - Default value: 0
 - Environment variable: `FLEET_REDIS_CONN_WAIT_TIMEOUT`
@@ -665,8 +664,8 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 ##### server_websockets_allow_unsafe_origin
 
 Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
-the Origin header may not reflect the client's true origin. In this case, you might need to 
-disable the origin header (by setting this configuration to `true`) 
+the Origin header may not reflect the client's true origin. In this case, you might need to
+disable the origin header (by setting this configuration to `true`)
 check or configure your reverse proxy to forward the correct Origin header.
 
 Setting to true will disable the origin check.
@@ -1017,7 +1016,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
     enable_async_host_processing: true
   ```
 
- > Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
+> Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
 
 ##### osquery_async_host_collect_interval
 
@@ -1153,9 +1152,9 @@ osquery:
   status_log_plugin: firehose
   result_log_plugin: firehose
 ```
-#### External Activity Audit Logging
+#### External activity audit logging
 
-> Applies only to Fleet Premium. Acitivity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+> Applies only to Fleet Premium. Activity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
 Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
@@ -2276,7 +2275,7 @@ If set then `fleet serve` will run even if there are database migrations missing
 
 The path specified needs to exist and Fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
-When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
+When `disable_schedule` is set to `false` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
 - Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
@@ -2346,21 +2345,11 @@ When not defined, Fleet downloads CVE information from the nvd.nist.gov host usi
     cve_feed_prefix_url: ""
   ```
 
-##### current_instance_checks
-
-When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
-
-- Default value: `auto`
-- Environment variable: `FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS`
-- Config file format:
-  ```yaml
-  vulnerabilities:
-    current_instance_checks: yes
-  ```
-
 ##### disable_schedule
 
-To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to `true` and one of them set to `false`.
+
+Similarly, to externally manage running vulnerability processing, set the value to `true` for all Fleet instances and then run `fleet vuln_processing` using external
 tools like crontab.
 
 - Default value: `false`
@@ -2488,8 +2477,8 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
 
 If `basic_auth.username` is not set, then:
-  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
-  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
+- If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+- If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2505,8 +2494,8 @@ If `basic_auth.username` is not set, then:
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
 
 If `basic_auth.password` is not set, then:
-  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
-  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
+- If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+- If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2759,7 +2748,7 @@ The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An
       -----END CERTIFICATE-----
   ```
 
-The SCEP certificate/key pair [generated by Fleet](https://fleetdm.com/docs/using-fleet/MDM-setup#step-1-generate-the-required-files) expires every 10 years. It's recommended to never change these unless they were compromised. 
+The SCEP certificate/key pair [generated by Fleet](https://fleetdm.com/docs/using-fleet/MDM-setup#step-1-generate-the-required-files) expires every 10 years. It's recommended to never change these unless they were compromised.
 
 If your certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on and the keys are [reset by the end user](https://fleetdm.com/docs/using-fleet/MDM-migration-guide#how-to-turn-on-disk-encryption).
 
@@ -2877,7 +2866,7 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
 - Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES`
-- Config file format: 
+- Config file format:
   ```
   mdm:
    windows_wstep_identity_cert_bytes: |
@@ -2892,8 +2881,8 @@ If your WSTEP certificate/key pair was compromised and you change the pair, the 
 
 The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 - Default value: ""
-- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES` 
-- Config file format:  
+- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES`
+- Config file format:
   ```
   mdm:
     windows_wstep_identity_key_bytes: |

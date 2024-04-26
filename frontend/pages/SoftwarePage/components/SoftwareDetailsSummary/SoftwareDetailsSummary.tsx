@@ -1,27 +1,19 @@
+/**
+software/titles/:id > Top section
+software/versions/:id > Top section
+software/os/:id > Top section
+*/
+
 import React from "react";
 
 import { QueryParams } from "utilities/url";
 
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import DataSet from "components/DataSet";
 
 import SoftwareIcon from "../icons/SoftwareIcon";
 
 const baseClass = "software-details-summary";
-
-interface IDescriptionSetProps {
-  title: string;
-  value: React.ReactNode;
-}
-
-// TODO: move to frontend/components
-const DataSet = ({ title, value }: IDescriptionSetProps) => {
-  return (
-    <div className={`${baseClass}__data-set`}>
-      <dt>{title}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-};
 
 interface ISoftwareDetailsSummaryProps {
   title: string;

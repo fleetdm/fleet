@@ -7,7 +7,7 @@ on:
       - patch-*
   pull_request:
     paths:
-      - 'ee/tools/puppet/fleetdm/*.*'
+      - 'ee/tools/puppet/fleetdm/**'
       - '.github/workflows/test-puppet.yml'
   workflow_dispatch: # Manual
 
@@ -28,6 +28,11 @@ jobs:
   test-puppet:
     runs-on: macos-latest
     steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
     - name: Install Puppet Development Kit
       run: brew install --cask puppetlabs/puppet/pdk 
 

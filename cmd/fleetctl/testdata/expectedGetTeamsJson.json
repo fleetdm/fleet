@@ -12,6 +12,7 @@
 				"host_expiry_window": 0
 			},
 			"webhook_settings": {
+				"host_status_webhook": null,
 				"failing_policies_webhook": {
 					"enable_failing_policies_webhook": false,
 					"destination_url": "",
@@ -21,7 +22,8 @@
 			},
 			"integrations": {
 				"jira": null,
-				"zendesk": null
+				"zendesk": null,
+				"google_calendar": null
 			},
 			"features": {
 				"enable_host_users": true,
@@ -43,7 +45,8 @@
 				"macos_setup": {
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
-					"macos_setup_assistant": null
+					"macos_setup_assistant": null,
+					"enable_release_device_manually": false
 				},
 				"windows_settings": {
 					"custom_settings": null
@@ -81,6 +84,7 @@
 				"host_expiry_window": 15
 			},
 			"webhook_settings": {
+				"host_status_webhook": null,
 				"failing_policies_webhook": {
 					"enable_failing_policies_webhook": false,
 					"destination_url": "",
@@ -90,7 +94,8 @@
 			},
 			"integrations": {
 				"jira": null,
-				"zendesk": null
+				"zendesk": null,
+				"google_calendar": null
 			},
 			"features": {
 				"enable_host_users": false,
@@ -115,7 +120,8 @@
 				"macos_setup": {
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
-					"macos_setup_assistant": null
+					"macos_setup_assistant": null,
+					"enable_release_device_manually": false
 				},
 				"windows_settings": {
 					"custom_settings": null
