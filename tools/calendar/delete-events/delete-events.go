@@ -27,7 +27,7 @@ var (
 )
 
 const (
-	eventTitle = "💻 🚫 Scheduled maintenance"
+	eventTitle = "💻🚫 Scheduled maintenance"
 )
 
 func main() {
