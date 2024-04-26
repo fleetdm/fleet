@@ -835,6 +835,19 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_unused_script_contents", func(ctx context.Context) error {
 			return ds.CleanupUnusedScriptContents(ctx)
 		}),
+		schedule.WithJob("cleanup_activities", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
+				return nil
+			}
+			// A maxCount of 5,000 means that the cron job will keep the activities (and associated tables)
+			// sizes in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
+			const maxCount = 5000
+			return ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+		}),
 	)
 
 	return s, nil

@@ -288,3 +288,61 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 
 	return activities, metaData, nil
 }
+
+func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiredWindowDays int) error {
+	const selectActivitiesQuery = `
+		SELECT a.id FROM activities a
+		LEFT JOIN host_activities ha ON (a.id=ha.activity_id)
+		WHERE ha.activity_id IS NULL AND a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+		ORDER BY a.id ASC
+		LIMIT ?;`
+	var activityIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &activityIDs, selectActivitiesQuery, expiredWindowDays, maxCount); err != nil {
+		return ctxerr.Wrap(ctx, err, "select activities for deletion")
+	}
+	if len(activityIDs) > 0 {
+		deleteActivitiesQuery, args, err := sqlx.In(`DELETE FROM activities WHERE id IN (?);`, activityIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build activities IN query")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteActivitiesQuery, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete expired activities")
+		}
+	}
+
+	//
+	// `activities` and `queries` are not tied because the activity itself holds
+	// the query SQL so they don't need to be executed on the same transaction.
+	//
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete temporary queries (aka "not saved").
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM queries
+			WHERE NOT saved AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+			LIMIT ?`,
+			expiredWindowDays, maxCount,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete expired non-saved queries")
+		}
+		// Delete distributed campaigns that reference unexisting query (removed in the previous query).
+		if _, err := tx.ExecContext(ctx,
+			`DELETE distributed_query_campaigns FROM distributed_query_campaigns
+			LEFT JOIN queries ON (distributed_query_campaigns.query_id=queries.id)
+			WHERE queries.id IS NULL`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete expired orphaned distributed_query_campaigns")
+		}
+		// Delete distributed campaign targets that reference unexisting distributed campaign (removed in the previous query).
+		if _, err := tx.ExecContext(ctx,
+			`DELETE distributed_query_campaign_targets FROM distributed_query_campaign_targets
+			LEFT JOIN distributed_query_campaigns ON (distributed_query_campaign_targets.distributed_query_campaign_id=distributed_query_campaigns.id)
+			WHERE distributed_query_campaigns.id IS NULL`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete expired orphaned distributed_query_campaign_targets")
+		}
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete expired distributed queries")
+	}
+	return nil
+}

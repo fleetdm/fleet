@@ -10,6 +10,9 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 0
   integrations:
     google_calendar: null
     jira: null

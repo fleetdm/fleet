@@ -2,15 +2,18 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,6 +32,8 @@ func TestActivity(t *testing.T) {
 		{"PaginationMetadata", testActivityPaginationMetadata},
 		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
 		{"ListHostPastActivities", testListHostPastActivities},
+		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
+		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -552,4 +557,240 @@ func testListHostPastActivities(t *testing.T, ds *Datastore) {
 			}
 		}
 	}
+}
+
+func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	user1, err := ds.NewUser(ctx, user1)
+	require.NoError(t, err)
+
+	// Nothing to delete.
+	err = ds.CleanupActivitiesAndAssociatedData(ctx, 500, 1)
+	require.NoError(t, err)
+
+	nonSavedQuery1, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:    "nonSavedQuery1",
+		Saved:   false,
+		Query:   "SELECT 1;",
+		Logging: fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	savedQuery1, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:    "savedQuery1",
+		Saved:   true,
+		Query:   "SELECT 2;",
+		Logging: fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	distributedQueryCampaign1, err := ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
+		QueryID: nonSavedQuery1.ID,
+		Status:  fleet.QueryComplete,
+		UserID:  user1.ID,
+	})
+	require.NoError(t, err)
+	_, err = ds.NewDistributedQueryCampaignTarget(ctx, &fleet.DistributedQueryCampaignTarget{
+		DistributedQueryCampaignID: distributedQueryCampaign1.ID,
+		TargetID:                   1,
+		Type:                       fleet.TargetHost,
+	})
+	require.NoError(t, err)
+	err = ds.NewActivity(ctx, user1, dummyActivity{
+		name:    "other activity",
+		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
+	})
+	require.NoError(t, err)
+	err = ds.NewActivity(ctx, user1, dummyActivity{
+		name:    "live query",
+		details: map[string]interface{}{"detail": 1, "foo": "bar"},
+	})
+	require.NoError(t, err)
+	err = ds.NewActivity(ctx, user1, dummyActivity{
+		name:    "some host activity",
+		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
+		hostIDs: []uint{1},
+	})
+	require.NoError(t, err)
+	err = ds.NewActivity(ctx, user1, dummyActivity{
+		name:    "some host activity 2",
+		details: map[string]interface{}{"detail": 0, "foo": "bar"},
+		hostIDs: []uint{2},
+	})
+	require.NoError(t, err)
+
+	// Nothing is deleted, as the activities and associated data is recent.
+	const maxCount = 500
+	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	require.NoError(t, err)
+
+	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 4)
+	nonExpiredActivityID := activities[0].ID
+	expiredActivityID := activities[1].ID
+	nonExpiredHostActivityID := activities[2].ID
+	expiredHostActivityID := activities[3].ID
+	_, err = ds.Query(ctx, nonSavedQuery1.ID)
+	require.NoError(t, err)
+	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
+	require.NoError(t, err)
+	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	require.NoError(t, err)
+	require.Len(t, targets.HostIDs, 1)
+
+	// Make some of the activity and associated data older.
+	_, err = ds.writer(context.Background()).Exec(`
+		UPDATE activities SET created_at = ? WHERE id = ? OR id = ?`,
+		time.Now().Add(-48*time.Hour), expiredActivityID, expiredHostActivityID,
+	)
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(`
+		UPDATE queries SET created_at = ? WHERE id = ? OR id = ?`,
+		time.Now().Add(-48*time.Hour), nonSavedQuery1.ID, savedQuery1.ID,
+	)
+	require.NoError(t, err)
+
+	// Expired activity and associated data should be cleaned up.
+	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	require.NoError(t, err)
+
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 3)
+	require.Equal(t, nonExpiredActivityID, activities[0].ID)
+	require.Equal(t, nonExpiredHostActivityID, activities[1].ID)
+	require.Equal(t, expiredHostActivityID, activities[2].ID)
+	_, err = ds.Query(ctx, nonSavedQuery1.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	require.NoError(t, err)
+	require.Empty(t, targets.HostIDs)
+	require.Empty(t, targets.LabelIDs)
+	require.Empty(t, targets.TeamIDs)
+
+	// Saved query should not be cleaned up.
+	savedQuery1, err = ds.Query(ctx, savedQuery1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, savedQuery1)
+}
+
+func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	user1, err := ds.NewUser(ctx, user1)
+	require.NoError(t, err)
+
+	const maxCount = 500
+
+	// Create 1500 activities.
+	insertActivitiesStmt := `
+		INSERT INTO activities
+		(user_id, user_name, activity_type, details, user_email)
+		VALUES `
+	var insertActivitiesArgs []interface{}
+	for i := 0; i < 1500; i++ {
+		insertActivitiesArgs = append(insertActivitiesArgs,
+			user1.ID, user1.Name, "foobar", `{"foo": "bar"}`, user1.Email,
+		)
+	}
+	insertActivitiesStmt += strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", 1500), ",")
+	_, err = ds.writer(ctx).ExecContext(ctx, insertActivitiesStmt, insertActivitiesArgs...)
+	require.NoError(t, err)
+
+	// Create 1500 non-saved queries.
+	insertQueriesStmt := `
+		INSERT INTO queries
+		(name, description, query)
+		VALUES `
+	var insertQueriesArgs []interface{}
+	for i := 0; i < 1500; i++ {
+		insertQueriesArgs = append(insertQueriesArgs,
+			fmt.Sprintf("foobar%d", i), "foobar", "SELECT 1;",
+		)
+	}
+	insertQueriesStmt += strings.TrimSuffix(strings.Repeat("(?, ?, ?),", 1500), ",")
+	_, err = ds.writer(ctx).ExecContext(ctx, insertQueriesStmt, insertQueriesArgs...)
+	require.NoError(t, err)
+
+	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	require.NoError(t, err)
+
+	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 1500)
+	var queriesLen int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
+	})
+	require.Equal(t, 1500, queriesLen)
+
+	// Make 1250 activities as expired.
+	_, err = ds.writer(context.Background()).Exec(`
+		UPDATE activities SET created_at = ? WHERE id <= 1250`,
+		time.Now().Add(-48*time.Hour),
+	)
+	require.NoError(t, err)
+
+	// Make 1250 queries as expired.
+	_, err = ds.writer(context.Background()).Exec(`
+		UPDATE queries SET created_at = ? WHERE id <= 1250`,
+		time.Now().Add(-48*time.Hour),
+	)
+	require.NoError(t, err)
+
+	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	require.NoError(t, err)
+
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 1000)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
+	})
+	require.Equal(t, 1000, queriesLen)
+
+	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	require.NoError(t, err)
+
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 500)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
+	})
+	require.Equal(t, 500, queriesLen)
+
+	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	require.NoError(t, err)
+
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 250)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
+	})
+	require.Equal(t, 250, queriesLen)
+
+	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	require.NoError(t, err)
+
+	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 250)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
+	})
+	require.Equal(t, 250, queriesLen)
 }
