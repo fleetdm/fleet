@@ -258,13 +258,13 @@ const generateTableHeaders = ({
   if (!isOnlyObserver && !omitSelectionColumn) {
     tableHeaders.unshift({
       id: "selection",
-      // Header: (headerProps: IHeaderProps): JSX.Element => {
       // TODO - improve typing of IHeaderProps instead of using any
+      // Header: (headerProps: IHeaderProps): JSX.Element => {
       Header: (headerProps: any): JSX.Element => {
         const checkboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
           checkIfRowIsSelectable: (row) =>
-            row.original.team_id === currentTeamId,
+            (row.original.team_id ?? undefined) === currentTeamId,
         });
 
         return <Checkbox {...checkboxProps} />;
