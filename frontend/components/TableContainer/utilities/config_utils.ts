@@ -1,3 +1,5 @@
+// from https://stackoverflow.com/a/68213902/15458245
+
 // Note: This is a lite solution and does NOT include ability to
 // "Select all across pages" nor to disable the header checkbox
 
@@ -21,9 +23,12 @@ const getConditionalSelectHeaderCheckboxProps = ({
 
   // Naming matches react-table v7 https://react-table-v7-docs.netlify.app/docs/api/useRowSelect#instance-properties
   // getToggleAllPageRowsSelectedProps: Function(props) => props
-  const checked = checkIfAllSelectableRowsSelected(headerProps.rows);
+  const allSelectableRowsSelected = checkIfAllSelectableRowsSelected(
+    headerProps.rows
+  );
   const indeterminate =
-    !checked && headerProps.rows.some((row) => row.isSelected);
+    !allSelectableRowsSelected &&
+    headerProps.rows.some((row) => row.isSelected);
 
   const onChange = () => {
     // If all selectable rows are already selected, deselect all selectable rows on the page
@@ -46,7 +51,7 @@ const getConditionalSelectHeaderCheckboxProps = ({
   // For conditional select, we override value, indeterminate and onChange
   return {
     ...checkboxProps,
-    value: checked,
+    value: allSelectableRowsSelected,
     indeterminate,
     onChange,
     // disabled, // Not included

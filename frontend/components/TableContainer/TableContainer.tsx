@@ -12,7 +12,7 @@ import Icon from "components/Icon/Icon";
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
-import TableContainerUtils from "./TableContainerUtils";
+import TableContainerUtils from "./utilities/TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {

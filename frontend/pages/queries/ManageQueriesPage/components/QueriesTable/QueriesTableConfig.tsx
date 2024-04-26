@@ -18,6 +18,7 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
+import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
@@ -248,28 +249,23 @@ const generateTableHeaders = ({
     },
   ];
   if (!isOnlyObserver && !omitSelectionColumn) {
-    tableHeaders.splice(0, 0, {
+    const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
+    tableHeaders.unshift({
       id: "selection",
-      Header: (cellProps: IHeaderProps): JSX.Element => {
-        const {
-          getToggleAllRowsSelectedProps,
-          toggleAllRowsSelected,
-        } = cellProps;
-        const { checked, indeterminate } = getToggleAllRowsSelectedProps();
+      // Header: (headerProps: IHeaderProps): JSX.Element => {
+      // TODO - improve typing of IHeaderProps instead of using any
+      Header: (headerProps: any): JSX.Element => {
+        const checkboxProps = getConditionalSelectHeaderCheckboxProps({
+          headerProps,
+          checkIfRowIsSelectable: (row) =>
+            row.original.team_id === currentTeamId,
+        });
 
-        const checkboxProps = {
-          value: checked,
-          indeterminate,
-          onChange: () => {
-            toggleAllRowsSelected();
-          },
-        };
         return <Checkbox {...checkboxProps} />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
         const isInheritedQuery =
-          (cellProps.row.original.team_id ?? undefined) === API_ALL_TEAMS_ID;
+          (cellProps.row.original.team_id ?? undefined) !== currentTeamId;
         if (viewingTeamScope && isInheritedQuery) {
           // disallow selecting inherited queries
           return <></>;
