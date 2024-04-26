@@ -6117,6 +6117,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
 	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -6182,6 +6183,20 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	// Disable AI features.
+	acResp = appConfigResponse{}
+	s.DoJSON(
+		"PATCH", "/api/latest/fleet/config", json.RawMessage(
+			`{
+    "server_settings": {
+        "ai_features_disabled": true
+    }
+  }`,
+		), http.StatusOK, &acResp,
+	)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.ServerSettings.AIFeaturesDisabled)
 
 	// test a change that does clear the agent options (the field is provided but empty).
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
