@@ -2812,6 +2812,14 @@ func ReconcileAppleDeclarations(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("reading app config: %w", err)
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
+		return nil
+	}
+
 	// batch set declarations as pending
 	changedHosts, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
 	if err != nil {
@@ -2838,7 +2846,7 @@ func ReconcileAppleProfiles(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
-	signingCert *tls.Certificate,
+	cfg config.MDMConfig,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2847,6 +2855,16 @@ func ReconcileAppleProfiles(
 	if !appConfig.MDM.EnabledAndConfigured {
 		return nil
 	}
+
+	if !cfg.IsAppleSCEPSet() {
+		return ctxerr.New(ctx, "SCEP configuration is required")
+	}
+
+	signingCert, _, _, err := cfg.AppleSCEP()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Apple SCEP keypair")
+	}
+
 	if err := ensureFleetProfiles(ctx, ds, logger, signingCert); err != nil {
 		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
