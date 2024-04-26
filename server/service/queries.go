@@ -100,9 +100,9 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 	}
 
 	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
-		ListOptions: opt,
-		TeamID:      teamID,
-		IsScheduled: scheduled,
+		ListOptions:    opt,
+		TeamID:         teamID,
+		IsScheduled:    scheduled,
 		MergeInherited: mergeInherited,
 	})
 	if err != nil {
