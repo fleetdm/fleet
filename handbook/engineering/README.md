@@ -5,6 +5,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | CTO                             | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Client Platform Engineer & Community Advocate | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
 | Engineering Manager             | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
 | Quality Assurance               | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
 | Developer                       | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
