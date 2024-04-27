@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:---------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Product Design           | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
 | Product Designer                 | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_ <br> [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
-| Head of Design                   | <sup><sub>_See [🌦️ Digital Experience team](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
+| Head of Design                   | <sup><sub>_See [🌐 Digital Experience team](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
 
 
 ## Contact us
