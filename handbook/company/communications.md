@@ -47,7 +47,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Product development             | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 ### Docs
-This page details processes related to maintaining and updating the ([Fleet documentation](https://fleetdm.com/docs)).
+This page details processes related to maintaining and updating the [Fleet documentation](https://fleetdm.com/docs).
 
 When someone asks a question in a public channel, it's safe to assume they aren't the only person looking for an answer. 
 
