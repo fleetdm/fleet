@@ -25,7 +25,6 @@ const testRawGlobalQueries: ISchedulableQuery[] = [
     query:
       "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
     saved: true,
-    // observer_can_run: false,
     observer_can_run: true,
     author_id: 1,
     author_name: "Tess Tuser",
@@ -55,7 +54,6 @@ const testRawGlobalQueries: ISchedulableQuery[] = [
     query:
       "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
     saved: true,
-    // observer_can_run: false,
     observer_can_run: true,
     author_id: 1,
     author_name: "Tess Tuser",
@@ -155,15 +153,6 @@ describe("QueriesTable", () => {
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
-        // router: InjectedRouter,
-        // queryParams?: {
-        //   platform?: string;
-        //   page?: string;
-        //   query?: string;
-        //   order_key?: string;
-        //   order_direction?: "asc" | "desc";
-        //   team_id?
-        // },
         currentTeamId: undefined,
       },
     ];
@@ -187,15 +176,6 @@ describe("QueriesTable", () => {
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
-        // router: InjectedRouter,
-        // queryParams?: {
-        //   platform?: string;
-        //   page?: string;
-        //   query?: string;
-        //   order_key?: string;
-        //   order_direction?: "asc" | "desc";
-        //   team_id?
-        // },
         currentTeamId: 1,
       },
     ];
@@ -217,9 +197,6 @@ describe("QueriesTable", () => {
         expect(screen.getAllByText(val)[0]).toBeInTheDocument();
       });
 
-      // // click on "Search by name"
-      // await user.click(screen.getByText("Search by name"));
-      // // type a string that doesn't match any queries
       await user.type(
         screen.getByPlaceholderText("Search by name"),
         "shouldn't match anything"
