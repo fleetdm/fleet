@@ -1,5 +1,5 @@
 # Business Operations
-This handbook page details processes specific to working [with](#what-we-do) and [within](#responsibilities) the Business Operations (BizOps) department.  
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 | Role                          | Contributor(s)           |
