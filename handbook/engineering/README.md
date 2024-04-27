@@ -1,5 +1,5 @@
 # Engineering
-This handbook page details processes specific to working [with](#team) and [within](#responsibilities) this department
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 | Role                            | Contributor(s)           |
