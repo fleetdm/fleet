@@ -4,7 +4,6 @@ import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { API_ALL_TEAMS_ID } from "interfaces/team";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import PATHS from "router/paths";
@@ -18,7 +17,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import generateColumnConfigs from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
-interface IQueriesTableProps {
+export interface IQueriesTableProps {
   queriesList: IEnhancedQuery[] | null;
   onlyInheritedQueries: boolean;
   isLoading: boolean;

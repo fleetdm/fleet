@@ -60,7 +60,7 @@ const getPlatforms = (queryString: string): SupportedPlatform[] => {
   return platforms ?? [];
 };
 
-const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
+export const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
   return {
     ...q,
     performance: getPerformanceImpactDescription(
