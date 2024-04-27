@@ -118,161 +118,28 @@ const ManageQueriesPage = ({
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
 
-  // const {
-  //   data: enhancedQueries,
-  //   error: queriesError,
-  //   isFetching: isFetchingQueries,
-  //   refetch: refetchQueries,
-  // } = useQuery<
-  //   IEnhancedQuery[],
-  //   Error,
-  //   IEnhancedQuery[],
-  //   IQueryKeyQueriesLoadAll[]
-  // >(
-  //   [{ scope: "queries", teamId: teamIdForApi }],
-  //   ({ queryKey: [{ teamId }] }) =>
-  //     queriesAPI
-  //       .loadAll(teamId, teamId !== API_ALL_TEAMS_ID)
-  //       .then(({ queries }) => queries.map(enhanceQuery)),
-  //   {
-  //     refetchOnWindowFocus: false,
-  //     enabled: isRouteOk,
-  //     staleTime: 5000,
-  //   }
-  // );
-
-  // TODO - restore API call
-  const rawTestqueries: ISchedulableQuery[] = [
-    // global queries
+  const {
+    data: enhancedQueries,
+    error: queriesError,
+    isFetching: isFetchingQueries,
+    refetch: refetchQueries,
+  } = useQuery<
+    IEnhancedQuery[],
+    Error,
+    IEnhancedQuery[],
+    IQueryKeyQueriesLoadAll[]
+  >(
+    [{ scope: "queries", teamId: teamIdForApi }],
+    ({ queryKey: [{ teamId }] }) =>
+      queriesAPI
+        .loadAll(teamId, teamId !== API_ALL_TEAMS_ID)
+        .then(({ queries }) => queries.map(enhanceQuery)),
     {
-      created_at: "2024-03-22T19:01:20Z",
-      updated_at: "2024-03-22T19:01:20Z",
-      id: 5,
-      team_id: null,
-      interval: 0,
-      platform: "linux",
-      min_osquery_version: "",
-      automations_enabled: false,
-      logging: "snapshot",
-      name:
-        "Get OpenSSL versionsGet OpenSSL versionsGet OpenSSL versionsGet OpenSSL versionsGet OpenSSL versions",
-      description: "Retrieves the OpenSSL version.",
-      query:
-        "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
-      saved: true,
-      // observer_can_run: false,
-      observer_can_run: true,
-      author_id: 1,
-      author_name: "J Cob",
-      author_email: "jacob@fleetdm.com",
-      packs: [],
-      stats: {
-        system_time_p50: null,
-        system_time_p95: null,
-        user_time_p50: null,
-        user_time_p95: null,
-        total_executions: 0,
-      },
-      discard_data: false,
-    },
-    {
-      created_at: "2024-03-22T19:01:20Z",
-      updated_at: "2024-03-22T19:01:20Z",
-      id: 500,
-      team_id: null,
-      interval: 0,
-      platform: "linux",
-      min_osquery_version: "",
-      automations_enabled: false,
-      logging: "snapshot",
-      name:
-        "GREAT OpenSSL versionsGet OpenSSL versionsGet OpenSSL versionsGet OpenSSL versionsGet OpenSSL versions",
-      description: "Retrieves the OpenSSL version.",
-      query:
-        "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
-      saved: true,
-      // observer_can_run: false,
-      observer_can_run: true,
-      author_id: 1,
-      author_name: "J Cob",
-      author_email: "jacob@fleetdm.com",
-      packs: [],
-      stats: {
-        system_time_p50: null,
-        system_time_p95: null,
-        user_time_p50: null,
-        user_time_p95: null,
-        total_executions: 0,
-      },
-      discard_data: false,
-    },
-    // team queries
-    // {
-    //   created_at: "2024-04-25T04:16:09Z",
-    //   updated_at: "2024-04-25T04:16:09Z",
-    //   id: 94,
-    //   team_id: 2,
-    //   // team_id: null,
-    //   interval: 3600,
-    //   platform: "",
-    //   min_osquery_version: "",
-    //   automations_enabled: false,
-    //   logging: "snapshot",
-    //   name: "Oranges 2",
-    //   description: "",
-    //   query: "SELECT * FROM osquery_info;",
-    //   saved: true,
-    //   observer_can_run: false,
-    //   author_id: 1,
-    //   author_name: "J Cob",
-    //   author_email: "jacob@fleetdm.com",
-    //   packs: [],
-    //   stats: {
-    //     system_time_p50: null,
-    //     system_time_p95: null,
-    //     user_time_p50: null,
-    //     user_time_p95: null,
-    //     total_executions: 0,
-    //   },
-    //   discard_data: false,
-    // },
-    // {
-    //   created_at: "2024-04-25T04:16:09Z",
-    //   updated_at: "2024-04-25T04:16:09Z",
-    //   id: 93,
-    //   team_id: 2,
-    //   // team_id: null,
-    //   interval: 3600,
-    //   platform: "",
-    //   min_osquery_version: "",
-    //   automations_enabled: false,
-    //   logging: "snapshot",
-    //   name: "Oranges 1",
-    //   description: "",
-    //   query: "SELECT * FROM osquery_info;",
-    //   saved: true,
-    //   observer_can_run: true,
-    //   author_id: 1,
-    //   author_name: "J Cob",
-    //   author_email: "jacob@fleetdm.com",
-    //   packs: [],
-    //   stats: {
-    //     system_time_p50: null,
-    //     system_time_p95: null,
-    //     user_time_p50: null,
-    //     user_time_p95: null,
-    //     total_executions: 0,
-    //   },
-    //   discard_data: false,
-    // },
-  ];
-  const [queriesError, refetchQueries, isFetchingQueries, enhancedQueries] = [
-    null,
-    () => undefined,
-    false,
-    rawTestqueries.map(enhanceQuery),
-    // [] as IEnhancedQuery[],
-  ];
+      refetchOnWindowFocus: false,
+      enabled: isRouteOk,
+      staleTime: 5000,
+    }
+  );
 
   const onlyInheritedQueries = useMemo(() => {
     if (teamIdForApi === API_ALL_TEAMS_ID) {
