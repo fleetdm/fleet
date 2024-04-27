@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Head of Demand Generation          | [Dustin Gerdes](https://www.linkedin.com/in/dustingerdes/) _([@3kindsoffish](https://github.com/3kindsoffish))_
 | Digital Marketing                  | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
-| Brand & Public Relations           | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
+| Brand &amp; Public Relations           | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Product Marketing (PMM)            | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Blog                               | <sup><sub>_See [🚀 Engineering team](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Website                            | <sup><sub>_See [🌐 Digital Experience team](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
