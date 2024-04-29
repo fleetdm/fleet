@@ -11475,3 +11475,74 @@ func (s *integrationTestSuite) TestDebugDB() {
 	s.DoJSON("GET", "/debug/db/innodb-status", nil, http.StatusOK, &responseString)
 	assert.Contains(t, responseString, "INNODB MONITOR OUTPUT")
 }
+
+func (s *integrationTestSuite) TestAutofillPolicies() {
+	t := s.T()
+	startMockServer := func(t *testing.T) string {
+		// create a test http server
+		srv := httptest.NewServer(
+			http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					if r.Method != "POST" {
+						w.WriteHeader(http.StatusMethodNotAllowed)
+						return
+					}
+					switch r.URL.Path {
+					case "/ok":
+						_, _ = w.Write([]byte(`{"risks":"description", "whatWillProbablyHappenDuringMaintenance":"resolution"}`))
+					case "/error":
+						w.WriteHeader(http.StatusTeapot)
+						_, _ = w.Write([]byte(`{}`))
+					case "/badBody":
+						_, _ = w.Write([]byte(`{bad json}`))
+					case "/timeout":
+						time.Sleep(2 * time.Second)
+						_, _ = w.Write([]byte(`{"risks":"description", "whatWillProbablyHappenDuringMaintenance":"resolution"}`))
+					default:
+						w.WriteHeader(http.StatusNotFound)
+					}
+				},
+			),
+		)
+		t.Cleanup(srv.Close)
+		return srv.URL
+	}
+	mockUrl := startMockServer(t)
+	originalUrl := getHumanInterpretationFromOsquerySqlUrl
+	originalTimeout := getHumanInterpretationFromOsquerySqlTimeout
+	t.Cleanup(
+		func() {
+			getHumanInterpretationFromOsquerySqlUrl = originalUrl
+			getHumanInterpretationFromOsquerySqlTimeout = originalTimeout
+		},
+	)
+
+	req := autofillPoliciesRequest{
+		SQL: "  ", // empty
+	}
+	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/ok"
+	// empty sql
+	resp := s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusBadRequest)
+	assertBodyContains(t, resp, "cannot be empty")
+
+	// good request
+	req.SQL = "select 1"
+	var res autofillPoliciesResponse
+	s.DoJSON("POST", "/api/latest/fleet/autofill/policies", req, http.StatusOK, &res)
+	assert.Equal(t, "description", res.Description)
+	assert.Equal(t, "resolution", res.Resolution)
+
+	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/error"
+	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusUnprocessableEntity)
+	assertBodyContains(t, resp, "error from human interpretation of osquery sql")
+
+	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/badBody"
+	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusUnprocessableEntity)
+	assertBodyContains(t, resp, "error unmarshaling response body from human interpretation of osquery sql")
+
+	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/timeout"
+	getHumanInterpretationFromOsquerySqlTimeout = 1 * time.Millisecond
+	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusUnprocessableEntity)
+	assertBodyContains(t, resp, "error sending request to get human interpretation from osquery sql")
+
+}
