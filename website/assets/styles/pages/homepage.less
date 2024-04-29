@@ -207,7 +207,7 @@
     &:hover {
       box-shadow: 0px 4px 16px 0px #E2E4EA;
     }
-    &:first-of-type {
+    &.nick-fohs {
       [purpose='testimonial-video'] {
         background: url('/images/video-testimonial-thumbnail-nick-fohs-160x120@2x.png');
         background-position: center;
@@ -216,7 +216,7 @@
       margin-right: 20px;
       margin-left: 0px;
     }
-    &:last-of-type {
+    &.austin-anderson {
       [purpose='testimonial-video'] {
         background: url('/images/video-testimonial-thumbnail-austin-anderson-160x120@2x.png');
         background-position: center;
@@ -800,22 +800,27 @@
     [purpose='category-text-block'] {
       max-width: 410px;
     }
+    [purpose='platform-block'] {
+      .left {
+        margin-right: 24px;
+      }
+      .right {
+        margin-left: 24px;
+      }
+    }
     [purpose='endpoint-ops-image'] {
-      margin-right: 24px;
       img {
         height: auto;
         width: 100%;
       }
     }
     [purpose='device-management-image'] {
-      margin-left: 24px;
       img {
         height: auto;
         width: 100%;
       }
     }
     [purpose='vuln-management-image'] {
-      margin-left: 24px;
       img {
         height: auto;
         width: 100%;
@@ -1002,9 +1007,18 @@
         width: 100%;
       }
     }
+    [purpose='platform-block'] {
+      .left {
+        margin-right: auto;
+        margin-left: auto;
+      }
+      .right {
+        margin-right: auto;
+        margin-left: auto;
+      }
+    }
     [purpose='endpoint-ops-image'] {
-      margin-right: auto;
-      margin-left: auto;
+
       margin-bottom: 20px;
       img {
         width: 100%;

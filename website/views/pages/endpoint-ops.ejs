@@ -11,14 +11,14 @@
           <img alt="A device verifying compliance for every endpoint" src="/images/endpoint-operations-hero-image-380x380@2x.png">
         </div>
         <div purpose="hero-text">
-          <% if(primaryBuyingSituation === 'eo-it') { %>
+          <% if(['eo-it', 'mdm'].includes(primaryBuyingSituation)) { %>
             <strong>Pulse check anything</strong>
             <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
             <strong>Ship data to any platform</strong>
             <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
             <strong>Automate anything</strong>
             <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
-          <% } else if(primaryBuyingSituation === 'eo-security') { %>
+          <% } else if(['eo-security', 'vm'].includes(primaryBuyingSituation)) { %>
             <strong>Osquery on easy mode</strong>
             <p>You don’t need to be an osquery expert to get the answers you need from your devices, Fleet does some of that for you.</p>
             <strong>Pulse check anything</strong>
@@ -71,11 +71,11 @@
         </div>
       <% } %>
       <div purpose="testimonial-videos" class="d-flex">
-        <%if(primaryBuyingSituation === 'eo-security'){%>
+        <%if(['eo-security', 'vm'].includes(primaryBuyingSituation)){%>
         <div purpose="testimonial-video" class="austin-anderson mx-auto" @click="clickOpenVideoModal('austin-anderson')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
-        <%} else if(primaryBuyingSituation === 'eo-it') {%>
+        <%} else if(['eo-it', 'mdm'].includes(primaryBuyingSituation)) {%>
         <div purpose="testimonial-video" class="nick-fohs mx-auto" @click="clickOpenVideoModal('nick-fohs')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
