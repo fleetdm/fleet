@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -20,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -99,26 +99,24 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		{
 			"IT admin turns off MDM for a host via the UI then host turns on MDM",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
-				go s.Do(
+				originalPushMock := s.pushProvider.PushFunc
+				defer func() { s.pushProvider.PushFunc = originalPushMock }()
+
+				s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+					res, err := mockSuccessfulPush(pushes)
+					require.NoError(t, err)
+					err = device.Checkout()
+					require.NoError(t, err)
+					return res, err
+				}
+
+				s.Do(
 					"DELETE",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID),
 					nil,
 					http.StatusOK,
 				)
 
-				cmd, err := device.Idle()
-				require.NoError(t, err)
-				for cmd == nil {
-					time.Sleep(5 * time.Millisecond)
-					cmd, err = device.Idle()
-					require.NoError(t, err)
-				}
-
-				_, err = device.Acknowledge(cmd.CommandUUID)
-				require.NoError(t, err)
-
-				err = device.Checkout()
-				require.NoError(t, err)
 				require.NoError(t, device.Enroll())
 			},
 		},
