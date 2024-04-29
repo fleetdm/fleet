@@ -102,7 +102,12 @@ type xmlFile struct {
 }
 
 type distributionXML struct {
-	PkgRef []pkgRef `xml:"pkg-ref"`
+	Title   string   `xml:"title"`
+	PkgRef  []pkgRef `xml:"pkg-ref"`
+	Product struct {
+		ID      string `xml:"id,attr"`
+		Version string `xml:"version,attr"`
+	} `xml:"product"`
 }
 
 type pkgRef struct {
@@ -174,8 +179,27 @@ func ExtractXARMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 				return "", "", nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
 			}
 
+			// Get the name from (in order of priority):
+			// - Title
+			// - product.id
+			// - pkg-ref[0].id
+			//
+			// Get the version from (in order of priority):
+			// - product.version
+			// - pkg-ref[0].version
+			name := strings.TrimSpace(distXML.Title)
+			if name == "" {
+				name = strings.TrimSpace(distXML.Product.ID)
+			}
+			version := strings.TrimSpace(distXML.Product.Version)
 			if len(distXML.PkgRef) > 0 {
-				return strings.TrimSpace(distXML.PkgRef[0].ID), strings.TrimSpace(distXML.PkgRef[0].Version), h.Sum(nil), nil
+				if name == "" {
+					name = strings.TrimSpace(distXML.PkgRef[0].ID)
+				}
+				if version == "" {
+					version = strings.TrimSpace(distXML.PkgRef[0].Version)
+				}
+				return name, version, h.Sum(nil), nil
 			}
 			break
 		}
