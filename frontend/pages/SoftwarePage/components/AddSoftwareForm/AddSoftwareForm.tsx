@@ -13,7 +13,6 @@ import {
   getInstallScript,
 } from "./helpers";
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions/AddSoftwareAdvancedOptions";
-import { get } from "lodash";
 
 const baseClass = "add-software-form";
 
