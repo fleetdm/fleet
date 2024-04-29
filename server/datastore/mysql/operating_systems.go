@@ -148,22 +148,22 @@ func getOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.
 func isHostOperatingSystemUpdateNeeded(ctx context.Context, qc sqlx.QueryerContext, hostID uint, hostOS fleet.OperatingSystem) (
 	bool, error,
 ) {
-	rows, err := qc.QueryContext(
-		ctx,
+	var resultPresent bool
+	err := sqlx.GetContext(
+		ctx, qc, &resultPresent,
 		`SELECT 1 FROM host_operating_system hos
 				INNER JOIN operating_systems os ON hos.os_id = os.id
 				WHERE hos.host_id = ? AND os.name = ? AND os.version = ? AND os.arch = ? AND os.kernel_version = ? AND os.platform = ? AND os.display_version = ?`,
 		hostID, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion,
 	)
-	if err != nil {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return true, nil
+	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "check host operating system")
+	default:
+		return !resultPresent, nil
 	}
-	defer rows.Close()
-	resultPresent := rows.Next()
-	if err := rows.Err(); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "retrieving result after checking host operating system")
-	}
-	return !resultPresent, nil
 }
 
 // upsertHostOperatingSystemDB upserts the host operating system table
