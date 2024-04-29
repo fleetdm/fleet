@@ -257,7 +257,6 @@ func (c *TestAppleMDMClient) SCEPEnroll() error {
 	} else {
 		logger = kitlog.NewNopLogger()
 	}
-	fmt.Println("===================== performing SCEP enrollment", c.EnrollInfo.SCEPURL)
 	client, err := newSCEPClient(c.EnrollInfo.SCEPURL, logger)
 	if err != nil {
 		return fmt.Errorf("scep client: %w", err)

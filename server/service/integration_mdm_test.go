@@ -313,6 +313,8 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	// ensure global Windows OS updates are always disabled for the next test
 	appCfg.MDM.WindowsUpdates = fleet.WindowsUpdates{}
+	// ensure the server URL is constant
+	appCfg.ServerSettings.ServerURL = s.server.URL
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
 	require.NoError(t, err)
 
@@ -668,7 +670,6 @@ func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.Te
 }
 
 func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
-	fmt.Println("===================== createhost", fleetServerURL)
 	desktopToken := uuid.New().String()
 	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(fleetServerURL, desktopToken, mdmtest.TestMDMAppleClientDebug())
 	fleetHost, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -7581,7 +7582,6 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 	if expectedAppleSummary != nil {
 		var apple getMDMAppleProfilesSummaryResponse
 		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &apple, queryParams...)
-		fmt.Println(expectedSummary, apple)
 		require.Equal(t, expectedSummary.Failed, apple.Failed, "failed summary count doesn't match")
 		require.Equal(t, expectedSummary.Pending, apple.Pending, "pending summary count doesn't match")
 		require.Equal(t, expectedSummary.Verifying, apple.Verifying, "verifying summary count doesn't match")
