@@ -7,8 +7,13 @@ import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
 import Graphic from "components/Graphic";
 
-import { getFileDetails, getInstallScript } from "./helpers";
+import {
+  getFileDetails,
+  getFormSubmitDisabled,
+  getInstallScript,
+} from "./helpers";
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions/AddSoftwareAdvancedOptions";
+import { get } from "lodash";
 
 const baseClass = "add-software-form";
 
@@ -61,6 +66,8 @@ const AddSoftwareForm = ({
   onCancel,
   onSubmit,
 }: IAddSoftwareFormProps) => {
+  const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
+  const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [formData, setFormData] = useState<IAddSoftwareFormData>({
     software: null,
     installScript: "",
@@ -89,12 +96,20 @@ const AddSoftwareForm = ({
   };
 
   const onChangePreInstallCondition = (value: string) => {
+    console.log("Pre install value", value);
     setFormData({ ...formData, preInstallCondition: value });
   };
 
   const onChangePostInstallScript = (value: string) => {
+    console.log("Post install value", value);
     setFormData({ ...formData, postInstallScript: value });
   };
+
+  const isSubmitDisabled = getFormSubmitDisabled(
+    formData,
+    showPreInstallCondition,
+    showPostInstallScript
+  );
 
   return (
     <div className={baseClass}>
@@ -127,17 +142,17 @@ const AddSoftwareForm = ({
             />
           )}
           <AddSoftwareAdvancedOptions
+            showPreInstallCondition={showPreInstallCondition}
+            showPostInstallScript={showPostInstallScript}
             preInstallCondition={formData.preInstallCondition}
             postInstallScript={formData.postInstallScript}
+            onTogglePreInstallCondition={setShowPreInstallCondition}
+            onTogglePostInstallScript={setShowPostInstallScript}
             onChangePreInstallCondition={onChangePreInstallCondition}
             onChangePostInstallScript={onChangePostInstallScript}
           />
           <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={Boolean(!formData.software)}
-            >
+            <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
               Add software
             </Button>
             <Button onClick={onCancel} variant="inverse">

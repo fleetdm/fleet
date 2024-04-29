@@ -9,29 +9,35 @@ import Checkbox from "components/forms/fields/Checkbox";
 const baseClass = "add-software-advanced-options";
 
 interface IAddSoftwareAdvancedOptionsProps {
+  showPreInstallCondition: boolean;
+  showPostInstallScript: boolean;
   preInstallCondition: string;
   postInstallScript: string;
+  onTogglePreInstallCondition: (value: boolean) => void;
+  onTogglePostInstallScript: (value: boolean) => void;
   onChangePreInstallCondition: (value: string) => void;
   onChangePostInstallScript: (value: string) => void;
 }
 
 const AddSoftwareAdvancedOptions = ({
+  showPreInstallCondition,
+  showPostInstallScript,
   preInstallCondition,
   postInstallScript,
+  onTogglePreInstallCondition,
+  onTogglePostInstallScript,
   onChangePreInstallCondition,
   onChangePostInstallScript,
 }: IAddSoftwareAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
-  const [showPostInstallScript, setShowPostInstallScript] = useState(false);
 
   const onChangePreInstallCheckbox = () => {
-    setShowPreInstallCondition(!showPreInstallCondition);
+    onTogglePreInstallCondition(!showPreInstallCondition);
     onChangePreInstallCondition("");
   };
 
   const onChangePostInstallCheckbox = () => {
-    setShowPostInstallScript(!showPostInstallScript);
+    onTogglePostInstallScript(!showPostInstallScript);
     onChangePostInstallScript("");
   };
 
