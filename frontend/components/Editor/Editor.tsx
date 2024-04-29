@@ -12,6 +12,10 @@ interface IEditorProps {
   /** Sets the default value of the input. Use this if you'd like the editor
    * to be an uncontrolled component */
   defaultValue?: string;
+  /** Enabled wrapping lines.
+   * @default false
+   */
+  wrapEnabled?: boolean;
   name?: string;
   maxLines?: number;
   onChange: (value: string, event?: any) => void;
@@ -29,6 +33,7 @@ const Editor = ({
   focus,
   value,
   defaultValue,
+  wrapEnabled = false,
   name = "editor",
   maxLines = 20,
   onChange,
@@ -43,6 +48,7 @@ const Editor = ({
   return (
     <div className={baseClass}>
       <AceEditor
+        wrapEnabled={wrapEnabled}
         name={name}
         className={baseClass}
         fontSize={14}

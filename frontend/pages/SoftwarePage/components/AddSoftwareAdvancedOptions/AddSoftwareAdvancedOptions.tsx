@@ -84,6 +84,7 @@ const AddSoftwareAdvancedOptions = ({
             <>
               <Editor
                 focus
+                wrapEnabled
                 name="post-install-script-editor"
                 maxLines={10}
                 onChange={onChangePostInstallScript}
