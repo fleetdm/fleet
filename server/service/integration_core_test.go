@@ -8948,6 +8948,20 @@ type validationErrResp struct {
 	} `json:"errors"`
 }
 
+func setOrbitEnrollment(t *testing.T, h *fleet.Host, ds fleet.Datastore) string {
+	orbitKey := uuid.New().String()
+	_, err := ds.EnrollOrbit(context.Background(), false, fleet.OrbitHostInfo{
+		HardwareUUID:   *h.OsqueryHostID,
+		HardwareSerial: h.HardwareSerial,
+	}, orbitKey, nil)
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostOrbitInfo(
+		context.Background(), h.ID, "1.22.0", sql.NullString{String: "42", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
+	return orbitKey
+}
+
 func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore) *fleet.Host {
 	name := t.Name() + suffix
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -8963,16 +8977,8 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 		Platform:        os,
 	})
 	require.NoError(t, err)
-	orbitKey := uuid.New().String()
-	_, err = ds.EnrollOrbit(context.Background(), false, fleet.OrbitHostInfo{
-		HardwareUUID:   *h.OsqueryHostID,
-		HardwareSerial: h.HardwareSerial,
-	}, orbitKey, nil)
-	require.NoError(t, err)
-	err = ds.SetOrUpdateHostOrbitInfo(
-		context.Background(), h.ID, "1.22.0", sql.NullString{String: "42", Valid: true}, sql.NullBool{Bool: true, Valid: true},
-	)
-	require.NoError(t, err)
+
+	orbitKey := setOrbitEnrollment(t, h, ds)
 	h.OrbitNodeKey = &orbitKey
 	return h
 }

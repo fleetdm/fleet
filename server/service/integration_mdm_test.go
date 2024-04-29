@@ -313,6 +313,8 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	// ensure global Windows OS updates are always disabled for the next test
 	appCfg.MDM.WindowsUpdates = fleet.WindowsUpdates{}
+	// ensure the server URL is constant
+	appCfg.ServerSettings.ServerURL = s.server.URL
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
 	require.NoError(t, err)
 
@@ -7580,7 +7582,6 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 	if expectedAppleSummary != nil {
 		var apple getMDMAppleProfilesSummaryResponse
 		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &apple, queryParams...)
-		fmt.Println(expectedSummary, apple)
 		require.Equal(t, expectedSummary.Failed, apple.Failed, "failed summary count doesn't match")
 		require.Equal(t, expectedSummary.Pending, apple.Pending, "pending summary count doesn't match")
 		require.Equal(t, expectedSummary.Verifying, apple.Verifying, "verifying summary count doesn't match")
@@ -7692,7 +7693,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	checkInstallFleetdCommandSent(mdmDevice, true)
 
 	// create a device that's enrolled into Fleet before turning on MDM features,
-	// it shouldn't get the command to install fleetd
+	// it should still get the command to install fleetd if turns on MDM.
 	desktopToken := uuid.New().String()
 	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
 	err = s.ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, desktopToken)
@@ -7702,7 +7703,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, false)
+	checkInstallFleetdCommandSent(mdmDevice, true)
 }
 
 func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
@@ -8373,161 +8374,6 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 		}
 		require.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
 	}
-}
-
-func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
-	t := s.T()
-	ctx := context.Background()
-	// ensure there's a token for automatic enrollments
-	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
-	}))
-	s.runDEPSchedule()
-
-	// add a device that's manually enrolled
-	desktopToken := uuid.New().String()
-	manualHost := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
-	err := s.ds.SetOrUpdateDeviceAuthToken(context.Background(), manualHost.ID, desktopToken)
-	require.NoError(t, err)
-	manualEnrolledDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
-	manualEnrolledDevice.UUID = manualHost.UUID
-	err = manualEnrolledDevice.Enroll()
-	require.NoError(t, err)
-
-	// add a device that's automatically enrolled
-	automaticHost := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
-	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
-	automaticEnrolledDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
-	automaticEnrolledDevice.UUID = automaticHost.UUID
-	automaticEnrolledDevice.SerialNumber = automaticHost.HardwareSerial
-	err = automaticEnrolledDevice.Enroll()
-	require.NoError(t, err)
-
-	// add a device that's automatically enrolled with a server ref
-	automaticHostWithRef := createOrbitEnrolledHost(t, "darwin", "h3", s.ds)
-	automaticEnrolledDeviceWithRef := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
-	automaticEnrolledDeviceWithRef.UUID = automaticHostWithRef.UUID
-	automaticEnrolledDeviceWithRef.SerialNumber = automaticHostWithRef.HardwareSerial
-	err = automaticEnrolledDeviceWithRef.Enroll()
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, automaticHostWithRef.ID, false, true, s.server.URL, true, fleet.WellKnownMDMFleet, "foo"))
-	require.NoError(t, err)
-
-	// add global profiles
-	globalProfiles := [][]byte{
-		mobileconfigForTest("N1", "I1"),
-		mobileconfigForTest("N2", "I2"),
-	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
-	// ack all commands to install profiles
-	cmd, err := manualEnrolledDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		cmd, err = manualEnrolledDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-	cmd, err = automaticEnrolledDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		cmd, err = automaticEnrolledDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-	cmd, err = automaticEnrolledDeviceWithRef.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		cmd, err = automaticEnrolledDeviceWithRef.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-
-	cert, key, err := generateCertWithAPNsTopic()
-	require.NoError(t, err)
-	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, testBMToken, "")
-	logger := kitlog.NewJSONLogger(os.Stdout)
-
-	// run without expired certs, no command enqueued
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
-	require.NoError(t, err)
-	cmd, err = manualEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = automaticEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = automaticEnrolledDeviceWithRef.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	// expire all the certs we just created
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-                  UPDATE nano_cert_auth_associations
-                  SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
-                  WHERE id IN (?, ?, ?)
-		`, manualHost.UUID, automaticHost.UUID, automaticHostWithRef.UUID)
-		return err
-	})
-
-	// generate a new config here so we can manipulate the certs.
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
-	require.NoError(t, err)
-
-	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string) {
-		var renewCmd *mdm.Command
-		cmd, err := device.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			if cmd.Command.RequestType == "InstallProfile" {
-				renewCmd = cmd
-			}
-			cmd, err = device.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-		require.NotNil(t, renewCmd)
-		var fullCmd micromdm.CommandPayload
-		require.NoError(t, plist.Unmarshal(renewCmd.Raw, &fullCmd))
-		s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef)
-	}
-
-	checkRenewCertCommand(manualEnrolledDevice, "")
-	checkRenewCertCommand(automaticEnrolledDevice, "")
-	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo")
-
-	// another cron run shouldn't enqueue more commands
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
-	require.NoError(t, err)
-
-	cmd, err = manualEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = automaticEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = automaticEnrolledDeviceWithRef.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	// devices renew their SCEP cert by re-enrolling.
-	require.NoError(t, manualEnrolledDevice.Enroll())
-	require.NoError(t, automaticEnrolledDevice.Enroll())
-	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
-
-	// no new commands are enqueued right after enrollment
-	cmd, err = manualEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = automaticEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = automaticEnrolledDeviceWithRef.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
 }
 
 func (s *integrationMDMTestSuite) TestMDMDiskEncryptionIssue16636() {

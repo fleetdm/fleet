@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	kitlog "github.com/go-kit/kit/log"
@@ -1760,6 +1761,20 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	if err := svc.ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice); err != nil {
 		return err
+	}
+
+	// TODO: azure enrollments come with an empty uuid, I haven't figured
+	// out a good way to identify the device.
+	if hostUUID != "" {
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+			Action:   mdmlifecycle.HostActionTurnOn,
+			Platform: "windows",
+			UUID:     hostUUID,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	err = svc.ds.NewActivity(ctx, nil, &fleet.ActivityTypeMDMEnrolled{
