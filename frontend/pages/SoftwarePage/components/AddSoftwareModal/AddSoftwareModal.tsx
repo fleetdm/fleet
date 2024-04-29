@@ -64,7 +64,7 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
       removeEventListener("beforeunload", beforeUnloadHandler);
     }
 
-    // clean up event listener and timeout
+    // clean up event listener and timeout on component unmount
     return () => {
       removeEventListener("beforeunload", beforeUnloadHandler);
       clearTimeout(timeout);
