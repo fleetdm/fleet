@@ -1,0 +1,5 @@
+.editor {
+  &__help-text {
+    @include help-text;
+  }
+}

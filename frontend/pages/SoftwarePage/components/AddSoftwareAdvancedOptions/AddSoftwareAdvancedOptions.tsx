@@ -1,8 +1,10 @@
+import React, { useState } from "react";
+
+import Editor from "components/Editor";
 import CustomLink from "components/CustomLink";
 import FleetAce from "components/FleetAce";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
-import React, { useState } from "react";
 
 const baseClass = "add-software-advanced-options";
 
@@ -79,15 +81,16 @@ const AddSoftwareAdvancedOptions = ({
             Post-install script
           </Checkbox>
           {showPostInstallScript && (
-            <FleetAce
-              focus
-              wrapEnabled
-              value={postInstallScript}
-              name="postInstallScript"
-              maxLines={10}
-              onChange={onChangePostInstallScript}
-              helpText="Shell (macOS and Linux) or PowerShell (Windows)."
-            />
+            <>
+              <Editor
+                focus
+                name="post-install-script-editor"
+                maxLines={10}
+                onChange={onChangePostInstallScript}
+                value={postInstallScript}
+                helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+              />
+            </>
           )}
         </div>
       )}
