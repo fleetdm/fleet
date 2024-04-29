@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/sassoftware/relic/v7/lib/comdoc"
 )
@@ -30,40 +31,52 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 		return "", "", nil, fmt.Errorf("listing files in msi: %w", err)
 	}
 
-	var dataReader, poolReader, colReader io.Reader
+	// the product name and version are stored in the Property table, but the
+	// strings are interned in the _StringData table (which requires the
+	// _StringPool to decode). The structure of the tables is found in the
+	// _Columns table.
+	targetedTables := map[string]io.Reader{
+		"Table._StringData": nil,
+		"Table._StringPool": nil,
+		"Table._Columns":    nil,
+		"Table.Property":    nil,
+	}
 	for _, ee := range e {
 		if ee.Type != comdoc.DirStream {
 			continue
 		}
 
 		name := msiDecodeName(ee.Name())
-		fmt.Println(name, ee.Type)
-
-		if name == "Table._StringData" || name == "Table._StringPool" || name == "Table._Columns" {
+		if _, ok := targetedTables[name]; ok {
 			rr, err := c.ReadStream(ee)
 			if err != nil {
 				return "", "", nil, fmt.Errorf("opening file stream %s: %w", name, err)
 			}
-			if name == "Table._StringData" {
-				dataReader = rr
-			} else if name == "Table._Columns" {
-				colReader = rr
-			} else if name == "Table._StringPool" {
-				poolReader = rr
-			}
+			targetedTables[name] = rr
 		}
 	}
-	allStrings, err := buildStringsTable(dataReader, poolReader)
-	if err != nil {
-		return "", "", nil, err
-	}
-	tables, err := buildColumnsTable(colReader, allStrings)
-	if err != nil {
-		return "", "", nil, err
-	}
-	_ = tables
 
-	return "", "", h.Sum(nil), nil
+	// all tables must've been found
+	for k, v := range targetedTables {
+		if v == nil {
+			return "", "", nil, fmt.Errorf("table %s not found in the .msi", k)
+		}
+	}
+
+	allStrings, err := decodeStrings(targetedTables["Table._StringData"], targetedTables["Table._StringPool"])
+	if err != nil {
+		return "", "", nil, err
+	}
+	propTbl, err := decodePropertyTableColumns(targetedTables["Table._Columns"], allStrings)
+	if err != nil {
+		return "", "", nil, err
+	}
+	props, err := decodePropertyTable(targetedTables["Table.Property"], propTbl, allStrings)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	return strings.TrimSpace(props["ProductName"]), strings.TrimSpace(props["ProductVersion"]), h.Sum(nil), nil
 }
 
 type msiTable struct {
@@ -77,7 +90,64 @@ type msiColumn struct {
 	Attributes uint16
 }
 
-func buildColumnsTable(colReader io.Reader, strings []string) ([]msiTable, error) {
+func (c msiColumn) Type() msiType {
+	if c.Attributes&0x0F00 < 0x800 {
+		return msiType(c.Attributes & 0xFFF)
+	}
+	return msiType(c.Attributes & 0xF00)
+}
+
+type msiType uint16
+
+// column types
+const (
+	msiLong            msiType = 0x104
+	msiShort           msiType = 0x502
+	msiBinary          msiType = 0x900
+	msiString          msiType = 0xD00
+	msiStringLocalized msiType = 0xF00
+	msiUnknown         msiType = 0
+)
+
+func decodePropertyTable(propReader io.Reader, table *msiTable, strings []string) (map[string]string, error) {
+	// The Property table is a table of key-value pairs. Ensure the table has the
+	// expected format, otherwise we cannot extract the information.
+	if len(table.Cols) != 2 || table.Cols[0].Type() != msiString || table.Cols[1].Type() != msiStringLocalized {
+		return nil, fmt.Errorf("unexpected Property table structure")
+	}
+
+	const propTableRowSize = 4 // 2 uint16s
+
+	b, err := io.ReadAll(propReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read columns table: %w", err)
+	}
+	rowCount := len(b) / propTableRowSize
+	propReader = bytes.NewReader(b)
+
+	cols := [][]uint16{
+		make([]uint16, 0, rowCount),
+		make([]uint16, 0, rowCount),
+	}
+	for i := 0; i < 2; i++ {
+		for j := 0; j < rowCount; j++ {
+			var v uint16
+			err := binary.Read(propReader, binary.LittleEndian, &v)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read column %d: %w", i, err)
+			}
+			cols[i] = append(cols[i], v)
+		}
+	}
+
+	kv := make(map[string]string, rowCount)
+	for i := 0; i < rowCount; i++ {
+		kv[strings[cols[0][i]-1]] = strings[cols[1][i]-1]
+	}
+	return kv, nil
+}
+
+func decodePropertyTableColumns(colReader io.Reader, strings []string) (*msiTable, error) {
 	const colTableRowSize = 8 // 4 uint16s
 
 	// Columns table has 4 columns:
@@ -114,30 +184,27 @@ func buildColumnsTable(colReader io.Reader, strings []string) ([]msiTable, error
 		}
 	}
 
-	indexedTables := make(map[uint16]msiTable)
+	var tbl msiTable
 	for i := 0; i < rowCount; i++ {
 		tblID, colNum, colNameID, colAttr := cols[0][i], cols[1][i], cols[2][i], cols[3][i]
 
-		tbl := indexedTables[tblID]
-		tbl.Name = strings[tblID-1]
-		tbl.Cols = append(tbl.Cols, msiColumn{
-			Number:     int(colNum),
-			Name:       strings[colNameID-1],
-			Attributes: colAttr,
-		})
-		indexedTables[tblID] = tbl
+		tableName := strings[tblID-1]
+		if tableName == "Property" {
+			tbl.Name = tableName
+			tbl.Cols = append(tbl.Cols, msiColumn{
+				Number:     int(colNum),
+				Name:       strings[colNameID-1],
+				Attributes: colAttr,
+			})
+		}
 	}
-
-	tables := make([]msiTable, 0, len(indexedTables))
-	for _, tbl := range indexedTables {
-		tables = append(tables, tbl)
-		fmt.Println(">>> found ", tbl)
+	if tbl.Name == "" {
+		return nil, fmt.Errorf("Property table not found in columns table")
 	}
-	fmt.Println(">>> found ", len(tables), ", tables")
-	return tables, nil
+	return &tbl, nil
 }
 
-func buildStringsTable(dataReader, poolReader io.Reader) ([]string, error) {
+func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 	type header struct {
 		Codepage uint16
 		Unknown  uint16
