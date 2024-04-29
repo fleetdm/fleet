@@ -1015,6 +1015,9 @@ type ListQueryOptions struct {
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
 	IsScheduled *bool
+	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
+	// is set.
+	MergeInherited bool
 }
 
 type ListActivitiesOptions struct {

@@ -853,6 +853,53 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	require.Len(t, ts.Policies, 0)
 }
 
+func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
+	t := s.T()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1" + t.Name(),
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	oldToken := s.token
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+
+	// create global query
+	params := fleet.QueryPayload{
+		Name:  ptr.String("global1"),
+		Query: ptr.String("select * from time;"),
+	}
+	var createQueryResp createQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
+	defer s.cleanupQuery(createQueryResp.Query.ID)
+
+	// create team query
+	params = fleet.QueryPayload{
+		Name:   ptr.String("team1"),
+		Query:  ptr.String("select * from time;"),
+		TeamID: ptr.Uint(team1.ID),
+	}
+	createQueryResp = createQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
+	defer s.cleanupQuery(createQueryResp.Query.ID)
+
+	// list team queries
+	var listQueriesResp listQueriesResponse
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
+	require.Len(t, listQueriesResp.Queries, 1)
+	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
+
+	// list merged team queries
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	require.Len(t, listQueriesResp.Queries, 2)
+	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
+	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)
+}
+
 func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	t := s.T()
 
@@ -2840,7 +2887,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// edited macos min version activity got created
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
 	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2022-01-01")})
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2022-01-01"),
+	})
 
 	// get the appconfig
 	acResp = appConfigResponse{}
@@ -2864,7 +2912,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// another edited macos min version activity got created
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
 	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01")})
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01"),
+	})
 
 	// update something unrelated - the transparency url
 	acResp = appConfigResponse{}
@@ -2875,7 +2924,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
 	s.assertMacOSUpdatesDeclaration(nil, &fleet.MacOSUpdates{
-		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01")})
+		MinimumVersion: optjson.SetString("12.3.1"), Deadline: optjson.SetString("2024-01-01"),
+	})
 
 	// clear the macos requirement
 	acResp = appConfigResponse{}
@@ -8652,4 +8702,9 @@ func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *sc
 		case <-time.After(250 * time.Millisecond):
 		}
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) cleanupQuery(queryID uint) {
+	var delResp deleteQueryByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
 }
