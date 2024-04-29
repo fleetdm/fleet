@@ -20,12 +20,8 @@ import (
 )
 
 const calendarConsumers = 18
-
-// TODO: Make this thread safe since multiple threads will access it.
-// policyIDtoPolicy is a global variable that maps policy IDs to policies.
-// It is a cache to avoid querying the database for each host.
-// It is not thread safe. We assume that the calendar cron is the only one that will use it.
-var policyIDtoPolicy map[string]*fleet.PolicyLite
+const defaultDescription = "needs to make sure your device meets the organization's requirements."
+const defaultResolution = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
 
 func NewCalendarSchedule(
 	ctx context.Context,
@@ -83,14 +79,11 @@ func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	}
 
 	for _, team := range teams {
-		// Only team policies are present in the map
-		policyIDtoPolicy = make(map[string]*fleet.PolicyLite)
 		if err := cronCalendarEventsForTeam(
 			ctx, ds, googleCalendarIntegrationConfig, *team, appConfig.OrgInfo.OrgName, domain, logger,
 		); err != nil {
 			level.Info(logger).Log("msg", "events calendar cron", "team_id", team.ID, "err", err)
 		}
-		policyIDtoPolicy = nil
 	}
 
 	return nil
@@ -217,6 +210,9 @@ func processCalendarFailingHosts(
 
 	hostsCh := make(chan fleet.HostPolicyMembershipData)
 	var wg sync.WaitGroup
+	// policyIDtoPolicy maps policy IDs to policies.
+	// It is a cache to avoid querying the database for each host.
+	policyIDtoPolicy := sync.Map{}
 
 	for i := 0; i < calendarConsumers; i++ {
 		wg.Add(+1)
@@ -261,14 +257,14 @@ func processCalendarFailingHosts(
 				switch {
 				case err == nil && !expiredEvent:
 					if err := processFailingHostExistingCalendarEvent(
-						ctx, ds, userCalendar, orgName, hostCalendarEvent, calendarEvent, host, logger,
+						ctx, ds, userCalendar, orgName, hostCalendarEvent, calendarEvent, host, &policyIDtoPolicy, logger,
 					); err != nil {
 						level.Info(logger).Log("msg", "process failing host existing calendar event", "err", err)
 						continue // continue with next host
 					}
 				case fleet.IsNotFound(err) || expiredEvent:
 					if err := processFailingHostCreateCalendarEvent(
-						ctx, ds, userCalendar, orgName, host, logger,
+						ctx, ds, userCalendar, orgName, host, &policyIDtoPolicy, logger,
 					); err != nil {
 						level.Info(logger).Log("msg", "process failing host create calendar event", "err", err)
 						continue // continue with next host
@@ -316,6 +312,7 @@ func processFailingHostExistingCalendarEvent(
 	hostCalendarEvent *fleet.HostCalendarEvent,
 	calendarEvent *fleet.CalendarEvent,
 	host fleet.HostPolicyMembershipData,
+	policyIDtoPolicy *sync.Map,
 	logger kitlog.Logger,
 ) error {
 	updatedEvent := calendarEvent
@@ -326,7 +323,7 @@ func processFailingHostExistingCalendarEvent(
 		var err error
 		updatedEvent, _, err = calendar.GetAndUpdateEvent(
 			calendarEvent, func(conflict bool) string {
-				return generateCalendarEventBody(ctx, ds, orgName, host, conflict, logger)
+				return generateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
 			},
 		)
 		if err != nil {
@@ -417,9 +414,10 @@ func processFailingHostCreateCalendarEvent(
 	userCalendar fleet.UserCalendar,
 	orgName string,
 	host fleet.HostPolicyMembershipData,
+	policyIDtoPolicy *sync.Map,
 	logger kitlog.Logger,
 ) error {
-	calendarEvent, err := attemptCreatingEventOnUserCalendar(ctx, ds, orgName, host, userCalendar, logger)
+	calendarEvent, err := attemptCreatingEventOnUserCalendar(ctx, ds, orgName, host, userCalendar, policyIDtoPolicy, logger)
 	if err != nil {
 		return fmt.Errorf("create event on user calendar: %w", err)
 	}
@@ -437,6 +435,7 @@ func attemptCreatingEventOnUserCalendar(
 	orgName string,
 	host fleet.HostPolicyMembershipData,
 	userCalendar fleet.UserCalendar,
+	policyIDtoPolicy *sync.Map,
 	logger kitlog.Logger,
 ) (*fleet.CalendarEvent, error) {
 	year, month, today := time.Now().Date()
@@ -444,7 +443,7 @@ func attemptCreatingEventOnUserCalendar(
 	for {
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) string {
-				return generateCalendarEventBody(ctx, ds, orgName, host, conflict, logger)
+				return generateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
 			},
 		)
 		var dee fleet.DayEndedError
@@ -583,9 +582,10 @@ func logHostsWithoutAssociatedEmail(
 }
 
 func generateCalendarEventBody(
-	ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData, conflict bool, logger kitlog.Logger,
+	ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map, conflict bool,
+	logger kitlog.Logger,
 ) string {
-	description, resolution := getCalendarEventDescriptionAndResolution(ctx, ds, host, logger)
+	description, resolution := getCalendarEventDescriptionAndResolution(ctx, ds, host, policyIDtoPolicy, logger)
 
 	conflictStr := ""
 	if conflict {
@@ -606,18 +606,18 @@ Please leave your computer on and connected to power.
 }
 
 func getCalendarEventDescriptionAndResolution(
-	ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMembershipData, logger kitlog.Logger,
+	ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map, logger kitlog.Logger,
 ) (string, string) {
 	getDefaultDescription := func(org string) string {
-		return fmt.Sprintf(`%s needs to make sure your device meets the organization's requirements.`, org)
+		return fmt.Sprintf(`%s %s`, org, defaultDescription)
 	}
-	const defaultResolution = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
 
 	var description, resolution string
 	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
 	switch {
-	case len(policyIDs) == 1:
-		policy, ok := policyIDtoPolicy[policyIDs[0]]
+	case len(policyIDs) == 1 && policyIDs[0] != "":
+		var policy *fleet.PolicyLite
+		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
 		if !ok {
 			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
 			if err != nil {
@@ -629,7 +629,9 @@ func getCalendarEventDescriptionAndResolution(
 				level.Error(logger).Log("msg", "get policy", "err", err)
 				return getDefaultDescription(host.HostDisplayName), defaultResolution
 			}
-			policyIDtoPolicy[policyIDs[0]] = policy
+			policyIDtoPolicy.Store(policyIDs[0], policy)
+		} else {
+			policy = policyAny.(*fleet.PolicyLite)
 		}
 		policyDescription := strings.TrimSpace(policy.Description)
 		if policyDescription == "" {
