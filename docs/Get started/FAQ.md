@@ -12,9 +12,9 @@ Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy
 
 Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
 
-You can enroll servers and laptops using a simple installer or automatically deliver the agent using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
+You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
 
-By default, Fleet keeps agents up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
+By default, Fleet keeps fleetd up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
 
 ## What options do I have for access control?  What about auditing admin activity?
 
@@ -106,8 +106,8 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
-## How can I uninstall the osquery agent?
-To uninstall the osquery agent, follow the below instructions for your operating system.
+## How can I uninstall fleetd?
+To uninstall Fleet's agent (fleetd), follow the below instructions for your operating system.
 
 #### MacOS
 Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)

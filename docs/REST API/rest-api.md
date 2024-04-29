@@ -628,7 +628,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
 - [Get carve](#get-carve)
 - [Get carve block](#get-carve-block)
 
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
+Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from Fleet's agent (fleetd), returning the full contents to Fleet.
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
@@ -3281,7 +3281,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 
 Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
 
 Retrieves a host's MDM enrollment status and MDM server URL.
 
@@ -3318,7 +3318,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
 
 Retrieves MDM enrollment summary. Windows servers are excluded from the aggregated data.
 
@@ -3425,8 +3425,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
 Currently supported only on macOS.
 
 
