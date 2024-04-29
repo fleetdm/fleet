@@ -2440,6 +2440,10 @@ Lists the software installed on the current device.
     {
       "id": 127,
       "name": "Firefox.app",
+      "package": {
+        "name": "FirefoxInstall.pkg",
+        "version": "125.0.1",
+      },
       "self_service": true,
       "versions": ["118.0, 119.0"],
       "source": "apps",
