@@ -3,6 +3,7 @@ package file
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -10,24 +11,6 @@ import (
 )
 
 func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
-	//doc, err := mscfb.New(r)
-	//if err != nil {
-	//	return "", "", fmt.Errorf("parsing table: %w", err)
-	//}
-	//for _, f := range doc.File {
-	//	fmt.Println("====================", f.Name)
-	//	var b []byte
-	//	_, err := f.Read(b)
-	//	if err != nil {
-	//		if err == io.EOF {
-	//			fmt.Println("EOF")
-	//			continue
-	//		}
-	//		return "", "", fmt.Errorf("rrrrrrrrrrrrrread table: %w", err)
-	//	}
-	//	fmt.Println(">>>", strconv.Quote(string(b)), "<<<")
-	//}
-
 	h := sha256.New()
 	r = io.TeeReader(r, h)
 	b, err := io.ReadAll(r)
@@ -46,6 +29,8 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 	if err != nil {
 		return "", "", nil, fmt.Errorf("listing files in msi: %w", err)
 	}
+
+	var dataReader, poolReader io.Reader
 	for _, ee := range e {
 		if ee.Type != comdoc.DirStream {
 			continue
@@ -54,60 +39,52 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 		name := msiDecodeName(ee.Name())
 		fmt.Println(name, ee.Type)
 
-		//if name == "Table._StringData" {
-		//	rr, err := c.ReadStream(ee)
-		//	if err != nil {
-		//		return "", "", fmt.Errorf("opening file stream %s: %w", name, err)
-		//	}
-
-		//	b, err := io.ReadAll(rr)
-		//	if err != nil {
-		//		return "", "", fmt.Errorf("reading file stream %s: %w", name, err)
-		//	}
-		//	fmt.Println(string(b))
-
-		//	br := bytes.NewReader(b)
-		//	doc, err := mscfb.New(br)
-		//	if err != nil {
-		//		fmt.Println(">>>> failed parsing table ", name, err)
-		//		continue
-		//		//return "", "", fmt.Errorf("parsing table: %w", err)
-		//	}
-		//	_ = doc
-		//}
-		//if bytes.Contains(b, []byte("ProductVersion")) {
-		//	fmt.Println("ProductVersion found")
-		//}
-		//if bytes.Contains(b, []byte("ProductName")) {
-		//	fmt.Println("ProductName found")
-		//}
-		//fmt.Printf("%x\n", b[:9])
-
-		//br := bytes.NewReader(b)
-		//doc, err := mscfb.New(br)
-		//if err != nil {
-		//	fmt.Println(">>>> failed parsing table ", name, err)
-		//	continue
-		//	//return "", "", fmt.Errorf("parsing table: %w", err)
-		//}
-		//for _, f := range doc.File {
-		//	fmt.Println("=========stream file=====", f.Name)
-		//	var b []byte
-		//	_, err := f.Read(b)
-		//	if err != nil {
-		//		if err == io.EOF {
-		//			fmt.Println("EOF")
-		//			continue
-		//		}
-		//		return "", "", fmt.Errorf("rrrrrrrrrrrrrread table: %w", err)
-		//	}
-		//	fmt.Println(">>>", strconv.Quote(string(b)), "<<<")
-		//}
-
-		//fmt.Println(doc)
+		if name == "Table._StringData" || name == "Table._StringPool" {
+			rr, err := c.ReadStream(ee)
+			if err != nil {
+				return "", "", nil, fmt.Errorf("opening file stream %s: %w", name, err)
+			}
+			if name == "Table._StringData" {
+				dataReader = rr
+			} else {
+				poolReader = rr
+			}
+		}
 	}
+	allStrings, err := buildStringsTable(dataReader, poolReader)
+	if err != nil {
+		return "", "", nil, err
+	}
+	_ = allStrings
 
 	return "", "", h.Sum(nil), nil
+}
+
+func buildStringsTable(dataReader, poolReader io.Reader) (map[string]int, error) {
+	type entry struct {
+		Size     uint16
+		RefCount uint16
+	}
+	var stringEntry entry
+	stringTable := make(map[string]int)
+	for {
+		err := binary.Read(poolReader, binary.LittleEndian, &stringEntry)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("failed to read pool entry: %w", err)
+		}
+		buf := make([]byte, stringEntry.Size)
+		if _, err := io.ReadFull(dataReader, buf); err != nil {
+			return nil, fmt.Errorf("failed to read string data: %w", err)
+		}
+		if stringEntry.RefCount > 0 {
+			stringTable[string(buf)] = int(stringEntry.RefCount)
+			fmt.Println(">>> found: ", string(buf), stringEntry.RefCount)
+		}
+	}
+	return stringTable, nil
 }
 
 func msiDecodeName(msiName string) string {
