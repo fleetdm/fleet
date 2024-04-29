@@ -48,8 +48,9 @@ When starting a new draft:
     -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
     -  **Ready.** Use this page to communicate designs reviews and development.
     -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
-- If the story requires API changes, open a draft PR with the proposed API design.
-
+- If the story requires API changes, open a draft PR with the proposed API design and request the API DRI for review.
+    - These draft PRs are not actually merged, since they're often created several weeks ahead of implementation, which can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the PR author will close the draft PR and open a new PR from the same branch.
+      
 ### Schedule a design review
 - Prepare your draft in the user story issue.
 - Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.
