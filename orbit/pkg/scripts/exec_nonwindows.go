@@ -4,11 +4,11 @@ package scripts
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -18,11 +18,11 @@ func execCmd(ctx context.Context, scriptPath string) (output []byte, exitCode in
 
 	contents, err := os.ReadFile(scriptPath)
 	if err != nil {
-		return nil, -1, err
+		return nil, -1, ctxerr.Wrapf(ctx, err, "opening script for validation %s", scriptPath)
 	}
 	directExecute, err := fleet.ValidateShebang(string(contents))
 	if err != nil {
-		return nil, -1, err
+		return nil, -1, ctxerr.Wrap(ctx, err, "validating script %s", scriptPath)
 	}
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", scriptPath)
@@ -30,7 +30,7 @@ func execCmd(ctx context.Context, scriptPath string) (output []byte, exitCode in
 	if directExecute {
 		err = os.Chmod(scriptPath, 0766)
 		if err != nil {
-			return nil, -1, fmt.Errorf("marking script as executable: %w", err)
+			return nil, -1, ctxerr.Wrapf(ctx, err, "marking script as executable %s", scriptPath)
 		}
 		cmd = exec.CommandContext(ctx, scriptPath)
 	}

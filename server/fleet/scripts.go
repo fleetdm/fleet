@@ -306,7 +306,7 @@ func ValidateShebang(s string) (directExecute bool, err error) {
 	if strings.HasPrefix(s, "#!") {
 		// read the first line in a portable way
 		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` for now
+		// if a hashbang is present, it can only be `/bin/sh` or `(/usr)/bin/zsh` for now
 		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
 			return false, ErrUnsupportedInterpreter
 		}
