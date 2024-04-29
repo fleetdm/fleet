@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 
-import { getPlatformDisplayName } from "utilities/file/fileUtils";
-
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
@@ -9,21 +7,10 @@ import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
 import Graphic from "components/Graphic";
 
+import { getFileDetails, getInstallScript } from "./helpers";
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions/AddSoftwareAdvancedOptions";
 
 const baseClass = "add-software-form";
-
-const getFileDetails = (file: File) => {
-  return {
-    name: file.name,
-    platform: getPlatformDisplayName(file),
-  };
-};
-
-const getInstallScript = (file: File) => {
-  // TODO: get this dynamically
-  return `sudo installer -pkg ${file.name} -target /`;
-};
 
 const UploadingSoftware = () => {
   return (
