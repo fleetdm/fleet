@@ -2416,6 +2416,7 @@ Lists the software installed on the current device.
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
+| self_service | bool | query | Filter `self_service` software. |
 
 ##### Example
 
