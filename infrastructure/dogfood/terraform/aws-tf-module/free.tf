@@ -35,7 +35,8 @@ module "free" {
     subnets             = module.main.vpc.database_subnets
   }
   redis_config = {
-    name = local.customer_free
+    name           = local.customer_free
+    engine_version = "8.0.mysql_aurora.3.05.2"
     log_delivery_configuration = [
       {
         destination      = "dogfood-free-redis-logs"
