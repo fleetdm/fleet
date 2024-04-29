@@ -67,7 +67,7 @@ func TestExecCmdNonWindows(t *testing.T) {
 			output, exitCode, err := execCmd(context.Background(), scriptPath)
 			require.Equal(t, tc.output, strings.TrimSpace(string(output)))
 			require.Equal(t, tc.exitCode, exitCode)
-			require.ErrorIs(t, tc.error, err)
+			require.ErrorIs(t, err, tc.error)
 		})
 	}
 }

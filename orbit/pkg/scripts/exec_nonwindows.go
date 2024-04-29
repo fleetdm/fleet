@@ -22,7 +22,7 @@ func execCmd(ctx context.Context, scriptPath string) (output []byte, exitCode in
 	}
 	directExecute, err := fleet.ValidateShebang(string(contents))
 	if err != nil {
-		return nil, -1, ctxerr.Wrap(ctx, err, "validating script %s", scriptPath)
+		return nil, -1, ctxerr.Wrapf(ctx, err, "validating script %s", scriptPath)
 	}
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", scriptPath)
