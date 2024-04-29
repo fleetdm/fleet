@@ -4345,12 +4345,15 @@ func (ds *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, in
 
 // UpdateHostRefetchRequested updates a host's refetch requested field.
 func (ds *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, value bool) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return updateHostRefetchRequestedDB(ctx, tx, id, value)
+	})
+}
+
+func updateHostRefetchRequestedDB(ctx context.Context, tx sqlx.ExtContext, id uint, value bool) error {
 	sqlStatement := `UPDATE hosts SET refetch_requested = ? WHERE id = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, value, id)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update host %d refetch_requested", id)
-	}
-	return nil
+	_, err := tx.ExecContext(ctx, sqlStatement, value, id)
+	return ctxerr.Wrapf(ctx, err, "update host %d refetch_requested", id)
 }
 
 // UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
