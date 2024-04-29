@@ -1,6 +1,7 @@
 package file_test
 
 import (
+	"encoding/hex"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -94,19 +95,19 @@ func TestExists(t *testing.T) {
 
 // TestExtractInstallerMetadata tests the ExtractInstallerMetadata function. It
 // calls the function for every file under testdata/installers and checks that
-// it returns the expected metadata by comparing it to the software name and
-// version in the filename.
+// it returns the expected metadata by comparing it to the software name,
+// version and hash in the filename.
 //
 // The filename should have the following format:
 //
-//	<software_name>$<version>[$<anything>].<extension>
+//	<software_name>$<version>$<sha256hash>[$<anything>].<extension>
 //
 // That is, it breaks the file name at the dollar sign and the first part is
-// the expected name, the second is the expected version. Note that by default,
-// files in testdata/installers are NOT included in git, so the test files must
-// be added manually (for size and licenses considerations). Why the dollar
-// sign? Because dots, dashes and underlines are more likely to be part of the
-// name or version.
+// the expected name, the second is the expected version, the third is the
+// hex-encoded hash. Note that by default, files in testdata/installers are NOT
+// included in git, so the test files must be added manually (for size and
+// licenses considerations). Why the dollar sign? Because dots, dashes and
+// underlines are more likely to be part of the name or version.
 func TestExtractInstallerMetadata(t *testing.T) {
 	dents, err := os.ReadDir(filepath.Join("testdata", "installers"))
 	if err != nil {
@@ -119,18 +120,20 @@ func TestExtractInstallerMetadata(t *testing.T) {
 		}
 		t.Run(dent.Name(), func(t *testing.T) {
 			parts := strings.Split(strings.TrimSuffix(dent.Name(), filepath.Ext(dent.Name())), "$")
-			if len(parts) < 2 {
-				t.Fatalf("invalid filename, expected at least 2 sections, got %d: %s", len(parts), dent.Name())
+			if len(parts) < 3 {
+				t.Fatalf("invalid filename, expected at least 3 sections, got %d: %s", len(parts), dent.Name())
 			}
-			wantName, wantVersion := parts[0], parts[1]
+			wantName, wantVersion, wantHash := parts[0], parts[1], parts[2]
 
-			content, err := os.ReadFile(filepath.Join("testdata", "installers", dent.Name()))
+			f, err := os.Open(filepath.Join("testdata", "installers", dent.Name()))
 			require.NoError(t, err)
+			defer f.Close()
 
-			name, version, err := file.ExtractInstallerMetadata(dent.Name(), content)
+			name, version, hash, err := file.ExtractInstallerMetadata(dent.Name(), f)
 			require.NoError(t, err)
 			assert.Equal(t, wantName, name)
 			assert.Equal(t, wantVersion, version)
+			assert.Equal(t, wantHash, hex.EncodeToString(hash))
 		})
 	}
 }

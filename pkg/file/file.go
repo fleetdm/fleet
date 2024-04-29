@@ -12,20 +12,21 @@ import (
 )
 
 // ExtractInstallerMetadata extracts the software name and version from the
-// installer file. The format of the installer is determined based on the
-// extension of the filename.
-func ExtractInstallerMetadata(filename string, b []byte) (name, version string, err error) {
+// installer file and returns them along with the sha256 hash of the bytes. The
+// format of the installer is determined based on the extension of the
+// filename.
+func ExtractInstallerMetadata(filename string, r io.Reader) (name, version string, shaSum []byte, err error) {
 	switch ext := filepath.Ext(filename); ext {
 	case ".deb":
-		return ExtractDebMetadata(b)
+		return ExtractDebMetadata(r)
 	case ".exe":
-		return ExtractPEMetadata(b)
+		return ExtractPEMetadata(r)
 	case ".pkg":
-		return ExtractXARMetadata(b)
+		return ExtractXARMetadata(r)
 	case ".msi":
-		return ExtractMSIMetadata(b)
+		return ExtractMSIMetadata(r)
 	default:
-		return "", "", fmt.Errorf("unsupported file type: %s", ext)
+		return "", "", nil, fmt.Errorf("unsupported file type: %s", ext)
 	}
 }
 

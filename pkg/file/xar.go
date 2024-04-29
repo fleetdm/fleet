@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"crypto"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/xml"
 	"errors"
@@ -113,17 +114,24 @@ type pkgRef struct {
 
 // ExtractXARMetadata extracts the name and version metadata from a .pkg file
 // in the XAR format.
-func ExtractXARMetadata(b []byte) (name, version string, err error) {
+func ExtractXARMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
 	var hdr xarHeader
 
-	r := bytes.NewReader(b)
-	if err := binary.Read(r, binary.BigEndian, &hdr); err != nil {
-		return "", "", fmt.Errorf("decode xar header: %w", err)
+	h := sha256.New()
+	r = io.TeeReader(r, h)
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
 	}
 
-	zr, err := zlib.NewReader(io.LimitReader(r, hdr.CompressedSize))
+	rr := bytes.NewReader(b)
+	if err := binary.Read(rr, binary.BigEndian, &hdr); err != nil {
+		return "", "", nil, fmt.Errorf("decode xar header: %w", err)
+	}
+
+	zr, err := zlib.NewReader(io.LimitReader(rr, hdr.CompressedSize))
 	if err != nil {
-		return "", "", fmt.Errorf("create zlib reader: %w", err)
+		return "", "", nil, fmt.Errorf("create zlib reader: %w", err)
 	}
 	defer zr.Close()
 
@@ -131,14 +139,14 @@ func ExtractXARMetadata(b []byte) (name, version string, err error) {
 	decoder := xml.NewDecoder(zr)
 	decoder.Strict = false
 	if err := decoder.Decode(&root); err != nil {
-		return "", "", fmt.Errorf("decode xar xml: %w", err)
+		return "", "", nil, fmt.Errorf("decode xar xml: %w", err)
 	}
 
 	heapOffset := xarHeaderSize + hdr.CompressedSize
 	for _, f := range root.TOC.Files {
 		if f.Name == "Distribution" {
 			var fileReader io.Reader
-			heapReader := io.NewSectionReader(r, heapOffset, int64(len(b))-heapOffset)
+			heapReader := io.NewSectionReader(rr, heapOffset, int64(len(b))-heapOffset)
 			fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
 
 			// the distribution file can be compressed differently than the TOC, the
@@ -148,7 +156,7 @@ func ExtractXARMetadata(b []byte) (name, version string, err error) {
 				// (invalid header), but it works with zlib.
 				zr, err := zlib.NewReader(fileReader)
 				if err != nil {
-					return "", "", fmt.Errorf("create zlib reader: %w", err)
+					return "", "", nil, fmt.Errorf("create zlib reader: %w", err)
 				}
 				defer zr.Close()
 				fileReader = zr
@@ -158,22 +166,22 @@ func ExtractXARMetadata(b []byte) (name, version string, err error) {
 
 			contents, err := io.ReadAll(fileReader)
 			if err != nil {
-				return "", "", fmt.Errorf("reading Distribution file: %w", err)
+				return "", "", nil, fmt.Errorf("reading Distribution file: %w", err)
 			}
 
 			var distXML distributionXML
 			if err := xml.Unmarshal(contents, &distXML); err != nil {
-				return "", "", fmt.Errorf("unmarshal Distribution XML: %w", err)
+				return "", "", nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
 			}
 
 			if len(distXML.PkgRef) > 0 {
-				return strings.TrimSpace(distXML.PkgRef[0].ID), strings.TrimSpace(distXML.PkgRef[0].Version), nil
+				return strings.TrimSpace(distXML.PkgRef[0].ID), strings.TrimSpace(distXML.PkgRef[0].Version), h.Sum(nil), nil
 			}
 			break
 		}
 	}
 
-	return "", "", nil
+	return "", "", h.Sum(nil), nil
 }
 
 // CheckPKGSignature checks if the provided bytes correspond to a signed pkg

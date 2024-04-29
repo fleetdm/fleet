@@ -2,14 +2,14 @@ package file
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 
-	"github.com/richardlehane/mscfb"
 	"github.com/sassoftware/relic/v7/lib/comdoc"
 )
 
-func ExtractMSIMetadata(b []byte) (name, version string, err error) {
+func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
 	//doc, err := mscfb.New(r)
 	//if err != nil {
 	//	return "", "", fmt.Errorf("parsing table: %w", err)
@@ -28,16 +28,23 @@ func ExtractMSIMetadata(b []byte) (name, version string, err error) {
 	//	fmt.Println(">>>", strconv.Quote(string(b)), "<<<")
 	//}
 
-	r := bytes.NewReader(b)
-	c, err := comdoc.ReadFile(r)
+	h := sha256.New()
+	r = io.TeeReader(r, h)
+	b, err := io.ReadAll(r)
 	if err != nil {
-		return "", "", fmt.Errorf("reading msi file: %w", err)
+		return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+	}
+
+	rr := bytes.NewReader(b)
+	c, err := comdoc.ReadFile(rr)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("reading msi file: %w", err)
 	}
 	defer c.Close()
 
 	e, err := c.ListDir(nil)
 	if err != nil {
-		return "", "", fmt.Errorf("listing files in msi: %w", err)
+		return "", "", nil, fmt.Errorf("listing files in msi: %w", err)
 	}
 	for _, ee := range e {
 		if ee.Type != comdoc.DirStream {
@@ -47,27 +54,27 @@ func ExtractMSIMetadata(b []byte) (name, version string, err error) {
 		name := msiDecodeName(ee.Name())
 		fmt.Println(name, ee.Type)
 
-		if name == "Table._StringData" {
-			rr, err := c.ReadStream(ee)
-			if err != nil {
-				return "", "", fmt.Errorf("opening file stream %s: %w", name, err)
-			}
+		//if name == "Table._StringData" {
+		//	rr, err := c.ReadStream(ee)
+		//	if err != nil {
+		//		return "", "", fmt.Errorf("opening file stream %s: %w", name, err)
+		//	}
 
-			b, err := io.ReadAll(rr)
-			if err != nil {
-				return "", "", fmt.Errorf("reading file stream %s: %w", name, err)
-			}
-			fmt.Println(string(b))
+		//	b, err := io.ReadAll(rr)
+		//	if err != nil {
+		//		return "", "", fmt.Errorf("reading file stream %s: %w", name, err)
+		//	}
+		//	fmt.Println(string(b))
 
-			br := bytes.NewReader(b)
-			doc, err := mscfb.New(br)
-			if err != nil {
-				fmt.Println(">>>> failed parsing table ", name, err)
-				continue
-				//return "", "", fmt.Errorf("parsing table: %w", err)
-			}
-			_ = doc
-		}
+		//	br := bytes.NewReader(b)
+		//	doc, err := mscfb.New(br)
+		//	if err != nil {
+		//		fmt.Println(">>>> failed parsing table ", name, err)
+		//		continue
+		//		//return "", "", fmt.Errorf("parsing table: %w", err)
+		//	}
+		//	_ = doc
+		//}
 		//if bytes.Contains(b, []byte("ProductVersion")) {
 		//	fmt.Println("ProductVersion found")
 		//}
@@ -100,7 +107,7 @@ func ExtractMSIMetadata(b []byte) (name, version string, err error) {
 		//fmt.Println(doc)
 	}
 
-	return "", "", nil
+	return "", "", h.Sum(nil), nil
 }
 
 func msiDecodeName(msiName string) string {
