@@ -2433,3 +2433,24 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 
 	return labelIDs, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Software
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostSoftwareRequest struct {
+	ID          uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type getHostSoftwareResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r getHostSoftwareResponse) error() error { return r.Err }
+
+func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostSoftwareRequest)
+	_ = req
+	panic("unimplemented")
+}
