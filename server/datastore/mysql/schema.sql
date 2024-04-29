@@ -497,7 +497,7 @@ CREATE TABLE `host_software_installs` (
   `post_install_script_output` text COLLATE utf8mb4_unicode_ci,
   `post_install_script_exit_code` int(10) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `uploaded_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_software_installs_host_installer` (`host_id`,`software_installer_id`),
   UNIQUE KEY `idx_host_software_installs_execution_id` (`execution_id`),
@@ -1499,19 +1499,26 @@ CREATE TABLE `software_host_counts` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `software_installers` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `software_id` bigint(20) unsigned DEFAULT NULL,
+  `team_id` int(10) unsigned DEFAULT NULL,
+  `global_or_team_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `title_id` int(10) unsigned DEFAULT NULL,
+  `filename` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `pre_install_query` text COLLATE utf8mb4_unicode_ci,
   `install_script_content_id` int(10) unsigned NOT NULL,
   `post_install_script_content_id` int(10) unsigned DEFAULT NULL,
   `storage_id` binary(64) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `uploaded_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `fk_software_installers_version` (`software_id`),
+  UNIQUE KEY `idx_software_installers_team_id_title_id` (`global_or_team_id`,`title_id`),
+  KEY `fk_software_installers_title` (`title_id`),
   KEY `fk_software_installers_install_script_content_id` (`install_script_content_id`),
   KEY `fk_software_installers_post_install_script_content_id` (`post_install_script_content_id`),
+  KEY `fk_software_installers_team_id` (`team_id`),
   CONSTRAINT `fk_software_installers_install_script_content_id` FOREIGN KEY (`install_script_content_id`) REFERENCES `script_contents` (`id`) ON UPDATE CASCADE,
   CONSTRAINT `fk_software_installers_post_install_script_content_id` FOREIGN KEY (`post_install_script_content_id`) REFERENCES `script_contents` (`id`) ON UPDATE CASCADE,
-  CONSTRAINT `fk_software_installers_version` FOREIGN KEY (`software_id`) REFERENCES `software` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+  CONSTRAINT `fk_software_installers_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_installers_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

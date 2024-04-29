@@ -14,8 +14,21 @@ func Up_20240424124712(tx *sql.Tx) error {
 CREATE TABLE IF NOT EXISTS software_installers (
   id int(10) unsigned NOT NULL AUTO_INCREMENT,
 
-  -- FK to the "software version" this installer matches
-  software_id bigint(20) unsigned DEFAULT NULL,
+  -- team_id NULL is for no team (cannot use 0 with foreign key)
+  team_id INT(10) UNSIGNED NULL,
+  -- this field is 0 for global, and the team_id otherwise, and is
+  -- used for the unique index/constraint (team_id cannot be used
+  -- as it allows NULL).
+  global_or_team_id INT(10) UNSIGNED NOT NULL DEFAULT 0,
+
+  -- FK to the "software title" this installer matches
+ title_id int(10) unsigned DEFAULT NULL,
+
+  -- Filename of the uploaded installer
+  filename varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+
+  -- Version extracted from the uploaded installer
+  version varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 
   -- Raw osquery SQL statment to be run as a pre-install condition
   pre_install_query text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -30,13 +43,13 @@ CREATE TABLE IF NOT EXISTS software_installers (
   -- used to track the ID retrieved from the storage containing the installer bytes
   storage_id binary(64) NOT NULL,
 
-  created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  uploaded_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
 
-  CONSTRAINT fk_software_installers_version
-    FOREIGN KEY (software_id)
-    REFERENCES software (id)
+  CONSTRAINT fk_software_installers_title
+    FOREIGN KEY (title_id)
+    REFERENCES software_titles (id)
     ON DELETE SET NULL
     ON UPDATE CASCADE,
 
@@ -50,7 +63,16 @@ CREATE TABLE IF NOT EXISTS software_installers (
     FOREIGN KEY (post_install_script_content_id)
     REFERENCES script_contents (id)
     ON DELETE RESTRICT
-    ON UPDATE CASCADE
+    ON UPDATE CASCADE,
+
+  CONSTRAINT fk_software_installers_team_id
+    FOREIGN KEY (team_id)
+    REFERENCES teams (id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  
+  UNIQUE KEY idx_software_installers_team_id_title_id (global_or_team_id, title_id)
+
 )
   `)
 	if err != nil {
@@ -89,7 +111,7 @@ CREATE TABLE IF NOT EXISTS host_software_installs (
   post_install_script_exit_code int(10) DEFAULT NULL,
 
   created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  uploaded_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id),
 
