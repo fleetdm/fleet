@@ -650,10 +650,8 @@ func (svc *Service) AutofillPolicySql(ctx context.Context, sql string) (descript
 		return "", "", ctxerr.Wrap(
 			ctx, AutofillError{
 				Message: "error from human interpretation of osquery sql",
-				InternalErr: errors.New(
-					fmt.Sprintf(
-						"%s returned %d status code", getHumanInterpretationFromOsquerySqlUrl, resp.StatusCode,
-					),
+				InternalErr: fmt.Errorf(
+					"%s returned %d status code", getHumanInterpretationFromOsquerySqlUrl, resp.StatusCode,
 				),
 			},
 		)
