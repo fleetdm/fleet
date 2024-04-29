@@ -141,7 +141,7 @@ func NewService(
 		mdmStorage:           mdmStorage,
 		mdmPushService:       mdmPushService,
 		mdmPushCertTopic:     mdmPushCertTopic,
-		mdmAppleCommander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+		mdmAppleCommander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
 		cronSchedulesService: cronSchedulesService,
 		wstepCertManager:     wstepCertManager,
 	}

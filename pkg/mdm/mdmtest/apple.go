@@ -214,7 +214,23 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string) error {
 	if err := response.Body.Close(); err != nil {
 		return fmt.Errorf("close body: %w", err)
 	}
-	enrollInfo, err := ParseEnrollmentProfile(body)
+
+	rawProfile := body
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(body)
+		if err != nil {
+			return fmt.Errorf("enrollment profile is not XML nor PKCS7 parseable: %w", err)
+		}
+
+		err = p7.Verify()
+		if err != nil {
+			return err
+		}
+
+		rawProfile = p7.Content
+	}
+
+	enrollInfo, err := ParseEnrollmentProfile(rawProfile)
 	if err != nil {
 		return fmt.Errorf("parse enrollment profile: %w", err)
 	}

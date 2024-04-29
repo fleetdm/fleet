@@ -150,11 +150,12 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	features := appConfig.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
-			OrgInfo:               appConfig.OrgInfo,
-			ServerSettings:        appConfig.ServerSettings,
-			Features:              features,
-			VulnerabilitySettings: appConfig.VulnerabilitySettings,
-			HostExpirySettings:    appConfig.HostExpirySettings,
+			OrgInfo:                appConfig.OrgInfo,
+			ServerSettings:         appConfig.ServerSettings,
+			Features:               features,
+			VulnerabilitySettings:  appConfig.VulnerabilitySettings,
+			HostExpirySettings:     appConfig.HostExpirySettings,
+			ActivityExpirySettings: appConfig.ActivityExpirySettings,
 
 			SMTPSettings: smtpSettings,
 			SSOSettings:  ssoSettings,
@@ -374,6 +375,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	if appConfig.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "Fleet server URL must be present")
+	}
+
+	if appConfig.ActivityExpirySettings.ActivityExpiryEnabled && appConfig.ActivityExpirySettings.ActivityExpiryWindow < 1 {
+		invalid.Append("activity_expiry_settings.activity_expiry_window", "must be greater than 0")
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {

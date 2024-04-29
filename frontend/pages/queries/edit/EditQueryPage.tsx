@@ -5,7 +5,12 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { DEFAULT_QUERY, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  DEFAULT_QUERY,
+  DOCUMENT_TITLE_SUFFIX,
+  INVALID_PLATFORMS_FLASH_MESSAGE,
+  INVALID_PLATFORMS_REASON,
+} from "utilities/constants";
 import configAPI from "services/entities/config";
 import queryAPI from "services/entities/queries";
 import statusAPI from "services/entities/status";
@@ -15,6 +20,7 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import { IConfig } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
@@ -229,7 +235,7 @@ const EditQueryPage = ({
         renderFlash("success", "Query created!");
         setBackendValidators({});
       } catch (createError: any) {
-        if (createError.data.errors[0].reason.includes("already exists")) {
+        if (getErrorReason(createError).includes("already exists")) {
           const teamErrorText =
             teamNameForQuery && apiTeamIdForQuery !== 0
               ? `the ${teamNameForQuery} team`
@@ -275,8 +281,11 @@ const EditQueryPage = ({
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError: any) {
       console.error(updateError);
-      if (updateError.data.errors[0].reason.includes("Duplicate")) {
+      const reason = getErrorReason(updateError);
+      if (reason.includes("Duplicate")) {
         renderFlash("error", "A query with this name already exists.");
+      } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
+        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
       } else {
         renderFlash(
           "error",

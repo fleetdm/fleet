@@ -69,30 +69,50 @@ const CalendarEventsModal = ({
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
 
-  const validateCalendarEventsFormData = (
-    curFormData: ICalendarEventsFormData
-  ) => {
+  // Used on URL change only when URL error exists and always on attempting to save
+  const validateForm = (newFormData: ICalendarEventsFormData) => {
     const errors: Record<string, string> = {};
-    if (curFormData.enabled) {
-      const { url: curUrl } = curFormData;
-      if (!validURL({ url: curUrl })) {
-        const errorPrefix = curUrl ? `${curUrl} is not` : "Please enter";
-        errors.url = `${errorPrefix} a valid resolution webhook URL`;
-      }
+    const { url: newUrl } = newFormData;
+    if (
+      formData.enabled &&
+      !validURL({ url: newUrl || "", protocols: ["http", "https"] })
+    ) {
+      const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
+      errors.url = `${errorPrefix} a valid resolution webhook URL`;
     }
+
     return errors;
   };
 
-  // two onChange handlers to handle different levels of nesting in the form data
-  const onFeatureEnabledOrUrlChange = useCallback(
-    (newVal: { name: "enabled" | "url"; value: string | boolean }) => {
-      const { name, value } = newVal;
-      const newFormData = { ...formData, [name]: value };
-      setFormData(newFormData);
-      setFormErrors(validateCalendarEventsFormData(newFormData));
-    },
-    [formData]
-  );
+  const onFeatureEnabledChange = () => {
+    const newFormData = { ...formData, enabled: !formData.enabled };
+
+    const isDisabling = newFormData.enabled === false;
+
+    // On disabling feature, validate URL and if an error clear input and error
+    if (isDisabling) {
+      const errors = validateForm(newFormData);
+
+      if (errors.url) {
+        newFormData.url = "";
+        delete formErrors.url;
+        setFormErrors(formErrors);
+      }
+    }
+
+    setFormData(newFormData);
+  };
+
+  const onUrlChange = (value: string) => {
+    const newFormData = { ...formData, url: value };
+    // On URL change with erroneous URL, validate form
+    if (formErrors.url) {
+      setFormErrors(validateForm(newFormData));
+    }
+
+    setFormData(newFormData);
+  };
+
   const onPolicyEnabledChange = useCallback(
     (newVal: { name: FormNames; value: boolean }) => {
       const { name, value } = newVal;
@@ -104,10 +124,19 @@ const CalendarEventsModal = ({
       });
       const newFormData = { ...formData, policies: newFormPolicies };
       setFormData(newFormData);
-      setFormErrors(validateCalendarEventsFormData(newFormData));
     },
     [formData]
   );
+
+  const onUpdatePolicyEnabledCalendarEvents = () => {
+    const errors = validateForm(formData);
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+    } else {
+      updatePolicyEnabledCalendarEvents(formData);
+    }
+  };
 
   const togglePreviewCalendarEvent = () => {
     setShowPreviewCalendarEvent(!showPreviewCalendarEvent);
@@ -224,12 +253,7 @@ const CalendarEventsModal = ({
       <div className="form-header">
         <Slider
           value={formData.enabled}
-          onChange={() => {
-            onFeatureEnabledOrUrlChange({
-              name: "enabled",
-              value: !formData.enabled,
-            });
-          }}
+          onChange={onFeatureEnabledChange}
           inactiveText="Disabled"
           activeText="Enabled"
         />
@@ -247,10 +271,9 @@ const CalendarEventsModal = ({
         <InputField
           placeholder="https://server.com/example"
           label="Resolution webhook URL"
-          onChange={onFeatureEnabledOrUrlChange}
+          onChange={onUrlChange}
           name="url"
           value={formData.url}
-          parseTarget
           error={formErrors.url}
           tooltip="Provide a URL to deliver a webhook request to."
           labelTooltipPosition="top-start"
@@ -273,9 +296,7 @@ const CalendarEventsModal = ({
         <Button
           type="submit"
           variant="brand"
-          onClick={() => {
-            updatePolicyEnabledCalendarEvents(formData);
-          }}
+          onClick={onUpdatePolicyEnabledCalendarEvents}
           className="save-loading"
           isLoading={isUpdating}
           disabled={Object.keys(formErrors).length > 0}

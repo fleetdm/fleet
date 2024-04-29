@@ -5,8 +5,6 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-
 import {
   HostMdmDeviceStatusUIState,
   isDeviceStatusUpdating,
@@ -77,7 +75,6 @@ interface IHostActionConfigOptions {
   isMacMdmEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
-  isSandboxMode: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
 }
@@ -239,7 +236,7 @@ const canRunScript = ({
   );
 };
 
-const filterOutOptions = (
+const removeUnavailableOptions = (
   options: IDropdownOption[],
   config: IHostActionConfigOptions
 ) => {
@@ -283,18 +280,17 @@ const filterOutOptions = (
   return options;
 };
 
-const setOptionsAsDisabled = (
+const modifyOptions = (
   options: IDropdownOption[],
   {
     isHostOnline,
-    isSandboxMode,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     hostPlatform,
   }: IHostActionConfigOptions
 ) => {
   // Available tooltips for disabled options
-  const disabledTooltipContent = (value: string | number) => {
+  const getDropdownOptionTooltipContent = (value: string | number) => {
     const tooltipAction: Record<string, string> = {
       runScript: "run scripts on",
       wipe: "wipe",
@@ -306,7 +302,9 @@ const setOptionsAsDisabled = (
         <>
           To {tooltipAction[value]} this host, deploy the
           <br />
-          fleetd agent with --enable-scripts
+          fleetd agent with --enable-scripts and
+          <br />
+          refetch host vitals
         </>
       );
     }
@@ -318,7 +316,7 @@ const setOptionsAsDisabled = (
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
       option.disabled = true;
-      option.disabledTooltipContent = disabledTooltipContent(option.value);
+      option.tooltipContent = getDropdownOptionTooltipContent(option.value);
     });
   };
 
@@ -336,7 +334,11 @@ const setOptionsAsDisabled = (
     );
   }
 
-  if (!hostScriptsEnabled) {
+  // null intentionally excluded from this condition:
+  // scripts_enabled === null means this agent is not an orbit agent, or this agent is version
+  // <=1.23.0 which is not collecting the scripts enabled info
+  // in each of these cases, we maintain these options
+  if (hostScriptsEnabled === false) {
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "runScript")
     );
@@ -358,12 +360,6 @@ const setOptionsAsDisabled = (
       );
     }
   }
-  if (isSandboxMode) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "transfer")
-    );
-  }
-
   disableOptions(optionsToDisable);
   return options;
 };
@@ -377,28 +373,11 @@ const setOptionsAsDisabled = (
 export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   // deep clone to always start with a fresh copy of the default options.
   let options: IDropdownOption[] = cloneDeep([...DEFAULT_OPTIONS]);
-  options = filterOutOptions(options, config);
+  options = removeUnavailableOptions(options, config);
 
   if (options.length === 0) return options;
 
-  options = setOptionsAsDisabled(options, config);
-
-  if (config.isSandboxMode) {
-    const premiumOnlyOptions: IDropdownOption[] = options.filter(
-      (option) => !!option.premiumOnly
-    );
-
-    premiumOnlyOptions.forEach((option) => {
-      option.label = (
-        <span>
-          {option.label}
-          <PremiumFeatureIconWithTooltip
-            tooltipPositionOverrides={{ leftAdj: 2 }}
-          />
-        </span>
-      );
-    });
-  }
+  options = modifyOptions(options, config);
 
   return options;
 };

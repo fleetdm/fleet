@@ -1,6 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
@@ -35,14 +35,18 @@ describe("Host Actions Dropdown", () => {
       );
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
-      await user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
+      await waitFor(() => {
+        waitFor(() => {
+          user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
+        });
 
-      expect(
-        screen.getByText(new RegExp(osqueryVersion, "i"))
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(new RegExp(fleetdVersion, "i"))
-      ).toBeInTheDocument();
+        expect(
+          screen.getByText(new RegExp(osqueryVersion, "i"))
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText(new RegExp(fleetdVersion, "i"))
+        ).toBeInTheDocument();
+      });
     });
 
     it("omit fleet desktop from tooltip if no fleet desktop version", async () => {

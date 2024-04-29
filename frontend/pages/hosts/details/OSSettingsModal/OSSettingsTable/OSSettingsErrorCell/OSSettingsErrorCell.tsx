@@ -135,7 +135,11 @@ const OSSettingsErrorCell = ({
         tooltipBreakOnWord
         tooltip={tooltip}
         value={value}
-        classes={showRefetchButton ? `${baseClass}__failed-message` : undefined}
+        // we dont want the default "w250" class so we pass in empty string
+        classes={""}
+        className={
+          showRefetchButton ? `${baseClass}__failed-message` : undefined
+        }
       />
       {showRefetchButton && (
         <RefetchButton isFetching={isLoading} onClick={onResendProfile} />

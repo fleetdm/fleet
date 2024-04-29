@@ -150,7 +150,7 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 
 
 ### Run US commission payroll
-- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
+- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have a **Close date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
 - Let the Head of Business Operations know they can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
@@ -317,6 +317,13 @@ Within 60 days of the end of the year, follow these steps:
 ### Update weekly KPIs
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
+
+### Fix a laptop that's not checking in
+
+It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything).  When this happens, Fleet's takes the following steps to remotely fix the laptop and get it checking in to Fleet again:
+
+1. TODO
+2. TODO
 
 ### Enroll a macOS host in dogfood
 When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.

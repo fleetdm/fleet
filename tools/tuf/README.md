@@ -39,6 +39,7 @@ Following is the checklist for all credentials and configuration needed to run t
 - `aws` cli :`brew install awscli`.
 - `fleetctl`: Either built from source or installed by npm.
 - `tuf`: Download the release from https://github.com/theupdateframework/go-tuf/releases/download/v0.7.0/tuf_0.7.0_darwin_amd64.tar.gz and place the `tuf` executable in `/usr/local/bin/tuf`. You will need to make an exception in "Privacy & Security" because the executable is not signed.
+- `gh`: `brew install gh`.
 
 ### 1Password
 
@@ -108,8 +109,11 @@ Private/Github Token/password
 
 #### Github session
 
-You need to log in to your Github account with your default browser.
-It will be used to open your browser and allow you to create the PR needed to build artifacts (this can be improved later, see TODOs).
+You need to log in to your Github account using the cli (`gh`).
+```sh
+gh auth login
+```
+It will be used to create a PR which is used to update the changelog and trigger the Github actions to build components.
 
 ## Samples
 
@@ -236,7 +240,6 @@ GIT_REPOSITORY_DIRECTORY=<SOME_DIRECTORY>
 
 ## TODOs to improve releaser.sh
 
-- Create the pull requests automatically using `gh` or the Github API.
 - Support releasing `nudge` and `swiftDialog`. 
 
 ## Troubleshooting

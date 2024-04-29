@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/facebookincubator/nvdtools/cvefeed"
-	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
@@ -131,6 +131,7 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	// NVD_TEST_VULNDB_DIR can be used to speed up development (sync vulnerability data only once).

@@ -1,6 +1,9 @@
 # Security audits
 This page contains explanations of the latest external security audits performed on Fleet software.
 
+## June 2023 penetration testing of Fleet 4.33 
+Available on request.
+
 ## April 2022 penetration testing of Fleet 4.12 
 In April 2022, we worked with [Lares](https://www.lares.com/) to perform penetration testing on our Fleet instance, which was running 4.12 at the time. 
 

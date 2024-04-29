@@ -5,7 +5,6 @@
   gap: $pad-small;
 
   &__failed-message {
-    max-width: calc(250px - 48px);
     min-width: 100px;
 
     .data-table__tooltip-truncated-text--cell {

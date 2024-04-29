@@ -60,19 +60,21 @@ module.exports = {
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
-    const bannedEmailDomainsForContactFormMessages = [
-      'gmail.com','yahoo.com', 'yahoo.co.uk','hotmail.com','hotmail.co.uk', 'outlook.com', 'icloud.com', 'proton.me','live.com','yandex.ru','ymail.com',
-    ];
 
     let emailDomain = emailAddress.split('@')[1];
-
-    if(_.includes(bannedEmailDomainsForContactFormMessages, emailDomain.toLowerCase())){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
 
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
       text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
       `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
+    });
+
+    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: emailAddress,
+      firstName: firstName,
+      lastName: lastName,
     });
 
 

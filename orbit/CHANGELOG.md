@@ -1,3 +1,9 @@
+## Orbit 1.24.0 (Apr 17, 2024)
+
+* Fixed script execution exit codes on windows by casting to signed integers to match windows interpreter.
+
+* In orbit_info table, added desktop_version and scripts_enabled fields.
+
 ## Orbit 1.23.0 (Apr 08, 2024)
 
 * Add `parse_json`, `parse_jsonl`, `parse_xml`, and `parse_ini` tables.
