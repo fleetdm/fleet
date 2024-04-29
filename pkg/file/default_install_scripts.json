@@ -1,6 +1,0 @@
-{
-  "pkg": "installer -pkg $INSTALLER_PATH -target /",
-  "msi": "Start-Process 'msiexec.exe' -ArgumentList /a /lv /norestart $INSTALLER_PATH -Wait -NoNewWindow",
-  "deb": "dpkg -i $INSTALLER_PATH",
-  "exe": ""
-}
