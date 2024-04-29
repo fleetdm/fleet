@@ -614,6 +614,18 @@ func (svc *Service) AutofillPolicySql(ctx context.Context, sql string) (descript
 		return "", "", err
 	}
 
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	if appConfig.ServerSettings.AIFeaturesDisabled {
+		return "", "", ctxerr.Wrap(
+			ctx, &fleet.BadRequestError{
+				Message: "AI features are disabled (server_settings.ai_features_disabled)",
+			},
+		)
+	}
+
 	sql = strings.TrimSpace(sql)
 	if sql == "" {
 		return "", "", ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "'sql' cannot be empty"})

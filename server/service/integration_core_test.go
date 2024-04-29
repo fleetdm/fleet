@@ -11545,4 +11545,12 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusUnprocessableEntity)
 	assertBodyContains(t, resp, "error sending request to get human interpretation from osquery sql")
 
+	// disable AI features
+	appConfigSpec := map[string]map[string]bool{
+		"server_settings": {"ai_features_disabled": true},
+	}
+	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
+	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusBadRequest)
+	assertBodyContains(t, resp, "AI features are disabled")
+
 }
