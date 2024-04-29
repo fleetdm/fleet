@@ -30,7 +30,7 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 		return "", "", nil, fmt.Errorf("listing files in msi: %w", err)
 	}
 
-	var dataReader, poolReader io.Reader
+	var dataReader, poolReader, colReader io.Reader
 	for _, ee := range e {
 		if ee.Type != comdoc.DirStream {
 			continue
@@ -39,14 +39,16 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 		name := msiDecodeName(ee.Name())
 		fmt.Println(name, ee.Type)
 
-		if name == "Table._StringData" || name == "Table._StringPool" {
+		if name == "Table._StringData" || name == "Table._StringPool" || name == "Table._Columns" {
 			rr, err := c.ReadStream(ee)
 			if err != nil {
 				return "", "", nil, fmt.Errorf("opening file stream %s: %w", name, err)
 			}
 			if name == "Table._StringData" {
 				dataReader = rr
-			} else {
+			} else if name == "Table._Columns" {
+				colReader = rr
+			} else if name == "Table._StringPool" {
 				poolReader = rr
 			}
 		}
@@ -55,18 +57,107 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 	if err != nil {
 		return "", "", nil, err
 	}
-	_ = allStrings
+	tables, err := buildColumnsTable(colReader, allStrings)
+	if err != nil {
+		return "", "", nil, err
+	}
+	_ = tables
 
 	return "", "", h.Sum(nil), nil
 }
 
-func buildStringsTable(dataReader, poolReader io.Reader) (map[string]int, error) {
+type msiTable struct {
+	Name string
+	Cols []msiColumn
+}
+
+type msiColumn struct {
+	Number     int
+	Name       string
+	Attributes uint16
+}
+
+func buildColumnsTable(colReader io.Reader, strings []string) ([]msiTable, error) {
+	const colTableRowSize = 8 // 4 uint16s
+
+	// Columns table has 4 columns:
+	// - table name id (1-based index in strings array)
+	// - col number
+	// - col name id (1-based index in strings array)
+	// - col attributes (type)
+	//
+	// But to make things interesting, those are stored per column, so all first
+	// columns are stored for all rows, then all second columns for all rows,
+	// etc.
+
+	b, err := io.ReadAll(colReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read columns table: %w", err)
+	}
+	rowCount := len(b) / colTableRowSize
+	colReader = bytes.NewReader(b)
+
+	cols := [][]uint16{
+		make([]uint16, 0, rowCount),
+		make([]uint16, 0, rowCount),
+		make([]uint16, 0, rowCount),
+		make([]uint16, 0, rowCount),
+	}
+	for i := 0; i < 4; i++ {
+		for j := 0; j < rowCount; j++ {
+			var v uint16
+			err := binary.Read(colReader, binary.LittleEndian, &v)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read column %d: %w", i, err)
+			}
+			cols[i] = append(cols[i], v)
+		}
+	}
+
+	indexedTables := make(map[uint16]msiTable)
+	for i := 0; i < rowCount; i++ {
+		tblID, colNum, colNameID, colAttr := cols[0][i], cols[1][i], cols[2][i], cols[3][i]
+
+		tbl := indexedTables[tblID]
+		tbl.Name = strings[tblID-1]
+		tbl.Cols = append(tbl.Cols, msiColumn{
+			Number:     int(colNum),
+			Name:       strings[colNameID-1],
+			Attributes: colAttr,
+		})
+		indexedTables[tblID] = tbl
+	}
+
+	tables := make([]msiTable, 0, len(indexedTables))
+	for _, tbl := range indexedTables {
+		tables = append(tables, tbl)
+		fmt.Println(">>> found ", tbl)
+	}
+	fmt.Println(">>> found ", len(tables), ", tables")
+	return tables, nil
+}
+
+func buildStringsTable(dataReader, poolReader io.Reader) ([]string, error) {
+	type header struct {
+		Codepage uint16
+		Unknown  uint16
+	}
+	var poolHeader header
+	// pool data starts with 2 uint16 for the codepage and an unknown value
+	err := binary.Read(poolReader, binary.LittleEndian, &poolHeader)
+	if err != nil {
+		if err == io.EOF {
+			return nil, io.ErrUnexpectedEOF
+		}
+		return nil, fmt.Errorf("failed to read pool header: %w", err)
+	}
+
 	type entry struct {
 		Size     uint16
 		RefCount uint16
 	}
 	var stringEntry entry
-	stringTable := make(map[string]int)
+	var stringTable []string
 	for {
 		err := binary.Read(poolReader, binary.LittleEndian, &stringEntry)
 		if err != nil {
@@ -79,10 +170,7 @@ func buildStringsTable(dataReader, poolReader io.Reader) (map[string]int, error)
 		if _, err := io.ReadFull(dataReader, buf); err != nil {
 			return nil, fmt.Errorf("failed to read string data: %w", err)
 		}
-		if stringEntry.RefCount > 0 {
-			stringTable[string(buf)] = int(stringEntry.RefCount)
-			fmt.Println(">>> found: ", string(buf), stringEntry.RefCount)
-		}
+		stringTable = append(stringTable, string(buf))
 	}
 	return stringTable, nil
 }
