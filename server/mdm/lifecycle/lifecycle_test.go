@@ -31,22 +31,31 @@ func TestDoParamValidation(t *testing.T) {
 	lf := New(ds, kitlog.NewNopLogger())
 	ctx := context.Background()
 
-	actions := []HostAction{
-		HostActionTurnOn, HostActionTurnOff,
-		HostActionReset, HostActionDelete,
+	cases := []struct {
+		platform string
+		action   HostAction
+		wantErr  bool
+	}{
+
+		{"darwin", HostActionTurnOn, true},
+		{"darwin", HostActionTurnOff, true},
+		{"darwin", HostActionReset, true},
+		{"darwin", HostActionDelete, true},
+		{"windows", HostActionTurnOn, true},
+		{"windows", HostActionTurnOff, true},
+		{"windows", HostActionReset, true},
+		{"windows", HostActionDelete, false},
 	}
 
-	platforms := []string{
-		"darwin", "windows",
-	}
-
-	for _, platform := range platforms {
-		for _, action := range actions {
-			err := lf.Do(ctx, HostOptions{
-				Action:   action,
-				Platform: platform,
-			})
+	for _, tc := range cases {
+		err := lf.Do(ctx, HostOptions{
+			Action:   tc.action,
+			Platform: tc.platform,
+		})
+		if tc.wantErr {
 			require.ErrorContains(t, err, "required")
+		} else {
+			require.NoError(t, err)
 		}
 	}
 }
