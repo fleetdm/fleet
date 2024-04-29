@@ -54,6 +54,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       team_id: null,
       platform: "linux",
     },
+    "autofill/policies": RESPONSES.aiAutofillPolicy,
   },
 } as IResponses;
 

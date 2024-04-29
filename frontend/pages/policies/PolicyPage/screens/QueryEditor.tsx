@@ -1,8 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router/lib/Router";
+import { useQuery } from "react-query";
 
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
+import aiAutofillAPI from "services/entities/ai_autofill";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
@@ -79,6 +81,31 @@ const QueryEditor = ({
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
+  const [aiAutofillData, setAiAutofillData] = useState<{
+    description: string;
+    resolution: string;
+  } | null>(null);
+  const [aiAutofillErrors, setAiAutofillErrors] = useState<any>({});
+  const [isFetchingAIAutofill, setIsFetchingAiAutofill] = useState(false);
+
+  const onAiAutofill = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    setIsFetchingAiAutofill(true);
+    try {
+      await aiAutofillAPI
+        .getHumanInterpretationFromSQL(lastEditedQueryBody)
+        .then(() => {
+          setAiAutofillData(null);
+        }, 1000);
+    } catch (error) {
+      console.log(error);
+      renderFlash("error", "Couldn't autofill policy data.");
+      setAiAutofillErrors(error);
+    }
+    setIsFetchingAiAutofill(false);
+  };
+
+  console.log("aiAutofill", aiAutofillData);
 
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
     if (policyTeamId) {
@@ -199,6 +226,8 @@ const QueryEditor = ({
         isTeamMaintainer={isTeamMaintainer}
         isTeamObserver={isTeamObserver}
         isUpdatingPolicy={isUpdatingPolicy}
+        isFetchingAIAutofill={isFetchingAIAutofill}
+        onAiAutofill={onAiAutofill}
       />
     </div>
   );

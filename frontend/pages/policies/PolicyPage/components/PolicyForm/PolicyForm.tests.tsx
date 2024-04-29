@@ -61,6 +61,7 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onAiAutofill={jest.fn()}
       />
     );
 
@@ -117,6 +118,7 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onAiAutofill={jest.fn()}
       />
     );
 
@@ -189,6 +191,7 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onAiAutofill={jest.fn()}
       />
     );
 

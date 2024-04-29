@@ -2,9 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
-import { noop, isEqual, uniqueId } from "lodash";
-
-import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
+import { noop, isEqual } from "lodash";
 
 import { getNextLocationPath } from "utilities/helpers";
 

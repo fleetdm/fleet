@@ -1,5 +1,6 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { size } from "lodash";
+import classNames from "classnames";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -14,6 +15,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 
@@ -25,6 +27,9 @@ export interface ISaveNewPolicyModalProps {
   backendValidators: { [key: string]: string };
   platformSelector: IPlatformSelector;
   isUpdatingPolicy: boolean;
+  aiFeaturesDisabled?: boolean;
+  isFetchingAIAutofill?: boolean;
+  onAiAutofill?: (event: React.MouseEvent) => Promise<void>;
 }
 
 const validatePolicyName = (name: string) => {
@@ -46,6 +51,9 @@ const SaveNewPolicyModal = ({
   backendValidators,
   platformSelector,
   isUpdatingPolicy,
+  aiFeaturesDisabled,
+  isFetchingAIAutofill,
+  onAiAutofill,
 }: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const {
@@ -102,6 +110,63 @@ const SaveNewPolicyModal = ({
     }
   };
 
+  const renderAutofillButton = useCallback(
+    (labelName: "Description" | "Resolution") => {
+      return (
+        <>
+          <div
+            data-tip
+            data-for={`autofill-button-${labelName}`}
+            // Tooltip shows except when fetching AI autofill
+            data-tip-disable={isFetchingAIAutofill}
+          >
+            <Button
+              variant="text-icon"
+              disabled={aiFeaturesDisabled || isFetchingAIAutofill}
+              onClick={onAiAutofill}
+            >
+              <Icon name="sparkles" /> Autofill
+            </Button>
+          </div>
+          <ReactTooltip
+            className="autofill-button-tooltip"
+            place="top"
+            effect="solid"
+            backgroundColor={COLORS["tooltip-bg"]}
+            id={`autofill-button-${labelName}`}
+            data-html
+          >
+            {aiFeaturesDisabled ? (
+              "AI features are disabled in organization settings"
+            ) : (
+              <>
+                Policy queries (SQL) will be sent to the LLM. Fleet doesn&apos;t
+                use this data to train models.
+              </>
+            )}
+          </ReactTooltip>
+        </>
+      );
+    },
+    []
+  );
+
+  const renderAutofillLabel = useCallback(
+    (labelName: "Description" | "Resolution") => {
+      const labelClassName = classNames(`${baseClass}__autofill-label`, {
+        [`${baseClass}__label--${labelName}`]: !!labelName,
+      });
+
+      return (
+        <div className={labelClassName}>
+          {labelName}
+          {renderAutofillButton(labelName)}
+        </div>
+      );
+    },
+    [renderAutofillButton]
+  );
+
   return (
     <Modal
       title="Save policy"
@@ -129,7 +194,7 @@ const SaveNewPolicyModal = ({
             onChange={(value: string) => setDescription(value)}
             value={description}
             inputClassName={`${baseClass}__policy-save-modal-description`}
-            label="Description"
+            label={renderAutofillLabel("Description")}
             type="textarea"
           />
           <InputField
@@ -137,7 +202,7 @@ const SaveNewPolicyModal = ({
             onChange={(value: string) => setResolution(value)}
             value={resolution}
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
-            label="Resolution"
+            label={renderAutofillLabel("Resolution")}
             type="textarea"
             helpText="What steps should an end user take to resolve a host that fails this policy? (optional)"
           />

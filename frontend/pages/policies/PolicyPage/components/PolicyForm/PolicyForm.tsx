@@ -29,7 +29,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
 const baseClass = "policy-form";
@@ -50,6 +49,8 @@ interface IPolicyFormProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
+  isFetchingAIAutofill?: boolean;
+  onAiAutofill: (event: React.MouseEvent) => Promise<void>;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -80,6 +81,8 @@ const PolicyForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   backendValidators,
+  isFetchingAIAutofill,
+  onAiAutofill,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
@@ -155,6 +158,9 @@ const PolicyForm = ({
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const aiFeaturesDisabled =
+    config?.server_settings.ai_features_disabled || false;
+  console.log("aiFeaturesDisabled", aiFeaturesDisabled);
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
@@ -662,6 +668,9 @@ const PolicyForm = ({
             backendValidators={backendValidators}
             platformSelector={platformSelector}
             isUpdatingPolicy={isUpdatingPolicy}
+            aiFeaturesDisabled={aiFeaturesDisabled}
+            isFetchingAIAutofill={isFetchingAIAutofill}
+            onAiAutofill={onAiAutofill}
           />
         )}
       </>
