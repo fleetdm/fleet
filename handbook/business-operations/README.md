@@ -123,6 +123,32 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 
 > **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
 
+### Create an invoice
+To create a new invoice for a Fleet customer, follow these steps:
+- Go to the [invoice folder in google drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link)
+- Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`
+  - Invoice number follows the formate of `YYMMDD[daily issued invoice number]` where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
+-  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
+  - Enter the invoice number (and PO number if required) into the top right section of the invoice.
+  - Update the date of the invoice to reflect the current day's date.
+  - Make sure the payment terms match the signed subscription agreement
+  - Copy the customer address from the signed subscription agreement and input it in the "Bill to" section of the invoice.
+  - Copy the "Billing contact" email from the signed subscription agreement and add it to the last line of the "Bill to" address.
+  - Make sure the start and end dates of the contract and amount match the subscription agreement.
+  - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
+  - Ensure the "Notes" section has wiring instructions for payment via SVB.
+-  Download the completed invoice as a PDF
+-  Send the PDF to the billing contact from the "Bill to" section of the invoice and cc billing@fleetdm.com. Use the following template for the email:
+```
+Subject: Invoice for Fleet Device Management [invoice number]
+Hello,
+
+I've attached the invoice for [customer name]'s purchase of Fleet Device Management's premium subscription.
+For payment instructions please refer to your invoice, and reach out to billing@fleetdm.com with any questions.
+
+Thanks,
+[name]
+```
 
 ### Communicate the status of customer financial actions
 This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
