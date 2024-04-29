@@ -10,8 +10,8 @@ import Button from "components/buttons/Button";
 
 import AddSoftwareForm from "../AddSoftwareForm";
 import { IAddSoftwareFormData } from "../AddSoftwareForm/AddSoftwareForm";
-import { set } from "lodash";
 
+// 2 minutes
 const UPLOAD_TIMEOUT = 120000;
 
 const baseClass = "add-software-modal";
@@ -48,28 +48,25 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
   useEffect(() => {
     let timeout: NodeJS.Timeout;
 
+    const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Included for legacy support, e.g. Chrome/Edge < 119
+      e.returnValue = true;
+    };
+
     // set up event listener to prevent user from leaving page while uploading
     if (isUploading) {
-      addEventListener("beforeunload", (e) => {
-        e.preventDefault();
-        // return "Upload in progress. Are you sure you want to leave?";
-      });
+      addEventListener("beforeunload", beforeUnloadHandler);
       timeout = setTimeout(() => {
-        removeEventListener("beforeunload", () => {
-          return undefined;
-        });
+        removeEventListener("beforeunload", beforeUnloadHandler);
       }, UPLOAD_TIMEOUT);
     } else {
-      removeEventListener("beforeunload", () => {
-        return undefined;
-      });
+      removeEventListener("beforeunload", beforeUnloadHandler);
     }
 
     // clean up event listener and timeout
     return () => {
-      removeEventListener("beforeunload", () => {
-        return undefined;
-      });
+      removeEventListener("beforeunload", beforeUnloadHandler);
       clearTimeout(timeout);
     };
   }, [isUploading]);
