@@ -2680,13 +2680,13 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
-	  ` + hostMDMSelect + `
+      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+    ` + hostMDMSelect + `
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-	` + hostMDMJoin + `
+    ` + hostMDMJoin + `
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
     LIMIT 1
 	`
@@ -3715,9 +3715,11 @@ func (ds *Datastore) GetHostOrbitInfo(ctx context.Context, hostID uint) (*fleet.
 	err := sqlx.GetContext(
 		ctx, ds.reader(ctx), &orbit, `
 	SELECT
-	  scripts_enabled
+		version,
+		desktop_version,
+		scripts_enabled
 	FROM
-	  host_orbit_info
+		host_orbit_info
 	WHERE host_id = ?`, hostID,
 	)
 	if err != nil {
@@ -5037,7 +5039,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 	stmt := `
     SELECT
       h.id,
-	  h.team_id,
+      h.team_id,
       h.osquery_host_id,
       h.node_key,
       h.hostname,
@@ -5048,7 +5050,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
       COALESCE(hst.seen_time, h.created_at) AS seen_time
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-	%s
+    %s
     LIMIT 1
 	`
 	var (
