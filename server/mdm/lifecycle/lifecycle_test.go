@@ -11,18 +11,18 @@ import (
 
 func TestDoUnsupportedParams(t *testing.T) {
 	ds := new(mock.Store)
-	lf := New(ds, kitlog.NewNopLogger())
+	lc := New(ds, kitlog.NewNopLogger())
 
-	err := lf.Do(context.Background(), HostOptions{})
+	err := lc.Do(context.Background(), HostOptions{})
 	require.ErrorContains(t, err, "unsupported platform")
 
-	err = lf.Do(context.Background(), HostOptions{Platform: "linux"})
+	err = lc.Do(context.Background(), HostOptions{Platform: "linux"})
 	require.ErrorContains(t, err, "unsupported platform")
 
-	err = lf.Do(context.Background(), HostOptions{Platform: "darwin", Action: "invalid"})
+	err = lc.Do(context.Background(), HostOptions{Platform: "darwin", Action: "invalid"})
 	require.ErrorContains(t, err, "unknown action")
 
-	err = lf.Do(context.Background(), HostOptions{Platform: "windows", Action: "invalid"})
+	err = lc.Do(context.Background(), HostOptions{Platform: "windows", Action: "invalid"})
 	require.ErrorContains(t, err, "unknown action")
 }
 

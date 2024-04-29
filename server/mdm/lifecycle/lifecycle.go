@@ -72,16 +72,16 @@ func (t *HostLifecycle) Do(ctx context.Context, opts HostOptions) error {
 func (t *HostLifecycle) doDarwin(ctx context.Context, opts HostOptions) error {
 	switch opts.Action {
 	case HostActionTurnOn:
-		return t.darwinTurnOn(ctx, opts)
+		return t.turnOnDarwin(ctx, opts)
 
 	case HostActionTurnOff:
-		return t.uuidAction(ctx, t.ds.MDMTurnOff, opts)
+		return t.doWithUUIDValidation(ctx, t.ds.MDMTurnOff, opts)
 
 	case HostActionReset:
-		return t.darwinReset(ctx, opts)
+		return t.resetDarwin(ctx, opts)
 
 	case HostActionDelete:
-		return t.darwinDelete(ctx, opts)
+		return t.deleteDarwin(ctx, opts)
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown action %s", opts.Action)
@@ -92,10 +92,10 @@ func (t *HostLifecycle) doDarwin(ctx context.Context, opts HostOptions) error {
 func (t *HostLifecycle) doWindows(ctx context.Context, opts HostOptions) error {
 	switch opts.Action {
 	case HostActionReset, HostActionTurnOn:
-		return t.uuidAction(ctx, t.ds.MDMResetEnrollment, opts)
+		return t.doWithUUIDValidation(ctx, t.ds.MDMResetEnrollment, opts)
 
 	case HostActionTurnOff:
-		return t.uuidAction(ctx, t.ds.MDMTurnOff, opts)
+		return t.doWithUUIDValidation(ctx, t.ds.MDMTurnOff, opts)
 
 	case HostActionDelete:
 		return nil
@@ -107,7 +107,7 @@ func (t *HostLifecycle) doWindows(ctx context.Context, opts HostOptions) error {
 
 type uuidFn func(ctx context.Context, uuid string) error
 
-func (t *HostLifecycle) uuidAction(ctx context.Context, action uuidFn, opts HostOptions) error {
+func (t *HostLifecycle) doWithUUIDValidation(ctx context.Context, action uuidFn, opts HostOptions) error {
 	if opts.UUID == "" {
 		return ctxerr.New(ctx, "UUID option is required for this action")
 	}
@@ -115,7 +115,7 @@ func (t *HostLifecycle) uuidAction(ctx context.Context, action uuidFn, opts Host
 	return action(ctx, opts.UUID)
 }
 
-func (t *HostLifecycle) darwinReset(ctx context.Context, opts HostOptions) error {
+func (t *HostLifecycle) resetDarwin(ctx context.Context, opts HostOptions) error {
 	if opts.UUID == "" || opts.HardwareSerial == "" || opts.HardwareModel == "" {
 		return ctxerr.New(ctx, "UUID, HardwareSerial and HardwareModel options are required for this action")
 	}
@@ -133,7 +133,7 @@ func (t *HostLifecycle) darwinReset(ctx context.Context, opts HostOptions) error
 	return ctxerr.Wrap(ctx, err, "reset mdm enrollment")
 }
 
-func (t *HostLifecycle) darwinTurnOn(ctx context.Context, opts HostOptions) error {
+func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) error {
 	if opts.UUID == "" {
 		return ctxerr.New(ctx, "UUID option is required for this action")
 	}
@@ -194,7 +194,7 @@ func (t *HostLifecycle) darwinTurnOn(ctx context.Context, opts HostOptions) erro
 	return nil
 }
 
-func (t *HostLifecycle) darwinDelete(ctx context.Context, opts HostOptions) error {
+func (t *HostLifecycle) deleteDarwin(ctx context.Context, opts HostOptions) error {
 	if opts.Host == nil {
 		return ctxerr.New(ctx, "a non-nil Host option is required to perform this action")
 	}
