@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -113,7 +114,7 @@ func decodePropertyTable(propReader io.Reader, table *msiTable, strings []string
 	// The Property table is a table of key-value pairs. Ensure the table has the
 	// expected format, otherwise we cannot extract the information.
 	if len(table.Cols) != 2 || table.Cols[0].Type() != msiString || table.Cols[1].Type() != msiStringLocalized {
-		return nil, fmt.Errorf("unexpected Property table structure")
+		return nil, errors.New("unexpected Property table structure")
 	}
 
 	const propTableRowSize = 4 // 2 uint16s
@@ -199,7 +200,7 @@ func decodePropertyTableColumns(colReader io.Reader, strings []string) (*msiTabl
 		}
 	}
 	if tbl.Name == "" {
-		return nil, fmt.Errorf("Property table not found in columns table")
+		return nil, errors.New("Property table not found in columns table")
 	}
 	return &tbl, nil
 }
