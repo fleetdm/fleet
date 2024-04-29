@@ -4,8 +4,11 @@ import AceEditor from "react-ace";
 const baseClass = "editor";
 
 interface IEditorProps {
-  helpText?: ReactNode;
   focus?: boolean;
+  /**
+   * Help text to display below the editor.
+   */
+  helpText?: ReactNode;
   /** Sets the value of the input. Use this if you'd like the editor
    * to be a controlled component */
   value?: string;
@@ -16,6 +19,9 @@ interface IEditorProps {
    * @default false
    */
   wrapEnabled?: boolean;
+  /** A unique name for the editor.
+   * @default "editor"
+   */
   name?: string;
   maxLines?: number;
   onChange: (value: string, event?: any) => void;
