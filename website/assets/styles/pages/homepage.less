@@ -42,8 +42,8 @@
   }
 
   [purpose='hero-background-image'] {
-    background: url('/images/homepage-hero-background-3840x500@2x.png');
-    background-size: 3840px auto;
+    background: url('/images/homepage-hero-3227x920@2x.png');
+    background-size: auto 460px;
     background-position: center bottom;
     background-repeat: repeat-x;
   }
@@ -52,7 +52,7 @@
     padding-top: 100px;
     padding-left: 40px;
     padding-right: 40px;
-    padding-bottom: 480px;
+    padding-bottom: 460px;
     max-width: 1200px;
   }
 
@@ -727,12 +727,6 @@
       font-size: 48px;
     }
 
-    [purpose='hero-background-image'] {
-      background-size: 2800px auto;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
-
     [purpose='calendar-feature'] {
       [purpose='feature-video'] {
         margin-left: auto;
@@ -740,12 +734,14 @@
         margin-bottom: 40px;
       }
     }
-
     [purpose='homepage-hero'] {
       max-width: 100%;
-      padding-top: 80px;
       padding-bottom: 400px;
     }
+    [purpose='hero-background-image'] {
+      background-size: auto 400px;
+    }
+
     [purpose='homepage-content'] {
       padding-right: 60px;
       padding-left: 60px;
@@ -935,17 +931,12 @@
       font-size: 48px;
     }
 
-    [purpose='hero-background-image'] {
-      background-size: auto 278px;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
-
     [purpose='homepage-hero'] {
-      padding-top: 80px;
-      padding-bottom: 308px;
+      padding-bottom: 360px;
     }
-
+    [purpose='hero-background-image'] {
+      background-size: auto 360px;
+    }
     [purpose='homepage-content'] {
       padding-right: 40px;
       padding-left: 40px;
@@ -1205,15 +1196,22 @@
     }
     [purpose='homepage-hero'] {
       padding-top: 60px;
-      padding-bottom: 270px;
+      padding-bottom: 320px;
       padding-left: 24px;
       padding-right: 24px;
     }
-
+    [purpose='hero-background-image'] {
+      background-size: auto 320px;
+    }
     [purpose='hero-text'] {
       p {
         font-size: 16px;
       }
+    }
+    [purpose='button-row'] {
+      max-width: 224px;
+      margin-left: auto;
+      margin-right: auto;
     }
     [purpose='platform-block'] {
       margin-bottom: 100px;
