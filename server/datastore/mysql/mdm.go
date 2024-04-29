@@ -307,11 +307,22 @@ ORDER BY
 	return labels, nil
 }
 
+func (ds *Datastore) BulkSetPendingMDMHostProfiles(
+	ctx context.Context,
+	hostIDs, teamIDs []uint,
+	profileUUIDs, hostUUIDs []string,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
+	})
+}
+
 // Note that team ID 0 is used for profiles that apply to hosts in no team
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
-func (ds *Datastore) BulkSetPendingMDMHostProfiles(
+func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
+	tx sqlx.ExtContext,
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) error {
@@ -431,60 +442,58 @@ WHERE
 
 	}
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO: this could be optimized to avoid querying for platform when
-		// profileIDs or profileUUIDs are provided.
-		if len(hosts) == 0 && !hasAppleDecls {
-			uuidStmt, args, err := sqlx.In(uuidStmt, args...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
-			}
-			if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
-			}
+	// TODO: this could be optimized to avoid querying for platform when
+	// profileIDs or profileUUIDs are provided.
+	if len(hosts) == 0 && !hasAppleDecls {
+		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
 		}
+		if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+		}
+	}
 
-		var macHosts []string
-		var winHosts []string
-		for _, h := range hosts {
-			switch h.Platform {
-			case "darwin":
-				macHosts = append(macHosts, h.UUID)
-			case "windows":
-				winHosts = append(winHosts, h.UUID)
-			default:
-				level.Debug(ds.logger).Log(
-					"msg", "tried to set profile status for a host with unsupported platform",
-					"platform", h.Platform,
-					"host_uuid", h.UUID,
-				)
-			}
+	var macHosts []string
+	var winHosts []string
+	for _, h := range hosts {
+		switch h.Platform {
+		case "darwin":
+			macHosts = append(macHosts, h.UUID)
+		case "windows":
+			winHosts = append(winHosts, h.UUID)
+		default:
+			level.Debug(ds.logger).Log(
+				"msg", "tried to set profile status for a host with unsupported platform",
+				"platform", h.Platform,
+				"host_uuid", h.UUID,
+			)
 		}
+	}
 
-		if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-		}
+	if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
+	}
 
-		if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
-		}
+	if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+	}
 
-		const defaultBatchSize = 1000
-		batchSize := defaultBatchSize
-		if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-			batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-		}
-		// TODO(roberto): this method currently sets the state of all
-		// declarations for all hosts. I don't see an immediate concern
-		// (and my hunch is that we could even do the same for
-		// profiles) but this could be optimized to use only a provided
-		// set of host uuids.
-		if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
-		}
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+	// TODO(roberto): this method currently sets the state of all
+	// declarations for all hosts. I don't see an immediate concern
+	// (and my hunch is that we could even do the same for
+	// profiles) but this could be optimized to use only a provided
+	// set of host uuids.
+	if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
+	}
 
-		return nil
-	})
+	return nil
 }
 
 func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {
