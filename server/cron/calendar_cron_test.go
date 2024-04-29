@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"strconv"
 	"strings"
@@ -792,8 +793,8 @@ func TestEventDescription(t *testing.T) {
 	hostID3, userEmail3 := uint(102), "user3@example.com"
 	hostID4, userEmail4 := uint(103), "user4@example.com"
 	hostID5, userEmail5 := uint(104), "user5@example.com"
-	hostID6, userEmail6 := uint(104), "user6@example.com"
-	hostID7, userEmail7 := uint(104), "user7@example.com"
+	hostID6, userEmail6 := uint(105), "user6@example.com"
+	hostID7, userEmail7 := uint(106), "user7@example.com"
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
 		ctx context.Context, domain string, teamID uint, policyIDs []uint,
@@ -923,13 +924,14 @@ func TestEventDescription(t *testing.T) {
 	err := cronCalendarEvents(ctx, ds, logger)
 	require.NoError(t, err)
 
+	numberOfEvents := 7
 	eventsMu.Lock()
-	require.Len(t, calendarEvents, 5)
-	require.Len(t, hostCalendarEvents, 5)
+	require.Len(t, calendarEvents, numberOfEvents)
+	require.Len(t, hostCalendarEvents, numberOfEvents)
 	eventsMu.Unlock()
 
 	createdCalendarEvents := calendar.ListGoogleMockEvents()
-	require.Len(t, createdCalendarEvents, 7)
+	require.Len(t, createdCalendarEvents, numberOfEvents)
 	for _, hostCalEvent := range hostCalendarEvents {
 		var details map[string]string
 		err = json.Unmarshal(calendarEvents[hostCalEvent.HostID].Data, &details)
@@ -937,20 +939,20 @@ func TestEventDescription(t *testing.T) {
 		description := createdCalendarEvents[details["id"]].Description
 		switch hostCalEvent.HostID {
 		case hostID1, hostID6:
-			require.Contains(t, description, "Description for policy 1")
-			require.Contains(t, description, "Resolution for policy 1")
+			assert.Contains(t, description, "Description for policy 1")
+			assert.Contains(t, description, "Resolution for policy 1")
 		case hostID2:
-			require.Contains(t, description, "Description for policy 2")
-			require.Contains(t, description, defaultResolution)
+			assert.Contains(t, description, "Description for policy 2")
+			assert.Contains(t, description, defaultResolution)
 		case hostID3:
-			require.Contains(t, description, "Description for policy 3")
-			require.Contains(t, description, defaultResolution)
+			assert.Contains(t, description, "Description for policy 3")
+			assert.Contains(t, description, defaultResolution)
 		case hostID4:
-			require.Contains(t, description, defaultDescription)
-			require.Contains(t, description, "Resolution for policy 4")
+			assert.Contains(t, description, defaultDescription)
+			assert.Contains(t, description, "Resolution for policy 4")
 		case hostID5, hostID7:
-			require.Contains(t, description, defaultDescription)
-			require.Contains(t, description, defaultResolution)
+			assert.Contains(t, description, defaultDescription)
+			assert.Contains(t, description, defaultResolution)
 		}
 	}
 }
