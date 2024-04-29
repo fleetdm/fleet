@@ -3,21 +3,31 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 // NOTE: the mantra for lifecycle events is:
@@ -30,194 +40,554 @@ import (
 
 // NOTE: ADE lifecycle events are part of the integration_mdm_dep_test.go file
 
-func (s *integrationMDMTestSuite) createLifecycleHosts() (map[string]*fleet.Host, map[string]*mdmtest.TestAppleMDMClient, map[string]*mdmtest.TestWindowsMDMClient) {
-	// create a windows mdm turned on host, programmatic
-	// create a windows mdm turned on host, automatic
-	// create a macOS mdm turned on host, manual
-	// create a macOS mdm turned on host, automatic
-	return map[string]*fleet.Host{}, map[string]*mdmtest.TestAppleMDMClient{}, map[string]*mdmtest.TestWindowsMDMClient{}
+type mdmLifecycleAssertion[T any] func(t *testing.T, host *fleet.Host, device T)
+
+func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
+	t := s.T()
+	s.setupLifecycleSettings()
+
+	testCases := []struct {
+		Name   string
+		Action mdmLifecycleAssertion[*mdmtest.TestAppleMDMClient]
+	}{
+		{
+			"wiped host turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
+				s.Do(
+					"POST",
+					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
+					nil,
+					http.StatusNoContent,
+				)
+
+				cmd, err := device.Idle()
+				require.NoError(t, err)
+				for cmd != nil {
+					cmd, err = device.Acknowledge(cmd.CommandUUID)
+					require.NoError(t, err)
+				}
+
+				require.NoError(t, device.Enroll())
+			},
+		},
+		{
+			"locked host turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
+				s.Do(
+					"POST",
+					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
+					nil,
+					http.StatusNoContent,
+				)
+
+				cmd, err := device.Idle()
+				require.NoError(t, err)
+				for cmd != nil {
+					cmd, err = device.Acknowledge(cmd.CommandUUID)
+					require.NoError(t, err)
+				}
+
+				require.NoError(t, device.Enroll())
+			},
+		},
+		{
+			"host turns on MDM features out of the blue",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
+				require.NoError(t, device.Enroll())
+			},
+		},
+		{
+			"IT admin turns off MDM for a host via the UI then host turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
+				go s.Do(
+					"DELETE",
+					fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID),
+					nil,
+					http.StatusOK,
+				)
+
+				cmd, err := device.Idle()
+				require.NoError(t, err)
+				for cmd == nil {
+					time.Sleep(5 * time.Millisecond)
+					cmd, err = device.Idle()
+					require.NoError(t, err)
+				}
+
+				_, err = device.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+
+				err = device.Checkout()
+				require.NoError(t, err)
+				require.NoError(t, device.Enroll())
+			},
+		},
+		{
+			"host is deleted then turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
+				var delResp deleteHostResponse
+				s.DoJSON(
+					"DELETE",
+					fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID),
+					nil,
+					http.StatusOK,
+					&delResp,
+				)
+
+				dupeClient := mdmtest.NewTestMDMClientAppleDirect(
+					mdmtest.AppleEnrollInfo{
+
+						SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+						SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+						MDMURL:        s.server.URL + apple_mdm.MDMPath,
+					},
+				)
+				dupeClient.UUID = device.UUID
+				dupeClient.SerialNumber = device.SerialNumber
+				dupeClient.Model = device.Model
+				require.NoError(t, dupeClient.Enroll())
+
+				*device = *dupeClient
+			},
+		},
+		{
+			"host is deleted in bulk then turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
+				req := deleteHostsRequest{
+					IDs: []uint{host.ID},
+				}
+				resp := deleteHostsResponse{}
+				s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+				dupeClient := mdmtest.NewTestMDMClientAppleDirect(
+					mdmtest.AppleEnrollInfo{
+
+						SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+						SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+						MDMURL:        s.server.URL + apple_mdm.MDMPath,
+					},
+				)
+				dupeClient.UUID = device.UUID
+				dupeClient.SerialNumber = device.SerialNumber
+				dupeClient.Model = device.Model
+				require.NoError(t, dupeClient.Enroll())
+
+				*device = *dupeClient
+			},
+		},
+		{
+			"host is deleted then osquery enrolls then turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
+				var delResp deleteHostResponse
+				s.DoJSON(
+					"DELETE",
+					fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID),
+					nil,
+					http.StatusOK,
+					&delResp,
+				)
+
+				var err error
+				host.OsqueryHostID = ptr.String(t.Name())
+				host, err = s.ds.NewHost(context.Background(), host)
+				require.NoError(t, err)
+
+				setOrbitEnrollment(t, host, s.ds)
+				deviceToken := uuid.NewString()
+				err = s.ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, deviceToken)
+				require.NoError(t, err)
+
+				device.SetDesktopToken(deviceToken)
+				require.NoError(t, device.Enroll())
+			},
+		},
+	}
+
+	assertAction := func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient, action mdmLifecycleAssertion[*mdmtest.TestAppleMDMClient]) {
+		fCmds, fSumm, fHostMDM := s.recordAppleHostStatus(host, device)
+
+		action(t, host, device)
+
+		// reload the host by identifier, tests might
+		// delete hosts and create new records with different IDs
+		var err error
+		host, err = s.ds.HostByIdentifier(context.Background(), host.UUID)
+		require.NoError(t, err)
+
+		sCmds, sSumm, sHostMDM := s.recordAppleHostStatus(host, device)
+
+		// post asssertions
+		require.ElementsMatch(t, fCmds, sCmds)
+		require.Equal(t, fSumm, sSumm)
+		require.Equal(t, fHostMDM, sHostMDM)
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Run("manual enrollment", func(t *testing.T) {
+				host, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+				assertAction(t, host, device, tt.Action)
+			})
+
+			t.Run("automatic enrollment", func(t *testing.T) {
+				device := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, "")
+				s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					encoder := json.NewEncoder(w)
+					switch r.URL.Path {
+					case "/session":
+						_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+					case "/profile":
+						err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
+						require.NoError(t, err)
+					case "/profile/devices":
+						err := encoder.Encode(godep.ProfileResponse{
+							ProfileUUID: "abc",
+							Devices:     map[string]string{},
+						})
+						require.NoError(t, err)
+					case "/server/devices", "/devices/sync":
+						err := encoder.Encode(godep.DeviceResponse{
+							Devices: []godep.Device{
+								{
+									SerialNumber: device.SerialNumber,
+									Model:        device.Model,
+									OS:           "osx",
+									OpType:       "added",
+								},
+							},
+						})
+						require.NoError(t, err)
+					}
+				}))
+
+				s.runDEPSchedule()
+				depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+				device.SetDEPToken(depURLToken)
+				var err error
+				host, err := s.ds.HostByIdentifier(context.Background(), device.SerialNumber)
+				require.NoError(t, err)
+				require.NoError(t, device.Enroll())
+
+				assertAction(t, host, device, tt.Action)
+			})
+		})
+	}
+}
+
+func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
+	t := s.T()
+	s.setupLifecycleSettings()
+
+	testCases := []struct {
+		Name   string
+		Action mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient]
+	}{
+		{
+			"wiped host turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
+				s.Do(
+					"POST",
+					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
+					nil,
+					http.StatusNoContent,
+				)
+
+				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
+				require.NoError(t, err)
+
+				cmds, err := device.StartManagementSession()
+				require.NoError(t, err)
+
+				// two status + the wipe command we enqueued
+				require.Len(t, cmds, 3)
+				wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
+				require.NotNil(t, wipeCmd)
+				require.Equal(t, wipeCmd.Verb, fleet.CmdExec)
+				require.Len(t, wipeCmd.Cmd.Items, 1)
+				require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
+
+				msgID, err := device.GetCurrentMsgID()
+				require.NoError(t, err)
+
+				device.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &status.WipeMDMCommand.CommandUUID,
+					Cmd:     ptr.String("Exec"),
+					Data:    ptr.String("200"),
+					Items:   nil,
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+				cmds, err = device.SendResponse()
+				require.NoError(t, err)
+				// the ack of the message should be the only returned command
+				require.Len(t, cmds, 1)
+
+				// re-enroll
+				require.NoError(t, device.Enroll())
+			},
+		},
+		{
+			"locked host turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
+				s.Do(
+					"POST",
+					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
+					nil,
+					http.StatusNoContent,
+				)
+
+				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
+				require.NoError(t, err)
+
+				var orbitScriptResp orbitPostScriptResultResponse
+				s.DoJSON(
+					"POST",
+					"/api/fleet/orbit/scripts/result",
+					json.RawMessage(
+						fmt.Sprintf(
+							`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`,
+							*host.OrbitNodeKey,
+							status.LockScript.ExecutionID,
+						),
+					),
+					http.StatusOK,
+					&orbitScriptResp,
+				)
+
+				require.NoError(t, device.Enroll())
+			},
+		},
+		{
+			"host turns on MDM features out of the blue",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
+				require.NoError(t, device.Enroll())
+			},
+		},
+		{
+			"host is deleted then osquery enrolls then turns on MDM",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
+				var delResp deleteHostResponse
+				s.DoJSON(
+					"DELETE",
+					fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID),
+					nil,
+					http.StatusOK,
+					&delResp,
+				)
+
+				var err error
+				host.OsqueryHostID = ptr.String(t.Name())
+				host, err = s.ds.NewHost(context.Background(), host)
+				require.NoError(t, err)
+
+				orbitKey := setOrbitEnrollment(t, host, s.ds)
+				host.OrbitNodeKey = &orbitKey
+				if !strings.Contains(device.TokenIdentifier, "@") {
+					device.TokenIdentifier = orbitKey
+				}
+				device.HardwareID = host.UUID
+				device.DeviceID = host.UUID
+
+				require.NoError(t, device.Enroll())
+			},
+		},
+	}
+
+	assertAction := func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient, action mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient]) {
+		fCmds, fSumm, fHostMDM := s.recordWindowsHostStatus(host, device)
+
+		action(t, host, device)
+
+		// reload the host by identifier, tests might
+		// delete hosts and create new records with different IDs
+		var err error
+		host, err = s.ds.HostByIdentifier(context.Background(), host.UUID)
+		require.NoError(t, err)
+
+		sCmds, sSumm, sHostMDM := s.recordWindowsHostStatus(host, device)
+
+		// post asssertions
+		require.Len(t, sCmds, len(fCmds))
+		require.ElementsMatch(t, fCmds, sCmds)
+		require.Equal(t, fSumm, sSumm)
+		require.Equal(t, fHostMDM, sHostMDM)
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Run("programmatic enrollment", func(t *testing.T) {
+				host, device := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+				err := s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+				require.NoError(t, err)
+				assertAction(t, host, device, tt.Action)
+			})
+
+			t.Run("automatic enrollment", func(t *testing.T) {
+				if strings.Contains(tt.Name, "wipe") {
+					t.Skip("wipe tests are not supported for windows automatic enrollment until we fix #TODO")
+				}
+
+				err := s.ds.ApplyEnrollSecrets(context.Background(), nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+				require.NoError(t, err)
+
+				host := createOrbitEnrolledHost(t, "windows", "windows_automatic", s.ds)
+
+				azureMail := "foo.bar.baz@example.com"
+				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail)
+				device.HardwareID = host.UUID
+				device.DeviceID = host.UUID
+				require.NoError(t, device.Enroll())
+
+				err = s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+				require.NoError(t, err)
+
+				assertAction(t, host, device, tt.Action)
+			})
+		})
+	}
+}
+
+// Hardcode response type because we are using a custom json marshaling so
+// using getHostMDMResponse fails with "JSON unmarshaling is not supported for HostMDM".
+type jsonMDM struct {
+	EnrollmentStatus string `json:"enrollment_status"`
+	ServerURL        string `json:"server_url"`
+	Name             string `json:"name,omitempty"`
+	ID               *uint  `json:"id,omitempty"`
+}
+type getHostMDMResponseTest struct {
+	HostMDM *jsonMDM
+	Err     error `json:"error,omitempty"`
+}
+
+func (s *integrationMDMTestSuite) recordWindowsHostStatus(
+	host *fleet.Host,
+	device *mdmtest.TestWindowsMDMClient,
+) ([]fleet.ProtoCmdOperation, getHostMDMSummaryResponse, getHostMDMResponseTest) {
+	t := s.T()
+
+	var recordedCmds []fleet.ProtoCmdOperation
+	cmds, err := device.StartManagementSession()
+	require.NoError(t, err)
+
+	msgID, err := device.GetCurrentMsgID()
+	require.NoError(t, err)
+	for _, c := range cmds {
+		cmdID := c.Cmd.CmdID
+		status := syncml.CmdStatusOK
+		device.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &cmdID.Value,
+			Cmd:     ptr.String(c.Verb),
+			Data:    &status,
+			Items:   nil,
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+		c.Cmd.CmdID.Value = ""
+		c.Cmd.CmdRef = nil
+		recordedCmds = append(recordedCmds, c)
+	}
+
+	_, err = device.SendResponse()
+	require.NoError(t, err)
+
+	mdmAgg := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
+
+	ghr := getHostMDMResponseTest{}
+	s.DoJSON(
+		"GET",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID),
+		nil,
+		http.StatusOK,
+		&ghr,
+	)
+
+	return recordedCmds, mdmAgg, ghr
+}
+
+func (s *integrationMDMTestSuite) recordAppleHostStatus(
+	host *fleet.Host,
+	device *mdmtest.TestAppleMDMClient,
+) ([]*micromdm.CommandPayload, getHostMDMSummaryResponse, getHostMDMResponseTest) {
+	t := s.T()
+
+	s.runWorker()
+	s.awaitTriggerProfileSchedule(t)
+
+	var cmds []*micromdm.CommandPayload
+
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		// command uuid is a random value, we only care that's set
+		require.NotEmpty(t, fullCmd.CommandUUID)
+		fullCmd.CommandUUID = ""
+
+		// strip the signature of the profiles so they can be easily compared
+		if fullCmd.Command.RequestType == "InstallProfile" {
+			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+			require.NoError(t, err)
+			fullCmd.Command.InstallProfile.Payload = p7.Content
+		}
+		cmds = append(cmds, &fullCmd)
+
+		cmd, err = device.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	mdmAgg := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
+
+	ghr := getHostMDMResponseTest{}
+	s.DoJSON(
+		"GET",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID),
+		nil,
+		http.StatusOK,
+		&ghr,
+	)
+
+	return cmds, mdmAgg, ghr
 }
 
 func (s *integrationMDMTestSuite) setupLifecycleSettings() {
-}
-
-// A host is wiped from the Fleet UI, then re-enrolls
-func (s *integrationMDMTestSuite) TestLifecycleWiped() {
 	t := s.T()
 	ctx := context.Background()
-	s.setupLifecycleSettings()
-	hosts, appleDevices, _ := s.createLifecycleHosts()
+	// add bootstrap package
+	_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
+	bp, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
+	require.NoError(t, err)
+	s.uploadBootstrapPackage(
+		&fleet.MDMAppleBootstrapPackage{Bytes: bp, Name: "pkg.pkg", TeamID: 0},
+		http.StatusOK,
+		"",
+	)
 
-	for key, host := range hosts {
-		s.Do(
-			"POST",
-			fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
-			nil,
-			http.StatusNoContent,
-		)
+	// enable disk encryption
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
+  }`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
-		switch host.Platform {
-		case "darwin":
-			cmd, err := appleDevices[key].Idle()
-			require.NoError(t, err)
-			for cmd != nil {
-				cmd, err = appleDevices[key].Acknowledge(cmd.CommandUUID)
-				require.NoError(t, err)
-			}
-		case "windows":
-			status, err := s.ds.GetHostLockWipeStatus(ctx, host)
-			require.NoError(t, err)
-
-			var orbitScriptResp orbitPostScriptResultResponse
-			s.DoJSON(
-				"POST",
-				"/api/fleet/orbit/scripts/result",
-				json.RawMessage(
-					fmt.Sprintf(
-						`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`,
-						*host.OrbitNodeKey,
-						status.LockScript.ExecutionID,
-					),
-				),
-				http.StatusOK,
-				&orbitScriptResp,
-			)
-		}
-
-	}
-}
-
-// A host is locked from the Fleet UI, then re-enrolls
-func (s *integrationMDMTestSuite) TestLifecycleLocked() {
-	t := s.T()
-	ctx := context.Background()
-	s.setupLifecycleSettings()
-	hosts, appleDevices, _ := s.createLifecycleHosts()
-
-	for key, host := range hosts {
-		s.Do(
-			"POST",
-			fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
-			nil,
-			http.StatusNoContent,
-		)
-
-		switch host.Platform {
-		case "darwin":
-			cmd, err := appleDevices[key].Idle()
-			require.NoError(t, err)
-			for cmd != nil {
-				cmd, err = appleDevices[key].Acknowledge(cmd.CommandUUID)
-				require.NoError(t, err)
-			}
-		case "windows":
-			status, err := s.ds.GetHostLockWipeStatus(ctx, host)
-			require.NoError(t, err)
-
-			var orbitScriptResp orbitPostScriptResultResponse
-			s.DoJSON(
-				"POST",
-				"/api/fleet/orbit/scripts/result",
-				json.RawMessage(
-					fmt.Sprintf(
-						`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`,
-						*host.OrbitNodeKey,
-						status.LockScript.ExecutionID,
-					),
-				),
-				http.StatusOK,
-				&orbitScriptResp,
-			)
-		}
-
-	}
-}
-
-// A host turns-on MDM features out of the blue (could be wiped physically without us
-// knowing, could be an unenrollment that didn't send a CheckOut message, etc)
-func (s *integrationMDMTestSuite) TestLifecycleReTurnOnMDM() {
-	t := s.T()
-	s.setupLifecycleSettings()
-	_, appleDevices, windowsDevices := s.createLifecycleHosts()
-
-	// TODO: assert all verified
-
-	for _, d := range appleDevices {
-		require.NoError(t, d.Enroll())
-	}
-
-	for _, d := range windowsDevices {
-		require.NoError(t, d.Enroll())
-	}
-
-	// TODO: assert all pending
-	// TODO: assert bootstrap package sent for all DEP
-	// TODO: assert fleetd sent
-
-}
-
-// IT admin turns off MDM for a host via the UI
-func (s *integrationMDMTestSuite) TestLifecycleTurnOffViaUI() {
-	t := s.T()
-	s.setupLifecycleSettings()
-	hosts, appleDevices, windowsDevices := s.createLifecycleHosts()
-
-	for _, host := range hosts {
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusOK)
-	}
-
-	// TODO: assert no profiles
-
-	for _, d := range appleDevices {
-		require.NoError(t, d.Enroll())
-	}
-
-	for _, d := range windowsDevices {
-		require.NoError(t, d.Enroll())
-	}
-
-	// TODO: assert all pending
-	// TODO: assert bootstrap package sent for all DEP
-	// TODO: assert fleetd sent
-
-}
-
-// Host turns off MDM features (eg: manual enrollment profile is removed)
-func (s *integrationMDMTestSuite) TestLifecycleTurnOffInDevice() {
-	t := s.T()
-	s.setupLifecycleSettings()
-	_, appleDevices, _ := s.createLifecycleHosts()
-
-	for _, d := range appleDevices {
-		require.NoError(t, d.Checkout())
-	}
-
-	// TODO: assert no profiles
-
-	for _, d := range appleDevices {
-		require.NoError(t, d.Enroll())
-	}
-
-	// TODO: assert all pending
-	// TODO: assert bootstrap package sent for all DEP
-	// TODO: assert fleetd sent
-}
-
-// Host is osquery enrolled, then turns on MDM features
-func (s *integrationMDMTestSuite) TestLifecycleTurnOnOsqueryFirst() {
-}
-
-// Host turns on MDM features before enrolling in osquery (ADE, Windows Azure,
-// manual enrollment with a config profile given by the IT admin)
-func (s *integrationMDMTestSuite) TestLifecycleTurnOnMDMFirst() {
-}
-
-// Host migrates from third-party MDM to Fleet
-func (s *integrationMDMTestSuite) TestLifecycleMigrate() {
-}
-
-// Host is deleted
-func (s *integrationMDMTestSuite) TestLifecycleHostDeleted() {
+	// add profiles (windows, mac)
+	s.Do(
+		"POST",
+		"/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+			{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N3", Contents: declarationForTest("D1")},
+		}},
+		http.StatusNoContent,
+	)
 }
 
 // Host is renewing SCEP certificates

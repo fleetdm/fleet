@@ -94,8 +94,11 @@ func (t *HostLifecycle) doWindows(ctx context.Context, opts HostOptions) error {
 	case HostActionReset, HostActionTurnOn:
 		return t.uuidAction(ctx, t.ds.MDMResetEnrollment, opts)
 
-	case HostActionDelete, HostActionTurnOff:
+	case HostActionTurnOff:
 		return t.uuidAction(ctx, t.ds.MDMTurnOff, opts)
+
+	case HostActionDelete:
+		return nil
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown action %s", opts.Action)
@@ -106,7 +109,7 @@ type uuidFn func(ctx context.Context, uuid string) error
 
 func (t *HostLifecycle) uuidAction(ctx context.Context, action uuidFn, opts HostOptions) error {
 	if opts.UUID == "" {
-		return ctxerr.New(ctx, "UUID and Platform options are required for this action")
+		return ctxerr.New(ctx, "UUID option is required for this action")
 	}
 
 	return action(ctx, opts.UUID)
@@ -161,7 +164,7 @@ func (t *HostLifecycle) darwinTurnOn(ctx context.Context, opts HostOptions) erro
 	// assigned in ABM is manually enrolling for some reason.
 	if info.DEPAssignedToFleet || info.InstalledFromDEP {
 		t.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", opts.UUID)
-		if err := worker.QueueAppleMDMJob(
+		err := worker.QueueAppleMDMJob(
 			ctx,
 			t.ds,
 			t.logger,
@@ -169,13 +172,12 @@ func (t *HostLifecycle) darwinTurnOn(ctx context.Context, opts HostOptions) erro
 			opts.UUID,
 			tmID,
 			opts.EnrollReference,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "queue DEP post-enroll task")
-		}
+		)
+		return ctxerr.Wrap(ctx, err, "queue DEP post-enroll task")
 	}
 
-	// manual MDM enrollments that are not fleet-enrolled yet
-	if !info.InstalledFromDEP && !info.OsqueryEnrolled {
+	// manual MDM enrollments
+	if !info.InstalledFromDEP {
 		if err := worker.QueueAppleMDMJob(
 			ctx,
 			t.ds,
@@ -197,6 +199,9 @@ func (t *HostLifecycle) darwinDelete(ctx context.Context, opts HostOptions) erro
 		return ctxerr.New(ctx, "a non-nil Host option is required to perform this action")
 	}
 
+	// NOTE: deletion of mdm-related tables is handled by the ds.DeleteHost method.
+
+	// Try to immediately restore a host if it's assigned to us in ABM
 	if !license.IsPremium(ctx) {
 		// only premium tier supports DEP so nothing more to do
 		return nil

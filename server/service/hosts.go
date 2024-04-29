@@ -751,11 +751,13 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionDelete,
 			Platform: host.Platform,
+			UUID:     host.UUID,
 			Host:     host,
 		})
+		return ctxerr.Wrap(ctx, err, "performing MDM actions after delete")
 	}
 
-	return ctxerr.Wrap(ctx, err, "deleting host")
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
