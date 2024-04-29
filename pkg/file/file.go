@@ -11,6 +11,22 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 )
 
+// ExtractInstallerMetadata extracts the software name and version from the
+// installer file. The format of the installer is determined based on the
+// extension of the filename.
+func ExtractInstallerMetadata(filename string, b []byte) (name, version string, err error) {
+	switch ext := filepath.Ext(filename); ext {
+	case ".deb":
+		return ExtractDebMetadata(b)
+	case ".exe":
+		return ExtractPEMetadata(b)
+	case ".pkg":
+		return ExtractXARMetadata(b)
+	default:
+		return "", "", fmt.Errorf("unsupported file type: %s", ext)
+	}
+}
+
 // Copy copies the file from srcPath to dstPath, using the provided permissions.
 //
 // Note that on Windows the permissions support is limited in Go's file functions.
