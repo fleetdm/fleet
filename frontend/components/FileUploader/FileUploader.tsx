@@ -33,7 +33,9 @@ interface IFileUploaderProps {
    * https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept
    */
   accept?: string;
-  /** The text to display on the upload button */
+  /** The text to display on the upload button
+   * @default "Upload"
+   */
   buttonMessage?: string;
   className?: string;
   /** renders the button to open the file uploader to appear as a button or

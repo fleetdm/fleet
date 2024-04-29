@@ -20,6 +20,11 @@ const getFileDetails = (file: File) => {
   };
 };
 
+const getInstallScript = (file: File) => {
+  // TODO: get this dynamically
+  return `sudo installer -pkg ${file.name} -target /`;
+};
+
 const UploadingSoftware = () => {
   return (
     <div className={`${baseClass}__uploading-message`}>
@@ -78,7 +83,12 @@ const AddSoftwareForm = ({
 
   const onFileUpload = (files: FileList | null) => {
     if (files && files.length > 0) {
-      setFormData({ ...formData, software: files[0] });
+      const file = files[0];
+      setFormData({
+        ...formData,
+        software: file,
+        installScript: getInstallScript(file),
+      });
     }
   };
 
