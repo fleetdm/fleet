@@ -142,7 +142,6 @@ const DataTable = ({
     setFilter, // sets a specific column-level filter
     setAllFilters, // sets all of the column-level filters; rows are included in filtered results only if each column filter return true
     setGlobalFilter, // sets the global filter; this serves as a global free text search across all columns (excluding only those where `disableGlobalFilter: true`)
-    getToggleAllPageRowsSelectedProps,
   } = useTable(
     {
       columns,
