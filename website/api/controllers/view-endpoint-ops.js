@@ -26,9 +26,9 @@ module.exports = {
 
     // Specify an order for the testimonials on this page using the last names of quote authors
     let testimonialOrderForThisPage = ['Charles Zaffery','Dan Grzelak','Nico Waisman','Tom Larkin','Austin Anderson','Erik Gomez','Nick Fohs','Brendan Shaklovitz','Mike Arpaia','Andre Shields','Dhruv Majumdar','Ahmed Elshaer','Abubakar Yousafzai','Harrison Ravazzolo','Wes Whetstone','Kenny Botelho', 'Chandra Majumdar','Eric Tan'];
-    if(this.req.session.primaryBuyingSituation === 'eo-it'){
-      testimonialOrderForThisPage = ['Eric Tan', 'Tom Larkin', 'Nick Fohs', 'Harrison Ravazzolo', 'Wes Whetstone', 'Chandra Majumdar', 'Erik Gomez', 'Mike Arpaia', 'Kenny Botelho'];
-    } else if(this.req.session.primaryBuyingSituation === 'eo-security'){
+    if(['eo-it', 'mdm'].includes(this.req.session.primaryBuyingSituation)){
+      testimonialOrderForThisPage = [ 'Harrison Ravazzolo', 'Eric Tan','Erik Gomez', 'Tom Larkin', 'Nick Fohs', 'Wes Whetstone', 'Mike Arpaia', 'Kenny Botelho'];
+    } else if(['eo-security', 'vm'].includes(this.req.session.primaryBuyingSituation)){
       testimonialOrderForThisPage = ['Nico Waisman','Charles Zaffery','Abubakar Yousafzai','Eric Tan','Mike Arpaia','Chandra Majumdar','Ahmed Elshaer','Brendan Shaklovitz','Austin Anderson','Dan Grzelak','Dhruv Majumdar'];
     }
     // Filter the testimonials by product category and the filtered list we built above.
