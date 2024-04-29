@@ -55,7 +55,7 @@ func New(ds fleet.Datastore, logger kitlog.Logger) *HostLifecycle {
 	}
 }
 
-// Do executes the provided MDMHostLifecycleAction based on the platform requested
+// Do executes the provided HostAction based on the platform requested
 func (t *HostLifecycle) Do(ctx context.Context, opts HostOptions) error {
 	switch opts.Platform {
 	case "darwin":

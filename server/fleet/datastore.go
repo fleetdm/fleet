@@ -569,7 +569,7 @@ type Datastore interface {
 	CleanupHostOperatingSystems(ctx context.Context) error
 
 	// MDMTurnOff updates Fleet host information related to MDM when a
-	// host tuns off MDM. Anything related to the protocol itself is
+	// host turns off MDM. Anything related to the protocol itself is
 	// managed separately.
 	MDMTurnOff(ctx context.Context, uuid string) error
 
