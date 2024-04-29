@@ -2,25 +2,23 @@
 This page contains explanations of the latest external security audits performed on Fleet software.
 
 ## June 2023 penetration testing of Fleet 4.33 
-In June 2023, [Latacora](https://www.latacora.com/) performed an application penetration assessment of the application from Fleet.
+In June 2023, [Latacora](https://www.latacora.com/) performed an application penetration assessment of the application from Fleet. 
 
-An application penetration test captures a point-in-time assessment of vulnerabilities, misconfigurations, and gaps in applications that could allow an attacker to compromise the security, availability, processing integrity, confidentiality, and privacy (SAPCP) of sensitive data and application resources. An application penetration
-
-test simulates the capabilities of a real adversary, but accelerates testing by using information provided by the target company.
+An application penetration test captures a point-in-time assessment of vulnerabilities, misconfigurations, and gaps in applications that could allow an attacker to compromise the security, availability, processing integrity, confidentiality, and privacy (SAPCP) of sensitive data and application resources. An application penetration test simulates the capabilities of a real adversary, but accelerates testing by using information provided by the target company.
 
 You can find the full report here: [2023-06-09-fleet-penetration-test.pdf](https://github.com/fleetdm/fleet/raw/main/docs/files/2023-06-09-fleet-penetration-test.pdf).
 
 ### Findings
-#### 1 - Stored Cross-Site Scripting (XSS) in Tooltip
+#### 1 - Stored cross-site scripting (XSS) in tooltip
 | Type                | Latacora Severity |
 | ------------------- | -------------- |
-| Cross-Site Scripting| High risk      |
+| Cross-site scripting| High risk      |
 
-All tooltips using the tipContent tag are set using dangerouslySetInnerHTML. This allows manipulation of the DOM without sanitization. If a user can control the content sent to this function, it can lead to a cross-site scripting vulnerability. 
+All tooltips using the "tipContent" tag are set using "dangerouslySetInnerHTML". This allows manipulation of the DOM without sanitization. If a user can control the content sent to this function, it can lead to a cross-site scripting vulnerability. 
 
 - Resolved. Resolution information TBA
 
-#### 2 - Broken Authorization Leads to Observers Able to Add Hosts
+#### 2 - Broken authorization leads to observers able to add hosts
 | Type                | Latacora Severity |
 | ------------------- | -------------- |
 | Authorization issue | High risk      |
