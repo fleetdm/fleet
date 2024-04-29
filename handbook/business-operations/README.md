@@ -138,7 +138,7 @@ To create a new invoice for a Fleet customer, follow these steps:
     - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
     - Ensure the "Notes" section has wiring instructions for payment via SVB.
 -  Download the completed invoice as a PDF
--  Send the PDF to the billing contact from the "Bill to" section of the invoice and cc billing@fleetdm.com. Use the following template for the email:
+-  Send the PDF to the billing contact from the "Bill to" section of the invoice and cc [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays). Use the following template for the email:
 ```
 Subject: Invoice for Fleet Device Management [invoice number]
 Hello,
