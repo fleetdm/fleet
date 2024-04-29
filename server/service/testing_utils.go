@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -62,11 +63,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
 
-		is          fleet.InstallerStore
-		mdmStorage  fleet.MDMAppleStore
-		mdmPusher   nanomdm_push.Pusher
-		ssoStore    sso.SessionStore
-		profMatcher fleet.ProfileMatcher
+		is                   fleet.InstallerStore
+		mdmStorage           fleet.MDMAppleStore
+		mdmPusher            nanomdm_push.Pusher
+		ssoStore             sso.SessionStore
+		profMatcher          fleet.ProfileMatcher
+		softwareInstallStore fleet.SoftwareInstallerStore
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -106,6 +108,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].UseMailService {
 			mailer, err = mail.NewService(config.TestConfig())
 			require.NoError(t, err)
+		}
+		if opts[0].SoftwareInstallStore != nil {
+			softwareInstallStore = opts[0].SoftwareInstallStore
 		}
 
 		// allow to explicitly set installer store to nil
@@ -174,6 +179,15 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		panic(err)
 	}
 	if lic.IsPremium() {
+		if softwareInstallStore == nil {
+			// default to file-based
+			dir := t.TempDir()
+			store, err := filesystem.NewSoftwareInstallerStore(dir)
+			if err != nil {
+				panic(err)
+			}
+			softwareInstallStore = store
+		}
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
@@ -186,6 +200,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			"",
 			ssoStore,
 			profMatcher,
+			softwareInstallStore,
 		)
 		if err != nil {
 			panic(err)
@@ -275,29 +290,30 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
-	Logger              kitlog.Logger
-	License             *fleet.LicenseInfo
-	SkipCreateTestUsers bool
-	Rs                  fleet.QueryResultStore
-	Lq                  fleet.LiveQueryStore
-	Pool                fleet.RedisPool
-	FailingPolicySet    fleet.FailingPolicySet
-	Clock               clock.Clock
-	Task                *async.Task
-	EnrollHostLimiter   fleet.EnrollHostLimiter
-	Is                  fleet.InstallerStore
-	FleetConfig         *config.FleetConfig
-	MDMStorage          fleet.MDMAppleStore
-	DEPStorage          nanodep_storage.AllDEPStorage
-	SCEPStorage         scep_depot.Depot
-	MDMPusher           nanomdm_push.Pusher
-	HTTPServerConfig    *http.Server
-	StartCronSchedules  []TestNewScheduleFunc
-	UseMailService      bool
-	APNSTopic           string
-	ProfileMatcher      fleet.ProfileMatcher
-	EnableCachedDS      bool
-	NoCacheDatastore    bool
+	Logger               kitlog.Logger
+	License              *fleet.LicenseInfo
+	SkipCreateTestUsers  bool
+	Rs                   fleet.QueryResultStore
+	Lq                   fleet.LiveQueryStore
+	Pool                 fleet.RedisPool
+	FailingPolicySet     fleet.FailingPolicySet
+	Clock                clock.Clock
+	Task                 *async.Task
+	EnrollHostLimiter    fleet.EnrollHostLimiter
+	Is                   fleet.InstallerStore
+	FleetConfig          *config.FleetConfig
+	MDMStorage           fleet.MDMAppleStore
+	DEPStorage           nanodep_storage.AllDEPStorage
+	SCEPStorage          scep_depot.Depot
+	MDMPusher            nanomdm_push.Pusher
+	HTTPServerConfig     *http.Server
+	StartCronSchedules   []TestNewScheduleFunc
+	UseMailService       bool
+	APNSTopic            string
+	ProfileMatcher       fleet.ProfileMatcher
+	EnableCachedDS       bool
+	NoCacheDatastore     bool
+	SoftwareInstallStore fleet.SoftwareInstallerStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

@@ -157,6 +157,7 @@ module.exports = {
         primaryBuyingSituation: primaryBuyingSituation,
         organization: this.req.me.organization,
         psychologicalStage,
+        currentStep,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
       }
     })

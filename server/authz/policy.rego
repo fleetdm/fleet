@@ -643,6 +643,36 @@ allow {
   action == read
 }
 
+# Global admins, maintainers, observers, and observer_plus can read any software installer.
+allow {
+  object.type == "software_installer"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write any software installer.
+allow {
+  object.type == "software_installer"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, observers, and observer_plus can read any software installer in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "software_installer"
+  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admins, maintainers, and gitops can write any software installer in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "software_installer"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
 ##
 # Apple and Windows MDM
 ##

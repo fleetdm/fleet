@@ -34,11 +34,12 @@
       moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
 - industryName: Maintenance windows
   friendlyName: Fleet in your calendar
-  description: Create a calendar event to auto-remediate failing policies when your end users are free. Coming soon (2024-04-01)
+  description: Create a calendar event to auto-remediate failing policies when your end users are free.
   documentationUrl: https://github.com/fleetdm/fleet/issues/17230
   tier: Premium
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
+  comingSoonOn: 2024-04-30
 #
 #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
 #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
