@@ -3692,7 +3692,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "id": 121,
       "name": "Google Chrome.app",
       "package_available_for_install": "GoogleChrome.pkg",
-      "self_service": "true",
+      "self_service": true,
       "source": "apps",
       "bundle_identifier": "com.google.Chrome",
       "status": "failed",
@@ -8004,7 +8004,9 @@ Get a list of all software.
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
-| available_for_insall    | bool    | query | If true or 1, only list software that is availble for install (added by the user). Default is `false`.                                                                                    |
+| available_for_insall    | bool    | query | If true or 1, only lists software that is availble for install (added by the user). Default is `false`.                                                                                    |
+| self_service    | bool    | query | If true or 1, only lists self-service software. Default is `false`.  |
+
 
 #### Example
 
@@ -8023,6 +8025,7 @@ Get a list of all software.
       "id": 12,
       "name": "Firefox.app",
       "software_package": "FirefoxInstall.pkg",
+      "self_service": true,
       "versions_count": 3,
       "source": "apps",
       "browser": "",
