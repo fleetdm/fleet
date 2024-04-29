@@ -7692,7 +7692,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	checkInstallFleetdCommandSent(mdmDevice, true)
 
 	// create a device that's enrolled into Fleet before turning on MDM features,
-	// it shouldn't get the command to install fleetd
+	// it should still get the command to install fleetd if turns on MDM.
 	desktopToken := uuid.New().String()
 	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
 	err = s.ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, desktopToken)
@@ -7702,7 +7702,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, false)
+	checkInstallFleetdCommandSent(mdmDevice, true)
 }
 
 func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
