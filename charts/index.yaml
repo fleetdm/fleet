@@ -2,8 +2,8 @@ apiVersion: v1
 entries:
   fleet:
   - apiVersion: v2
-    appVersion: v4.49.1
-    created: "2024-04-26T17:28:05.283833734Z"
+    appVersion: v4.49.2
+    created: "2024-04-30T19:45:52.524274055Z"
     dependencies:
     - condition: mysql.enabled
       name: mysql
@@ -14,7 +14,7 @@ entries:
       repository: https://charts.bitnami.com/bitnami
       version: 18.1.6
     description: A Helm chart for Fleet
-    digest: 2a20fdc21dd9a583e6f4daa3df45fa187f798786e384ac6fba598c055fcc237a
+    digest: 251e90201ab611cfed09cadcff1d82e039931cd07532dd5c825a5cba1babba72
     home: https://github.com/fleetdm/fleet
     keywords:
     - fleet
@@ -832,12 +832,12 @@ entries:
   tuf:
   - apiVersion: v2
     appVersion: 1.16.0
-    created: "2024-04-26T17:28:05.284202233Z"
+    created: "2024-04-30T19:45:52.524648121Z"
     description: A Helm chart for Kubernetes
-    digest: 19c202a3e7cfd6cf676ebfd1cf1d3b3f5be8303022d060950d85e6eec3746d4c
+    digest: ba7237028020a955f6b29bcf9b607f8b6ae3157cf014e2967ce496f3ab973696
     name: tuf
     type: application
     urls:
     - https://fleetdm.github.io/fleet/charts/tuf-0.1.0.tgz
     version: 0.1.0
-generated: "2024-04-26T17:28:05.273460399Z"
+generated: "2024-04-30T19:45:52.515094713Z"
