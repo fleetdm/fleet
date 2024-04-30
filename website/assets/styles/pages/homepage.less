@@ -1,7 +1,7 @@
 #homepage {
   h1 {
     font-weight: 800;
-    font-size: 64px;
+    font-size: 48px;
     line-height: 120%;
   }
   h3 {
@@ -22,10 +22,10 @@
     font-family: 'Roboto Mono';
     font-style: normal;
     font-weight: 400;
-    font-size: 18px;
+    font-size: 14px;
     line-height: 120%;
     color: @core-fleet-black-75;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
   p {
     color: @core-fleet-black-75;
@@ -37,13 +37,13 @@
   }
 
   [purpose='hero-container'] {
-    background: #E4F4F4;
+    background: linear-gradient(#E4F3F4, #FFFFFF);
     overflow: hidden;
   }
 
   [purpose='hero-background-image'] {
     background: url('/images/homepage-hero-3227x920@2x.png');
-    background-size: auto 460px;
+    background-size: auto 400px;
     background-position: center bottom;
     background-repeat: repeat-x;
   }
@@ -52,7 +52,7 @@
     padding-top: 64px;
     padding-left: 40px;
     padding-right: 40px;
-    padding-bottom: 460px;
+    padding-bottom: 380px;
     max-width: 1200px;
   }
 
@@ -63,8 +63,8 @@
       margin-bottom: 16px;
     }
     p {
-      margin-bottom: 40px;
-      font-size: 18px;
+      margin-bottom: 32px;
+      font-size: 16px;
     }
   }
 
@@ -146,7 +146,7 @@
       }
     }
     [purpose='video-button'] {
-      margin-top: 12px;
+      margin-top: 16px;
       cursor: pointer;
       img {
         height: 32px;
@@ -303,9 +303,6 @@
 
   [purpose='category-text-block'] {
     max-width: 468px;
-    h4 {
-      font-size: 16px;
-    }
     h3 {
       font-size: 32px;
       margin-bottom: 32px;
@@ -669,13 +666,14 @@
   @media (max-width: 1199px) {
 
     [purpose='hero-background-image'] {
-      // background-size: 3400px auto;
+      background-size: auto 400px;
       background-position: center bottom;
       background-repeat: no-repeat;
     }
     [purpose='homepage-hero'] {
       max-width: 1080px;
-    }
+      padding-bottom: 380px;
+    } 
 
     [purpose='hero-logos'] {
       padding-right: 60px;
@@ -736,7 +734,7 @@
     }
     [purpose='homepage-hero'] {
       max-width: 100%;
-      padding-bottom: 400px;
+      padding-bottom: 380px;
     }
     [purpose='hero-background-image'] {
       background-size: auto 400px;
@@ -932,6 +930,7 @@
     }
 
     [purpose='homepage-hero'] {
+      padding-top: 64px;
       padding-bottom: 360px;
     }
     [purpose='hero-background-image'] {
@@ -1414,6 +1413,14 @@
       display: none;
     }
 
+    [purpose='homepage-hero'] {
+      padding-top: 40px;
+      padding-bottom: 220px;
+    }
+
+    [purpose='hero-background-image'] {
+      background-size: auto 220px;
+    }
 
     [purpose='hero-text'] {
       p {
