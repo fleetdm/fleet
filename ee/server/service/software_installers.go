@@ -57,7 +57,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.InstallScript == "" {
 		installerType := file.InstallerType(strings.TrimPrefix(filepath.Ext(payload.Filename), "."))
-		installerPath := "some path" // TODO: where does this come from?
+		installerPath := payload.Filename // TODO: Confirm pending product input
 		payload.InstallScript = file.GetInstallScript(installerType, installerPath)
 	}
 
