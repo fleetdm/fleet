@@ -6,7 +6,6 @@
         <div class="d-flex flex-row justify-content-center align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
-            <h4>For teams with lots of different endpoints</h4>
             <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
             <p>Replace the sprawl with open-source code that works the way you want.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
@@ -26,7 +25,37 @@
   <div purpose="homepage-content" class="container">
     <%/* Testimonial videos */%>
     <div purpose="page-section" class="mb-0">
-      <div purpose="testimonials" class="d-flex flex-lg-row flex-column justify-content-center card-deck">
+
+      <div purpose="calendar-feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
+        <div purpose="calendar-feature-text" class="d-flex flex-column">
+        <div purpose="new-badge">NEW</div>
+        <% if(!primaryBuyingSituation) {%>
+          <h2>Stop nudging</h2>
+          <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p>
+        <%} else if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
+          <h2>Put IT in your calendar</h2>
+          <p>Install updates and force restarts when your users’ computers are actually free.</p>
+        <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
+          <h2>Tell employees why</h2>
+          <p>Use AI to explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
+        <%}%>
+          <div purpose="calendar-checklist" class="flex-column d-flex">
+            <p>Say goodbye to annoying IT notifications and restarts.</p>
+            <p>Use AI to explain why your security policies matter.</p>
+            <p>Stop making exceptions for executives when OS updates lock them out of important meetings.</p>
+          </div>
+          <div purpose="video-button" class="d-flex flex-row align-items-center" @click="clickOpenVideoModal('calendar')">
+            <img src="/images/icon-play-video-32x32@2x.png" alt="play button">Watch the video
+          </div>
+        </div>
+        <div purpose="feature-video">
+          <video autoplay loop muted purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
+        </div>
+      </div>
+
+
+
+      <div purpose="testimonials" class="d-none <!-- temporarily disabled videos --> flex-lg-row flex-column justify-content-center card-deck">
         <% if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
           <div purpose="testimonial" class="nick-fohs d-flex align-items-center card" @click="clickOpenVideoModal('nick-fohs')">
             <div purpose="testimonial-video" class="card-title">
@@ -54,34 +83,6 @@
       </div>
     </div>
   </div>
-  <% if(primaryBuyingSituation) {%>
-  <div purpose="calendar-section">
-    <div purpose="calendar-card" class="d-flex flex-column align-items-center">
-      <div purpose="calendar-card-body" class="d-flex flex-column align-items-center">
-        <div purpose="coming-soon-badge">Coming soon</div>
-        <!-- <h3>Stop nudging</h3> -->
-        <!-- <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p> -->
-        <% if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
-          <h3>Put IT in your calendar</h3>
-          <p>Install updates and force restarts when your users’ computers are actually free.</p>
-        <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
-          <h3>Tell employees why</h3>
-          <p>Use AI to explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
-        <%}%>
-        <% if(me && me.primaryBuyingSituation) {%>
-        <a purpose="animated-arrow-button-red" href="https://kqphpqst851.typeform.com/to/WwAtAUdm#primarybuyingsituation=<%= encodeURIComponent(me.primaryBuyingSituation) %>" target="_blank">Let me know</a>
-        <% } else if(primaryBuyingSituation) {%>
-        <a purpose="animated-arrow-button-red" href="https://kqphpqst851.typeform.com/to/WwAtAUdm#primarybuyingsituation=<%= encodeURIComponent(primaryBuyingSituation) %>" target="_blank">Let me know</a>
-        <% } else {%>
-        <a purpose="animated-arrow-button-red" href="https://kqphpqst851.typeform.com/to/WwAtAUdm" target="_blank">Let me know</a>
-        <% } %>
-      </div>
-      <div purpose="calendar-image">
-        <img alt="Fleet in your calendar" src="/images/homepage-calendar-1280x420@2x.png">
-      </div>
-    </div>
-  </div>
-  <% } %>
   <div purpose="homepage-content" class="container">
     <div purpose="page-section">
       <% if(!primaryBuyingSituation){ %>
@@ -417,7 +418,7 @@
       <div class="text-center" purpose="bottom-cta">
         <h4>For teams with lots of different endpoints</h4>
         <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+        <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Start now</a>
           <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
         </div>
@@ -432,6 +433,9 @@
   </modal>
   <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
+  <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>
