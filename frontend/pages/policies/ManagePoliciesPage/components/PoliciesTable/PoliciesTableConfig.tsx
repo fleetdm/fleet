@@ -284,16 +284,6 @@ const generateTableHeaders = (
   ];
 
   if (tableType !== "inheritedPolicies") {
-    tableHeaders.push({
-      title: "Automations",
-      Header: "Automations",
-      disableSortBy: true,
-      accessor: "webhook",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <StatusIndicator value={cellProps.cell.value} />
-      ),
-    });
-
     if (!canAddOrDeletePolicy) {
       return tableHeaders;
     }
@@ -355,13 +345,15 @@ const generateDataSet = (
   // So, we need to add `osquery_policy` to the time of the cron update.
   let policiesLastRun: Date;
   let osqueryPolicyMs = 0;
-  const hostCountUpdatedAt =
+  const policiesThatHaveRunHostCountUpdatedAt =
+    // host counts of all policies that have run are updated at the same time, and are therefore
+    // identical, so we can use the first one. Those that haven't run will be `null`.
     policiesList.find((p) => !!p.host_count_updated_at)
       ?.host_count_updated_at || "";
   // If host_count_updated_at is not present, we assume the worst case.
   const hostCountUpdateIntervalMs = 60 * 60 * 1000; // 1 hour (from server's `cron.go`)
-  const hostCountUpdatedAtDate = hostCountUpdatedAt
-    ? new Date(hostCountUpdatedAt)
+  const hostCountUpdatedAtDate = policiesThatHaveRunHostCountUpdatedAt
+    ? new Date(policiesThatHaveRunHostCountUpdatedAt)
     : new Date(Date.now() - hostCountUpdateIntervalMs);
   if (osquery_policy) {
     // Convert from nanosecond to milliseconds
@@ -370,13 +362,14 @@ const generateDataSet = (
       hostCountUpdatedAtDate.getTime() - osqueryPolicyMs
     );
   } else {
+    // temporarily unused - will restore use with upcoming DB update
     policiesLastRun = hostCountUpdatedAtDate;
   }
   // Now we figure out when the next host count update will be.
   // The % (mod) is used below in case server was restarted and previously scheduled host count update was skipped.
   const nextHostCountUpdateMs =
     hostCountUpdateIntervalMs -
-    (hostCountUpdatedAt
+    (policiesThatHaveRunHostCountUpdatedAt
       ? (Date.now() - hostCountUpdatedAtDate.getTime()) %
         hostCountUpdateIntervalMs
       : 0);
@@ -390,7 +383,14 @@ const generateDataSet = (
 
     // Define policy has_run based on updated_at compared against last time policies ran.
     const policyItemUpdatedAt = new Date(policyItem.updated_at);
-    policyItem.has_run = isAfter(policiesLastRun, policyItemUpdatedAt);
+    // TODO: restore and update setting of policyItem.has_run based on upcoming custom
+    // `policy_membership_updated_at`(ish) DB column/API response field
+    // policyItem.has_run = isAfter(policiesLastRun, policyItemUpdatedAt);
+
+    // all of the policiess `has_run` will be either true (cron has run, so host_count_updated_at
+    // has a value that is the same for all such policies) or false (policy is new, wasn't included
+    // in last cron run, host_count_updated_at is `null`)
+    policyItem.has_run = !!policyItem.host_count_updated_at;
     if (!policyItem.has_run) {
       // Include time for next update for reference in tooltip, which is only present if policy has not run.
       policyItem.next_update_ms = nextPolicyUpdateMs(

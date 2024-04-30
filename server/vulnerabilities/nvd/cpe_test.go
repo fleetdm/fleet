@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
@@ -1603,6 +1603,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			// DO NOT MATCH with Cisco Umbrella
 			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:    "python@3.9",
+				Source:  "homebrew_packages",
+				Version: "3.9.18_2",
+				Vendor:  "",
+			},
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:*:*:*`,
 		},
 	}
 

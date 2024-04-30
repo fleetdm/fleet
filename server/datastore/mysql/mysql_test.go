@@ -1229,3 +1229,55 @@ func TestWhereFilterGlobalOrTeamIDByTeams(t *testing.T) {
 		})
 	}
 }
+
+func TestBatchProcessDB(t *testing.T) {
+	type testData struct {
+		id    int
+		value string
+	}
+
+	payload := []interface{}{
+		&testData{id: 1, value: "a"},
+		&testData{id: 2, value: "b"},
+		&testData{id: 3, value: "c"},
+	}
+
+	generateValueArgs := func(item interface{}) (string, []any) {
+		p := item.(*testData)
+		valuePart := "(?, ?),"
+		args := []any{p.id, p.value}
+		return valuePart, args
+	}
+
+	t.Run("TestEmptyPayload", func(t *testing.T) {
+		executeBatch := func(valuePart string, args []any) error {
+			return errors.New("execute shouldn't be called for an empty payload")
+		}
+		err := batchProcessDB([]interface{}{}, 1000, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+	})
+
+	t.Run("TestSingleBatch", func(t *testing.T) {
+		callCount := 0
+		executeBatch := func(valuePart string, args []any) error {
+			callCount++
+			require.Equal(t, 2, len(args)/2) // each item adds 2 args
+			return nil
+		}
+		err := batchProcessDB(payload[:2], 2, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+		require.Equal(t, 1, callCount)
+	})
+
+	t.Run("TestMultipleBatches", func(t *testing.T) {
+		callCount := 0
+		executeBatch := func(valuePart string, args []any) error {
+			callCount++
+			require.Equal(t, 2/callCount, len(args)/2) // each item adds 2 args
+			return nil
+		}
+		err := batchProcessDB(payload, 2, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+		require.Equal(t, 2, callCount)
+	})
+}

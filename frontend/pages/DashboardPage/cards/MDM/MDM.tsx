@@ -57,9 +57,9 @@ const EmptyMdmStatus = (): JSX.Element => (
       <>
         To see MDM versions, deploy&nbsp;
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
+          url="https://fleetdm.com/learn-more-about/fleetd"
           newTab
-          text="Fleet's osquery installer"
+          text="Fleet's agent (fleetd)"
         />
       </>
     }
@@ -166,6 +166,7 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
+                  disableMultiRowSelect
                   onClickRow={handleSolutionRowClick}
                 />
               )}

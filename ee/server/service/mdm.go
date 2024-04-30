@@ -237,6 +237,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.EnableReleaseDeviceManually != nil {
+		if ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
+			ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
@@ -550,7 +557,10 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	if _, ok := m["url"]; ok {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The automatic enrollment profile can't include url.`))
+	}
+	if _, ok := m["await_device_configured"]; ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
 	// must read the existing setup assistant first to detect if it did change
@@ -925,22 +935,21 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 			return nil, err
 		}
 
-		payload.MDM = &fleet.TeamPayloadMDM{
-			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSetup: &fleet.MacOSSetup{
-				MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
-				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
-				// instead by CopyDefaultMDMAppleBootstrapPackage below
-				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
-				EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSetup: fleet.MacOSSetup{
+					MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
+					// NOTE: BootstrapPackage gets set by
+					// CopyDefaultMDMAppleBootstrapPackage below
+					// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
+					EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
+					EnableReleaseDeviceManually: ac.MDM.MacOSSetup.EnableReleaseDeviceManually,
+				},
 			},
 		}
-
-		// TODO: seems like we don't support enabling disk encryption
-		// on team creation?
-		// see https://github.com/fleetdm/fleet/issues/12220
-		team, err = svc.ModifyTeam(ctx, team.ID, payload)
-		if err != nil {
+		if _, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{}); err != nil {
 			return nil, err
 		}
 		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {
@@ -1046,6 +1055,60 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}, nil
 }
 
+func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint, updates fleet.MacOSUpdates) error {
+	if updates.MinimumVersion.Value == "" {
+		// OS updates disabled, remove the profile
+		if err := svc.ds.DeleteMDMAppleDeclarationByName(ctx, teamID, mdm.FleetMacOSUpdatesProfileName); err != nil {
+			return err
+		}
+		var globalOrTeamID uint
+		if teamID != nil {
+			globalOrTeamID = *teamID
+		}
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{globalOrTeamID}, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
+		return nil
+	}
+
+	// OS updates enabled, create or update the profile with the current settings
+
+	const (
+		macOSSoftwareUpdateType  = `com.apple.configuration.softwareupdate.enforcement.specific`
+		macOSSoftwareUpdateIdent = `macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
+	)
+	rawDecl := []byte(fmt.Sprintf(`{
+	"Identifier": %q,
+	"Type": %q,
+	"Payload": {
+		"TargetOSVersion": %q,
+		"TargetLocalDateTime": "%sT12:00:00"
+	}
+}`, macOSSoftwareUpdateIdent, macOSSoftwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
+	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, mdm.FleetMacOSUpdatesProfileName, macOSSoftwareUpdateType, macOSSoftwareUpdateIdent)
+
+	// associate the profile with the built-in label that ensures the host is on
+	// macOS 14+ to receive that profile
+	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{fleet.BuiltinLabelMacOS14Plus})
+	if err != nil {
+		return err
+	}
+	d.Labels = []fleet.ConfigurationProfileLabel{
+		{LabelName: fleet.BuiltinLabelMacOS14Plus, LabelID: lblIDs[fleet.BuiltinLabelMacOS14Plus]},
+	}
+
+	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	// mark all hosts affected by that profile as pending
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
+	}
+	return nil
+}
+
 func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint, updates fleet.WindowsUpdates) error {
 	var contents bytes.Buffer
 	params := windowsOSUpdatesProfileOptions{
@@ -1093,5 +1156,11 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// NOTE: the profile returned by this endpoint is intentionally not
+	// signed so it can be modified and signed by the IT admin with a
+	// custom certificate.
+	//
+	// Per @marko-lisica, we can add a parameter like `signed=true` if the
+	// need arises.
 	return mobileConfig, nil
 }

@@ -57,8 +57,8 @@ export default {
   },
 
   /**
-   * updateMDMConfig is a special case of update that is used to update the MDM
-   * config.
+   * updateMDMConfig is a special case of update that is used to update the app
+   * MDM config.
    *
    * If the request fails and `skipParseError` is `true`, the caller is
    * responsible for verifying that the value of the rejected promise is an AxiosError

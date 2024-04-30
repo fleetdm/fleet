@@ -8,7 +8,7 @@ There are 2 primary ways to deploy the Fleet server to a Kubernetes cluster. The
 
 We will assume you have `kubectl` and MySQL and Redis are all set up and running. Optionally you have minikube to test your deployment locally on your machine.
 
-To deploy the Fleet server and connect to its dependencies (MySQL and Redis), we will use [Fleet's best practice `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/kubernetes/fleet-deployment.yml).
+To deploy the Fleet server and connect to its dependencies (MySQL and Redis), we will use [Fleet's best practice `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/_kubernetes/fleet-deployment.yml).
 
 Let's tell Kubernetes to create the cluster by running the below command.
 
@@ -57,14 +57,14 @@ Helm v2
 ```sh
 helm install \
   --name fleet-database \
-  --set mysqlUser=fleet,mysqlDatabase=fleet \
+  --set auth.username=fleet,auth.database=fleet \
   oci://registry-1.docker.io/bitnamicharts/mysql
 ```
 
 Helm v3
 ```sh
 helm install fleet-database \
-  --set mysqlUser=fleet,mysqlDatabase=fleet \
+  --set auth.username=fleet,auth.database=fleet \
   oci://registry-1.docker.io/bitnamicharts/mysql 
 ```
 
@@ -83,14 +83,14 @@ Note: this step is not neccessary when using the Fleet Helm Chart as it handles 
 The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
 ```sh
-kubectl create -f ./docs/Deploy/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/Deploy/_kubernetes/fleet-migrations.yml
 ```
 
 In Kubernetes, you can only run a job once. If you'd like to run it again (i.e.: you'd like to run the migrations again using the same file), you must delete the job before re-creating it. To delete the job and re-run it, you can run the following commands:
 
 ```sh
-kubectl delete -f ./docs/Deploy/kubernetes/fleet-migrations.yml
-kubectl create -f ./docs/Deploy/kubernetes/fleet-migrations.yml
+kubectl delete -f ./docs/Deploy/_kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/Deploy/_kubernetes/fleet-migrations.yml
 ```
 
 #### Redis
@@ -158,7 +158,7 @@ kubectl create secret tls fleet-tls --key=./tls.key --cert=./tls.crt
 First we must deploy the instances of the Fleet webserver. The Fleet webserver is described using a Kubernetes deployment object. To create this deployment, run the following:
 
 ```sh
-kubectl apply -f ./docs/Deploy/fleet-deployment.yml
+kubectl apply -f ./docs/Deploy/_kubernetes/fleet-deployment.yml
 ```
 
 You should be able to get an instance of the webserver running via `kubectl get pods` and you should see the following logs:
@@ -174,7 +174,7 @@ ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listen
 Now that the Fleet server is running on our cluster, we have to expose the Fleet webservers to the internet via a load balancer. To create a Kubernetes `Service` of type `LoadBalancer`, run the following:
 
 ```sh
-kubectl apply -f ./docs/Deploy/fleet-service.yml
+kubectl apply -f ./docs/Deploy/_kubernetes/fleet-service.yml
 ```
 
 #### Configure DNS

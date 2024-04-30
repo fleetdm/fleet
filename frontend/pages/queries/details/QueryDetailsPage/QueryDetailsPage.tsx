@@ -22,6 +22,8 @@ import {
   isTeamObserver,
 } from "utilities/permissions/permissions";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { buildQueryStringFromParams } from "utilities/url";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -65,9 +67,13 @@ const QueryDetailsPage = ({
     router.push(PATHS.MANAGE_QUERIES);
   }
   const queryParams = location.query;
-  const teamId = location.query.team_id
-    ? parseInt(location.query.team_id, 10)
-    : undefined;
+
+  const { currentTeamId } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   // Functions to avoid race conditions
   const serverSortBy: ISortOption[] = (() => {
@@ -203,7 +209,12 @@ const QueryDetailsPage = ({
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
-      return filteredQueriesPath || PATHS.MANAGE_QUERIES;
+      return (
+        filteredQueriesPath ||
+        `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+          team_id: currentTeamId,
+        })}`
+      );
     };
 
     return (
@@ -233,7 +244,8 @@ const QueryDetailsPage = ({
                 {canEditQuery && (
                   <Button
                     onClick={() => {
-                      queryId && router.push(PATHS.EDIT_QUERY(queryId, teamId));
+                      queryId &&
+                        router.push(PATHS.EDIT_QUERY(queryId, currentTeamId));
                     }}
                     className={`${baseClass}__manage-automations button`}
                     variant="brand"
@@ -258,7 +270,10 @@ const QueryDetailsPage = ({
                         className={`${baseClass}__run`}
                         variant="blue-green"
                         onClick={() => {
-                          queryId && router.push(PATHS.LIVE_QUERY(queryId));
+                          queryId &&
+                            router.push(
+                              PATHS.LIVE_QUERY(queryId, currentTeamId)
+                            );
                         }}
                         disabled={disabledLiveQuery}
                       >
@@ -332,7 +347,7 @@ const QueryDetailsPage = ({
           // Exclude below message for global and team observers/observer+s
           !(
             (currentUser && isGlobalObserver(currentUser)) ||
-            isTeamObserver(currentUser, teamId ?? null)
+            isTeamObserver(currentUser, currentTeamId ?? null)
           ) &&
             " You can still use query automations to complete this report in your log destination."
         }

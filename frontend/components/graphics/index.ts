@@ -17,6 +17,7 @@ import EmptyTeams from "./EmptyTeams";
 import EmptyPacks from "./EmptyPacks";
 import EmptySchedule from "./EmptySchedule";
 import CollectingResults from "./CollectingResults";
+import CalendarEventPreview from "./CalendarEventPreview";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
@@ -41,6 +42,7 @@ export const GRAPHIC_MAP = {
   "file-pem": FilePem,
   // Other graphics
   "collecting-results": CollectingResults,
+  "calendar-event-preview": CalendarEventPreview,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;

@@ -202,6 +202,15 @@ module.exports = {
               .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
               .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
+
+            // If this page is in the docs/contributing/ folder, skip it.
+            if(sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'contributing/')){
+              continue;
+            }
+            // Skip pages in folders starting with an underscore character.
+            if(sectionRepoPath === 'docs/' &&  _.startsWith(pageRelSourcePath.split(/\//).slice(-2)[0], '_')){
+              continue;
+            }
             let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
 
             // Determine this page's default (fallback) display title.
@@ -695,52 +704,50 @@ module.exports = {
             }
 
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
-            for(let column of table.columns) {
-              if(!column.hidden) { // If the column is hidden, we won't add it to the final table.
-                // Create an object for this column to add to the osqueryTables config.
-                let columnInfoForQueryReports = {
-                  name: column.name
-                };
-                let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
-                if(column.description) {
-                  columnDescriptionForTable = column.description;
-                  // Convert the markdown description for this table into HTML for tooltips on /try-fleet/explore-data/* pages
-                  columnInfoForQueryReports.description = await sails.helpers.strings.toHtml.with({mdString: column.description, addIdsToHeadings: false});
-                }
-                tableInfoForQueryReports.columns.push(columnInfoForQueryReports);
-                // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
-                columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
-
-                keywordsForSyntaxHighlighting.push(column.name);
-                if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
-                  columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
-                }
-                if(column.requires_user_context) { // If a column has `"requires_user_context": true`, we'll add a note to the description that will be added to the table
-                  columnDescriptionForTable += '<br> **Defaults to root** &nbsp;&nbsp;[Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table?utm_source=fleetdm.com&utm_content=table-'+encodeURIComponent(table.name)+')';
-                }
-                if(column.platforms) { // If a column has an array of platforms, we'll add a note to the final column description
-
-                  let platformString = '<br> **Only available on ';// start building a string to add to the column's description
-
-                  if(column.platforms.length > 3) {// FUTURE: add support for more than three platform values in columns.
-                    throw new Error('Support for more than three platforms has not been implemented yet.');
-                  }
-
-                  if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
-                    // If there are three, we'll add a string with an oxford comma. e.g., "On macOS, Windows, and Linux"
-                    platformString += `${column.platforms[0]}, ${column.platforms[1]}, and ${column.platforms[2]}`;
-                  } else if(column.platforms.length === 2) {
-                    // If there are two values in the platforms array, it will be formated as "[Platform 1] and [Platform 2]"
-                    platformString += `${column.platforms[0]} and ${column.platforms[1]}`;
-                  } else {
-                    // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
-                    platformString += column.platforms[0];
-                  }
-                  platformString += '** ';
-                  columnDescriptionForTable += platformString; // Add the platform string to the column's description.
-                }
-                tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';
+            for(let column of _.sortBy(table.columns, 'name')) {
+              // Create an object for this column to add to the osqueryTables config.
+              let columnInfoForQueryReports = {
+                name: column.name
+              };
+              let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
+              if(column.description) {
+                columnDescriptionForTable = column.description;
+                // Convert the markdown description for this table into HTML for tooltips on /try-fleet/explore-data/* pages
+                columnInfoForQueryReports.description = await sails.helpers.strings.toHtml.with({mdString: column.description, addIdsToHeadings: false});
               }
+              tableInfoForQueryReports.columns.push(columnInfoForQueryReports);
+              // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
+              columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
+
+              keywordsForSyntaxHighlighting.push(column.name);
+              if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
+                columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
+              }
+              if(column.hidden) { // If a column has `"hidden": true`, we'll add a note to the description that will be added to the table
+                columnDescriptionForTable += '<br> **Not returned in `SELECT * FROM '+table.name+'`.**';
+              }
+              if(column.platforms) { // If a column has an array of platforms, we'll add a note to the final column description
+
+                let platformString = '<br> **Only available on ';// start building a string to add to the column's description
+
+                if(column.platforms.length > 3) {// FUTURE: add support for more than three platform values in columns.
+                  throw new Error('Support for more than three platforms in columns has not been implemented yet. If this column is supported on all platforms, you can omit the platforms array entirely.');
+                }
+
+                if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
+                  // If there are three, we'll add a string with an oxford comma. e.g., "On macOS, Windows, and Linux"
+                  platformString += `${column.platforms[0]}, ${column.platforms[1]}, and ${column.platforms[2]}`;
+                } else if(column.platforms.length === 2) {
+                  // If there are two values in the platforms array, it will be formated as "[Platform 1] and [Platform 2]"
+                  platformString += `${column.platforms[0]} and ${column.platforms[1]}`;
+                } else {
+                  // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
+                  platformString += column.platforms[0];
+                }
+                platformString += '** ';
+                columnDescriptionForTable += platformString; // Add the platform string to the column's description.
+              }
+              tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';
             }
             if(table.examples) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
               tableMdString += '\n### Example\n\n'+table.examples+'\n';

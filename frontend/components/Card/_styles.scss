@@ -22,7 +22,29 @@
     box-shadow: $box-shadow;
   }
 
+  &__padding-small {
+    padding: $pad-small;
+  }
+
+  &__padding-medium {
+    padding: $pad-medium;
+  }
+
+  &__padding-large {
+    padding: $pad-large;
+  }
+
+  &__padding-xlarge {
+    padding: $pad-xlarge;
+  }
+
+  &__padding-xxlarge {
+    padding: $pad-xxlarge;
+  }
+
   // 40px padding
+  // TODO: remove when we've replaced all instances of largePadding with
+  // paddingSize prop
   &__large-padding {
     padding: $pad-xxlarge;
   }

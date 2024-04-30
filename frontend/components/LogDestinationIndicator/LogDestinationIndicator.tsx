@@ -60,7 +60,7 @@ const LogDestinationIndicator = ({
         return (
           <>
             Each time a query runs, the data is sent to <br />
-            Amazon Kinesis Data Firehose.`
+            Amazon Kinesis Data Firehose.
           </>
         );
       case "kinesis":
@@ -81,7 +81,7 @@ const LogDestinationIndicator = ({
         return (
           <>
             Each time a query runs, the data is <br /> sent to Google Cloud Pub
-            / Sub.`
+            / Sub.
           </>
         );
       case "kafta":

@@ -117,6 +117,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       <HeaderCell value="Hosts" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "display_name",
+    id: "display_name",
     Cell: (cellProps: IHostTableStringCellProps) => {
       if (
         // if the host is pending, we want to disable the link to host details
@@ -175,6 +176,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "hostname",
+    id: "hostname",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -188,6 +190,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "computer_name",
+    id: "computer_name",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -198,6 +201,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       <HeaderCell value="Team" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "team_name",
+    id: "team_name",
     Cell: (cellProps) => (
       <TextCell value={cellProps.cell.value} formatter={hostTeamName} />
     ),
@@ -228,6 +232,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
     disableSortBy: true,
     accessor: "status",
+    id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
       const value = cellProps.cell.value;
       const tooltip = {
@@ -241,6 +246,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Header: "Issues",
     disableSortBy: true,
     accessor: "issues",
+    id: "issues",
     Cell: (cellProps: IIssuesCellProps) => (
       <IssueCell
         issues={cellProps.row.original.issues}
@@ -257,6 +263,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "gigs_disk_space_available",
+    id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
       const {
         id,
@@ -286,6 +293,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "os_version",
+    id: "os_version",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -299,6 +307,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "osquery_version",
+    id: "osquery_version",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -308,6 +317,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Header: "Used by",
     disableSortBy: true,
     accessor: "device_mapping",
+    id: "device_mapping",
     Cell: (cellProps: IDeviceUserCellProps) => {
       const numUsers = cellProps.cell.value?.length || 0;
       const users = condenseDeviceUsers(cellProps.cell.value || []);
@@ -350,6 +360,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "primary_ip",
+    id: "primary_ip",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -374,7 +385,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
     disableSortBy: true,
     accessor: (originalRow) => originalRow.mdm.enrollment_status,
-    id: "mdm_enrollment_status",
+    id: "mdm.enrollment_status",
     Cell: HostMdmStatusCell,
   },
   {
@@ -397,7 +408,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
     disableSortBy: true,
     accessor: (originalRow) => originalRow.mdm.server_url,
-    id: "mdm_server_url",
+    id: "mdm.server_url",
     Cell: (cellProps: IHostTableStringCellProps) => {
       if (cellProps.row.original.platform === "chrome") {
         return NotSupported;
@@ -421,6 +432,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "public_ip",
+    id: "public_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
       return (
         <TextCell value={cellProps.cell.value ?? DEFAULT_EMPTY_CELL_VALUE} />
@@ -450,6 +462,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       );
     },
     accessor: "detail_updated_at",
+    id: "detail_updated_at",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell
         value={{ timeString: cellProps.cell.value }}
@@ -480,6 +493,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       );
     },
     accessor: "seen_time",
+    id: "seen_time",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell
         value={{ timeString: cellProps.cell.value }}
@@ -493,6 +507,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       <HeaderCell value="UUID" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "uuid",
+    id: "uuid",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
@@ -506,6 +521,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "last_restarted_at",
+    id: "last_restarted_at",
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
@@ -527,6 +543,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Header: "CPU",
     disableSortBy: true,
     accessor: "cpu_type",
+    id: "cpu_type",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -537,6 +554,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       <HeaderCell value="RAM" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "memory",
+    id: "memory",
     Cell: (cellProps: IHostTableNumberCellProps) => (
       <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
     ),
@@ -550,6 +568,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "primary_mac",
+    id: "primary_mac",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -563,6 +582,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "hardware_serial",
+    id: "hardware_serial",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -576,6 +596,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
     accessor: "hardware_model",
+    id: "hardware_model",
     Cell: (cellProps: IHostTableStringCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
@@ -590,8 +611,8 @@ const defaultHiddenColumns = [
   "public_ip",
   "cpu_type",
   // TODO: should those be mdm.<blah>?
-  "mdm_server_url",
-  "mdm_enrollment_status",
+  "mdm.server_url",
+  "mdm.enrollment_status",
   "memory",
   "uptime",
   "uuid",
@@ -616,7 +637,7 @@ const generateAvailableTableHeaders = ({
       // skip over column headers that are not shown in free observer tier
       if (isFreeTier && isOnlyObserver) {
         if (
-          currentColumn.accessor === "team_name" ||
+          currentColumn.id === "team_name" ||
           currentColumn.id === "selection"
         ) {
           return columns;
@@ -624,9 +645,9 @@ const generateAvailableTableHeaders = ({
         // skip over column headers that are not shown in free admin/maintainer
       } else if (isFreeTier) {
         if (
-          currentColumn.accessor === "team_name" ||
-          currentColumn.id === "mdm_server_url" ||
-          currentColumn.id === "mdm_enrollment_status"
+          currentColumn.id === "team_name" ||
+          currentColumn.id === "mdm.server_url" ||
+          currentColumn.id === "mdm.enrollment_status"
         ) {
           return columns;
         }
@@ -646,7 +667,6 @@ const generateAvailableTableHeaders = ({
 
 /**
  * Will generate a host table column configuration that a user currently sees.
- *
  */
 const generateVisibleTableColumns = ({
   hiddenColumns,
@@ -660,7 +680,7 @@ const generateVisibleTableColumns = ({
   // remove columns set as hidden by the user.
   return generateAvailableTableHeaders({ isFreeTier, isOnlyObserver }).filter(
     (column) => {
-      return !hiddenColumns.includes(column.accessor as string);
+      return !hiddenColumns.includes(column.id as string);
     }
   );
 };

@@ -27,6 +27,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
 
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
     - name: Test fleetctl preview
       run: |
         npm install -g fleetctl

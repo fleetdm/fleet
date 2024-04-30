@@ -186,7 +186,7 @@
       flex-direction: column;
       border-radius: $border-radius;
       border: 1px solid $ui-fleet-black-10;
-      overflow-y: scroll;
+      overflow-y: auto;
 
       .loading-spinner {
         margin: 69.5px auto;

@@ -44,6 +44,11 @@ jobs:
       address: ${{ steps.gen.outputs.address }}
       enroll_secret: ${{ steps.gen.outputs.enroll_secret }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - id: gen
         run: |
           UUID=$(uuidgen)
@@ -62,6 +67,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: gen
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
@@ -171,6 +181,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: gen
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
@@ -214,6 +229,11 @@ jobs:
     # or if we revise our minimum supported macOS version.
     runs-on: macos-12
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
@@ -255,6 +275,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [gen, build-macos-targets]
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
@@ -317,6 +342,11 @@ jobs:
     runs-on: macos-latest
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -366,6 +396,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Download deb
         id: download
         uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
@@ -412,6 +447,11 @@ jobs:
     needs: [gen, run-tuf-and-gen-pkgs]
     runs-on: windows-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Download msi
         id: download
         uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2

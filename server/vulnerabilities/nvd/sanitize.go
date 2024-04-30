@@ -81,11 +81,13 @@ var langCodes = map[string]bool{
 // - Removing any extra spaces
 // - Lowercasing the name
 // - Removing parts from the bundle identifier
+// - Removing version contained in homebrew_packages name
 func sanitizeSoftwareName(s *fleet.Software) string {
 	archs := regexp.MustCompile(` \(?x64\)?|\(?64-bit\)?|\(?64bit\)?|\(?amd64\)? `)
 	ver := regexp.MustCompile(` \.?\(?(\d+\.)?(\d+\.)?(\*|\d+)\)?\s?`)
 	gen := regexp.MustCompile(` \(\w+\)\s?`)
 	comments := regexp.MustCompile(` (-|:)\s?.+`)
+	versions := regexp.MustCompile(`@\d+($|(\.\d+($|\..+)))`) // @3 or @3.9 or @3.9.18 or @3.9.18_2
 
 	r := strings.ToLower(s.Name)
 	r = strings.TrimSuffix(r, ".app")
@@ -118,6 +120,11 @@ func sanitizeSoftwareName(s *fleet.Software) string {
 	r = strings.Replace(r, "(", " ", -1)
 	r = strings.Replace(r, ")", " ", -1)
 	r = strings.Join(strings.Fields(r), " ")
+
+	// Remove @<version> from homebrew names
+	if s.Source == "homebrew_packages" {
+		r = versions.ReplaceAllString(r, "")
+	}
 
 	return r
 }

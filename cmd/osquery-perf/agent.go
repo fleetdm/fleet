@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -135,25 +136,33 @@ func init() {
 }
 
 type Stats struct {
-	startTime              time.Time
-	errors                 int
-	osqueryEnrollments     int
-	orbitEnrollments       int
-	mdmEnrollments         int
-	mdmSessions            int
-	distributedWrites      int
-	mdmCommandsReceived    int
-	distributedReads       int
-	configRequests         int
-	configErrors           int
-	resultLogRequests      int
-	orbitErrors            int
-	mdmErrors              int
-	desktopErrors          int
-	distributedReadErrors  int
-	distributedWriteErrors int
-	resultLogErrors        int
-	bufferedLogs           int
+	startTime                  time.Time
+	errors                     int
+	osqueryEnrollments         int
+	orbitEnrollments           int
+	mdmEnrollments             int
+	mdmSessions                int
+	distributedWrites          int
+	mdmCommandsReceived        int
+	distributedReads           int
+	configRequests             int
+	configErrors               int
+	resultLogRequests          int
+	orbitErrors                int
+	mdmErrors                  int
+	ddmDeclarationItemsErrors  int
+	ddmConfigurationErrors     int
+	ddmActivationErrors        int
+	ddmStatusErrors            int
+	ddmDeclarationItemsSuccess int
+	ddmConfigurationSuccess    int
+	ddmActivationSuccess       int
+	ddmStatusSuccess           int
+	desktopErrors              int
+	distributedReadErrors      int
+	distributedWriteErrors     int
+	resultLogErrors            int
+	bufferedLogs               int
 
 	l sync.Mutex
 }
@@ -236,6 +245,54 @@ func (s *Stats) IncrementMDMErrors() {
 	s.mdmErrors++
 }
 
+func (s *Stats) IncrementDDMDeclarationItemsErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmDeclarationItemsErrors++
+}
+
+func (s *Stats) IncrementDDMConfigurationErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmConfigurationErrors++
+}
+
+func (s *Stats) IncrementDDMActivationErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmActivationErrors++
+}
+
+func (s *Stats) IncrementDDMStatusErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmStatusErrors++
+}
+
+func (s *Stats) IncrementDDMDeclarationItemsSuccess() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmDeclarationItemsSuccess++
+}
+
+func (s *Stats) IncrementDDMConfigurationSuccess() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmConfigurationSuccess++
+}
+
+func (s *Stats) IncrementDDMActivationSuccess() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmActivationSuccess++
+}
+
+func (s *Stats) IncrementDDMStatusSuccess() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.ddmStatusSuccess++
+}
+
 func (s *Stats) IncrementDesktopErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -274,7 +331,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logs: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d",
 		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
@@ -293,6 +350,14 @@ func (s *Stats) Log() {
 		s.orbitErrors,
 		s.desktopErrors,
 		s.mdmErrors,
+		s.ddmDeclarationItemsSuccess,
+		s.ddmDeclarationItemsErrors,
+		s.ddmActivationSuccess,
+		s.ddmActivationErrors,
+		s.ddmConfigurationSuccess,
+		s.ddmConfigurationErrors,
+		s.ddmStatusSuccess,
+		s.ddmStatusErrors,
 		s.bufferedLogs,
 	)
 }
@@ -401,7 +466,7 @@ type agent struct {
 	// single goroutine at a time can execute scripts.
 	scriptExecRunning atomic.Bool
 
-	softwareVSCodeExtensionsProb     float64
+	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 
 	//
@@ -544,7 +609,7 @@ func newAgent(
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
 
-		softwareVSCodeExtensionsProb:     softwareQueryFailureProb,
+		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
 
 		macMDMClient: macMDMClient,
@@ -943,8 +1008,113 @@ func (a *agent) runMacosMDMLoop() {
 				a.stats.IncrementMDMErrors()
 				break INNER_FOR_LOOP
 			}
+			if mdmCommandPayload != nil && mdmCommandPayload.Command.RequestType == "DeclarativeManagement" {
+				a.doDeclarativeManagement(mdmCommandPayload)
+			}
 		}
 	}
+}
+
+func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
+	// defer log.Printf("Exiting DeclarativeManagement for command %s", cmd.CommandUUID)
+
+	// get declaration-items endpoint
+	r, err := a.macMDMClient.DeclarativeManagement("declaration-items")
+	if err != nil {
+		log.Printf("DDM %s declaration-items request failed: %s", cmd.CommandUUID, err)
+		a.stats.IncrementDDMDeclarationItemsErrors()
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("DDM %s declaration-items read body failed: %s", cmd.CommandUUID, err)
+		a.stats.IncrementDDMDeclarationItemsErrors()
+		return
+	}
+	var items fleet.MDMAppleDDMDeclarationItemsResponse
+	err = json.Unmarshal(body, &items)
+	if err != nil {
+		log.Printf("DDM %s declaration-items unmarshal failed: %s", cmd.CommandUUID, err)
+		a.stats.IncrementDDMDeclarationItemsErrors()
+		return
+	}
+	a.stats.IncrementDDMDeclarationItemsSuccess()
+
+	// get declaration/configuration/:identifer endpoint
+	for _, d := range items.Declarations.Configurations {
+		path := fmt.Sprintf("declaration/%s/%s", "configuration", d.Identifier)
+		r, err := a.macMDMClient.DeclarativeManagement(path)
+		if err != nil {
+			log.Printf("DDM %s request failed: %s", path, err)
+			a.stats.IncrementDDMConfigurationErrors()
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("DDM %s read body failed: %s", path, err)
+			a.stats.IncrementDDMConfigurationErrors()
+			return
+		}
+		var decl fleet.MDMAppleDeclaration
+		err = json.Unmarshal(body, &decl)
+		if err != nil {
+			log.Printf("DDM %s unmarshal failed: %s", path, err)
+			a.stats.IncrementDDMConfigurationErrors()
+			return
+		}
+	}
+	a.stats.IncrementDDMConfigurationSuccess()
+
+	// get declaration/activation/:identifer endpoint
+	for _, d := range items.Declarations.Activations {
+		path := fmt.Sprintf("declaration/%s/%s", "activation", d.Identifier)
+		r, err := a.macMDMClient.DeclarativeManagement(path)
+		if err != nil {
+			log.Printf("DDM %s request failed: %s", path, err)
+			a.stats.IncrementDDMActivationErrors()
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("DDM %s read body failed: %s", path, err)
+			a.stats.IncrementDDMActivationErrors()
+			return
+		}
+		var act fleet.MDMAppleDDMActivation
+		err = json.Unmarshal(body, &act)
+		if err != nil {
+			log.Printf("DDM %s unmarshal failed: %s", path, err)
+			a.stats.IncrementDDMActivationErrors()
+			return
+		}
+	}
+	a.stats.IncrementDDMActivationSuccess()
+
+	// sent status report
+	for _, d := range items.Declarations.Configurations {
+		report := fleet.MDMAppleDDMStatusReport{}
+		report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+			{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: d.Identifier, ServerToken: d.ServerToken},
+		}
+		r, err := a.macMDMClient.DeclarativeManagement("status", report)
+		if err != nil {
+			log.Printf("DDM %s status request failed: %s", d.Identifier, err)
+			a.stats.IncrementDDMStatusErrors()
+			return
+		}
+
+		// Apple's documentation has some conflicting information about the expected status here so we'll
+		// just check for both.
+		//
+		// https://developer.apple.com/documentation/devicemanagement/get_the_device_status#response-codes
+		// https://developer.apple.com/documentation/devicemanagement/statusreport#discussion
+		if r.StatusCode != http.StatusOK && r.StatusCode != http.StatusNoContent {
+			log.Printf("DDM %s status response unexpected: %d", d.Identifier, r.StatusCode)
+			a.stats.IncrementDDMStatusErrors()
+			return
+		}
+	}
+	a.stats.IncrementDDMStatusSuccess()
 }
 
 func (a *agent) runWindowsMDMLoop() {
@@ -1093,6 +1263,7 @@ func (a *agent) orbitEnroll() error {
 	return nil
 }
 
+// This is an osquery enroll as opposed to an orbit enroll
 func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	a.nodeKey = a.nodeKeyManager.Get(i)
 	if a.nodeKey != "" {
@@ -1104,13 +1275,11 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 		return errors.New("not enrolled")
 	}
 
-	var body bytes.Buffer
-	if err := a.templates.ExecuteTemplate(&body, "enroll", a); err != nil {
-		log.Println("execute template:", err)
-		return err
-	}
-
 	response := a.waitingDo(func() *http.Request {
+		var body bytes.Buffer
+		if err := a.templates.ExecuteTemplate(&body, "enroll", a); err != nil {
+			panic(err)
+		}
 		request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/enroll", &body)
 		if err != nil {
 			panic(err)
@@ -1181,6 +1350,9 @@ func (a *agent) config() error {
 			q := scheduledQuery{}
 			q.packName = packName
 			q.Name = queryName
+
+			// This allows us to set the number of rows returned by the query
+			// by appending a number to the query name, e.g. "queryName_10"
 			q.numRows = 1
 			parts := strings.Split(q.Name, "_")
 			if len(parts) == 2 {
@@ -1190,6 +1362,7 @@ func (a *agent) config() error {
 				}
 				q.numRows = uint(num)
 			}
+
 			q.ScheduleInterval = m["interval"].(float64)
 			q.Query = m["query"].(string)
 
@@ -1421,6 +1594,21 @@ func (a *agent) genLastOpenedAt(count *int) *time.Time {
 }
 
 func (a *agent) runPolicy(query string) []map[string]string {
+	// Used to control the pass or fail of a policy
+	// in the UI by setting the query to "select 1"(pass)
+	// or "select 0"(fail)
+	query = strings.TrimRight(query, ";")
+	query = strings.ToLower(query)
+
+	switch query {
+	case "select 1":
+		return []map[string]string{
+			{"1": "1"},
+		}
+	case "select 0":
+		return []map[string]string{}
+	}
+
 	if rand.Float64() <= a.policyPassProb {
 		return []map[string]string{
 			{"1": "1"},
@@ -1494,12 +1682,12 @@ func (a *agent) mdmWindows() []map[string]string {
 	if !a.mdmEnrolled() {
 		return []map[string]string{
 			// empty service url means not enrolled
-			{"is_federated": "0", "discovery_service_url": "", "provider_id": "", "installation_type": "Client"},
+			{"aad_resource_id": "", "discovery_service_url": "", "provider_id": "", "installation_type": "Client"},
 		}
 	}
 	return []map[string]string{
 		{
-			"is_federated":          "0",
+			"aad_resource_id":       "",
 			"discovery_service_url": a.serverAddress,
 			"provider_id":           fleet.WellKnownMDMFleet,
 			"installation_type":     "Client",
@@ -1624,6 +1812,32 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
+func (a *agent) orbitInfo() []map[string]string {
+	version := "1.22.0"
+	desktopVersion := version
+	if a.disableFleetDesktop {
+		desktopVersion = ""
+	}
+	deviceAuthToken := ""
+	if a.deviceAuthToken != nil {
+		deviceAuthToken = *a.deviceAuthToken
+	}
+	return []map[string]string{
+		{
+			"version":             version,
+			"device_auth_token":   deviceAuthToken,
+			"enrolled":            "true",
+			"last_recorded_error": "",
+			"orbit_channel":       "stable",
+			"osqueryd_channel":    "stable",
+			"desktop_channel":     "stable",
+			"desktop_version":     desktopVersion,
+			"uptime":              "10000",
+			"scripts_enabled":     "1",
+		},
+	}
+}
+
 func (a *agent) runLiveQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	if a.liveQueryFailProb > 0.0 && rand.Float64() <= a.liveQueryFailProb {
 		ss := fleet.OsqueryStatus(1)
@@ -1717,7 +1931,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_macos":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -1726,7 +1940,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -1735,7 +1949,7 @@ func (a *agent) processQuery(name, query string) (
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
 		ss := fleet.StatusOK
-		if a.softwareVSCodeExtensionsProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsProb {
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
@@ -1780,6 +1994,11 @@ func (a *agent) processQuery(name, query string) (
 		// the caller knows it is handled, will not try to return lorem-ipsum-style
 		// results.
 		return true, nil, &statusNotOK, nil, nil
+	case name == hostDetailQueryPrefix+"orbit_info":
+		if a.orbitNodeKey == nil {
+			return true, nil, &statusNotOK, nil, nil
+		}
+		return true, a.orbitInfo(), &statusOK, nil, nil
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
@@ -1994,13 +2213,16 @@ func main() {
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
-		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
+		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
+		// 50% failure probability is not realistic but this is our current baseline for the osquery-perf setup.
+		// We tried setting this to a more realistic value like 5% but it overloaded the MySQL Writer instance
+		// during hosts enroll.
 		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
-		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.5, "Probability of the software vscode_extensions query failing")
+		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 
 		commonSoftwareCount                          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 		commonVSCodeExtensionsSoftwareCount          = flag.Int("common_vscode_extensions_software_count", 5, "Number of common vscode_extensions installed applications reported to fleet")

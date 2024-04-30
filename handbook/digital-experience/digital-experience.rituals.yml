@@ -3,10 +3,10 @@
 
 - 
   task: "Check browser compatibility for fleetdm.com"
-  startedOn: "2024-03-01" 
+  startedOn: "2024-03-06" 
   frequency: "Monthly"
-  description: "Run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com."
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm-com"
+  description: "Use Browserstack to manually QA pages on fleetdm.com in each of the earliest supported browser versions"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com"
   dri: "eashaw"
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-digital-experience" ] # label to be applied to issue
@@ -49,16 +49,6 @@
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#prepare-for-ceo-office-minutes"
   dri: "sampfluger88"
 - 
-  task: "Revenue report" # TODO tie this to a responsibility
-  startedOn: "2024-02-12" 
-  frequency: "Weekly"
-  description: "At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil." 
-  moreInfoUrl: 
-  dri: "hughestaylor" 
-  autoIssue:   
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
-- 
   task: "Refresh event calendar"
   startedOn: "2023-12-31"
   frequency: "Quarterly"
@@ -95,13 +85,6 @@
   frequency: "Daily ⏰"
   description: "Process the CEO's calendar"  
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-calendar"
-  dri: "sampfluger88"
--
-  task: "Fleet IT warehouse management"
-  startedOn: "2023-07-29"
-  frequency: "Weekly"
-  description: "Fleet IT warehouse management"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#fleet-it-warehouse-management"
   dri: "sampfluger88"
 -
   task: "Send weekly update"
