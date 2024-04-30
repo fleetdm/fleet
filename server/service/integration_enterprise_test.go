@@ -844,6 +844,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, gpol.Name, ts.InheritedPolicies[0].Name)
 	assert.Equal(t, gpol.ID, ts.InheritedPolicies[0].ID)
 
+	// Test merge inherited
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	require.Len(t, ts.Policies, 2)
+	require.Nil(t, ts.InheritedPolicies)
+	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
+	assert.Equal(t, "select * from osquery;", ts.Policies[0].Query)
+	assert.Equal(t, "Some description", ts.Policies[0].Description)
+	require.NotNil(t, ts.Policies[0].Resolution)
+	assert.Equal(t, "some team resolution", *ts.Policies[0].Resolution)
+	assert.Equal(t, gpol.Name, ts.Policies[1].Name)
+	assert.Equal(t, gpol.ID, ts.Policies[1].ID)
+
+	// Test delete
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
 	deletePolicyResp := deleteTeamPoliciesResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team1.ID), deletePolicyParams, http.StatusOK, &deletePolicyResp)
