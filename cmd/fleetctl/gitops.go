@@ -7,70 +7,85 @@ import (
 	"github.com/urfave/cli/v2"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func gitopsCommand() *cli.Command {
 	var (
-		flFilename string
-		flDryRun   bool
+		flFilenames        cli.StringSlice
+		flDryRun           bool
+		flDeleteOtherTeams bool
 	)
 	return &cli.Command{
 		Name:      "gitops",
 		Usage:     "Synchronize Fleet configuration with provided file. This command is intended to be used in a GitOps workflow.",
 		UsageText: `fleetctl gitops [options]`,
 		Flags: []cli.Flag{
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:        "f",
+				Required:    true,
 				EnvVars:     []string{"FILENAME"},
-				Value:       "",
-				Destination: &flFilename,
-				Usage:       "The file with the GitOps configuration",
+				Destination: &flFilenames,
+				Usage:       "The `FILE` with the GitOps configuration",
+			},
+			&cli.BoolFlag{
+				Name:        "delete-other-teams",
+				EnvVars:     []string{"DELETE_OTHER_TEAMS"},
+				Destination: &flDeleteOtherTeams,
+				Usage:       "Delete other teams not present in the GitOps configuration",
 			},
 			&cli.BoolFlag{
 				Name:        "dry-run",
 				EnvVars:     []string{"DRY_RUN"},
 				Destination: &flDryRun,
-				Usage:       "Do not apply the file, just validate it",
+				Usage:       "Do not apply the file(s), just validate",
 			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			if flFilename == "" {
+			if len(flFilenames.Value()) == 0 {
 				return errors.New("-f must be specified")
 			}
-			b, err := os.ReadFile(flFilename)
-			if err != nil {
-				return err
+			for _, flFilename := range flFilenames.Value() {
+				if strings.TrimSpace(flFilename) == "" {
+					return errors.New("filename cannot be empty")
+				}
 			}
-			fleetClient, err := clientFromCLI(c)
-			if err != nil {
-				return err
-			}
-			baseDir := filepath.Dir(flFilename)
-			config, err := spec.GitOpsFromBytes(b, baseDir)
-			if err != nil {
-				return err
-			}
-			logf := func(format string, a ...interface{}) {
-				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
-			}
-			appConfig, err := fleetClient.GetAppConfig()
-			if err != nil {
-				return err
-			}
-			if appConfig.License == nil {
-				return errors.New("no license struct found in app config")
-			}
-			err = fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, appConfig)
-			if err != nil {
-				return err
-			}
-			if flDryRun {
-				_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops dry run succeeded\n")
-			} else {
-				_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops succeeded\n")
+			for _, flFilename := range flFilenames.Value() {
+				b, err := os.ReadFile(flFilename)
+				if err != nil {
+					return err
+				}
+				fleetClient, err := clientFromCLI(c)
+				if err != nil {
+					return err
+				}
+				baseDir := filepath.Dir(flFilename)
+				config, err := spec.GitOpsFromBytes(b, baseDir)
+				if err != nil {
+					return err
+				}
+				logf := func(format string, a ...interface{}) {
+					_, _ = fmt.Fprintf(c.App.Writer, format, a...)
+				}
+				appConfig, err := fleetClient.GetAppConfig()
+				if err != nil {
+					return err
+				}
+				if appConfig.License == nil {
+					return errors.New("no license struct found in app config")
+				}
+				err = fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, appConfig)
+				if err != nil {
+					return err
+				}
+				if flDryRun {
+					_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops dry run succeeded\n")
+				} else {
+					_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops succeeded\n")
+				}
 			}
 			return nil
 		},
