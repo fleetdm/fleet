@@ -215,7 +215,7 @@ When BizOps receives notification of a Fleetie's manager changing, follow these 
 - If the person's level of confidential access will change along with the change to their manager, then update that level of access:
   - Update Google Workspace to make sure this person lives in the correct Google Group, removing them from the old and/or adding them to the new.
   - Update 1password to remove this person from old vaults and/or add them to new vaults.
-  - For a team member moving from "classified" to "confidential" access, check Gusto, Pave, and other systems to remove their access.
+  - For a team member moving from "classified" to "confidential" access, check Gusto, Plane, and other systems to remove their access.
 
 > **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
  
