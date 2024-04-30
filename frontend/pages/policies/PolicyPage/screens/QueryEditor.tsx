@@ -105,7 +105,7 @@ const QueryEditor = ({
         setLastEditedQueryResolution(aiAutofillData.resolution);
       }
     } else {
-      // Show thinking state and fetch data
+      // Show thinking state and fetch data from API
       setIsFetchingAiAutofill(fetching);
 
       try {
@@ -130,8 +130,6 @@ const QueryEditor = ({
       setIsFetchingAiAutofill({ description: false, resolution: false });
     }
   };
-
-  console.log("aiAutofill", aiAutofillData);
 
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
     if (policyTeamId) {

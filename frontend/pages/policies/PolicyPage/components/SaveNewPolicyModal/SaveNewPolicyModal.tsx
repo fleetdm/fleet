@@ -134,7 +134,7 @@ const SaveNewPolicyModal = ({
 
   const renderAutofillButton = useCallback(
     (labelName: "Description" | "Resolution") => {
-      const isFetchingText =
+      const isFetchingButton =
         (labelName === "Description" && isFetchingAIAutofill.description) ||
         (labelName === "Resolution" && isFetchingAIAutofill.resolution);
 
@@ -156,7 +156,7 @@ const SaveNewPolicyModal = ({
                   : onAutofillResolution
               }
             >
-              {isFetchingText ? (
+              {isFetchingButton ? (
                 "Thinking..."
               ) : (
                 <>

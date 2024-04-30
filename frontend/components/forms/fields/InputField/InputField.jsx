@@ -120,7 +120,6 @@ class InputField extends Component {
       [`${baseClass}__textarea`]: type === "textarea",
     });
 
-    // TODO: Clean up classes and styling
     const inputWrapperClasses = classnames(inputWrapperClass, {
       [`input-field--disabled`]: disabled,
     });

@@ -169,7 +169,6 @@ const PolicyForm = ({
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const aiFeaturesDisabled =
     config?.server_settings.ai_features_disabled || false;
-  console.log("aiFeaturesDisabled", aiFeaturesDisabled);
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
@@ -214,9 +213,9 @@ const PolicyForm = ({
     });
   };
 
-  const onChangePolicy = (sqlString: string) => {
+  const onChangePolicySql = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
-    resetAiAutofillData();
+    resetAiAutofillData(); // Allows retry of AI autofill API if the SQL has changed
   };
 
   const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -585,7 +584,7 @@ const PolicyForm = ({
             name="query editor"
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
-            onChange={onChangePolicy}
+            onChange={onChangePolicySql}
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
