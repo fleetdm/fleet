@@ -116,7 +116,6 @@ parasails.registerPage('start', {
           this.currentStep = 'will-you-be-self-hosting';
           break;
         case 'managed-cloud-for-growing-deployments':
-          console.log(this.formData['have-you-ever-used-fleet'].fleetUseStatus);
           if(this.formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-recently-deployed' || this.formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed') {
             this.currentStep = 'will-you-be-self-hosting';
           } else {
