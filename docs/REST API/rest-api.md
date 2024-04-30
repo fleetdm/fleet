@@ -3712,7 +3712,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 134,
       "name": "Falcon.app",
-      "software_package": "FalconSensor-6.44.pkg",
+      "package_available_for_install": "FalconSensor-6.44.pkg",
       "source": "",
       "bundle_identifier": "",
       "status": null,
@@ -3723,7 +3723,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 147,
       "name": "Firefox.app",
-      "software_package": null,
+      "package_available_for_install": null,
       "source": "apps",
       "bundle_identifier": "org.mozilla.firefox",
       "status": null,
