@@ -139,7 +139,7 @@ the account verification message.)`,
     .fetch();
 
 
-    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+    let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       emailAddress: newEmailAddress,
       firstName: firstName,
       lastName: lastName,
@@ -155,6 +155,8 @@ the account verification message.)`,
         lastName,
         organization,
         signupReason,
+        salesforceContactId: recordIds.salesforceContactId,
+        salesforceAccountId: recordIds.salesforceAccountId,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
       }
     })

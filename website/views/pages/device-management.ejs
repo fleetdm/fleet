@@ -40,13 +40,7 @@
         </div>
       </div>
       <logo-carousel></logo-carousel>
-      </div>
-    </div>
-      <% if(primaryBuyingSituation){%>
       <%-  partial('../partials/calendar-banner.partial.ejs') %>
-      <% } %>
-      <div purpose="page-container">
-      <div purpose="page-content" class="mx-auto">
       <%/* Your last MDM migration section */%>
       <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center mb-0">
@@ -220,5 +214,8 @@
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

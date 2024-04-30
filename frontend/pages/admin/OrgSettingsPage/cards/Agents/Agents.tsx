@@ -15,6 +15,8 @@ import SectionHeader from "components/SectionHeader";
 
 import { IAppConfigFormProps } from "../constants";
 
+const baseClass = "app-config-form";
+
 interface IAgentOptionsFormData {
   agentOptions?: string;
 }
@@ -22,8 +24,6 @@ interface IAgentOptionsFormData {
 interface IAgentOptionsFormErrors {
   agent_options?: string | null;
 }
-
-const baseClass = "app-config-form";
 
 const Agents = ({
   appConfig,
