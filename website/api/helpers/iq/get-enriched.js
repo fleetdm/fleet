@@ -108,7 +108,7 @@ module.exports = {
           Authorization: `Bearer ${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
-          sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+          sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
           return [];
         });
         linkedinPersonIdOrUrlSlug = matchingLinkedinPersonIds[0];
@@ -124,7 +124,7 @@ module.exports = {
         Authorization: `Bearer ${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).tolerate((err)=>{
-        sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+        sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
         return undefined;
       });
 
@@ -157,16 +157,16 @@ module.exports = {
         };
 
         if (linkedinUrl && person.linkedinUrl && person.linkedinUrl !== linkedinUrl) {
-          sails.log.warn(`Unexpected result when enriching: Matched linkedin URL for person (${person.linkedinUrl}) does not equal the provided linkedin URL (${linkedinUrl})`);
+          sails.log.info(`Unexpected result when enriching: Matched linkedin URL for person (${person.linkedinUrl}) does not equal the provided linkedin URL (${linkedinUrl})`);
         }//ﬁ
         if (firstName && person.firstName && person.firstName !== firstName) {
-          sails.log.warn(`Unexpected result when enriching: Matched current firstName for person (${person.firstName}) does not equal the provided "firstName" (${firstName})`);
+          sails.log.info(`Unexpected result when enriching: Matched current firstName for person (${person.firstName}) does not equal the provided "firstName" (${firstName})`);
         }//ﬁ
         if (lastName && person.lastName && person.lastName !== lastName) {
-          sails.log.warn(`Unexpected result when enriching: Matched current lastName for person (${person.lastName}) does not equal the provided "lastName" (${lastName})`);
+          sails.log.info(`Unexpected result when enriching: Matched current lastName for person (${person.lastName}) does not equal the provided "lastName" (${lastName})`);
         }//ﬁ
         if (organization && person.organization && person.organization !== organization) {
-          sails.log.warn(`Unexpected result when enriching: Matched current TOP organization for person (${person.organization}) does not equal the provided "organization" (${organization})`);
+          sails.log.info(`Unexpected result when enriching: Matched current TOP organization for person (${person.organization}) does not equal the provided "organization" (${organization})`);
         }//ﬁ
       }//ﬁ
     }//ﬁ
@@ -193,7 +193,7 @@ module.exports = {
           Authorization: `Bearer ${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
-          sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+          sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
           return [];
         });
 
@@ -206,7 +206,7 @@ module.exports = {
             Authorization: `Bearer ${sails.config.custom.iqSecret}`,
             'content-type': 'application/json'
           }).tolerate((err)=>{
-            sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+            sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
             return [];
           });
         }//ﬁ
@@ -222,7 +222,7 @@ module.exports = {
         Authorization: `Bearer ${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).tolerate((err)=>{
-        sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+        sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
         return undefined;
       });
       if (matchingCompanyPageInfo) {
@@ -235,10 +235,10 @@ module.exports = {
           linkedinCompanyPageUrl: matchingCompanyPageInfo.canonical_url.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
         };
         if (organization && employer.organization && employer.organization !== organization) {
-          sails.log.warn(`Unexpected result when enriching: Matched organization name (${employer.organization}) does not equal the provided "organization" (${organization})`);
+          sails.log.info(`Unexpected result when enriching: Matched organization name (${employer.organization}) does not equal the provided "organization" (${organization})`);
         }//ﬁ
         if (emailDomain && employer.emailDomain && employer.emailDomain !== emailDomain) {
-          sails.log.warn(`Unexpected result when enriching: Email domain inferred from matched organization website (${employer.emailDomain}) does not equal the parsed email domain (${emailDomain}) that was derived from the provided "emailAddress" (${emailAddress})`);
+          sails.log.info(`Unexpected result when enriching: Email domain inferred from matched organization website (${employer.emailDomain}) does not equal the parsed email domain (${emailDomain}) that was derived from the provided "emailAddress" (${emailAddress})`);
         }//ﬁ
       }//ﬁ
     }//ﬁ
