@@ -1,10 +1,26 @@
 build:
   scripts:
+    # Install Node.js and Yarn
+    - curl -sL https://deb.nodesource.com/setup_14.x | bash -
+    - apt-get update && apt-get install -y nodejs
+    - npm install -g yarn
+
+    # Install Go
+    - add-apt-repository ppa:longsleep/golang-backports
+    - apt-get update && apt-get install -y golang-go
+
+    # Install Fleet dependencies
     - make deps
+
+    # Generate frontend assets
     - make generate
+
+    # Build Fleet
     - make
 release:
   command:
+    # Prepare or migrate the database
     - ./build/fleet prepare db
 run:
+  # Run Fleet
   web: ./build/fleet serve
