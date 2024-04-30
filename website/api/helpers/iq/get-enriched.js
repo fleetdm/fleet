@@ -196,6 +196,21 @@ module.exports = {
           sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
           return [];
         });
+
+        // If name and domain were used for searching the org, yet no matches found,
+        // try searching again, but this time w/o the org name.
+        if (matchingLinkedinCompanyPageIds.length === 0 && searchBy.name && searchBy.website) {
+          delete searchBy.name;
+          // [?] https://dashboard.coresignal.com/get-started
+          matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter', searchBy, {
+            Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+            'content-type': 'application/json'
+          }).tolerate((err)=>{
+            sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+            return [];
+          });
+        }//ﬁ
+
         matchingLinkedinCompanyPageId = matchingLinkedinCompanyPageIds[0];
       }//ﬁ
     }//ﬁ
