@@ -399,6 +399,8 @@ type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
 type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error)
 
+type ListHostSoftwareFunc func(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
+
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
 type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
@@ -1487,6 +1489,9 @@ type DataStore struct {
 
 	ListCVEsFunc        ListCVEsFunc
 	ListCVEsFuncInvoked bool
+
+	ListHostSoftwareFunc        ListHostSoftwareFunc
+	ListHostSoftwareFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -3596,6 +3601,13 @@ func (s *DataStore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet
 	s.ListCVEsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListCVEsFunc(ctx, maxAge)
+}
+
+func (s *DataStore) ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostSoftwareFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostSoftwareFunc(ctx, hostID, includeAvailableForInstall, opts)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
