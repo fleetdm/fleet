@@ -13,19 +13,41 @@ You can read about the company's positioning and product strategy in ["🎐 Why 
 We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private Google doc).
 
 ## Directly responsible individuals (DRIs)
-| Responsibility | DRI |
-| -------------- | --- |
-| Intentionality of Fleet's interfaces | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ |
-| Best practices for using Fleet | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ | 
-| What goes in a release | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_ |
-| Engineering output and architecture | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_ |
-| Structure and intentionality of the [Docs](https://fleetdm.com/docs/get-started/why-fleet)| [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_ |
-| Design and content of the [Docs](https://fleetdm.com/docs/get-started/why-fleet) | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_ |
-| API design | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_ |
 
+| Area of responsibility | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) |
+| -------------- | --- |
+| Revenue                         | <sup><sub>_See [🐋 Chief Revenue Officer](https://fleetdm.com/handbook/sales#team)_</sup></sub>
+| Pricing                         | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
+| Illustrations                   | <sup><sub>_See [🌐 Head of Design](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
+| Website                         | <sup><sub>_See [🌐 Digital Experience team](https://fleetdm.com/handbook/digital-experience#team)_
+| Product marketing (PMM)         | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
+| Brand marketing                 | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
+| Public relations                | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
+| Revenue pipeline                | <sup><sub>_See [🫧 Head of Demand Generation](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Ads                             | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Video                           | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Social media                    | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Blog                            | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
+| Information technology (IT)     | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
+| Payroll, bookkeeping, AR/AP     | <sup><sub>_See [🔦 Head of Business Operations](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Legal contracts                 | <sup><sub>_See [🔦 Business Operations team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Customer renewals               | <sup><sub>_See [🌦️ VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Customer deployments            | <sup><sub>_See [🌦️ Infrastructure Engineer](https://fleetdm.com/handbook/customer-success#team)_ </sup></sub>
+| Customer support                | <sup><sub>_See [🌦️ Customer Success team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Quality assurance (QA)          | <sup><sub>_See [🚀 Engineering team](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
+| Features &amp; product adoption | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Feature prioritization          | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Best practices for using Fleet  | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>_See [🦢 Rachael Shaw](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🌐 Head of Design](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
+| Product reference documentation | <sup><sub>_See [🦢 Rachael Shaw](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| What goes in a release | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
+| Engineering output and architecture | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
+| Product development             | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 ### Docs
-This page details processes related to maintaining and updating the ([Fleet docs](https://fleetdm.com/docs)).
+This page details processes related to maintaining and updating the [Fleet documentation](https://fleetdm.com/docs).
 
 When someone asks a question in a public channel, it's safe to assume they aren't the only person looking for an answer. 
 
@@ -33,6 +55,7 @@ To make our docs as helpful as possible, the Community team gathers these questi
 
 Fleet's goal is to answer every question with a link to the docs and/or result in a documentation update.
 
+> Fleet's philosophy on how to write useful documentation is public and open-source: ["Why read documentation?"](https://fleetdm.com/handbook/company/why-this-way#why-read-documentation)
 
 ## Fleetdm.com
 Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a website request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=website-request.md&title=Request%3A+__________________________) on the #g-digital-experience kanban board. 

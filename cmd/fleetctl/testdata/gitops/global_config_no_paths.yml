@@ -171,6 +171,9 @@ org_settings:
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings: # Applies to all teams
     host_expiry_enabled: false
+  activity_expiry_settings:
+    activity_expiry_enabled: true
+    activity_expiry_window: 60
   features: # Features added to all teams
     enable_host_users: true
     enable_software_inventory: true
