@@ -7,4 +7,4 @@ release:
   command:
     - ./build/fleet prepare db
 run:
-  web: build/fleet serve
+  web: ./build/fleet serve
