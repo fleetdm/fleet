@@ -89,7 +89,7 @@ org_settings:
 	var errWriter strings.Builder
 	_, err = runAppNoChecks([]string{"gitops", tmpFile.Name()})
 	assert.Error(t, err)
-	assert.Equal(t, err.Error(), "-f must be specified")
+	assert.Equal(t, `Required flag "f" not set`, err.Error())
 
 	// Bad file
 	errWriter.Reset()

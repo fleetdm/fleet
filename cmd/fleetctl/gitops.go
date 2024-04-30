@@ -7,6 +7,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -53,12 +54,23 @@ func gitopsCommand() *cli.Command {
 					return errors.New("filename cannot be empty")
 				}
 			}
+
+			// Check license
+			fleetClient, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+			appConfig, err := fleetClient.GetAppConfig()
+			if err != nil {
+				return err
+			}
+			if appConfig.License == nil {
+				return errors.New("no license struct found in app config")
+			}
+
+			var teamNames []string
 			for _, flFilename := range flFilenames.Value() {
 				b, err := os.ReadFile(flFilename)
-				if err != nil {
-					return err
-				}
-				fleetClient, err := clientFromCLI(c)
 				if err != nil {
 					return err
 				}
@@ -70,22 +82,37 @@ func gitopsCommand() *cli.Command {
 				logf := func(format string, a ...interface{}) {
 					_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 				}
-				appConfig, err := fleetClient.GetAppConfig()
-				if err != nil {
-					return err
-				}
-				if appConfig.License == nil {
-					return errors.New("no license struct found in app config")
-				}
 				err = fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, appConfig)
 				if err != nil {
 					return err
 				}
-				if flDryRun {
-					_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops dry run succeeded\n")
-				} else {
-					_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops succeeded\n")
+				if config.TeamName != nil {
+					teamNames = append(teamNames, *config.TeamName)
 				}
+			}
+			if flDeleteOtherTeams {
+				teams, err := fleetClient.ListTeams("")
+				if err != nil {
+					return err
+				}
+				for _, team := range teams {
+					if !slices.Contains(teamNames, team.Name) {
+						if flDryRun {
+							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)
+						} else {
+							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting team %s\n", team.Name)
+							if err := fleetClient.DeleteTeam(team.ID); err != nil {
+								return err
+							}
+						}
+					}
+				}
+			}
+
+			if flDryRun {
+				_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops dry run succeeded\n")
+			} else {
+				_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops succeeded\n")
 			}
 			return nil
 		},
