@@ -3696,7 +3696,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "source": "apps",
       "bundle_identifier": "com.google.Chrome",
       "status": "failed",
-      "detail": "Software is installed, but script after installation failed.",
       "last_install": {
         "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
         "installed_at": "2024-05-15T15:23:57Z"
@@ -3717,7 +3716,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "source": "",
       "bundle_identifier": "",
       "status": null,
-      "detail": "",
       "last_install": null,
       "installed_versions": [],
     },
@@ -3728,7 +3726,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "source": "apps",
       "bundle_identifier": "org.mozilla.firefox",
       "status": null,
-      "detail": "",
       "last_install": null,
       "installed_versions": [
         {
