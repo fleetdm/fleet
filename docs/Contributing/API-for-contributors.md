@@ -2436,7 +2436,6 @@ Lists the software installed on the current device.
       "source": "apps",
       "bundle_identifier": "com.google.Chrome",
       "status": "failed",
-      "detail": "Software is installed, but script after installation failed.",
       "last_install": {
         "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
         "installed_at": "2024-05-15T15:23:57Z"
@@ -2456,7 +2455,6 @@ Lists the software installed on the current device.
       "source": "apps",
       "bundle_identifier": "com.google.Chrome",
       "status": null,
-      "detail": "",
       "last_install": null,
       "installed_versions": [
         { 
