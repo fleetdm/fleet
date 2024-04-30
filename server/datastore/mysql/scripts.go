@@ -1093,3 +1093,21 @@ WHERE
 	}
 	return nil
 }
+
+func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents string) (uint, error) {
+	csum := md5ChecksumScriptContent(contents)
+	scriptContentsID, err := ds.optimisticGetOrInsert(ctx,
+		&parameterizedStmt{
+			Statement: `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?)`,
+			Args:      []interface{}{csum},
+		},
+		&parameterizedStmt{
+			Statement: `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(?), ?)`,
+			Args:      []interface{}{csum, contents},
+		},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return scriptContentsID, nil
+}
