@@ -2448,7 +2448,7 @@ Lists the software installed on the current device.
       ]
     },
     {
-      "id": 121,
+      "id": 143,
       "name": "Firefox.app",
       "source": "apps",
       "bundle_identifier": "com.google.Chrome",
