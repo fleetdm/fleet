@@ -119,11 +119,6 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, err
 	return false, nil
 }
 
-func (r *Runner) fetchInstaller(softwareId string) (path string, err error) {
-	// put it in a tmp directory
-	return softwareId, nil
-}
-
 func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScriptResult, installerPath string) error {
 	// run script in installer directory
 	scriptPath := filepath.Join(installerPath, strconv.Itoa(int(script.ID)))
