@@ -22,12 +22,12 @@ resource "heroku_app" "speedy" {
 
 # MySQL-compatible add-on
 resource "heroku_addon" "database" {
-  app  = heroku_app.speedy.name
-  plan = "cleardb:punch8" # Change to the specific plan you need
+  app_id = heroku_app.speedy.name
+  plan   = "cleardb:punch8" # Change to the specific plan you need
 }
 
 # Redis add-on
 resource "heroku_addon" "redis" {
-  app  = heroku_app.speedy.name
-  plan = "heroku-redis:mini" # Change to the specific plan you need
+  app_id = heroku_app.speedy.name
+  plan   = "heroku-redis:mini" # Change to the specific plan you need
 }
