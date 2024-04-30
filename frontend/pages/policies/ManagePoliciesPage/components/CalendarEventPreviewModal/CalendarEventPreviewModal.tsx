@@ -65,6 +65,7 @@ const CalendarEventPreviewModal = ({
               {orgName} reserved this time to make some changes to Anna&apos;s
               MacBook Pro.
               <br />
+              <br />
               Please leave your computer on and connected to power.
               <br /> <br />
               <strong>Why it matters</strong>
