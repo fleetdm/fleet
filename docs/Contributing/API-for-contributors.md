@@ -2454,7 +2454,11 @@ Lists the software installed on the current device.
       "status": null,
       "detail": ""
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
