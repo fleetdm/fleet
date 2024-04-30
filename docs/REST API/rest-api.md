@@ -3674,7 +3674,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
-| query   | string | query | Search query keywords. Searchable fields include name. |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
