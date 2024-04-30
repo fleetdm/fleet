@@ -3713,7 +3713,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 134,
       "name": "Falcon.app",
-      "software_package": "FalconSensor-6.44.pkg",
+      "package_available_for_install": "FalconSensor-6.44.pkg",
       "source": "",
       "bundle_identifier": "",
       "status": null,
@@ -3724,7 +3724,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 147,
       "name": "Firefox.app",
-      "software_package": null,
+      "package_available_for_install": null,
       "source": "apps",
       "bundle_identifier": "org.mozilla.firefox",
       "status": null,
@@ -3754,6 +3754,8 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 ```
 
 ### Install software
+
+_Available in Fleet Premium_
 
 Install software on macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
 
@@ -7833,7 +7835,10 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### Add software
 
+_Available in Fleet Premium_
+
 Add software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
+
 
 `POST /api/v1/fleet/software/package`
 
@@ -7891,6 +7896,8 @@ Content-Type: application/octet-stream
 
 ### Download software
 
+_Available in Fleet Premium_
+
 Download software package.
 
 `GET /api/v1/fleet/software/package/:id?alt=media`
@@ -7920,6 +7927,8 @@ Body: <blob>
 
 ### Delete software
 
+_Available in Fleet Premium_
+
 Delete software package.
 
 `DELETE /api/v1/fleet/software/package/:id`
@@ -7939,6 +7948,8 @@ Delete software package.
 `Status: 204`
 
 ### Get installation results
+
+_Available in Fleet Premium_
 
 `GET /api/v1/fleet/software/install/results`
 

@@ -2409,7 +2409,7 @@ In regards to the `notifications` key:
 
 Lists the software installed on the current device.
 
-`GET /api/v1/fleet/device/{token}/software/titles`
+`GET /api/v1/fleet/device/{token}/software`
 
 ##### Parameters
 
@@ -2420,7 +2420,7 @@ Lists the software installed on the current device.
 
 ##### Example
 
-`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles`
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software`
 
 ##### Default response
 
@@ -2428,40 +2428,54 @@ Lists the software installed on the current device.
 
 ```json
 {
-  "software_titles": [
+  "software": [
     {
-      "id": 123,
+      "id": 121,
       "name": "Google Chrome.app",
-      "versions": ["121.0"],
-      "source": "apps",
-      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-      "status": "failed",
-      "detail": "Software is installed, but script after installation failed."
-    },
-    {
-      "id": 127,
-      "name": "Firefox.app",
-      "package": {
-        "name": "FirefoxInstall.pkg",
-        "version": "125.0.1",
-      },
       "self_service": true,
-      "versions": ["118.0, 119.0"],
+      "package": {
+        "name": "GoogleChromeInstall.pkg",
+        "version": "122.0",
+      },
       "source": "apps",
-      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-      "status": "installed",
-      "detail": ""
+      "bundle_identifier": "com.google.Chrome",
+      "status": "failed",
+      "detail": "Software is installed, but script after installation failed.",
+      "last_install": {
+        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+        "installed_at": "2024-05-15T15:23:57Z"
+      },
+      "installed_versions": [
+        { 
+          "version": "121.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Google Chrome.app"]
+        }
+      ]
     },
     {
-      "id": 129,
-      "name": "Zoom.us.app"
-      "versions": ["118.0"]
-      "source": "apps"
-      "vulnerabilities": [],
+      "id": 143,
+      "name": "Firefox.app",
+      "source": "apps",
+      "bundle_identifier": "com.google.Chrome",
       "status": null,
-      "detail": ""
+      "detail": "",
+      "last_install": null,
+      "installed_versions": [
+        { 
+          "version": "125.6",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Firefox.app"]
+        }
+      ]
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
