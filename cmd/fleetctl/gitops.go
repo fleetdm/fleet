@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/urfave/cli/v2"
 	"os"
 	"path/filepath"
@@ -46,7 +47,8 @@ func gitopsCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			if len(flFilenames.Value()) == 0 {
+			totalFilenames := len(flFilenames.Value())
+			if totalFilenames == 0 {
 				return errors.New("-f must be specified")
 			}
 			for _, flFilename := range flFilenames.Value() {
@@ -69,6 +71,11 @@ func gitopsCommand() *cli.Command {
 			}
 
 			var teamNames []string
+			var firstFileMustBeGlobal bool
+			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
+			if totalFilenames > 1 {
+				firstFileMustBeGlobal = true
+			}
 			for _, flFilename := range flFilenames.Value() {
 				b, err := os.ReadFile(flFilename)
 				if err != nil {
@@ -76,18 +83,24 @@ func gitopsCommand() *cli.Command {
 				}
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromBytes(b, baseDir)
+				if firstFileMustBeGlobal && config.TeamName != nil {
+					return fmt.Errorf("first file %s must be the global config", flFilename)
+				}
+				firstFileMustBeGlobal = false
 				if err != nil {
 					return err
 				}
 				logf := func(format string, a ...interface{}) {
 					_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 				}
-				err = fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, appConfig)
+				assumptions, err := fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, teamDryRunAssumptions, appConfig)
 				if err != nil {
 					return err
 				}
 				if config.TeamName != nil {
 					teamNames = append(teamNames, *config.TeamName)
+				} else {
+					teamDryRunAssumptions = assumptions
 				}
 			}
 			if flDeleteOtherTeams {

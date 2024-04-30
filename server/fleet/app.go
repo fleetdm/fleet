@@ -1035,6 +1035,11 @@ type ApplySpecOptions struct {
 	TeamForPolicies string
 }
 
+type ApplyTeamSpecOptions struct {
+	ApplySpecOptions
+	DryRunAssumptions *TeamSpecsDryRunAssumptions
+}
+
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
 // query string parameters. It only sets the parameters that are not the
 // default values.

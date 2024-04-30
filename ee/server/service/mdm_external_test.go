@@ -423,7 +423,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		spec := &fleet.TeamSpec{
 			Name: team2.Name,
 		}
-		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.SaveTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -522,7 +522,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 
 		// apply team spec creates new team without defaults
-		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.NewTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -535,7 +535,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 
 		// apply team spec edits existing team without applying defaults
 		spec.MDM.MacOSUpdates.Deadline = optjson.SetString("2025-01-01")
-		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.SaveTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)

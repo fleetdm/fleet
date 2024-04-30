@@ -767,6 +767,11 @@ team_settings:
 	)
 	require.NoError(t, err)
 
+	// Files out of order
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "must be the global config"))
+
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
@@ -820,5 +825,162 @@ team_settings:
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--delete-other-teams"})
 	assert.True(t, ds.ListTeamsFuncInvoked)
 	assert.True(t, ds.DeleteTeamFuncInvoked)
+
+}
+
+func TestFullGlobalAndTeamGitOps(t *testing.T) {
+	// mdm test configuration must be set so that activating windows MDM works.
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := runServerWithMockedDS(
+		t, &service.TestServerOpts{
+			MDMStorage:       new(mock.MDMAppleStore),
+			MDMPusher:        mockPusher{},
+			FleetConfig:      &fleetCfg,
+			License:          license,
+			NoCacheDatastore: true,
+		},
+	)
+
+	// Mock appConfig
+	savedAppConfig := &fleet.AppConfig{
+		MDM: fleet.MDM{
+			EnabledAndConfigured: true,
+		},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appConfigCopy := *savedAppConfig
+		return &appConfigCopy, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfigCopy := *config
+		savedAppConfig = &appConfigCopy
+		return nil
+	}
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+	)
+	var enrolledSecrets []*fleet.EnrollSecret
+	var enrolledTeamSecrets []*fleet.EnrollSecret
+	var appliedPolicySpecs []*fleet.PolicySpec
+	var appliedQueries []*fleet.Query
+	var savedTeam *fleet.Team
+	team := &fleet.Team{
+		ID:        1,
+		CreatedAt: time.Now(),
+		Name:      teamName,
+	}
+
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		if teamID == nil {
+			enrolledSecrets = secrets
+		} else {
+			enrolledTeamSecrets = secrets
+		}
+		return nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedPolicySpecs = specs
+		return nil
+	}
+	ds.ApplyQueriesFunc = func(
+		ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{},
+	) error {
+		appliedQueries = queries
+		return nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration,
+	) error {
+		return nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) error {
+		return nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		job.ID = 1
+		return job, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, &notFoundError{}
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == team.ID {
+			return team, nil
+		}
+		return nil, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == teamName {
+			return team, nil
+		}
+		return nil, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (
+		*fleet.MDMAppleDeclaration, error,
+	) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+	t.Setenv("ORG_NAME", orgName)
+	t.Setenv("TEST_TEAM_NAME", teamName)
+
+	globalFile := "./testdata/gitops/global_config_no_paths.yml"
+	teamFile := "./testdata/gitops/team_config_no_paths.yml"
+
+	// Dry run
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
+	assert.False(t, ds.SaveAppConfigFuncInvoked)
+	assert.Len(t, enrolledSecrets, 0)
+	assert.Len(t, enrolledTeamSecrets, 0)
+	assert.Len(t, appliedPolicySpecs, 0)
+	assert.Len(t, appliedQueries, 0)
+
+	// Real run
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--delete-other-teams"})
+	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
+	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
+	assert.Len(t, enrolledSecrets, 2)
+	require.NotNil(t, savedTeam)
+	assert.Equal(t, teamName, savedTeam.Name)
+	require.Len(t, enrolledTeamSecrets, 2)
 
 }

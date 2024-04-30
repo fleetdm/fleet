@@ -187,7 +187,7 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ModifyTeamEnrollSecrets(ctx, 1, []fleet.EnrollSecret{{Secret: "newteamsecret", CreatedAt: time.Now()}})
 			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
 
-			_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}}, fleet.ApplySpecOptions{})
+			_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}}, fleet.ApplyTeamSpecOptions{})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}
@@ -281,7 +281,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return nil
 				}
 
-				_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
+				_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplyTeamSpecOptions{})
 				require.NoError(t, err)
 			})
 		}
@@ -362,7 +362,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return nil
 				}
 
-				idsByTeam, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
+				idsByTeam, err := svc.ApplyTeamSpecs(
+					ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplyTeamSpecOptions{},
+				)
 				require.NoError(t, err)
 				require.Len(t, idsByTeam, 1)
 				require.Equal(t, uint(123), idsByTeam["team1"])
@@ -398,7 +400,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 			return &fleet.Team{ID: 1}, nil
 		}
 
-		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo"}}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo"}}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.True(t, ds.NewTeamFuncInvoked)
@@ -413,7 +415,9 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 			return &fleet.Team{ID: 1}, nil
 		}
 
-		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}}, fleet.ApplyTeamSpecOptions{},
+		)
 		require.NoError(t, err)
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.True(t, ds.NewTeamFuncInvoked)
@@ -436,7 +440,7 @@ func TestApplyTeamSpecsErrorInTeamByName(t *testing.T) {
 	}
 	authzctx := &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(ctx, authzctx)
-	_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo"}}, fleet.ApplySpecOptions{})
+	_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "Foo"}}, fleet.ApplyTeamSpecOptions{})
 	require.Error(t, err)
 	az, ok := authz_ctx.FromContext(ctx)
 	require.True(t, ok)
