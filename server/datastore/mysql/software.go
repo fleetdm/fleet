@@ -1737,13 +1737,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 			hsi.execution_id as last_install_install_uuid,
 			CASE
 				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
-					hsi.post_install_script_exit_code = 0 THEN ? -- success
+					hsi.post_install_script_exit_code = 0 THEN ? -- installed
 
 				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
 					hsi.post_install_script_exit_code != 0 THEN ? -- failed
 
 				WHEN hsi.install_script_exit_code IS NOT NULL AND
-					hsi.install_script_exit_code = 0 THEN ? -- success
+					hsi.install_script_exit_code = 0 THEN ? -- installed
 
 				WHEN hsi.install_script_exit_code IS NOT NULL AND
 					hsi.install_script_exit_code != 0 THEN ? -- failed
@@ -1755,15 +1755,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 
 				ELSE NULL -- not installed from Fleet installer
 			END AS status,
-			CASE
-				WHEN status = ? THEN 4 -- failed
-				WHEN status = ? THEN 3 -- pending
-				WHEN status = ? THEN 2 -- success
-				WHEN si.title_id IS NOT NULL THEN 1 -- installer exists, not installed
-				ELSE 0 -- no installer exists
-			END AS status_sort
+			si.id AS installer_id -- NULL if no Fleet installer
 		FROM
-			software_title st
+			software_titles st
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id
 		LEFT OUTER JOIN
@@ -1791,9 +1785,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
 			NULL as status,
-			1 as status_sort -- installer exists, not installed
+			si.id as installer_id
 		FROM
-			software_title st
+			software_titles st
 		INNER JOIN
 			software_installers si ON st.id = si.title_id
 		WHERE
@@ -1812,28 +1806,58 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 `
 
 	const selectColNames = `
-	SELECT id, name, source, package_available_for_install, last_install_installed_at, last_install_install_uuid, status, status_sort
+	SELECT
+		id,
+		name,
+		source,
+		package_available_for_install,
+		last_install_installed_at,
+		last_install_install_uuid,
+		status,
+		CASE
+			WHEN status = ? THEN 4 -- failed
+			WHEN status = ? THEN 3 -- pending
+			WHEN status = ? THEN 2 -- installed
+			WHEN installer_id IS NOT NULL THEN 1 -- installer exists, not installed
+			ELSE 0 -- no installer exists
+		END AS status_sort
 `
 
-	args := []any{hostID}
+	args := []any{
+		// for status_sort
+		fleet.SoftwareInstallerFailed,
+		fleet.SoftwareInstallerPending,
+		fleet.SoftwareInstallerInstalled,
+
+		// for status
+		fleet.SoftwareInstallerInstalled,
+		fleet.SoftwareInstallerFailed,
+		fleet.SoftwareInstallerInstalled,
+		fleet.SoftwareInstallerFailed,
+		fleet.SoftwareInstallerFailed,
+		fleet.SoftwareInstallerPending,
+
+		hostID,
+		hostID,
+	}
 	stmt := stmtInstalled
 	if includeAvailableForInstall {
-		stmt = selectColNames + ` FROM ( ` + stmt + ` UNION ` + stmtAvailable + ` )`
+		stmt += ` UNION ` + stmtAvailable
 		args = append(args, hostID, hostID)
 	}
+	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
 
-	// TODO(mna): apply default order by, which is quite complex
+	// apply default sort
 	if opts.OrderKey == "" {
-		opts.OrderKey = "source"
-		opts.OrderDirection = fleet.OrderAscending
+		stmt += ` ORDER BY status_sort DESC, name ASC `
 	}
-
 	stmt, _ = appendListOptionsToSQL(stmt, &opts)
 
 	type hostSoftware struct {
 		fleet.HostSoftwareWithInstaller
-		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
-		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
+		LastInstallInstalledAt *time.Time    `db:"last_install_installed_at"`
+		LastInstallInstallUUID *string       `db:"last_install_install_uuid"`
+		StatusSort             sql.NullInt32 `db:"status_sort"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -1868,7 +1892,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		FROM
 			software s
 		INNER JOIN
-			software_title st ON s.title_id = st.id
+			software_titles st ON s.title_id = st.id
 		LEFT OUTER JOIN
 			host_software hs ON s.id = hs.software_id AND hs.host_id = ?
 		WHERE

@@ -61,6 +61,7 @@ func TestSoftware(t *testing.T) {
 		{"deleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
 		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
+		{"ListHostSoftware", testListHostSoftware},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2928,4 +2929,22 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, software[i], got)
 	}
+}
+
+func testListHostSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	opts := fleet.ListOptions{PerPage: 10, IncludeMetadata: true}
+
+	// no software yet
+	sw, meta, err := ds.ListHostSoftware(ctx, host.ID, false, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	// works with available software too
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 }
