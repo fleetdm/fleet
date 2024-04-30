@@ -1721,3 +1721,18 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 
 	return result, nil
 }
+
+func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	stmt := `
+		SELECT
+			st.id,
+			st.name,
+			st.source,
+		FROM
+			software_title st
+		INNER JOIN
+			host_sofware hs ON st.id = hs.software_id
+		LEFT OUTER JOIN
+			host_software_installs hsi ON
+`
+}

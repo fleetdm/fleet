@@ -411,6 +411,10 @@ type Service interface {
 	// OSVersion returns an operating system and associated host counts
 	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*OSVersion, *time.Time, error)
 
+	// ListHostSoftware lists the software installed or available for install on
+	// the specified host.
+	ListHostSoftware(ctx context.Context, hostID uint, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 
