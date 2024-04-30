@@ -175,7 +175,7 @@ module.exports = {
     }//ﬁ
 
     // Only update CRM records if the user's psychological stage changes.
-    if(currentStep !== userRecord.currentStep){
+    if(psychologicalStage !== userRecord.psychologicalStage){
       await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: this.req.me.emailAddress,
         firstName: this.req.me.firstName,
