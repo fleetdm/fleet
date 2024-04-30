@@ -71,7 +71,9 @@ Different portions of the Fleet software are licensed differently, as noted in t
 
 ## How do I contact Fleet for support?
 
-For community support, visit https://fleetdm.com/support.
+A lot of questions can be answered [in the documentation](https://fleetdm.com/docs).
+
+To get help from the community, visit https://fleetdm.com/support.
 
 If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
 
