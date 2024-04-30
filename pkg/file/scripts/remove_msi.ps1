@@ -1,7 +1,7 @@
 $logFile = "${env:TEMP}/fleet-remove-software.log"
 
 $removeProcess = Start-Process msiexec.exe `
-  -ArgumentList "/quiet /norestart /lv ${logFile} /x `"${INSTALLER_PATH}`"" `
+  -ArgumentList "/quiet /norestart /lv ${logFile} /x `"$INSTALLER_PATH`"" `
   -PassThru -Verb RunAs -Wait
 
 Get-Content $logFile -Tail 500

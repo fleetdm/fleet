@@ -9,7 +9,7 @@ Scripts are stored on their own files for two reasons:
 
 #### Variables
 
-Because the scripts are shared between Go and JS, the convention is to declare variables using `${VAR_NAME}` and document its intended usage here.
+Because the scripts are shared between Go and JS, the convention is to declare variables using `$VAR_NAME` and document its intended usage here.
 
-- `${INSTALLER_PATH}` path to the installer file.
+- `$INSTALLER_PATH` path to the installer file.
 

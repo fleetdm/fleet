@@ -1,1 +1,1 @@
-installer -pkg "${INSTALLER_PATH}" -target /
+installer -pkg "$INSTALLER_PATH" -target /

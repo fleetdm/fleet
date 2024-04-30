@@ -1,4 +1,4 @@
-$exeFilePath = "${INSTALLER_PATH}"
+$exeFilePath = "$INSTALLER_PATH"
 
 # extract the name of the executable to use as the sub-directory name
 $exeName = [System.IO.Path]::GetFileName($exeFilePath)
