@@ -794,7 +794,7 @@ const ManagePolicyPage = ({
         value: "calendar_events",
         disabled: !isPremiumTier || isAllTeams,
         helpText: "Automatically reserve time to resolve failing policies.",
-        disabledTooltipContent,
+        tooltipContent: disabledTooltipContent,
       },
       {
         label: "Other workflows",

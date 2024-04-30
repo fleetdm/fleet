@@ -138,6 +138,14 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
+
+    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: newEmailAddress,
+      firstName: firstName,
+      lastName: lastName,
+      organization: organization,
+    });
+
     // Send a POST request to Zapier
     await sails.helpers.http.post.with({
       url: 'https://hooks.zapier.com/hooks/catch/3627242/30bq2ib/',

@@ -1055,7 +1055,7 @@ var usersQuery = DetailQuery{
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
 	Query:            usersQueryStr,
-	Platforms:        []string{"linux", "darwin", "windows"},
+	Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"),
 	DirectIngestFunc: directIngestUsers,
 }
 

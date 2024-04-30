@@ -3,7 +3,7 @@ package nvd
 import (
 	"fmt"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 type CPEMatchingRules []CPEMatchingRule

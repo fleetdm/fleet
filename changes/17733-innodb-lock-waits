@@ -1,1 +1,0 @@
-In fleetctl debug db-locks (GET debug/db/locks) and fleetctl debug db-innodb-status (GET debug/db/innodb-status), fixed 500 error in MySQL 8 and when DB user has insufficient privileges.

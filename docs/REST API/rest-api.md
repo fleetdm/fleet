@@ -628,11 +628,11 @@ for pagination. For a comprehensive list of activity types and detailed informat
 - [Get carve](#get-carve)
 - [Get carve block](#get-carve-block)
 
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
+Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from Fleet's agent (fleetd), returning the full contents to Fleet.
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli#file-carving-with-fleet).
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/File-carving.md).
 
 ### List carves
 
@@ -1865,6 +1865,8 @@ None.
 - [Wipe host](#wipe-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
+- [Add labels to host](#add-labels-to-host)
+- [Remove labels from host](#remove-labels-from-host)
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
 - [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
 
@@ -2364,7 +2366,10 @@ Returns the information of the specified host.
     "hostname": "23cfc9caacf0",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
     "platform": "rhel",
-    "osquery_version": "4.5.1",
+    "osquery_version": "5.12.0",
+    "orbit_version": "1.22.0",
+    "fleet_desktop_version": "1.22.0",
+    "scripts_enabled": true,
     "os_version": "CentOS Linux 8.3.2011",
     "build": "",
     "platform_like": "rhel",
@@ -2396,6 +2401,7 @@ Returns the information of the specified host.
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
+    "scripts_enabled": true,
     "users": [
       {
         "uid": 0,
@@ -2539,6 +2545,12 @@ Returns the information of the specified host.
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
+
+> Note:
+> - `orbit_version: null` means this agent is not a fleetd agent
+> - `fleet_desktop_version: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the desktop version
+> - `fleet_desktop_version: ""` means this agent is a fleetd agent but does not have fleet desktop
+> - `scripts_enabled: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
 
 ### Get host by identifier
 
@@ -3269,7 +3281,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 
 Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
 
 Retrieves a host's MDM enrollment status and MDM server URL.
 
@@ -3306,7 +3318,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
 
 Retrieves MDM enrollment summary. Windows servers are excluded from the aggregated data.
 
@@ -3413,8 +3425,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+in [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd).
 Currently supported only on macOS.
 
 
@@ -4026,6 +4037,64 @@ To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Lin
   }
 }
 ```
+
+### Add labels to host
+
+Adds manual labels to a host. 
+
+`POST /api/v1/fleet/hosts/:id/labels`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| labels   | list | body | The list of label names to add to the host. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/12/labels`
+
+##### Request body
+
+```json
+{
+  "labels": ["label1", "label2"]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Remove labels from host
+
+Removes manual labels from a host.
+
+`DELETE /api/v1/fleet/hosts/:id/labels`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| labels   | list | body | The list of label names to delete from the host. |
+
+
+#### Example
+
+`DELETE /api/v1/fleet/hosts/12/labels`
+
+##### Request body
+
+```json
+{
+  "labels": ["label3", "label4"]
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ### Live query one host (ad-hoc)
 

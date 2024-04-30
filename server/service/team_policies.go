@@ -368,7 +368,8 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
-	var shouldRemoveAll bool
+	var removeAllMemberships bool
+	var removeStats bool
 	if p.Name != nil {
 		policy.Name = *p.Name
 	}
@@ -377,9 +378,8 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.Query != nil {
 		if policy.Query != *p.Query {
-			shouldRemoveAll = true
-			policy.FailingHostCount = 0
-			policy.PassingHostCount = 0
+			removeAllMemberships = true
+			removeStats = true
 		}
 		policy.Query = *p.Query
 	}
@@ -387,6 +387,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.Resolution = p.Resolution
 	}
 	if p.Platform != nil {
+		if policy.Platform != *p.Platform {
+			removeStats = true
+		}
 		policy.Platform = *p.Platform
 	}
 	if p.Critical != nil {
@@ -395,9 +398,13 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.CalendarEventsEnabled != nil {
 		policy.CalendarEventsEnabled = *p.CalendarEventsEnabled
 	}
+	if removeStats {
+		policy.FailingHostCount = 0
+		policy.PassingHostCount = 0
+	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
-	err = svc.ds.SavePolicy(ctx, policy, shouldRemoveAll)
+	err = svc.ds.SavePolicy(ctx, policy, removeAllMemberships, removeStats)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
