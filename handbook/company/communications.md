@@ -447,6 +447,7 @@ For all new individualized expenses, [create an issue](https://github.com/fleetd
 
 ### Accounts payable cards
 For recurring business expenses paid by credit card, there are four accounts payable (AP) cards that can be used based on the purpose:
+
 | Card title  | Purpose | Card owner |
 | ---------- |----------- | --------- |
 | Business spend | Business tax, insurance, IT, SaaS, other | CEO |
