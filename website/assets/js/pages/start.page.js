@@ -20,6 +20,9 @@ parasails.registerPage('start', {
       'what-do-you-manage-mdm': {},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
+      'deploy-fleet-in-your-environment': {stepCompleted: true},
+      'how-was-your-deployment': {},
+      'whats-left-to-get-you-set-up': {},
     },
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
@@ -55,6 +58,12 @@ parasails.registerPage('start', {
     },
     endpointOpsSecurityWhatDidYouThinkFormRules: {
       whatDidYouThink: {required: true}
+    },
+    howWasYourDeploymentFormRules: {
+      howWasYourDeployment: {required: true}
+    },
+    whatsLeftToGetYouSetUpFormRules: {
+      whatsLeftToGetSetUp: {required: true}
     },
     previouslyAnsweredQuestions: {},
 
@@ -94,8 +103,12 @@ parasails.registerPage('start', {
         formData: formDataForThisStep,
       });
       this.previouslyAnsweredQuestions[this.currentStep] = getStartedProgress[this.currentStep];
-      this.syncing = false;
-      this.currentStep = nextStep;
+      if(_.startsWith(nextStep, '/')){
+        window.location = nextStep;
+      } else {
+        this.syncing = false;
+        this.currentStep = nextStep;
+      }
     },
     clickGoToPreviousStep: async function() {
       switch(this.currentStep) {
@@ -149,6 +162,12 @@ parasails.registerPage('start', {
           break;
         case 'what-do-you-manage-mdm':
           this.currentStep = 'have-you-ever-used-fleet';
+          break;
+        case 'how-was-your-deployment':
+          this.currentStep = 'deploy-fleet-in-your-environment';
+          break;
+        case 'whats-left-to-get-you-set-up':
+          this.currentStep = 'how-was-your-deployment';
           break;
       }
     },
@@ -210,9 +229,34 @@ parasails.registerPage('start', {
           break;
         case 'what-did-you-think':
           if(this.formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it'){
-            nextStepInForm = 'is-it-any-good';
+            nextStepInForm = '/announcements';
           } else {
             nextStepInForm = 'deploy-fleet-in-your-environment';
+          }
+          break;
+        case 'deploy-fleet-in-your-environment':
+          nextStepInForm = 'how-was-your-deployment';
+          break;
+        case 'how-was-your-deployment':
+          if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'up-and-running') {
+            nextStepInForm = 'whats-left-to-get-you-set-up';
+          } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'kinda-stuck'){
+            nextStepInForm = '/contact';
+          } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'havent-gotten-to-it') {
+            nextStepInForm = 'deploy-fleet-in-your-environment';
+          } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'changed-mind-want-managed-deployment'){
+            nextStepInForm = 'what-did-you-think';
+          } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'decided-to-not-use-fleet'){
+            nextStepInForm = '/';
+          }
+          break;
+        case 'whats-left-to-get-you-set-up':
+          if(this.formData['whats-left-to-get-you-set-up'].whatsLeftToGetSetUp === 'need-premium-license-key') {
+            nextStepInForm = '/new-license';
+          } else if(this.formData['whats-left-to-get-you-set-up'].whatsLeftToGetSetUp === 'nothing'){
+            nextStepInForm = '/swag';
+          } else {
+            nextStepInForm = '/contact';
           }
           break;
       }
@@ -235,6 +279,9 @@ parasails.registerPage('start', {
           this.formData[step] = this.previouslyAnsweredQuestions[step];
         }
         this.currentStep = this.getNextStep();
+        if(_.startsWith(this.currentStep, '/')){
+          this.currentStep = this.me.lastSubmittedGetStartedQuestionnaireStep;
+        }
       }
     },
   }
