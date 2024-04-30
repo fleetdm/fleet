@@ -1,1 +1,1 @@
-dpkg -r $(dpkg -f "${INSTALLER_PATH}" Package)
+apt-get remove -y $(dpkg -f "${INSTALLER_PATH}" Package)

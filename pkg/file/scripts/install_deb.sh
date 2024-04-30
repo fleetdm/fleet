@@ -1,1 +1,1 @@
-dpkg -i "${INSTALLER_PATH}"
+apt-get install "${INSTALLER_PATH}"
