@@ -115,7 +115,19 @@ func (r *Runner) InstallSoftware(ctx context.Context, installer *fleet.OrbitSoft
 }
 
 func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, error) {
-	r.OsqueryClient.Query(ctx, query)
+	res, err := r.OsqueryClient.Query(ctx, query)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "precondition check")
+	}
+
+	if res.Status.Code != 0 {
+		return false, ctxerr.Wrap(ctx, fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message))
+	}
+
+	if len(res.Response) > 0 {
+		return true, nil
+	}
+
 	return false, nil
 }
 
