@@ -17,6 +17,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.288
 	github.com/beevik/etree v1.1.0
 	github.com/beevik/ntp v0.3.0
+	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb
 	github.com/briandowns/spinner v1.13.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.2.1
@@ -87,6 +88,7 @@ require (
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/rs/zerolog v1.20.0
 	github.com/russellhaering/goxmldsig v1.2.0
+	github.com/saferwall/pe v1.5.2
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
 	github.com/sethvargo/go-password v0.2.0
 	github.com/shirou/gopsutil/v3 v3.23.3
@@ -100,6 +102,7 @@ require (
 	github.com/tj/assert v0.0.3
 	github.com/ulikunitz/xz v0.5.10
 	github.com/urfave/cli/v2 v2.23.5
+	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/ziutek/mymysql v1.5.4
 	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
 	go.elastic.co/apm/module/apmsql/v2 v2.4.3
@@ -183,7 +186,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.7.0 // indirect
 	github.com/aws/smithy-go v1.8.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb // indirect
 	github.com/c-bata/go-prompt v0.2.3 // indirect
 	github.com/caarlos0/ctrlc v1.0.0 // indirect
 	github.com/caarlos0/env/v6 v6.7.0 // indirect
@@ -275,7 +277,6 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/saferwall/pe v1.5.2 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.5.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
@@ -296,7 +297,6 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
-	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
