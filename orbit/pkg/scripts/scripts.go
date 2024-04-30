@@ -119,7 +119,7 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 
 	execCmdFn := r.execCmdFn
 	if execCmdFn == nil {
-		execCmdFn = execCmd
+		execCmdFn = ExecCmd
 	}
 	start := time.Now()
 	output, exitCode, execErr := execCmdFn(ctx, scriptFile)

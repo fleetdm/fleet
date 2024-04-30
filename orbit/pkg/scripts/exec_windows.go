@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func execCmd(ctx context.Context, scriptPath string) (output []byte, exitCode int, err error) {
+func ExecCmd(ctx context.Context, scriptPath string) (output []byte, exitCode int, err error) {
 	// initialize to -1 in case the process never starts
 	exitCode = -1
 
