@@ -112,14 +112,14 @@ type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
 	Source            string                          `json:"source" db:"source"`
-	Status            SoftwareInstallerStatus         `json:"status" db:"status"`
+	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	LastInstall       *HostSoftwareInstall            `json:"last_install"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
 	// PackageAvailableForInstall is only present for the user-authenticated
 	// endpoint, not the device-authenticated one. I.e. when
 	// available-but-not-installed software are part of the response.
-	PackageAvailableForInstall string `json:"package_available_for_install,omitempty" db:"package_available_for_install"`
+	PackageAvailableForInstall *string `json:"package_available_for_install,omitempty" db:"package_available_for_install"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

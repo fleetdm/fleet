@@ -1883,6 +1883,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 	}
 
 	if len(titleIDs) > 0 {
+		// get the software versions installed on that host
 		const versionStmt = `
 		SELECT
 			st.id as software_title_id,
@@ -1893,7 +1894,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 			software s
 		INNER JOIN
 			software_titles st ON s.title_id = st.id
-		LEFT OUTER JOIN
+		INNER JOIN
 			host_software hs ON s.id = hs.software_id AND hs.host_id = ?
 		WHERE
 			st.id IN (?)

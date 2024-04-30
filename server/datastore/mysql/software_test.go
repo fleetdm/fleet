@@ -2934,6 +2934,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 func testListHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 	opts := fleet.ListOptions{PerPage: 10, IncludeMetadata: true}
 
 	// no software yet
@@ -2947,4 +2948,91 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, sw)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	// add software to the host
+	software := []fleet.Software{
+		{Name: "a", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "a", Version: "0.0.2", Source: "deb_packages"}, // different source, so different title than a-chrome
+		{Name: "b", Version: "0.0.3", Source: "apps"},
+		{Name: "c", Version: "0.0.4", Source: "deb_packages"},
+		{Name: "c", Version: "0.0.5", Source: "deb_packages"},
+		{Name: "d", Version: "0.0.6", Source: "deb_packages"},
+	}
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	// add other software to the other host, won't be returned
+	otherSoftware := []fleet.Software{
+		{Name: "a", Version: "0.0.7", Source: "chrome_extensions"},
+		{Name: "f", Version: "0.0.8", Source: "chrome_extensions"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, otherHost.ID, otherSoftware)
+	require.NoError(t, err)
+
+	// add some vulnerabilities and installed paths
+	vulns := []fleet.SoftwareVulnerability{
+		{SoftwareID: host.Software[0].ID, CVE: "CVE-a-0001"},
+		{SoftwareID: host.Software[0].ID, CVE: "CVE-a-0002"},
+		{SoftwareID: host.Software[0].ID, CVE: "CVE-a-0003"},
+		{SoftwareID: host.Software[2].ID, CVE: "CVE-b-0001"},
+	}
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	swPaths := map[string]struct{}{}
+	installPaths := make([]string, 0, len(software))
+	for _, s := range software {
+		path := fmt.Sprintf("/some/path/%s", s.Name)
+		key := fmt.Sprintf("%s%s%s", path, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		swPaths[key] = struct{}{}
+		installPaths = append(installPaths, path)
+	}
+	err = ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults)
+	require.NoError(t, err)
+
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	expected := map[string]*fleet.HostSoftwareWithInstaller{
+		"a1": {Name: software[0].Name, Source: software[0].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: software[0].Version, Vulnerabilities: []string{vulns[0].CVE, vulns[1].CVE, vulns[2].CVE}, InstalledPaths: []string{installPaths[0]}},
+		}},
+		"a2": {Name: software[1].Name, Source: software[1].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: software[1].Version, InstalledPaths: []string{installPaths[1]}},
+		}},
+		"b": {Name: software[2].Name, Source: software[2].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: software[2].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
+		}},
+		"c": {Name: software[3].Name, Source: software[3].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: software[3].Version, InstalledPaths: []string{installPaths[3]}},
+			{Version: software[4].Version, InstalledPaths: []string{installPaths[4]}},
+		}},
+		"d": {Name: software[5].Name, Source: software[5].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: software[5].Version, InstalledPaths: []string{installPaths[5]}},
+		}},
+	}
+
+	compareResults := func(expected, got []*fleet.HostSoftwareWithInstaller) {
+		require.Len(t, got, len(expected))
+		// clear ids for comparison
+		for _, g := range got {
+			g.ID = 0
+			for _, v := range g.InstalledVersions {
+				v.SoftwareID = 0
+				v.SoftwareTitleID = 0
+			}
+		}
+		require.Equal(t, expected, got)
+	}
+
+	// it now returns the software with vulnerabilities and installed paths
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	compareResults([]*fleet.HostSoftwareWithInstaller{
+		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"],
+	}, sw)
 }
