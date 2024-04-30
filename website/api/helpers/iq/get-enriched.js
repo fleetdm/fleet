@@ -55,7 +55,7 @@ module.exports = {
 
     require('assert')(sails.config.custom.iqSecret);// FUTURE: Rename this config
 
-    let RX_PROTOCOL_AND_COMMON_SUBDOMAINS = /^https?\:\/\/(www\.|about\.)*/;
+    let RX_PROTOCOL_AND_COMMON_SUBDOMAINS = /^(https?\:\/\/)?(www\.|about\.)*/;
 
     sails.log.verbose('Enriching from…', emailAddress,linkedinUrl,firstName,lastName,organization);
 
@@ -226,10 +226,12 @@ module.exports = {
         return undefined;
       });
       if (matchingCompanyPageInfo) {
+        let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
+        let emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.path.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
         employer = {
           organization: matchingCompanyPageInfo.name,
           numberOfEmployees: matchingCompanyPageInfo.employees_count,
-          emailDomain: require('url').parse(matchingCompanyPageInfo.website).hostname.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
+          emailDomain: emailDomain,
           linkedinCompanyPageUrl: matchingCompanyPageInfo.canonical_url.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
         };
         if (organization && employer.organization && employer.organization !== organization) {
