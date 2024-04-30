@@ -2426,7 +2426,7 @@ Lists the software installed on the current device.
 
 ```json
 {
-  "software_titles": [
+  "software": [
     {
       "id": 123,
       "name": "Google Chrome.app"
