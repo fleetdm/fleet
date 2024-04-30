@@ -38,7 +38,6 @@ module.exports = {
           numberOfEmployees: 'number',
           emailDomain: 'string',
           linkedinCompanyPageUrl: 'string',
-          technologies: [{name: 'string', category: 'string'}]
         }
       }
     },
@@ -46,8 +45,64 @@ module.exports = {
   },
 
 
-  fn: async function () {
-  // fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization}) {
+  fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization}) {
+
+    // curl -X POST "https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter"
+    // -H "accept: application/json"
+    // -H "Authorization: Bearer {JWT}"
+    // -H "Content-Type: application/json"
+    // -d "{\"location\":\"United States\",\"industry\":\"Information Technology\",
+    //  \"last_updated_gte\":\"2022-05-01 00:00:00\"}"
+
+    // console.log(emailAddress,linkedinUrl,firstName,lastName,organization);
+
+    sails.log.verbose('ignoring linkedinUrl, firstName, and lastName for now...', linkedinUrl,firstName,lastName);
+
+    let emailDomain = '';
+    if (emailAddress) {
+      emailDomain = emailAddress.match(/@([^@]+)$/) && emailAddress.match(/@([^@]+)$/)[1] || '';
+    }//ﬁ
+
+    // [?] https://dashboard.coresignal.com/get-started
+    let searchBy = {};
+    if (emailAddress) {
+      searchBy.website = emailDomain;
+    }
+    if (organization) {
+      searchBy.name = organization;
+    }
+    let matchingIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter', searchBy, {
+      Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+      'content-type': 'application/json'
+    });
+    // console.log('matches:',matchingIds);
+    let matchingId = matchingIds[0];
+    if (!matchingId) {
+      return {
+        person: undefined,
+        employer: undefined
+      };
+    }//•  (TODO: replace this temporary hack with something nicer, just prioritizing the important part)
+    require('assert')(matchingId);
+
+    let matchingOrgRecord = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/company/collect/'+encodeURIComponent(matchingId), {}, {
+      Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+      'content-type': 'application/json'
+    });
+
+    // console.log(report);
+    return {
+      // TODO: the rest
+      employer: {
+        name: matchingOrgRecord.name,
+        numberOfEmployees: matchingOrgRecord.employees_count,
+        emailDomain: emailDomain,
+        linkedinCompanyPageUrl: matchingOrgRecord.canonical_url,
+      }
+    };
+
+
+
     // require('assert')(sails.config.custom.iqSecret);
 
     // let RX_TECHNOLOGY_CATEGORIES = /(device|security|endpoint|configuration management|data management platforms|mobility management|identity|information technology|IT$|employee experience|apple)/i;
@@ -55,7 +110,6 @@ module.exports = {
     // // [?] https://developer.leadiq.com/#query-searchPeople
     // // [?] https://developer.leadiq.com/#definition-SearchPeopleInput
     // // [?] https://graphql.org/learn/serving-over-http/
-    // let emailDomain = emailAddress.match(/@([^@]+)$/) && emailAddress.match(/@([^@]+)$/)[1] || '';
 
     // let searchExpr = `{
     //   ${emailAddress? 'email: '+ JSON.stringify(emailAddress) : ''}
@@ -179,10 +233,10 @@ module.exports = {
     //   }
     // }//ﬁ
 
-    return {
-      person: undefined,
-      employer: undefined
-    };
+    // return {
+    //   person: undefined,
+    //   employer: undefined
+    // };
 
   }
 
