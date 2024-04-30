@@ -3035,4 +3035,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"],
 	}, sw)
+
+	// create some Fleet installers and map them to a software title,
+	// including one for a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	_ = tm
 }
