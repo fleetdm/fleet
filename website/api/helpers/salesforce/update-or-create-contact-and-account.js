@@ -155,13 +155,13 @@ module.exports = {
 
     let salesforceContactId;
     let valuesToSet = {};
-    if(emailAddress || enrichmentData.person){
-      valuesToSet.Email = emailAddress || enrichmentData.person.emailAddress;
+    if(emailAddress){
+      valuesToSet.Email = emailAddress;
     }
-    if(linkedinUrl || enrichmentData.person){
+    if(linkedinUrl || (enrichmentData.person && enrichmentData.person.linkedinUrl)){
       valuesToSet.LinkedIn_profile__c = linkedinUrl || enrichmentData.person.linkedinUrl;// eslint-disable-line camelcase
     }
-    if(enrichmentData.person){
+    if(enrichmentData.person && enrichmentData.person.title){
       valuesToSet.Title = enrichmentData.person.title;
     }
     if(primaryBuyingSituation) {
