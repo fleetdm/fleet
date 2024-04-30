@@ -183,27 +183,27 @@ var hostDetailQueries = map[string]DetailQuery{
 		// Windows (Server 2019). By including it using a JOIN it can
 		// return no rows and the query will still succeed
 		Query: `
-	WITH display_version_table AS (
-		SELECT data as display_version
-		FROM registry
-		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-	),
-	ubr_table AS (
-		SELECT data AS ubr
-		FROM registry
-		WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-	)
-	SELECT
-		os.name,
-		COALESCE(d.display_version, '') AS display_version,
-		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
-	FROM
-		os_version os,
-		kernel_info k
-	LEFT JOIN
-		display_version_table d
-	LEFT JOIN
-		ubr_table u`,
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		ubr_table AS (
+			SELECT data AS ubr
+			FROM registry
+			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+		)
+		SELECT
+			os.name,
+			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d
+		LEFT JOIN
+			ubr_table u`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -581,11 +581,11 @@ var extraDetailQueries = map[string]DetailQuery{
 		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
-	kernel_info k
+		kernel_info k
 	LEFT JOIN
 		display_version_table d
 	LEFT JOIN
-	ubr_table u`,
+		ubr_table u`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
