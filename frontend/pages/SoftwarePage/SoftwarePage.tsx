@@ -21,6 +21,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { buildQueryStringFromParams } from "utilities/url";
+import { ISoftwareDropdownFilterVal } from "utilities/constants/software";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
@@ -61,6 +62,16 @@ const getTabIndex = (path: string): number => {
   });
 };
 
+const getSoftwareFilter = (
+  vulnerable?: string,
+  installable?: string
+): ISoftwareDropdownFilterVal => {
+  if (installable === "true") return "installableSoftware";
+  return vulnerable && vulnerable === "true"
+    ? "vulnerableSoftware"
+    : "allSoftware";
+};
+
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
@@ -97,6 +108,7 @@ interface ISoftwarePageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      available_to_install?: string;
     };
     hash?: string;
   };
@@ -136,6 +148,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams !== undefined && queryParams.vulnerable === "true";
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
+  const softwareFilter = getSoftwareFilter(
+    queryParams.vulnerable,
+    queryParams.available_to_install
+  );
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -344,6 +360,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           query,
           showVulnerableSoftware,
           showExploitedVulnerabilitiesOnly,
+          softwareFilter,
         })}
       </div>
     );

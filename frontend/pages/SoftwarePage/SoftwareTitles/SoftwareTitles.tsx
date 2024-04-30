@@ -1,6 +1,6 @@
-/** 
+/**
  software/titles Software tab
- software/versions Software tab (version toggle on) 
+ software/versions Software tab (version toggle on)
  */
 
 import React from "react";
@@ -13,6 +13,7 @@ import softwareAPI, {
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
+import { ISoftwareDropdownFilterVal } from "utilities/constants/software";
 
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
@@ -26,9 +27,10 @@ const QUERY_OPTIONS = {
   staleTime: DATA_STALE_TIME,
 };
 
-interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+type ISoftwareTitlesQueryKey = Omit<ISoftwareApiParams, "vulnerable"> & {
+  softwareFilter: ISoftwareDropdownFilterVal;
   scope: "software-titles";
-}
+};
 
 interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
   scope: "software-versions";
@@ -41,6 +43,7 @@ interface ISoftwareTitlesProps {
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
+  softwareFilter: ISoftwareDropdownFilterVal;
   showVulnerableSoftware: boolean;
   currentPage: number;
   teamId?: number;
@@ -53,6 +56,7 @@ const SoftwareTitles = ({
   perPage,
   orderDirection,
   orderKey,
+  softwareFilter,
   showVulnerableSoftware,
   currentPage,
   teamId,
@@ -80,7 +84,7 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        vulnerable: showVulnerableSoftware,
+        softwareFilter,
       },
     ],
     ({ queryKey }) => softwareAPI.getSoftwareTitles(queryKey[0]),
@@ -140,6 +144,7 @@ const SoftwareTitles = ({
         perPage={perPage}
         orderDirection={orderDirection}
         orderKey={orderKey}
+        softwareFilter={softwareFilter}
         showVulnerableSoftware={showVulnerableSoftware}
         currentPage={currentPage}
         teamId={teamId}

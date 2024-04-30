@@ -10,16 +10,21 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { getNextLocationPath } from "utilities/helpers";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import {
-  GITHUB_NEW_ISSUE_LINK,
+  ISoftwareDropdownFilterVal,
   VULNERABLE_DROPDOWN_OPTIONS,
-} from "utilities/constants";
+} from "utilities/constants/software";
 import { buildQueryStringFromParams } from "utilities/url";
 import {
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import {
+  ISoftware,
+  ISoftwareTitle,
+  ISoftwareVersion,
+} from "interfaces/software";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -59,6 +64,7 @@ interface ISoftwareTableProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   showVulnerableSoftware: boolean;
+  softwareFilter: ISoftwareDropdownFilterVal;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
@@ -76,6 +82,7 @@ const SoftwareTable = ({
   orderDirection,
   orderKey,
   showVulnerableSoftware,
+  softwareFilter,
   currentPage,
   teamId,
   isLoading,
@@ -205,19 +212,26 @@ const SoftwareTable = ({
     );
   };
 
-  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+  const handleVulnFilterDropdownChange = (value: string) => {
+    const queryParams: Record<string, any> = {
+      query,
+      team_id: teamId,
+      order_direction: orderDirection,
+      order_key: orderKey,
+      page: 0, // resets page index
+    };
+
+    if (value === "installableSoftware") {
+      queryParams.available_for_install = true;
+    } else {
+      queryParams.vulnerable = value === "allSoftware";
+    }
+
     router.replace(
       getNextLocationPath({
         pathPrefix: currentPath,
         routeTemplate: "",
-        queryParams: {
-          query,
-          team_id: teamId,
-          order_direction: orderDirection,
-          order_key: orderKey,
-          vulnerable: isFilterVulnerable,
-          page: 0, // resets page index
-        },
+        queryParams,
       })
     );
   };
@@ -267,7 +281,7 @@ const SoftwareTable = ({
           />
         </div>
         <Dropdown
-          value={showVulnerableSoftware}
+          value={softwareFilter}
           className={`${baseClass}__vuln_dropdown`}
           options={VULNERABLE_DROPDOWN_OPTIONS}
           searchable={false}
