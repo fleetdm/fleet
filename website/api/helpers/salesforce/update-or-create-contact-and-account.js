@@ -47,7 +47,10 @@ module.exports = {
   fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage}) {
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
-      return;
+      return {
+        salesforceAccountId: undefined,
+        salesforceContactId: undefined
+      };
     }
 
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
