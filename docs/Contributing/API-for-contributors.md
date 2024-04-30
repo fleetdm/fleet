@@ -2408,7 +2408,7 @@ In regards to the `notifications` key:
 
 Lists the software installed on the current device.
 
-`GET /api/v1/fleet/device/{token}/software/titles`
+`GET /api/v1/fleet/device/{token}/software`
 
 ##### Parameters
 
@@ -2418,7 +2418,7 @@ Lists the software installed on the current device.
 
 ##### Example
 
-`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles`
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software`
 
 ##### Default response
 
