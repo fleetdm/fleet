@@ -493,6 +493,8 @@ type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, ar
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
+type ListMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error)
+
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
@@ -1630,6 +1632,9 @@ type DataStore struct {
 
 	ListTeamPoliciesFunc        ListTeamPoliciesFunc
 	ListTeamPoliciesFuncInvoked bool
+
+	ListMergedTeamPoliciesFunc        ListMergedTeamPoliciesFunc
+	ListMergedTeamPoliciesFuncInvoked bool
 
 	DeleteTeamPoliciesFunc        DeleteTeamPoliciesFunc
 	DeleteTeamPoliciesFuncInvoked bool
@@ -3930,6 +3935,13 @@ func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts)
+}
+
+func (s *DataStore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ListMergedTeamPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMergedTeamPoliciesFunc(ctx, teamID, opts)
 }
 
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
