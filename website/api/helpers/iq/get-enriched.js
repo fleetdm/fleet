@@ -227,7 +227,8 @@ module.exports = {
       });
       if (matchingCompanyPageInfo) {
         let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
-        let emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.path.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
+        // Default to using hostName but fallback to using href if one is not returned from url.parse.
+        let emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.href.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
         employer = {
           organization: matchingCompanyPageInfo.name,
           numberOfEmployees: matchingCompanyPageInfo.employees_count,
