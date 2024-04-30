@@ -445,8 +445,8 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify the Business Operations department.  
 
-### Accounts payable (AP) cards
-For recurring business expenses paid by credit card, there are four AP cards that can be used based on the purpose:
+### Accounts payable cards
+For recurring business expenses paid by credit card, there are four accounts payable (AP) cards that can be used based on the purpose:
 | Card title  | Purpose | Card owner |
 | ---------- |----------- | --------- |
 | Business spend | Business tax, insurance, IT, SaaS, other | CEO |
