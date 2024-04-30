@@ -1723,16 +1723,257 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	stmt := `
+	// `status` computed column assumes that all results (pre, install and post)
+	// are stored at once, so that if there is an exit code for the install
+	// script and none for the post-install, it is because there is no
+	// post-install.
+	const stmtInstalled = `
 		SELECT
 			st.id,
 			st.name,
 			st.source,
+			si.filename as package_available_for_install,
+			hsi.created_at as last_install_installed_at,
+			hsi.execution_id as last_install_install_uuid,
+			CASE
+				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
+					hsi.post_install_script_exit_code = 0 THEN ? -- success
+
+				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
+					hsi.post_install_script_exit_code != 0 THEN ? -- failed
+
+				WHEN hsi.install_script_exit_code IS NOT NULL AND
+					hsi.install_script_exit_code = 0 THEN ? -- success
+
+				WHEN hsi.install_script_exit_code IS NOT NULL AND
+					hsi.install_script_exit_code != 0 THEN ? -- failed
+
+				WHEN hsi.pre_install_query_output IS NOT NULL AND
+					hsi.pre_install_query_output = '' THEN ? -- failed
+
+				WHEN hsi.host_id IS NOT NULL THEN ? -- pending
+
+				ELSE NULL -- not installed from Fleet installer
+			END AS status,
+			CASE
+				WHEN status = ? THEN 4 -- failed
+				WHEN status = ? THEN 3 -- pending
+				WHEN status = ? THEN 2 -- success
+				WHEN si.title_id IS NOT NULL THEN 1 -- installer exists, not installed
+				ELSE 0 -- no installer exists
+			END AS status_sort
+		FROM
+			software_title st
+		LEFT OUTER JOIN
+			software_installers si ON st.id = si.title_id
+		LEFT OUTER JOIN
+			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = ?
+		WHERE
+			-- software is installed on host
+			EXISTS (
+				SELECT 1
+				FROM
+					host_software hs
+				INNER JOIN
+					software s ON hs.software_id = s.id
+				WHERE
+					hs.host_id = ? AND
+					s.title_id = st.id
+			)
+`
+
+	const stmtAvailable = `
+		SELECT
+			st.id,
+			st.name,
+			st.source,
+			si.filename as package_available_for_install,
+			NULL as last_install_installed_at,
+			NULL as last_install_install_uuid,
+			NULL as status,
+			1 as status_sort -- installer exists, not installed
 		FROM
 			software_title st
 		INNER JOIN
-			host_sofware hs ON st.id = hs.software_id
-		LEFT OUTER JOIN
-			host_software_installs hsi ON
+			software_installers si ON st.id = si.title_id
+		WHERE
+			-- software is not installed on host, but is available in host's team
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					host_software hs
+				INNER JOIN
+					software s ON hs.software_id = s.id
+				WHERE
+					hs.host_id = ? AND
+					s.title_id = st.id
+			) AND
+			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
 `
+
+	const selectColNames = `
+	SELECT id, name, source, package_available_for_install, last_install_installed_at, last_install_install_uuid, status, status_sort
+`
+
+	args := []any{hostID}
+	stmt := stmtInstalled
+	if includeAvailableForInstall {
+		stmt = selectColNames + ` FROM ( ` + stmt + ` UNION ` + stmtAvailable + ` )`
+		args = append(args, hostID, hostID)
+	}
+
+	// TODO(mna): apply default order by, which is quite complex
+	if opts.OrderKey == "" {
+		opts.OrderKey = "source"
+		opts.OrderDirection = fleet.OrderAscending
+	}
+
+	stmt, _ = appendListOptionsToSQL(stmt, &opts)
+
+	type hostSoftware struct {
+		fleet.HostSoftwareWithInstaller
+		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
+		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
+	}
+	var hostSoftwareList []*hostSoftware
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+	}
+
+	// collect the title ids to get the versions, vulnerabilities and installed
+	// paths for each software in the list.
+	titleIDs := make([]uint, 0, len(hostSoftwareList))
+	byTitleID := make(map[uint]*hostSoftware, len(hostSoftwareList))
+	for _, hs := range hostSoftwareList {
+		// promote the last install info to the proper destination fields
+		if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
+			hs.LastInstall = &fleet.HostSoftwareInstall{
+				InstallUUID: *hs.LastInstallInstallUUID,
+			}
+			if hs.LastInstallInstalledAt != nil {
+				hs.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
+			}
+		}
+		titleIDs = append(titleIDs, hs.ID)
+		byTitleID[hs.ID] = hs
+	}
+
+	if len(titleIDs) > 0 {
+		const versionStmt = `
+		SELECT
+			st.id as software_title_id,
+			s.id as software_id,
+			s.version,
+			hs.last_opened_at
+		FROM
+			software s
+		INNER JOIN
+			software_title st ON s.title_id = st.id
+		LEFT OUTER JOIN
+			host_software hs ON s.id = hs.software_id AND hs.host_id = ?
+		WHERE
+			st.id IN (?)
+`
+		var installedVersions []*fleet.HostSoftwareInstalledVersion
+		stmt, args, err := sqlx.In(versionStmt, hostID, titleIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list versions")
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installedVersions, stmt, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list software versions")
+		}
+
+		// store the installed versions with the proper software entry and collect
+		// the software ids.
+		softwareIDs := make([]uint, 0, len(installedVersions))
+		bySoftwareID := make(map[uint]*fleet.HostSoftwareInstalledVersion, len(hostSoftwareList))
+		for _, ver := range installedVersions {
+			hs := byTitleID[ver.SoftwareTitleID]
+			hs.InstalledVersions = append(hs.InstalledVersions, ver)
+			softwareIDs = append(softwareIDs, ver.SoftwareID)
+			bySoftwareID[ver.SoftwareID] = ver
+		}
+
+		if len(softwareIDs) > 0 {
+			const cveStmt = `
+			SELECT
+				sc.software_id,
+				sc.cve
+			FROM
+				software_cve sc
+			WHERE
+				sc.software_id IN (?)
+			ORDER BY
+				software_id, cve
+	`
+			type softwareCVE struct {
+				SoftwareID uint   `db:"software_id"`
+				CVE        string `db:"cve"`
+			}
+			var softwareCVEs []softwareCVE
+			stmt, args, err = sqlx.In(cveStmt, softwareIDs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list cves")
+			}
+			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareCVEs, stmt, args...); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "list software cves")
+			}
+
+			// store the CVEs with the proper software entry
+			for _, cve := range softwareCVEs {
+				ver := bySoftwareID[cve.SoftwareID]
+				ver.Vulnerabilities = append(ver.Vulnerabilities, cve.CVE)
+			}
+
+			const pathsStmt = `
+			SELECT
+				hsip.software_id,
+				hsip.installed_path
+			FROM
+				host_software_installed_paths hsip
+			WHERE
+				hsip.host_id = ? AND
+				hsip.software_id IN (?)
+			ORDER BY
+				software_id, installed_path
+	`
+			type installedPath struct {
+				SoftwareID    uint   `db:"software_id"`
+				InstalledPath string `db:"installed_path"`
+			}
+			var installedPaths []installedPath
+			stmt, args, err = sqlx.In(pathsStmt, hostID, softwareIDs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list installed paths")
+			}
+			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installedPaths, stmt, args...); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "list software installed paths")
+			}
+
+			// store the installed paths with the proper software entry
+			for _, path := range installedPaths {
+				ver := bySoftwareID[path.SoftwareID]
+				ver.InstalledPaths = append(ver.InstalledPaths, path.InstalledPath)
+			}
+		}
+	}
+
+	perPage := opts.PerPage
+	var metaData *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		if perPage <= 0 {
+			perPage = defaultSelectLimit
+		}
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
+		if len(hostSoftwareList) > int(perPage) {
+			metaData.HasNextResults = true
+			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
+		}
+	}
+
+	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
+	for _, hs := range hostSoftwareList {
+		software = append(software, &hs.HostSoftwareWithInstaller)
+	}
+	return software, metaData, nil
 }

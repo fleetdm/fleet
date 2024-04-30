@@ -2491,8 +2491,6 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	// custom ordering is not supported
 	opts.OrderKey = "created_at" // TODO(mna): order is complex, see https://www.figma.com/file/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?type=design&node-id=773-19135&mode=design&t=Ix1GaHl09arYtSRH-0
 	opts.OrderDirection = fleet.OrderAscending
-	// no matching query support
-	opts.MatchQuery = ""
 	// always include metadata
 	opts.IncludeMetadata = true
 

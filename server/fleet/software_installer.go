@@ -112,11 +112,9 @@ type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
 	Source            string                          `json:"source" db:"source"`
-	BundleIdentifier  string                          `json:"bundle_identifier" db:"bundle_identifier"`
 	Status            SoftwareInstallerStatus         `json:"status" db:"status"`
-	Detail            string                          `json:"detail" db:"detail"`
-	LastInstall       *HostSoftwareInstall            `json:"last_install" db:"last_install"`
-	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions" db:"installed_versions"`
+	LastInstall       *HostSoftwareInstall            `json:"last_install"`
+	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
 	// PackageAvailableForInstall is only present for the user-authenticated
 	// endpoint, not the device-authenticated one. I.e. when
@@ -134,6 +132,8 @@ type HostSoftwareInstall struct {
 // HostSoftwareInstalledVersion represents a version of software installed on a
 // host.
 type HostSoftwareInstalledVersion struct {
+	SoftwareID      uint       `json:"-" db:"software_id"`
+	SoftwareTitleID uint       `json:"-" db:"software_title_id"`
 	Version         string     `json:"version" db:"version"`
 	LastOpenedAt    *time.Time `json:"last_opened_at" db:"last_opened_at"`
 	Vulnerabilities []string   `json:"vulnerabilities" db:"vulnerabilities"`
