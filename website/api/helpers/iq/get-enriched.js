@@ -56,7 +56,7 @@ module.exports = {
 
     // console.log(emailAddress,linkedinUrl,firstName,lastName,organization);
 
-    sails.log.verbose('ignoring linkedinUrl, firstName, and lastName for now...', linkedinUrl,firstName,lastName);
+    sails.log.verbose('ignoring linkedinUrl, firstName, and lastName for now...', linkedinUrl,firstName,lastName,organization);
 
     let emailDomain = '';
     if (emailAddress) {
@@ -64,13 +64,17 @@ module.exports = {
     }//ﬁ
 
     // [?] https://dashboard.coresignal.com/get-started
+    // FUTURE: handle cases where the a website returns more than one result (e.g, sailsjs.com returns a result for Treeline and for The Sails Company)
     let searchBy = {};
     if (emailAddress) {
       searchBy.website = emailDomain;
     }
-    if (organization) {
-      searchBy.name = organization;
-    }
+    // Note: If a provided organization name contains one or more words that are not in the company's name on LinkedIn, searching by name and emailDomain can return nothing
+    // in cases where searching by email domain alone returns a result.
+    // e.g, {emailAddress: 'foo@fleetdm.com', organization: 'Fleetdm'} returns no results, but {emailAddress: 'foo@fleetdm.com', organization: 'Device'} returns the correct information.
+    // if (organization) {
+    //   searchBy.name = organization;
+    // }
     let matchingIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter', searchBy, {
       Authorization: `Bearer ${sails.config.custom.iqSecret}`,
       'content-type': 'application/json'
