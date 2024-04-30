@@ -11,11 +11,15 @@ type OrbitSoftwareInstaller struct {
 	// SoftwareId is the ID of the installer that will be fetched from
 	// the fleet server
 	SoftwareId string `json:"software_id,omitempty"`
-	// InstallScript is the script that will be run to install the
-	// downloaded software package
+	// InstallScript is the id of the script that will be run to
+	// install the downloaded software package
 	InstallScript string `json:"install_script,omitempty"`
-	// PostInstallScript is run after a successful install
+	// PostInstallScript is the id of the script that will run after a
+	// successful install
 	PostInstallScript string `json:"post_install_script,omitempty"`
+	// RollbackScript is the contents of the script run if the install
+	// or post_install scripts fail
+	RollbackScript string `json:"rollback_script,omitempty"`
 }
 
 // OrbitConfigNotifications are notifications that the fleet server sends to

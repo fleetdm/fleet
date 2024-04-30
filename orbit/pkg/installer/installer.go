@@ -138,8 +138,15 @@ func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScrip
 		return ctxerr.Wrap(ctx, err, "writing script")
 	}
 
+	print("installer path: ", installerPath+"\n")
+	print("script path: ", scriptPath+"\n")
+
+	if r.execCmdFn == nil {
+		r.execCmdFn = scripts.ExecCmd
+	}
+
 	start := time.Now()
-	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath)
+	output, exitCode, err := r.execCmdFn(ctx, scriptPath)
 	duration := time.Since(start)
 
 	if err = r.OrbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
