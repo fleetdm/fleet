@@ -263,7 +263,7 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	}
 	var createQueryResp createQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
-	defer cleanupQuery(s, createQueryResp.Query.ID)
+	defer s.cleanupQuery(createQueryResp.Query.ID)
 
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
@@ -1579,7 +1579,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
-	defer cleanupQuery(s, q.ID)
+	defer s.cleanupQuery(q.ID)
 	globalPolicy0, err := s.ds.NewGlobalPolicy(
 		context.Background(), &user1.ID, fleet.PolicyPayload{
 			QueryID: &q.ID,
@@ -5732,7 +5732,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	require.NotNil(t, createQueryResp.Query)
 	existingQueryID := createQueryResp.Query.ID
-	defer cleanupQuery(s, existingQueryID)
+	defer s.cleanupQuery(existingQueryID)
 
 	for _, tc := range []struct {
 		tname    string
@@ -6115,6 +6115,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "free", acResp.License.Tier)
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
+	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -6156,6 +6158,30 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// and it did not update the appconfig
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Contains(t, string(*acResp.AgentOptions), `"logger_plugin": "tls"`) // default agent options has this setting
+
+	// Invalid activity expiry window.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "activity_expiry_enabled": true,
+        "activity_expiry_window": -1
+    }
+  }`), http.StatusUnprocessableEntity, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	require.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	// Valid activity expiry window.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "activity_expiry_enabled": true,
+        "activity_expiry_window": 42
+    }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 
 	// test a change that does clear the agent options (the field is provided but empty).
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -8905,7 +8931,7 @@ func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	return ssn
 }
 
-func cleanupQuery(s *integrationTestSuite, queryID uint) {
+func (s *integrationTestSuite) cleanupQuery(queryID uint) {
 	var delResp deleteQueryByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
 }

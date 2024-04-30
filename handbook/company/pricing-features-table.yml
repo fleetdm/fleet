@@ -632,7 +632,7 @@
   description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
   tier: Premium
-  comingSoonOn: 2024-04-22 #customer-reedtimmer,customer-flacourtia 
+  comingSoonOn: 2024-05-13 #customer-flacourtia 
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]

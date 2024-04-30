@@ -1462,7 +1462,8 @@ const ManageHostsPage = ({
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
         } else if (canEnrollHosts) {
           emptyHosts.header = "Add your hosts to Fleet";
-          emptyHosts.info = "Generate Fleet's agent (fleetd) to add your own hosts.";
+          emptyHosts.info =
+            "Generate Fleet's agent (fleetd) to add your own hosts.";
           emptyHosts.primaryButton = (
             <Button variant="brand" onClick={toggleAddHostsModal} type="button">
               Add hosts

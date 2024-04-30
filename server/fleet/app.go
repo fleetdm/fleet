@@ -434,8 +434,9 @@ type AppConfig struct {
 	// SMTPSettings holds the SMTP integration settings.
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
-	SMTPSettings       *SMTPSettings      `json:"smtp_settings,omitempty"`
-	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
+	SMTPSettings           *SMTPSettings          `json:"smtp_settings,omitempty"`
+	HostExpirySettings     HostExpirySettings     `json:"host_expiry_settings"`
+	ActivityExpirySettings ActivityExpirySettings `json:"activity_expiry_settings"`
 	// Features allows to globally enable or disable features
 	Features               Features  `json:"features"`
 	DeprecatedHostSettings *Features `json:"host_settings,omitempty"`
@@ -888,6 +889,12 @@ type HostExpirySettings struct {
 	HostExpiryWindow  int  `json:"host_expiry_window"`
 }
 
+// ActivityExpirySettings contains settings pertaining to automatic activities cleanup.
+type ActivityExpirySettings struct {
+	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
+	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
+}
+
 type Features struct {
 	EnableHostUsers         bool               `json:"enable_host_users"`
 	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
@@ -1008,6 +1015,9 @@ type ListQueryOptions struct {
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
 	IsScheduled *bool
+	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
+	// is set.
+	MergeInherited bool
 }
 
 type ListActivitiesOptions struct {

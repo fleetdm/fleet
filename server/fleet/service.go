@@ -270,7 +270,9 @@ type Service interface {
 	// for distributed queries but not saved should not be returned).
 	// When is set to scheduled != nil, then only scheduled queries will be returned if `*scheduled == true`
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
-	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool) ([]*Query, error)
+	// If mergeInherited is true and a teamID is provided, then queries from the global team will be
+	// included in the results.
+	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to
 	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, error)

@@ -212,9 +212,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onProfileJobDone != nil {
 								s.onProfileJobDone()
 							}
-							signingCert, _, _, err := fleetCfg.MDM.AppleSCEP()
-							require.NoError(s.T(), err)
-							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger, signingCert)
+							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger, fleetCfg.MDM)
 							require.NoError(s.T(), err)
 							return err
 						}),

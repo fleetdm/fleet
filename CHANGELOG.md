@@ -1,3 +1,9 @@
+## Fleet 4.49.1 (Apr 26, 2024)
+
+### Bug fixes
+
+* Fixed a bug that prevented the Fleet server from starting if Windows MDM was configured but Apple MDM wasn't.
+
 ## Fleet 4.49.0 (Apr 24, 2024)
 
 ### Endpoint operations
@@ -15,8 +21,6 @@
 - Updated `fleetctl run-script` to include new `--team` and `--script-name` flags.
 - Displayed disk encryption status in macOS as "verifying" while verifying the escrowed key.
 - Added the `enable_release_device_manually` configuration setting for teams and no team, which controls the automatic release of a macOS DEP-enrolled device.
-- Updated the `POST /api/v1/fleet/hosts/:id/wipe` Fleet Premium API endpoint to support remote wiping a host.
-- Added the `enable_release_device_manually` configuration, which affects macOS automatic enrollment profile settings.
 
 ### Vulnerability management
 
