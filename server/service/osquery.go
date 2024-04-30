@@ -1865,6 +1865,16 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			continue
 		}
 
+		hostTeamID := uint(0)
+		if host.TeamID != nil {
+			hostTeamID = *host.TeamID
+		}
+		if dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID {
+			// The host was transferred to another team/global so we ignore the incoming results
+			// of this query that belong to a different team.
+			continue
+		}
+
 		// We first check the current query results count using the DB reader (also cached)
 		// to reduce the DB writer load of osquery/log requests when the host count is high.
 		count, err := svc.ds.ResultCountForQuery(ctx, dbQuery.ID)
