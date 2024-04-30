@@ -73,7 +73,7 @@ module.exports = {
     await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
 
     let salesforceAccountId;
-    if(!enrichmentData.employer || !enrichmentData.employer.emailDomain) {
+    if(!enrichmentData.employer || !enrichmentData.employer.emailDomain || !enrichmentData.employer.organization) {
       // Special sacraficial meat cave where the contacts with no organization go.
       // https://fleetdm.lightning.force.com/lightning/r/Account/0014x000025JC8DAAW/view
       salesforceAccountId = '0014x000025JC8DAAW';
@@ -155,13 +155,13 @@ module.exports = {
 
     let salesforceContactId;
     let valuesToSet = {};
-    if(emailAddress || enrichmentData.person){
-      valuesToSet.Email = emailAddress || enrichmentData.person.emailAddress;
+    if(emailAddress){
+      valuesToSet.Email = emailAddress;
     }
-    if(linkedinUrl || enrichmentData.person){
+    if(linkedinUrl || (enrichmentData.person && enrichmentData.person.linkedinUrl)){
       valuesToSet.LinkedIn_profile__c = linkedinUrl || enrichmentData.person.linkedinUrl;// eslint-disable-line camelcase
     }
-    if(enrichmentData.person){
+    if(enrichmentData.person && enrichmentData.person.title){
       valuesToSet.Title = enrichmentData.person.title;
     }
     if(primaryBuyingSituation) {
