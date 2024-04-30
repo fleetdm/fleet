@@ -2415,7 +2415,7 @@ Lists the software installed on the current device.
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
-| query   | string | query | Search query keywords. Searchable fields include name. |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
