@@ -1,12 +1,11 @@
 # Business Operations
-This handbook page details processes specific to working [with](#what-we-do) and [within](#responsibilities) the Business Operations (BizOps) department.  
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
-| Community Advocate              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
-| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_, [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
+| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_ <br> [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 ## Contact us
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).

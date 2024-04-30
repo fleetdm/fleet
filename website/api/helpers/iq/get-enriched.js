@@ -7,6 +7,14 @@ module.exports = {
   description: 'Search for the contact indicated and return enriched data.',
 
 
+  extendedDescription: `Note about coresignal.com from their FAQ:
+    Q: Do you have emails or phone numbers in your database?
+    A: No, we don't have emails or phone numbers. We only hold publicly available data on companies and professionals.`,
+
+
+  moreInfoUrl: 'https://coresignal.com/faq/',
+
+
   inputs: {
 
     emailAddress: { type: 'string', defaultsTo: '', },
@@ -25,20 +33,17 @@ module.exports = {
       outputDescription: 'All available, enriched info about this person and their current employer.',
       outputType: {
         person: {
-          emailAddress: 'string',
           linkedinUrl: 'string',
           firstName: 'string',
           lastName: 'string',
           organization: 'string',
           title: 'string',
-          phone: 'string',
         },
         employer: {
           organization: 'string',
           numberOfEmployees: 'number',
           emailDomain: 'string',
           linkedinCompanyPageUrl: 'string',
-          technologies: [{name: 'string', category: 'string'}]
         }
       }
     },
@@ -47,135 +52,193 @@ module.exports = {
 
 
   fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization}) {
-    require('assert')(sails.config.custom.iqSecret);
 
-    let RX_TECHNOLOGY_CATEGORIES = /(device|security|endpoint|configuration management|data management platforms|mobility management|identity|information technology|IT$|employee experience|apple)/i;
+    require('assert')(sails.config.custom.iqSecret);// FUTURE: Rename this config
 
-    // [?] https://developer.leadiq.com/#query-searchPeople
-    // [?] https://developer.leadiq.com/#definition-SearchPeopleInput
-    // [?] https://graphql.org/learn/serving-over-http/
-    let emailDomain = emailAddress.match(/@([^@]+)$/) && emailAddress.match(/@([^@]+)$/)[1] || '';
+    let RX_PROTOCOL_AND_COMMON_SUBDOMAINS = /^https?\:\/\/(www\.|about\.)*/;
 
-    let searchExpr = `{
-      ${emailAddress? 'email: '+ JSON.stringify(emailAddress) : ''}
-      ${linkedinUrl? 'linkedinUrl: '+ JSON.stringify(linkedinUrl) : ''}
-      ${firstName? 'firstName: '+ JSON.stringify(firstName) : ''}
-      ${lastName? 'lastName: '+ JSON.stringify(lastName) : ''}
-      ${organization || emailDomain ? (`company: {
-        ${organization? 'name: '+ JSON.stringify(organization) : ''}
-        ${emailDomain? 'domain: '+ JSON.stringify(emailDomain)+' '+'emailDomain: '+ JSON.stringify(emailDomain) : ''}
-        searchInPastCompanies: false
-        strict: false
-      }`) : ''}
-    }`; //sails.log('GraphQL query:',searchExpr);
-    let report = await sails.helpers.http.get('https://api.leadiq.com/graphql', {
-      query: `{ searchPeople(input: ${searchExpr}) {
-          totalResults
-          results {
-            _id
-            name { first last }
-            linkedin { linkedinId linkedinUrl status updatedAt }
-            profiles { network id username url status updatedAt }
-            location { country areaLevel1 city fullAddress type status updatedAt }
-            personalPhones { value type status verificationStatus }
-            currentPositions {
-              title
-              emails { value type status }
-              phones { value type status verificationStatus }
-              companyInfo {
-                name
-                domain
-                country
-                address
-                linkedinUrl
-                numberOfEmployees
-                technologies { name category parentCategory attributes categories }
-              }
-            }
-          }
-        }
-      }`,
-    }, {
-      Authorization: `Basic ${sails.config.custom.iqSecret}`,
-      'content-type': 'application/json'
-    });
+    sails.log.verbose('Enriching from…', emailAddress,linkedinUrl,firstName,lastName,organization);
 
-    if (report.errors) {
-      sails.log.warn('Errors returned from IQ API when attempting to search for a matching contact:',report.errors);
-    }
+    // Gather initial information that is obtainable just from parsing provided inputs.
+    let emailDomain;
+    if (emailAddress) {
+      let matches = emailAddress.match(/@([^@]+)$/);
+      if (Array.isArray(matches)) {
+        emailDomain = matches[1] || undefined;
+      }
+    }//ﬁ
 
-    // sails.log('person search results:',require('util').inspect(report.data.searchPeople.results, {depth:null}));
-    let foundPerson = report.data.searchPeople.results[0]; //sails.log('Found person:',foundPerson);
-    let foundPosition = foundPerson && foundPerson.currentPositions && foundPerson.currentPositions.length >= 1 ? foundPerson.currentPositions[0] : undefined;
+    let linkedinPersonIdOrUrlSlug;
+    if (linkedinUrl) {
+      let matches = linkedinUrl.match(/linkedin\.com\/in\/([^/]+)\/?$/);
+      if (Array.isArray(matches)) {
+        linkedinPersonIdOrUrlSlug = matches[1] || undefined;
+      }
+    }//ﬁ
+
+
+    // If no linkedin URL was provided for the person, then also do a website+name+orgName search
+    // vs contacts to try and locate the person's linkedin URL.
+    //
+    // [?] Why?  It provides us with a better unique id than an email.  For example, consider
+    //     how everyone has more than one email.  This way, we can avoid sending any emails that
+    //     people might experience as "spam", even if they unsubscribe from a different email.
+    if (!linkedinPersonIdOrUrlSlug && (firstName || lastName || emailAddress)) {
+      let searchBy = {};
+      if (firstName && !lastName) {
+        searchBy.name = firstName;
+      } else if (!firstName && lastName) {
+        searchBy.name = lastName;
+      } else if (firstName && lastName) {
+        searchBy.name = firstName + ' ' + lastName;
+      } else {
+        searchBy.name = _.startCase(emailAddress.replace(/@[^@]+$/,'').replace(/\./g,' ').replace(/[0-9\-]/g,''));
+      }
+      if (emailDomain) {
+        searchBy.experience_company_website_url = emailDomain;//eslint-disable-line camelcase
+        searchBy.active_experience = true;//eslint-disable-line camelcase
+      }//ﬁ
+      if (organization) {
+        searchBy.experience_company_name = organization;//eslint-disable-line camelcase
+        searchBy.active_experience = true;//eslint-disable-line camelcase
+      }//ﬁ
+      if (Object.keys(searchBy).length >= 1) {
+        // [?] https://dashboard.coresignal.com/get-started
+        let matchingLinkedinPersonIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/member/search/filter', searchBy, {
+          Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+          'content-type': 'application/json'
+        }).tolerate((err)=>{
+          sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+          return [];
+        });
+        linkedinPersonIdOrUrlSlug = matchingLinkedinPersonIds[0];
+      }//ﬁ
+    }//ﬁ
 
     let person;
-    if (foundPerson) {
-      person = {
-        emailAddress: emailAddress? emailAddress : foundPosition && foundPosition.emails[0]? foundPosition.emails[0].value : '',
-        linkedinUrl: linkedinUrl? linkedinUrl : foundPerson.linkedin.linkedinUrl,
-        firstName: firstName? firstName : foundPerson.name.first,
-        lastName: lastName? lastName : foundPerson.name.last,
-        organization: organization? organization : foundPosition? foundPosition.companyInfo.name : '',
-        title: foundPosition? foundPosition.title : '',
-        phone: foundPerson.personalPhones[0] && foundPerson.personalPhones[0].status !== 'Suppressed' ? foundPerson.personalPhones[0].value : '',
-      };
+    let matchingLinkedinCompanyPageId;
+
+    if (linkedinPersonIdOrUrlSlug) {
+      // [?] https://dashboard.coresignal.com/get-started
+      let matchingPersonInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/member/collect/'+encodeURIComponent(linkedinPersonIdOrUrlSlug), {}, {
+        Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+        'content-type': 'application/json'
+      }).tolerate((err)=>{
+        sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+        return undefined;
+      });
+
+      if (matchingPersonInfo) {
+
+        require('assert')(Array.isArray(matchingPersonInfo.member_experience_collection));
+        let matchingWorkExperience = (
+          matchingPersonInfo.member_experience_collection.filter((workExperience) =>
+            !workExperience.deleted &&
+            workExperience.order_in_profile === 1 &&
+            !workExperience.date_to
+            // FUTURE: Be smarter by also trying to match the stated organization, if one is provided, for the edge case where someone has multiple current positions.
+          )
+        )[0];
+
+        let matchedOrganizationName;
+        let matchedTitle;
+        if (matchingWorkExperience) {
+          matchedOrganizationName = matchingWorkExperience.company_name;
+          matchedTitle = matchingWorkExperience.title;
+          matchingLinkedinCompanyPageId = matchingWorkExperience.company_id;// « save for use below
+        }
+
+        person = {
+          linkedinUrl: matchingPersonInfo.canonical_url.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
+          firstName: matchingPersonInfo.first_name,
+          lastName: matchingPersonInfo.last_name,
+          organization: matchedOrganizationName || '',
+          title: matchedTitle || ''
+        };
+
+        if (linkedinUrl && person.linkedinUrl && person.linkedinUrl !== linkedinUrl) {
+          sails.log.warn(`Unexpected result when enriching: Matched linkedin URL for person (${person.linkedinUrl}) does not equal the provided linkedin URL (${linkedinUrl})`);
+        }//ﬁ
+        if (firstName && person.firstName && person.firstName !== firstName) {
+          sails.log.warn(`Unexpected result when enriching: Matched current firstName for person (${person.firstName}) does not equal the provided "firstName" (${firstName})`);
+        }//ﬁ
+        if (lastName && person.lastName && person.lastName !== lastName) {
+          sails.log.warn(`Unexpected result when enriching: Matched current lastName for person (${person.lastName}) does not equal the provided "lastName" (${lastName})`);
+        }//ﬁ
+        if (organization && person.organization && person.organization !== organization) {
+          sails.log.warn(`Unexpected result when enriching: Matched current TOP organization for person (${person.organization}) does not equal the provided "organization" (${organization})`);
+        }//ﬁ
+      }//ﬁ
     }//ﬁ
 
 
 
 
+    // Now look up the employer.
+    //
+    // [?] Either use the matched linkedin company page ID from above,
+    //     or if no match, then try to find the linkedin company page ID
+    //     by other means.  If nothing works, then give up and don't enrich.
+    if (!matchingLinkedinCompanyPageId) {
+      let searchBy = {};
+      if (emailDomain) {
+        searchBy.website = emailDomain;
+      }//ﬁ
+      if (organization) {
+        searchBy.name = organization;
+      }//ﬁ
+      if (Object.keys(searchBy).length >= 1) {
+        // [?] https://dashboard.coresignal.com/get-started
+        let matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter', searchBy, {
+          Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+          'content-type': 'application/json'
+        }).tolerate((err)=>{
+          sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+          return [];
+        });
 
-    // If no person was found, then try and look up the organization by itself.
+        // If name and domain were used for searching the org, yet no matches found,
+        // try searching again, but this time w/o the org name.
+        if (matchingLinkedinCompanyPageIds.length === 0 && searchBy.name && searchBy.website) {
+          delete searchBy.name;
+          // [?] https://dashboard.coresignal.com/get-started
+          matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter', searchBy, {
+            Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+            'content-type': 'application/json'
+          }).tolerate((err)=>{
+            sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+            return [];
+          });
+        }//ﬁ
+
+        matchingLinkedinCompanyPageId = matchingLinkedinCompanyPageIds[0];
+      }//ﬁ
+    }//ﬁ
+
     let employer;
-    if (foundPosition) {
-      employer = {
-        organization: organization? organization : foundPosition.companyInfo.name || '',
-        numberOfEmployees: foundPosition.companyInfo.numberOfEmployees || 0,
-        emailDomain:( foundPosition.companyInfo.domain? foundPosition.companyInfo.domain : emailDomain )|| '',
-        linkedinCompanyPageUrl: foundPosition.companyInfo.linkedinUrl || '',
-        technologies: foundPosition.companyInfo.technologies? foundPosition.companyInfo.technologies
-          .filter((tech) => tech.category.match(RX_TECHNOLOGY_CATEGORIES))
-          .map((tech) => ({ name: tech.name, category: tech.category })) : []
-      };
-    } else {
-      let report = await sails.helpers.http.get('https://api.leadiq.com/graphql', {
-        query: `{ searchCompany(input: {
-          ${organization? 'name: '+ JSON.stringify(organization) : ''}
-          ${emailDomain? 'domain: '+ JSON.stringify(emailDomain) : ''}
-        }) {
-            totalResults
-            results {
-              name
-              domain
-              country
-              address
-              numberOfEmployees
-              linkedinUrl
-              technologies { name category parentCategory attributes categories }
-            }
-          }
-        }`
-      }, {
-        Authorization: `Basic ${sails.config.custom.iqSecret}`,
+    if (matchingLinkedinCompanyPageId) {
+      // [?] https://dashboard.coresignal.com/get-started
+      let matchingCompanyPageInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/company/collect/'+encodeURIComponent(matchingLinkedinCompanyPageId), {}, {
+        Authorization: `Bearer ${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
+      }).tolerate((err)=>{
+        sails.log.warn(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+        return undefined;
       });
-      // sails.log('company search report:',report);
-
-      if (report.errors) {
-        sails.log.warn('Errors returned from IQ API when attempting to search directly for a matching organization:',report.errors);
-      }
-      let foundEmployer = report.data.searchCompany.results[0]; //sails.log(foundEmployer);
-      if (foundEmployer) {
+      if (matchingCompanyPageInfo) {
         employer = {
-          organization: organization? organization : foundEmployer.name || '',
-          numberOfEmployees: foundEmployer.numberOfEmployees || 0,
-          emailDomain: emailDomain? emailDomain : foundEmployer.domain || '',
-          linkedinCompanyPageUrl: foundEmployer.linkedinUrl || '',
-          technologies: foundEmployer.technologies? foundEmployer.technologies
-            .filter((tech) => tech.category.match(RX_TECHNOLOGY_CATEGORIES))
-            .map((tech) => ({ name: tech.name, category: tech.category })) : []
-        };// process.stdout.write(JSON.stringify(employer.technologies,0,2));
-      }
+          organization: matchingCompanyPageInfo.name,
+          numberOfEmployees: matchingCompanyPageInfo.employees_count,
+          emailDomain: require('url').parse(matchingCompanyPageInfo.website).hostname.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
+          linkedinCompanyPageUrl: matchingCompanyPageInfo.canonical_url.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
+        };
+        if (organization && employer.organization && employer.organization !== organization) {
+          sails.log.warn(`Unexpected result when enriching: Matched organization name (${employer.organization}) does not equal the provided "organization" (${organization})`);
+        }//ﬁ
+        if (emailDomain && employer.emailDomain && employer.emailDomain !== emailDomain) {
+          sails.log.warn(`Unexpected result when enriching: Email domain inferred from matched organization website (${employer.emailDomain}) does not equal the parsed email domain (${emailDomain}) that was derived from the provided "emailAddress" (${emailAddress})`);
+        }//ﬁ
+      }//ﬁ
     }//ﬁ
 
     return {
@@ -185,6 +248,4 @@ module.exports = {
 
   }
 
-
 };
-

@@ -28,10 +28,11 @@
     font-family: 'Roboto Mono';
     font-style: normal;
     font-weight: 400;
-    font-size: 18px;
-    line-height: 24px;
+    font-size: 14px;
+    line-height: 150%;
+    text-transform: uppercase;
     color: @core-fleet-black-75;
-    margin-bottom: 4px;
+    margin-bottom: 0;
   }
   p {
     font-size: 16px;
@@ -301,78 +302,77 @@
   [parasails-component='logo-carousel'] {
     margin-bottom: 80px;
   }
-  [purpose='calendar-section'] {
-    padding: 0px 64px 40px 64px;
-    margin-bottom: 40px;
-    max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  [purpose='calendar-card-body'] {
-    width: 50%;
-    padding-left: 64px;
-    padding-bottom: 24px;
-    margin-right: 24px;
-    text-align: left;
-    h3 {
-      font-size: 32px;
-      line-height: 120%;
-      margin-bottom: 24px;
-    }
-    p {
-      max-width: 720px;
-      margin-bottom: 24px;
-      margin-top: 24px;
-    }
-    a {
-      margin-bottom: 6px;
-      padding-right: 24px;
-    }
-  }
-  [purpose='calendar-card'] {
-    border-radius: 24px;
-    border: 1px solid #E2E4EA;
-    background: linear-gradient(165deg, #F9FDFE 10.56%, #FFF 33.43%);
-    overflow: hidden;
-    height: 420px;
-  }
-  [purpose='coming-soon-badge'] {
-    background-color: #0587FF;
-    padding: 4px 8px 3px 8px;
-    display: flex;
-    align-items: center;
-    border-radius: 14px;
-    color: #FFF;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 18px;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-  [purpose='calendar-image'] {
-    padding-top: 32px;
-    padding-bottom: 24px;
-    height: 420px;
-    width: 50%;
-    display: flex;
-    flex-direction: row;
-    overflow-x: hidden;
-    justify-content: center;
-    position: relative;
-    &:before {
-      position: absolute;
-      content: ' ';
-      width: 55px;
-      left: 0px;
-      top: 0px;
-      height: 420px;
-      background: linear-gradient(270deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
-    }
-    img {
-      height: 100%;
-      width: auto;
-    }
-  }
+  [purpose='calendar-feature'] {
+     margin-bottom: 140px;
+     h3 {
+       font-size: 32px;
+       margin-bottom: 24px;
+     }
+     [purpose='calendar-feature-text'] {
+       max-width: 480px;
+     }
+     [purpose='new-badge'] {
+       background-color: #0587FF;
+       padding: 4px 8px 3px 8px;
+       display: flex;
+       align-items: center;
+       border-radius: 14px;
+       color: #FFF;
+       font-size: 12px;
+       font-weight: 500;
+       line-height: 18px;
+       text-transform: uppercase;
+       margin-bottom: 12px;
+       width: min-content;
+     }
+     [purpose='calendar-checklist'] {
+       margin-top: 8px;
+       margin-bottom: 24px;
+       p {
+         font-size: 14px;
+         font-style: normal;
+         font-weight: 400;
+         line-height: 21px;
+         padding-left: 37px;
+         text-indent: -37px;
+         margin-bottom: 1.5rem;
+         &:last-of-type {
+           margin-bottom: 0px;
+         }
+       }
+       p::before {
+         content: ' ';
+         background-image: url('/images/icon-checkmark-green-20x20@2x.png');
+         background-size: 20px 20px;
+         display: inline-block;
+         position: relative;
+         top: 5px;
+         margin-right: 16px;
+         width: 20px;
+         height: 20px;
+       }
+     }
+     [purpose='feature-video'] {
+       margin-left: 80px;
+       max-width: 468px;
+       video {
+         max-width: 100%;
+         max-height: 100%;
+         border-radius: 16px;
+       }
+     }
+     [purpose='video-button'] {
+       margin-top: 12px;
+       cursor: pointer;
+       img {
+         height: 32px;
+         margin-right: 8px;
+       }
+       font-size: 14px;
+       font-weight: 700;
+       line-height: 21px;
+     }
+   }
 
 
 
@@ -534,8 +534,12 @@
       padding-left: 40px;
       padding-right: 40px;
     }
-    [purpose='calendar-section'] {
-      padding: 0px 40px 40px 40px;
+    [purpose='calendar-feature'] {
+      [purpose='feature-video'] {
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 40px;
+      }
     }
     [purpose='page-section'] {
       margin-bottom: 140px;

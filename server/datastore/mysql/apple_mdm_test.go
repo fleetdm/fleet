@@ -66,7 +66,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
-		{"TestResetMDMAppleEnrollment", testResetMDMAppleEnrollment},
+		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
@@ -746,9 +746,9 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
 
-	err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
-		UDID:         testUUID,
-		SerialNumber: testSerial,
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
 	})
 	require.NoError(t, err)
 
@@ -784,9 +784,9 @@ func testIngestMDMNonDarwinHostAlreadyExistsInFleet(t *testing.T, ds *Datastore)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
 
-	err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
-		UDID:         testUUID,
-		SerialNumber: testSerial,
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
 	})
 	require.NoError(t, err)
 
@@ -825,9 +825,9 @@ func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, testModel)
 
 	// now simulate the initial MDM checkin by that same host
-	err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
-		UDID:         testUUID,
-		SerialNumber: testSerial,
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
 	})
 	require.NoError(t, err)
 
@@ -844,10 +844,10 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	testModel := "MacBook Pro"
 
 	// ingest host on initial mdm checkin
-	err := ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
-		UDID:         testUUID,
-		SerialNumber: testSerial,
-		Model:        testModel,
+	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
+		HardwareModel:  testModel,
 	})
 	require.NoError(t, err)
 
@@ -875,9 +875,9 @@ func testIngestMDMAppleCheckinMultipleIngest(t *testing.T, ds *Datastore) {
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
 
-	err := ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
-		UDID:         testUUID,
-		SerialNumber: testSerial,
+	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
 	})
 	require.NoError(t, err)
 
@@ -886,9 +886,9 @@ func testIngestMDMAppleCheckinMultipleIngest(t *testing.T, ds *Datastore) {
 	require.Equal(t, testUUID, hosts[0].UUID)
 
 	// duplicate Authenticate request has no effect
-	err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
-		UDID:         testUUID,
-		SerialNumber: testSerial,
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
 	})
 	require.NoError(t, err)
 
@@ -901,9 +901,9 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
-	err := ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
-		UDID:         testUUID,
-		SerialNumber: testSerial,
+	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
 	})
 	require.NoError(t, err)
 
@@ -946,7 +946,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	err = ds.UpdateHostTablesOnMDMUnenroll(ctx, testUUID)
+	err = ds.MDMTurnOff(ctx, testUUID)
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(context.Background(), ds.reader(context.Background()), &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
@@ -957,8 +957,8 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, hostProfs)
 	key, err = ds.GetHostDiskEncryptionKey(ctx, hostID)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-	require.Nil(t, key)
+	require.NoError(t, err)
+	require.NotNil(t, key)
 }
 
 func expectAppleProfiles(
@@ -2202,7 +2202,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	// hosts[6] deletes all its profiles
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
-	require.NoError(t, ds.deleteMDMAppleProfilesForHost(ctx, tx, hosts[6].UUID))
+	require.NoError(t, ds.deleteMDMOSCustomSettingsForHost(ctx, tx, hosts[6].UUID, "darwin"))
 	require.NoError(t, tx.Commit())
 	pendingHosts := append(hosts[2:6:6], hosts[7:]...)
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil) // get summary for profiles with no team
@@ -2534,7 +2534,7 @@ func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
 
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
-	require.NoError(t, ds.deleteMDMAppleProfilesForHost(ctx, tx, h.UUID))
+	require.NoError(t, ds.deleteMDMOSCustomSettingsForHost(ctx, tx, h.UUID, "darwin"))
 	require.NoError(t, tx.Commit())
 	require.NoError(t, err)
 	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, h.UUID)
@@ -4215,7 +4215,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate MDM unenroll
-		require.NoError(t, ds.UpdateHostTablesOnMDMUnenroll(ctx, depUUID))
+		require.NoError(t, ds.MDMTurnOff(ctx, depUUID))
 
 		// host MDM row is set to defaults on unenrollment
 		getHostResp, err = ds.Host(ctx, testHost.ID)
@@ -4295,7 +4295,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		manualOrbitNodeKey := "manual-orbit-node-key"
 		manualDeviceToken := "manual-device-token"
 
-		err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{SerialNumber: manualSerial, UDID: manualUUID})
+		err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{HardwareSerial: manualSerial, UUID: manualUUID})
 		require.NoError(t, err)
 
 		var manualHostID uint
@@ -4413,7 +4413,7 @@ func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
+func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
@@ -4427,7 +4427,7 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 
 	// try with a host that doesn't have a matching entry
 	// in nano_enrollments
-	err = ds.ResetMDMAppleEnrollment(ctx, host.UUID)
+	err = ds.MDMResetEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 
 	// add a matching entry in the nano table
@@ -4484,12 +4484,8 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 1, sum.Installed)
 
 	// reset the enrollment
-	err = ds.ResetMDMAppleEnrollment(ctx, host.UUID)
+	err = ds.MDMResetEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
-
-	enrollment, err = ds.GetNanoMDMEnrollment(ctx, host.UUID)
-	require.NoError(t, err)
-	require.Zero(t, enrollment.TokenUpdateTally)
 
 	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)

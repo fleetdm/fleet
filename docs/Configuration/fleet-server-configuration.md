@@ -897,7 +897,7 @@ This flag can be used to control load on the database in scenarios in which many
 
 ##### osquery_label_update_interval
 
-The interval at which Fleet will ask osquery agents to update their results for label queries.
+The interval at which Fleet will ask Fleet's agent (fleetd) to update results for label queries.
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -915,7 +915,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_policy_update_interval
 
-The interval at which Fleet will ask osquery agents to update their results for policy queries.
+The interval at which Fleet will ask Fleet's agent (fleetd) to update results for policy queries.
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -933,7 +933,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_detail_update_interval
 
-The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
+The interval at which Fleet will ask Fleet's agent (fleetd) to update host details (such as uptime, hostname, network interfaces, etc.)
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -2553,7 +2553,7 @@ stored in your database.
 
 ##### packaging_s3_bucket
 
-This is the name of the S3 bucket to store pre-built Fleetd installers.
+This is the name of the S3 bucket to store pre-built Fleet agent (fleetd) installers.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_BUCKET`

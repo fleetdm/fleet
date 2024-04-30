@@ -335,6 +335,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
+		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, cfg.MDM)
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
@@ -342,11 +343,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				mdmStorage,
 				scepStorage,
 				logger,
-				&MDMAppleCheckinAndCommandService{
-					ds:        ds,
-					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, cfg.MDM),
-					logger:    kitlog.NewNopLogger(),
-				},
+				NewMDMAppleCheckinAndCommandService(ds, commander, logger),
 				&MDMAppleDDMService{
 					ds:     ds,
 					logger: logger,

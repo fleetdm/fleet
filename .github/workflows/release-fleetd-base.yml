@@ -1,0 +1,177 @@
+name: Upload fleetd base to https://download.fleetdm.com
+
+on:
+  workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 3 * * *' # Nightly 3AM UTC
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
+  R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
+  R2_BUCKET: download-testing # Production: download | Testing: download-testing
+  BASE_URL: https://download-testing.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
+
+jobs:
+  check-for-fleetd-component-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      update_needed: ${{ steps.check-for-fleetd-component-updates.outputs.update_needed }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install Go
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+        with:
+          go-version: ${{ vars.GO_VERSION }}
+
+      - name: Checkout Code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: Check for fleetd component updates
+        id: check-for-fleetd-component-updates
+        run: |
+          go run tools/tuf/status/tuf-status.go channel-version -channel stable --components orbit,desktop,osqueryd --format json > latest-meta.json
+          curl -O $BASE_URL/meta.json
+          if diff latest-meta.json meta.json >/dev/null 2>&1
+          then
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload latest meta.json artifact
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        with:
+          name: latest-meta.json
+          path: latest-meta.json
+
+  update-fleetd-base-pkg:
+    needs: [check-for-fleetd-component-updates]
+    if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
+    runs-on: macos-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code needed for R2 upload
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          sparse-checkout: |
+            .github/actions/r2-upload/action.yml
+            .github/scripts/rclone-install.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Import package signing keys
+        env:
+          APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_INSTALLER_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
+          security import certificate.p12 -k build.keychain -P $APPLE_INSTALLER_CERTIFICATE_PASSWORD -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple:,productsign: -s -k $KEYCHAIN_PASSWORD build.keychain
+          security find-identity -vv
+          rm certificate.p12
+
+      - name: Build PKG, sign, and notarize
+        env:
+          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PACKAGE_SIGNING_IDENTITY_SHA1: D52080FD1F0941DE31346F06DA0F08AED6FACBBF
+        run: |
+          fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
+          mv fleet-osquery*.pkg fleetd-base.pkg
+
+      - name: Upload package
+        uses: ./.github/actions/r2-upload
+        with:
+          filename: fleetd-base.pkg
+
+  update-fleetd-base-msi:
+    needs: [check-for-fleetd-component-updates]
+    if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code needed for R2 upload
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          sparse-checkout: |
+            .github/actions/r2-upload/action.yml
+            .github/scripts/rclone-install.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Build MSI
+        run: |
+          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
+          mv fleet-osquery*.msi fleetd-base.msi
+
+      - name: Upload package
+        uses: ./.github/actions/r2-upload
+        with:
+          filename: fleetd-base.msi
+
+  update-meta-json:
+    needs: [update-fleetd-base-pkg, update-fleetd-base-msi]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code needed for R2 upload
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          sparse-checkout: |
+            .github/actions/r2-upload/action.yml
+            .github/scripts/rclone-install.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download latest-meta.json artifact
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        with:
+          name: latest-meta.json
+
+      - name: Rename latest-meta.json to meta.json
+        run: mv latest-meta.json meta.json
+
+      - name: Upload meta.json
+        uses: ./.github/actions/r2-upload
+        with:
+          filename: meta.json
