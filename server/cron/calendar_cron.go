@@ -592,8 +592,9 @@ func generateCalendarEventBody(
 		conflictStr = " because there was no remaining availability"
 	}
 	return fmt.Sprintf(
-		`%s reserved this time to make some changes to %s%s.
-Please leave your computer on and connected to power.
+		`%s reserved this time to make some changes to your work computer%s.
+
+Please leave your device on and connected to power.
 
 <b>Why it matters</b>
 %s
@@ -601,7 +602,7 @@ Please leave your computer on and connected to power.
 <b>What we'll do</b>
 %s
 `,
-		orgName, host.HostDisplayName, conflictStr, description, resolution,
+		orgName, conflictStr, description, resolution,
 	)
 }
 
