@@ -1043,10 +1043,10 @@ func (c *Client) DoGitOps(
 	if appConfig.License.IsPremium() {
 		windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
 		if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
-			windowsUpdates["deadline_days"] = 0
+			windowsUpdates["deadline_days"] = nil
 		}
 		if gracePeriodDays, ok := windowsUpdates["grace_period_days"]; !ok || gracePeriodDays == nil {
-			windowsUpdates["grace_period_days"] = 0
+			windowsUpdates["grace_period_days"] = nil
 		}
 	}
 	// Put in default value for enable_disk_encryption

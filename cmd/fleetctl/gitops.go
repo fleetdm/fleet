@@ -51,7 +51,7 @@ func gitopsCommand() *cli.Command {
 			}
 			for _, flFilename := range flFilenames.Value() {
 				if strings.TrimSpace(flFilename) == "" {
-					return errors.New("filename cannot be empty")
+					return errors.New("file name cannot be empty")
 				}
 			}
 
