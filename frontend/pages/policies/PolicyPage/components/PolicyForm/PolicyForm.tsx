@@ -49,8 +49,12 @@ interface IPolicyFormProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
-  isFetchingAIAutofill?: boolean;
-  onAiAutofill: (event: React.MouseEvent) => Promise<void>;
+  isFetchingAIAutofill: { description: boolean; resolution: boolean };
+  onAiAutofill: (fetching: {
+    description: boolean;
+    resolution: boolean;
+  }) => Promise<void>;
+  resetAiAutofillData: () => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -83,6 +87,7 @@ const PolicyForm = ({
   backendValidators,
   isFetchingAIAutofill,
   onAiAutofill,
+  resetAiAutofillData,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
@@ -138,9 +143,13 @@ const PolicyForm = ({
     setCompatiblePlatforms,
   } = platformCompatibility;
 
+  const platformSelectorDisabled =
+    isFetchingAIAutofill.description || isFetchingAIAutofill.resolution;
+
   const platformSelector = usePlatformSelector(
     lastEditedQueryPlatform,
-    baseClass
+    baseClass,
+    platformSelectorDisabled
   );
 
   const {
@@ -207,6 +216,7 @@ const PolicyForm = ({
 
   const onChangePolicy = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+    resetAiAutofillData();
   };
 
   const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {

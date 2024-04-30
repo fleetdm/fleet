@@ -120,6 +120,11 @@ class InputField extends Component {
       [`${baseClass}__textarea`]: type === "textarea",
     });
 
+    // TODO: Clean up classes and styling
+    const inputWrapperClasses = classnames(inputWrapperClass, {
+      [`input-field--disabled`]: disabled,
+    });
+
     const formFieldProps = pick(this.props, [
       "helpText",
       "label",
@@ -144,7 +149,7 @@ class InputField extends Component {
         <FormField
           {...formFieldProps}
           type="textarea"
-          className={inputWrapperClass}
+          className={inputWrapperClasses}
         >
           <textarea
             name={name}
@@ -169,7 +174,11 @@ class InputField extends Component {
     });
 
     return (
-      <FormField {...formFieldProps} type="input" className={inputWrapperClass}>
+      <FormField
+        {...formFieldProps}
+        type="input"
+        className={inputWrapperClasses}
+      >
         <div className={inputContainerClasses}>
           <input
             disabled={disabled}

@@ -62,6 +62,8 @@ describe("PolicyForm - component", () => {
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
         onAiAutofill={jest.fn()}
+        isFetchingAIAutofill={{ description: false, resolution: false }}
+        resetAiAutofillData={jest.fn()}
       />
     );
 
@@ -119,6 +121,8 @@ describe("PolicyForm - component", () => {
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
         onAiAutofill={jest.fn()}
+        isFetchingAIAutofill={{ description: false, resolution: false }}
+        resetAiAutofillData={jest.fn()}
       />
     );
 
@@ -174,7 +178,7 @@ describe("PolicyForm - component", () => {
       },
     });
 
-    const { container, user } = render(
+    const { user } = render(
       <PolicyForm
         policyIdForEdit={mockPolicy.id}
         showOpenSchemaActionText={false}
@@ -192,6 +196,8 @@ describe("PolicyForm - component", () => {
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
         onAiAutofill={jest.fn()}
+        isFetchingAIAutofill={{ description: false, resolution: false }}
+        resetAiAutofillData={jest.fn()}
       />
     );
 

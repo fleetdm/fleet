@@ -10592,10 +10592,10 @@ const teamQuery1 = { query: teamQueries.queries[0] };
 const teamQuery2 = { query: teamQueries.queries[1] };
 
 const aiAutofillPolicy = {
-  risks:
-    "The laptop may not have osquery installed or running, which poses a risk as we cannot monitor its system health, security vulnerabilities or compliance status.",
-  whatWillProbablyHappenDuringMaintenance:
-    "Technicians will likely verify if osquery is installed and running. If not, they may install or restart it. If osquery is functioning but the query still fails, they may investigate for potential system time issues.",
+  description:
+    "The firewall is not enabled, exposing the laptop to potential security threats such as unauthorized access, data breaches, and malware attacks.",
+  resolution:
+    "The maintenance will probably involve investigation of the firewall status, troubleshooting any issues found, and enabling the firewall to ensure the laptop's security.",
 };
 
 export default {

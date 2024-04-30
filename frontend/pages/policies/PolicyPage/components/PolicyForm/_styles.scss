@@ -188,6 +188,10 @@
     display: flex;
     justify-content: space-between;
 
+    .autofill-tooltip-wrapper {
+      display: flex; // Required for vertical centering
+    }
+
     .autofill-button-tooltip {
       font-weight: $regular;
     }

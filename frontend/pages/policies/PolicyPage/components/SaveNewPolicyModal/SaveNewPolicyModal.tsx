@@ -28,8 +28,11 @@ export interface ISaveNewPolicyModalProps {
   platformSelector: IPlatformSelector;
   isUpdatingPolicy: boolean;
   aiFeaturesDisabled?: boolean;
-  isFetchingAIAutofill?: boolean;
-  onAiAutofill?: (event: React.MouseEvent) => Promise<void>;
+  isFetchingAIAutofill: { description: boolean; resolution: boolean };
+  onAiAutofill: (fetching: {
+    description: boolean;
+    resolution: boolean;
+  }) => Promise<void>;
 }
 
 const validatePolicyName = (name: string) => {
@@ -61,24 +64,27 @@ const SaveNewPolicyModal = ({
     lastEditedQueryDescription,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    setLastEditedQueryName,
     setLastEditedQueryPlatform,
+    // TODO: Keep last edited query platform from resetting when cancelling out of modal and clicking save again
+    setLastEditedQueryDescription,
+    setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
   } = useContext(PolicyContext);
 
-  const [name, setName] = useState(lastEditedQueryName);
-  const [description, setDescription] = useState(lastEditedQueryDescription);
-  const [resolution, setResolution] = useState(lastEditedQueryResolution);
-  const [critical, setCritical] = useState(lastEditedQueryCritical);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
 
-  const disableSave = !platformSelector.isAnyPlatformSelected;
+  const disableForm =
+    isFetchingAIAutofill.description || isFetchingAIAutofill.resolution;
+  const disableSave = !platformSelector.isAnyPlatformSelected || disableForm;
 
   useDeepEffect(() => {
-    if (name) {
+    if (lastEditedQueryName) {
       setErrors({});
     }
-  }, [name]);
+  }, [lastEditedQueryName]);
 
   useEffect(() => {
     setErrors(backendValidators);
@@ -92,7 +98,9 @@ const SaveNewPolicyModal = ({
       .join(",") as SelectedPlatformString;
     setLastEditedQueryPlatform(newPlatformString);
 
-    const { valid: validName, errors: newErrors } = validatePolicyName(name);
+    const { valid: validName, errors: newErrors } = validatePolicyName(
+      lastEditedQueryName
+    );
     setErrors({
       ...errors,
       ...newErrors,
@@ -100,32 +108,61 @@ const SaveNewPolicyModal = ({
 
     if (!disableSave && validName) {
       onCreatePolicy({
-        description,
-        name,
+        description: lastEditedQueryDescription,
+        name: lastEditedQueryName,
         query: queryValue,
-        resolution,
+        resolution: lastEditedQueryResolution,
         platform: newPlatformString,
-        critical,
+        critical: lastEditedQueryCritical,
       });
     }
   };
 
+  const onAutofillDescription = () => {
+    onAiAutofill({
+      description: true,
+      resolution: false,
+    });
+  };
+
+  const onAutofillResolution = () => {
+    onAiAutofill({
+      description: false,
+      resolution: true,
+    });
+  };
+
   const renderAutofillButton = useCallback(
     (labelName: "Description" | "Resolution") => {
+      const isFetchingText =
+        (labelName === "Description" && isFetchingAIAutofill.description) ||
+        (labelName === "Resolution" && isFetchingAIAutofill.resolution);
+
       return (
         <>
           <div
             data-tip
             data-for={`autofill-button-${labelName}`}
             // Tooltip shows except when fetching AI autofill
-            data-tip-disable={isFetchingAIAutofill}
+            data-tip-disable={disableForm}
+            className="autofill-tooltip-wrapper"
           >
             <Button
               variant="text-icon"
-              disabled={aiFeaturesDisabled || isFetchingAIAutofill}
-              onClick={onAiAutofill}
+              disabled={aiFeaturesDisabled || disableForm}
+              onClick={
+                labelName === "Description"
+                  ? onAutofillDescription
+                  : onAutofillResolution
+              }
             >
-              <Icon name="sparkles" /> Autofill
+              {isFetchingText ? (
+                "Thinking..."
+              ) : (
+                <>
+                  <Icon name="sparkles" /> Autofill
+                </>
+              )}
             </Button>
           </div>
           <ReactTooltip
@@ -148,7 +185,7 @@ const SaveNewPolicyModal = ({
         </>
       );
     },
-    []
+    [isFetchingAIAutofill, disableForm]
   );
 
   const renderAutofillLabel = useCallback(
@@ -180,40 +217,44 @@ const SaveNewPolicyModal = ({
         >
           <InputField
             name="name"
-            onChange={(value: string) => setName(value)}
-            value={name}
+            onChange={(value: string) => setLastEditedQueryName(value)}
+            value={lastEditedQueryName}
             error={errors.name}
             inputClassName={`${baseClass}__policy-save-modal-name`}
             label="Name"
             helpText="What yes or no question does your policy ask about your hosts?"
             autofocus
             ignore1password
+            disabled={disableForm}
           />
           <InputField
             name="description"
-            onChange={(value: string) => setDescription(value)}
-            value={description}
+            onChange={(value: string) => setLastEditedQueryDescription(value)}
+            value={lastEditedQueryDescription}
             inputClassName={`${baseClass}__policy-save-modal-description`}
             label={renderAutofillLabel("Description")}
             type="textarea"
+            disabled={disableForm}
           />
           <InputField
             name="resolution"
-            onChange={(value: string) => setResolution(value)}
-            value={resolution}
+            onChange={(value: string) => setLastEditedQueryResolution(value)}
+            value={lastEditedQueryResolution}
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
             label={renderAutofillLabel("Resolution")}
             type="textarea"
             helpText="What steps should an end user take to resolve a host that fails this policy? (optional)"
+            disabled={disableForm}
           />
           {platformSelector.render()}
           {isPremiumTier && (
             <div className="critical-checkbox-wrapper">
               <Checkbox
                 name="critical-policy"
-                onChange={(value: boolean) => setCritical(value)}
-                value={critical}
+                onChange={(value: boolean) => setLastEditedQueryCritical(value)}
+                value={lastEditedQueryCritical}
                 isLeftLabel
+                disabled={disableForm}
               >
                 <TooltipWrapper
                   tipContent={

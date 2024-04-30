@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router/lib/Router";
-import { useQuery } from "react-query";
 
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -66,6 +65,8 @@ const QueryEditor = ({
     lastEditedQueryCritical,
     lastEditedQueryPlatform,
     policyTeamId,
+    setLastEditedQueryDescription,
+    setLastEditedQueryResolution,
   } = useContext(PolicyContext);
 
   useEffect(() => {
@@ -86,23 +87,48 @@ const QueryEditor = ({
     resolution: string;
   } | null>(null);
   const [aiAutofillErrors, setAiAutofillErrors] = useState<any>({});
-  const [isFetchingAIAutofill, setIsFetchingAiAutofill] = useState(false);
+  const [isFetchingAIAutofill, setIsFetchingAiAutofill] = useState({
+    description: false,
+    resolution: false,
+  });
 
-  const onAiAutofill = async (event: React.MouseEvent) => {
-    event.preventDefault();
-    setIsFetchingAiAutofill(true);
-    try {
-      await aiAutofillAPI
-        .getHumanInterpretationFromSQL(lastEditedQueryBody)
-        .then(() => {
-          setAiAutofillData(null);
-        }, 1000);
-    } catch (error) {
-      console.log(error);
-      renderFlash("error", "Couldn't autofill policy data.");
-      setAiAutofillErrors(error);
+  const onAiAutofill = async (fetching: {
+    description: boolean;
+    resolution: boolean;
+  }) => {
+    // When AI autofill data exists already, fill out section clicked with data
+    if (aiAutofillData) {
+      if (fetching.description) {
+        setLastEditedQueryDescription(aiAutofillData.description);
+      }
+      if (fetching.resolution) {
+        setLastEditedQueryResolution(aiAutofillData.resolution);
+      }
+    } else {
+      // Show thinking state and fetch data
+      setIsFetchingAiAutofill(fetching);
+
+      try {
+        const autofillResponse = await aiAutofillAPI.getHumanInterpretationFromSQL(
+          lastEditedQueryBody
+        );
+
+        setAiAutofillData(autofillResponse);
+
+        // Only fill out section that was clicked to be fetched
+        if (fetching.description) {
+          setLastEditedQueryDescription(autofillResponse.description);
+        }
+        if (fetching.resolution) {
+          setLastEditedQueryResolution(autofillResponse.resolution);
+        }
+      } catch (error) {
+        console.log(error);
+        renderFlash("error", "Couldn't autofill policy data.");
+        setAiAutofillErrors(error);
+      }
+      setIsFetchingAiAutofill({ description: false, resolution: false });
     }
-    setIsFetchingAiAutofill(false);
   };
 
   console.log("aiAutofill", aiAutofillData);
@@ -228,6 +254,7 @@ const QueryEditor = ({
         isUpdatingPolicy={isUpdatingPolicy}
         isFetchingAIAutofill={isFetchingAIAutofill}
         onAiAutofill={onAiAutofill}
+        resetAiAutofillData={() => setAiAutofillData(null)}
       />
     </div>
   );
