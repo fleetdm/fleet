@@ -11,7 +11,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
 > = {
   macOS: ["json", "pkg", "mobileconfig"],
   Windows: ["exe", "msi", "xml"],
-  linux: ["dev"],
+  linux: ["deb"],
 };
 
 /**
