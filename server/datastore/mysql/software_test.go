@@ -3289,10 +3289,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults([]*fleet.HostSoftwareWithInstaller{expected["a1"], expected["a2"]}, sw)
 
 	opts.MatchQuery = "zz"
-	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
+	sw, _, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
 	require.Empty(t, sw)
-	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
+	sw, _, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
 	require.NoError(t, err)
 	require.Empty(t, sw)
 
