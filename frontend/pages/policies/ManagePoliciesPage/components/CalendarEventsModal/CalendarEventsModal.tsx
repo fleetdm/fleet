@@ -10,12 +10,12 @@ import CustomLink from "components/CustomLink";
 import Slider from "components/forms/fields/Slider";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Graphic from "components/Graphic";
 import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
 import { syntaxHighlight } from "utilities/helpers";
 import Icon from "components/Icon";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
+import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
 
 const baseClass = "calendar-events-modal";
 
@@ -226,7 +226,7 @@ const CalendarEventsModal = ({
     return (
       <div className="placeholder">
         <a href="https://www.fleetdm.com/learn-more-about/calendar-events">
-          <Graphic name="calendar-event-preview" />
+          <img src={CalendarPreview} alt="Calendar preview" />
         </a>
         <div>
           To create calendar events for end users if their hosts fail policies,
