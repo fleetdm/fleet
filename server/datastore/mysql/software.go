@@ -2025,3 +2025,33 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 	}
 	return software, metaData, nil
 }
+
+func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
+	const stmt = `
+		UPDATE
+			host_software_installs
+		SET
+			pre_install_query_output = ?,
+			install_script_exit_code = ?,
+			install_script_output = ?,
+			post_install_script_exit_code = ?,
+			post_install_script_output = ?
+		WHERE
+			execution_id = ?
+`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		result.PreInstallConditionOutput,
+		result.InstallScriptExitCode,
+		result.InstallScriptOutput,
+		result.PostInstallScriptExitCode,
+		result.PostInstallScriptOutput,
+		result.InstallUUID,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host software installation result")
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ctxerr.Wrap(ctx, notFound("HostSoftwareInstall").WithName(result.InstallUUID), "host software installation not found")
+	}
+	return nil
+}
