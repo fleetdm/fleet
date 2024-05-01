@@ -320,6 +320,21 @@ Within 60 days of the end of the year, follow these steps:
 - Make the cancellation notification in accordance with the contract terms between Fleet and the vendor, typically these notifications are made via email and may have a specific address that notice must be sent to. If the vendor has an autorenew contract with Fleet there will often be a window of time in which Fleet can cancel, if notification is made after this time period Fleet may be obligated to pay for the subsequent year even if we don't use the vendor during the next contract term.  
 - Once cancelled, update the recurring expenses section of [The Numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) to reflect the cancellation by changing the projected monthly burn in column G to $0 and adding "CANCELLED" in front of the vendor's name in column C.
 
+### Review an NDA
+
+We need to review an NDA anytime a vendor, customer or other party wants to:
+1. Use their own NDA rather than Fleet's standard NDA, or
+2. "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
+
+We should always seek to use Fleet's own NDA first, without alteration. 
+
+When reading an NDA, we want to pay close attention to the following:
+1. We want to be sure that the confidentiality obligations of the NDA are reciprocal.  Fleet and the other party to the agreement should be bound to the same standards of confidentiality toward the handling of each other's confidential information.
+2. _Fleet does not agree to do not compete or do not solicit clauses._ An NDA should not contain provisions beyond the scope of an NDA. The two most commonly encountered examples of this are the do not compete and do not solicit clauses. We want to be free to hire the best people and make the best products, so when reading through an NDA it is important to keep an eye out for language that prohibits Fleet from hiring or soliciting current or former employees of other companies or that prohibit Fleet from independently developing products that compete with another company's products.  Using the cmd + f function to search for "solici", "compet" and "hir" and reading through the results is a helpful method to quickly scan for these clauses.
+3. Look for any language that discusses a transfer of property rights. Rarely, you may find a clause snuck into an agreement that discusses the transfer of intellectual property rights.  _We want to avoid any situation where Fleet transfers its intellectual property to another party as part of an NDA_.  
+4. Should you find any of the clauses in step 2 or 3, or any other clauses that are beyond the scope of protecting Fleet and the other party's confidential information in a customer NDA or the other party has added these provisions to Fleet's NDA, we want reject this language and communicate that we cannot agree to those terms.
+5. Any concerns or uncertainty over _any_ provisions in an NDA should be brought to Nathanael Holliday in BizOps, who will consult legal counsel if necessary to resolve any concerns.  
+   
 ### Update weekly KPIs
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
