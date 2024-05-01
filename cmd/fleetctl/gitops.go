@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/urfave/cli/v2"
 	"os"
 	"path/filepath"
@@ -71,10 +72,10 @@ func gitopsCommand() *cli.Command {
 			}
 
 			var teamNames []string
-			var firstFileMustBeGlobal bool
+			var firstFileMustBeGlobal *bool
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 			if totalFilenames > 1 {
-				firstFileMustBeGlobal = true
+				firstFileMustBeGlobal = ptr.Bool(true)
 			}
 			for _, flFilename := range flFilenames.Value() {
 				b, err := os.ReadFile(flFilename)
@@ -83,10 +84,17 @@ func gitopsCommand() *cli.Command {
 				}
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromBytes(b, baseDir)
-				if firstFileMustBeGlobal && config.TeamName != nil {
-					return fmt.Errorf("first file %s must be the global config", flFilename)
+				if firstFileMustBeGlobal != nil {
+					switch {
+					case *firstFileMustBeGlobal && config.TeamName != nil:
+						return fmt.Errorf("first file %s must be the global config", flFilename)
+					case !*firstFileMustBeGlobal && config.TeamName == nil:
+						return fmt.Errorf(
+							"the file %s cannot be the global config, only the first file can be the global config", flFilename,
+						)
+					}
+					firstFileMustBeGlobal = ptr.Bool(false)
 				}
-				firstFileMustBeGlobal = false
 				if err != nil {
 					return err
 				}

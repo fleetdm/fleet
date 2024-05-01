@@ -772,6 +772,11 @@ team_settings:
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "must be the global config"))
 
+	// Global file specified multiple times
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
+
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
