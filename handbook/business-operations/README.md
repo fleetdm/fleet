@@ -99,7 +99,6 @@ Then, send the DRI a direct message in Slack with a screenshot of the HRIS porta
 1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
 2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
 
-
 ### Run US contractor payroll
 For Fleet's US contractors, running payroll is a manual process:
 - Add the amount to be paid to the "Gross" line.
@@ -186,11 +185,12 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 
 ### Change a Fleetie's job title
 When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
-- Update the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet:
+- Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
   - Search the spreadsheet for the Fleetie in need of a job title change.
   - Input the new job title in the Fleetie's row in the "Job title" cell.
   - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
-- Update the relevant HRIS system.
+- Update the departmental handbook page with the change of job title
+- Update the relevant payroll/HRIS system.
   - For updating Gusto (US-based Fleeties):
     - Login to Gusto and navigate to "People > Team members".
     - Find the Fleetie and select them to see their profile page.
@@ -204,13 +204,20 @@ When BizOps receives notification of a Fleetie's job title changing, follow thes
 
 ### Change a Fleetie's manager
 When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
-- Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
+- Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
   - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
   - Search for the Fleetie who's manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
   - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
   - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
   - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
-> **Note:** The Fleeties spreadsheet is the source of truth for this information, and any other systems reflecting reporting lines should be disregarded.
+- If the person's department is changing, then update both departmental handbook pages to move the person to their new department:
+  - Remove the person from the "Team" section of the old department and add them to the "Team" section of the new department.
+- If the person's level of confidential access will change along with the change to their manager, then update that level of access:
+  - Update Google Workspace to make sure this person lives in the correct Google Group, removing them from the old and/or adding them to the new.
+  - Update 1password to remove this person from old vaults and/or add them to new vaults.
+  - For a team member moving from "classified" to "confidential" access, check Gusto, Plane, and other systems to remove their access.
+
+> **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
  
 
 
