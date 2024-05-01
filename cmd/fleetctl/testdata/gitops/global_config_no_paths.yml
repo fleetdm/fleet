@@ -104,6 +104,7 @@ org_settings:
     query_reports_disabled: false
     scripts_disabled: false
     server_url: $FLEET_SERVER_URL
+    ai_features_disabled: true
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: ""

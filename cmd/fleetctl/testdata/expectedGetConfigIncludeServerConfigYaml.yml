@@ -101,6 +101,7 @@ spec:
     query_reports_disabled: false
     server_url: ""
     scripts_disabled: false
+    ai_features_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""
