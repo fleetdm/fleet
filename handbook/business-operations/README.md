@@ -140,7 +140,7 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 Hello,
 This is a reminder that you have an outstanding balance due for your Fleet Device Management premium subscription.
 We have included the invoice here for your convenience.
-For payment instructions please refer to your invoice, and reach out to billing@fleetdm.com with any questions.
+For payment instructions please refer to your invoice, and reach out to [Fleet's billing contact] with any questions.
 
 Thanks,
 [name]
