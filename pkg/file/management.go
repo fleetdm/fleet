@@ -2,7 +2,7 @@ package file
 
 import (
 	_ "embed"
-	"os"
+	"strings"
 )
 
 type InstallerType string
@@ -44,7 +44,7 @@ func GetInstallScript(installerType InstallerType, installerPath string) string 
 		return ""
 	}
 
-	return os.Expand(rawScript, scriptMapper(installerPath))
+	return replaceVars(rawScript, installerPath)
 }
 
 //go:embed scripts/remove_exe.ps1
@@ -77,14 +77,9 @@ func GetRemoveScript(installerType InstallerType, installerPath string) string {
 		return ""
 	}
 
-	return os.Expand(rawScript, scriptMapper(installerPath))
+	return replaceVars(rawScript, installerPath)
 }
 
-func scriptMapper(installerPath string) func(string) string {
-	return func(placeholder string) string {
-		if placeholder == "INSTALLER_PATH" {
-			return installerPath
-		}
-		return ""
-	}
+func replaceVars(rawScript string, installerPath string) string {
+	return strings.Replace(rawScript, "$INSTALLER_PATH", installerPath, -1)
 }
