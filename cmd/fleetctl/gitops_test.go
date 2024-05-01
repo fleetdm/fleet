@@ -23,6 +23,8 @@ import (
 const teamName = "Team Test"
 
 func TestBasicGlobalGitOps(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
 	_, ds := runServerWithMockedDS(t)
 
 	ds.BatchSetMDMProfilesFunc = func(
@@ -89,19 +91,19 @@ org_settings:
 	// No file
 	var errWriter strings.Builder
 	_, err = runAppNoChecks([]string{"gitops", tmpFile.Name()})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, `Required flag "f" not set`, err.Error())
 
 	// Blank file
 	errWriter.Reset()
 	_, err = runAppNoChecks([]string{"gitops", "-f", ""})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "file name cannot be empty")
 
 	// Bad file
 	errWriter.Reset()
 	_, err = runAppNoChecks([]string{"gitops", "-f", "fileDoesNotExist.yml"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 
 	// Empty file
@@ -109,13 +111,13 @@ org_settings:
 	badFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = runAppNoChecks([]string{"gitops", "-f", badFile.Name()})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "errors occurred")
 
 	// DoGitOps error
 	t.Setenv("ORG_NAME", "")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "organization name must be present")
 
 	// Dry run
@@ -131,6 +133,7 @@ org_settings:
 }
 
 func TestBasicTeamGitOps(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
@@ -221,7 +224,7 @@ team_settings:
 	// DoGitOps error
 	t.Setenv("TEST_TEAM_NAME", "")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "'name' is required")
 
 	// Dry run
@@ -238,6 +241,7 @@ team_settings:
 }
 
 func TestFullGlobalGitOps(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
 	// mdm test configuration must be set so that activating windows MDM works.
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
@@ -355,9 +359,16 @@ func TestFullGlobalGitOps(t *testing.T) {
 	)
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
+	t.Setenv("APPLE_BM_DEFAULT_TEAM", teamName)
+	file := "./testdata/gitops/global_config_no_paths.yml"
+
+	// Dry run should fail because Apple BM Default Team does not exist and premium license is not set
+	_, err = runAppNoChecks([]string{"gitops", "-f", file, "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "missing or invalid license"))
 
 	// Dry run
-	file := "./testdata/gitops/global_config_no_paths.yml"
+	t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 	_ = runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.Len(t, enrolledSecrets, 0)
@@ -387,6 +398,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 }
 
 func TestFullTeamGitOps(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	// mdm test configuration must be set so that activating windows MDM works.
@@ -625,6 +637,7 @@ team_settings:
 }
 
 func TestBasicGlobalAndTeamGitOps(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
@@ -769,12 +782,12 @@ team_settings:
 
 	// Files out of order
 	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "must be the global config"))
 
 	// Global file specified multiple times
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
 
 	// Dry run
@@ -834,6 +847,7 @@ team_settings:
 }
 
 func TestFullGlobalAndTeamGitOps(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
 	// mdm test configuration must be set so that activating windows MDM works.
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
@@ -878,11 +892,6 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	var appliedPolicySpecs []*fleet.PolicySpec
 	var appliedQueries []*fleet.Query
 	var savedTeam *fleet.Team
-	team := &fleet.Team{
-		ID:        1,
-		CreatedAt: time.Now(),
-		Name:      teamName,
-	}
 
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		if teamID == nil {
@@ -928,30 +937,42 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 		return nil, nil, nil
 	}
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		if savedTeam != nil {
+			return []*fleet.Team{savedTeam}, nil
+		}
 		return nil, nil
 	}
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		return nil, nil
+	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		job.ID = 1
 		return job, nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		team.ID = 1
+		savedTeam = team
+		enrolledTeamSecrets = team.Secrets
+		return savedTeam, nil
 	}
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		if tid == team.ID {
-			return team, nil
+		if savedTeam != nil && tid == savedTeam.ID {
+			return savedTeam, nil
 		}
-		return nil, nil
+		return nil, &notFoundError{}
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		if name == teamName {
-			return team, nil
+		if savedTeam != nil && name == teamName {
+			return savedTeam, nil
 		}
-		return nil, nil
+		return nil, &notFoundError{}
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
@@ -967,9 +988,15 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
 	t.Setenv("TEST_TEAM_NAME", teamName)
+	t.Setenv("APPLE_BM_DEFAULT_TEAM", teamName)
 
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
+
+	// Dry run on global file should fail because Apple BM Default Team does not exist (and has not been provided)
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "team name not found"))
 
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})

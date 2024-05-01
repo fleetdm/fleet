@@ -6,7 +6,9 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/text/unicode/norm"
 	"os"
 	"path/filepath"
 	"slices"
@@ -29,7 +31,7 @@ func gitopsCommand() *cli.Command {
 				Required:    true,
 				EnvVars:     []string{"FILENAME"},
 				Destination: &flFilenames,
-				Usage:       "The `FILE` with the GitOps configuration",
+				Usage:       "The file(s) with the GitOps configuration. If multiple files are provided, the first file must be the global configuration and the rest must be team configurations.",
 			},
 			&cli.BoolFlag{
 				Name:        "delete-other-teams",
@@ -71,6 +73,8 @@ func gitopsCommand() *cli.Command {
 				return errors.New("no license struct found in app config")
 			}
 
+			var appleBMDefaultTeam string
+			var appleBMDefaultTeamFound bool
 			var teamNames []string
 			var firstFileMustBeGlobal *bool
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
@@ -84,19 +88,27 @@ func gitopsCommand() *cli.Command {
 				}
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromBytes(b, baseDir)
+				if err != nil {
+					return err
+				}
+				isGlobalConfig := config.TeamName == nil
 				if firstFileMustBeGlobal != nil {
 					switch {
-					case *firstFileMustBeGlobal && config.TeamName != nil:
+					case *firstFileMustBeGlobal && !isGlobalConfig:
 						return fmt.Errorf("first file %s must be the global config", flFilename)
-					case !*firstFileMustBeGlobal && config.TeamName == nil:
+					case !*firstFileMustBeGlobal && isGlobalConfig:
 						return fmt.Errorf(
 							"the file %s cannot be the global config, only the first file can be the global config", flFilename,
 						)
 					}
 					firstFileMustBeGlobal = ptr.Bool(false)
 				}
-				if err != nil {
-					return err
+				if isGlobalConfig && totalFilenames > 1 {
+					// Check if Apple BM default team already exists
+					appleBMDefaultTeam, appleBMDefaultTeamFound, err = checkAppleBMDefaultTeam(config, fleetClient)
+					if err != nil {
+						return err
+					}
 				}
 				logf := func(format string, a ...interface{}) {
 					_, _ = fmt.Fprintf(c.App.Writer, format, a...)
@@ -109,6 +121,13 @@ func gitopsCommand() *cli.Command {
 					teamNames = append(teamNames, *config.TeamName)
 				} else {
 					teamDryRunAssumptions = assumptions
+				}
+			}
+			if appleBMDefaultTeam != "" && !appleBMDefaultTeamFound {
+				// If the Apple BM default team did not exist earlier, check again and apply it if needed
+				err = applyAppleBMDefaultTeamIfNeeded(c, teamNames, appleBMDefaultTeam, flDryRun, fleetClient)
+				if err != nil {
+					return err
 				}
 			}
 			if flDeleteOtherTeams {
@@ -138,4 +157,56 @@ func gitopsCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+func checkAppleBMDefaultTeam(config *spec.GitOps, fleetClient *service.Client) (
+	appleBMDefaultTeam string, appleBMDefaultTeamFound bool, err error,
+) {
+	if mdm, ok := config.OrgSettings["mdm"]; ok {
+		if mdmMap, ok := mdm.(map[string]interface{}); ok {
+			if appleBMDT, ok := mdmMap["apple_bm_default_team"]; ok {
+				if appleBMDefaultTeam, ok = appleBMDT.(string); ok {
+					teams, err := fleetClient.ListTeams("")
+					if err != nil {
+						return "", false, err
+					}
+					// Normalize AppleBMDefaultTeam for Unicode support
+					appleBMDefaultTeam = norm.NFC.String(appleBMDefaultTeam)
+					for _, team := range teams {
+						if team.Name == appleBMDefaultTeam {
+							appleBMDefaultTeamFound = true
+							break
+						}
+					}
+					if !appleBMDefaultTeamFound {
+						// If team is not found, we need to remove the AppleBMDefaultTeam from the global config, and then apply it after teams are processed
+						mdmMap["apple_bm_default_team"] = ""
+					}
+				}
+			}
+		}
+	}
+	return appleBMDefaultTeam, appleBMDefaultTeamFound, nil
+}
+
+func applyAppleBMDefaultTeamIfNeeded(
+	ctx *cli.Context, teamNames []string, appleBMDefaultTeam string, flDryRun bool, fleetClient *service.Client,
+) error {
+	if !slices.Contains(teamNames, appleBMDefaultTeam) {
+		return fmt.Errorf("apple_bm_default_team %s not found in team configs", appleBMDefaultTeam)
+	}
+	appConfigUpdate := map[string]map[string]interface{}{
+		"mdm": {
+			"apple_bm_default_team": appleBMDefaultTeam,
+		},
+	}
+	if flDryRun {
+		_, _ = fmt.Fprintf(ctx.App.Writer, "[!] would apply apple_bm_default_team %s\n", appleBMDefaultTeam)
+	} else {
+		_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying apple_bm_default_team %s\n", appleBMDefaultTeam)
+		if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
+			return fmt.Errorf("applying fleet config: %w", err)
+		}
+	}
+	return nil
 }
