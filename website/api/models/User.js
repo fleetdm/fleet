@@ -212,7 +212,33 @@ without necessarily having a billing card.`
         'mdm',
         'vm',
       ]
-    }
+    },
+
+    lastSubmittedGetStartedQuestionnaireStep: {
+      type: 'string',
+      description: 'The last step the user reached in the get started form.',
+      defaultsTo: 'start',
+    },
+
+    getStartedQuestionnaireAnswers: {
+      type: 'json',
+      description: 'This answers the user provided when they filled out the get started form.',
+      defaultsTo: {},
+    },
+
+    psychologicalStage: {
+      type: 'string',
+      description: 'This user\'s psychological stage based on the answers to the get started questionnaire.',
+      isIn: [
+        '1 - Unaware',
+        '2 - Aware',
+        '3 - Intrigued',
+        '4 - Has use case',
+        '5 - Personally confident',
+        '6 - Has team buy-in'
+      ],
+      defaultsTo: '2 - Aware'
+    },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

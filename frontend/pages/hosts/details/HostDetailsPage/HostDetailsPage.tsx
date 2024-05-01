@@ -52,7 +52,6 @@ import {
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
-import { createMockHostMdmProfile } from "__mocks__/hostMock";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -147,6 +146,7 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
+    currentTeam,
   } = useContext(AppContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -567,7 +567,8 @@ const HostDetailsPage = ({
   const onQueryHostCustom = () => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+      PATHS.NEW_QUERY() +
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
     );
   };
 
@@ -575,7 +576,7 @@ const HostDetailsPage = ({
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
     );
   };
 
@@ -674,6 +675,7 @@ const HostDetailsPage = ({
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
         mdmName={mdm?.name}
+        hostScriptsEnabled={host.scripts_enabled}
       />
     );
   };
@@ -930,9 +932,12 @@ const HostDetailsPage = ({
         )}
         {showOSSettingsModal && (
           <OSSettingsModal
-            platform={host?.platform}
-            hostMDMData={host?.mdm}
+            canResendProfiles
+            hostId={host.id}
+            platform={host.platform}
+            hostMDMData={host.mdm}
             onClose={toggleOSSettingsModal}
+            onProfileResent={refetchHostDetails}
           />
         )}
         {showUnenrollMdmModal && !!host && (

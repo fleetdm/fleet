@@ -71,7 +71,7 @@ The Fleet community is full of [kind and helpful people](https://fleetdm.com/han
 
 The landscape of cybersecurity and IT is too complex.  Let's open it up.
 
-Contributions are welcome, whether you answer questions on [Slack](#chat) / [GitHub](https://github.com/fleetdm/fleet/issues) / [StackOverflow](https://stackoverflow.com/search?q=osquery) / [LinkedIn](https://linkedin.com/company/fleetdm) / [Twitter](https://twitter.com/fleetctl), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
+Contributions are welcome, whether you answer questions on [Slack](https://fleetdm.com/slack) / [GitHub](https://github.com/fleetdm/fleet/issues) / [StackOverflow](https://stackoverflow.com/search?q=osquery) / [LinkedIn](https://linkedin.com/company/fleetdm) / [Twitter](https://twitter.com/fleetctl), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing).  The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
 
 <!-- - Great contributions are motivated by real-world use cases or learning.
 - Some of the most valuable contributions might not touch any code at all.
@@ -81,7 +81,7 @@ Contributions are welcome, whether you answer questions on [Slack](#chat) / [Git
 To see what Fleet can do, head over to [fleetdm.com](https://fleetdm.com) and try it out for yourself, grab time with one of the maintainers to discuss, or visit the docs and roll it out to your organization.
 
 #### Production deployment
-Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet).  Or you can have us [host it for you](https://fleetdm.com/pricing).  Premium features are [available](https://fleetdm.com/pricing) either way.
+Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/get-started/tutorials-and-guides).  Or you can have us [host it for you](https://fleetdm.com/pricing).  Premium features are [available](https://fleetdm.com/pricing) either way.
 
 #### Documentation
 Complete documentation for Fleet can be found at [https://fleetdm.com/docs](https://fleetdm.com/docs).

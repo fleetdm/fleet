@@ -61,5 +61,5 @@ columns:
       - linux
   - name: username
     description: Username
-notes: |
+notes: >-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

@@ -15,7 +15,7 @@ import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
 
-interface IHQRTable {
+export interface IHQRTable {
   queryName?: string;
   queryDescription?: string;
   hostName?: string;

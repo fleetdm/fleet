@@ -1,13 +1,15 @@
 # Engineering
-This handbook page details processes specific to working [with](#team) and [within](#responsibilities) this department
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 | Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
-| CTO                             | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Engineering Manager             | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
-| Quality Assurance               | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Developer                       | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
+| Chief Technology Officer (CTO)  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Client Platform Engineer &amp; Community Advocate     | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
+| Engineering Manager (EM)        | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Quality Assurance Engineer (QA)          | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Software Engineer                        | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+
 
 ## Contact us
 - To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
@@ -38,26 +40,17 @@ What happens next? The engineering output and architecture DRI reviews engineeri
 
 If there are product changes (i.e. interface, documentation, or dependency changes), the story is added to the "New requests" column on the drafting board.
 
-If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on drafting board so that it can be estimated.
+If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on the drafting board so that it can be estimated.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
-### Manage release branches
-Every three weeks, release a minor version of Fleet from the `main` branch. 
-
-Every week between minor releases, release a patch release with fixes for released bugs. 
-
-The DRI for publishing a release is responsible for creating the next patch branch. Create a patch branch off the latest tagged release of Fleet. Submit PRs for released bug fixes directly to the target patch branch to avoid merge conflicts later in the release cycle. After merging into the patch branch, submit another PR to `main` containing the same fix and resolve any merge conflicts.
-
-> It is the responsibility of the person merging the fix into the patch branch to make sure the fix is also merged into `main`.
-
 ### Fix a bug
-If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`.
+If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`. These issues can be closed as soon as they complete QA.
 
-If the bug is labeled `~released bug`, branch off and put your PR into the upcoming patch branch `patch-fleet-v4.x.x`. If you are unsure which branch to use, confirm with your manager. Don't forget to also submit a second PR to `main` after the bug is confirmed fixed.
+If the bug is labeled `~released bug`, branch off the tag for the latest release of Fleet and put your PR into `main`. For example, `git checkout fleet-v4.48.2`, then `git checkout -b my-bug-fix-branch`. These issues are not closed until the next release of Fleet. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
 
 ### Begin a merge freeze
-To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
+To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 11:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
 
 Bugs are exempt from the release freeze period.
 

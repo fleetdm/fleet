@@ -4,26 +4,26 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
-| Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Head of Revenue Operations      | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
+| Head of Digital Experience      | <sup><sub>See [🌐 Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team)</sup></sub>
+| Head of Design                                            | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
+| Software Engineer                                         | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Apprentice to the CEO                                     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ <br> [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
-> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
 ## Responsibilities
 The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
+> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
 ### QA a change to fleetdm.com
-Each PR to the website is manually checked for quality and tested before before going live on fleetdm.com. To test any change to fleetdm.com
+Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
 
@@ -31,6 +31,20 @@ Each PR to the website is manually checked for quality and tested before before 
 
 3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
+
+### Update the host count of a premium subscription
+
+When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
+
+To update the host count on a user's subscription:
+
+1. Log in to the [Stripe dashboard](https://dashboard.stripe.com/dashboard) and search for the customer's email address.
+2. Click on their subscription and select the "Update subscription" option in the "Actions" dropdown
+3. Update the quantity of the user's subscription to be their desired host count.
+4. Turn the "Proration charges" option on and select the "Charge proration amount immediately" option.
+5. Under "Payment" select "Email invoice to the customer", and set the payment due date to be 15 days, and make sure the "Invoice payment page" option is checked.
+6. Select "Update subscription" to send the user an updated invoice for their subscription. Once the customer pays their new invoice, the Fleet website will update the user's subscription and generate a new Fleet Premium license with an updated host count.
+7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
 ### Test fleetdm.com locally 
 When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
@@ -152,10 +166,48 @@ If the action fails, please complete the following steps:
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action. 
 
 
+### Communicate Fleet's potential energy to stakeholders
+On the first business day of every month, the Apprentice will send an update to the stakeholders of Fleet using the following steps:
+1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
+
+```
+Hi investors and friends,
+
+Here’s a quick update on the numbers from last month:
+
+• Gross new ∆ARR (QTD): + TODO
+• Social media mentions (LinkedIn): 3.8 per day (Goal: 5) (Want to help?)
+• Current version: 4.48.0 (See what's new)
+• Next in-person event: Kansas City, (April 20) BSides KC
+• Next press release: 2024-04-30: "Stop nudging"
+"Stop installing updates and forcing restarts when your users are busy using their computers.  Fleet finds time in the calendar for a reboot and uses AI to explain why." 
+
+
+Thanks for your support,
+Mike and the Fleet team
+```
+
+2. Address the email to the executive team's Gmail.
+3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, collect all of the investor emails from previous funding rounds and add them to bcc of the email and send.
+
+
 ### Refresh event calendar
 Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
 1. Visit the latest website for each event.
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
+
+
+### Schedule press release
+Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. This process sUse the following steps to schedule a press release:  
+
+1. Add context for the next press release to the [e-group agenda](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit) as a "DISCUSS:" to be reviewed by Fleet's executive team for alignment and finalization of date.
+2. Once a release date is set, at-mention our public relations firm in the [#help-public-relations-firm--mindshare-pr--brand-marketing](https://fleetdm.slack.com/archives/C04PC9H34LF) and schedule a 30m call for our CEO and to communicate the press release.
+
+> The above must be completed 6 weeks before the press release date. 
+
+3. Schedule a 1.5h discussion between the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) and the CEO to review the first draft linked as "Agenda: LINK" to the calendar event description.
+4. Schedule a 60m call with the CEO and public relations firm to review the first draft linked as above to the calendar event (first draft provided by the PR firm)
+5. Schedule 2.5 hrs of async time for the CEO work on edits and a 60m followup postgame (solo) where CEO edits and then settles+sends final release.
 
 
 ### Archive a document
@@ -376,7 +428,7 @@ Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses de
 Follow these steps to process and backup the E-group agenda: 
 1. [Archive the E-group agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
-3. If the "All hands" meeting has happened today
+3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
 
 ### Check LinkedIn for unread messages 
 Once a day the Apprentice will confirm check LinkedIn for unread messages. 

@@ -311,3 +311,137 @@ func TestIsEligibleForBitLockerEncryption(t *testing.T) {
 	hostThatNeedsEnforcement.MDMInfo.Enrolled = true
 	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
 }
+
+func TestIsEligibleForDEPMigration(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		osqueryHostID           *string
+		depAssignedToFleet      *bool
+		depProfileResponse      DEPAssignProfileResponseStatus
+		enrolledInThirdPartyMDM bool
+		expected                bool
+	}{
+		{
+			name:                    "Eligible for DEP migration",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseSuccess,
+			enrolledInThirdPartyMDM: true,
+			expected:                true,
+		},
+		{
+			name:                    "Not eligible - osqueryHostID nil",
+			osqueryHostID:           nil,
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseSuccess,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - not DEP assigned to Fleet",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(false),
+			depProfileResponse:      DEPAssignProfileResponseSuccess,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - not enrolled in third-party MDM",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseSuccess,
+			enrolledInThirdPartyMDM: false,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - not DEP assigned and DEP profile failed",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(false),
+			depProfileResponse:      DEPAssignProfileResponseNotAccessible,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - DEP assigned and DEP profile failed",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseFailed,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - DEP assigned but not response yet",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      "",
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - DEP assigned but not accessible",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseNotAccessible,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			host := &Host{
+				OsqueryHostID:      tc.osqueryHostID,
+				DEPAssignedToFleet: tc.depAssignedToFleet,
+				MDMInfo: &HostMDM{
+					Enrolled:               tc.enrolledInThirdPartyMDM,
+					Name:                   "Some MDM",
+					DEPProfileAssignStatus: ptr.String(string(tc.depProfileResponse)),
+				},
+			}
+
+			require.Equal(t, tc.expected, host.IsEligibleForDEPMigration())
+		})
+	}
+}
+
+func TestHasJSONProfileAssigned(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hostMDM  *HostMDM
+		expected bool
+	}{
+		{
+			name:     "nil HostMDM",
+			hostMDM:  nil,
+			expected: false,
+		},
+		{
+			name: "nil DEPProfileAssignStatus",
+			hostMDM: &HostMDM{
+				DEPProfileAssignStatus: nil,
+			},
+			expected: false,
+		},
+		{
+			name: "DEPProfileAssignStatus not successful",
+			hostMDM: &HostMDM{
+				DEPProfileAssignStatus: new(string),
+			},
+			expected: false,
+		},
+		{
+			name: "DEPProfileAssignStatus successful",
+			hostMDM: &HostMDM{
+				DEPProfileAssignStatus: ptr.String(string(DEPAssignProfileResponseSuccess)),
+			},
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.hostMDM.HasJSONProfileAssigned()
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}

@@ -128,7 +128,12 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		res, err := tx.ExecContext(ctx, updStmt,
 			output,
 			result.Runtime,
-			result.ExitCode,
+			// Windows error codes are signed 32-bit integers, but are
+			// returned as unsigned integers by the windows API. The
+			// software that receives them is responsible for casting
+			// it to a 32-bit signed integer.
+			// See /orbit/pkg/scripts/exec_windows.go
+			int32(result.ExitCode),
 			result.HostID,
 			result.ExecutionID,
 		)

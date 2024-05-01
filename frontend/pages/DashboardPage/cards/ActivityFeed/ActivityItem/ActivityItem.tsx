@@ -799,16 +799,24 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited declaration (DDM) profile <b>
-          {activity.details?.profile_name}
-        </b>{" "}
-        for{" "}
+        edited declaration (DDM) profiles{" "}
+        <b>{activity.details?.profile_name}</b> for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
           "darwin",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
+      </>
+    );
+  },
+
+  resentConfigProfile: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.profile_name} configuration profile to{" "}
+        {activity.details?.host_display_name}.
       </>
     );
   },
@@ -981,6 +989,9 @@ const getDetail = (
     }
     case ActivityType.EditedDeclarationProfile: {
       return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
+    }
+    case ActivityType.ResentConfigurationProfile: {
+      return TAGGED_TEMPLATES.resentConfigProfile(activity);
     }
 
     default: {

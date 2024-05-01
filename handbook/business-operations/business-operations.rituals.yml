@@ -43,14 +43,14 @@
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 - 
-  task: "Revenue report" # TODO tie this to a responsibility
+  task: "Communicate the status of customer financial actions" 
   startedOn: "2024-02-12" 
   frequency: "Weekly"
   description: "At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil." 
-  moreInfoUrl: 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#communicate-the-status-of-customer-financial-actions"
   dri: "jostableford" 
   autoIssue:   
-    labels: [ "#g-digital-experience" ] 
+    labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
   task: "AP invoice monitoring" # TODO tie this to a responsibility
@@ -58,7 +58,7 @@
   frequency: "Weekly"
   description: "Look for new accounts payable invoices and make sure that Fleet's suppliers are paid" 
   moreInfoUrl: 
-  dri: "hollidayn"
+  dri: "ireedy"
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
@@ -68,7 +68,7 @@
   frequency: "Weekly" 
   description: "https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked"
-  dri: "joStableford" 
+  dri: "ireedy" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
@@ -108,7 +108,7 @@
   frequency: "Monthly"
   description: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll"
-  dri: "hughestaylor" 
+  dri: "joStableford" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
@@ -174,4 +174,14 @@
   description: "Provide information to tax team with Deloitte and assist with filing and paying state and federal returns" 
   moreInfoUrl: 
   dri: "hollidayn"
+-
+  task: "Monthly mail review" # TODO tie this to a responsibility
+  startedOn: "2024-04-15" 
+  frequency: "Monthly"
+  description: "Review and clear mail incurring storage fees" 
+  moreInfoUrl: null 
+  dri: "ireedy"
+  autoIssue:   
+    labels: [ "#g-business-operations" ] 
+    repo: "confidential"
 

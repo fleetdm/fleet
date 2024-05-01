@@ -286,7 +286,8 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 // getProfilesContents takes file paths and creates a slice of profile payloads
 // ready to batch-apply.
 func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fleet.MDMProfileBatchPayload, error) {
-	fileNameMap := make(map[string]struct{}, len(profiles))
+	// map to check for duplicate names
+	extByName := make(map[string]string, len(profiles))
 	result := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
 
 	for _, profile := range profiles {
@@ -306,10 +307,10 @@ func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fle
 			}
 			name = strings.TrimSpace(mc.Name)
 		}
-		if _, isDuplicate := fileNameMap[name]; isDuplicate {
-			return nil, errors.New("Couldn't edit windows_settings.custom_settings. More than one configuration profile have the same name (Windows .xml file name or macOS PayloadDisplayName).")
+		if e, isDuplicate := extByName[name]; isDuplicate {
+			return nil, errors.New(fmtDuplicateNameErrMsg(name, e, ext))
 		}
-		fileNameMap[name] = struct{}{}
+		extByName[name] = ext
 		result = append(result, fleet.MDMProfileBatchPayload{
 			Name:     name,
 			Contents: fileContents,

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -181,7 +182,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			mailer,
 			c,
 			depStorage,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
+			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, fleetConfig.MDM),
 			"",
 			ssoStore,
 			profMatcher,
@@ -202,14 +203,21 @@ func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryRes
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
+	// Map iteration is random so we sort and iterate using the testUsers keys.
+	var keys []string
+	for key := range testUsers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
 	userID := uint(1)
-	for _, u := range testUsers {
+	for _, key := range keys {
+		u := testUsers[key]
 		role := fleet.RoleObserver
 		if strings.Contains(u.Email, "admin") {
 			role = fleet.RoleAdmin
 		}
 		user := &fleet.User{
-			ID:         userID,
+			ID:         userID, // We need to set this in case ds is a mocked Datastore.
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
 			GlobalRole: &role,
@@ -327,6 +335,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
+		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, cfg.MDM)
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
@@ -334,11 +343,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				mdmStorage,
 				scepStorage,
 				logger,
-				&MDMAppleCheckinAndCommandService{
-					ds:        ds,
-					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
-					logger:    kitlog.NewNopLogger(),
-				},
+				NewMDMAppleCheckinAndCommandService(ds, commander, logger),
 				&MDMAppleDDMService{
 					ds:     ds,
 					logger: logger,
@@ -350,6 +355,8 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
+	debugHandler := MakeDebugHandler(svc, cfg, logger, nil, ds)
+	rootMux.Handle("/debug/", debugHandler)
 
 	server := httptest.NewUnstartedServer(rootMux)
 	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)

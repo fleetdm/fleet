@@ -1,12 +1,11 @@
 # Business Operations
-This handbook page details processes specific to working [with](#what-we-do) and [within](#responsibilities) the Business Operations (BizOps) department.  
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
-| Community Advocate              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
-| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_, [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
+| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_ <br> [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 ## Contact us
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).
@@ -15,7 +14,7 @@ This handbook page details processes specific to working [with](#what-we-do) and
 
 
 ## Responsibilities
-The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
+The Business Operations department is directly responsible for finance + invoicing, people operations, legal + deal desk, and corporate information technology (IT). 
 
 ### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
@@ -24,10 +23,10 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Revenue Operations
+| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Business Operations
 | Sign-on bonus                | "Bonus" payroll              | Head of Business Operations
 | Performance bonus            | "Bonus" payroll              | Head of Business Operations     
-| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
+| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Business Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
 ### Reconcile monthly recurring expenses
@@ -100,7 +99,6 @@ Then, send the DRI a direct message in Slack with a screenshot of the HRIS porta
 1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
 2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
 
-
 ### Run US contractor payroll
 For Fleet's US contractors, running payroll is a manual process:
 - Add the amount to be paid to the "Gross" line.
@@ -109,7 +107,7 @@ For Fleet's US contractors, running payroll is a manual process:
 - Sync hours and run contractor payroll.
 
 
-### Grant role-specific license to a team member (RevOps)
+### Grant role-specific license to a team member
 Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
 
 | Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
@@ -120,9 +118,22 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 | ⚗️ PM             | ❌ | ❌ | ❌ | ✅ | ✅
 | ⚗️ PD             | ❌ | ❌ | ❌ | ✅ | ✅
 | 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
+|   Other roles    | ❌ | ❌ | ❌ | ❌ | ✅
 
 > **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
+
+
+### Communicate the status of customer financial actions
+This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
+- Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
+- Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending. 
+
+```
+Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
+- Number accounts with outstanding balances = `todo`
+- Number of customers awaiting invoices = `todo`
+- Number of past-due renewals = `todo`
+```
 
 
 ### Add a seat to Salesforce
@@ -137,7 +148,7 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 
 
 ### Run US commission payroll
-- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
+- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have a **Close date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
 - Let the Head of Business Operations know they can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
@@ -170,14 +181,16 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
+> Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
 
 ### Change a Fleetie's job title
 When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
-- Update the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet:
+- Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
   - Search the spreadsheet for the Fleetie in need of a job title change.
   - Input the new job title in the Fleetie's row in the "Job title" cell.
   - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
-- Update the relevant HRIS system.
+- Update the departmental handbook page with the change of job title
+- Update the relevant payroll/HRIS system.
   - For updating Gusto (US-based Fleeties):
     - Login to Gusto and navigate to "People > Team members".
     - Find the Fleetie and select them to see their profile page.
@@ -191,13 +204,20 @@ When BizOps receives notification of a Fleetie's job title changing, follow thes
 
 ### Change a Fleetie's manager
 When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
-- Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
+- Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
   - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
   - Search for the Fleetie who's manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
   - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
   - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
   - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
-> **Note:** The Fleeties spreadsheet is the source of truth for this information, and any other systems reflecting reporting lines should be disregarded.
+- If the person's department is changing, then update both departmental handbook pages to move the person to their new department:
+  - Remove the person from the "Team" section of the old department and add them to the "Team" section of the new department.
+- If the person's level of confidential access will change along with the change to their manager, then update that level of access:
+  - Update Google Workspace to make sure this person lives in the correct Google Group, removing them from the old and/or adding them to the new.
+  - Update 1password to remove this person from old vaults and/or add them to new vaults.
+  - For a team member moving from "classified" to "confidential" access, check Gusto, Plane, and other systems to remove their access.
+
+> **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
  
 
 
@@ -304,6 +324,13 @@ Within 60 days of the end of the year, follow these steps:
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
+### Fix a laptop that's not checking in
+
+It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything).  When this happens, Fleet's takes the following steps to remotely fix the laptop and get it checking in to Fleet again:
+
+1. TODO
+2. TODO
+
 ### Enroll a macOS host in dogfood
 When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
 You can confirm that the device has been ordered correctly by following these steps:
@@ -363,6 +390,36 @@ Article creation begins with creation of an issue using the "Article request" te
 Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 -->
 
+### Order SWAG
+
+**To order T-shirts:**
+
+  - Check [Postal](https://app.postal.io/items/postals) first and see if the warehouse has enough shirts.
+  - Navigate to the [approved items page](https://app.postal.io/items/postals).
+      - Hover over the shirt design and click on the airplane.
+      - Click bulk send and choose one shirt size and the expected quantity of that particular shirt size.
+      - Make sure the address matches the expected receiving address.
+  - If the Postal warehouse can't fulfill the order or To order swag quickly: 
+      - Login to [https://www.rushordertees.com/my-account/login/) (saved in 1Password).
+      - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
+      - Order shirts based on the pre-determined number (~5% of total event attendees).
+      - Submit the order. Ensure the address matches the expected receiving address.
+
+**To order stickers:**
+
+  - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
+  - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
+  - Click on the "Fleet Device Management" brand kit and order preapproved stickers from the templates.
+  - Total sticker quantity should be ~10% of total event attendees.
+  - Complete the checkout process. Ensure the address matches the expected receiving address.
+
+**To order pens and sticky note pads**
+
+  - Pens and sticky note pads are ordered through Everything Branded.
+  - Email our sales representative Jake William (saved in 1Password) to order any of the following:
+    - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
+    - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
+    - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
 
 ## Rituals
 

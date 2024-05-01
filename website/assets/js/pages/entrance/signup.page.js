@@ -17,7 +17,6 @@ parasails.registerPage('signup', {
       organization: {required: true},
       emailAddress: {required: true, isEmail: true},
       password: {required: true, minLength: 8},
-      primaryBuyingSituation: {required: true},
     },
     // Syncing / loading state
     syncing: false,
@@ -25,16 +24,19 @@ parasails.registerPage('signup', {
     cloudError: '',
     // For displaying the full signup form.
     showFullForm: false,
+    // For redirecting users coming from the "Get your license" link to the license dispenser.
+    loginSlug: '/login',
+    pageToRedirectToAfterRegistration: '/start',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    // Removing the query string for users redirected to this page by the /try-fleet/explore-data pages.
-    // FUTURE: remove this when that view-query-report is updated.
-    if(window.location.search){
-      window.history.replaceState({}, document.title, '/register' );
+    // If we're redirecting this user to the license dispenser after they sign up, modify the link to the login page and the pageToRedirectToAfterRegistration
+    if(this.redirectToLicenseDispenser){
+      this.loginSlug = '/login?purchaseLicense';
+      this.pageToRedirectToAfterRegistration = '/new-license';
     }
   },
   mounted: async function() {
@@ -65,7 +67,7 @@ parasails.registerPage('signup', {
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      window.location = '/start';
+      window.location = this.pageToRedirectToAfterRegistration;// « / start if the user came here from the start now button, or customers/new-license if the user came here from the "Get your license" link.
     }
 
 

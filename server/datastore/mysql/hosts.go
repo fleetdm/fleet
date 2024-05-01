@@ -15,9 +15,11 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -521,6 +523,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles":           "host_uuid",
 	"host_mdm_apple_bootstrap_packages": "host_uuid",
 	"host_mdm_windows_profiles":         "host_uuid",
+	"host_mdm_apple_declarations":       "host_uuid",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -629,7 +632,10 @@ SELECT
       host_id = h.id
   ) AS additional,
   COALESCE(failing_policies.count, 0) AS failing_policies_count,
-  COALESCE(failing_policies.count, 0) AS total_issues_count
+  COALESCE(failing_policies.count, 0) AS total_issues_count,
+  hoi.version AS orbit_version,
+  hoi.desktop_version AS fleet_desktop_version,
+  hoi.scripts_enabled AS scripts_enabled
   ` + hostMDMSelect + `
 FROM
   hosts h
@@ -637,6 +643,7 @@ FROM
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
+  LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
   ` + hostMDMJoin + `
   JOIN (
     SELECT
@@ -757,7 +764,7 @@ const hostMDMSelect = `,
 			ELSE NULL
 		END,
 		'dep_profile_error',
-		CASE 
+		CASE
 			WHEN hdep.assign_profile_response = '` + string(fleet.DEPAssignProfileResponseFailed) + `' THEN CAST(TRUE AS JSON)
 			ELSE CAST(FALSE AS JSON)
 		END,
@@ -1091,7 +1098,7 @@ func (ds *Datastore) applyHostFilters(
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{
-					Message:     fmt.Sprintf("team is invalid"),
+					Message:     "team is invalid",
 					InternalErr: err,
 				},
 			)
@@ -2089,6 +2096,7 @@ type hostWithMDMInfo struct {
 	MDMID                  *uint   `db:"mdm_id"`
 	Name                   *string `db:"name"`
 	EncryptionKeyAvailable *bool   `db:"encryption_key_available"`
+	DEPProfileAssignStatus *string `db:"dep_profile_assign_status"`
 }
 
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
@@ -2147,7 +2155,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       COALESCE(hdek.decryptable, false) as encryption_key_available,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
-      t.name as team_name
+      t.name as team_name,
+      hdep.assign_profile_response AS dep_profile_assign_status
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2157,7 +2166,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     LEFT OUTER JOIN
       host_dep_assignments hdep
     ON
-      hdep.host_id = h.id
+      hdep.host_id = h.id AND hdep.deleted_at IS NULL
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms
     ON
@@ -2184,13 +2193,14 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
 			host.MDMInfo = &fleet.HostMDM{
-				HostID:           *hostWithMDM.HostID,
-				Enrolled:         *hostWithMDM.Enrolled,
-				ServerURL:        *hostWithMDM.ServerURL,
-				InstalledFromDep: *hostWithMDM.InstalledFromDep,
-				IsServer:         *hostWithMDM.IsServer,
-				MDMID:            hostWithMDM.MDMID,
-				Name:             *hostWithMDM.Name,
+				HostID:                 *hostWithMDM.HostID,
+				Enrolled:               *hostWithMDM.Enrolled,
+				ServerURL:              *hostWithMDM.ServerURL,
+				InstalledFromDep:       *hostWithMDM.InstalledFromDep,
+				IsServer:               *hostWithMDM.IsServer,
+				MDMID:                  hostWithMDM.MDMID,
+				Name:                   *hostWithMDM.Name,
+				DEPProfileAssignStatus: hostWithMDM.DEPProfileAssignStatus,
 			}
 
 			host.MDM = fleet.MDMHostData{
@@ -2259,7 +2269,8 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      hdep.assign_profile_response AS dep_profile_assign_status
     FROM
       host_device_auth hda
     INNER JOIN
@@ -2271,7 +2282,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
     LEFT OUTER JOIN
       host_mdm hm  ON hm.host_id = h.id
     LEFT OUTER JOIN
-      host_dep_assignments hdep ON hdep.host_id = h.id
+      host_dep_assignments hdep ON hdep.host_id = h.id AND hdep.deleted_at IS NULL
     LEFT OUTER JOIN
       mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
     WHERE
@@ -2285,13 +2296,14 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
 			host.MDMInfo = &fleet.HostMDM{
-				HostID:           *hostWithMDM.HostID,
-				Enrolled:         *hostWithMDM.Enrolled,
-				ServerURL:        *hostWithMDM.ServerURL,
-				InstalledFromDep: *hostWithMDM.InstalledFromDep,
-				IsServer:         *hostWithMDM.IsServer,
-				MDMID:            hostWithMDM.MDMID,
-				Name:             *hostWithMDM.Name,
+				HostID:                 *hostWithMDM.HostID,
+				Enrolled:               *hostWithMDM.Enrolled,
+				ServerURL:              *hostWithMDM.ServerURL,
+				InstalledFromDep:       *hostWithMDM.InstalledFromDep,
+				IsServer:               *hostWithMDM.IsServer,
+				MDMID:                  hostWithMDM.MDMID,
+				Name:                   *hostWithMDM.Name,
+				DEPProfileAssignStatus: hostWithMDM.DEPProfileAssignStatus,
 			}
 		}
 		return &host, nil
@@ -2668,13 +2680,13 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
-	  ` + hostMDMSelect + `
+      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+    ` + hostMDMSelect + `
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-	` + hostMDMJoin + `
+    ` + hostMDMJoin + `
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
     LIMIT 1
 	`
@@ -3687,13 +3699,36 @@ func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) 
 	return &key, nil
 }
 
-func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
+func (ds *Datastore) SetOrUpdateHostOrbitInfo(
+	ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
+) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_orbit_info SET version = ? WHERE host_id = ?`,
-		`INSERT INTO host_orbit_info (version, host_id) VALUES (?, ?)`,
-		version, hostID,
+		`UPDATE host_orbit_info SET version = ?, desktop_version = ?, scripts_enabled = ? WHERE host_id = ?`,
+		`INSERT INTO host_orbit_info (version, desktop_version, scripts_enabled, host_id) VALUES (?, ?, ?, ?)`,
+		version, desktopVersion, scriptsEnabled, hostID,
 	)
+}
+
+func (ds *Datastore) GetHostOrbitInfo(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+	var orbit fleet.HostOrbitInfo
+	err := sqlx.GetContext(
+		ctx, ds.reader(ctx), &orbit, `
+	SELECT
+		version,
+		desktop_version,
+		scripts_enabled
+	FROM
+		host_orbit_info
+	WHERE host_id = ?`, hostID,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostOrbitInfo").WithID(hostID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "select host_orbit_info for host_id %d", hostID)
+	}
+	return &orbit, nil
 }
 
 func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string, mdmName string) (mdmID uint, err error) {
@@ -4310,12 +4345,15 @@ func (ds *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, in
 
 // UpdateHostRefetchRequested updates a host's refetch requested field.
 func (ds *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, value bool) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return updateHostRefetchRequestedDB(ctx, tx, id, value)
+	})
+}
+
+func updateHostRefetchRequestedDB(ctx context.Context, tx sqlx.ExtContext, id uint, value bool) error {
 	sqlStatement := `UPDATE hosts SET refetch_requested = ? WHERE id = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, value, id)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update host %d refetch_requested", id)
-	}
-	return nil
+	_, err := tx.ExecContext(ctx, sqlStatement, value, id)
+	return ctxerr.Wrapf(ctx, err, "update host %d refetch_requested", id)
 }
 
 // UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
@@ -4942,7 +4980,11 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 
 	for _, s := range host.Software {
 		if len(s.Vulnerabilities) > 0 {
-			hh.VulnerableSoftware = append(hh.VulnerableSoftware, s)
+			hh.VulnerableSoftware = append(hh.VulnerableSoftware, fleet.HostHealthVulnerableSoftware{
+				ID:      s.ID,
+				Name:    s.Name,
+				Version: s.Version,
+			})
 		}
 	}
 
@@ -4951,10 +4993,32 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 		return nil, err
 	}
 
+	isPremium := license.IsPremium(ctx)
 	for _, p := range policies {
 		if p.Response == "fail" {
-			hh.FailingPolicies = append(hh.FailingPolicies, p)
+			var critical *bool
+			if isPremium {
+				critical = &p.Critical
+			}
+			hh.FailingPolicies = append(hh.FailingPolicies, &fleet.HostHealthFailingPolicy{
+				ID:         p.ID,
+				Name:       p.Name,
+				Resolution: p.Resolution,
+				Critical:   critical,
+			})
 		}
+	}
+
+	hh.FailingPoliciesCount = len(hh.FailingPolicies)
+
+	if license.IsPremium(ctx) {
+		var count int
+		for _, p := range hh.FailingPolicies {
+			if p.Critical != nil && *p.Critical {
+				count++
+			}
+		}
+		hh.FailingCriticalPoliciesCount = ptr.Int(count)
 	}
 
 	return &hh, nil
@@ -4978,7 +5042,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 	stmt := `
     SELECT
       h.id,
-	  h.team_id,
+      h.team_id,
       h.osquery_host_id,
       h.node_key,
       h.hostname,
@@ -4989,7 +5053,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
       COALESCE(hst.seen_time, h.created_at) AS seen_time
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-	%s
+    %s
     LIMIT 1
 	`
 	var (
@@ -5016,4 +5080,36 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 	}
 
 	return host, nil
+}
+
+// HostnamesByIdentifiers returns a list of hostnames (exactly the
+// "hosts.hostname" column) for the given identifiers as understood by
+// HostByIdentifier.
+func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error) {
+	const selectStmt = `
+		SELECT
+			DISTINCT h.hostname
+		FROM hosts h,
+		(%s) ids
+		WHERE ids.identifier IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
+`
+	if len(identifiers) == 0 {
+		return nil, nil
+	}
+
+	var sb strings.Builder
+	args := make([]any, len(identifiers))
+	for i, id := range identifiers {
+		if i > 0 {
+			sb.WriteString(` UNION `)
+		}
+		sb.WriteString(`SELECT ? AS identifier`)
+		args[i] = id
+	}
+	var hostnames []string
+	stmt := fmt.Sprintf(selectStmt, sb.String())
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostnames, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hostnames by identifiers")
+	}
+	return hostnames, nil
 }

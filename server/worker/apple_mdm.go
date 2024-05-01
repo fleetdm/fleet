@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -238,6 +239,13 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		return ctxerr.Wrap(ctx, err, "failed to get host MDM profiles")
 	}
 	for _, prof := range profs {
+		// NOTE: DDM profiles (declarations) are ignored because while a device is
+		// awaiting to be released, it cannot process a DDM session (at least
+		// that's what we noticed during testing).
+		if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
+			continue
+		}
+
 		// if it has any pending profiles, then its profiles are not done being
 		// delivered (installed or removed).
 		if prof.Status == nil || *prof.Status == fleet.MDMDeliveryPending {

@@ -1524,3 +1524,215 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestMDMResendConfigProfileAuthz(t *testing.T) {
+	ds := new(mock.Store)
+	// while the config profiles are not premium-only, teams are and we want to test with teams.
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	testCases := []struct {
+		name                  string
+		user                  *fleet.User
+		shouldFailGlobalRead  bool
+		shouldFailTeamRead    bool
+		shouldFailGlobalWrite bool
+		shouldFailTeamWrite   bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			// this is authorized because gitops can access hosts by identifier (the
+			// first authorization check) and then gitops have write-access the
+			// profiles.
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+			true,
+			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer+, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer+, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			// this is authorized because gitops can access hosts by identifier (the
+			// first authorization check) and then gitops have write-access the
+			// profiles.
+			"team gitops, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			true,
+			false,
+			true,
+			false,
+		},
+		{
+			"team gitops, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			true,
+			true,
+			true,
+			true,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	ds.HostLiteFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
+		if hid == 1 {
+			return &fleet.Host{ID: hid, UUID: "host-uuid-1", Platform: "darwin", TeamID: ptr.Uint(1)}, nil
+		} else if hid == 1337 {
+			return &fleet.Host{ID: hid, UUID: "host-uuid-no-team", Platform: "darwin", TeamID: nil}, nil
+		}
+		return nil, &notFoundErr{}
+	}
+	ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMAppleConfigProfile, error) {
+		var tid uint
+		if pid == "a-team-1-profile" {
+			tid = 1
+		}
+		return &fleet.MDMAppleConfigProfile{
+			ProfileUUID: pid,
+			TeamID:      &tid,
+		}, nil
+	}
+	ds.GetHostMDMProfileInstallStatusFunc = func(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
+		return fleet.MDMDeliveryFailed, nil
+	}
+	ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {
+		return nil
+	}
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+
+	checkShouldFail := func(t *testing.T, err error, shouldFail bool) {
+		if !shouldFail {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		}
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			// ds.TeamFunc = mockTeamFuncWithUser(tt.user)
+
+			// test authz resend config profile (no team)
+			err := svc.ResendHostMDMProfile(ctx, 1337, "a-no-team-profile")
+			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
+
+			// test authz resend config profile (team 1)
+			err = svc.ResendHostMDMProfile(ctx, 1, "a-team-1-profile")
+			checkShouldFail(t, err, tt.shouldFailTeamWrite)
+		})
+	}
+}

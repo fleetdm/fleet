@@ -34,6 +34,7 @@ type EnterpriseOverrides struct {
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
+	MDMAppleEditedMacOSUpdates        func(ctx context.Context, teamID *uint, updates MacOSUpdates) error
 }
 
 type OsqueryService interface {
@@ -241,11 +242,11 @@ type Service interface {
 	// GetLabelSpec gets the spec for the label with the given name.
 	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
 
-	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
-	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
+	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
+	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, []uint, error)
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
 	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
-	GetLabel(ctx context.Context, id uint) (label *Label, err error)
+	GetLabel(ctx context.Context, id uint) (label *Label, hostIDs []uint, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
 	// DeleteLabelByID is for backwards compatibility with the UI
@@ -387,6 +388,21 @@ type Service interface {
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+
+	// AddLabelsToHost adds the given label names to the host's label membership.
+	//
+	// If a host is already a member of one of the labels then this operation will only
+	// update the membership row update time.
+	//
+	// Returns an error if any of the labels does not exist or if any of the labels
+	// are not manual.
+	AddLabelsToHost(ctx context.Context, id uint, labels []string) error
+	// RemoveLabelsFromHost removes the given label names from the host's label membership.
+	// Labels that the host are already not a member of are ignored.
+	//
+	// Returns an error if any of the labels does not exist or if any of the labels
+	// are not manual.
+	RemoveLabelsFromHost(ctx context.Context, id uint, labels []string) error
 
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
@@ -925,6 +941,9 @@ type Service interface {
 	// Windows hosts in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*MDMDiskEncryptionSummary, error)
+
+	// ResendHostMDMProfile resends the MDM profile to the host.
+	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution

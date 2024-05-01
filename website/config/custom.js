@@ -85,6 +85,13 @@ module.exports.custom = {
   // ||  (Or if you don't need billing, feel free to remove them.)
   //--------------------------------------------------------------------------
 
+
+  // Other integrations:
+  // openAiSecret: undefined,
+  // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
+  // salesforceIntegrationUsername: undefined,
+  // salesforceIntegrationPasskey: undefined,
+
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
   //  ██║  ██║██████╔╝██║███████╗
@@ -124,15 +131,14 @@ module.exports.custom = {
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
-    'website': 'mikermcneil',// (catch-all)
+    'website': 'eashaw',// (catch-all)
     'website/assets': 'eashaw', // « Eric is DRI for website frontend code
     'website/views': 'eashaw',
-    'website/api': 'mikermcneil',//« Website backend, scripts, deps
-    'website/api/controllers/webhooks/receive-from-github.js': 'mikermcneil',// github bot (webhook)
-    'website/api/controllers/imagine': 'eashaw',// landing pages
-    'website/config': 'mikermcneil',
+    'website/api': 'eashaw',//« Website backend, scripts, deps
+    'website/api/controllers/webhooks/receive-from-github.js': 'eashaw',// github bot (webhook)
+    'website/config': 'eashaw',
     'website/config/routes.js': 'eashaw',//« Website redirects and URLs
-    'website/scripts': 'mikermcneil',
+    'website/scripts': 'eashaw',
     'website/package.json': 'eashaw',
 
     // 🫧 Vulnerability dashboard
@@ -149,7 +155,7 @@ module.exports.custom = {
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
 
-    '/handbook/company/testimonials.yml': 'mike-j-thomas',
+    'handbook/company/testimonials.yml': 'mike-j-thomas',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -164,7 +170,7 @@ module.exports.custom = {
 
 
     // 🌐 GitHub issue templates
-    //'.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
+    '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
   },
 
@@ -204,7 +210,7 @@ module.exports.custom = {
     'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
-    'website': 'mikermcneil',// (default for website)
+    'website': ['mikermcneil', 'eashaw'],// (default for website)
     'website/views': 'eashaw',
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
@@ -252,13 +258,13 @@ module.exports.custom = {
     'handbook/sales': ['sampfluger88','mikermcneil'],
     'handbook/demand': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
-    '/handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
+    'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','noahtalerman'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
@@ -287,10 +293,16 @@ module.exports.custom = {
     '/': ['lukeheath'] // Future update this
   },
 
+  //  ███████╗ ██████╗██╗  ██╗███████╗███╗   ███╗ █████╗
+  //  ██╔════╝██╔════╝██║  ██║██╔════╝████╗ ████║██╔══██╗
+  //  ███████╗██║     ███████║█████╗  ██╔████╔██║███████║
+  //  ╚════██║██║     ██╔══██║██╔══╝  ██║╚██╔╝██║██╔══██║
+  //  ███████║╚██████╗██║  ██║███████╗██║ ╚═╝ ██║██║  ██║
+  //  ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝
+  //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
   versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.11.0',
-
 
   //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
   //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
@@ -314,12 +326,68 @@ module.exports.custom = {
   // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
   // hostIdsByHostPlatform: {…}
 
+  //  ███╗   ███╗██╗███████╗ ██████╗
+  //  ████╗ ████║██║██╔════╝██╔════╝
+  //  ██╔████╔██║██║███████╗██║
+  //  ██║╚██╔╝██║██║╚════██║██║
+  //  ██║ ╚═╝ ██║██║███████║╚██████╗
+  //  ╚═╝     ╚═╝╚═╝╚══════╝ ╚═════╝
+  //
   /***************************************************************************
   *                                                                          *
   * Any other custom config this Sails app should use during development.    *
   * (and possibly in ALL environments, if not overridden in config/env/)     *
   *                                                                          *
   ***************************************************************************/
+
+  // FUTURE: Consolidate these two lists of email domains (And maybe find another word for banned)
+  // For the deliver-apple-csr webhook:
+  bannedEmailDomainsForCSRSigning:   [
+    'aim.com',         'alice.it',     'aliceadsl.fr',     'aol.com',
+    'arcor.de',        'att.net',      'bellsouth.net',    'bigpond.com',
+    'bigpond.net.au',  'bluewin.ch',   'blueyonder.co.uk', 'bol.com.br',
+    'centurytel.net',  'charter.net',  'chello.nl',        'club-internet.fr',
+    'comcast.net',     'cox.net',      'earthlink.net',    'facebook.com',
+    'free.fr',         'freenet.de',   'frontiernet.net',  'gmail.com',
+    'gmx.de',          'gmx.net',      'googlemail.com',   'hetnet.nl',
+    'home.nl',         'hotmail.ca',   'hotmail.co.uk',    'hotmail.com',
+    'hotmail.de',      'hotmail.es',   'hotmail.fr',       'hotmail.it',
+    'icloud.com',      'ig.com.br',    'juno.com',         'laposte.net',
+    'libero.it',       'live.ca',      'live.co.uk',       'live.com',
+    'live.com.au',     'live.fr',      'live.it',          'live.nl',
+    'mac.com',         'mail.com',     'mail.ru',          'me.com',
+    'msn.com',         'neuf.fr',      'ntlworld.com',     'optonline.net',
+    'optusnet.com.au', 'orange.fr',    'outlook.com',      'planet.nl',
+    'pm.me',           'proton.me',    'protonmail.ch',    'protonmail.com',
+    'qq.com',          'rambler.ru',   'rediffmail.com',   'rocketmail.com',
+    'sbcglobal.net',   'sfr.fr',       'shaw.ca',          'sky.com',
+    'skynet.be',       'sympatico.ca', 't-online.de',      'telenet.be',
+    'terra.com.br',    'tin.it',       'tiscali.co.uk',    'tiscali.it',
+    'tmmbt.net',       'uol.com.br',   'verizon.net',      'virgilio.it',
+    'voila.fr',        'wanadoo.fr',   'web.de',           'windstream.net',
+    'yahoo.ca',        'yahoo.co.id',  'yahoo.co.in',      'yahoo.co.jp',
+    'yahoo.co.uk',     'yahoo.com',    'yahoo.com.ar',     'yahoo.com.au',
+    'yahoo.com.br',    'yahoo.com.mx', 'yahoo.com.sg',     'yahoo.de',
+    'yahoo.es',        'yahoo.fr',     'yahoo.in',         'yahoo.it',
+    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
+  ],
+
+  // For website signups & contact form submissions:
+  bannedEmailDomainsForWebsiteSubmissions: [
+    'gmail.com',
+    'yahoo.com',
+    'yahoo.co.uk',
+    'hotmail.com',
+    'hotmail.co.uk',
+    'hotmail.ca',
+    'outlook.com',
+    'icloud.com',
+    'proton.me',
+    'live.com',
+    'yandex.ru',
+    'ymail.com',
+  ],
+
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
 
