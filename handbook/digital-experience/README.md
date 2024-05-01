@@ -354,7 +354,6 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
 ### Process incoming equipment
 Upon receiving any device, the Apprentice will process the incoming equipment by:
 1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-    - If the serial numbers do not match [create an issue](https://fleetdm.com/handbook/business-operations#contact-us) to get help from the Business Operations department. 
 3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
 4. Remove any stickers and clean devices and components.
 5. Using the device's charger plug in the device.
