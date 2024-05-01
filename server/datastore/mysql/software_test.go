@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -3017,9 +3018,12 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	compareResults := func(expected, got []*fleet.HostSoftwareWithInstaller) {
 		require.Len(t, got, len(expected))
-		// clear ids for comparison
+		// clear ids and timestamps for comparison
 		for _, g := range got {
 			g.ID = 0
+			if g.LastInstall != nil {
+				g.LastInstall.InstalledAt = time.Time{}
+			}
 			for _, v := range g.InstalledVersions {
 				v.SoftwareID = 0
 				v.SoftwareTitleID = 0
@@ -3040,5 +3044,151 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// including one for a team
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	_ = tm
+
+	var swi1Pending, swi2Installed, swi3Failed, swi4Available, swi5Tm uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// keep title id of software B, will use it to associate an installer with it
+		var swbTitleID uint
+		err := sqlx.GetContext(ctx, q, &swbTitleID, `SELECT id FROM software_titles WHERE name = 'b' AND source = 'apps'`)
+		if err != nil {
+			return err
+		}
+
+		// create the install script content (same for all installers, doesn't matter)
+		installScript := `echo 'foo'`
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := res.LastInsertId()
+
+		// create software titles for all but swi1Pending (will be linked to
+		// existing software title b)
+		var titleIDs []uint
+		for i := 0; i < 4; i++ {
+			res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, 'apps')`, fmt.Sprintf("i%d", i))
+			if err != nil {
+				return err
+			}
+			id, _ := res.LastInsertId()
+			titleIDs = append(titleIDs, uint(id))
+		}
+
+		var swiIDs []uint
+		for i := 0; i < 5; i++ {
+			var (
+				titleID        uint
+				teamID         *uint
+				globalOrTeamID uint
+			)
+			if i == 0 {
+				titleID = swbTitleID
+			} else {
+				titleID = titleIDs[i-1]
+			}
+			if i == 4 {
+				teamID = &tm.ID
+				globalOrTeamID = tm.ID
+			}
+			res, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id)
+			VALUES
+				(?, ?, ?, ?, ?, ?, unhex(?))`,
+				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")))
+			if err != nil {
+				return err
+			}
+			id, _ := res.LastInsertId()
+			swiIDs = append(swiIDs, uint(id))
+		}
+		swi1Pending, swi2Installed, swi3Failed, swi4Available, swi5Tm = swiIDs[0], swiIDs[1], swiIDs[2], swiIDs[3], swiIDs[4]
+
+		// create the results for the host
+
+		// swi1 is pending (all results are NULL)
+		_, err = q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+			"uuid1", host.ID, swi1Pending)
+		if err != nil {
+			return err
+		}
+
+		// swi2 is installed
+		_, err = q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
+				VALUES (?, ?, ?, ?, ?, ?)`,
+			"uuid2", host.ID, swi2Installed, "ok", 0, 0)
+		if err != nil {
+			return err
+		}
+
+		// swi3 is failed, also add an install request on the other host
+		_, err = q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
+				VALUES (?, ?, ?, ?, ?)`,
+			"uuid3", host.ID, swi3Failed, "ok", 1)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+			uuid.NewString(), otherHost.ID, swi3Failed)
+		if err != nil {
+			return err
+		}
+
+		// swi4 is available (no install request), but add a pending request on the other host
+		_, err = q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+			uuid.NewString(), otherHost.ID, swi4Available)
+		if err != nil {
+			return err
+		}
+
+		// swi5 is for another team
+		_ = swi5Tm
+
+		return nil
+	})
+
+	// swi1Pending uses software title id of "b"
+	expected["b"] = &fleet.HostSoftwareWithInstaller{
+		Name:                       "b",
+		Source:                     "apps",
+		Status:                     &fleet.SoftwareInstallerPending,
+		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid1"},
+		PackageAvailableForInstall: ptr.String("installer-0.pkg"),
+		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: software[2].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
+		},
+	}
+	expected["i0"] = &fleet.HostSoftwareWithInstaller{
+		Name:                       "i0",
+		Source:                     "apps",
+		Status:                     &fleet.SoftwareInstallerInstalled,
+		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid2"},
+		PackageAvailableForInstall: ptr.String("installer-1.pkg"),
+	}
+	expected["i1"] = &fleet.HostSoftwareWithInstaller{
+		Name:                       "i1",
+		Source:                     "apps",
+		Status:                     &fleet.SoftwareInstallerFailed,
+		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid3"},
+		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
+	}
+	expected["i2"] = &fleet.HostSoftwareWithInstaller{
+		Name:        "i2",
+		Source:      "apps",
+		Status:      nil,
+		LastInstall: nil,
+	}
+
+	// request without available software, returns failed first, pending, installed, other
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	compareResults([]*fleet.HostSoftwareWithInstaller{
+		expected["i1"], expected["b"], expected["i0"], expected["a1"], expected["a2"], expected["c"], expected["d"],
+	}, sw)
 }

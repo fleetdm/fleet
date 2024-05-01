@@ -1773,7 +1773,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 				WHERE
 					hs.host_id = ? AND
 					s.title_id = st.id
-			)
+			) OR
+			-- or software install has been attempted on host
+			hsi.host_id IS NOT NULL
 `
 
 	const stmtAvailable = `
@@ -1801,6 +1803,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 				WHERE
 					hs.host_id = ? AND
 					s.title_id = st.id
+			) AND
+			-- sofware install has not been attempted on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					host_software_installs hsi
+				WHERE
+					hsi.host_id = ? AND
+					hsi.software_installer_id = si.id
 			) AND
 			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
 `
@@ -1843,13 +1854,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 	stmt := stmtInstalled
 	if includeAvailableForInstall {
 		stmt += ` UNION ` + stmtAvailable
-		args = append(args, hostID, hostID)
+		args = append(args, hostID, hostID, hostID)
 	}
 	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
 
-	// apply default sort
+	// apply default sort (adding source just to make it deterministic)
 	if opts.OrderKey == "" {
-		stmt += ` ORDER BY status_sort DESC, name ASC `
+		stmt += ` ORDER BY status_sort DESC, name ASC, source ASC `
 	}
 	stmt, _ = appendListOptionsToSQL(stmt, &opts)
 
