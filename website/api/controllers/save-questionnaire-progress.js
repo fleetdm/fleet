@@ -176,7 +176,6 @@ module.exports = {
         } else {// If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
           psychologicalStage = '5 - Personally confident';
         }
-        // If the user selects "I’d like you to host Fleet for me", the form is not submitted, and they are taken to the /contact page instead. FUTURE: set stage to stage 5.
       } else if(currentStep === 'how-was-your-deployment') {
         if(valueFromFormData === 'decided-to-not-use-fleet') {
           psychologicalStage = '2 - Aware';
