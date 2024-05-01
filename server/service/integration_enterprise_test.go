@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8643,6 +8644,155 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
 
 	// TODO(mna): more advanced integration tests with Software Installers once the APIs are in place.
+}
+
+func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
+	ctx := context.Background()
+	t := s.T()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+
+	// create a software installer and some host install requests
+	// TODO(mna): replace with API calls once they are available
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		installScript := `echo 'foo'`
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', 'apps')`)
+		if err != nil {
+			return err
+		}
+		titleID, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(title_id, filename, version, install_script_content_id, storage_id)
+			VALUES
+				(?, ?, ?, ?, unhex(?))`,
+			titleID, "installer.pkg", "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")))
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+
+		// create some install requests for the host
+		for i := 0; i < 3; i++ {
+			_, err = q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+				fmt.Sprintf("uuid%d", i), host.ID, id)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	// TODO(mna): replace with API calls once they are available
+	type result struct {
+		HostID                    uint    `db:"host_id"`
+		InstallUUID               string  `db:"execution_id"`
+		PreInstallConditionOutput *string `db:"pre_install_query_output"`
+		InstallScriptExitCode     *int    `db:"install_script_exit_code"`
+		InstallScriptOutput       *string `db:"install_script_output"`
+		PostInstallScriptExitCode *int    `db:"post_install_script_exit_code"`
+		PostInstallScriptOutput   *string `db:"post_install_script_output"`
+	}
+	checkResults := func(want result) {
+		var got result
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT
+					host_id,
+					execution_id,
+					pre_install_query_output,
+					install_script_exit_code,
+					install_script_output,
+					post_install_script_exit_code,
+					post_install_script_output
+				FROM
+					host_software_installs
+				WHERE execution_id = ?`, want.InstallUUID)
+		})
+		assert.Equal(t, want.HostID, got.HostID)
+		assert.Equal(t, want.InstallUUID, got.InstallUUID)
+		if want.PreInstallConditionOutput == nil {
+			assert.Nil(t, got.PreInstallConditionOutput)
+		} else {
+			assert.NotNil(t, got.PreInstallConditionOutput)
+			assert.Equal(t, *want.PreInstallConditionOutput, *got.PreInstallConditionOutput)
+		}
+		assert.Equal(t, want.InstallScriptExitCode, got.InstallScriptExitCode)
+		if want.InstallScriptOutput == nil {
+			assert.Nil(t, got.InstallScriptOutput)
+		} else {
+			assert.NotNil(t, got.InstallScriptOutput)
+			assert.Equal(t, *want.InstallScriptOutput, *got.InstallScriptOutput)
+		}
+		assert.Equal(t, want.PostInstallScriptExitCode, got.PostInstallScriptExitCode)
+		if want.PostInstallScriptOutput == nil {
+			assert.Nil(t, got.PostInstallScriptOutput)
+		} else {
+			assert.NotNil(t, got.PostInstallScriptOutput)
+			assert.Equal(t, *want.PostInstallScriptOutput, *got.PostInstallScriptOutput)
+		}
+	}
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": "uuid0",
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 1,
+			"install_script_output": %q
+		}`, *host.OrbitNodeKey, base64.StdEncoding.EncodeToString([]byte(`failed`)))),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:                    host.ID,
+		InstallUUID:               "uuid0",
+		PreInstallConditionOutput: ptr.String("1"),
+		InstallScriptExitCode:     ptr.Int(1),
+		InstallScriptOutput:       ptr.String("failed"),
+	})
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": "uuid1",
+			"pre_install_condition_output": ""
+		}`, *host.OrbitNodeKey)),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:                    host.ID,
+		InstallUUID:               "uuid1",
+		PreInstallConditionOutput: ptr.String(""),
+	})
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": "uuid2",
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 0,
+			"install_script_output": %q,
+			"post_install_script_exit_code": 1,
+			"post_install_script_output": %q
+		}`, *host.OrbitNodeKey,
+			base64.StdEncoding.EncodeToString([]byte(`success`)),
+			base64.StdEncoding.EncodeToString([]byte(`failed`)))),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:                    host.ID,
+		InstallUUID:               "uuid2",
+		PreInstallConditionOutput: ptr.String("1"),
+		InstallScriptExitCode:     ptr.Int(0),
+		InstallScriptOutput:       ptr.String("success"),
+		PostInstallScriptExitCode: ptr.Int(1),
+		PostInstallScriptOutput:   ptr.String("failed"),
+	})
 }
 
 func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
