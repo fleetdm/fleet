@@ -468,6 +468,50 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	return newLastModStartDate, nil
 }
 
+func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time.Time) error {
+	var (
+		baseURL    = "https://api.vulncheck.com/v3/index/nist-nvd2/cursor"
+		cursor     *string
+		cvesByYear = make(map[int][]VulnCheckCVE)
+	)
+
+	// If lastModStartDate is nil, it's assumed that the most recent VulnCheck
+	// archive has been processed so only the last 24 hours of data needs to be
+	// fetched.
+	if lastModStartDate == nil {
+		lastModStartDate = ptr.Time(time.Now().AddDate(0, 0, -1))
+	}
+
+	for {
+		vcr, err := s.getVulnCheckIndexCVEs(ctx, s.client, &baseURL, cursor, *lastModStartDate)
+		if err != nil {
+			return fmt.Errorf("error getting VulnCheck index CVEs: %w", err)
+		}
+
+		if len(vcr.Data) == 0 {
+			break
+		}
+
+		for _, cve := range vcr.Data {
+			year, err := strconv.Atoi((*cve.ID)[4:8])
+			if err != nil {
+				return fmt.Errorf("error parsing year from CVE ID %s: %w", *cve.ID, err)
+			}
+			cvesByYear[year] = append(cvesByYear[year], cve)
+		}
+
+		cursor = &vcr.Meta.NextCursor
+	}
+
+	for year, cvesInYear := range cvesByYear {
+		if err := s.updateVulnCheckYearFile(year, cvesInYear, nil, nil); err != nil {
+			return fmt.Errorf("error updating VulnCheck year file %d: %w", year, err)
+		}
+	}
+
+	return nil
+}
+
 func (s *CVE) DoVulnCheck(ctx context.Context) error {
 	vulnCheckArchive := "vulncheck.zip"
 	baseURL := "https://api.vulncheck.com/v3/backup/nist-nvd2"

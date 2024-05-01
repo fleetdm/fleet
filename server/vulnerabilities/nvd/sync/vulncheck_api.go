@@ -1,11 +1,14 @@
 package nvdsync
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/go-kit/kit/log/level"
 	"github.com/pandatix/nvdapi/v2"
 )
 
@@ -39,35 +42,57 @@ type VulnCheckResponseMeta struct {
 	NextCursor string `json:"next_cursor"`
 }
 
-func getVulnCheckIndexCVEs(c *http.Client, url, cursor *string, lastModStartDate time.Time) (VulnCheckResponse, error) {
+func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, c *http.Client, url, cursor *string, lastModStartDate time.Time) (VulnCheckResponse, error) {
+	apiKey := os.Getenv("VULNCHECK_API_KEY")
+	if apiKey == "" {
+		return VulnCheckResponse{}, fmt.Errorf("VULNCHECK_API_KEY is not set")
+	}
 	var vcr VulnCheckResponse
 
-	req, err := http.NewRequest(http.MethodGet, *url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, *url, nil)
 	if err != nil {
-		return vcr, err
+		return vcr, fmt.Errorf("new request: %w", err)
 	}
+
+	req.Header.Add("Authorization", "Bearer "+apiKey)
 
 	q := req.URL.Query()
 	if cursor != nil {
 		q.Add("cursor", *cursor)
 	}
 	q.Add("lastModStartDate", lastModStartDate.Format("2006-01-02"))
+	q.Add("limit", "100")
+	req.URL.RawQuery = q.Encode()
 
-	resp, err := c.Do(req)
-	if err != nil {
-		return vcr, fmt.Errorf("do request: %w", err)
+	for attempt := 0; attempt < s.MaxTryAttempts; attempt++ {
+		resp, err := c.Do(req)
+		if err != nil {
+			if attempt < s.MaxTryAttempts-1 {
+				level.Debug(s.logger).Log("msg", "Failed to do request", "attempt", attempt, "error", err)
+				time.Sleep(s.WaitTimeForRetry)
+				continue
+			}
+			return vcr, fmt.Errorf("do request: %w", err)
+		}
+
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			if attempt < s.MaxTryAttempts-1 {
+				level.Debug(s.logger).Log("msg", "Non-OK HTTP status received", "attempt", attempt, "status", resp.Status)
+				time.Sleep(s.WaitTimeForRetry)
+				continue
+			}
+			return vcr, fmt.Errorf("response status: %s", resp.Status)
+		}
+
+		err = json.NewDecoder(resp.Body).Decode(&vcr)
+		if err != nil {
+			return vcr, fmt.Errorf("decode response: %w", err)
+		}
+
+		return vcr, nil
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return vcr, err
-	}
-
-	err = json.NewDecoder(resp.Body).Decode(&vcr)
-	if err != nil {
-		return vcr, fmt.Errorf("decode response: %w", err)
-	}
-
-	return vcr, nil
+	return vcr, fmt.Errorf("reached max retry attempts")
 }
