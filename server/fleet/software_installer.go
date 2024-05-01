@@ -149,6 +149,9 @@ type HostSoftwareInstallResultPayload struct {
 	// the following fields are nil-able because the corresponding steps may not
 	// have been executed (optional step, or executed conditionally to a previous
 	// step).
+	//
+	// Note that Go's json Marshal/Unmarshal automatically convert to/from base64
+	// when the data type is []byte (https://go.dev/play/p/9cdt6impziw).
 	PreInstallConditionOutput *string `json:"pre_install_condition_output"`
 	InstallScriptExitCode     *int    `json:"install_script_exit_code"`
 	InstallScriptOutput       []byte  `json:"install_script_output"`

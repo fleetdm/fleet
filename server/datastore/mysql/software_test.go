@@ -63,6 +63,7 @@ func TestSoftware(t *testing.T) {
 		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
+		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3210,14 +3211,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// record a new install request for i1, this time as pending, and mark install request for b (swi1) as failed
 	time.Sleep(time.Second) // ensure the timestamp is later
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		// swi1 is now failed
-		_, err = q.ExecContext(ctx, `
-				UPDATE host_software_installs SET install_script_exit_code = 2 WHERE execution_id = 'uuid1'`)
-		if err != nil {
-			return err
-		}
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "uuid1",
+		InstallScriptExitCode: ptr.Int(2),
+	})
+	require.NoError(t, err)
 
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		// swi3 has a new install request pending
 		_, err = q.ExecContext(ctx, `
 				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
@@ -3364,4 +3365,141 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantNames, names)
 		})
 	}
+}
+
+func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// create a software installer and some host install requests
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		installScript := `echo 'foo'`
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', 'apps')`)
+		if err != nil {
+			return err
+		}
+		titleID, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(title_id, filename, version, install_script_content_id, storage_id)
+			VALUES
+				(?, ?, ?, ?, unhex(?))`,
+			titleID, "installer.pkg", "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")))
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+
+		// create some install requests for the host
+		for i := 0; i < 3; i++ {
+			_, err = q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+				fmt.Sprintf("uuid%d", i), host.ID, id)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	checkResults := func(want *fleet.HostSoftwareInstallResultPayload) {
+		type result struct {
+			HostID                    uint    `db:"host_id"`
+			InstallUUID               string  `db:"execution_id"`
+			PreInstallConditionOutput *string `db:"pre_install_query_output"`
+			InstallScriptExitCode     *int    `db:"install_script_exit_code"`
+			InstallScriptOutput       *string `db:"install_script_output"`
+			PostInstallScriptExitCode *int    `db:"post_install_script_exit_code"`
+			PostInstallScriptOutput   *string `db:"post_install_script_output"`
+		}
+		var got result
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT
+					host_id,
+					execution_id,
+					pre_install_query_output,
+					install_script_exit_code,
+					install_script_output,
+					post_install_script_exit_code,
+					post_install_script_output
+				FROM
+					host_software_installs
+				WHERE execution_id = ?`, want.InstallUUID)
+		})
+		assert.Equal(t, want.HostID, got.HostID)
+		assert.Equal(t, want.InstallUUID, got.InstallUUID)
+		if want.PreInstallConditionOutput == nil {
+			assert.Nil(t, got.PreInstallConditionOutput)
+		} else {
+			assert.NotNil(t, got.PreInstallConditionOutput)
+			assert.Equal(t, *want.PreInstallConditionOutput, *got.PreInstallConditionOutput)
+		}
+		assert.Equal(t, want.InstallScriptExitCode, got.InstallScriptExitCode)
+		if want.InstallScriptOutput == nil {
+			assert.Nil(t, got.InstallScriptOutput)
+		} else {
+			assert.NotNil(t, got.InstallScriptOutput)
+			assert.Equal(t, string(want.InstallScriptOutput), *got.InstallScriptOutput)
+		}
+		assert.Equal(t, want.PostInstallScriptExitCode, got.PostInstallScriptExitCode)
+		if want.PostInstallScriptOutput == nil {
+			assert.Nil(t, got.PostInstallScriptOutput)
+		} else {
+			assert.NotNil(t, got.PostInstallScriptOutput)
+			assert.Equal(t, string(want.PostInstallScriptOutput), *got.PostInstallScriptOutput)
+		}
+	}
+
+	// set a result with all fields provided
+	want := &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host.ID,
+		InstallUUID:               "uuid0",
+		PreInstallConditionOutput: ptr.String("1"),
+		InstallScriptExitCode:     ptr.Int(0),
+		InstallScriptOutput:       []byte(`ok`),
+		PostInstallScriptExitCode: ptr.Int(0),
+		PostInstallScriptOutput:   []byte(`ok`),
+	}
+	err := ds.SetHostSoftwareInstallResult(ctx, want)
+	require.NoError(t, err)
+	checkResults(want)
+
+	// set a result with only the pre-condition that failed
+	want = &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host.ID,
+		InstallUUID:               "uuid1",
+		PreInstallConditionOutput: ptr.String(""),
+	}
+	err = ds.SetHostSoftwareInstallResult(ctx, want)
+	require.NoError(t, err)
+	checkResults(want)
+
+	// set a result with only the install that failed
+	want = &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "uuid2",
+		InstallScriptExitCode: ptr.Int(1),
+		InstallScriptOutput:   []byte(`fail`),
+	}
+	err = ds.SetHostSoftwareInstallResult(ctx, want)
+	require.NoError(t, err)
+	checkResults(want)
+
+	// set a result for a non-existing uuid
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "uuid-no-such",
+		InstallScriptExitCode: ptr.Int(0),
+		InstallScriptOutput:   []byte(`ok`),
+	})
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
