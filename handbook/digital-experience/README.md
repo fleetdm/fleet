@@ -368,7 +368,6 @@ Upon receiving any device, the Apprentice will process the incoming equipment by
 Once the Business Operations department approves inventory to be shipped from Fleet IT, the Apprentice will ship the equipment by:
 1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
-    - If the device is not processed correctly, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If you encounter any issues when following those steps, create a [hardware issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=hardware-issue.md&title=Hardware+or+software+issue) for IT to troubleshoot the device.
 3. Package equipment for shipment and include Yubikeys (if requested).
 4. Change the "Company equipment" spreadsheet to reflect the new user.
 5. Ship via FedEx to the address listed in the equipment request.
