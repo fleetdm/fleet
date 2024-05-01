@@ -47,7 +47,7 @@ You can test changes on a small subset of hosts first, then roll them out to the
 
 ## Is Fleet MIT licensed?
 
-We have different licenses for portions of our software which are noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file in our docs. The majority of Fleet is MIT licensed. Paid features require a license key.
+Different portions of the Fleet software are licensed differently, as noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file. The majority of Fleet is MIT licensed. Paid features require a license key.
 
 ## What is your commitment to open source stewardship?
 
@@ -71,7 +71,9 @@ We have different licenses for portions of our software which are noted in the [
 
 ## How do I contact Fleet for support?
 
-For community support, visit https://fleetdm.com/support.
+A lot of questions can be answered [in the documentation](https://fleetdm.com/docs).
+
+To get help from the community, visit https://fleetdm.com/support.
 
 If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
 

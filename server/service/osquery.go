@@ -1958,18 +1958,45 @@ func getMostRecentResults(results []*fleet.ScheduledQueryResult) []*fleet.Schedu
 // The expected format for s is "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
 //
 // Returns "" if it failed to parse the pack_delimiter.
+
+var (
+	dcounter = regexp.MustCompile(`(Global)|(team-\d+)`)
+	pattern  = regexp.MustCompile(`^(.*)(?:(Global)|(team-\d+))`)
+)
+
 func findPackDelimiterString(scheduledQueryName string) string {
-	// Go's regexp doesn't support backreferences so we have to perform some manual work.
 	scheduledQueryName = scheduledQueryName[4:] // always starts with "pack"
-	for l := 1; l < len(scheduledQueryName); l++ {
-		sep := scheduledQueryName[:l]
-		rest := scheduledQueryName[l:]
-		pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
-		matched, _ := regexp.MatchString(pattern, rest)
-		if matched {
-			return sep
+
+	count := dcounter.FindAllString(scheduledQueryName, -1)
+
+	// If Global or team-<team_id> does not appear, then the
+	// pack_delimiter is invalid.
+	if len(count) == 0 {
+		return ""
+	}
+
+	if len(count) == 1 {
+		matches := pattern.FindStringSubmatch(scheduledQueryName)
+		if len(matches) > 1 {
+			return matches[1]
 		}
 	}
+
+	// Handle edge cases where "Global" or "team-<team_id>"" appears multiple times in the query
+	// name. Regex is not pre-compiled, so it is a less performant operation.
+	// Go's regexp doesn't support backreferences so we have to perform some manual work.
+	if len(count) > 1 {
+		for l := 1; l < len(scheduledQueryName); l++ {
+			sep := scheduledQueryName[:l]
+			rest := scheduledQueryName[l:]
+			pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
+			matched, _ := regexp.MatchString(pattern, rest)
+			if matched {
+				return sep
+			}
+		}
+	}
+
 	return ""
 }
 
@@ -1995,6 +2022,10 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	// For pattern: pack/Global/Name
 	globalPattern := "pack" + sep + "Global" + sep
 	if strings.HasPrefix(path, globalPattern) {
+		name := strings.TrimPrefix(path, globalPattern)
+		if name == "" {
+			return nil, "", fmt.Errorf("parsing query name: %s", path)
+		}
 		return nil, strings.TrimPrefix(path, globalPattern), nil
 	}
 
@@ -2005,6 +2036,9 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		teamIDAndQueryNameParts := strings.SplitN(teamIDAndRest, sep, 2)
 		if len(teamIDAndQueryNameParts) != 2 {
 			return nil, "", fmt.Errorf("parsing team number part: %s", path)
+		}
+		if teamIDAndQueryNameParts[1] == "" {
+			return nil, "", fmt.Errorf("parsing query name: %s", path)
 		}
 		teamNumberUint, err := strconv.ParseUint(teamIDAndQueryNameParts[0], 10, 32)
 		if err != nil {
