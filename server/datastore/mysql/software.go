@@ -1763,8 +1763,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = ?
 		WHERE
+			-- use the latest install only
+			( hsi.id IS NULL OR hsi.id = (
+				SELECT hsi2.id
+				FROM host_software_installs hsi2
+				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id
+				ORDER BY hsi2.created_at DESC
+				LIMIT 1 ) ) AND
 			-- software is installed on host
-			EXISTS (
+			( EXISTS (
 				SELECT 1
 				FROM
 					host_software hs
@@ -1775,7 +1782,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 					s.title_id = st.id
 			) OR
 			-- or software install has been attempted on host
-			hsi.host_id IS NOT NULL
+			hsi.host_id IS NOT NULL )
 `
 
 	const stmtAvailable = `
