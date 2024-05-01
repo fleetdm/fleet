@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -101,6 +102,21 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting policy")
+	}
+	return &policy, nil
+}
+
+func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite, error) {
+	var policy fleet.PolicyLite
+	err := sqlx.GetContext(
+		ctx, ds.reader(ctx), &policy,
+		`SELECT id, description, resolution FROM policies WHERE id=?`, id,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting policy")
@@ -1181,14 +1197,15 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	SELECT 
 		COALESCE(sh.email, '') AS email,
 		COALESCE(pm.passing, 1) AS passing,
+		COALESCE(pm.failing_policy_ids, '') AS failing_policy_ids,
 		h.id AS host_id,
 		COALESCE(hdn.display_name, '') AS host_display_name,
 		h.hardware_serial AS host_hardware_serial
 	FROM hosts h
 	LEFT JOIN (
-		SELECT host_id, BIT_AND(passes) AS passing
+		SELECT host_id, 0 AS passing, GROUP_CONCAT(policy_id) AS failing_policy_ids
 		FROM policy_membership
-		WHERE policy_id IN (?) AND passes IS NOT NULL
+		WHERE policy_id IN (?) AND passes = 0
 		GROUP BY host_id
 	) pm ON h.id = pm.host_id
 	LEFT JOIN (
