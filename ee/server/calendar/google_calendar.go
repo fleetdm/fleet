@@ -30,7 +30,7 @@ import (
 //    to create multiple events in the same calendar. This is useful for load testing. For example: john+test@example.com becomes john@example.com
 
 const (
-	eventTitle  = "💻🚫Downtime"
+	eventTitle  = "💻🚫 Scheduled maintenance"
 	startHour   = 9
 	endHour     = 17
 	eventLength = 30 * time.Minute

@@ -14,6 +14,11 @@ locals {
       container_port   = 8080
     }
   ], var.fleet_config.extra_load_balancers)
+  repository_credentials = var.fleet_config.repository_credentials != "" ? {
+    repositoryCredentials = {
+      credentialsParameter = var.fleet_config.repository_credentials
+    }
+  } : null
 }
 
 data "aws_region" "current" {}
@@ -73,7 +78,8 @@ resource "aws_ecs_task_definition" "backend" {
             protocol      = "tcp"
           }
         ]
-        networkMode = "awsvpc"
+        repositoryCredentials = local.repository_credentials
+        networkMode           = "awsvpc"
         logConfiguration = {
           logDriver = "awslogs"
           options = {

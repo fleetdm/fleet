@@ -11,14 +11,14 @@
           <img alt="A device verifying compliance for every endpoint" src="/images/endpoint-operations-hero-image-380x380@2x.png">
         </div>
         <div purpose="hero-text">
-          <% if(primaryBuyingSituation === 'eo-it') { %>
+          <% if(['eo-it', 'mdm'].includes(primaryBuyingSituation)) { %>
+            <strong>Automate anything</strong>
+            <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
             <strong>Pulse check anything</strong>
             <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
             <strong>Ship data to any platform</strong>
             <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
-            <strong>Automate anything</strong>
-            <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
-          <% } else if(primaryBuyingSituation === 'eo-security') { %>
+          <% } else if(['eo-security', 'vm'].includes(primaryBuyingSituation)) { %>
             <strong>Osquery on easy mode</strong>
             <p>You don’t need to be an osquery expert to get the answers you need from your devices, Fleet does some of that for you.</p>
             <strong>Pulse check anything</strong>
@@ -71,22 +71,45 @@
         </div>
       <% } %>
       <div purpose="testimonial-videos" class="d-flex">
-        <div purpose="testimonial-video" @click="clickOpenVideoModal('austin-anderson')">
+        <%if(['eo-security', 'vm'].includes(primaryBuyingSituation)){%>
+        <div purpose="testimonial-video" class="austin-anderson mx-auto" @click="clickOpenVideoModal('austin-anderson')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
-        <div purpose="testimonial-video" @click="clickOpenVideoModal('nick-fohs')">
+        <%} else if(['eo-it', 'mdm'].includes(primaryBuyingSituation)) {%>
+        <div purpose="testimonial-video" class="nick-fohs mx-auto" @click="clickOpenVideoModal('nick-fohs')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
+        <% } else { %>
+        <div purpose="testimonial-video" class="austin-anderson" @click="clickOpenVideoModal('austin-anderson')">
+          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
+        </div>
+        <div purpose="testimonial-video" class="nick-fohs" @click="clickOpenVideoModal('nick-fohs')">
+          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
+        </div>
+        <% } %>
       </div>
     </div>
     <logo-carousel></logo-carousel>
-  </div>
-  </div>
-  <% if(primaryBuyingSituation){%>
   <%-  partial('../partials/calendar-banner.partial.ejs') %>
-  <% } %>
-  <div purpose="page-container">
-  <div purpose="page-content" class="mx-auto">
+
+    <% if(!primaryBuyingSituation || ['mdm', 'eo-it'].includes(primaryBuyingSituation)){%>
+    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>Automate anything</h3>
+        <p>Remote-control IT tasks on every kind of computer – even you, Linux.</p>
+        <div purpose="checklist" class="flex-column d-flex">
+          <p>Write and run scripts remotely, report progress, and replay queued up tasks on computers that went offline.</p>
+          <p>Integrate Google Calendar to install updates and force restarts when your users’ computers are actually free.</p>
+          <p>Reduce human error by automating click-tastic tasks directly on the host with <a href="https://www.openinterpreter.com/" target="_blank">Open Interpreter</a>.*</p>
+        </div>
+        <p purpose="feature-footnote">*Coming soon</p>
+      </div>
+      <div purpose="feature-image" class="left">
+        <img alt="Ship data to any platform" src="/images/device-management-clickops-or-devops-380x280@2x.png">
+      </div>
+    </div>
+    <% } %>
+
     <div purpose="feature-headline" class="mr-auto">
       <h3>Pulse check anything</h3>
       <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
@@ -175,24 +198,8 @@
         </div>
       </div>
     </div>
-    <% if(!primaryBuyingSituation || ['mdm', 'eo-it'].includes(primaryBuyingSituation)){%>
-    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="feature-text" class="d-flex flex-column">
-        <h3>Automate anything</h3>
-        <p>Remote-control IT tasks on every kind of computer – even you, Linux.</p>
-        <div purpose="checklist" class="flex-column d-flex">
-          <p>Write and run scripts remotely, report progress, and replay queued up tasks on computers that went offline.</p>
-          <p>Integrate Google Calendar to install updates and force restarts when your users’ computers are actually free.</p>
-          <p>Reduce human error by automating click-tastic tasks directly on the host with <a href="https://www.openinterpreter.com/" target="_blank">Open Interpreter</a>.*</p>
-        </div>
-        <p purpose="feature-footnote">*Coming soon</p>
-      </div>
-      <div purpose="feature-image" class="left">
-        <img alt="Ship data to any platform" src="/images/device-management-clickops-or-devops-380x280@2x.png">
-      </div>
-    </div>
-    <%} else {%>
 
+    <% if(!primaryBuyingSituation || ['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
     <div purpose="feature-headline" class="mr-auto">
       <h3>Open security tooling</h3>
       <p>Consolidate your security tooling on top of open data standards like YAML, SQL, and JSON.</p>
@@ -268,10 +275,13 @@
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
   <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp&autoplay=1;rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
   <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp&autoplay=1;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
+  <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
