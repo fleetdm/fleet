@@ -206,7 +206,6 @@ parasails.registerPage('start', {
           }
           break;
         case 'how-many-hosts':
-          console.log(this.formData['have-you-ever-used-fleet'].fleetUseStatus);
           if(this.formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-recently-deployed' || this.formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed') {
             if(this.formData['how-many-hosts'].numberOfHosts === '1-100' ||
               this.formData['how-many-hosts'].numberOfHosts === '100-700') {
@@ -265,7 +264,7 @@ parasails.registerPage('start', {
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'havent-gotten-to-it') {
             nextStepInForm = 'deploy-fleet-in-your-environment';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'changed-mind-want-managed-deployment'){
-            nextStepInForm = 'what-did-you-think';
+            nextStepInForm = 'how-many-hosts';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'decided-to-not-use-fleet'){
             nextStepInForm = '/';
           }
