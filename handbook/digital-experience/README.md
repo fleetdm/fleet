@@ -354,7 +354,6 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
 ### Process incoming equipment
 Upon receiving any device, the Apprentice will process the incoming equipment by:
 1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-  - If the serial numbers do not match [create an issue](https://fleetdm.com/handbook/business-operations#contact-us) to get help from the Business Operations department. 
 3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
 4. Remove any stickers and clean devices and components.
 5. Using the device's charger plug in the device.
@@ -368,8 +367,8 @@ Upon receiving any device, the Apprentice will process the incoming equipment by
 Once the Business Operations department approves inventory to be shipped from Fleet IT, the Apprentice will ship the equipment by:
 1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
-3. package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user
+3. Package equipment for shipment and include Yubikeys (if requested).
+4. Change the "Company equipment" spreadsheet to reflect the new user.
 5. Ship via FedEx to the address listed in the equipment request.
 6. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
