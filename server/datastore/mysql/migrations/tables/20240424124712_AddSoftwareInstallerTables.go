@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS software_installers (
   install_script_content_id int(10) unsigned NOT NULL,
 
   -- FK to the script_contents for the post-script uploaded by the IT admin to
-  -- be run after the software is installed 
+  -- be run after the software is installed
   post_install_script_content_id int(10) unsigned DEFAULT NULL,
 
   -- used to track the ID retrieved from the storage containing the installer bytes
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS software_installers (
     REFERENCES teams (id)
     ON DELETE CASCADE
     ON UPDATE CASCADE,
-  
+
   UNIQUE KEY idx_software_installers_team_id_title_id (global_or_team_id, title_id)
 
 )
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS host_software_installs (
     REFERENCES software_installers (id)
     ON DELETE CASCADE ON UPDATE CASCADE,
 
-  UNIQUE KEY idx_host_software_installs_host_installer (host_id, software_installer_id),
+  KEY idx_host_software_installs_host_installer (host_id, software_installer_id),
 
   -- this index can be used to lookup results for a specific
   -- execution (execution ids, e.g. when updating the row for results)

@@ -8596,6 +8596,55 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	require.True(t, fleet.IsNotFound(err))
 }
 
+func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
+	ctx := context.Background()
+	t := s.T()
+
+	token := "good_token"
+	host := createHostAndDeviceToken(t, s.ds, token)
+
+	// create some software for that host
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.1", Source: "apps"},
+	}
+	_, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	err = s.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 2) // foo and bar
+	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
+
+	var getDeviceSw getDeviceSoftwareResponse
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 2) // foo and bar
+	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
+
+	// test with a query
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "query", "foo")
+	require.Len(t, getHostSw.Software, 1) // foo only
+	require.Equal(t, getHostSw.Software[0].Name, "foo")
+	require.Len(t, getHostSw.Software[0].InstalledVersions, 2)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?query=bar", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1) // bar only
+	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
+
+	// TODO(mna): more advanced integration tests with Software Installers once the APIs are in place.
+}
+
 func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 	var (
 		results  = make(map[string]json.RawMessage)

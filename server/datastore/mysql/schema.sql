@@ -499,9 +499,9 @@ CREATE TABLE `host_software_installs` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_host_software_installs_host_installer` (`host_id`,`software_installer_id`),
   UNIQUE KEY `idx_host_software_installs_execution_id` (`execution_id`),
   KEY `fk_host_software_installs_installer_id` (`software_installer_id`),
+  KEY `idx_host_software_installs_host_installer` (`host_id`,`software_installer_id`),
   CONSTRAINT `fk_host_software_installs_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
