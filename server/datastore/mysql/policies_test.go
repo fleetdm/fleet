@@ -2660,6 +2660,10 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
+	mergedCount, err := ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 0, mergedCount)
+
 	// 10 global policies
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
@@ -2674,6 +2678,10 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 10, mergedCount)
+
 	// add 5 team policies
 	for i := 0; i < 5; i++ {
 		_, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
@@ -2687,6 +2695,10 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	globalCount, err = ds.CountPolicies(ctx, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
+
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 15, mergedCount)
 }
 
 func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {

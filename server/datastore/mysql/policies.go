@@ -405,6 +405,25 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	return count, nil
 }
 
+func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
+	var args []interface{}
+
+	query := `SELECT count(*) FROM policies p WHERE p.team_id = ? OR p.team_id IS NULL`
+	args = append(args, teamID)
+
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(matchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
+
+	var count int
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting merged team policies")
+	}
+
+	return count, nil
+}
+
 func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 	sql := `SELECT ` + policyCols + `,
 	  COALESCE(u.name, '<deleted>') AS author_name,
