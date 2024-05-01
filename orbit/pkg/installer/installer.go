@@ -2,6 +2,7 @@ package installer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -118,6 +119,10 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, err
 	res, err := r.OsqueryClient.Query(ctx, query)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "precondition check")
+	}
+
+	if res.Status == nil {
+		return false, errors.New("no query status")
 	}
 
 	if res.Status.Code != 0 {

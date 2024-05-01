@@ -2,10 +2,12 @@ package installer
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,4 +71,54 @@ func TestRunInstallScript(t *testing.T) {
 	require.Equal(t, "55", savedHostScriptResult.ExecutionID)
 	require.Equal(t, "bye", savedHostScriptResult.Output)
 	require.Equal(t, 2, savedHostScriptResult.ExitCode)
+}
+
+func TestPreconditionCheck(t *testing.T) {
+	qc := &TestQueryClient{}
+	r := &Runner{OsqueryClient: qc}
+
+	qc.queryFn = func(ctx context.Context, s string) (*QueryResponse, error) {
+		qr := &QueryResponse{
+			Status: &osquery_gen.ExtensionStatus{},
+		}
+
+		switch s {
+		case "empty":
+		case "error":
+			return nil, errors.New("something bad")
+		case "badstatus":
+			qr.Status.Code = 1
+			qr.Status.Message = "something bad"
+		case "nostatus":
+			qr.Status = nil
+		case "response":
+			row := make(map[string]string)
+			row["key"] = "value"
+			qr.Response = append(qr.Response, row)
+		default:
+			t.Error("invalid query test case")
+		}
+
+		return qr, nil
+	}
+
+	ctx := context.Background()
+
+	// empty query response
+	success, err := r.preConditionCheck(ctx, "empty")
+	require.False(t, success)
+	require.Nil(t, err)
+
+	success, err = r.preConditionCheck(ctx, "response")
+	require.True(t, success)
+	require.Nil(t, err)
+
+	success, err = r.preConditionCheck(ctx, "error")
+	require.Error(t, err)
+
+	success, err = r.preConditionCheck(ctx, "badstatus")
+	require.Error(t, err)
+
+	success, err = r.preConditionCheck(ctx, "nostatus")
+	require.Error(t, err)
 }
