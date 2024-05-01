@@ -468,6 +468,16 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify the Business Operations department.  
 
+### Accounts payable cards
+For recurring business expenses paid by credit card, there are four accounts payable (AP) cards that can be used based on the purpose:
+
+| Card title  | Purpose | Card owner |
+| ---------- |----------- | --------- |
+| Business spend | Business tax, insurance, IT, SaaS, other | CEO |
+| Individualized spend | Flowers, swag, and other internal gifting for Fleeties, coaching/training, coworking, and other large [individualized expenses](https://fleetdm.com/handbook/company/communications#individualized-expenses) | Head of Business Operations |
+| Infrastructure spend | AWS and other production/cloud infrastructure related to hosting Fleet for customers or load testing customer scale | CTO |
+| Marketing program spend | Ads, events, sponsorship, etc. | Head of Demand Generation | 
+
 
 ## Travel
 

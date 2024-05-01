@@ -7,12 +7,12 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Head of Digital Experience      | <sup><sub>See [🌐 Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team)</sup></sub>
 | Head of Design                                            | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer                                         | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Apprentice to the CEO                                     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ <br> [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _(@todo)_
+| Apprentice to the CEO                                     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ <br> [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -23,7 +23,7 @@ The Digital Experience department is directly responsible for the framework, con
 > _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
 ### QA a change to fleetdm.com
-Each PR to the website is manually checked for quality and tested before before going live on fleetdm.com. To test any change to fleetdm.com
+Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
 
@@ -354,7 +354,6 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
 ### Process incoming equipment
 Upon receiving any device, the Apprentice will process the incoming equipment by:
 1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-  - If the serial numbers do not match [create an issue](https://fleetdm.com/handbook/business-operations#contact-us) to get help from the Business Operations department. 
 3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
 4. Remove any stickers and clean devices and components.
 5. Using the device's charger plug in the device.
@@ -368,8 +367,8 @@ Upon receiving any device, the Apprentice will process the incoming equipment by
 Once the Business Operations department approves inventory to be shipped from Fleet IT, the Apprentice will ship the equipment by:
 1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
-3. package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user
+3. Package equipment for shipment and include Yubikeys (if requested).
+4. Change the "Company equipment" spreadsheet to reflect the new user.
 5. Ship via FedEx to the address listed in the equipment request.
 6. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
