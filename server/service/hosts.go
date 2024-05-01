@@ -23,9 +23,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/gocarina/gocsv"
 )
 
@@ -284,19 +285,44 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
+	doDelete := func(hostIDs []uint, hosts []*fleet.Host) error {
+		if err := svc.ds.DeleteHosts(ctx, hostIDs); err != nil {
+			return err
+		}
+
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		for _, host := range hosts {
+			if host.Platform == "darwin" || host.Platform == "windows" {
+				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+					Action:   mdmlifecycle.HostActionDelete,
+					Host:     host,
+					Platform: host.Platform,
+				})
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	if len(ids) > 0 {
-		err := svc.checkWriteForHostIDs(ctx, ids)
+		if err := svc.checkWriteForHostIDs(ctx, ids); err != nil {
+			return err
+		}
+
+		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, ids)
 		if err != nil {
 			return err
 		}
-		return svc.ds.DeleteHosts(ctx, ids)
+
+		return doDelete(ids, hosts)
 	}
 
 	if opts == nil {
 		opts = &fleet.HostListOptions{}
 	}
 	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
-	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
+	hostIDs, _, hosts, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
 	if err != nil {
 		return err
 	}
@@ -309,7 +335,8 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	if err != nil {
 		return err
 	}
-	return svc.ds.DeleteHosts(ctx, hostIDs)
+
+	return doDelete(hostIDs, hosts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -719,8 +746,15 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host")
 	}
 
-	if host.Platform == "darwin" {
-		return svc.maybeRestorePendingDEPHost(ctx, host)
+	if host.Platform == "windows" || host.Platform == "darwin" {
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+			Action:   mdmlifecycle.HostActionDelete,
+			Platform: host.Platform,
+			UUID:     host.UUID,
+			Host:     host,
+		})
+		return ctxerr.Wrap(ctx, err, "performing MDM actions after delete")
 	}
 
 	return nil
@@ -888,7 +922,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		return &fleet.BadRequestError{Message: "filters must be specified"}
 	}
 
-	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
+	hostIDs, hostNames, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
 	if err != nil {
 		return err
 	}
@@ -1241,10 +1275,10 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 	return result, lastFetched, nil
 }
 
-func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, error) {
+func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, []*fleet.Host, error) {
 	filter, err := processHostFilters(ctx, opt, lid)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Load hosts, either from label if provided or from all hosts.
@@ -1256,11 +1290,11 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if len(hosts) == 0 {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	hostIDs := make([]uint, 0, len(hosts))
@@ -1269,7 +1303,7 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 		hostIDs = append(hostIDs, h.ID)
 		hostNames = append(hostNames, h.DisplayName())
 	}
-	return hostIDs, hostNames, nil
+	return hostIDs, hostNames, hosts, nil
 }
 
 func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) (fleet.TeamFilter, error) {

@@ -161,15 +161,6 @@ type EnrolledAPIResult struct {
 // EnrolledAPIResults is a map of enrollments to a per-enrollment API result.
 type EnrolledAPIResults map[string]*EnrolledAPIResult
 
-// MDMAppleHostDetails represents the device identifiers used to ingest an MDM device as a Fleet
-// host pending enrollment.
-// See also https://developer.apple.com/documentation/devicemanagement/authenticaterequest.
-type MDMAppleHostDetails struct {
-	SerialNumber string
-	UDID         string
-	Model        string
-}
-
 type MDMAppleCommandTimeoutError struct{}
 
 func (e MDMAppleCommandTimeoutError) Error() string {
