@@ -119,7 +119,7 @@
 -
   task: "Share recording of all hands meeting"
   startedOn: "2023-07-01"
-  frequency: "After each monthly all hands meeting"
+  frequency: "Monthly"
   description: "Sharing the all hands recording"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#share-recording-of-all-hands-meeting"
   dri: "sampfluger88"
@@ -129,7 +129,7 @@
 -
   task: "Prepare all hands deck"
   startedOn: "2023-07-01"
-  frequency: "The night (CT) before each monthly all hands meeting"
+  frequency: "Monthly"
   description: "Preparing the all hands deck"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#preparing-for-the-all-hands"
   dri: "sampfluger88"
@@ -139,7 +139,7 @@
 -
   task: "Prepare board deck"
   startedOn: "2023-09-25"
-  frequency: "Monday week of CRV"
+  frequency: "Quarterly"
   description: "Prepare slide deck for the next board meeting"
   dri: "sampfluger88"
 -
