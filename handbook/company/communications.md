@@ -525,7 +525,7 @@ _**Note:** Signature open time for the CEO is not currently measured, to avoid t
 
 > _**Note:** If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password and routes the agreement to the CEO for signature._ 
 
-Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature. Vendor contracts with a total spend of $10,000 or less should be routed to the head of business operations for signature instead of the CEO.  
+Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature. Route all vendor contracts with a total spend of $10,000 or less to the head of business operations using Fleet's [confidential](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) Docusign account for signature instead of the CEO.  
 
 ## Getting a contract reviewed
 
