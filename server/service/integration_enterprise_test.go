@@ -8793,6 +8793,15 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		PostInstallScriptExitCode: ptr.Int(1),
 		PostInstallScriptOutput:   ptr.String("failed"),
 	})
+
+	// non-existing installation uuid
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": "uuid-no-such",
+			"pre_install_condition_output": ""
+		}`, *host.OrbitNodeKey)),
+		http.StatusNotFound)
 }
 
 func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
