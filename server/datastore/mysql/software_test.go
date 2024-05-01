@@ -3223,4 +3223,90 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	sw, meta, err = ds.ListHostSoftware(ctx, tmHost.ID, true, opts)
 	require.NoError(t, err)
 	compareResults([]*fleet.HostSoftwareWithInstaller{expected["i3"]}, sw)
+
+	// test with a search query (searches on name), with and without available software
+	opts.MatchQuery = "a"
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
+	require.NoError(t, err)
+	compareResults([]*fleet.HostSoftwareWithInstaller{expected["a1"], expected["a2"]}, sw)
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
+	require.NoError(t, err)
+	compareResults([]*fleet.HostSoftwareWithInstaller{expected["a1"], expected["a2"]}, sw)
+
+	opts.MatchQuery = "zz"
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+
+	// test the pagination
+	cases := []struct {
+		opts          fleet.ListOptions
+		withAvailable bool
+		wantNames     []string
+		wantMeta      *fleet.PaginationMetadata
+	}{
+		{
+			opts:          fleet.ListOptions{PerPage: 3},
+			withAvailable: false,
+			wantNames:     []string{expected["i1"].Name, expected["b"].Name, expected["i0"].Name},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			opts:          fleet.ListOptions{Page: 1, PerPage: 3},
+			withAvailable: false,
+			wantNames:     []string{expected["a1"].Name, expected["a2"].Name, expected["c"].Name},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+		},
+		{
+			opts:          fleet.ListOptions{Page: 2, PerPage: 3},
+			withAvailable: false,
+			wantNames:     []string{expected["d"].Name},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:          fleet.ListOptions{Page: 3, PerPage: 3},
+			withAvailable: false,
+			wantNames:     []string{},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:          fleet.ListOptions{PerPage: 4},
+			withAvailable: true,
+			wantNames:     []string{expected["i1"].Name, expected["b"].Name, expected["i0"].Name, expected["i2"].Name},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			opts:          fleet.ListOptions{Page: 1, PerPage: 4},
+			withAvailable: true,
+			wantNames:     []string{expected["a1"].Name, expected["a2"].Name, expected["c"].Name, expected["d"].Name},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:          fleet.ListOptions{Page: 2, PerPage: 4},
+			withAvailable: true,
+			wantNames:     []string{},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%t: %#v", c.withAvailable, c.opts), func(t *testing.T) {
+			// always include metadata
+			c.opts.IncludeMetadata = true
+
+			sw, meta, err := ds.ListHostSoftware(ctx, host.ID, c.withAvailable, c.opts)
+			require.NoError(t, err)
+
+			require.Equal(t, len(c.wantNames), len(sw))
+			require.Equal(t, c.wantMeta, meta)
+
+			names := make([]string, 0, len(sw))
+			for _, s := range sw {
+				names = append(names, s.Name)
+			}
+			require.Equal(t, c.wantNames, names)
+		})
+	}
 }

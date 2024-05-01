@@ -1857,6 +1857,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		args = append(args, hostID, hostID, hostID)
 	}
 	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
+	if opts.MatchQuery != "" {
+		stmt += " WHERE TRUE " // searchLike adds a "AND <condition>"
+		stmt, args = searchLike(stmt, args, opts.MatchQuery, "name")
+	}
 
 	// apply default sort (adding source just to make it deterministic)
 	if opts.OrderKey == "" {
