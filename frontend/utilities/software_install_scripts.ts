@@ -10,7 +10,7 @@ import installExe from "../../pkg/file/scripts/install_exe.ps1";
 import installDeb from "../../pkg/file/scripts/install_deb.sh";
 
 const replaceVariables = (rawScript: string, installerPath: string): string => {
-  return rawScript.replace("$INSTALLER_PATH", `"${installerPath}"`);
+  return rawScript.replace("$INSTALLER_PATH", installerPath);
 };
 
 /*
