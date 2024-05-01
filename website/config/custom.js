@@ -170,7 +170,7 @@ module.exports.custom = {
 
 
     // 🌐 GitHub issue templates
-    //'.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
+    '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
   },
 
@@ -262,9 +262,9 @@ module.exports.custom = {
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','noahtalerman'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
