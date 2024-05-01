@@ -144,7 +144,7 @@ Subject: Invoice for Fleet Device Management [invoice number]
 Hello,
 
 I've attached the invoice for [customer name]'s purchase of Fleet Device Management's premium subscription.
-For payment instructions please refer to your invoice, and reach out to billing@fleetdm.com with any questions.
+For payment instructions please refer to your invoice, and reach out to [insert Fleet's billing address] with any questions.
 
 Thanks,
 [name]
