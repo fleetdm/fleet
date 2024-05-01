@@ -104,7 +104,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🌐 GitHub issue templates
 ##############################################################################################
-/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # See https://github.com/fleetdm/fleet/pull/16203
+#/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
 
 ##############################################################################################
 # 🌐 GitHub workflows
