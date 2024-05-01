@@ -49,11 +49,10 @@ interface IPolicyFormProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
-  isFetchingAIAutofill: { description: boolean; resolution: boolean };
-  onAiAutofill: (fetching: {
-    description: boolean;
-    resolution: boolean;
-  }) => Promise<void>;
+  isFetchingAutofillDescription: boolean;
+  isFetchingAutofillResolution: boolean;
+  onClickAutofillDescription: () => Promise<void>;
+  onClickAutofillResolution: () => Promise<void>;
   resetAiAutofillData: () => void;
 }
 
@@ -85,8 +84,10 @@ const PolicyForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   backendValidators,
-  isFetchingAIAutofill,
-  onAiAutofill,
+  isFetchingAutofillDescription,
+  isFetchingAutofillResolution,
+  onClickAutofillDescription,
+  onClickAutofillResolution,
   resetAiAutofillData,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
@@ -144,7 +145,7 @@ const PolicyForm = ({
   } = platformCompatibility;
 
   const platformSelectorDisabled =
-    isFetchingAIAutofill.description || isFetchingAIAutofill.resolution;
+    isFetchingAutofillDescription || isFetchingAutofillResolution;
 
   const platformSelector = usePlatformSelector(
     lastEditedQueryPlatform,
@@ -678,8 +679,10 @@ const PolicyForm = ({
             platformSelector={platformSelector}
             isUpdatingPolicy={isUpdatingPolicy}
             aiFeaturesDisabled={aiFeaturesDisabled}
-            isFetchingAIAutofill={isFetchingAIAutofill}
-            onAiAutofill={onAiAutofill}
+            isFetchingAutofillDescription={isFetchingAutofillDescription}
+            isFetchingAutofillResolution={isFetchingAutofillResolution}
+            onClickAutofillDescription={onClickAutofillDescription}
+            onClickAutofillResolution={onClickAutofillResolution}
           />
         )}
       </>

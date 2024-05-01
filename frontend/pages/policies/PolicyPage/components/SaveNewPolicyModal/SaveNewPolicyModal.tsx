@@ -28,11 +28,10 @@ export interface ISaveNewPolicyModalProps {
   platformSelector: IPlatformSelector;
   isUpdatingPolicy: boolean;
   aiFeaturesDisabled?: boolean;
-  isFetchingAIAutofill: { description: boolean; resolution: boolean };
-  onAiAutofill: (fetching: {
-    description: boolean;
-    resolution: boolean;
-  }) => Promise<void>;
+  isFetchingAutofillDescription: boolean;
+  isFetchingAutofillResolution: boolean;
+  onClickAutofillDescription: () => Promise<void>;
+  onClickAutofillResolution: () => Promise<void>;
 }
 
 const validatePolicyName = (name: string) => {
@@ -55,8 +54,10 @@ const SaveNewPolicyModal = ({
   platformSelector,
   isUpdatingPolicy,
   aiFeaturesDisabled,
-  isFetchingAIAutofill,
-  onAiAutofill,
+  isFetchingAutofillDescription,
+  isFetchingAutofillResolution,
+  onClickAutofillDescription,
+  onClickAutofillResolution,
 }: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const {
@@ -77,7 +78,7 @@ const SaveNewPolicyModal = ({
   );
 
   const disableForm =
-    isFetchingAIAutofill.description || isFetchingAIAutofill.resolution;
+    isFetchingAutofillDescription || isFetchingAutofillResolution;
   const disableSave = !platformSelector.isAnyPlatformSelected || disableForm;
 
   useDeepEffect(() => {
@@ -118,25 +119,11 @@ const SaveNewPolicyModal = ({
     }
   };
 
-  const onAutofillDescription = () => {
-    onAiAutofill({
-      description: true,
-      resolution: false,
-    });
-  };
-
-  const onAutofillResolution = () => {
-    onAiAutofill({
-      description: false,
-      resolution: true,
-    });
-  };
-
   const renderAutofillButton = useCallback(
     (labelName: "Description" | "Resolution") => {
       const isFetchingButton =
-        (labelName === "Description" && isFetchingAIAutofill.description) ||
-        (labelName === "Resolution" && isFetchingAIAutofill.resolution);
+        (labelName === "Description" && isFetchingAutofillDescription) ||
+        (labelName === "Resolution" && isFetchingAutofillResolution);
 
       return (
         <>
@@ -152,8 +139,8 @@ const SaveNewPolicyModal = ({
               disabled={aiFeaturesDisabled || disableForm}
               onClick={
                 labelName === "Description"
-                  ? onAutofillDescription
-                  : onAutofillResolution
+                  ? onClickAutofillDescription
+                  : onClickAutofillResolution
               }
             >
               {isFetchingButton ? (
@@ -185,7 +172,7 @@ const SaveNewPolicyModal = ({
         </>
       );
     },
-    [isFetchingAIAutofill, disableForm]
+    [isFetchingAutofillDescription, isFetchingAutofillResolution, disableForm]
   );
 
   const renderAutofillLabel = useCallback(

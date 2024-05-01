@@ -3,7 +3,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
-import aiAutofillAPI from "services/entities/ai_autofill";
+import autofillAPI from "services/entities/autofill";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
@@ -82,52 +82,66 @@ const QueryEditor = ({
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
-  const [aiAutofillData, setAiAutofillData] = useState<{
+  const [policyAutofillData, setPolicyAutofillData] = useState<{
     description: string;
     resolution: string;
   } | null>(null);
-  const [aiAutofillErrors, setAiAutofillErrors] = useState<any>({});
-  const [isFetchingAIAutofill, setIsFetchingAiAutofill] = useState({
-    description: false,
-    resolution: false,
-  });
+  const [policyAutofillErrors, setPolicyAutofillErrors] = useState<any>({});
+  const [
+    isFetchingAutofillDescription,
+    setIsFetchingAutofillDescription,
+  ] = useState(false);
+  const [
+    isFetchingAutofillResolution,
+    setIsFetchingAutofillResolution,
+  ] = useState(false);
 
-  const onAiAutofill = async (fetching: {
-    description: boolean;
-    resolution: boolean;
-  }) => {
+  const onClickAutofillDescription = async () => {
     // When AI autofill data exists already, fill out section clicked with data
-    if (aiAutofillData) {
-      if (fetching.description) {
-        setLastEditedQueryDescription(aiAutofillData.description);
-      }
-      if (fetching.resolution) {
-        setLastEditedQueryResolution(aiAutofillData.resolution);
-      }
+    if (policyAutofillData) {
+      setLastEditedQueryDescription(policyAutofillData.description);
     } else {
       // Show thinking state and fetch data from API
-      setIsFetchingAiAutofill(fetching);
+      setIsFetchingAutofillDescription(true);
 
       try {
-        const autofillResponse = await aiAutofillAPI.getHumanInterpretationFromSQL(
+        const autofillResponse = await autofillAPI.getPolicyInterpretationFromSQL(
           lastEditedQueryBody
         );
 
-        setAiAutofillData(autofillResponse);
-
+        setPolicyAutofillData(autofillResponse);
         // Only fill out section that was clicked to be fetched
-        if (fetching.description) {
-          setLastEditedQueryDescription(autofillResponse.description);
-        }
-        if (fetching.resolution) {
-          setLastEditedQueryResolution(autofillResponse.resolution);
-        }
+        setLastEditedQueryDescription(autofillResponse.description);
       } catch (error) {
         console.log(error);
         renderFlash("error", "Couldn't autofill policy data.");
-        setAiAutofillErrors(error);
+        setPolicyAutofillErrors(error);
       }
-      setIsFetchingAiAutofill({ description: false, resolution: false });
+      setIsFetchingAutofillDescription(false);
+    }
+  };
+
+  const onClickAutofillResolution = async () => {
+    // When AI autofill data exists already, fill out section clicked with data
+    if (policyAutofillData) {
+      setLastEditedQueryResolution(policyAutofillData.resolution);
+    } else {
+      // Show thinking state and fetch data from API
+      setIsFetchingAutofillResolution(true);
+
+      try {
+        const autofillResponse = await autofillAPI.getPolicyInterpretationFromSQL(
+          lastEditedQueryBody
+        );
+        setPolicyAutofillData(autofillResponse);
+        // Only fill out section that was clicked to be fetched
+        setLastEditedQueryResolution(autofillResponse.resolution);
+      } catch (error) {
+        console.log(error);
+        renderFlash("error", "Couldn't autofill policy data.");
+        setPolicyAutofillErrors(error);
+      }
+      setIsFetchingAutofillResolution(false);
     }
   };
 
@@ -250,9 +264,11 @@ const QueryEditor = ({
         isTeamMaintainer={isTeamMaintainer}
         isTeamObserver={isTeamObserver}
         isUpdatingPolicy={isUpdatingPolicy}
-        isFetchingAIAutofill={isFetchingAIAutofill}
-        onAiAutofill={onAiAutofill}
-        resetAiAutofillData={() => setAiAutofillData(null)}
+        isFetchingAutofillDescription={isFetchingAutofillDescription}
+        isFetchingAutofillResolution={isFetchingAutofillResolution}
+        onClickAutofillDescription={onClickAutofillDescription}
+        onClickAutofillResolution={onClickAutofillResolution}
+        resetAiAutofillData={() => setPolicyAutofillData(null)}
       />
     </div>
   );

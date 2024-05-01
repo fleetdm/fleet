@@ -61,8 +61,10 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
-        onAiAutofill={jest.fn()}
-        isFetchingAIAutofill={{ description: false, resolution: false }}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
         resetAiAutofillData={jest.fn()}
       />
     );
@@ -120,8 +122,10 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
-        onAiAutofill={jest.fn()}
-        isFetchingAIAutofill={{ description: false, resolution: false }}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
         resetAiAutofillData={jest.fn()}
       />
     );
@@ -195,8 +199,10 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
-        onAiAutofill={jest.fn()}
-        isFetchingAIAutofill={{ description: false, resolution: false }}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
         resetAiAutofillData={jest.fn()}
       />
     );
