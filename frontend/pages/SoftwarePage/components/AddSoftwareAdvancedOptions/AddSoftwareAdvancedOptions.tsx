@@ -11,12 +11,12 @@ const baseClass = "add-software-advanced-options";
 interface IAddSoftwareAdvancedOptionsProps {
   showPreInstallCondition: boolean;
   showPostInstallScript: boolean;
-  preInstallCondition: string;
-  postInstallScript: string;
+  preInstallCondition?: string;
+  postInstallScript?: string;
   onTogglePreInstallCondition: (value: boolean) => void;
   onTogglePostInstallScript: (value: boolean) => void;
-  onChangePreInstallCondition: (value: string) => void;
-  onChangePostInstallScript: (value: string) => void;
+  onChangePreInstallCondition: (value?: string) => void;
+  onChangePostInstallScript: (value?: string) => void;
 }
 
 const AddSoftwareAdvancedOptions = ({
@@ -33,12 +33,12 @@ const AddSoftwareAdvancedOptions = ({
 
   const onChangePreInstallCheckbox = () => {
     onTogglePreInstallCondition(!showPreInstallCondition);
-    onChangePreInstallCondition("");
+    onChangePreInstallCondition();
   };
 
   const onChangePostInstallCheckbox = () => {
     onTogglePostInstallScript(!showPostInstallScript);
-    onChangePostInstallScript("");
+    onChangePostInstallScript();
   };
 
   return (

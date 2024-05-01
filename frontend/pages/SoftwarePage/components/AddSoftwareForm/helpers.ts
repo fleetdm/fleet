@@ -2,15 +2,33 @@ import { getPlatformDisplayName } from "utilities/file/fileUtils";
 
 import { IAddSoftwareFormData } from "./AddSoftwareForm";
 
-export const getFormSubmitDisabled = (
+const FORM_VALIDATION_CONFIG = {
+  software: {
+    isValid: (formData: IAddSoftwareFormData) => formData.software !== null,
+  },
+  preInstallCondition: {
+    isValid: (formData: IAddSoftwareFormData) => formData.software !== null,
+  },
+  postInstallScript: {
+    isValid: (formData: IAddSoftwareFormData) => formData.software !== null,
+  },
+};
+
+// export const validateForm = () => {};
+
+export const shouldDisableFormSubmit = (
   formData: IAddSoftwareFormData,
   showPreInstallCondition: boolean,
   showPostInstallScript: boolean
 ) => {
   const preInstallEnabledWithNoValue =
-    showPreInstallCondition && formData.preInstallCondition === "";
+    showPreInstallCondition &&
+    (formData.preInstallCondition === undefined ||
+      formData.preInstallCondition === "");
   const postInstallEnabledWithNoValue =
-    showPostInstallScript && formData.postInstallScript === "";
+    showPostInstallScript &&
+    (formData.postInstallScript === undefined ||
+      formData.postInstallScript === "");
 
   return (
     formData.software === null ||

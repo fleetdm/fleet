@@ -9,8 +9,8 @@ import Graphic from "components/Graphic";
 
 import {
   getFileDetails,
-  getFormSubmitDisabled,
   getInstallScript,
+  shouldDisableFormSubmit,
 } from "./helpers";
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions/AddSoftwareAdvancedOptions";
 
@@ -50,8 +50,8 @@ const FileDetails = ({
 export interface IAddSoftwareFormData {
   software: File | null;
   installScript: string;
-  preInstallCondition: string;
-  postInstallScript: string;
+  preInstallCondition?: string;
+  postInstallScript?: string;
 }
 
 interface IAddSoftwareFormProps {
@@ -70,8 +70,8 @@ const AddSoftwareForm = ({
   const [formData, setFormData] = useState<IAddSoftwareFormData>({
     software: null,
     installScript: "",
-    preInstallCondition: "",
-    postInstallScript: "",
+    preInstallCondition: undefined,
+    postInstallScript: undefined,
   });
 
   const onFileUpload = (files: FileList | null) => {
@@ -94,17 +94,17 @@ const AddSoftwareForm = ({
     setFormData({ ...formData, installScript: value });
   };
 
-  const onChangePreInstallCondition = (value: string) => {
+  const onChangePreInstallCondition = (value?: string) => {
     console.log("Pre install value", value);
     setFormData({ ...formData, preInstallCondition: value });
   };
 
-  const onChangePostInstallScript = (value: string) => {
+  const onChangePostInstallScript = (value?: string) => {
     console.log("Post install value", value);
     setFormData({ ...formData, postInstallScript: value });
   };
 
-  const isSubmitDisabled = getFormSubmitDisabled(
+  const isSubmitDisabled = shouldDisableFormSubmit(
     formData,
     showPreInstallCondition,
     showPostInstallScript
