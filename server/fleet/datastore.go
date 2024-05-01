@@ -612,6 +612,7 @@ type Datastore interface {
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)

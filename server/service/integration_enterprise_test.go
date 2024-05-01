@@ -844,6 +844,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, gpol.Name, ts.InheritedPolicies[0].Name)
 	assert.Equal(t, gpol.ID, ts.InheritedPolicies[0].ID)
 
+	tc := countTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tc)
+	require.Nil(t, tc.Err)
+	require.Equal(t, 1, tc.Count)
+
+	gc := countGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &gc)
+	require.Nil(t, gc.Err)
+	require.Equal(t, 1, gc.Count)
+
 	// Test merge inherited
 	ts = listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
@@ -856,6 +866,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, "some team resolution", *ts.Policies[0].Resolution)
 	assert.Equal(t, gpol.Name, ts.Policies[1].Name)
 	assert.Equal(t, gpol.ID, ts.Policies[1].ID)
+
+	countResp := countTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
+	require.Nil(t, countResp.Err)
+	require.Equal(t, 2, countResp.Count)
 
 	// Test delete
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
