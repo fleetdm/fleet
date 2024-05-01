@@ -32,6 +32,22 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 	return false, errors.New("software installer store not properly configured")
 }
 
+// SoftwareInstallDetailsResult contains all of the information
+// required for a client to pull in and install software from the fleet server
+type SoftwareInstallDetails struct {
+	HostID uint `json:"-" db:"host_id"`
+	// ExecutionID is a unique identifier for this installation
+	ExecutionID string `json:"execution_id" db:"execution_id"`
+	// InstallerID is the unique identifier for the software package metadata in Fleet.
+	InstallerID uint `json:"installer_id" db:"installer_id"`
+	// PreInstallCondition is the query to run as a condition to installing the software package.
+	PreInstallCondition string `json:"pre_install_condition" db:"pre_install_condition"`
+	// InstallScript is the script to run to install the software package.
+	InstallScript []byte `json:"install_script" db:"install_script"`
+	// PostInstallScript is the script to run after installing the software package.
+	PostInstallScript []byte `json:"post_install_script" db:"post_install_script"`
+}
+
 // SoftwareInstaller represents a software installer package that can be used to install software on
 // hosts in Fleet.
 type SoftwareInstaller struct {

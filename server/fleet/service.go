@@ -656,6 +656,11 @@ type Service interface {
 	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	CheckInstallerExistence(ctx context.Context, installer Installer) error
 
+	////////////////////////////////////////////////////////////////////////////////
+	// Software Installers
+
+	GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*SoftwareInstallDetails, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 

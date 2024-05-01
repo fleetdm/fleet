@@ -1453,6 +1453,13 @@ type Datastore interface {
 	// Apple hosts. It is optimized to update using only the information
 	// available in the Apple MDM protocol.
 	UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID, cmdUUID, requestType string, succeeded bool) error
+
+	// GetSoftwareInstallDetails returns details required to fetch and
+	// run software installers
+	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
+	// ListPendingSoftwareInstallDetails returns a list of software
+	// installers that have not yet been run for a given host
+	ListPendingSoftwareInstallDetails(ctx context.Context, hostID uint) ([]*SoftwareInstallDetails, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
