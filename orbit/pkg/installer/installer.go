@@ -129,11 +129,11 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, err
 		return false, ctxerr.Wrap(ctx, fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message))
 	}
 
-	if len(res.Response) > 0 {
-		return true, nil
+	if len(res.Response) == 0 {
+		return false, nil
 	}
 
-	return false, nil
+	return true, nil
 }
 
 func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScriptResult, installerPath string) error {
