@@ -2020,6 +2020,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
+		hs := hs
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 	return software, metaData, nil

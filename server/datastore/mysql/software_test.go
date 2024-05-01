@@ -3275,16 +3275,16 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 
 	// sees the available installer in its team
-	sw, meta, err = ds.ListHostSoftware(ctx, tmHost.ID, true, opts)
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost.ID, true, opts)
 	require.NoError(t, err)
 	compareResults([]*fleet.HostSoftwareWithInstaller{expected["i3"]}, sw)
 
 	// test with a search query (searches on name), with and without available software
 	opts.MatchQuery = "a"
-	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
+	sw, _, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
 	compareResults([]*fleet.HostSoftwareWithInstaller{expected["a1"], expected["a2"]}, sw)
-	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
+	sw, _, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
 	require.NoError(t, err)
 	compareResults([]*fleet.HostSoftwareWithInstaller{expected["a1"], expected["a2"]}, sw)
 
