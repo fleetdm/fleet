@@ -361,7 +361,6 @@ Upon receiving any device, the Apprentice will process the incoming equipment by
 7. Connect the device to WIFI.
 8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
 9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
-> If you are prevented from completing the steps above, create a [hardware issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=hardware-issue.md&title=Hardware+or+software+issue) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
 
 
 ### Ship approved equipment
