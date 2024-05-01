@@ -3178,10 +3178,18 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
 	}
 	expected["i2"] = &fleet.HostSoftwareWithInstaller{
-		Name:        "i2",
-		Source:      "apps",
-		Status:      nil,
-		LastInstall: nil,
+		Name:                       "i2",
+		Source:                     "apps",
+		Status:                     nil,
+		LastInstall:                nil,
+		PackageAvailableForInstall: ptr.String("installer-3.pkg"),
+	}
+	expected["i3"] = &fleet.HostSoftwareWithInstaller{
+		Name:                       "i3",
+		Source:                     "apps",
+		Status:                     nil,
+		LastInstall:                nil,
+		PackageAvailableForInstall: ptr.String("installer-4.pkg"),
 	}
 
 	// request without available software, returns failed first, pending, installed, other
@@ -3191,4 +3199,28 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["i1"], expected["b"], expected["i0"], expected["a1"], expected["a2"], expected["c"], expected["d"],
 	}, sw)
+
+	// request with available software, returns failed first, pending, installed, available, other
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	compareResults([]*fleet.HostSoftwareWithInstaller{
+		expected["i1"], expected["b"], expected["i0"], expected["i2"], expected["a1"], expected["a2"], expected["c"], expected["d"],
+	}, sw)
+
+	// create a new host in the team, with no software
+	tmHost := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{tmHost.ID})
+	require.NoError(t, err)
+
+	// no installed software for this host
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost.ID, false, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	// sees the available installer in its team
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost.ID, true, opts)
+	require.NoError(t, err)
+	compareResults([]*fleet.HostSoftwareWithInstaller{expected["i3"]}, sw)
 }
