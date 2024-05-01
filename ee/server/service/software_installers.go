@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 )
@@ -107,4 +108,52 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	}
 
 	return nil
+}
+
+func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	// TODO: confirm error handling
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+
+	// get the installer's metadata
+	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
+	}
+
+	// ensure it cannot get access to a different team's installer
+	var hTeamID uint
+	if host.TeamID != nil {
+		hTeamID = *host.TeamID
+	}
+	if (meta.TeamID != nil && *meta.TeamID != hTeamID) || (meta.TeamID == nil && hTeamID != 0) {
+		return nil, ctxerr.Wrap(ctx, fleet.OrbitError{}, "host team does not match installer team")
+	}
+
+	// check if the installer exists in the store
+	exists, err := svc.softwareInstallStore.Exists(ctx, meta.StorageID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
+	}
+	if !exists {
+		return nil, ctxerr.Wrap(ctx, err, "does not exist in software installer store")
+	}
+
+	// get the installer from the store
+	installer, size, err := svc.softwareInstallStore.Get(ctx, meta.StorageID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting installer from store")
+	}
+
+	return &fleet.DownloadSoftwareInstallerPayload{
+		Filename:  meta.Name,
+		Installer: installer,
+		Size:      size,
+	}, nil
 }

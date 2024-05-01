@@ -1003,4 +1003,6 @@ type Service interface {
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) error
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
+
+	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 }
