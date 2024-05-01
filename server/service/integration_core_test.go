@@ -11489,6 +11489,13 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 					}
 					switch r.URL.Path {
 					case "/ok":
+						var body map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&body)
+						if err != nil {
+							t.Log(err)
+							w.WriteHeader(http.StatusBadRequest)
+							return
+						}
 						_, _ = w.Write([]byte(`{"risks":"description", "whatWillProbablyHappenDuringMaintenance":"resolution"}`))
 					case "/error":
 						w.WriteHeader(http.StatusTeapot)
@@ -11522,27 +11529,34 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 	}
 	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/ok"
 	// empty sql
-	resp := s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusBadRequest)
+	resp := s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusBadRequest)
 	assertBodyContains(t, resp, "cannot be empty")
 
 	// good request
 	req.SQL = "select 1"
 	var res autofillPoliciesResponse
-	s.DoJSON("POST", "/api/latest/fleet/autofill/policies", req, http.StatusOK, &res)
+	s.DoJSON("POST", "/api/latest/fleet/autofill/policy", req, http.StatusOK, &res)
+	assert.Equal(t, "description", res.Description)
+	assert.Equal(t, "resolution", res.Resolution)
+
+	// good request with weird characters
+	req.SQL = `select * from " with ' and "" \"`
+	res = autofillPoliciesResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/autofill/policy", req, http.StatusOK, &res)
 	assert.Equal(t, "description", res.Description)
 	assert.Equal(t, "resolution", res.Resolution)
 
 	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/error"
-	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusUnprocessableEntity)
+	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusUnprocessableEntity)
 	assertBodyContains(t, resp, "error from human interpretation of osquery sql")
 
 	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/badBody"
-	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusUnprocessableEntity)
+	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusUnprocessableEntity)
 	assertBodyContains(t, resp, "error unmarshaling response body from human interpretation of osquery sql")
 
 	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/timeout"
 	getHumanInterpretationFromOsquerySqlTimeout = 1 * time.Millisecond
-	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusUnprocessableEntity)
+	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusUnprocessableEntity)
 	assertBodyContains(t, resp, "error sending request to get human interpretation from osquery sql")
 
 	// disable AI features
@@ -11550,7 +11564,7 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 		"server_settings": {"ai_features_disabled": true},
 	}
 	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
-	resp = s.Do("POST", "/api/latest/fleet/autofill/policies", req, http.StatusBadRequest)
+	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusBadRequest)
 	assertBodyContains(t, resp, "AI features are disabled")
 
 }

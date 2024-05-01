@@ -633,9 +633,17 @@ func (svc *Service) AutofillPolicySql(ctx context.Context, sql string) (descript
 
 	// Using a timeout smaller than the Fleet server's WriteTimeout
 	client := fleethttp.NewClient(fleethttp.WithTimeout(getHumanInterpretationFromOsquerySqlTimeout))
-	reqBody := fmt.Sprintf(`{"sql": "%s"}`, sql)
+	reqBodyValues := map[string]string{"sql": sql}
+	reqBody, err := json.Marshal(reqBodyValues)
+	if err != nil {
+		return "", "", ctxerr.Wrap(
+			ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Could not process sql: %s", sql),
+			},
+		)
+	}
 	resp, err := client.Post(
-		getHumanInterpretationFromOsquerySqlUrl, "application/json", bytes.NewBuffer([]byte(reqBody)),
+		getHumanInterpretationFromOsquerySqlUrl, "application/json", bytes.NewBuffer(reqBody),
 	)
 	if err != nil {
 		return "", "", ctxerr.Wrap(
@@ -676,5 +684,14 @@ func (svc *Service) AutofillPolicySql(ctx context.Context, sql string) (descript
 			},
 		)
 	}
-	return result["risks"], result["whatWillProbablyHappenDuringMaintenance"], nil
+	const maxLength = 1<<16 - 1
+	descriptionTrimmed := result["risks"]
+	if len(descriptionTrimmed) > maxLength {
+		descriptionTrimmed = descriptionTrimmed[:maxLength]
+	}
+	resolutionTrimmed := result["whatWillProbablyHappenDuringMaintenance"]
+	if len(resolutionTrimmed) > maxLength {
+		resolutionTrimmed = resolutionTrimmed[:maxLength]
+	}
+	return descriptionTrimmed, resolutionTrimmed, nil
 }

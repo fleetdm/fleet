@@ -585,7 +585,7 @@ func generateCalendarEventBody(
 	ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map, conflict bool,
 	logger kitlog.Logger,
 ) string {
-	description, resolution := getCalendarEventDescriptionAndResolution(ctx, ds, host, policyIDtoPolicy, logger)
+	description, resolution := getCalendarEventDescriptionAndResolution(ctx, ds, orgName, host, policyIDtoPolicy, logger)
 
 	conflictStr := ""
 	if conflict {
@@ -607,10 +607,11 @@ Please leave your device on and connected to power.
 }
 
 func getCalendarEventDescriptionAndResolution(
-	ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map, logger kitlog.Logger,
+	ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map,
+	logger kitlog.Logger,
 ) (string, string) {
-	getDefaultDescription := func(org string) string {
-		return fmt.Sprintf(`%s %s`, org, defaultDescription)
+	getDefaultDescription := func() string {
+		return fmt.Sprintf(`%s %s`, orgName, defaultDescription)
 	}
 
 	var description, resolution string
@@ -623,12 +624,12 @@ func getCalendarEventDescriptionAndResolution(
 			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
 			if err != nil {
 				level.Error(logger).Log("msg", "parse policy id", "err", err)
-				return getDefaultDescription(host.HostDisplayName), defaultResolution
+				return getDefaultDescription(), defaultResolution
 			}
 			policy, err = ds.PolicyLite(ctx, uint(id))
 			if err != nil {
 				level.Error(logger).Log("msg", "get policy", "err", err)
-				return getDefaultDescription(host.HostDisplayName), defaultResolution
+				return getDefaultDescription(), defaultResolution
 			}
 			policyIDtoPolicy.Store(policyIDs[0], policy)
 		} else {
@@ -636,7 +637,7 @@ func getCalendarEventDescriptionAndResolution(
 		}
 		policyDescription := strings.TrimSpace(policy.Description)
 		if policyDescription == "" {
-			description = getDefaultDescription(host.HostDisplayName)
+			description = getDefaultDescription()
 		} else {
 			description = policyDescription
 		}
@@ -651,7 +652,7 @@ func getCalendarEventDescriptionAndResolution(
 			}
 		}
 	default:
-		description = getDefaultDescription(host.HostDisplayName)
+		description = getDefaultDescription()
 		resolution = defaultResolution
 	}
 	return description, resolution

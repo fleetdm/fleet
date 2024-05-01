@@ -186,11 +186,11 @@ type PolicyCalendarData struct {
 
 // PolicyLite is a stripped down version of the policy.
 type PolicyLite struct {
-	ID uint `db:"id" json:"id"`
+	ID uint `db:"id"`
 	// Description describes the policy.
-	Description string `json:"description" db:"description"`
+	Description string `db:"description"`
 	// Resolution describes how to solve a failing policy.
-	Resolution *string `json:"resolution,omitempty" db:"resolution"`
+	Resolution *string `db:"resolution"`
 }
 
 func (p Policy) AuthzType() string {

@@ -725,8 +725,12 @@ func TestEventDescription(t *testing.T) {
 	//  hostID7 not passing policyID5
 	//
 
+	const orgName = "Test Organization"
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: orgName,
+			},
 			Integrations: fleet.Integrations{
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
 					{
@@ -948,10 +952,10 @@ func TestEventDescription(t *testing.T) {
 			assert.Contains(t, description, "Description for policy 3")
 			assert.Contains(t, description, defaultResolution)
 		case hostID4:
-			assert.Contains(t, description, defaultDescription)
+			assert.Contains(t, description, fmt.Sprintf("%s %s", orgName, defaultDescription))
 			assert.Contains(t, description, "Resolution for policy 4")
 		case hostID5, hostID7:
-			assert.Contains(t, description, defaultDescription)
+			assert.Contains(t, description, fmt.Sprintf("%s %s", orgName, defaultDescription))
 			assert.Contains(t, description, defaultResolution)
 		}
 	}
