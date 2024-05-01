@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 )
 
 // SoftwareInstallerStore is the interface to store and retrieve software
@@ -102,4 +103,39 @@ type HostSoftwareInstallerResult struct {
 	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
+}
+
+// HostSoftwareWithInstaller represents the list of software installed on a
+// host with installer information if a matching installer exists. This is the
+// payload returned by the "Get host's (device's) software" endpoints.
+type HostSoftwareWithInstaller struct {
+	ID                uint                            `json:"id" db:"id"`
+	Name              string                          `json:"name" db:"name"`
+	Source            string                          `json:"source" db:"source"`
+	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
+	LastInstall       *HostSoftwareInstall            `json:"last_install"`
+	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
+
+	// PackageAvailableForInstall is only present for the user-authenticated
+	// endpoint, not the device-authenticated one. I.e. when
+	// available-but-not-installed software are part of the response.
+	PackageAvailableForInstall *string `json:"package_available_for_install,omitempty" db:"package_available_for_install"`
+}
+
+// HostSoftwareInstall represents installation of software on a host from a
+// Fleet software installer.
+type HostSoftwareInstall struct {
+	InstallUUID string    `json:"install_uuid" db:"install_id"`
+	InstalledAt time.Time `json:"installed_at" db:"installed_at"`
+}
+
+// HostSoftwareInstalledVersion represents a version of software installed on a
+// host.
+type HostSoftwareInstalledVersion struct {
+	SoftwareID      uint       `json:"-" db:"software_id"`
+	SoftwareTitleID uint       `json:"-" db:"software_title_id"`
+	Version         string     `json:"version" db:"version"`
+	LastOpenedAt    *time.Time `json:"last_opened_at" db:"last_opened_at"`
+	Vulnerabilities []string   `json:"vulnerabilities" db:"vulnerabilities"`
+	InstalledPaths  []string   `json:"installed_paths" db:"installed_paths"`
 }
