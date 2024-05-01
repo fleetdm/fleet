@@ -137,6 +137,9 @@ func gitopsCommand() *cli.Command {
 				}
 				for _, team := range teams {
 					if !slices.Contains(teamNames, team.Name) {
+						if appleBMDefaultTeam == team.Name {
+							return fmt.Errorf("apple_bm_default_team %s cannot be deleted", appleBMDefaultTeam)
+						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would delete team %s\n", team.Name)
 						} else {
