@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/hex"
+	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -44,14 +45,19 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
 	if !exists {
+		// reset the reader before storing (it was consumed to extract metadata)
+		if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting installer file reader")
+		}
 		if err := svc.softwareInstallStore.Put(ctx, payload.StorageID, payload.InstallerFile); err != nil {
 			return ctxerr.Wrap(ctx, err, "storing installer")
 		}
 	}
 
 	if payload.InstallScript == "" {
-		// TODO: apply default install script
-		payload.InstallScript = "default install script"
+		installerType := file.InstallerType(strings.TrimPrefix(filepath.Ext(payload.Filename), "."))
+		installerPath := "some path" // TODO: where does this come from?
+		payload.InstallScript = file.GetInstallScript(installerType, installerPath)
 	}
 
 	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
@@ -99,8 +105,6 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	if err := svc.ds.DeleteSoftwareInstaller(ctx, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting software installer")
 	}
-
-	// TODO: when does the instaler binary get deleted from the installer store?
 
 	return nil
 }

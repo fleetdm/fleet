@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -9,7 +10,6 @@ import (
 )
 
 func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
-	// TODO: confirm ds context is appropriate in each of the following (should we use writer for all?)
 	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload.Title, payload.Source)
 	if err != nil {
 		return 0, err
@@ -70,8 +70,6 @@ INSERT INTO software_installers (
 
 	id, _ := res.LastInsertId()
 
-	// TODO: should we try to wrap all of the above in a transaction?
-
 	return uint(id), nil
 }
 
@@ -114,6 +112,9 @@ WHERE
 	var dest fleet.SoftwareInstaller
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller").WithID(id), "get software installer metadata")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
 
@@ -126,11 +127,7 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 		return ctxerr.Wrap(ctx, err, "delete software installer")
 	}
 
-	rows, err := res.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "rows affected deleting software installer")
-	}
-
+	rows, _ := res.RowsAffected()
 	if rows == 0 {
 		return notFound("SoftwareInstaller").WithID(id)
 	}

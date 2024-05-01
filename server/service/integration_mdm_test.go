@@ -8576,10 +8576,11 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadAndDelete() {
 			PreInstallQuery:   "some pre install query",
 			PostInstallScript: "some post install script",
 			Filename:          "ruby.deb",
-			Title:             "ruby",
-			Version:           "1:2.5.1",
-			Source:            "deb_packages",
-			StorageID:         "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:     "ruby",
+			Version:   "1:2.5.1",
+			Source:    "deb_packages",
+			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
 		}
 
 		uploadSoftwareInstaller(payload, http.StatusOK, "")
@@ -8607,10 +8608,11 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadAndDelete() {
 			PreInstallQuery:   "another pre install query",
 			PostInstallScript: "another post install script",
 			Filename:          "ruby.deb",
-			Title:             "ruby",
-			Version:           "1:2.5.1",
-			Source:            "deb_packages",
-			StorageID:         "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:     "ruby",
+			Version:   "1:2.5.1",
+			Source:    "deb_packages",
+			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
 		}
 
 		uploadSoftwareInstaller(payload, http.StatusOK, "")

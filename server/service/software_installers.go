@@ -84,8 +84,6 @@ func (r uploadSoftwareInstallerResponse) error() error { return r.Err }
 
 func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadSoftwareInstallerRequest)
-	// TODO: we've used this pattern before, but it's not clear why we're
-	// opening the file here and not in the service method.
 	ff, err := req.File.Open()
 	if err != nil {
 		return uploadSoftwareInstallerResponse{Err: err}, nil

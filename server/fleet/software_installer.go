@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"path/filepath"
 	"time"
 )
@@ -121,7 +120,7 @@ type UploadSoftwareInstallerPayload struct {
 	InstallScript     string
 	PreInstallQuery   string
 	PostInstallScript string
-	InstallerFile     multipart.File // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	InstallerFile     io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
 	StorageID         string
 	Filename          string
 	Title             string
