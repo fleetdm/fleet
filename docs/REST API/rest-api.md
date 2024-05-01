@@ -6738,7 +6738,8 @@ Creates a global query or team query.
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data        | bool    | body | Whether to skip saving the latest query results for each host. Default: `false`. |
-
+| alert_on_results        | bool    | body | Whether to keep the results and display them in the alerts section. |
+| discard_alerts        | bool    | body | Whether to remove existing results from the alerts section. |
 
 #### Example
 
@@ -6811,6 +6812,8 @@ Modifies the query specified by ID.
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data        | bool    | body | Whether to skip saving the latest query results for each host. |
+| alert_on_results        | bool    | body | Whether to keep the results and display them in the alerts section. |
+| discard_alerts        | bool    | body | Whether to remove existing results from the alerts section. |
 
 > Note that any of the following conditions will cause the existing query report to be deleted:
 > - Updating the `query` (SQL) field
