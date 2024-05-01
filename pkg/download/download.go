@@ -91,7 +91,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 	}
 
 	if _, err := io.Copy(tmpFile, r); err != nil {
-		return err
+		return fmt.Errorf("write to temporary file: %w", err)
 	}
 
 	// Writes are not synchronous. Handle errors from writes returned by Close.

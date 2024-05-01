@@ -40,7 +40,7 @@ func downloadDecompressed(client *http.Client) func(string, string) error {
 	return func(u, dstPath string) error {
 		parsedUrl, err := url.Parse(u)
 		if err != nil {
-			return err
+			return fmt.Errorf("parse url: %w", err)
 		}
 		return download.DownloadAndExtract(client, parsedUrl, dstPath)
 	}
@@ -103,7 +103,7 @@ func Sync(dstDir string, platforms []Platform) error {
 	for _, platform := range platforms {
 		defFile, err := downloadDefinitions(sources, platform, dwn)
 		if err != nil {
-			return err
+			return fmt.Errorf("download definitions for %s: %w", platform, err)
 		}
 
 		dstFile := strings.Replace(filepath.Base(defFile), ".xml", ".json", 1)

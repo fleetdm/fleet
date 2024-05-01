@@ -55,7 +55,7 @@ func downloadDefinitions(
 	dstPath := filepath.Join(os.TempDir(), platform.ToFilename(time.Now(), "xml"))
 	err := downloader(url, dstPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("download definitions: %w", err)
 	}
 
 	return dstPath, nil

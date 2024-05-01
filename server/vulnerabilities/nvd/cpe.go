@@ -109,7 +109,7 @@ func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 
 	githubClient := fleethttp.NewGithubClient()
 	if err := download.DownloadAndExtract(githubClient, u, path); err != nil {
-		return err
+		return fmt.Errorf("download and extract: %w", err)
 	}
 
 	return nil
