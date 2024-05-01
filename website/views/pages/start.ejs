@@ -21,7 +21,7 @@
       //  └┴┘┴ ┴┴ ┴ ┴   ┴ ┴┴└─└─┘   ┴ └─┘└─┘  └─┘└─┘┴┘└┘└─┘  └  ┴─┘└─┘└─┘ ┴   └  └─┘┴└─%>
     <div v-if="currentStep === 'what-are-you-using-fleet-for'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 20%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 10%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>What will you use Fleet for?</h2>
@@ -60,7 +60,7 @@
       //  ┴ ┴┴ ┴ └┘ └─┘   ┴ └─┘└─┘  └─┘ └┘ └─┘┴└─  └─┘└─┘└─┘─┴┘  └  ┴─┘└─┘└─┘ ┴ %>
     <div v-if="currentStep === 'have-you-ever-used-fleet'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 40%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 30%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>Have you ever used Fleet?</h2>
@@ -188,7 +188,7 @@
       //  └─┘└─┘   └─┘└─┘└─┘└─┘┴└─┴ ┴  ┴%>
     <div v-if="currentStep === 'what-are-you-working-on-eo-security'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 40%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>What are you working on, mainly?</h2>
@@ -244,7 +244,7 @@
       //  └─┘└─┘   ┴ ┴%>
     <div v-if="currentStep === 'what-does-your-team-manage-eo-it'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 40%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>What does your team manage?</h2>
@@ -290,7 +290,7 @@
       //   └┘ ┴ ┴%>
     <div v-if="currentStep === 'what-does-your-team-manage-vm'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 40%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>What does your team manage?</h2>
@@ -341,7 +341,7 @@
       //  ┴ ┴─┴┘┴ ┴%>
     <div v-if="currentStep === 'what-do-you-manage-mdm'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 40%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>What do you manage?</h2>
@@ -385,7 +385,7 @@
     <div v-if="currentStep === 'is-it-any-good'">
       <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['is-it-any-good']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div purpose="progress-bar-container">
-          <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
+          <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 50%"></div></div>
           <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
         </div>
         <h2>Is it any good?</h2>
@@ -417,7 +417,7 @@
       //  └┴┘┴ ┴┴ ┴ ┴   ─┴┘┴─┴┘   ┴ └─┘└─┘   ┴ ┴ ┴┴┘└┘┴ ┴%>
     <div v-if="currentStep === 'what-did-you-think'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 90%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 70%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>What did you think?</h2>
@@ -558,12 +558,13 @@
     <div v-if="currentStep === 'deploy-fleet-in-your-environment'">
       <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['what-did-you-think']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div purpose="progress-bar-container">
-          <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 100%"></div></div>
+          <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
           <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
         </div>
         <div class="mx-auto">
           <h2>Deploy Fleet in your environment</h2>
-          <p>Learn how to deploy and roll out Fleet in your environment.</p>
+          <p>Learn how to deploy and roll out Fleet in your environment.<br>
+            You can come back any time to continue or get help.</p>
         </div>
         <div purpose="start-cards">
           <a purpose="card" href="/docs/deploy">
@@ -592,7 +593,7 @@
       //  ┴ ┴└─┘└┴┘  └┴┘┴ ┴└─┘   ┴ └─┘└─┘┴└─  ─┴┘└─┘┴  ┴─┘└─┘ ┴ ┴ ┴└─┘┘└┘ ┴%>
     <div v-if="currentStep === 'how-was-your-deployment'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 90%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>How was your deployment?</h2>
@@ -639,7 +640,7 @@
       //  ╚╩╝┴ ┴┴ ┴ ┴ └─┘  ┴─┘└─┘└   ┴    ┴ └─┘  └─┘└─┘ ┴    ┴ └─┘└─┘  └─┘└─┘ ┴   └─┘┴%>
     <div v-if="currentStep === 'whats-left-to-get-you-set-up'">
       <div purpose="progress-bar-container">
-        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 100%"></div></div>
         <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
       </div>
       <h2>What’s left to get you set up?</h2>
