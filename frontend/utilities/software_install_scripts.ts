@@ -1,4 +1,4 @@
-import { ISoftwareInstallerType } from "interfaces/software_installers";
+import { ISoftwareInstallerType } from "interfaces/software";
 
 // @ts-ignore
 import installPkg from "../../pkg/file/scripts/install_pkg.sh";
