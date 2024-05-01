@@ -3,7 +3,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
-import autofillAPI from "services/entities/autofill";
+import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
@@ -82,10 +82,10 @@ const QueryEditor = ({
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
-  const [policyAutofillData, setPolicyAutofillData] = useState<{
-    description: string;
-    resolution: string;
-  } | null>(null);
+  const [
+    policyAutofillData,
+    setPolicyAutofillData,
+  ] = useState<IAutofillPolicy | null>(null);
   const [policyAutofillErrors, setPolicyAutofillErrors] = useState<any>({});
   const [
     isFetchingAutofillDescription,
