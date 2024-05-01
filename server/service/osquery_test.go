@@ -906,11 +906,11 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		expectedName string
 		hasErr       bool
 	}{
-		{"pack/Global/Query Name", nil, "Query Name", false},
-		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},
-		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
-		{"pack/team-foo/Query", nil, "", true},
-		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},
+		{"pack/Global/Query Name", nil, "Query Name", false},                       // valid global query
+		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},               // valid team query
+		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false}, // valid team query
+		{"pack/team-foo/Query", nil, "", true},                                     // missing team ID
+		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},             // query name contains forward slash
 		{"packGlobalGlobalGlobalGlobal", nil, "Global", false},                     // pack_delimiter=Global
 		{"packXGlobalGlobalXGlobalQueryWith/Slash", nil, "QueryWith/Slash", false}, // pack_delimiter=XGlobal
 		{"pack//Global//QueryWith/Slash", nil, "QueryWith/Slash", false},           // pack_delimiter=//
@@ -920,6 +920,8 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"pack123😁123team-1123😁123QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false}, // pack_delimiter=123😁123
 		{"pack(foo)team-1(foo)fo(o)bar", ptr.Uint(1), "fo(o)bar", false},                   // pack_delimiter=(foo)
 		{"packteam-1team-1team-1team-1", ptr.Uint(1), "team-1", false},                     // pack_delimiter=team-1
+		{"pack/Global/GlobalInQueryName", nil, "GlobalInQueryName", false},                 // query name contains Global
+		{"pack/team-1/team-1InQueryName", ptr.Uint(1), "team-1InQueryName", false},         // query name contains team-1
 
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
@@ -3801,5 +3803,28 @@ func TestDetailQueriesLinuxDistros(t *testing.T) {
 		require.Contains(t, m, "disk_encryption_linux")
 		require.Contains(t, m, "software_vscode_extensions")
 		require.Contains(t, m, "software_linux")
+	}
+}
+
+// Benchmark function
+func BenchmarkFindPackDelimiterStringCommon(b *testing.B) {
+	// Input data for benchmarking
+	input := "pack/Global/Foo"
+
+	// Run the benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findPackDelimiterString(input)
+	}
+}
+
+func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
+	// Input data for benchmarking
+	input := "packGlobalGlobalGlobalGlobal" // global pack delimiter, global team, query name global
+
+	// Run the benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findPackDelimiterString(input)
 	}
 }
