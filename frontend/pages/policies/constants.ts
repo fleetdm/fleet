@@ -32,7 +32,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;",
     name: "Antivirus healthy (Linux)",
     description:
-      "Checks that both ClamAV's daemon and its updater service (freshclam) are running.",
+      "The device may lack protection against malware, as the ClamAV antivirus system (clamd and freshclam processes) is not running properly.",
     resolution: "Ensure ClamAV and Freshclam are installed and running.",
     critical: false,
     platform: "linux",
@@ -43,9 +43,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2162) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.93)) WHERE score == 1;",
     name: "Antivirus healthy (macOS)",
     description:
-      "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with the latest version regularly.",
+      "The device may lack necessary security updates to XProtect or MRT, Apple's built-in anti-malware tools, potentially exposing it to malware or other security threats.",
     resolution:
-      "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
+      "Enable automatic security definition updates.",
     critical: false,
     platform: "darwin",
   },
