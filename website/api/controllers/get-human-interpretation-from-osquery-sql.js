@@ -93,7 +93,7 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
     let report;
     try {
       report = JSON.parse(openAiResponse.choices[0].message.content);
-      // Change `whatWillHappenDuringMaintenance` to `whatWillProbablyHappenDuringMaintenance`
+      // Change `whatWillHappenDuringMaintenance` to `whatWillProbablyHappenDuringMaintenance` (the naming we want to use in our API response)
       report.whatWillProbablyHappenDuringMaintenance = report.whatWillHappenDuringMaintenance;
       delete report.whatWillHappenDuringMaintenance;
     } catch (err) {
