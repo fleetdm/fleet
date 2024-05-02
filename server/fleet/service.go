@@ -625,6 +625,9 @@ type Service interface {
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
 
+	// InstallSoftwareTitle installs a software title in the given host.
+	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
