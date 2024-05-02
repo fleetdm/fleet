@@ -9,7 +9,7 @@ Scripts are stored on their own files for two reasons:
 
 #### Variables
 
-The scrips in this folder accept variables like `$VAR_NAME` that will be replaced/populated by `fleetd` when they run.
+The scripts in this folder accept variables like `$VAR_NAME` that will be replaced/populated by `fleetd` when they run.
 
 Supported variables are:
 
