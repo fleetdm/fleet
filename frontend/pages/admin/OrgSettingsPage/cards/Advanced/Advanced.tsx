@@ -25,6 +25,7 @@ interface IAdvancedConfigFormData {
   activityExpiryWindow: number;
   disableLiveQuery: boolean;
   disableScripts: boolean;
+  disableAIFeatures: boolean;
   disableQueryReports: boolean;
 }
 
@@ -298,7 +299,7 @@ const Advanced = ({
             Disable scripts
           </Checkbox>
           <Checkbox
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="disableAIFeatures"
             value={disableAIFeatures}
             parseTarget
