@@ -8485,7 +8485,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 	expectBytes = make([]byte, expectLen)
 	n, err := f.Read(expectBytes)
 	require.NoError(t, err)
-	require.Equal(t, n, int(expectLen))
+	require.Equal(t, n, expectLen)
 	f.Close()
 
 	uploadSoftwareInstaller := func(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
