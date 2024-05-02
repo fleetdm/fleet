@@ -29,7 +29,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
 const baseClass = "policy-form";
@@ -50,6 +49,11 @@ interface IPolicyFormProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
+  isFetchingAutofillDescription: boolean;
+  isFetchingAutofillResolution: boolean;
+  onClickAutofillDescription: () => Promise<void>;
+  onClickAutofillResolution: () => Promise<void>;
+  resetAiAutofillData: () => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -80,6 +84,11 @@ const PolicyForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   backendValidators,
+  isFetchingAutofillDescription,
+  isFetchingAutofillResolution,
+  onClickAutofillDescription,
+  onClickAutofillResolution,
+  resetAiAutofillData,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
@@ -135,9 +144,13 @@ const PolicyForm = ({
     setCompatiblePlatforms,
   } = platformCompatibility;
 
+  const platformSelectorDisabled =
+    isFetchingAutofillDescription || isFetchingAutofillResolution;
+
   const platformSelector = usePlatformSelector(
     lastEditedQueryPlatform,
-    baseClass
+    baseClass,
+    platformSelectorDisabled
   );
 
   const {
@@ -155,6 +168,8 @@ const PolicyForm = ({
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const aiFeaturesDisabled =
+    config?.server_settings.ai_features_disabled || false;
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
@@ -199,8 +214,9 @@ const PolicyForm = ({
     });
   };
 
-  const onChangePolicy = (sqlString: string) => {
+  const onChangePolicySql = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+    resetAiAutofillData(); // Allows retry of AI autofill API if the SQL has changed
   };
 
   const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -569,7 +585,7 @@ const PolicyForm = ({
             name="query editor"
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
-            onChange={onChangePolicy}
+            onChange={onChangePolicySql}
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
@@ -662,6 +678,11 @@ const PolicyForm = ({
             backendValidators={backendValidators}
             platformSelector={platformSelector}
             isUpdatingPolicy={isUpdatingPolicy}
+            aiFeaturesDisabled={aiFeaturesDisabled}
+            isFetchingAutofillDescription={isFetchingAutofillDescription}
+            isFetchingAutofillResolution={isFetchingAutofillResolution}
+            onClickAutofillDescription={onClickAutofillDescription}
+            onClickAutofillResolution={onClickAutofillResolution}
           />
         )}
       </>
