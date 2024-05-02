@@ -62,10 +62,11 @@ const CalendarEventPreviewModal = ({
               <Icon name="text" />
             </div>
             <div className={`${baseClass}__preview-info__text`}>
-              {orgName} reserved this time to make some changes to Anna&apos;s
-              MacBook Pro.
+              {orgName} reserved this time to make some changes to your work
+              computer.
               <br />
-              Please leave your computer on and connected to power.
+              <br />
+              Please leave your device on and connected to power.
               <br /> <br />
               <strong>Why it matters</strong>
               <br />
