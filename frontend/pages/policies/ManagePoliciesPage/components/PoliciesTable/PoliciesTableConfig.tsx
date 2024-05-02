@@ -19,7 +19,7 @@ import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 import { COLORS } from "styles/var/colors";
-import configUtils from "components/TableContainer/utilities/config_utils";
+import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -311,12 +311,10 @@ const generateTableHeaders = (
       id: "selection",
       Header: (headerProps: any) => {
         // When viewing team policies select all checkbox accounts for not selecting inherited policies
-        const teamCheckboxProps = configUtils.getConditionalSelectHeaderCheckboxProps(
-          {
-            headerProps,
-            checkIfRowIsSelectable: (row) => row.original.team_id !== null,
-          }
-        );
+        const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({
+          headerProps,
+          checkIfRowIsSelectable: (row) => row.original.team_id !== null,
+        });
 
         // Regular table selection logic
         const {

@@ -96,6 +96,8 @@
         }
         &__table {
           thead {
+            // maintain height when select header is removed
+            height: 52.3833px;
             .name__header {
               width: auto;
             }
@@ -131,12 +133,21 @@
               .query-name-cell {
                 display: flex; // required for inline icon
                 gap: $pad-xsmall;
-
-                .children-wrapper {
+                text-decoration: none;
+                align-items: center;
+                &:hover {
                   .query-name-text {
-                    text-overflow: ellipsis;
-                    overflow: hidden;
+                    text-decoration: underline;
                   }
+                }
+
+                .query-name-text {
+                  text-overflow: ellipsis;
+                  overflow: hidden;
+                }
+
+                .inherited-badge {
+                  overflow: initial;
                 }
               }
               .query-icon {
@@ -181,6 +192,13 @@
               }
             }
           }
+        }
+      }
+    }
+    .empty-table {
+      &__additional-info {
+        * {
+          font-size: $xx-small;
         }
       }
     }
