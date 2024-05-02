@@ -8,7 +8,7 @@ interface GetConditionalSelectHeaderCheckboxProps {
   checkIfRowIsSelectable: (row: Row<any>) => boolean;
 }
 
-const getConditionalSelectHeaderCheckboxProps = ({
+export const getConditionalSelectHeaderCheckboxProps = ({
   headerProps,
   checkIfRowIsSelectable,
 }: GetConditionalSelectHeaderCheckboxProps) => {
