@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+<<<<<<< Updated upstream
 	"net/http"
+=======
+	"log/slog"
+>>>>>>> Stashed changes
 	"path/filepath"
 	"strings"
 
@@ -153,4 +157,15 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	}
 
 	return nil
+}
+
+func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) error {
+	// TODO(JVE): change to Roberto's new host installer type for auth
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetSoftwareInstallResults").Info("JVE_LOG: we out here\n\n\n\n ")
+
+	return errors.New("foobar")
 }

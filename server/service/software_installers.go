@@ -176,3 +176,19 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 
 	return fleet.ErrMissingLicense
 }
+
+type getSoftwareInstallResultsRequest struct{}
+
+type getSoftwareInstallResultsResponse struct{}
+
+func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	return nil, nil
+}
+
+func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
