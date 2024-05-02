@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -769,43 +767,20 @@ func (r *orbitDownloadSoftwareInstallerRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
-type orbitDownloadSoftwareInstallerResponse struct {
-	Err error `json:"error,omitempty"`
-	// fields used by hijackRender for the response.
-	payload *fleet.DownloadSoftwareInstallerPayload
-}
-
-func (r orbitDownloadSoftwareInstallerResponse) error() error { return r.Err }
-
-func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided
-	if n, err := io.Copy(w, r.payload.Installer); err != nil {
-		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
-	}
-	r.payload.Installer.Close()
-}
-
 func orbitDownloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*orbitDownloadSoftwareInstallerRequest)
 
 	downloadRequested := req.Alt == "media"
 	if !downloadRequested {
 		// TODO: confirm error handling
-		return orbitDownloadSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
+		return downloadSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
 	}
 
 	p, err := svc.OrbitDownloadSoftwareInstaller(ctx, req.InstallerID)
 	if err != nil {
-		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
+		return downloadSoftwareInstallerResponse{Err: err}, nil
 	}
-	return orbitDownloadSoftwareInstallerResponse{payload: p}, nil
+	return downloadSoftwareInstallerResponse{payload: p}, nil
 }
 
 func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {

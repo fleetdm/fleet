@@ -8488,6 +8488,17 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 	require.Equal(t, n, expectLen)
 	f.Close()
 
+	checkDownloadResponse := func(t *testing.T, r *http.Response, expectedFilename string) {
+		require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
+		require.Equal(t, fmt.Sprintf(`attachment;filename="%s"`, expectedFilename), r.Header.Get("Content-Disposition"))
+		require.NotZero(t, r.ContentLength)
+		require.Equal(t, expectLen, int(r.ContentLength))
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.Equal(t, expectLen, len(b))
+		require.Equal(t, expectBytes, b)
+	}
+
 	uploadSoftwareInstaller := func(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
 		f := openFile(payload.Filename)
 		defer f.Close()
@@ -8604,20 +8615,17 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 		// upload again fails
 		uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
+		// download the installer
+		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/package/%d?alt=media", installerID), nil, http.StatusOK)
+		checkDownloadResponse(t, r, payload.Filename)
+
 		// create an orbit host and request to download the installer
 		host := createOrbitEnrolledHost(t, "windows", "orbit-host", s.ds)
-		r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *host.OrbitNodeKey,
 		}, http.StatusOK)
-		require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
-		require.Equal(t, fmt.Sprintf(`attachment;filename="%s"`, payload.Filename), r.Header.Get("Content-Disposition"))
-		require.NotZero(t, r.ContentLength)
-		require.Equal(t, expectLen, int(r.ContentLength))
-		b, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		require.Equal(t, expectLen, len(b))
-		require.Equal(t, expectBytes, b)
+		checkDownloadResponse(t, r, payload.Filename)
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/package/%d", installerID), nil, http.StatusNoContent)
@@ -8651,21 +8659,18 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 		// upload again fails
 		uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
+		// download the installer
+		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/package/%d?alt=media", installerID), nil, http.StatusOK)
+		checkDownloadResponse(t, r, payload.Filename)
+
 		// create an orbit host, assign to team and request to download the installer
 		host := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
 		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &createTeamResp.Team.ID, []uint{host.ID}))
-		r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
 			OrbitNodeKey: *host.OrbitNodeKey,
 		}, http.StatusOK)
-		require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
-		require.Equal(t, fmt.Sprintf(`attachment;filename="%s"`, payload.Filename), r.Header.Get("Content-Disposition"))
-		require.NotZero(t, r.ContentLength)
-		require.Equal(t, expectLen, int(r.ContentLength))
-		b, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		require.Equal(t, expectLen, len(b))
-		require.Equal(t, expectBytes, b)
+		checkDownloadResponse(t, r, payload.Filename)
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/package/%d", installerID), nil, http.StatusNoContent)

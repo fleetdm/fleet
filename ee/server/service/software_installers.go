@@ -110,6 +110,34 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	return nil
 }
 
+func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, installerID uint) (*fleet.SoftwareInstaller, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	// get the installer's metadata
+	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
+	}
+
+	// authorize with the software installer's team id
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: meta.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return meta, nil
+}
+
+func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	meta, err := svc.GetSoftwareInstallerMetadata(ctx, installerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
+}
+
 func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -136,8 +164,12 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 		return nil, ctxerr.Wrap(ctx, fleet.OrbitError{}, "host team does not match installer team")
 	}
 
+	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
+}
+
+func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID string, filename string) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// check if the installer exists in the store
-	exists, err := svc.softwareInstallStore.Exists(ctx, meta.StorageID)
+	exists, err := svc.softwareInstallStore.Exists(ctx, storageID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
@@ -146,13 +178,13 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	}
 
 	// get the installer from the store
-	installer, size, err := svc.softwareInstallStore.Get(ctx, meta.StorageID)
+	installer, size, err := svc.softwareInstallStore.Get(ctx, storageID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting installer from store")
 	}
 
 	return &fleet.DownloadSoftwareInstallerPayload{
-		Filename:  meta.Name,
+		Filename:  filename,
 		Installer: installer,
 		Size:      size,
 	}, nil

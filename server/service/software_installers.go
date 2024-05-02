@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"strconv"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -139,4 +141,72 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+type getSoftwareInstallerRequest struct {
+	Alt         string `query:"alt,optional"`
+	InstallerID uint   `url:"id"`
+}
+
+type getSoftwareInstallerResponse struct {
+	installer *fleet.SoftwareInstaller
+	Err       error `json:"error,omitempty"`
+}
+
+func (r getSoftwareInstallerResponse) error() error { return r.Err }
+
+func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getSoftwareInstallerRequest)
+
+	downloadRequested := req.Alt == "media"
+	if !downloadRequested {
+		// TODO: confirm error handling
+		return getSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
+	}
+
+	payload, err := svc.DownloadSoftwareInstaller(ctx, req.InstallerID)
+	if err != nil {
+		return downloadSoftwareInstallerResponse{Err: err}, nil
+	}
+
+	return downloadSoftwareInstallerResponse{payload: payload}, nil
+}
+
+func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type downloadSoftwareInstallerResponse struct {
+	Err error `json:"error,omitempty"`
+	// fields used by hijackRender for the response.
+	payload *fleet.DownloadSoftwareInstallerPayload
+}
+
+func (r downloadSoftwareInstallerResponse) error() error { return r.Err }
+
+func (r downloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := io.Copy(w, r.payload.Installer); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+	r.payload.Installer.Close()
+}
+
+func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, id uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
