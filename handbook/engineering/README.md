@@ -187,7 +187,7 @@ Domain name registrations are handled through Namecheap. Access is managed via 1
 It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
 
 1. TODO
-If the host is still enrolled in MDM, use fleetctl mdm run-command CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/mdm-commands/apple/send-fleetd.xml to the device, which will reinstall fleetd.
+If the host is still enrolled in MDM, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/mdm-commands/apple/send-fleetd.xml to the device, which will reinstall fleetd.
 
 If the host is no longer enrolled in MDM or dogfood, it is beyond our ability to control remotely.
 
