@@ -129,6 +129,11 @@ func downloadLatestRelease(dbDir string, debug bool, logger log.Logger) error {
 		return fmt.Errorf("downloading last_mod_start_date asset: %w", err)
 	}
 
+	err = downloadLatestGitHubAsset(dbDir, "vc_last_mod_start_date.txt")
+	if err != nil {
+		return fmt.Errorf("downloading vc_last_mod_start_date asset: %w", err)
+	}
+
 	return nil
 }
 

@@ -103,6 +103,10 @@ func (s *CVE) lastModStartDateFilePath() string {
 	return filepath.Join(s.dbDir, "last_mod_start_date.txt")
 }
 
+func (s *CVE) lastVCModStartDateFilePath() string {
+	return filepath.Join(s.dbDir, "vc_last_mod_start_date.txt")
+}
+
 // Do runs the synchronization from the NVD service to the local DB directory.
 func (s *CVE) Do(ctx context.Context) error {
 	ok, err := fileExists(s.lastModStartDateFilePath())
@@ -309,6 +313,17 @@ func (s *CVE) writeLastModStartDateFile(lastModStartDate string) error {
 	return nil
 }
 
+func (s *CVE) writeVCLastModStartDateFile(lastModStartDate time.Time) error {
+	if err := os.WriteFile(
+		s.lastVCModStartDateFilePath(),
+		[]byte(lastModStartDate.Format("2006-01-02")),
+		constant.DefaultWorldReadableFileMode,
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
 // httpClient wraps an http.Client to allow for debug and setting a request context.
 type httpClient struct {
 	*http.Client
@@ -468,11 +483,45 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	return newLastModStartDate, nil
 }
 
-func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time.Time) error {
+func (s *CVE) lastVCModStartDate(ctx context.Context) (*time.Time, error) {
+	f, err := os.ReadFile(s.lastVCModStartDateFilePath())
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := time.Parse("2006-01-02", string(f))
+	if err != nil {
+		return nil, err
+	}
+
+	return &t, nil
+}
+
+func (s *CVE) updateVulnCheck(ctx context.Context, lastModStartDate *time.Time) error {
+	if lastModStartDate != nil {
+		// Use the last mod start date to fetch the last 24 hours of data.
+		lastModStartDate = ptr.Time(lastModStartDate.Add(-24 * time.Hour))
+	}
+	err := s.syncVulncheckIndexCVEs(ctx, lastModStartDate)
+	if err != nil {
+		return fmt.Errorf("error syncing vulncheck index CVEs: %w", err)
+	}
+
+	// Update the lastModStartDate for the next synchronization.
+	if err := s.writeVCLastModStartDateFile(time.Now()); err != nil {
+		return fmt.Errorf("error writing last vulncheck mod start date file: %w", err)
+	}
+
+	return nil
+}
+
+func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time.Time) (error) {
 	var (
-		baseURL    = "https://api.vulncheck.com/v3/index/nist-nvd2/cursor"
-		cursor     *string
-		cvesByYear = make(map[int][]VulnCheckCVE)
+		baseURL         = "https://api.vulncheck.com/v3/index/nist-nvd2/cursor"
+		cursor          *string
+		cvesByYear      = make(map[int][]VulnCheckCVE)
+		modCount        = 0
+		addCount        = 0
 	)
 
 	// If lastModStartDate is nil, it's assumed that the most recent VulnCheck
@@ -481,6 +530,8 @@ func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time
 	if lastModStartDate == nil {
 		lastModStartDate = ptr.Time(time.Now().AddDate(0, 0, -1))
 	}
+
+	level.Debug(s.logger).Log("msg", "using last mod start date", "date", lastModStartDate)
 
 	for {
 		vcr, err := s.getVulnCheckIndexCVEs(ctx, s.client, &baseURL, cursor, *lastModStartDate)
@@ -504,15 +555,49 @@ func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time
 	}
 
 	for year, cvesInYear := range cvesByYear {
-		if err := s.updateVulnCheckYearFile(year, cvesInYear, nil, nil); err != nil {
+		if err := s.updateVulnCheckYearFile(year, cvesInYear, &modCount, &addCount); err != nil {
 			return fmt.Errorf("error updating VulnCheck year file %d: %w", year, err)
 		}
 	}
+
+	level.Debug(s.logger).Log("msg", "VulnCheck Index update", "modCount", modCount, "addCount", addCount)
 
 	return nil
 }
 
 func (s *CVE) DoVulnCheck(ctx context.Context) error {
+	ok, err := fileExists(s.lastVCModStartDateFilePath())
+	if err != nil {
+		return fmt.Errorf("error checking for last vulncheck mod start date file: %w", err)
+	}
+	if !ok {
+		level.Debug(s.logger).Log("msg", "VulnCheck archive sync")
+		err := s.vulncheckArchiveSync(ctx)
+		if err != nil {
+			return fmt.Errorf("error syncing VulnCheck archive: %w", err)
+		}
+		err = s.updateVulnCheck(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("error updating VulnCheck: %w", err)
+		}
+		return nil
+	}
+
+	f, err := os.ReadFile(s.lastVCModStartDateFilePath())
+	if err != nil {
+		return fmt.Errorf("error reading last vulncheck mod start date file: %w", err)
+	}
+
+	lastModStartDate, err := time.Parse("2006-01-02", string(f))
+	if err != nil {
+		return fmt.Errorf("error parsing last vulncheck mod start date: %w", err)
+	}
+
+	level.Debug(s.logger).Log("msg", "VulnCheck CVE update")
+	return s.updateVulnCheck(ctx, &lastModStartDate)
+}
+
+func (s *CVE) vulncheckArchiveSync(ctx context.Context) error {
 	vulnCheckArchive := "vulncheck.zip"
 	baseURL := "https://api.vulncheck.com/v3/backup/nist-nvd2"
 

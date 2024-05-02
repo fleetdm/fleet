@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/pandatix/nvdapi/v2"
 )
 
@@ -60,11 +60,12 @@ func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, c *http.Client, url, cu
 	if cursor != nil {
 		q.Add("cursor", *cursor)
 	}
+	q.Add("limit", "50")
 	q.Add("lastModStartDate", lastModStartDate.Format("2006-01-02"))
-	q.Add("limit", "100")
 	req.URL.RawQuery = q.Encode()
 
 	for attempt := 0; attempt < s.MaxTryAttempts; attempt++ {
+		start := time.Now()
 		resp, err := c.Do(req)
 		if err != nil {
 			if attempt < s.MaxTryAttempts-1 {
@@ -74,16 +75,17 @@ func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, c *http.Client, url, cu
 			}
 			return vcr, fmt.Errorf("do request: %w", err)
 		}
+		level.Debug(s.logger).Log("msg", "Vulncheck index request", "duration", time.Since(start))
 
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			if attempt < s.MaxTryAttempts-1 {
-				level.Debug(s.logger).Log("msg", "Non-OK HTTP status received", "attempt", attempt, "status", resp.Status)
+				level.Debug(s.logger).Log("msg", "Non-OK HTTP status received, waiting %f s", waitTimeForRetry.Seconds(), "attempt", attempt, "status", resp.Status)
 				time.Sleep(s.WaitTimeForRetry)
 				continue
 			}
-			return vcr, fmt.Errorf("response status: %s", resp.Status)
+			return vcr, fmt.Errorf("reached max retry attempts. response status: %s", resp.Status)
 		}
 
 		err = json.NewDecoder(resp.Body).Decode(&vcr)
