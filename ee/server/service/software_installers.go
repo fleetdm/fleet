@@ -111,7 +111,8 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 }
 
 func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, installerID uint) (*fleet.SoftwareInstaller, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{}, fleet.ActionRead); err != nil {
+	// first do a basic authorization check, any logged in user can read teams
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
