@@ -36,7 +36,7 @@ export interface IPolicy {
   author_email: string;
   resolution: string;
   platform: SelectedPlatformString;
-  team_id?: number | null;
+  team_id: number | null;
   created_at: string;
   updated_at: string;
   critical: boolean;

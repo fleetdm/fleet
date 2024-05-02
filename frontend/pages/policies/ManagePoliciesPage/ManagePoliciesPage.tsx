@@ -315,7 +315,7 @@ const ManagePolicyPage = ({
         scope: "teamPoliciesCount",
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
-        // Do not include inherited policies
+        mergeInherited: false,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -332,8 +332,8 @@ const ManagePolicyPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;
   const hasPoliciesToAutomateOrDelete: boolean = teamIdForApi
-    ? !!(!isFetchingTeamCount && teamPoliciesCount && teamPoliciesCount > 0)
-    : !!(globalPoliciesCount && globalPoliciesCount > 0);
+    ? !isFetchingTeamCount && !!teamPoliciesCount && teamPoliciesCount > 0
+    : !!globalPoliciesCount && globalPoliciesCount > 0;
 
   const {
     data: config,
