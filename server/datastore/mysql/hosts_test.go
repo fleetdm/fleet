@@ -8995,10 +8995,13 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	}
 
 	rows, err := ds.QueryResultRows(ctx, query0Global.ID, tf)
+	require.NoError(t, err)
 	require.Len(t, rows, 5)
 	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	require.NoError(t, err)
 	require.Len(t, rows, 2)
 	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	require.NoError(t, err)
 	require.Len(t, rows, 2)
 
 	// Transfer h2 from team2 to team1.
