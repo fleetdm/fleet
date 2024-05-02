@@ -483,7 +483,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	return newLastModStartDate, nil
 }
 
-func (s *CVE) lastVCModStartDate(ctx context.Context) (*time.Time, error) {
+func (s *CVE) lastVCModStartDate() (*time.Time, error) {
 	f, err := os.ReadFile(s.lastVCModStartDateFilePath())
 	if err != nil {
 		return nil, err
@@ -515,13 +515,13 @@ func (s *CVE) updateVulnCheck(ctx context.Context, lastModStartDate *time.Time) 
 	return nil
 }
 
-func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time.Time) (error) {
+func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time.Time) error {
 	var (
-		baseURL         = "https://api.vulncheck.com/v3/index/nist-nvd2/cursor"
-		cursor          *string
-		cvesByYear      = make(map[int][]VulnCheckCVE)
-		modCount        = 0
-		addCount        = 0
+		baseURL    = "https://api.vulncheck.com/v3/index/nist-nvd2/cursor"
+		cursor     *string
+		cvesByYear = make(map[int][]VulnCheckCVE)
+		modCount   = 0
+		addCount   = 0
 	)
 
 	// If lastModStartDate is nil, it's assumed that the most recent VulnCheck
