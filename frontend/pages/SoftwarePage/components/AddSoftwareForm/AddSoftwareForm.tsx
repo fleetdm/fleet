@@ -57,7 +57,7 @@ export interface IAddSoftwareFormData {
 
 export interface IFormValidation {
   isValid: boolean;
-  software: { isValid: boolean; message?: string };
+  software: { isValid: boolean };
   preInstallCondition?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
 }

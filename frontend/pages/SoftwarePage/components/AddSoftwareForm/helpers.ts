@@ -18,8 +18,8 @@ interface IValidation {
   name: string;
   isValid: (
     formData: IAddSoftwareFormData,
-    showingPreInstallCondition?: boolean,
-    showingPostInstallScript?: boolean
+    enabledPreInstallCondition?: boolean,
+    enabledPostInstallScript?: boolean
   ) => boolean;
   message?: IValidationMessage;
 }
@@ -43,6 +43,18 @@ const FORM_VALIDATION_CONFIG: Record<
     validations: [
       {
         name: "required",
+        isValid: (
+          formData: IAddSoftwareFormData,
+          enabledPreInstallCondition
+        ) => {
+          if (!enabledPreInstallCondition) {
+            return true;
+          }
+          return (
+            formData.preInstallCondition !== undefined &&
+            !validator.isEmpty(formData.preInstallCondition)
+          );
+        },
         message: (formData) => {
           // we dont want an error message until the user has interacted with
           // the field. This is why we check for undefined here.
@@ -51,25 +63,11 @@ const FORM_VALIDATION_CONFIG: Record<
           }
           return "Pre-install condition is required when enabled.";
         },
-        isValid: (
-          formData: IAddSoftwareFormData,
-          showingPreInstallCondition
-        ) => {
-          if (!showingPreInstallCondition) {
-            return true;
-          }
-          return (
-            formData.preInstallCondition !== undefined &&
-            !validator.isEmpty(formData.preInstallCondition)
-          );
-        },
       },
       {
         name: "invalidQuery",
-        message: (formData) =>
-          validateQuery(formData.preInstallCondition).error,
-        isValid: (formData, showingPreInstallCondition) => {
-          if (!showingPreInstallCondition) {
+        isValid: (formData, enabledPreInstallCondition) => {
+          if (!enabledPreInstallCondition) {
             return true;
           }
           return (
@@ -77,6 +75,8 @@ const FORM_VALIDATION_CONFIG: Record<
             validateQuery(formData.preInstallCondition).valid
           );
         },
+        message: (formData) =>
+          validateQuery(formData.preInstallCondition).error,
       },
     ],
   },
@@ -92,8 +92,8 @@ const FORM_VALIDATION_CONFIG: Record<
           }
           return "Post-install script is required when enabled.";
         },
-        isValid: (formData, _, showingPostInstallScript) => {
-          if (!showingPostInstallScript) {
+        isValid: (formData, _, enabledPostInstallScript) => {
+          if (!enabledPostInstallScript) {
             return true;
           }
           return (
@@ -153,27 +153,6 @@ export const generateFormValidation = (
   });
 
   return formValidation;
-};
-
-export const shouldDisableFormSubmit = (
-  formData: IAddSoftwareFormData,
-  showPreInstallCondition: boolean,
-  showPostInstallScript: boolean
-) => {
-  const preInstallEnabledWithNoValue =
-    showPreInstallCondition &&
-    (formData.preInstallCondition === undefined ||
-      formData.preInstallCondition === "");
-  const postInstallEnabledWithNoValue =
-    showPostInstallScript &&
-    (formData.postInstallScript === undefined ||
-      formData.postInstallScript === "");
-
-  return (
-    formData.software === null ||
-    preInstallEnabledWithNoValue ||
-    postInstallEnabledWithNoValue
-  );
 };
 
 export const getFileDetails = (file: File) => {
