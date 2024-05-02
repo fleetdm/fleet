@@ -29,16 +29,13 @@
       <div purpose="calendar-feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
         <div purpose="calendar-feature-text" class="d-flex flex-column">
         <div purpose="new-badge">NEW</div>
-        <% if(!primaryBuyingSituation) {%>
-          <h2>Stop nudging</h2>
-          <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p>
-        <%} else if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
-          <h2>Put IT in your calendar</h2>
-          <p>Install updates and force restarts when your users’ computers are actually free.</p>
-        <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
+        <% if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
           <h2>Tell employees why</h2>
           <p>Use AI to explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
-        <%}%>
+        <%} else {%>
+        <h2>Put IT in your calendar</h2>
+        <p>Install updates and force restarts when your users’ computers are actually free.</p>
+        <%} %>
           <div purpose="calendar-checklist" class="flex-column d-flex">
             <p>Say goodbye to annoying IT notifications and restarts.</p>
             <p>Use AI to explain why your security policies matter.</p>
@@ -234,7 +231,7 @@
                 <img alt="Custom IT workflows" src="/images/integration-icon-custom-workflows-32x36@2x.png">
                 <% if(['vm', 'eo-security'].includes(primaryBuyingSituation)){%>
                 <strong>Kick off automations</strong>
-                <p>Use git, yaml, webhooks, file carving, vuln feeds, the REST API, and a GUI for security automations</p>
+                <p>Use git, yaml, webhooks, file carving, vuln feeds, the REST API, and a GUI for security automations.</p>
                 <% } else { %>
                 <strong>Custom IT workflows</strong>
                 <p>Use git, yaml, webhooks, realtime device access, file carving, vuln feeds, the REST API, and a GUI for IT automation.</p>
