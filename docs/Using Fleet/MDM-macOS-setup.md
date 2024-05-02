@@ -173,7 +173,7 @@ User either of the following methods to generate a certificate and private key p
 
 #### Fleet UI:
 
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to the **Settings > Integrations > Automatic enrollment** page.
 2. Under **Apple Business Manager**, click the "Download" button
 
 #### Fleetctl CLI:
@@ -211,7 +211,7 @@ Use either of the following methods to confirm that Fleet is set up correctly. Y
 
 #### Fleet UI:
 
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to the **Settings > Integrations > Automatic enrollment** page.
 
 2. Navigate to the **Apple Business Manager** section.
 
@@ -240,7 +240,7 @@ Use either of the following methods to change the default team:
 
 #### Fleet UI
 
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to the **Settings > Integrations > Automatic enrollment** page.
 
 2. In the Apple Business Manager section, select the **Edit team** button next to **Default team**.
 
@@ -262,7 +262,7 @@ Use either of the following methods to see your ABM renewal date and other impor
 
 #### Fleet UI
 
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to the **Settings > Integrations > Automatic enrollment** page.
 
 2. Look at the **Apple Business Manager** section.
 
