@@ -51,10 +51,13 @@ Please give me all of the above in JSON, with this data shape:
 
 {
   risks: 'TODO',
-  whatWillProbablyHappenDuringMaintenance: 'TODO'
+  whatWillHappenDuringMaintenance: 'TODO'
 }
 
 Please do not add any text outside of the JSON report or wrap it in a code fence.`;
+    // > Note that this returns `whatWillHappenDuringMaintenance` instead of `whatWillProbablyHappenDuringMaintenance`.
+    // > This naming gets a better (more decisive-sounding) result from Open AI. We'll rename it for our final response.
+
     // Fallback message in case LLM API request fails.
     let failureMessage = 'Failed to generate human interpretation using generative AI.';
 
@@ -90,6 +93,9 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
     let report;
     try {
       report = JSON.parse(openAiResponse.choices[0].message.content);
+      // Change `whatWillHappenDuringMaintenance` to `whatWillProbablyHappenDuringMaintenance`
+      report.whatWillProbablyHappenDuringMaintenance = report.whatWillHappenDuringMaintenance;
+      delete report.whatWillHappenDuringMaintenance;
     } catch (err) {
       sails.log.warn('When trying to parse a JSON report returned from the Open AI API, an error occurred. Error details from JSON.parse: '+err.stack+'\n Report returned from Open AI:'+openAiResponse.choices[0].message.content);
       report = {
