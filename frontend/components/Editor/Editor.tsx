@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, { ReactNode } from "react";
 import AceEditor from "react-ace";
 
@@ -5,6 +6,8 @@ const baseClass = "editor";
 
 interface IEditorProps {
   focus?: boolean;
+  label?: string;
+  error?: string | null;
   /**
    * Help text to display below the editor.
    */
@@ -24,6 +27,7 @@ interface IEditorProps {
    */
   name?: string;
   maxLines?: number;
+  className?: string;
   onChange: (value: string, event?: any) => void;
 }
 
@@ -36,14 +40,34 @@ interface IEditorProps {
  */
 const Editor = ({
   helpText,
+  label,
+  error,
   focus,
   value,
   defaultValue,
   wrapEnabled = false,
   name = "editor",
   maxLines = 20,
+  className,
   onChange,
 }: IEditorProps) => {
+  const classNames = classnames(baseClass, className, {
+    [`${baseClass}__error`]: !!error,
+  });
+
+  const renderLabel = () => {
+    const labelText = error || label;
+    const labelClassName = classnames(`${baseClass}__label`, {
+      [`${baseClass}__label--error`]: !!error,
+    });
+
+    if (!labelText) {
+      return null;
+    }
+
+    return <div className={labelClassName}>{labelText}</div>;
+  };
+
   const renderHelpText = () => {
     if (helpText) {
       return <div className={`${baseClass}__help-text`}>{helpText}</div>;
@@ -52,7 +76,8 @@ const Editor = ({
   };
 
   return (
-    <div className={baseClass}>
+    <div className={classNames}>
+      {renderLabel()}
       <AceEditor
         wrapEnabled={wrapEnabled}
         name={name}

@@ -9,6 +9,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 const baseClass = "add-software-advanced-options";
 
 interface IAddSoftwareAdvancedOptionsProps {
+  errors: { preInstallCondition?: string; postInstallScript?: string };
   showPreInstallCondition: boolean;
   showPostInstallScript: boolean;
   preInstallCondition?: string;
@@ -20,6 +21,7 @@ interface IAddSoftwareAdvancedOptionsProps {
 }
 
 const AddSoftwareAdvancedOptions = ({
+  errors,
   showPreInstallCondition,
   showPostInstallScript,
   preInstallCondition,
@@ -33,12 +35,10 @@ const AddSoftwareAdvancedOptions = ({
 
   const onChangePreInstallCheckbox = () => {
     onTogglePreInstallCondition(!showPreInstallCondition);
-    onChangePreInstallCondition();
   };
 
   const onChangePostInstallCheckbox = () => {
     onTogglePostInstallScript(!showPostInstallScript);
-    onChangePostInstallScript();
   };
 
   return (
@@ -62,6 +62,7 @@ const AddSoftwareAdvancedOptions = ({
           {showPreInstallCondition && (
             <FleetAce
               focus
+              error={errors.preInstallCondition}
               value={preInstallCondition}
               label="Query"
               name="preInstallQuery"
@@ -90,6 +91,7 @@ const AddSoftwareAdvancedOptions = ({
             <>
               <Editor
                 focus
+                error={errors.postInstallScript}
                 wrapEnabled
                 name="post-install-script-editor"
                 maxLines={10}

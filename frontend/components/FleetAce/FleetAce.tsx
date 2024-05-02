@@ -33,7 +33,7 @@ export interface IFleetAceProps {
   maxLines?: number;
   showGutter?: boolean;
   wrapEnabled?: boolean;
-  /** @depricated use the prop `className` instead */
+  /** @deprecated use the prop `className` instead */
   wrapperClassName?: string;
   className?: string;
   helpText?: ReactNode;
