@@ -138,7 +138,7 @@ func TestVulncheckIndexAPI(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(vResp))
+		_, _ = w.Write([]byte(vResp))
 	}))
 	defer server.Close()
 

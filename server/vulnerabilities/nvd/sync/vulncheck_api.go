@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/log/level"
 	"github.com/pandatix/nvdapi/v2"
 )
@@ -45,7 +46,7 @@ type VulnCheckResponseMeta struct {
 func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, url, cursor *string, lastModStartDate time.Time) (VulnCheckResponse, error) {
 	apiKey := os.Getenv("VULNCHECK_API_KEY")
 	if apiKey == "" {
-		return VulnCheckResponse{}, fmt.Errorf("VULNCHECK_API_KEY is not set")
+		return VulnCheckResponse{}, ctxerr.New(ctx, "VULNCHECK_API_KEY not set")
 	}
 	var vcr VulnCheckResponse
 
@@ -96,5 +97,5 @@ func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, url, cursor *string, la
 		return vcr, nil
 	}
 
-	return vcr, fmt.Errorf("reached max retry attempts")
+	return vcr, ctxerr.New(ctx, "reach max retry attempts")
 }

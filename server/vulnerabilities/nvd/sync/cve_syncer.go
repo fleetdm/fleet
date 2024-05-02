@@ -483,20 +483,6 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	return newLastModStartDate, nil
 }
 
-func (s *CVE) lastVCModStartDate() (*time.Time, error) {
-	f, err := os.ReadFile(s.lastVCModStartDateFilePath())
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := time.Parse("2006-01-02", string(f))
-	if err != nil {
-		return nil, err
-	}
-
-	return &t, nil
-}
-
 func (s *CVE) updateVulnCheck(ctx context.Context, lastModStartDate *time.Time) error {
 	if lastModStartDate != nil {
 		// Use the last mod start date to fetch the last 24 hours of data.
