@@ -149,8 +149,8 @@ type getSoftwareInstallerRequest struct {
 }
 
 type getSoftwareInstallerResponse struct {
-	installer *fleet.SoftwareInstaller
-	Err       error `json:"error,omitempty"`
+	// meta *fleet.SoftwareInstaller // NOTE: API design currently only supports downloading the
+	Err error `json:"error,omitempty"`
 }
 
 func (r getSoftwareInstallerResponse) error() error { return r.Err }
