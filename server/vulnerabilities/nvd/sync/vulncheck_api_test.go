@@ -1,12 +1,15 @@
 package nvdsync
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -139,9 +142,15 @@ func TestVulncheckIndexAPI(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := server.Client()
+	s := CVE{
+		client:           fleethttp.NewClient(),
+		dbDir:            "/tmp",
+		logger:           log.NewNopLogger(),
+		MaxTryAttempts:   3,
+		WaitTimeForRetry: 1 * time.Second,
+	}
 
-	resp, err := getVulnCheckIndexCVEs(client, &server.URL, nil, time.Now())
+	resp, err := s.getVulnCheckIndexCVEs(context.Background(), &server.URL, nil, time.Now())
 	require.NoError(t, err)
 
 	require.Equal(t, "Q1ZFLTIwMjItNDg2NDc=", resp.Meta.NextCursor)

@@ -534,7 +534,7 @@ func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time
 	level.Debug(s.logger).Log("msg", "using last mod start date", "date", lastModStartDate)
 
 	for {
-		vcr, err := s.getVulnCheckIndexCVEs(ctx, s.client, &baseURL, cursor, *lastModStartDate)
+		vcr, err := s.getVulnCheckIndexCVEs(ctx, &baseURL, cursor, *lastModStartDate)
 		if err != nil {
 			return fmt.Errorf("error getting VulnCheck index CVEs: %w", err)
 		}

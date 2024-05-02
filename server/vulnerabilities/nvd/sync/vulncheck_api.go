@@ -42,7 +42,7 @@ type VulnCheckResponseMeta struct {
 	NextCursor string `json:"next_cursor"`
 }
 
-func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, c *http.Client, url, cursor *string, lastModStartDate time.Time) (VulnCheckResponse, error) {
+func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, url, cursor *string, lastModStartDate time.Time) (VulnCheckResponse, error) {
 	apiKey := os.Getenv("VULNCHECK_API_KEY")
 	if apiKey == "" {
 		return VulnCheckResponse{}, fmt.Errorf("VULNCHECK_API_KEY is not set")
@@ -66,7 +66,7 @@ func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, c *http.Client, url, cu
 
 	for attempt := 0; attempt < s.MaxTryAttempts; attempt++ {
 		start := time.Now()
-		resp, err := c.Do(req)
+		resp, err := s.client.Do(req)
 		if err != nil {
 			if attempt < s.MaxTryAttempts-1 {
 				level.Debug(s.logger).Log("msg", "Failed to do request", "attempt", attempt, "error", err)
