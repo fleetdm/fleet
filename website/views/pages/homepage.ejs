@@ -30,10 +30,13 @@
         <div purpose="calendar-feature-text" class="d-flex flex-column">
         <div purpose="new-badge">NEW</div>
         <% if(!primaryBuyingSituation) {%>
-          <h2>Stop nudging</h2>
-          <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p>
-        <%} else if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
-          <h2>Put IT in your calendar</h2>
+          <h2>"This is a terrible time to mess with my computer."</h2> <!-- Turn OS updates into coffee breaks --> <!-- Break time for you, update time for your computer -->
+          <p>Install updates and force restarts when your users’ computers are actually free.</p>
+        <%} else if(['mdm'].includes(primaryBuyingSituation)) {%>
+          <h2>Timing is everything</h2>
+          <p>Install updates and force restarts when your users’ computers are actually free.</p>
+        <%} else if(['eo-it'].includes(primaryBuyingSituation)) {%>
+          <h2>Patch your C-suite with confidence</h2>
           <p>Install updates and force restarts when your users’ computers are actually free.</p>
         <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
           <h2>Tell employees why</h2>
