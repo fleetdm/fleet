@@ -483,6 +483,8 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	return newLastModStartDate, nil
 }
 
+// updateVulnCheck updates the NVD feeds with the latest VulnCheck data from the Index feed
+// based on the lastModStartDate and updates the lastModStartDate for the next synchronization.
 func (s *CVE) updateVulnCheck(ctx context.Context, lastModStartDate *time.Time) error {
 	if lastModStartDate != nil {
 		// Use the last mod start date to fetch the last 24 hours of data.
@@ -501,6 +503,8 @@ func (s *CVE) updateVulnCheck(ctx context.Context, lastModStartDate *time.Time) 
 	return nil
 }
 
+// syncVulncheckIndexCVEs iterates through the VulnCheck index cursor feed
+// and updates the NVD feeds with the latest VulnCheck data.
 func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time.Time) error {
 	var (
 		baseURL    = "https://api.vulncheck.com/v3/index/nist-nvd2/cursor"
@@ -511,7 +515,7 @@ func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time
 	)
 
 	// If lastModStartDate is nil, it's assumed that the most recent VulnCheck
-	// archive has been processed so only the last 24 hours of data needs to be
+	// archive has been processed so only the last day of data needs to be
 	// fetched.
 	if lastModStartDate == nil {
 		lastModStartDate = ptr.Time(time.Now().AddDate(0, 0, -1))
@@ -551,6 +555,7 @@ func (s *CVE) syncVulncheckIndexCVEs(ctx context.Context, lastModStartDate *time
 	return nil
 }
 
+// DoVulnCheckCheck runs the synchronization from the VulnCheck service to the local DB directory.
 func (s *CVE) DoVulnCheck(ctx context.Context) error {
 	ok, err := fileExists(s.lastVCModStartDateFilePath())
 	if err != nil {
@@ -583,6 +588,9 @@ func (s *CVE) DoVulnCheck(ctx context.Context) error {
 	return s.updateVulnCheck(ctx, &lastModStartDate)
 }
 
+// vulncheckArchiveSync downloads the latest VulnCheck archive from the VulnCheck API.
+// This is faster than fetching bulk data from the index feed and only runs
+// with VULNERABILITIES_CLEAN=true.
 func (s *CVE) vulncheckArchiveSync(ctx context.Context) error {
 	vulnCheckArchive := "vulncheck.zip"
 	baseURL := "https://api.vulncheck.com/v3/backup/nist-nvd2"

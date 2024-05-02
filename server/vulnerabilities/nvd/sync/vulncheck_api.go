@@ -43,20 +43,24 @@ type VulnCheckResponseMeta struct {
 	NextCursor string `json:"next_cursor"`
 }
 
+// getVulnCheckIndexCVEs fetches CVEs from the Vulncheck Index API
+// with retries and backoff
 func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, url, cursor *string, lastModStartDate time.Time) (VulnCheckResponse, error) {
 	apiKey := os.Getenv("VULNCHECK_API_KEY")
 	if apiKey == "" {
 		return VulnCheckResponse{}, ctxerr.New(ctx, "VULNCHECK_API_KEY not set")
 	}
-	var vcr VulnCheckResponse
 
+	var vcr VulnCheckResponse
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, *url, nil)
 	if err != nil {
 		return vcr, fmt.Errorf("new request: %w", err)
 	}
 
+	// Set the Authorization header
 	req.Header.Add("Authorization", "Bearer "+apiKey)
 
+	// Set the query parameters
 	q := req.URL.Query()
 	if cursor != nil {
 		q.Add("cursor", *cursor)
@@ -65,6 +69,7 @@ func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, url, cursor *string, la
 	q.Add("lastModStartDate", lastModStartDate.Format("2006-01-02"))
 	req.URL.RawQuery = q.Encode()
 
+	// Retry the request with backoff
 	for attempt := 0; attempt < s.MaxTryAttempts; attempt++ {
 		start := time.Now()
 		resp, err := s.client.Do(req)
@@ -82,7 +87,7 @@ func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, url, cursor *string, la
 
 		if resp.StatusCode != http.StatusOK {
 			if attempt < s.MaxTryAttempts-1 {
-				level.Debug(s.logger).Log("msg", "Non-OK HTTP status received, waiting %f s", waitTimeForRetry.Seconds(), "attempt", attempt, "status", resp.Status)
+				level.Debug(s.logger).Log("msg", "Non-OK HTTP status received", "retry_in_seconds", waitTimeForRetry.Seconds(), "attempt", attempt, "status", resp.Status)
 				time.Sleep(s.WaitTimeForRetry)
 				continue
 			}
