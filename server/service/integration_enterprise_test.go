@@ -8747,8 +8747,8 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 			"install_uuid": "uuid0",
 			"pre_install_condition_output": "1",
 			"install_script_exit_code": 1,
-			"install_script_output": %q
-		}`, *host.OrbitNodeKey, base64.StdEncoding.EncodeToString([]byte(`failed`)))),
+			"install_script_output": "failed"
+		}`, *host.OrbitNodeKey)),
 		http.StatusNoContent)
 	checkResults(result{
 		HostID:                    host.ID,
@@ -8777,12 +8777,10 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 			"install_uuid": "uuid2",
 			"pre_install_condition_output": "1",
 			"install_script_exit_code": 0,
-			"install_script_output": %q,
+			"install_script_output": "success",
 			"post_install_script_exit_code": 1,
-			"post_install_script_output": %q
-		}`, *host.OrbitNodeKey,
-			base64.StdEncoding.EncodeToString([]byte(`success`)),
-			base64.StdEncoding.EncodeToString([]byte(`failed`)))),
+			"post_install_script_output": "failed"
+		}`, *host.OrbitNodeKey)),
 		http.StatusNoContent)
 	checkResults(result{
 		HostID:                    host.ID,
