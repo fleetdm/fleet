@@ -3447,14 +3447,14 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			assert.Nil(t, got.InstallScriptOutput)
 		} else {
 			assert.NotNil(t, got.InstallScriptOutput)
-			assert.Equal(t, string(want.InstallScriptOutput), *got.InstallScriptOutput)
+			assert.EqualValues(t, want.InstallScriptOutput, got.InstallScriptOutput)
 		}
 		assert.Equal(t, want.PostInstallScriptExitCode, got.PostInstallScriptExitCode)
 		if want.PostInstallScriptOutput == nil {
 			assert.Nil(t, got.PostInstallScriptOutput)
 		} else {
 			assert.NotNil(t, got.PostInstallScriptOutput)
-			assert.Equal(t, string(want.PostInstallScriptOutput), *got.PostInstallScriptOutput)
+			assert.EqualValues(t, want.InstallScriptOutput, got.InstallScriptOutput)
 		}
 	}
 
@@ -3464,9 +3464,9 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		InstallUUID:               "uuid0",
 		PreInstallConditionOutput: ptr.String("1"),
 		InstallScriptExitCode:     ptr.Int(0),
-		InstallScriptOutput:       []byte(`ok`),
+		InstallScriptOutput:       ptr.String("ok"),
 		PostInstallScriptExitCode: ptr.Int(0),
-		PostInstallScriptOutput:   []byte(`ok`),
+		PostInstallScriptOutput:   ptr.String("ok"),
 	}
 	err := ds.SetHostSoftwareInstallResult(ctx, want)
 	require.NoError(t, err)
@@ -3487,7 +3487,7 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		HostID:                host.ID,
 		InstallUUID:           "uuid2",
 		InstallScriptExitCode: ptr.Int(1),
-		InstallScriptOutput:   []byte(`fail`),
+		InstallScriptOutput:   ptr.String("fail"),
 	}
 	err = ds.SetHostSoftwareInstallResult(ctx, want)
 	require.NoError(t, err)
@@ -3498,7 +3498,7 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		HostID:                host.ID,
 		InstallUUID:           "uuid-no-such",
 		InstallScriptExitCode: ptr.Int(0),
-		InstallScriptOutput:   []byte(`ok`),
+		InstallScriptOutput:   ptr.String("ok"),
 	})
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
