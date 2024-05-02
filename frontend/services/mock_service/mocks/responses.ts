@@ -10591,6 +10591,13 @@ const globalQuery6 = { query: globalQueries.queries[6] };
 const teamQuery1 = { query: teamQueries.queries[0] };
 const teamQuery2 = { query: teamQueries.queries[1] };
 
+const aiAutofillPolicy = {
+  description:
+    "The firewall is not enabled, exposing the laptop to potential security threats such as unauthorized access, data breaches, and malware attacks.",
+  resolution:
+    "The maintenance will probably involve investigation of the firewall status, troubleshooting any issues found, and enabling the firewall to ensure the laptop's security.",
+};
+
 export default {
   count,
   hosts,
@@ -10606,4 +10613,5 @@ export default {
   teamQueries,
   teamQuery1,
   teamQuery2,
+  aiAutofillPolicy,
 };
