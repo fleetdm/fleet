@@ -929,6 +929,8 @@ type GetSoftwareInstallerMetadataFunc func(ctx context.Context, id uint) (*fleet
 
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
+type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2294,6 +2296,9 @@ type DataStore struct {
 
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
+
+	GetSoftwareInstallResultsFunc        GetSoftwareInstallResultsFunc
+	GetSoftwareInstallResultsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5481,4 +5486,11 @@ func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	s.DeleteSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareInstallerFunc(ctx, id)
+}
+
+func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallResultsFunc(ctx, resultsUUID)
 }
