@@ -9016,13 +9016,16 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 
 	// No global query results should be deleted
 	rows, err = ds.QueryResultRows(ctx, query0Global.ID, tf)
+	require.NoError(t, err)
 	require.Len(t, rows, 5)
 	// Results for h1 should be gone, and results for hostStaticOnTeam1 should be here.
 	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, hostStaticOnTeam1.ID, rows[0].HostID)
 	// Results for h2 and h3 should be gone.
 	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	require.NoError(t, err)
 	require.Empty(t, rows)
 
 	// h1 should have only the global result.
