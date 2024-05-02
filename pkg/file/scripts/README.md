@@ -9,7 +9,9 @@ Scripts are stored on their own files for two reasons:
 
 #### Variables
 
-Because the scripts are shared between Go and JS, the convention is to declare variables using `$VAR_NAME` and document its intended usage here.
+The scrips in this folder accept variables like `$VAR_NAME` that will be replaced/populated by `fleetd` when they run.
+
+Supported variables are:
 
 - `$INSTALLER_PATH` path to the installer file.
 

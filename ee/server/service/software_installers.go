@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/hex"
-	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -55,9 +54,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.InstallScript == "" {
-		installerType := file.InstallerType(strings.TrimPrefix(filepath.Ext(payload.Filename), "."))
-		installerPath := "some path" // TODO: where does this come from?
-		payload.InstallScript = file.GetInstallScript(installerType, installerPath)
+		payload.InstallScript = file.GetInstallScript(payload.Filename)
 	}
 
 	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
