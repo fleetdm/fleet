@@ -2935,7 +2935,7 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 
 	// create 4 global hosts
 	var globalHosts []*fleet.Host
-	for i := 4; i < 8; i++ {
+	for i := 100; i < 104; i++ {
 		h, err := ds.NewHost(
 			context.Background(),
 			&fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i)), TeamID: nil},
@@ -3032,6 +3032,21 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	policy2, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "global policy 2"})
 	require.NoError(t, err)
 
+	// new team
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// create 4 team2 hosts
+	for i := 4; i < 8; i++ {
+		h, err := ds.NewHost(
+			context.Background(), &fleet.Host{
+				OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i)), TeamID: &team2.ID,
+			},
+		)
+		require.NoError(t, err)
+		teamHosts = append(teamHosts, h)
+	}
+
 	// Update policy results for all hosts.
 	// All fail policy 1, all pass policy 2
 	for _, h := range globalHosts {
@@ -3060,7 +3075,7 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	// check policy 1 host counts
 	policy, err = ds.Policy(context.Background(), policy.ID)
 	require.NoError(t, err)
-	require.Equal(t, uint(8), policy.FailingHostCount)
+	require.Equal(t, uint(12), policy.FailingHostCount)
 	require.Equal(t, uint(0), policy.PassingHostCount)
 	require.NotNil(t, policy.HostCountUpdatedAt)
 	assert.True(
@@ -3074,7 +3089,7 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	policy2, err = ds.Policy(context.Background(), policy2.ID)
 	require.NoError(t, err)
 	require.Equal(t, uint(0), policy2.FailingHostCount)
-	require.Equal(t, uint(8), policy2.PassingHostCount)
+	require.Equal(t, uint(12), policy2.PassingHostCount)
 	require.NotNil(t, policy2.HostCountUpdatedAt)
 	assert.True(
 		t, policy2.HostCountUpdatedAt.Compare(now) >= 0,
