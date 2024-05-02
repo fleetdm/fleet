@@ -184,7 +184,7 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 ### Fix a laptop that's not checking in
-It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything).  When this happens, Fleet's takes the following steps to remotely fix the laptop and get it checking in to Fleet again:
+It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
 
 1. TODO
 If the host is still enrolled in MDM, use fleetctl mdm run-command CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/mdm-commands/apple/send-fleetd.xml to the device, which will reinstall fleetd.
