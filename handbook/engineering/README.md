@@ -17,7 +17,6 @@ This handbook page details processes specific to working [with](#team) and [with
 ## Responsibilities
 The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
 
-
 ### Record engineering KPIs
 We track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring.
 The metrics are:
@@ -116,7 +115,6 @@ Next, create a new GitHub issue using the [Release QA template](https://github.c
 
 The issue's template will contain validation steps for Fleet and individual `fleetd` components. Remove any instructions that do not apply to this release.
 
-
 ### Indicate your product group is release-ready
 Once a product group completes its QA process during the freeze period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
 
@@ -168,7 +166,6 @@ Immediately after publishing a new release, we close out the associated GitHub i
 ### Update the Fleet releases calendar
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
 
-
 ### Secure company-issued equipment for a team member
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The BizOps engineer will work with the new team member to get their equipment requested and shipped to them on time.
 
@@ -183,10 +180,8 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 
  > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
-
 ### Register a domain for Fleet
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
-
 
 ### Fix a laptop that's not checking in
 It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything).  When this happens, Fleet's takes the following steps to remotely fix the laptop and get it checking in to Fleet again:
@@ -236,20 +231,18 @@ ChromeOS devices are automatically enrolled in dogfood after the IT admin sets u
   - Enter disk encryption key on laptop. This should prompt you to create a new password.
 - You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
 
-
 ### Book an event
 The Business Operations department is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
 
 > Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
 
-<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to business-operations.rituals.yml
+<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
 
 ### Create an article
 Article creation begins with creation of an issue using the "Article request" template.
 
 1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
 2. Move the issue into the "📃 Planned articles" column.
-
 
 ### Review ongoing articles
 Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
@@ -285,8 +278,6 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
     - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
     - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
     - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
-
-
 
 ### Review a community pull request
 If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
@@ -442,10 +433,8 @@ Distinguish between the root cause of the bug, which by that time was solved and
 - **Postmortem action items**
 Each action item will have an owner that will be responsible for creating a Github issue promptly after the meeting. This Github issue should be prioritized with the relevant PM/EM.
 
-
 ## Rituals
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
-
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
@@ -458,7 +447,6 @@ Please see [docs/contributing/infrastructure](https://fleetdm.com/docs/contribut
 ##### Infrastructure links
 ##### Best practices for containers
 Please see [docs/contributing/infrastructure](https://fleetdm.com/docs/contributing/infrastructure) for **above**
-
 
 ##### Measurement
 Please see [handbook/engineering#record-engineering-kpis](https://fleetdm.com/handbook/engineering#record-engineering-kpis)
