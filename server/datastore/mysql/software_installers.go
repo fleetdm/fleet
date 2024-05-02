@@ -184,3 +184,36 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 
 	return ctxerr.Wrap(ctx, err, "inserting new install software request")
 }
+
+func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	query := `
+SELECT
+	hsi.execution_id AS execution_id,
+	hsi.pre_install_query_output AS pre_install_query_output,
+	hsi.post_install_script_output AS post_install_script_output,
+	hsi.install_script_output AS install_script_output,
+	hsi.host_id AS host_id,
+	h.computer_name AS host_display_name,
+	st.name AS software_title,
+	st.id AS software_title_id
+	
+FROM
+	host_software_installs hsi
+	JOIN hosts h ON h.id = hsi.host_id
+	JOIN software_installers si ON si.id = hsi.software_installer_id
+	JOIN software_titles st ON si.title_id = st.id
+WHERE
+	hsi.execution_id = ?
+	`
+
+	var dest fleet.HostSoftwareInstallerResult
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, resultsUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostSoftwareInstallerResult"), "get host software installer results")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host software installer results")
+	}
+
+	return &dest, nil
+}

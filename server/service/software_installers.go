@@ -177,18 +177,32 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	return fleet.ErrMissingLicense
 }
 
-type getSoftwareInstallResultsRequest struct{}
-
-type getSoftwareInstallResultsResponse struct{}
-
-func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	return nil, nil
+type getSoftwareInstallResultsRequest struct {
+	InstallUUID string `url:"install_uuid"`
 }
 
-func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) error {
+type getSoftwareInstallResultsResponse struct {
+	Err     error                              `json:"error,omitempty"`
+	Results *fleet.HostSoftwareInstallerResult `json:"results,omitempty"`
+}
+
+func (r getSoftwareInstallResultsResponse) error() error { return r.Err }
+
+func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getSoftwareInstallResultsRequest)
+
+	results, err := svc.GetSoftwareInstallResults(ctx, req.InstallUUID)
+	if err != nil {
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	return &getSoftwareInstallResultsResponse{Results: results}, nil
+}
+
+func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
