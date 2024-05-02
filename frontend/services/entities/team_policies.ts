@@ -147,7 +147,6 @@ export default {
       mergeInherited,
     };
 
-    console.log("queryParams", queryParams);
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${TEAMS}/${teamId}/policies?${queryString}`;

@@ -102,7 +102,6 @@ const generateTableHeaders = (
     selectedTeamId?: number | null;
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
-    // onlyInheritedPolicies: boolean;
   },
   policiesList: IPolicyStats[] = [],
   isPremiumTier?: boolean,
