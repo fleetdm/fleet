@@ -11,7 +11,7 @@ import (
 func (ds *Datastore) ListPendingSoftwareInstallDetails(ctx context.Context, hostID uint) ([]*fleet.SoftwareInstallDetails, error) {
 	const stmt = `
   SELECT
-    hsi.host_id AS host_id
+    hsi.host_id AS host_id,
     hsi.execution_id AS execution_id,
     hsi.software_installer_id AS installer_id,
     si.pre_install_query AS pre_install_condition,
