@@ -14,15 +14,18 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import { SupportedPlatform } from "interfaces/platform";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
+import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import InheritedBadge from "components/InheritedBadge";
 import { COLORS } from "styles/var/colors";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
@@ -101,18 +104,19 @@ interface IDataColumn {
 
 interface IGenerateTableHeaders {
   currentUser: IUser;
-  isInherited?: boolean;
   currentTeamId?: number;
+  omitSelectionColumn?: boolean;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = ({
   currentUser,
-  isInherited = false,
   currentTeamId,
+  omitSelectionColumn = false,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
+  const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -152,6 +156,11 @@ const generateTableHeaders = ({
                     </ReactTooltip>
                   </>
                 )}
+                {viewingTeamScope &&
+                  // inherited
+                  cellProps.row.original.team_id !== currentTeamId && (
+                    <InheritedBadge tooltipContent="This query runs on all hosts." />
+                  )}
               </>
             }
             path={PATHS.QUERY_DETAILS(
@@ -246,26 +255,27 @@ const generateTableHeaders = ({
       ),
     },
   ];
-  if (!isOnlyObserver && !isInherited) {
-    tableHeaders.splice(0, 0, {
+  if (!isOnlyObserver && !omitSelectionColumn) {
+    tableHeaders.unshift({
       id: "selection",
-      Header: (cellProps: IHeaderProps): JSX.Element => {
-        const {
-          getToggleAllRowsSelectedProps,
-          toggleAllRowsSelected,
-        } = cellProps;
-        const { checked, indeterminate } = getToggleAllRowsSelectedProps();
+      // TODO - improve typing of IHeaderProps instead of using any
+      // Header: (headerProps: IHeaderProps): JSX.Element => {
+      Header: (headerProps: any): JSX.Element => {
+        const checkboxProps = getConditionalSelectHeaderCheckboxProps({
+          headerProps,
+          checkIfRowIsSelectable: (row) =>
+            (row.original.team_id ?? undefined) === currentTeamId,
+        });
 
-        const checkboxProps = {
-          value: checked,
-          indeterminate,
-          onChange: () => {
-            toggleAllRowsSelected();
-          },
-        };
         return <Checkbox {...checkboxProps} />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
+        const isInheritedQuery =
+          (cellProps.row.original.team_id ?? undefined) !== currentTeamId;
+        if (viewingTeamScope && isInheritedQuery) {
+          // disallow selecting inherited queries
+          return <></>;
+        }
         const { row } = cellProps;
         const { checked } = row.getToggleRowSelectedProps();
         const checkboxProps = {
