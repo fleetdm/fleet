@@ -258,6 +258,7 @@ const ManagePolicyPage = ({
         orderDirection: sortDirection,
         orderKey: sortHeader,
         teamId: teamIdForApi || 0,
+        mergeInherited: !!teamIdForApi,
       },
     ],
     ({ queryKey }) => {
@@ -272,9 +273,9 @@ const ManagePolicyPage = ({
   );
 
   const {
-    data: teamPoliciesCountIncludeInherited,
-    isFetching: isFetchingTeamCountIncludeInherited,
-    refetch: refetchTeamPoliciesCountIncludeInherited,
+    data: teamPoliciesCountMergeInherited,
+    isFetching: isFetchingTeamCountMergeInherited,
+    refetch: refetchTeamPoliciesCountMergeInherited,
   } = useQuery<
     IPoliciesCountResponse,
     Error,
@@ -283,10 +284,10 @@ const ManagePolicyPage = ({
   >(
     [
       {
-        scope: "teamPoliciesCountIncludeInherited",
+        scope: "teamPoliciesCountMergeInherited",
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
-        includeInherited: !!teamIdForApi,
+        mergeInherited: !!teamIdForApi,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -314,7 +315,7 @@ const ManagePolicyPage = ({
         scope: "teamPoliciesCount",
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
-        includeInherited: false,
+        // Do not include inherited policies
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -326,8 +327,6 @@ const ManagePolicyPage = ({
       select: (data) => data.count,
     }
   );
-
-  console.log("teamPoliciesCount", teamPoliciesCount);
 
   const canAddOrDeletePolicy: boolean =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
@@ -370,7 +369,7 @@ const ManagePolicyPage = ({
   const refetchPolicies = (teamId?: number) => {
     if (teamId) {
       refetchTeamPolicies();
-      refetchTeamPoliciesCountIncludeInherited();
+      refetchTeamPoliciesCountMergeInherited();
       refetchTeamPoliciesCount();
     } else {
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
@@ -660,8 +659,9 @@ const ManagePolicyPage = ({
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             renderPoliciesCount={() =>
-              !isFetchingTeamCountIncludeInherited &&
-              renderPoliciesCount(teamPoliciesCountIncludeInherited)
+              (!isFetchingTeamCountMergeInherited &&
+                renderPoliciesCount(teamPoliciesCountMergeInherited)) ||
+              null
             }
             isPremiumTier={isPremiumTier}
             isSandboxMode={isSandboxMode}
@@ -686,7 +686,9 @@ const ManagePolicyPage = ({
             isPremiumTier={isPremiumTier}
             isSandboxMode={isSandboxMode}
             renderPoliciesCount={() =>
-              !isFetchingGlobalCount && renderPoliciesCount(globalPoliciesCount)
+              (!isFetchingGlobalCount &&
+                renderPoliciesCount(globalPoliciesCount)) ||
+              null
             }
             searchQuery={searchQuery}
             sortHeader={sortHeader}

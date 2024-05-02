@@ -10,7 +10,6 @@ import {
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
-import { createMockPoliciesResponse } from "__mocks__/policyMock";
 
 interface IPoliciesApiQueryParams {
   page?: number;
@@ -22,7 +21,7 @@ interface IPoliciesApiQueryParams {
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
   teamId: number;
-  includeInherited?: boolean;
+  mergeInherited?: boolean;
 }
 
 export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
@@ -30,14 +29,14 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId" | "includeInherited"> {
-  scope: "teamPoliciesCountIncludeInherited" | "teamPoliciesCount";
+  extends Pick<IPoliciesApiParams, "query" | "teamId" | "mergeInherited"> {
+  scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
 }
 
 interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
-  includeInherited?: boolean;
+  mergeInherited?: boolean;
 }
 
 const ORDER_KEY = "name";
@@ -135,7 +134,7 @@ export default {
     orderKey = ORDER_KEY,
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
-    includeInherited,
+    mergeInherited,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -145,9 +144,10 @@ export default {
       orderKey,
       orderDirection: orderDir,
       query,
-      includeInherited,
+      mergeInherited,
     };
 
+    console.log("queryParams", queryParams);
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${TEAMS}/${teamId}/policies?${queryString}`;
@@ -155,42 +155,24 @@ export default {
       throw new Error("Invalid team id");
     }
 
-    if (teamId === 2) {
-      return new Promise((resolve, reject) => {
-        console.log(
-          "createMockPoliciesResponse()",
-          createMockPoliciesResponse()
-        );
-        resolve(createMockPoliciesResponse());
-      });
-    }
-
     return sendRequest("GET", path);
   },
   getCount: async ({
     query,
     teamId,
-    includeInherited = true,
+    mergeInherited = false,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId" | "includeInherited"
+    "query" | "teamId" | "mergeInherited"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
     const queryParams = {
       query,
-      includeInherited,
+      mergeInherited,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
-
-    // Example testing code
-    if (teamId === 2) {
-      // if (includeInherited === false) {
-      //   return { count: 0 };
-      // }
-      return { count: 3 };
-    }
 
     return sendRequest("GET", path.concat(`?${queryString}`));
   },

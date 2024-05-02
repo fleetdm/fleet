@@ -27,8 +27,7 @@ interface IPoliciesTableProps {
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
-  // onClientSidePaginationChange?: (pageIndex: number) => void;
-  renderPoliciesCount: any; // TODO: typing
+  renderPoliciesCount: () => JSX.Element | null;
   onQueryChange: (newTableQuery: ITableQueryData) => void;
   searchQuery: string;
   sortHeader?: "name" | "failing_host_count";
@@ -48,7 +47,6 @@ const PoliciesTable = ({
   isPremiumTier,
   isSandboxMode,
   onQueryChange,
-  // onClientSidePaginationChange,
   renderPoliciesCount,
   searchQuery,
   sortHeader,

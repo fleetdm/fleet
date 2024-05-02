@@ -102,6 +102,7 @@ const generateTableHeaders = (
     selectedTeamId?: number | null;
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
+    // onlyInheritedPolicies: boolean;
   },
   policiesList: IPolicyStats[] = [],
   isPremiumTier?: boolean,
@@ -302,59 +303,60 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
   ];
+  console.log(
+    "hasPermissionAndPoliciesToDelete",
+    hasPermissionAndPoliciesToDelete
+  );
+  if (hasPermissionAndPoliciesToDelete) {
+    tableHeaders.unshift({
+      id: "selection",
+      Header: (headerProps: any) => {
+        // When viewing team policies select all checkbox accounts for not selecting inherited policies
+        const teamCheckboxProps = configUtils.getConditionalSelectHeaderCheckboxProps(
+          {
+            headerProps,
+            checkIfRowIsSelectable: (row) => row.original.team_id !== null,
+          }
+        );
 
-  if (!hasPermissionAndPoliciesToDelete) {
-    return tableHeaders;
-  }
+        // Regular table selection logic
+        const {
+          getToggleAllRowsSelectedProps,
+          toggleAllRowsSelected,
+        } = headerProps;
+        const { checked, indeterminate } = getToggleAllRowsSelectedProps();
 
-  tableHeaders.unshift({
-    id: "selection",
-    Header: (headerProps: any) => {
-      // When viewing team policies select all checkbox accounts for not selecting inherited policies
-      const teamCheckboxProps = configUtils.getConditionalSelectHeaderCheckboxProps(
-        {
-          headerProps,
-          checkIfRowIsSelectable: (row) => row.original.team_id !== null,
+        const regularCheckboxProps = {
+          value: checked,
+          indeterminate,
+          onChange: () => {
+            toggleAllRowsSelected();
+          },
+        };
+
+        const checkboxProps = viewingTeamPolicies
+          ? teamCheckboxProps
+          : regularCheckboxProps;
+        return <Checkbox {...checkboxProps} />;
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const inheritedPolicy = !cellProps.row.original.team_id;
+        const props = cellProps.row.getToggleRowSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          onChange: () => cellProps.row.toggleRowSelected(),
+        };
+
+        // When viewing team policies and a row is an inherited policy, do not render checkbox
+        if (viewingTeamPolicies && inheritedPolicy) {
+          return <></>;
         }
-      );
 
-      // Regular table selection logic
-      const {
-        getToggleAllRowsSelectedProps,
-        toggleAllRowsSelected,
-      } = headerProps;
-      const { checked, indeterminate } = getToggleAllRowsSelectedProps();
-
-      const regularCheckboxProps = {
-        value: checked,
-        indeterminate,
-        onChange: () => {
-          toggleAllRowsSelected();
-        },
-      };
-
-      const checkboxProps = viewingTeamPolicies
-        ? teamCheckboxProps
-        : regularCheckboxProps;
-      return <Checkbox {...checkboxProps} />;
-    },
-    Cell: (cellProps: ICellProps): JSX.Element => {
-      const inheritedPolicy = !cellProps.row.original.team_id;
-      const props = cellProps.row.getToggleRowSelectedProps();
-      const checkboxProps = {
-        value: props.checked,
-        onChange: () => cellProps.row.toggleRowSelected(),
-      };
-
-      // When viewing team policies and a row is an inherited policy, do not render checkbox
-      if (viewingTeamPolicies && inheritedPolicy) {
-        return <></>;
-      }
-
-      return <Checkbox {...checkboxProps} />;
-    },
-    disableHidden: true,
-  });
+        return <Checkbox {...checkboxProps} />;
+      },
+      disableHidden: true,
+    });
+  }
 
   return tableHeaders;
 };
