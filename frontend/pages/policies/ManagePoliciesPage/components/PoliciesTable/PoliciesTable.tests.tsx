@@ -21,7 +21,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
-        renderPoliciesCount={noop}
+        renderPoliciesCount={() => null}
       />
     );
 
@@ -48,7 +48,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
-        renderPoliciesCount={noop}
+        renderPoliciesCount={() => null}
       />
     );
 
