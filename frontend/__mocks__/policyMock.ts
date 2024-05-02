@@ -11,7 +11,7 @@ const DEFAULT_POLICY_MOCK: IPolicyStats = {
   author_id: 1,
   author_name: "Test User",
   author_email: "test@user.com",
-  team_id: undefined,
+  team_id: null,
   resolution: "Ensure ClamAV and Freshclam are installed and running.",
   platform: "linux" as const,
   created_at: "2023-03-24T22:13:59Z",
