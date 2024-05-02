@@ -1,16 +1,13 @@
 <div purpose="calendar-feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
   <div purpose="calendar-feature-text" class="d-flex flex-column">
   <div purpose="new-badge">NEW</div>
-  <% if(!primaryBuyingSituation) {%>
-    <h3>Stop nudging</h3>
-    <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p>
-  <%} else if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
-    <h3>Put IT in your calendar</h3>
-    <p>Install updates and force restarts when your users’ computers are actually free.</p>
-  <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
+  <% if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
     <h3>Tell employees why</h3>
     <p>Use AI to explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
-  <%}%>
+  <%} else {%>
+    <h3>Put IT in your calendar</h3>
+    <p>Install updates and force restarts when your users’ computers are actually free.</p>
+  <%} %>
     <div purpose="calendar-checklist" class="flex-column d-flex">
       <p>Say goodbye to annoying IT notifications and restarts.</p>
       <p>Use AI to explain why your security policies matter.</p>
@@ -21,6 +18,6 @@
     </div>
   </div>
   <div purpose="feature-video">
-    <video autoplay loop muted purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
+    <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
   </div>
 </div>
