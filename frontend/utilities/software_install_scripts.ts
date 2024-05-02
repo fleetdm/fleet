@@ -1,5 +1,3 @@
-import { ISoftwareInstallerType } from "interfaces/software";
-
 // @ts-ignore
 import installPkg from "../../pkg/file/scripts/install_pkg.sh";
 // @ts-ignore
@@ -12,10 +10,6 @@ import installDeb from "../../pkg/file/scripts/install_deb.sh";
 /*
  * getInstallScript returns a string with a script to install the
  * provided software.
- *
- * Note that we don't do any sanitization of the arguments here,
- * delegating that to the caller which should have the right context
- * about what should be escaped.
  * */
 const getInstallScript = (fileName: string): string => {
   const extension = fileName.split(".").pop();
@@ -29,8 +23,7 @@ const getInstallScript = (fileName: string): string => {
     case "exe":
       return installExe;
     default:
-      // this should never happen as this function is type-guarded
-      throw new Error(`unsupported file type: ${filetype}`);
+      throw new Error(`unsupported file extension: ${extension}`);
   }
 };
 
