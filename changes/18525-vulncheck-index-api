@@ -1,0 +1,1 @@
+- vulnerability processing now uses the Vulncheck Index API feed to gather CPEs more frequently
