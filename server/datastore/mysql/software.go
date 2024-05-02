@@ -1058,7 +1058,6 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 
 	stmt := `SELECT id, software_id, cpe FROM software_cpe`
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, args...)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 	}
@@ -1423,7 +1422,7 @@ WHERE
 	cleanupStmt := `
 DELETE st FROM software_titles st
 	LEFT JOIN software s ON s.title_id = st.id
-	WHERE s.title_id IS NULL`
+	WHERE s.title_id IS NULL AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)`
 
 	res, err = ds.writer(ctx).ExecContext(ctx, cleanupStmt)
 	if err != nil {
