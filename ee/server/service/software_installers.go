@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"encoding/hex"
+	"errors"
+	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -189,4 +191,48 @@ func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID st
 		Installer: installer,
 		Size:      size,
 	}, nil
+}
+
+func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
+	// we need to use ds.Host because ds.HostLite doesn't return the orbit
+	// node key
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		// if error is because the host does not exist, check first if the user
+		// had access to install software (to prevent leaking valid host ids).
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
+				return err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
+		// fleetd is required to install software so if the host is
+		// enrolled via plain osquery we return an error
+		svc.authz.SkipAuthorization(ctx)
+		// TODO(roberto): for cleanup task, confirm with product error message.
+		return fleet.NewUserMessageError(errors.New("Host doesn't have fleetd installed"), http.StatusUnprocessableEntity)
+	}
+
+	// authorize with the host's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, softwareTitleID, host.TeamID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{
+				Message:     "The software title provided doesn't have an installer",
+				InternalErr: ctxerr.Wrapf(ctx, err, "couldn't find an installer for software title"),
+			}
+		}
+
+		return ctxerr.Wrap(ctx, err, "inserting software install request")
+	}
+
+	return nil
 }

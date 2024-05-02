@@ -270,7 +270,7 @@ func msiDecodeRune(x rune) rune {
 		return x - 10 - 26 + 'a'
 	} else if x == 10+26+26 {
 		return '.'
-	} else {
-		return '_'
 	}
+
+	return '_'
 }
