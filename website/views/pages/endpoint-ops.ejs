@@ -20,7 +20,7 @@
             <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
           <% } else if(['eo-security', 'vm'].includes(primaryBuyingSituation)) { %>
             <strong>Osquery on easy mode</strong>
-            <p>You don’t need to be an osquery expert to get the answers you need from your devices, Fleet does some of that for you.</p>
+            <p>You don’t need to be an osquery expert to get the answers you need from your endpoints.</p>
             <strong>Pulse check anything</strong>
             <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
             <strong>Ship data to any platform</strong>
@@ -31,7 +31,7 @@
             <strong>Ship data to any platform</strong>
             <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
             <strong>Osquery on easy mode</strong>
-            <p>You don’t need to be an osquery expert to get the answers you need from your devices, Fleet does some of that for you.</p>
+            <p>You don’t need to be an osquery expert to get the answers you need from your devices.</p>
           <% }%>
           <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
             <a purpose="cta-button" href="/register">Start now</a>
@@ -190,7 +190,7 @@
       </div>
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>Osquery on easy mode</h3>
-        <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your devices, Fleet takes care of some of that for you.</p>
+        <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your <%= ['vm', 'eo-security'].includes(primaryBuyingSituation) ? 'endpoints' : 'devices' %>.</p>
         <div purpose="checklist" class="flex-column d-flex">
           <p>Remotely disable/enable agent features, choose plugins, and keep osquery up to date.</p>
           <p>Import community queries from other security teams at top brands like Palantir and Fastly.</p>
