@@ -149,24 +149,6 @@ module.exports = {
       fleetLicenseKey: licenseKey,
     });
 
-    // Send a POST request to Zapier
-    await sails.helpers.http.post(
-      'https://hooks.zapier.com/hooks/catch/3627242/blhrvf1/',
-      {
-        'emailAddress': this.req.me.emailAddress,
-        'numberOfHosts': quoteRecord.numberOfHosts,
-        'subscriptionPrice': quoteRecord.quotedPrice,
-        'nextBillingTimestamp': new Date(subscription.current_period_end * 1000).toISOString(),
-        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
-      }
-    )
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user purchased a Fleet Premium license, a lead/contact could not be updated in the CRM for this email address: ${this.req.me.emailAddress}. Raw error: ${err}`);
-      return;
-    });
-
     // Send the order confirmation template email
     await sails.helpers.sendTemplateEmail.with({
       to: this.req.me.emailAddress,
