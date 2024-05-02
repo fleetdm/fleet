@@ -1301,7 +1301,8 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 
 	// Update Counts for Global and Team Policies
 	// The performance of this query is linear with the number of policies.
-	_, err = ds.writer(ctx).ExecContext(ctx, `
+	_, err = db.ExecContext(
+		ctx, `
 		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
 		SELECT
 			p.id,
