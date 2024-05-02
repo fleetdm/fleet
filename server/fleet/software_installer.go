@@ -115,6 +115,15 @@ type HostSoftwareInstallerResult struct {
 	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
 }
 
+type HostSoftwareInstallerResultAuthz struct {
+	HostTeamID *uint `json:"host_team_id"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
+	return "host_software_installer_result"
+}
+
 type UploadSoftwareInstallerPayload struct {
 	TeamID            *uint
 	InstallScript     string

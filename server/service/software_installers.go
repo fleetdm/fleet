@@ -140,3 +140,39 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 
 	return fleet.ErrMissingLicense
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Request to install software in a host
+/////////////////////////////////////////////////////////////////////////////////
+
+type installSoftwareRequest struct {
+	HostID          uint `url:"host_id"`
+	SoftwareTitleID uint `url:"software_title_id"`
+}
+
+type installSoftwareResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r installSoftwareResponse) error() error { return r.Err }
+
+func (r installSoftwareResponse) Status() int { return http.StatusAccepted }
+
+func installSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*installSoftwareRequest)
+
+	err := svc.InstallSoftwareTitle(ctx, req.HostID, req.SoftwareTitleID)
+	if err != nil {
+		return installSoftwareResponse{Err: err}, nil
+	}
+
+	return installSoftwareResponse{}, nil
+}
+
+func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}

@@ -490,6 +490,9 @@ type Datastore interface {
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitle, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 
+	// InsertSoftwareInstallRequest tracks a new request to install the provided software installer in the host
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 

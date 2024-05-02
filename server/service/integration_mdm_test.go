@@ -8469,52 +8469,6 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadAndDelete() {
 	t := s.T()
 
-	openFile := func(name string) *os.File {
-		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
-		require.NoError(t, err)
-		return f
-	}
-
-	uploadSoftwareInstaller := func(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
-		f := openFile(payload.Filename)
-		defer f.Close()
-
-		payload.InstallerFile = f
-
-		var b bytes.Buffer
-		w := multipart.NewWriter(&b)
-
-		// add the software field
-		fw, err := w.CreateFormFile("software", payload.Filename)
-		require.NoError(t, err)
-		n, err := io.Copy(fw, payload.InstallerFile)
-		require.NoError(t, err)
-		require.NotZero(t, n)
-
-		// add the team_id field
-		if payload.TeamID != nil {
-			require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", *payload.TeamID)))
-		}
-		// add the remaining fields
-		require.NoError(t, w.WriteField("install_script", payload.InstallScript))
-		require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
-		require.NoError(t, w.WriteField("post_install_script", payload.PostInstallScript))
-
-		w.Close()
-
-		headers := map[string]string{
-			"Content-Type":  w.FormDataContentType(),
-			"Accept":        "application/json",
-			"Authorization": fmt.Sprintf("Bearer %s", s.token),
-		}
-
-		r := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", b.Bytes(), expectedStatus, headers)
-		if expectedError != "" {
-			errMsg := extractServerErrorText(r.Body)
-			require.Contains(t, errMsg, expectedError)
-		}
-	}
-
 	checkSoftwareTitle := func(t *testing.T, title string, source string) uint {
 		var id uint
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -8583,13 +8537,13 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadAndDelete() {
 			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
 		}
 
-		uploadSoftwareInstaller(payload, http.StatusOK, "")
+		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
 		// check the software installer
 		installerID := checkSoftwareInstaller(t, payload)
 
 		// upload again fails
-		uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/package/%d", installerID), nil, http.StatusNoContent)
@@ -8615,15 +8569,119 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadAndDelete() {
 			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
 		}
 
-		uploadSoftwareInstaller(payload, http.StatusOK, "")
+		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
 		// check the software installer
 		installerID := checkSoftwareInstaller(t, payload)
 
 		// upload again fails
-		uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/package/%d", installerID), nil, http.StatusNoContent)
 	})
+}
+
+func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
+	t := s.T()
+
+	getTitleID := func(t *testing.T, title string, source string) uint {
+		var id uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`, title, source)
+		})
+		return id
+	}
+
+	var resp installSoftwareResponse
+	// non-existent host
+	s.DoJSON("POST", "/api/v1/fleet/hosts/1/software/install/1", nil, http.StatusNotFound, &resp)
+
+	// create a host that doesn't have fleetd installed
+	h, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// request fails
+	resp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/1", h.ID), nil, http.StatusUnprocessableEntity, &resp)
+
+	// host installs fleetd
+	setOrbitEnrollment(t, h, s.ds)
+
+	// request fails because of non-existent title
+	resp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/1", h.ID), nil, http.StatusBadRequest, &resp)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "another install script",
+		PreInstallQuery:   "another pre install query",
+		PostInstallScript: "another post install script",
+		Filename:          "ruby.deb",
+		Title:             "ruby",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	// install script request succeds
+	titleID := getTitleID(t, payload.Title, "deb_packages")
+	resp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
+
+	// TODO(roberto): once we have endpoints to retrieve installers,
+	// request them using the orbit node key
+}
+
+func (s *integrationMDMTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
+	t := s.T()
+	openFile := func(name string) *os.File {
+		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
+		require.NoError(t, err)
+		return f
+	}
+
+	f := openFile(payload.Filename)
+	defer f.Close()
+
+	payload.InstallerFile = f
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the software field
+	fw, err := w.CreateFormFile("software", payload.Filename)
+	require.NoError(t, err)
+	n, err := io.Copy(fw, payload.InstallerFile)
+	require.NoError(t, err)
+	require.NotZero(t, n)
+
+	// add the team_id field
+	if payload.TeamID != nil {
+		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", *payload.TeamID)))
+	}
+	// add the remaining fields
+	require.NoError(t, w.WriteField("install_script", payload.InstallScript))
+	require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
+	require.NoError(t, w.WriteField("post_install_script", payload.PostInstallScript))
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	r := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", b.Bytes(), expectedStatus, headers)
+	if expectedError != "" {
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, expectedError)
+	}
 }
