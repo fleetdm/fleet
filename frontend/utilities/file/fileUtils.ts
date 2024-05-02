@@ -6,12 +6,16 @@ const getFileExtension = (file: File) => {
 };
 
 export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
-  IPlatformDisplayName,
-  string[]
+  string,
+  IPlatformDisplayName
 > = {
-  macOS: ["json", "pkg", "mobileconfig"],
-  Windows: ["exe", "msi", "xml"],
-  linux: ["deb"],
+  json: "macOS",
+  pkg: "macOS",
+  mobileconfig: "macOS",
+  exe: "Windows",
+  msi: "Windows",
+  xml: "Windows",
+  deb: "linux",
 };
 
 /**
@@ -19,16 +23,5 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
  */
 export const getPlatformDisplayName = (file: File) => {
   const fileExt = getFileExtension(file);
-  const keys = Object.keys(
-    FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME
-  ) as IPlatformDisplayName[];
-
-  const platformKey = keys.find((key) => {
-    const foundExt = FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[key].find(
-      (ext) => ext === fileExt
-    );
-    return foundExt !== undefined;
-  });
-
-  return platformKey ?? "";
+  return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };

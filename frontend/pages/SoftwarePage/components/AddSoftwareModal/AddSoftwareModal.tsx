@@ -72,7 +72,6 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
   }, [isUploading]);
 
   const onAddSoftware = async (formData: IAddSoftwareFormData) => {
-    console.log("formData", formData);
     setIsUploading(true);
 
     try {
