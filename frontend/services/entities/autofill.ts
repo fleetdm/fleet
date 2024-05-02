@@ -1,5 +1,4 @@
-// import sendRequest from "services";
-import { sendRequest } from "services/mock_service/service/service";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
 export type IAutofillPolicy = {
@@ -9,8 +8,11 @@ export type IAutofillPolicy = {
 
 export default {
   getPolicyInterpretationFromSQL: (sql: string): Promise<IAutofillPolicy> => {
-    const { AUTOFILL_POLICIES } = endpoints;
+    const { AUTOFILL_POLICY } = endpoints;
 
-    return sendRequest("POST", AUTOFILL_POLICIES, sql);
+    // API expects JSON object with key "sql"
+    const data = JSON.stringify({ sql });
+
+    return sendRequest("POST", AUTOFILL_POLICY, data);
   },
 };

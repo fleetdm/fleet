@@ -130,7 +130,7 @@ export default {
     `/${API_VERSION}/fleet/software/versions/${id}`,
 
   // AI endpoints
-  AUTOFILL_POLICIES: `/${API_VERSION}/fleet/autofill/policies`,
+  AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
 
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
