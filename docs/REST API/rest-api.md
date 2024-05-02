@@ -4184,7 +4184,7 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
 | id          | integer | path | **Required**. The label's id. |
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
-| hosts       | array   | body | The list of host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name` to add to the label.|
+| hosts       | array   | body | The list of host identifiers (`hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name`) to add to the label. |
 
 
 #### Example
