@@ -2039,13 +2039,13 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		WHERE
 			execution_id = ?
 `
-	var installOutput *string
+	var installOutput string
 	if result.InstallScriptOutput != nil {
-		installOutput = result.InstallScriptOutput
+		installOutput = *result.InstallScriptOutput
 	}
-	var postInstallOutput *string
+	var postInstallOutput string
 	if result.PostInstallScriptOutput != nil {
-		postInstallOutput = result.PostInstallScriptOutput
+		postInstallOutput = *result.PostInstallScriptOutput
 	}
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
 		result.PreInstallConditionOutput,
