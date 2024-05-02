@@ -4,7 +4,6 @@
 import React from "react";
 import {
   formatDistanceToNowStrict,
-  isAfter,
   millisecondsToHours,
   millisecondsToMinutes,
 } from "date-fns";
@@ -13,7 +12,6 @@ import ReactTooltip from "react-tooltip";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
@@ -21,6 +19,7 @@ import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 import { COLORS } from "styles/var/colors";
+import configUtils from "components/TableContainer/utilities/config_utils";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -101,15 +100,15 @@ const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
 const generateTableHeaders = (
   options: {
     selectedTeamId?: number | null;
-    canAddOrDeletePolicy?: boolean;
+    hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
   },
   policiesList: IPolicyStats[] = [],
   isPremiumTier?: boolean,
   isSandboxMode?: boolean
 ): IDataColumn[] => {
-  const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
-
+  const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
+  const viewingTeamPolicies = selectedTeamId !== -1;
   // Figure the time since the host counts were updated.
   // First, find first policy item with host_count_updated_at.
   const updatedAt =
@@ -146,7 +145,7 @@ const generateTableHeaders = (
               {isPremiumTier && cellProps.row.original.critical && (
                 <>
                   <span
-                    className="tooltip-base"
+                    className="critical-badge"
                     data-tip
                     data-for={`critical-tooltip-${cellProps.row.original.id}`}
                   >
@@ -172,6 +171,27 @@ const generateTableHeaders = (
                         This is a premium feature.
                       </>
                     )}
+                  </ReactTooltip>
+                </>
+              )}
+              {viewingTeamPolicies && !cellProps.row.original.team_id && (
+                <>
+                  <span
+                    className="inherited-badge"
+                    data-tip
+                    data-for={`inherited-tooltip-${cellProps.row.original.id}`}
+                  >
+                    Inherited
+                  </span>
+                  <ReactTooltip
+                    className="inherited-tooltip"
+                    place="top"
+                    type="dark"
+                    effect="solid"
+                    id={`inherited-tooltip-${cellProps.row.original.id}`}
+                    backgroundColor={COLORS["tooltip-bg"]}
+                  >
+                    This policy runs on all hosts.
                   </ReactTooltip>
                 </>
               )}
@@ -282,29 +302,55 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
   ];
-
-  if (tableType !== "inheritedPolicies") {
-    if (!canAddOrDeletePolicy) {
-      return tableHeaders;
-    }
-
+  console.log(
+    "hasPermissionAndPoliciesToDelete",
+    hasPermissionAndPoliciesToDelete
+  );
+  if (hasPermissionAndPoliciesToDelete) {
     tableHeaders.unshift({
       id: "selection",
-      Header: (cellProps: IHeaderProps) => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
+      Header: (headerProps: any) => {
+        // When viewing team policies select all checkbox accounts for not selecting inherited policies
+        const teamCheckboxProps = configUtils.getConditionalSelectHeaderCheckboxProps(
+          {
+            headerProps,
+            checkIfRowIsSelectable: (row) => row.original.team_id !== null,
+          }
+        );
+
+        // Regular table selection logic
+        const {
+          getToggleAllRowsSelectedProps,
+          toggleAllRowsSelected,
+        } = headerProps;
+        const { checked, indeterminate } = getToggleAllRowsSelectedProps();
+
+        const regularCheckboxProps = {
+          value: checked,
+          indeterminate,
+          onChange: () => {
+            toggleAllRowsSelected();
+          },
         };
+
+        const checkboxProps = viewingTeamPolicies
+          ? teamCheckboxProps
+          : regularCheckboxProps;
         return <Checkbox {...checkboxProps} />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
+        const inheritedPolicy = !cellProps.row.original.team_id;
         const props = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
           value: props.checked,
           onChange: () => cellProps.row.toggleRowSelected(),
         };
+
+        // When viewing team policies and a row is an inherited policy, do not render checkbox
+        if (viewingTeamPolicies && inheritedPolicy) {
+          return <></>;
+        }
+
         return <Checkbox {...checkboxProps} />;
       },
       disableHidden: true,
