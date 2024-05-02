@@ -56,7 +56,7 @@ Please give me all of the above in JSON, with this data shape:
 
 Please do not add any text outside of the JSON report or wrap it in a code fence.`;
 // > Note that this returns `whatWillHappenDuringMaintenance` instead of `whatWillProbablyHappenDuringMaintenance`.
-// > This naming gets better (more decisive-sounding) results from Open AI. We'll rename it for our final response.
+// > This naming gets a better (more decisive-sounding) result from Open AI. We'll rename it for our final response.
 
     // Fallback message in case LLM API request fails.
     let failureMessage = 'Failed to generate human interpretation using generative AI.';
