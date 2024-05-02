@@ -921,6 +921,12 @@ type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
+type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
+
+type GetSoftwareInstallerMetadataFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
+
+type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2274,6 +2280,15 @@ type DataStore struct {
 
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
+
+	MatchOrCreateSoftwareInstallerFunc        MatchOrCreateSoftwareInstallerFunc
+	MatchOrCreateSoftwareInstallerFuncInvoked bool
+
+	GetSoftwareInstallerMetadataFunc        GetSoftwareInstallerMetadataFunc
+	GetSoftwareInstallerMetadataFuncInvoked bool
+
+	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
+	DeleteSoftwareInstallerFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5433,4 +5448,25 @@ func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Conte
 	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostLockWipeStatusFromAppleMDMResultFunc(ctx, hostUUID, cmdUUID, requestType, succeeded)
+}
+
+func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	s.mu.Lock()
+	s.MatchOrCreateSoftwareInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.MatchOrCreateSoftwareInstallerFunc(ctx, payload)
+}
+
+func (s *DataStore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallerMetadataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallerMetadataFunc(ctx, id)
+}
+
+func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteSoftwareInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSoftwareInstallerFunc(ctx, id)
 }

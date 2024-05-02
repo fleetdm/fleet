@@ -1455,6 +1455,19 @@ type Datastore interface {
 	// Apple hosts. It is optimized to update using only the information
 	// available in the Apple MDM protocol.
 	UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID, cmdUUID, requestType string, succeeded bool) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Software installers
+	//
+
+	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
+	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
+
+	// GetSoftwareInstallerMetadata returns the software installer corresponding to the id.
+	GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*SoftwareInstaller, error)
+
+	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
+	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

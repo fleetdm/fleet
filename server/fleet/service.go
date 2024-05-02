@@ -996,4 +996,11 @@ type Service interface {
 	LockHost(ctx context.Context, hostID uint) error
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Software installers
+	//
+
+	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) error
+	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 }
