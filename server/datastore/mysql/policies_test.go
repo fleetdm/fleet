@@ -761,6 +761,21 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	require.Len(t, merged, 2)
 	assert.Equal(t, p.ID, merged[0].ID)
 	assert.Equal(t, gpol.ID, merged[1].ID)
+
+	// Test filter
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		MatchQuery: "query1",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		MatchQuery: "query2",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, p.ID, merged[0].ID)
 }
 
 func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform string, teamID *uint) *fleet.Host {

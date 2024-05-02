@@ -596,7 +596,7 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
 		AND ps.inherited_team_id = COALESCE(p.team_id, 0)
-		WHERE p.team_id = ? OR p.team_id IS NULL
+		WHERE (p.team_id = ? OR p.team_id IS NULL)
     `
 
 	args = append(args, teamID)
