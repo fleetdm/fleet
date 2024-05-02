@@ -941,21 +941,13 @@ func TestEventDescription(t *testing.T) {
 		err = json.Unmarshal(calendarEvents[hostCalEvent.HostID].Data, &details)
 		require.NoError(t, err)
 		description := createdCalendarEvents[details["id"]].Description
+		defaultDescriptionWithOrg := fmt.Sprintf("%s %s", orgName, defaultDescription)
 		switch hostCalEvent.HostID {
 		case hostID1, hostID6:
 			assert.Contains(t, description, "Description for policy 1")
 			assert.Contains(t, description, "Resolution for policy 1")
-		case hostID2:
-			assert.Contains(t, description, "Description for policy 2")
-			assert.Contains(t, description, defaultResolution)
-		case hostID3:
-			assert.Contains(t, description, "Description for policy 3")
-			assert.Contains(t, description, defaultResolution)
-		case hostID4:
-			assert.Contains(t, description, fmt.Sprintf("%s %s", orgName, defaultDescription))
-			assert.Contains(t, description, "Resolution for policy 4")
-		case hostID5, hostID7:
-			assert.Contains(t, description, fmt.Sprintf("%s %s", orgName, defaultDescription))
+		default:
+			assert.Contains(t, description, defaultDescriptionWithOrg)
 			assert.Contains(t, description, defaultResolution)
 		}
 	}

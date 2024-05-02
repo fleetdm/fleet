@@ -616,8 +616,7 @@ func getCalendarEventDescriptionAndResolution(
 
 	var description, resolution string
 	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
-	switch {
-	case len(policyIDs) == 1 && policyIDs[0] != "":
+	if len(policyIDs) == 1 && policyIDs[0] != "" {
 		var policy *fleet.PolicyLite
 		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
 		if !ok {
@@ -636,22 +635,14 @@ func getCalendarEventDescriptionAndResolution(
 			policy = policyAny.(*fleet.PolicyLite)
 		}
 		policyDescription := strings.TrimSpace(policy.Description)
-		if policyDescription == "" {
+		if policyDescription == "" || policy.Resolution == nil || strings.TrimSpace(*policy.Resolution) == "" {
 			description = getDefaultDescription()
-		} else {
-			description = policyDescription
-		}
-		if policy.Resolution == nil {
 			resolution = defaultResolution
 		} else {
-			policyResolution := strings.TrimSpace(*policy.Resolution)
-			if policyResolution == "" {
-				resolution = defaultResolution
-			} else {
-				resolution = policyResolution
-			}
+			description = policyDescription
+			resolution = strings.TrimSpace(*policy.Resolution)
 		}
-	default:
+	} else {
 		description = getDefaultDescription()
 		resolution = defaultResolution
 	}
