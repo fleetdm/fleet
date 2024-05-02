@@ -176,7 +176,6 @@ module.exports = {
         } else {// If the user is ready to deploy Fleet in their work environemnt, then they're ready to get buy-in from their team, so set their psyStage to 5.
           psychologicalStage = '5 - Personally confident';
         }
-        // If the user selects "I’d like you to host Fleet for me", the form is not submitted, and they are taken to the /contact page instead. FUTURE: set stage to stage 5.
       } else if(currentStep === 'how-was-your-deployment') {
         if(valueFromFormData === 'decided-to-not-use-fleet') {
           psychologicalStage = '2 - Aware';
@@ -184,13 +183,20 @@ module.exports = {
           psychologicalStage = '6 - Has team buy-in';
         }
       } else if(currentStep === 'how-many-hosts') {
-        // If they have Fleet deployed, they have team buy-in
-        psychologicalStage = '6 - Has team buy-in';
+        if(['yes-deployed', 'yes-recently-deployed'].includes(hasUsedFleetAnswer)) {
+          // If the user has Fleet deployed, set their stage to 6.
+          psychologicalStage = '6 - Has team buy-in';
+        } else {
+          psychologicalStage = '5 - Personally confident';
+        }
       } else if(currentStep === 'will-you-be-self-hosting') {
-        // If they have Fleet deployed, they have team buy-in
-        psychologicalStage = '6 - Has team buy-in';
+        if(['yes-deployed', 'yes-recently-deployed'].includes(hasUsedFleetAnswer)) {
+          // If the user has Fleet deployed, set their stage to 6.
+          psychologicalStage = '6 - Has team buy-in';
+        } else {
+          psychologicalStage = '5 - Personally confident';
+        }
       }//ﬁ
-
     }//ﬁ
 
     // Only update CRM records if the user's psychological stage changes.

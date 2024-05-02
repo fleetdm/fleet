@@ -424,11 +424,11 @@
       <p>Now that you’ve seen what Fleet can do, what do you want to do next?</p>
       <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['what-did-you-think']" :form-rules="endpointOpsSecurityWhatDidYouThinkFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div class="form-group" :class="[formErrors.whatDidYouThink ? 'is-invalid' : '']">
-          <div purpose="form-option" class="form-control" @click.stop.prevent="clickGoToContactPage()">
-            <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="host-fleet-for-me">
+          <label purpose="form-option" class="form-control" :class="[formData['what-did-you-think'].whatDidYouThink === 'host-fleet-for-me' ? 'selected' : '']">
+            <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="host-fleet-for-me" @input="clickClearOneFormError('whatDidYouThink')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             I’d like you to host Fleet for me
-          </div>
+          </label>
           <label purpose="form-option" class="form-control" :class="[formData['what-did-you-think'].whatDidYouThink === 'deploy-fleet-in-environment' ? 'selected' : '']">
             <input type="radio" v-model.trim="formData['what-did-you-think'].whatDidYouThink" value="deploy-fleet-in-environment" @input="clickClearOneFormError('whatDidYouThink')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
