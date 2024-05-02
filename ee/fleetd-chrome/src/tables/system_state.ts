@@ -5,6 +5,18 @@ export default class TableSystemState extends Table {
   columns = ["idle_state"];
 
   async generate() {
+    if (!chrome.idle.getAutoLockDelay) {
+      return {
+        data: [],
+        warnings: [
+          {
+            column: "idle_state",
+            error_message: "chrome.idle.getAutoLockDelay API is only available on ChromeOS for screen lock details",
+          },
+        ],
+      };
+    }
+
     // @ts-ignore ignore typing which is out-of-date
     const autoLockDelay: number = await new Promise((resolve) => {
       chrome.idle.getAutoLockDelay((delay) => {

@@ -13,9 +13,6 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
 
-  // Bypass the `is-logged-in` policy for experiments, such as temporary landing pages.
-  'imagine/*': true,
-
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
   'webhooks/*': true,
@@ -23,7 +20,6 @@ module.exports.policies = {
   'view-homepage-or-redirect': true,
   'view-faq': true,
   'view-contact': true,
-  'view-fleetctl-preview': true,// Redirects not-logged-in users to /try-fleet/login
   'view-pricing': true,
   'legal/view-terms': true,
   'legal/view-privacy': true,
@@ -38,8 +34,6 @@ module.exports.policies = {
   'deliver-demo-signup': true,
   'articles/*': true,
   'reports/*': true,
-  'try-fleet/view-register': true,
-  'try-fleet/view-sandbox-login': true,
   'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist': true,
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
@@ -51,8 +45,6 @@ module.exports.policies = {
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-upgrade': true,
-  'deliver-premium-upgrade-form': true,
   'view-endpoint-ops': true,
   'view-vulnerability-management': true,
   'deliver-mdm-demo-email': true,
@@ -60,4 +52,7 @@ module.exports.policies = {
   'view-integrations': true,
   'try-fleet/view-explore-data': true,
   'try-fleet/view-query-report': true,
+  'deliver-talk-to-us-form-submission': true,
+  'get-human-interpretation-from-osquery-sql': true,
+  'customers/view-new-license': true,
 };

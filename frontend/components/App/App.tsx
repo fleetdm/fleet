@@ -1,6 +1,10 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { FC, ReactNode, useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
-import { QueryClient, QueryClientProvider } from "react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryClientProviderProps,
+} from "react-query";
 
 import page_titles from "router/page_titles";
 import TableProvider from "context/table";
@@ -34,6 +38,14 @@ interface IAppProps {
     query: QueryParams;
   };
 }
+
+// We create a CustomQueryClientProvider that takes the same props as the original
+// QueryClientProvider but adds the children prop as a ReactNode. This children
+// prop is not required explicitly in React 18. We do it this way to avoid
+// having to update the react-query package version and typings for now.
+// When we upgrade React Query we should be able to remove this.
+type ICustomQueryClientProviderProps = React.PropsWithChildren<QueryClientProviderProps>;
+const CustomQueryClientProvider: FC<ICustomQueryClientProviderProps> = QueryClientProvider;
 
 const baseClass = "app";
 
@@ -170,7 +182,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   return isLoading ? (
     <Spinner />
   ) : (
-    <QueryClientProvider client={queryClient}>
+    <CustomQueryClientProvider client={queryClient}>
       <TableProvider>
         <QueryProvider>
           <PolicyProvider>
@@ -185,7 +197,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
           </PolicyProvider>
         </QueryProvider>
       </TableProvider>
-    </QueryClientProvider>
+    </CustomQueryClientProvider>
   );
 };
 

@@ -12,6 +12,10 @@ import (
 const (
 	MDMPlatformApple     = "apple"
 	MDMPlatformMicrosoft = "microsoft"
+
+	MDMAppleDeclarationUUIDPrefix = "d"
+	MDMAppleProfileUUIDPrefix     = "a"
+	MDMWindowsProfileUUIDPrefix   = "w"
 )
 
 type AppleMDM struct {
@@ -410,6 +414,24 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		CreatedAt:   cp.CreatedAt,
 		UploadedAt:  cp.UploadedAt,
 		Labels:      cp.Labels,
+	}
+}
+
+func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfigProfilePayload {
+	var tid *uint
+	if decl.TeamID != nil && *decl.TeamID > 0 {
+		tid = decl.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID: decl.DeclarationUUID,
+		TeamID:      tid,
+		Name:        decl.Name,
+		Identifier:  decl.Identifier,
+		Platform:    "darwin",
+		Checksum:    []byte(decl.Checksum),
+		CreatedAt:   decl.CreatedAt,
+		UploadedAt:  decl.UploadedAt,
+		Labels:      decl.Labels,
 	}
 }
 

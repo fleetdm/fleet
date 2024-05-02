@@ -302,8 +302,12 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				return err
 			}
 		},
-		retry.WithInterval(OrbitRetryInterval()),
+		// The below configuration means the following retry intervals (exponential backoff):
+		// 10s, 20s, 40s, 80s, 160s and then return the failure (max attempts = 6)
+		// thus executing no more than ~6 enroll request failures every ~5 minutes.
+		retry.WithInterval(orbitEnrollRetryInterval()),
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
+		retry.WithBackoffMultiplier(constant.OrbitEnrollBackoffMultiplier),
 	); err != nil {
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
 	}
@@ -402,7 +406,7 @@ func (oc *OrbitClient) setLastRecordedError(err error) {
 	oc.lastRecordedErr = fmt.Errorf("%s: %w", time.Now().UTC().Format("2006-01-02T15:04:05Z"), err)
 }
 
-func OrbitRetryInterval() time.Duration {
+func orbitEnrollRetryInterval() time.Duration {
 	interval := os.Getenv("FLEETD_ENROLL_RETRY_INTERVAL")
 	if interval != "" {
 		d, err := time.ParseDuration(interval)

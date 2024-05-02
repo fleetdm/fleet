@@ -22,6 +22,7 @@ const DEFAULT_POLICY_MOCK: IPolicyStats = {
   webhook: "Off",
   has_run: true,
   next_update_ms: 3600000,
+  calendar_events_enabled: true,
 };
 
 const createMockPolicy = (overrides?: Partial<IPolicyStats>): IPolicyStats => {

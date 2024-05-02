@@ -41,7 +41,7 @@ const CreateTeamModal = ({
   );
 
   const onFormSubmit = useCallback(
-    (evt) => {
+    (evt: any) => {
       evt.preventDefault();
       onSubmit({
         name,

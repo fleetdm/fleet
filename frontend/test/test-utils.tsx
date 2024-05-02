@@ -47,15 +47,6 @@ interface ICustomRenderOptions {
   withBackendMock?: boolean;
 }
 
-// TODO: types
-// type RenderOptionsWithoutUserEvents = ICustomRenderOptions & {
-//   withUserEvents: false;
-// };
-
-// type RenderOptionsWithUserEvents = ICustomRenderOptions & {
-//   withUserEvents: true;
-// };
-
 const CONTEXT_PROVIDER_MAP = {
   app: AppContext,
   notification: NotificationContext,
@@ -70,8 +61,8 @@ interface IWrapperComponentProps {
 }
 
 const createWrapperComponent = (
-  CurrentWrapper: React.FC<any>, // TODO: types
-  WrapperComponent: React.FC<any>, // TODO: types
+  CurrentWrapper: React.FC<React.PropsWithChildren<any>>, // TODO: types
+  WrapperComponent: React.FC<React.PropsWithChildren<any>>, // TODO: types
   props: IWrapperComponentProps
 ) => {
   return ({ children }: IChildrenProp) => (

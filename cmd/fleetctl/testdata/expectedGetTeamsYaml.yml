@@ -9,6 +9,8 @@ spec:
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
+    integrations:
+      google_calendar: null
     mdm:
       enable_disk_encryption: false
       macos_updates:
@@ -24,6 +26,7 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
+        enable_release_device_manually: false
         macos_setup_assistant:
     scripts: null
     webhook_settings:
@@ -49,6 +52,8 @@ spec:
     host_expiry_settings:
       host_expiry_enabled: true
       host_expiry_window: 15
+    integrations:
+      google_calendar: null
     mdm:
       enable_disk_encryption: false
       macos_updates:
@@ -64,6 +69,7 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
+        enable_release_device_manually: false
         macos_setup_assistant:
     scripts: null
     webhook_settings:

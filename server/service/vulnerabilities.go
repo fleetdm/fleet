@@ -24,6 +24,7 @@ type listVulnerabilitiesRequest struct {
 type listVulnerabilitiesResponse struct {
 	Vulnerabilities []fleet.VulnerabilityWithMetadata `json:"vulnerabilities"`
 	Count           uint                              `json:"count"`
+	CountsUpdatedAt time.Time                         `json:"counts_updated_at"`
 	Meta            *fleet.PaginationMetadata         `json:"meta,omitempty"`
 	Err             error                             `json:"error,omitempty"`
 }
@@ -42,10 +43,18 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 		return listVulnerabilitiesResponse{Err: err}, nil
 	}
 
+	updatedAt := time.Now()
+	for _, vuln := range vulns {
+		if vuln.HostsCountUpdatedAt.Before(updatedAt) {
+			updatedAt = vuln.HostsCountUpdatedAt
+		}
+	}
+
 	return listVulnerabilitiesResponse{
 		Vulnerabilities: vulns,
 		Meta:            meta,
 		Count:           count,
+		CountsUpdatedAt: updatedAt,
 	}, nil
 }
 

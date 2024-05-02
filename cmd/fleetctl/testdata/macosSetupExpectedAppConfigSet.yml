@@ -10,7 +10,11 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 0
   integrations:
+    google_calendar: null
     jira: null
     zendesk: null
   mdm:
@@ -32,6 +36,7 @@ spec:
       bootstrap_package: %s
       enable_end_user_authentication: false
       macos_setup_assistant: %s
+      enable_release_device_manually: false
     macos_updates:
       deadline: null
       minimum_version: null

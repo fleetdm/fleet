@@ -15,13 +15,6 @@
           width: $col-md;
         }
       }
-
-      tbody {
-        .name__cell {
-          white-space: nowrap;
-          text-overflow: ellipsis;
-        }
-      }
     }
   }
 }

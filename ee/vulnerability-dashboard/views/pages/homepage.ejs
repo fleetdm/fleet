@@ -1,0 +1,106 @@
+<div id="homepage" v-cloak>
+  <div style="padding-top: 100px; padding-bottom: 25px; color: #14acc2;" class="d-flex flex-column justify-content-center position-relative" purpose="full-page-hero">
+    <div class="container text-center">
+      <div style="width: 220px; height: 170px;" class="mx-auto position-relative">
+        <img style="width: 170px; left: 25px; top: 25px;" class="position-absolute" alt="The sky above the ocean" src="/images/hero-sky.png"/>
+        <img style="width: 80px; top: 55px; left: -40px;" class="position-absolute" purpose="cloud-1" alt="A grayish-blue cloud" src="/images/hero-cloud.png"/>
+        <img style="width: 80px; top: 45px; left: -40px;" class="position-absolute" purpose="cloud-2" alt="Another grayish-blue cloud" src="/images/hero-cloud.png"/>
+        <img style="width: 160px; bottom: 50px; left: 18px;" class="position-absolute" purpose="ship" alt="A ship hovering a few feet over the surface of the water, bearing a flagpole with the Sails.js logo" src="/images/hero-ship.png"/>
+        <img style="width: 170px; bottom: 40px; left: 25px;" class="position-absolute" alt="The shadow of the floating ship on the water" src="/images/hero-water.png"/>
+      </div>
+      <h1 class="display-4 pb-5">A new <strong>Sails</strong> app.</h1>
+      <div>
+        <div style="cursor: pointer; bottom: 25px; left: 0;" class="position-absolute w-100 mt-5" purpose="more-info-text" @click="clickHeroButton()">
+          <div style="letter-spacing: 2px;" class="text-uppercase font-weight-bold">Dive in</div>
+          <div style="font-size: 20px;">&darr;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="background-color: rgba(238, 245, 249, 0.72);" class="text-center py-5" purpose="scroll-destination">
+    <div class="container pt-3 pb-5" purpose="about-section">
+      <h3>This is your freshly-generated project + a few extras.</h3>
+      <p style="max-width: 800px;" class="mx-auto">In our time <a target="_blank" href="https://sailsjs.com/about">building apps for customers</a>, we've found ourselves re-rolling some of the same key features over and over again between projects.  So we picked some of the things that kept popping up, implemented our own opinionated solutions for them, and then included it all in this free and open-source starter app.  We hope it helps you as much as it helps us!</p>
+      <div class="row pt-5">
+        <div class="mb-4 mb-sm-0 col-sm">
+          <div style="color: #fff; background-color: #14acc2; font-size: 35px; line-height: 75px; height: 75px; width: 75px;" class="rounded-circle mx-auto text-center mb-3">
+            <i class="fa fa-envelope"></i>
+          </div>
+          <h4>Emails</h4>
+          <p class="text-muted">Built-in support for internal emails from the <a href="/contact">contact form</a>, as well as transactional emails for users.</p>
+        </div>
+        <div class="pt-4 pt-sm-0 mb-4 mb-sm-0 col-sm">
+          <div style="color: #fff; background-color: #14acc2; font-size: 35px; line-height: 75px; height: 75px; width: 75px;" class="rounded-circle mx-auto text-center mb-3">
+            <i class="fa fa-lock"></i>
+          </div>
+          <h4>Authentication</h4>
+          <p class="text-muted">Ready-to-go, customizable <a href="/signup">sign up</a>, <a href="/login">login</a>, and <a href="/password/forgot">password recovery</a> flows for your users.</p>
+        </div>
+        <div class="pt-4 pt-sm-0 col-sm">
+          <div style="color: #fff; background-color: #14acc2; font-size: 35px; line-height: 75px; height: 75px; width: 75px;" class="rounded-circle mx-auto text-center mb-3">
+            <i class="fa fa-credit-card"></i>
+          </div>
+          <h4>Billing</h4>
+          <p class="text-muted">Hook up to your Stripe account for managing customers and payment sources.</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-info mt-3" href="/faq">Learn more</a>
+    </div>
+  </div>
+  <div class="container pt-5">
+    <div class="pt-5" purpose="setup-section">
+      <h3 class="text-center">How to get started:</h3>
+      <div class="position-relative my-5" purpose="setup-step">
+        <div style="left: 0; top: 0; width: 140px;" class="position-absolute d-none d-lg-block">
+          <img alt="computer with email symbol on screen" src="/images/setup-email.png" class="w-100"/>
+        </div>
+        <h5>Set up your branding and content</h5>
+        <p>This starter app includes several different page templates (including the one you're reading right now) that you can change as much or as little as you like.  If there are any pages you won't need, just remove them.</p>
+        <p>To get started, do a global find/replace in this project for occurrences of <code>NEW_APP_NAME</code> and replace them all with the actual name of your app or platform (e.g. "Facebag").  Then do the same thing again to replace <code>NEW_APP_COMPANY_NAME</code> with the actual name of your organization (e.g. "Facebag Corporation").</p>
+        <blockquote><small>This app also includes a default <a href="/legal/terms">Terms of Use</a> and <a href="/legal/privacy">Privacy Policy</a>.  We want to make it easier for apps to be transparent about their users' rights and privacy.  But we are developers, not lawyers; and this is <em>definitely not legal advice</em>.  Before going live, be sure to replace these example documents with your own company's policies, and <a href="https://en.wikipedia.org/wiki/Counsel" target="_blank">seek counsel</a> for assistance if you need to design new terms from scratch.</small></blockquote>
+      </div>
+      <div class="position-relative my-5" purpose="setup-step">
+        <div style="left: 0; top: 0; width: 140px;" class="position-absolute d-none d-lg-block">
+          <img alt="computer with credit card icon on screen" src="/images/setup-payment.png" class="w-100"/>
+        </div>
+        <h5>Configure integrations</h5>
+        <p>In order for this app to send automated emails, you'll need to create a <a target="_blank" href="https://sendgrid.com/">Sendgrid</a> account.  Then, in <code>config/custom.js</code>, configure the following:</p>
+        <div class="card bg-light mb-4">
+          <div class="card-body"><pre><code><span class="text-muted">// Recipient of contact form messages</span>
+internalEmailAddress: my.email@example.com,
+
+<span class="text-muted">// For outgoing emails</span>
+fromEmailAddress: 'noreply@example.com',
+fromName: 'The NEW_APP_NAME Team',
+
+<span class="text-muted">// Sendgrid settings</span>
+sendgridSecret: 'SG.fake.3e0Bn0qSQVnwb1E4qNPz9JZP5vLZYqjh7sn8S93oSHU'</code></pre>
+          </div>
+        </div>
+        <p>To enable support for billing features, you'll need to make a <a target="_blank" href="https://stripe.com">Stripe</a> account, then include your test credentials like so:</p>
+        <div class="card bg-light mb-4">
+          <div class="card-body"><pre><code><span class="text-muted">// Stripe credentials</span>
+stripePublishableKey: 'pk_test_Zzd814nldl91104qor5911gjald',
+stripeSecret: 'sk_test_Zzd814nldl91104qor5911gjald'</code></pre>
+          </div>
+        </div>
+        <blockquote><small>If your app doesn't need payment processing, it will still work without Stripe configuration. In this case, all references to billing will just be omitted from the UI.</small></blockquote>
+      </div>
+      <div class="position-relative my-5" purpose="setup-step">
+        <div style="left: 0; top: 0; width: 140px;" class="position-absolute d-none d-lg-block">
+          <img alt="computer with sails logo on screen" src="/images/setup-customize.png" class="w-100"/>
+        </div>
+        <h5>Customize</h5>
+        <p>Once the initial configuration is done, you're ready to start building out the rest of your app.</p>
+        <p>We worked hard to make this starter app's structure consistent and its files are as bare-bones as possible, so it's easy to add new pages and business logic following the conventions we set up. If you run into trouble, have a look at <a href="/faq">your new FAQ page</a>, which covers the tools we used and how to customize.  For a deeper dive, check out the Sails <a href="https://courses.platzi.com/courses/sails-js/">walkthrough</a>, <a href="https://sailsjs.com/documentation">reference documentation</a> and <a href="https://sailsjs.com/support">support</a> pages.</p>
+      </div>
+    </div>
+    <hr/>
+    <div class="text-center py-5" purpose="pep-talk">
+      <h3>Let's get to work.</h3>
+      <p style="max-width: 800px;" class="mx-auto">We think this project is a pretty convenient starting point, but of course there's no one-size-fits-all solution. The good news is, this app is in your hands now, so you can jump into the files and adapt it to your needs. Change some code around. Break stuff.  Fix it. And above all: <strong>make something people want to use</strong>.</p>
+      <p class="mb-5"><span class="text-muted">&hearts;</span> <a href="https://sailsjs.com/about" class="border-0">The Sails Team</a></p>
+    </div>
+  </div>
+</div>
+<%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

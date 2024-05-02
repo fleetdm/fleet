@@ -316,7 +316,7 @@ const DataTable = ({
   }, [toggleAllPagesSelected, toggleAllRowsSelected]);
 
   const onSelectRowClick = useCallback(
-    (row) => {
+    (row: any) => {
       if (disableMultiRowSelect) {
         row.toggleRowSelected();
         onSelectSingleRow && onSelectSingleRow(row);

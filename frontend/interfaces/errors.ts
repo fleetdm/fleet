@@ -204,9 +204,11 @@ export const getErrorReason = (
   return "";
 };
 
-export const ignoreAxiosError = (err: Error, ignoreStatuses: number[]) => {
-  if (!isAxiosError(err)) {
-    return false;
-  }
-  return !!err.response && ignoreStatuses.includes(err.response.status);
+export const ignoreAxiosError = (err: AxiosError, ignoreStatuses: number[]) => {
+  // TODO - isAxiosError currently not recognizing axios error, fix
+  // if (!isAxiosError(err)) {
+  //   return false;
+  // }
+  // return !!err.response && ignoreStatuses.includes(err.response.status);
+  return !!err.status && ignoreStatuses.includes(err.status);
 };

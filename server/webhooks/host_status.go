@@ -90,11 +90,11 @@ func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logge
 			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "getting team"))
 			continue
 		}
-		if !team.Config.WebhookSettings.HostStatusWebhook.Enable {
+		if team.Config.WebhookSettings.HostStatusWebhook == nil || !team.Config.WebhookSettings.HostStatusWebhook.Enable {
 			continue
 		}
 		level.Debug(logger).Log("team", id, "enable_host_status_webhook", "true")
-		err = processWebhook(ctx, ds, &id, team.Config.WebhookSettings.HostStatusWebhook)
+		err = processWebhook(ctx, ds, &id, *team.Config.WebhookSettings.HostStatusWebhook)
 		if err != nil {
 			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "processing webhook"))
 		}

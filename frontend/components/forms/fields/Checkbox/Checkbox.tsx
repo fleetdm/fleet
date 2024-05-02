@@ -55,21 +55,26 @@ const Checkbox = (props: ICheckboxProps) => {
     className,
     baseClass
   );
+
+  const checkBoxTickClass = classnames(`${baseClass}__tick`, {
+    [`${baseClass}__tick--disabled`]: disabled,
+    [`${baseClass}__tick--indeterminate`]: indeterminate,
+  });
+
+  const checkBoxLabelClass = classnames(checkBoxClass, {
+    [`${baseClass}__label--disabled`]: disabled,
+  });
+
   const formFieldProps = {
     ...pick(props, ["helpText", "label", "error", "name"]),
     className: wrapperClassName,
     type: "checkbox",
   } as IFormFieldProps;
 
-  const checkBoxTickClass = classnames(`${checkBoxClass}__tick`, {
-    [`${checkBoxClass}__tick--disabled`]: disabled,
-    [`${checkBoxClass}__tick--indeterminate`]: indeterminate,
-  });
-
   return (
     <FormField {...formFieldProps}>
       <>
-        <label htmlFor={name} className={checkBoxClass}>
+        <label htmlFor={name} className={checkBoxLabelClass}>
           <input
             checked={value}
             className={`${baseClass}__input`}

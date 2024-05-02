@@ -65,7 +65,7 @@ func TestAuthorizeAppConfig(t *testing.T) {
 		{user: test.UserObserverPlus, object: config, action: read, allow: true},
 		{user: test.UserObserverPlus, object: config, action: write, allow: false},
 
-		{user: test.UserGitOps, object: config, action: read, allow: false},
+		{user: test.UserGitOps, object: config, action: read, allow: true},
 		{user: test.UserGitOps, object: config, action: write, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: config, action: read, allow: true},

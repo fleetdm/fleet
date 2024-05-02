@@ -30,12 +30,12 @@
 
   &__upload-button {
     margin-top: 8px;
+    // we handle the padding in the label so the entire button is clickable
     padding: 0;
   }
 
   label {
-    height: 36px;
-    width: 78.2667px;
+    padding: $pad-small $pad-medium;
     display: flex;
     align-items: center;
     justify-content: center;

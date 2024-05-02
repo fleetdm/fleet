@@ -24,7 +24,6 @@ import StatusIndicator from "components/StatusIndicator";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
-import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 import {
@@ -318,6 +317,40 @@ const HostSummary = ({
     );
   };
 
+  const renderAgentSummary = () => {
+    if (platform === "chrome") {
+      return <DataSet title="Agent" value={summaryData.osquery_version} />;
+    }
+    if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
+      return (
+        <DataSet
+          title="Agent"
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  osquery: {summaryData.osquery_version}
+                  <br />
+                  Orbit: {summaryData.orbit_version}
+                  {summaryData.fleet_desktop_version !==
+                    DEFAULT_EMPTY_CELL_VALUE && (
+                    <>
+                      <br />
+                      Fleet Desktop: {summaryData.fleet_desktop_version}
+                    </>
+                  )}
+                </>
+              }
+            >
+              {summaryData.orbit_version}
+            </TooltipWrapper>
+          }
+        />
+      );
+    }
+    return <DataSet title="Osquery" value={summaryData.osquery_version} />;
+  };
+
   const renderSummary = () => {
     // for windows hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
@@ -369,21 +402,27 @@ const HostSummary = ({
           mdmName?.includes("Fleet") && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
-            <HostSummaryIndicator title="OS settings">
-              <OSSettingsIndicator
-                profiles={hostMdmProfiles}
-                onClick={toggleOSSettingsModal}
-              />
-            </HostSummaryIndicator>
+            <DataSet
+              title="OS settings"
+              value={
+                <OSSettingsIndicator
+                  profiles={hostMdmProfiles}
+                  onClick={toggleOSSettingsModal}
+                />
+              }
+            />
           )}
 
         {bootstrapPackageData?.status && (
-          <HostSummaryIndicator title="Bootstrap package">
-            <BootstrapPackageIndicator
-              status={bootstrapPackageData.status}
-              onClick={toggleBootstrapPackageModal}
-            />
-          </HostSummaryIndicator>
+          <DataSet
+            title="Bootstrap package"
+            value={
+              <BootstrapPackageIndicator
+                status={bootstrapPackageData.status}
+                onClick={toggleBootstrapPackageModal}
+              />
+            }
+          />
         )}
 
         {platform !== "chrome" && renderDiskSpaceSummary()}
@@ -396,7 +435,8 @@ const HostSummary = ({
         />
         <DataSet title="Processor type" value={summaryData.cpu_type} />
         <DataSet title="Operating system" value={summaryData.os_version} />
-        <DataSet title="Osquery" value={summaryData.osquery_version} />
+
+        {renderAgentSummary()}
       </Card>
     );
   };

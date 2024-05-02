@@ -1,1 +1,0 @@
-* Display disk encryption status in macOS as "verifying" while Fleet verifies if the escrowed key can be decrypted.

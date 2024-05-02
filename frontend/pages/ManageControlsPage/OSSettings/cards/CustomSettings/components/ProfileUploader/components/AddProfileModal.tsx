@@ -52,7 +52,7 @@ const FileChooser = ({
       </label>
     </Button>
     <input
-      accept=".mobileconfig,application/x-apple-aspen-config,.xml"
+      accept=".json,.mobileconfig,application/x-apple-aspen-config,.xml"
       id="upload-profile"
       type="file"
       onChange={(e) => {

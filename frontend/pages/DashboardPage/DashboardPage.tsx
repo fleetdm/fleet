@@ -18,8 +18,8 @@ import {
 } from "interfaces/macadmins";
 import {
   IMdmStatusCardData,
-  IMdmSolution,
   IMdmSummaryResponse,
+  IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
 import { SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
@@ -137,9 +137,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
-  const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
+  const [mdmSolutions, setMdmSolutions] = useState<
+    IMdmSummaryMdmSolution[] | null
+  >([]);
 
-  const selectedMdmSolution = useRef<string | null>(null);
+  const selectedMdmSolutionName = useRef<string>("");
 
   const [munkiIssuesData, setMunkiIssuesData] = useState<
     IMunkiIssuesAggregate[]
@@ -619,7 +621,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             selectedPlatformLabelId={selectedPlatformLabelId}
             selectedTeamId={currentTeamId}
             onClickMdmSolution={(mdmSolution) => {
-              selectedMdmSolution.current = mdmSolution.name;
+              selectedMdmSolutionName.current = mdmSolution.name;
               setShowMdmSolutionModal(true);
             }}
           />
@@ -727,7 +729,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }
 
     const selectedMdmSolutions = mdmSolutions?.filter(
-      (solution) => solution.name === selectedMdmSolution.current
+      (solution) => solution.name === selectedMdmSolutionName.current
     );
 
     return (
@@ -737,7 +739,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         selectedTeamId={currentTeamId}
         onCancel={() => {
           setShowMdmSolutionModal(false);
-          selectedMdmSolution.current = null;
+          selectedMdmSolutionName.current = "";
         }}
       />
     );

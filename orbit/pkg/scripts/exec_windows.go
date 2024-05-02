@@ -17,7 +17,14 @@ func execCmd(ctx context.Context, scriptPath string) (output []byte, exitCode in
 	cmd.Dir = filepath.Dir(scriptPath)
 	output, err = cmd.CombinedOutput()
 	if cmd.ProcessState != nil {
-		exitCode = cmd.ProcessState.ExitCode()
+		// The windows exit code is a 32-bit unsigned integer, but the
+		// interpreter treats it like a signed integer. When a process
+		// is killed, it returns 0xFFFFFFFF (interpreted as -1). We
+		// convert the integer to an signed 32-bit integer to flip it
+		// to a -1 to match our expectations, and fit in our db column.
+		//
+		// https://en.wikipedia.org/wiki/Exit_status#Windows
+		exitCode = int(int32(cmd.ProcessState.ExitCode()))
 	}
 	return output, exitCode, err
 }

@@ -17,7 +17,7 @@ import osVersionsAPI, {
   IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import { SUPPORT_LINK } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -102,6 +102,8 @@ const SoftwareOSDetailsPage = ({
     ],
     ({ queryKey }) => osVersionsAPI.getOSVersion(queryKey[0]),
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
       enabled: !!osVersionIdFromURL,
       select: (data) => data.os_version,
       onError: (error) => {

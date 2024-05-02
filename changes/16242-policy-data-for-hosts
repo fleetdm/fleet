@@ -1,1 +1,0 @@
-GET /hosts API endpoint can now populate policies with populate_policies=true query parameter.

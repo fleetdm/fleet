@@ -1,3 +1,0 @@
-* Allow GitOps user to access the following endpoints:
-	- GET /api/latest/fleet/mdm/hosts/:host_id/profiles
-	- GET /api/latest/fleet/hosts/identifier/:identifier

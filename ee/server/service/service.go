@@ -68,7 +68,7 @@ func NewService(
 	svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
 		HostFeatures:                      eeservice.HostFeatures,
 		TeamByIDOrName:                    eeservice.teamByIDOrName,
-		UpdateTeamMDMAppleSettings:        eeservice.updateTeamMDMAppleSettings,
+		UpdateTeamMDMDiskEncryption:       eeservice.updateTeamMDMDiskEncryption,
 		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
 		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,
@@ -76,6 +76,7 @@ func NewService(
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
 		MDMWindowsEnableOSUpdates:         eeservice.mdmWindowsEnableOSUpdates,
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
+		MDMAppleEditedMacOSUpdates:        eeservice.mdmAppleEditedMacOSUpdates,
 	})
 
 	return eeservice, nil

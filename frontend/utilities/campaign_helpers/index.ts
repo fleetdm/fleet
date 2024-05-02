@@ -9,7 +9,7 @@ interface IResult {
     distributed_query_execution_id: number;
     error: string | null;
     host: IHost;
-    rows: unknown[];
+    rows: Record<string, unknown>[];
   };
 }
 

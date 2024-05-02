@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -380,6 +381,7 @@ type MacOSSetup struct {
 	BootstrapPackage            optjson.String `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
 	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.
@@ -432,8 +434,9 @@ type AppConfig struct {
 	// SMTPSettings holds the SMTP integration settings.
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
-	SMTPSettings       *SMTPSettings      `json:"smtp_settings,omitempty"`
-	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
+	SMTPSettings           *SMTPSettings          `json:"smtp_settings,omitempty"`
+	HostExpirySettings     HostExpirySettings     `json:"host_expiry_settings"`
+	ActivityExpirySettings ActivityExpirySettings `json:"activity_expiry_settings"`
 	// Features allows to globally enable or disable features
 	Features               Features  `json:"features"`
 	DeprecatedHostSettings *Features `json:"host_settings,omitempty"`
@@ -566,6 +569,15 @@ func (c *AppConfig) Copy() *AppConfig {
 		for i, z := range c.Integrations.Zendesk {
 			zd := *z
 			clone.Integrations.Zendesk[i] = &zd
+		}
+	}
+	if len(c.Integrations.GoogleCalendar) > 0 {
+		clone.Integrations.GoogleCalendar = make([]*GoogleCalendarIntegration, len(c.Integrations.GoogleCalendar))
+		for i, g := range c.Integrations.GoogleCalendar {
+			gCal := *g
+			clone.Integrations.GoogleCalendar[i] = &gCal
+			clone.Integrations.GoogleCalendar[i].ApiKey = make(map[string]string, len(g.ApiKey))
+			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
 
@@ -809,6 +821,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
 	}
+	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
@@ -872,6 +887,12 @@ type ServerSettings struct {
 type HostExpirySettings struct {
 	HostExpiryEnabled bool `json:"host_expiry_enabled"`
 	HostExpiryWindow  int  `json:"host_expiry_window"`
+}
+
+// ActivityExpirySettings contains settings pertaining to automatic activities cleanup.
+type ActivityExpirySettings struct {
+	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
+	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
 }
 
 type Features struct {

@@ -304,7 +304,9 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		// we should not get this far before we see the directory being created
 		return nil, errors.New("shouldn't happen")
 	}
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{}, nil
 	}
 	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
@@ -452,7 +454,9 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 		return nil
 	}
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{
 			CountsUpdatedAt: time.Now(),
 			OSVersions: []fleet.OSVersion{

@@ -45,21 +45,43 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
 	}
+	ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
+		return 1, nil
+	}
+	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hid uint, scriptID uint) ([]*uint, error) {
+		return []*uint{}, nil
+	}
 
 	generateValidPath := func() string {
 		return writeTmpScriptContents(t, "echo hello world", ".sh")
 	}
-	maxChars := strings.Repeat("a", 10001)
+	exceedsMaxCharsUnsaved := strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1)
+	exceedsMaxCharsSaved := strings.Repeat("a", fleet.SavedScriptMaxRuneLen+1)
+
+	expectedOutputSuccess := `
+Exit code: 0 (Script ran successfully.)
+
+Output:
+
+-------------------------------------------------------------------------------------
+
+hello world
+
+-------------------------------------------------------------------------------------
+`
 
 	type testCase struct {
-		name           string
-		scriptPath     func() string
-		scriptResult   *fleet.HostScriptResult
-		expectOutput   string
-		expectErrMsg   string
-		expectNotFound bool
-		expectOffline  bool
-		expectPending  bool
+		name                string
+		scriptPath          func() string
+		scriptName          string
+		teamID              *uint
+		savedScriptContents func() ([]byte, error)
+		scriptResult        *fleet.HostScriptResult
+		expectOutput        string
+		expectErrMsg        string
+		expectNotFound      bool
+		expectOffline       bool
+		expectPending       bool
 	}
 
 	cases := []testCase{
@@ -83,14 +105,102 @@ func TestRunScriptCommand(t *testing.T) {
 		{
 			name:         "invalid hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#! /foo/bar", ".sh") },
-			expectErrMsg: `Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`,
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
 		},
 		{
-			name: "script too long",
-			scriptPath: func() string {
-				return writeTmpScriptContents(t, maxChars, ".sh")
+			name:         "unsupported hashbang",
+			scriptPath:   func() string { return writeTmpScriptContents(t, "#!/bin/ksh", ".sh") },
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+		},
+		{
+			name:       "posix shell hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/sh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
 			},
-			expectErrMsg: `Script is too large. It's limited to 10,000 characters (approximately 125 lines).`,
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "zsh hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/zsh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "usr zsh hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/usr/bin/zsh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "zsh hashbang with arguments",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/zsh -x", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name: "script too long (unsaved)",
+			scriptPath: func() string {
+				return writeTmpScriptContents(t, exceedsMaxCharsUnsaved, ".sh")
+			},
+			expectErrMsg: "Script is too large. Script referenced by '--script-path' is limited to 10,000 characters. To run larger script save it to Fleet and use '--script-name'.",
+		},
+		{
+			name: "script not too long (unsaved)",
+			scriptPath: func() string {
+				return writeTmpScriptContents(t, exceedsMaxCharsUnsaved[:fleet.UnsavedScriptMaxRuneLen], ".sh")
+			},
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "script too long (saved)",
+			scriptName: "foo",
+			savedScriptContents: func() ([]byte, error) {
+				return []byte(exceedsMaxCharsSaved), nil
+			},
+			expectErrMsg: "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines).",
+		},
+		{
+			name:       "script not too long (saved)",
+			scriptName: "foo",
+			savedScriptContents: func() ([]byte, error) {
+				return []byte(exceedsMaxCharsUnsaved), nil
+			},
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:         "script-path and script-name disallowed",
+			scriptPath:   generateValidPath,
+			scriptName:   "foo",
+			expectErrMsg: `Only one of '--script-path' or '--script-name' is allowed.`,
+		},
+		{
+			name:         "missing one of script-path and script-nqme",
+			expectErrMsg: `One of '--script-path' or '--script-name' must be specified.`,
+		},
+		{
+			name:         "script-path and team disallowed",
+			scriptPath:   generateValidPath,
+			teamID:       ptr.Uint(1),
+			expectErrMsg: `Only one of '--script-path' or '--team' is allowed.`,
 		},
 		{
 			name:         "script empty",
@@ -115,17 +225,7 @@ func TestRunScriptCommand(t *testing.T) {
 				ExitCode: ptr.Int64(0),
 				Output:   "hello world",
 			},
-			expectOutput: `
-Exit code: 0 (Script ran successfully.)
-
-Output:
-
--------------------------------------------------------------------------------------
-
-hello world
-
--------------------------------------------------------------------------------------
-`,
+			expectOutput: expectedOutputSuccess,
 		},
 		{
 			name:       "script failed",
@@ -184,7 +284,7 @@ Error: Scripts are disabled for this host. To run scripts, deploy the fleetd age
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(0),
-				Output:   maxChars,
+				Output:   exceedsMaxCharsUnsaved,
 			},
 			expectOutput: fmt.Sprintf(`
 Exit code: 0 (Script ran successfully.)
@@ -198,7 +298,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 %s
 
 -------------------------------------------------------------------------------------
-`, maxChars),
+`, exceedsMaxCharsUnsaved),
 		},
 		// TODO: this would take 5 minutes to run, we don't want that kind of slowdown in our test suite
 		// but can be useful to have around for manual testing.
@@ -255,18 +355,48 @@ Fleet records the last 10,000 characters to prevent downtime.
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}, nil
 			}
+		} else {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
+			}
+		}
+		if c.savedScriptContents != nil {
+			ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return c.savedScriptContents()
+			}
+			ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+				return &fleet.Script{ID: id, Name: "foo"}, nil
+			}
+		} else {
+			ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("echo hello world"), nil
+			}
+			ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+				return &fleet.Script{ID: id, Name: "foo"}, nil
+			}
 		}
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			setupDS(t, c)
-			scriptPath := c.scriptPath()
-			defer os.Remove(scriptPath)
+			args := []string{"run-script", "--host", "host1"}
 
-			b, err := runAppNoChecks([]string{
-				"run-script", "--host", "host1", "--script-path", scriptPath,
-			})
+			if c.scriptPath != nil {
+				scriptPath := c.scriptPath()
+				defer os.Remove(scriptPath)
+				args = append(args, "--script-path", scriptPath)
+			}
+
+			if c.scriptName != "" {
+				args = append(args, "--script-name", c.scriptName)
+			}
+
+			if c.teamID != nil {
+				args = append(args, "--team", fmt.Sprintf("%d", *c.teamID))
+			}
+
+			b, err := runAppNoChecks(args)
 			if c.expectErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.expectErrMsg)

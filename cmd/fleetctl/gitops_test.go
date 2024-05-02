@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +24,17 @@ const teamName = "Team Test"
 func TestBasicGlobalGitOps(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration,
+	) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) error {
+		return nil
+	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
@@ -122,6 +134,16 @@ func TestBasicTeamGitOps(t *testing.T) {
 	const secret = "TestSecret"
 
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) error {
+		return nil
+	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
@@ -152,6 +174,17 @@ func TestBasicTeamGitOps(t *testing.T) {
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
 		return team, nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
 	}
 
 	var enrolledSecrets []*fleet.EnrollSecret
@@ -226,7 +259,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
 	) error {
 		appliedMacProfiles = macProfiles
 		appliedWinProfiles = winProfiles
@@ -340,6 +373,10 @@ func TestFullGlobalGitOps(t *testing.T) {
 	assert.Len(t, appliedScripts, 1)
 	assert.Len(t, appliedMacProfiles, 1)
 	assert.Len(t, appliedWinProfiles, 1)
+	require.Len(t, savedAppConfig.Integrations.GoogleCalendar, 1)
+	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].ApiKey["client_email"])
+	assert.True(t, savedAppConfig.ActivityExpirySettings.ActivityExpiryEnabled)
+	assert.Equal(t, 60, savedAppConfig.ActivityExpirySettings.ActivityExpiryWindow)
 }
 
 func TestFullTeamGitOps(t *testing.T) {
@@ -356,20 +393,23 @@ func TestFullTeamGitOps(t *testing.T) {
 	// License is not needed because we are not using any premium features in our config.
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License:     license,
-			MDMStorage:  new(mock.MDMAppleStore),
-			MDMPusher:   mockPusher{},
-			FleetConfig: &fleetCfg,
+			License:          license,
+			MDMStorage:       new(mock.MDMAppleStore),
+			MDMPusher:        mockPusher{},
+			FleetConfig:      &fleetCfg,
+			NoCacheDatastore: true,
 		},
 	)
 
+	appConfig := fleet.AppConfig{
+		// During dry run, the global calendar integration setting may not be set
+		MDM: fleet.MDM{
+			EnabledAndConfigured:        true,
+			WindowsEnabledAndConfigured: true,
+		},
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			MDM: fleet.MDM{
-				EnabledAndConfigured:        true,
-				WindowsEnabledAndConfigured: true,
-			},
-		}, nil
+		return &appConfig, nil
 	}
 
 	var appliedScripts []*fleet.Script
@@ -383,7 +423,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
 	) error {
 		appliedMacProfiles = macProfiles
 		appliedWinProfiles = winProfiles
@@ -394,6 +434,17 @@ func TestFullTeamGitOps(t *testing.T) {
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
 	}
 
 	// Team
@@ -499,6 +550,10 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Len(t, appliedWinProfiles, 0)
 
 	// Real run
+	// Setting global calendar config
+	appConfig.Integrations = fleet.Integrations{
+		GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
+	}
 	_ = runAppForTest(t, []string{"gitops", "-f", file})
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
@@ -516,6 +571,8 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Len(t, appliedWinProfiles, 1)
 	assert.True(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
 	assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
+	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 
 	// Now clear the settings
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -549,4 +606,13 @@ team_settings:
 	assert.Equal(t, secret, enrolledSecrets[0].Secret)
 	assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
 	assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	assert.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
+	assert.False(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
+	assert.Empty(t, savedTeam.Config.Integrations.GoogleCalendar)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
+	assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 }

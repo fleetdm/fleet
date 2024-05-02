@@ -4,22 +4,25 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"golang.org/x/text/unicode/norm"
 	"sort"
 	"strings"
 	"time"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
-	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
+	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical, p.calendar_events_enabled
 `
 
 var policySearchColumns = []string{"p.name"}
@@ -109,16 +112,18 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 
 // SavePolicy updates some fields of the given policy on the datastore.
 //
-// Currently SavePolicy does not allow updating the team of an existing policy.
-func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
+// Currently, SavePolicy does not allow updating the team of an existing policy.
+func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
 	sql := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.ID)
+	result, err := ds.writer(ctx).ExecContext(
+		ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.ID,
+	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -130,10 +135,39 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
+	return cleanupPolicy(ctx, ds.writer(ctx), p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger)
+}
+
+func cleanupPolicy(
+	ctx context.Context, extContext sqlx.ExtContext, policyID uint, policyPlatform string, shouldRemoveAllPolicyMemberships bool,
+	removePolicyStats bool, logger kitlog.Logger,
+) error {
+	var err error
 	if shouldRemoveAllPolicyMemberships {
-		return ds.cleanupPolicyMembershipForPolicy(ctx, p.ID)
+		err = cleanupPolicyMembershipForPolicy(ctx, extContext, policyID)
+	} else {
+		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, extContext, policyID, policyPlatform)
 	}
-	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
+	if err != nil {
+		return err
+	}
+	if removePolicyStats {
+		// delete all policy stats for the policy
+		fn := func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
+			return err
+		}
+		if _, isDB := extContext.(*sqlx.DB); isDB {
+			// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
+			err = withRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
+		} else {
+			err = fn(extContext)
+		}
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup policy stats")
+		}
+	}
+	return nil
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -525,10 +559,11 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	nameUnicode := norm.NFC.String(args.Name)
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
+		args.CalendarEventsEnabled,
 	)
 	switch {
 	case err == nil:
@@ -572,8 +607,74 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 // NOTE: Similar to ApplyQueries, ApplyPolicySpecs will update the author_id of the policies
 // that are updated.
 //
-// Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
+// Currently, ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+	// Use the same DB for all operations in this method for performance
+	queryerContext := ds.writer(ctx)
+
+	// Preprocess specs and group them by team
+	teamNameToID := make(map[string]uint, 1)
+	teamIDToPolicies := make(map[uint][]*fleet.PolicySpec, 1)
+
+	// Get the team IDs
+	for _, spec := range specs {
+		// We must normalize the name for full Unicode support (Unicode equivalence).
+		spec.Name = norm.NFC.String(spec.Name)
+		spec.Team = norm.NFC.String(spec.Team)
+		teamID, ok := teamNameToID[spec.Team]
+		if !ok {
+			if spec.Team != "" {
+				// if team name is not empty, it must have a team ID; otherwise teamID defaults to 0 value
+				err := sqlx.GetContext(ctx, queryerContext, &teamID, `SELECT id FROM teams WHERE name = ?`, spec.Team)
+				if err != nil {
+					if errors.Is(err, sql.ErrNoRows) {
+						return ctxerr.Wrap(ctx, notFound("Team").WithName(spec.Team), "get team id")
+					}
+					return ctxerr.Wrap(ctx, err, "get team id")
+				}
+			}
+			teamNameToID[spec.Team] = teamID
+		}
+		teamIDToPolicies[teamID] = append(teamIDToPolicies[teamID], spec)
+	}
+
+	// Get the query and platforms of the current policies so that we can check if query or platform changed later, if needed
+	type policyLite struct {
+		Name      string `db:"name"`
+		Query     string `db:"query"`
+		Platforms string `db:"platforms"`
+	}
+	teamIDToPoliciesByName := make(map[uint]map[string]policyLite, len(teamIDToPolicies))
+	for teamID, teamPolicySpecs := range teamIDToPolicies {
+		teamIDToPoliciesByName[teamID] = make(map[string]policyLite, len(teamPolicySpecs))
+		policyNames := make([]string, 0, len(teamPolicySpecs))
+		for _, spec := range teamPolicySpecs {
+			policyNames = append(policyNames, spec.Name)
+		}
+
+		var query string
+		var args []interface{}
+		var err error
+		if teamID == 0 {
+			query, args, err = sqlx.In("SELECT name, query, platforms FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
+		} else {
+			query, args, err = sqlx.In(
+				"SELECT name, query, platforms FROM policies WHERE team_id = ? AND name IN (?)", &teamID, policyNames,
+			)
+		}
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building query to get policies by name")
+		}
+		policies := make([]policyLite, 0, len(teamPolicySpecs))
+		err = sqlx.SelectContext(ctx, queryerContext, &policies, query, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting policies by name")
+		}
+		for _, p := range policies {
+			teamIDToPoliciesByName[teamID][p.Name] = p
+		}
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		query := fmt.Sprintf(
 			`
@@ -586,34 +687,58 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			team_id,
 			platforms,
 			critical,
+			calendar_events_enabled,
 			checksum
-		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?, %s)
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
 			author_id = VALUES(author_id),
 			resolution = VALUES(resolution),
 			platforms = VALUES(platforms),
-			critical = VALUES(critical)
+			critical = VALUES(critical),
+			calendar_events_enabled = VALUES(calendar_events_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
-		for _, spec := range specs {
-
-			// We must normalize the name for full Unicode support (Unicode equivalence).
-			spec.Name = norm.NFC.String(spec.Name)
-			res, err := tx.ExecContext(ctx,
-				query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
-			)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
+		for teamID, teamPolicySpecs := range teamIDToPolicies {
+			var teamIDPtr *uint
+			if teamID != 0 {
+				teamIDPtr = &teamID
 			}
+			for _, spec := range teamPolicySpecs {
 
-			if insertOnDuplicateDidUpdate(res) {
-				// when the upsert results in an UPDATE that *did* change some values,
-				// it returns the updated ID as last inserted id.
-				if lastID, _ := res.LastInsertId(); lastID > 0 {
-					if err := cleanupPolicyMembershipOnPolicyUpdate(ctx, tx, uint(lastID), spec.Platform); err != nil {
-						return err
+				res, err := tx.ExecContext(
+					ctx,
+					query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamIDPtr, spec.Platform, spec.Critical,
+					spec.CalendarEventsEnabled,
+				)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
+				}
+
+				if insertOnDuplicateDidUpdate(res) {
+					// when the upsert results in an UPDATE that *did* change some values,
+					// it returns the updated ID as last inserted id.
+					if lastID, _ := res.LastInsertId(); lastID > 0 {
+						var (
+							shouldRemoveAllPolicyMemberships bool
+							removePolicyStats                bool
+						)
+						// Figure out if the query or platform changed
+						if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
+							switch {
+							case prev.Query != spec.Query:
+								shouldRemoveAllPolicyMemberships = true
+								removePolicyStats = true
+							case prev.Platforms != spec.Platform:
+								removePolicyStats = true
+							}
+						}
+						if err = cleanupPolicy(
+							ctx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+						); err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -732,7 +857,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerCo
 
 // cleanupPolicyMembership is similar to cleanupPolicyMembershipOnPolicyUpdate but without the platform constraints.
 // Used when we want to remove all policy membership.
-func (ds *Datastore) cleanupPolicyMembershipForPolicy(ctx context.Context, policyID uint) error {
+func cleanupPolicyMembershipForPolicy(ctx context.Context, exec sqlx.ExecerContext, policyID uint) error {
 	// delete all policy memberships for the policy
 	delStmt := `
 		DELETE
@@ -747,19 +872,9 @@ func (ds *Datastore) cleanupPolicyMembershipForPolicy(ctx context.Context, polic
 			pm.policy_id = ?
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, delStmt, policyID)
+	_, err := exec.ExecContext(ctx, delStmt, policyID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
-	}
-
-	// delete all policy stats for the policy
-	// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
-		return err
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup policy stats")
 	}
 
 	return nil
@@ -1152,4 +1267,58 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
+	query := `SELECT id, name FROM policies WHERE team_id = ? AND calendar_events_enabled;`
+	var policies []fleet.PolicyCalendarData
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get calendar policies")
+	}
+	return policies, nil
+}
+
+func (ds *Datastore) GetTeamHostsPolicyMemberships(
+	ctx context.Context,
+	domain string,
+	teamID uint,
+	policyIDs []uint,
+) ([]fleet.HostPolicyMembershipData, error) {
+	query := `
+	SELECT 
+		COALESCE(sh.email, '') AS email,
+		COALESCE(pm.passing, 1) AS passing,
+		h.id AS host_id,
+		COALESCE(hdn.display_name, '') AS host_display_name,
+		h.hardware_serial AS host_hardware_serial
+	FROM hosts h
+	LEFT JOIN (
+		SELECT host_id, BIT_AND(passes) AS passing
+		FROM policy_membership
+		WHERE policy_id IN (?) AND passes IS NOT NULL
+		GROUP BY host_id
+	) pm ON h.id = pm.host_id
+	LEFT JOIN (
+		SELECT host_id, MIN(email) AS email
+		FROM host_emails
+		JOIN hosts ON host_emails.host_id=hosts.id
+		WHERE email LIKE CONCAT('%@', ?) AND team_id = ? 
+		GROUP BY host_id
+	) sh ON h.id = sh.host_id
+	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
+	LEFT JOIN host_calendar_events hce ON h.id = hce.host_id
+	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL));
+`
+
+	query, args, err := sqlx.In(query, policyIDs, domain, teamID, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
+	}
+	var hosts []fleet.HostPolicyMembershipData
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing policies")
+	}
+
+	return hosts, nil
 }

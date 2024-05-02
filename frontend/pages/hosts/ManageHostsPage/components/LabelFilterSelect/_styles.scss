@@ -26,6 +26,10 @@
     border-radius: $border-radius;
     height: 40px;
 
+    :hover {
+      cursor: pointer;
+    }
+
     &--is-focused,
     &--menu-is-open,
     &:hover {

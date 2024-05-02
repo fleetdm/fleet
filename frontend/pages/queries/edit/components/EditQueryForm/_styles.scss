@@ -33,12 +33,6 @@
       scrollbar-width: none; /* Firefox */
     }
 
-    .edit-link {
-      margin: 0; // override margin intended for buttons being used as form-fields, which these are not
-      cursor: pointer;
-      height: 18px;
-    }
-
     .name-description {
       display: flex;
       flex-direction: column;
@@ -49,45 +43,41 @@
         display: flex;
         align-items: baseline;
         gap: 0.5rem;
-        outline: 0;
-        &:hover:not(.focus-visible):not(.no-hover) {
-          color: $core-vibrant-blue;
-          cursor: pointer;
-        }
-        .hide {
-          opacity: 0;
-        }
-        .icon {
-          align-self: initial;
-        }
-
-        button {
-          all: unset;
-          display: flex;
-          // must match gap of wrappers
-          gap: 0.5rem;
-          align-items: baseline;
+        width: fit-content;
+        &:not(.edit-query-form--editing) {
+          &:hover {
+            cursor: pointer;
+            * {
+              color: $core-vibrant-blue;
+              cursor: pointer;
+            }
+          }
         }
       }
       .query-name-wrapper {
-        width: fit-content;
         .no-value {
-          min-width: 170px;
+          min-width: 168px;
         }
-
         .edit-query-form__query-name,
         .input-sizer::after {
           font-size: $large;
+        }
+        .component__auto-size-input-field {
           letter-spacing: -0.5px;
           line-height: 2.3rem;
         }
-
-        // compensate for FF weirdness with textarea line-height calculations
-        @-moz-document url-prefix() {
-          line-height: 2.25rem;
-          &__editing {
-            line-height: 2.3rem;
-          }
+      }
+      .query-description-wrapper {
+        .no-value {
+          min-width: 144px;
+        }
+      }
+      .edit-icon {
+        align-self: initial;
+        opacity: 1;
+        transition: opacity 0.2s;
+        &.hide {
+          opacity: 0;
         }
       }
     }
@@ -114,28 +104,18 @@
     }
   }
 
-  &__textarea-content-display {
-    display: flex;
-    align-items: center;
-  }
-
   &__query-name,
   &__query-description {
+    width: 100%;
     margin: 0;
     padding: 0;
     border: 0;
     resize: none;
-    // collapse not supported on Firefox, so pre-wrap for consistency across browsers
-    white-space: pre-wrap;
+    white-space: normal;
     background-color: transparent;
     overflow: hidden;
-    text-align: left;
     &.focus-visible {
       outline: 0;
-      cursor: text;
-    }
-    .placeholder {
-      @include placeholder;
     }
   }
 

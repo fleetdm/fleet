@@ -159,12 +159,15 @@
     padding-right: 40px;
     [purpose='categories-and-search'] {
       padding-top: 40px;
-      [purpose='search'] {
-        width: 100%;
-      }
       [purpose='categories'] {
         [purpose='category-filter'] {
-          margin-right: 24px;
+          padding-left: 8px;
+          margin-bottom: 8px;
+        }
+        [purpose='category-filter'].selected {
+          border-left: 2px solid @core-vibrant-blue;
+          border-bottom: none;
+          padding-left: 6px;
         }
       }
     }
@@ -179,6 +182,7 @@
       margin-left: -10px;
       margin-right: -10px;
     }
+
   }
 
 
@@ -186,17 +190,6 @@
     [purpose='categories-and-search'] {
       [purpose='search'] {
         width: 100%;
-      }
-      [purpose='categories'] {
-        [purpose='category-filter'] {
-          padding-left: 8px;
-          margin-bottom: 8px;
-        }
-        [purpose='category-filter'].selected {
-          border-left: 2px solid @core-vibrant-blue;
-          border-bottom: none;
-          padding-left: 6px;
-        }
       }
     }
 

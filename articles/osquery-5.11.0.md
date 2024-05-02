@@ -24,7 +24,7 @@ Osquery introduces a new table named `vscode_extensions`, which expands the tool
 
 ### Apple silicon support added to `secureboot` table
 
-The `secureboot` table in osquery has been updated to include new columns that provide deeper insights into the security configurations of Apple Silicon devices. The added columns are "description," "allow_kernel_extensions," and "allow_mdm_operations," which reflect the settings available in the Startup Security Utility of macOS. This enhancement enables a more detailed analysis of secure boot settings, facilitating better security posture assessments for Apple Silicon devices. This contribution was made by Zach Wasserman, CTO of Fleet.
+The `secureboot` table in osquery has been updated to include new columns that provide deeper insights into the security configurations of Apple Silicon devices. The added columns are "description," "allow_kernel_extensions," and "allow_mdm_operations," which reflect the settings available in the Startup Security Utility of macOS. This enhancement enables a more detailed analysis of secure boot settings, facilitating better security posture assessments for Apple Silicon devices. This contribution was made by Zach Wasserman, Cofounder of Fleet.
 
 
 ### Shortcut metadata parsing on Windows

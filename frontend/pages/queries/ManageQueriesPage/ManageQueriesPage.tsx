@@ -354,7 +354,7 @@ const ManageQueriesPage = ({
   };
 
   const onSaveQueryAutomations = useCallback(
-    async (newAutomatedQueryIds) => {
+    async (newAutomatedQueryIds: any) => {
       setIsUpdatingAutomations(true);
 
       // Query ids added to turn on automations

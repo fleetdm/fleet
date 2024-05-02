@@ -19,13 +19,14 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
@@ -289,7 +290,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats")
+	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -691,7 +692,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Client",
 				},
@@ -702,7 +703,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "",
 		},
 		{
-			name: "off missing is_federated and server url",
+			name: "off missing aad_resource_id and server url",
 			data: []map[string]string{
 				{
 					"provider_id":       "Some_ID",
@@ -715,11 +716,19 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "",
 		},
 		{
+			name:                 "off no rows",
+			data:                 []map[string]string{},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
 			name: "on automatic",
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Client",
 				},
@@ -734,7 +743,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -745,7 +754,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "https://example.com",
 		},
 		{
-			name: "on manual missing is_federated",
+			name: "on manual missing aad_resource_id",
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
@@ -763,7 +772,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Windows SeRvEr 99.9",
 				},
@@ -781,7 +790,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://jumpcloud.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -797,7 +806,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://airwatch.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -813,7 +822,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://awmdm.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -829,7 +838,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://microsoft.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -845,7 +854,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://fleetdm.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -862,7 +871,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://myinstall.local",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Fleet",
 					"installation_type":     "Client",
 				},
@@ -962,7 +971,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				DisplayVersion: "21H2",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "arch": "64-bit"},
 			},
 		},
 		{
@@ -974,7 +983,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				DisplayVersion: "",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 10 Enterprise", "display_version": "", "version": "10.0.17763", "release_id": "1809", "arch": "64-bit", "kernel_version": "10.0.17763.2183"},
+				{"name": "Microsoft Windows 10 Enterprise", "display_version": "", "version": "10.0.17763.2183", "arch": "64-bit"},
 			},
 		},
 	}
@@ -1874,6 +1883,39 @@ func TestShouldRemoveSoftware(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, shouldRemoveSoftware(tt.h, tt.s))
+		})
+	}
+}
+
+func TestIngestNetworkInterface(t *testing.T) {
+	t.Parallel()
+
+	// NOTE: It was decided that we should allow ingesting private IPs on the PublicIP field,
+	// see https://github.com/fleetdm/fleet/issues/11102.
+	for _, tc := range []struct {
+		name  string
+		ip    string
+		valid bool
+	}{
+		{"public IPv6", "598b:6910:e935:63ff:54db:1753:9c01:4c84", true},
+		{"private IPv6", "fd42:fdaa:1234:5678::1a2b", true},
+		{"public IPv4", "190.18.97.12", true},
+		{"private IPv4", "127.0.0.1", true},
+		{"IP could not be determined", "", true},
+		{"invalid value ends up in the context", "invalid-ip", false},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
+			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
+			require.NoError(t, err)
+			if tc.valid {
+				require.Equal(t, tc.ip, h.PublicIP)
+			} else {
+				require.Empty(t, h.PublicIP)
+			}
 		})
 	}
 }

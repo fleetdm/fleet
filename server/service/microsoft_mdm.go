@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	kitlog "github.com/go-kit/kit/log"
@@ -1274,7 +1275,23 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
 	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
-		return false, nil
+		var isPresent bool
+		if enrolledDevice.HostUUID != "" {
+			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return false, ctxerr.Wrap(ctx, err, "get host lite by identifier")
+			}
+			if host != nil {
+				orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return false, ctxerr.Wrap(ctx, err, "get host orbit info")
+				}
+				if orbitInfo != nil {
+					isPresent = orbitInfo.Version != ""
+				}
+			}
+		}
+		return isPresent, nil
 	}
 
 	// TODO: Add check here to determine if MDM DeviceID is connected with Smbios UUID present on
@@ -1744,6 +1761,20 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	if err := svc.ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice); err != nil {
 		return err
+	}
+
+	// TODO: azure enrollments come with an empty uuid, I haven't figured
+	// out a good way to identify the device.
+	if hostUUID != "" {
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+			Action:   mdmlifecycle.HostActionTurnOn,
+			Platform: "windows",
+			UUID:     hostUUID,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	err = svc.ds.NewActivity(ctx, nil, &fleet.ActivityTypeMDMEnrolled{
@@ -2222,6 +2253,14 @@ func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fle
 	// generate a CmdID for any nested <Replace>
 	for i := range cmd.ReplaceCommands {
 		cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
+			Value:               uuid.NewString(),
+			IncludeFleetComment: true,
+		}
+	}
+
+	// generate a CmdID for any nested <Add>
+	for i := range cmd.AddCommands {
+		cmd.AddCommands[i].CmdID = mdm_types.CmdID{
 			Value:               uuid.NewString(),
 			IncludeFleetComment: true,
 		}

@@ -30,6 +30,8 @@ type PolicyPayload struct {
 	//
 	// Empty string targets all platforms.
 	Platform string
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled bool
 }
 
 var (
@@ -107,6 +109,8 @@ type ModifyPolicyPayload struct {
 	Platform *string `json:"platform"`
 	// Critical marks the policy as high impact.
 	Critical *bool `json:"critical" premium:"true"`
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled *bool `json:"calendar_events_enabled" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -159,6 +163,8 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
+	CalendarEventsEnabled bool `json:"calendar_events_enabled" db:"calendar_events_enabled"`
+
 	UpdateCreateTimestamps
 }
 
@@ -171,6 +177,11 @@ type Policy struct {
 	// FailingHostCount is the number of hosts this policy fails on.
 	FailingHostCount   uint       `json:"failing_host_count" db:"failing_host_count"`
 	HostCountUpdatedAt *time.Time `json:"host_count_updated_at" db:"host_count_updated_at"`
+}
+
+type PolicyCalendarData struct {
+	ID   uint   `db:"id" json:"id"`
+	Name string `db:"name" json:"name"`
 }
 
 func (p Policy) AuthzType() string {
@@ -212,6 +223,8 @@ type PolicySpec struct {
 	//
 	// Empty string targets all platforms.
 	Platform string `json:"platform,omitempty"`
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled bool `json:"calendar_events_enabled"`
 }
 
 // Verify verifies the policy data is valid.

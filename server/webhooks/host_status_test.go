@@ -125,7 +125,7 @@ func TestTriggerHostStatusWebhookTeam(t *testing.T) {
 			ID: 1,
 			Config: fleet.TeamConfig{
 				WebhookSettings: fleet.TeamWebhookSettings{
-					HostStatusWebhook: teamSettings,
+					HostStatusWebhook: &teamSettings,
 				},
 			},
 		}, nil

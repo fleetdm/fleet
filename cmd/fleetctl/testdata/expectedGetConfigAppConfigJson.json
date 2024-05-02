@@ -35,6 +35,10 @@
 			"host_expiry_enabled": false,
 			"host_expiry_window": 0
 		},
+		"activity_expiry_settings": {
+			"activity_expiry_enabled": false,
+			"activity_expiry_window": 0
+		},
 		"features": {
 			"enable_host_users": true,
 			"enable_software_inventory": false
@@ -79,7 +83,8 @@
 		},
 		"integrations": {
 			"jira": null,
-			"zendesk": null
+			"zendesk": null,
+			"google_calendar": null
 		},
 		"mdm": {
 			"apple_bm_terms_expired": false,
@@ -107,7 +112,8 @@
 			"macos_setup": {
 				"bootstrap_package": null,
 				"enable_end_user_authentication": false,
-				"macos_setup_assistant": null
+				"macos_setup_assistant": null,
+				"enable_release_device_manually": false
 			},
 			"windows_settings": {
 				"custom_settings": null

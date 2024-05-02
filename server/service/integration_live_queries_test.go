@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -58,7 +60,11 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Lq: lq, Rs: rs})
+	opts := &TestServerOpts{Lq: lq, Rs: rs}
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		opts.Logger = kitlog.NewNopLogger()
+	}
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server
 	s.users = users
 	s.token = getTestAdminToken(s.T(), s.server)

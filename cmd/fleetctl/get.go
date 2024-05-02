@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -1194,14 +1195,19 @@ func getTeamsCommand() *cli.Command {
 			// Default to printing as table
 			data := [][]string{}
 
+			sort.Slice(teams, func(i, j int) bool {
+				return teams[i].Name < teams[j].Name
+			})
+
 			for _, team := range teams {
 				data = append(data, []string{
 					team.Name,
+					strconv.Itoa(int(team.ID)),
 					fmt.Sprintf("%d", team.HostCount),
 					fmt.Sprintf("%d", team.UserCount),
 				})
 			}
-			columns := []string{"Team name", "Host count", "User count"}
+			columns := []string{"Team name", "Team ID", "Host count", "User count"}
 			printTable(c, columns, data)
 
 			return nil

@@ -74,7 +74,7 @@ const SoftwareVulnerabilitiesTable = ({
 
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
-      cve: row.original.cve,
+      vulnerability: row.original.cve,
       team_id: teamIdForApi,
     };
 
@@ -109,7 +109,7 @@ const SoftwareVulnerabilitiesTable = ({
         isLoading={isLoading}
         isClientSidePagination
         pageSize={20}
-        resultsTitle="vulnerabilities"
+        resultsTitle="items"
         showMarkAllPages={false}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}

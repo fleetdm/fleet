@@ -62,7 +62,7 @@ variable "certificate_arn" {
 variable "rds_config" {
   type = object({
     name                            = optional(string, "fleet")
-    engine_version                  = optional(string, "8.0.mysql_aurora.3.02.2")
+    engine_version                  = optional(string, "8.0.mysql_aurora.3.04.2")
     instance_class                  = optional(string, "db.t4g.large")
     subnets                         = optional(list(string), [])
     allowed_security_groups         = optional(list(string), [])
@@ -80,7 +80,7 @@ variable "rds_config" {
   })
   default = {
     name                            = "fleet"
-    engine_version                  = "8.0.mysql_aurora.3.02.2"
+    engine_version                  = "8.0.mysql_aurora.3.04.2"
     instance_class                  = "db.t4g.large"
     subnets                         = []
     allowed_security_groups         = []
@@ -215,7 +215,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.46.1")
+    image                        = optional(string, "fleetdm/fleet:v4.49.2")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -228,6 +228,7 @@ variable "fleet_config" {
     security_groups              = optional(list(string), null)
     security_group_name          = optional(string, "fleet")
     iam_role_arn                 = optional(string, null)
+    repository_credentials       = optional(string, "")
     service = optional(object({
       name = optional(string, "fleet")
       }), {
@@ -324,6 +325,7 @@ variable "fleet_config" {
     security_groups              = null
     security_group_name          = "fleet"
     iam_role_arn                 = null
+    repository_credentials       = ""
     service = {
       name = "fleet"
     }

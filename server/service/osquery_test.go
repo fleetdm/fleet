@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -258,7 +259,10 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 	context.Background(),
 	config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}},
 	nil,
-	&fleet.Features{EnableHostUsers: true},
+	&fleet.Features{
+		EnableHostUsers:         true,
+		EnableSoftwareInventory: true,
+	},
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
@@ -841,8 +845,7 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
-type failingLogger struct {
-}
+type failingLogger struct{}
 
 func (n *failingLogger) Write(context.Context, []json.RawMessage) error {
 	return errors.New("some error")
@@ -894,7 +897,6 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
 	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*osqueryError).Status())
-
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -904,11 +906,11 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		expectedName string
 		hasErr       bool
 	}{
-		{"pack/Global/Query Name", nil, "Query Name", false},
-		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},
-		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
-		{"pack/team-foo/Query", nil, "", true},
-		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},
+		{"pack/Global/Query Name", nil, "Query Name", false},                       // valid global query
+		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},               // valid team query
+		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false}, // valid team query
+		{"pack/team-foo/Query", nil, "", true},                                     // missing team ID
+		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},             // query name contains forward slash
 		{"packGlobalGlobalGlobalGlobal", nil, "Global", false},                     // pack_delimiter=Global
 		{"packXGlobalGlobalXGlobalQueryWith/Slash", nil, "QueryWith/Slash", false}, // pack_delimiter=XGlobal
 		{"pack//Global//QueryWith/Slash", nil, "QueryWith/Slash", false},           // pack_delimiter=//
@@ -918,6 +920,8 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"pack123😁123team-1123😁123QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false}, // pack_delimiter=123😁123
 		{"pack(foo)team-1(foo)fo(o)bar", ptr.Uint(1), "fo(o)bar", false},                   // pack_delimiter=(foo)
 		{"packteam-1team-1team-1team-1", ptr.Uint(1), "team-1", false},                     // pack_delimiter=team-1
+		{"pack/Global/GlobalInQueryName", nil, "GlobalInQueryName", false},                 // query name contains Global
+		{"pack/team-1/team-1InQueryName", ptr.Uint(1), "team-1InQueryName", false},         // query name contains team-1
 
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
@@ -1005,12 +1009,13 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles": {},
-		hostDetailQueryPrefix + "mdm":                    {},
-		hostDetailQueryPrefix + "munki_info":             {},
-		hostDetailQueryPrefix + "windows_update_history": {},
-		hostDetailQueryPrefix + "kubequery_info":         {},
-		hostDetailQueryPrefix + "orbit_info":             {},
+		hostDetailQueryPrefix + "google_chrome_profiles":     {},
+		hostDetailQueryPrefix + "mdm":                        {},
+		hostDetailQueryPrefix + "munki_info":                 {},
+		hostDetailQueryPrefix + "windows_update_history":     {},
+		hostDetailQueryPrefix + "kubequery_info":             {},
+		hostDetailQueryPrefix + "orbit_info":                 {},
+		hostDetailQueryPrefix + "software_vscode_extensions": {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1027,7 +1032,11 @@ func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			AdditionalQueries:       &additional,
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	mockClock := clock.NewMockClock()
@@ -1311,7 +1320,10 @@ func TestLabelQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1468,7 +1480,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1658,7 +1673,10 @@ func TestDetailQueries(t *testing.T) {
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1677,8 +1695,12 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
-	ds.SetOrUpdateHostOrbitInfoFunc = func(ctx context.Context, hostID uint, version string) error {
+	ds.SetOrUpdateHostOrbitInfoFunc = func(
+		ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
+	) error {
 		require.Equal(t, "42", version)
+		require.Equal(t, sql.NullString{String: "1.2.3", Valid: true}, desktopVersion)
+		require.Equal(t, sql.NullBool{Bool: true, Valid: true}, scriptsEnabled)
 		return nil
 	}
 	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
@@ -1703,8 +1725,8 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 for software inventory, +1 for fleet_no_policies_wildcard
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1+1, len(queries)) {
+	// +1 for fleet_no_policies_wildcard
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1851,7 +1873,9 @@ func TestDetailQueries(t *testing.T) {
 ],
 "fleet_detail_query_orbit_info": [
 	{
-		"version": "42"
+		"version": "42",
+		"desktop_version": "1.2.3",
+		"scripts_enabled": "1"
 	}
 ]
 }
@@ -1968,8 +1992,8 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 software inventory, +1 fleet_no_policies_wildcard query
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1+1, len(queries), distQueriesMapKeys(queries))
+	// +1 fleet_no_policies_wildcard query
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -2148,7 +2172,10 @@ func TestDistributedQueryResults(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	hostCtx := hostctx.NewContext(ctx, host)
@@ -3004,7 +3031,10 @@ func TestPolicyQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -3201,7 +3231,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Features: fleet.Features{
-				EnableHostUsers: true,
+				EnableHostUsers:         true,
+				EnableSoftwareInventory: true,
 			},
 			WebhookSettings: fleet.WebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
@@ -3469,7 +3500,10 @@ func TestLiveQueriesFailing(t *testing.T) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -3505,4 +3539,292 @@ func osqueryMapKeys(m map[string]osquery_utils.DetailQuery) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func TestPreProcessSoftwareResults(t *testing.T) {
+	foobarApp := map[string]string{
+		"name":              "Foobar.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.foobar",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/path",
+	}
+	zoobarApp := map[string]string{
+		"name":              "Zoobar.app",
+		"version":           "3.2.1",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.acme.zoobar",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/other/path",
+	}
+	foobarVSCodeExtension := map[string]string{
+		"name":              "vendor-x.foobar",
+		"version":           "2024.2.1",
+		"type":              "IDE extension (VS Code)",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "vscode_extensions",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/some/foobar/path",
+	}
+	zoobarVSCodeExtension := map[string]string{
+		"name":              "vendor-x.zoobar",
+		"version":           "2023.2.1",
+		"type":              "IDE extension (VS Code)",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "vscode_extensions",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/some/zoobar/path",
+	}
+	someRow := map[string]string{
+		"1": "1",
+	}
+
+	for _, tc := range []struct {
+		name string
+
+		resultsIn  fleet.OsqueryDistributedQueryResults
+		statusesIn map[string]fleet.OsqueryStatus
+		messagesIn map[string]string
+
+		resultsOut fleet.OsqueryDistributedQueryResults
+	}{
+		{
+			name: "software query works and there are vs code extensions in extra",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
+					foobarVSCodeExtension,
+					zoobarVSCodeExtension,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+					foobarVSCodeExtension,
+					zoobarVSCodeExtension,
+				},
+			},
+		},
+		{
+			name: "software query and extra works and there are no vscode extensions",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+			},
+		},
+		{
+			name: "software query works and the software extra status and results are not returned",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":     fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+			},
+		},
+		{
+			name: "software doesn't return status or results but the software extra does",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
+					foobarVSCodeExtension,
+					zoobarVSCodeExtension,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{},
+		},
+		{
+			name: "software query works, but vscode_extensions table doesn't exist",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.OsqueryStatus(1),
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+			},
+		},
+		{
+			name: "software query fails, vscode_extensions table returns results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":             fleet.OsqueryStatus(1),
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
+					foobarVSCodeExtension,
+					zoobarVSCodeExtension,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{},
+			},
+		},
+		{
+			name: "software query fails, software extra query also fails",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":             fleet.OsqueryStatus(1),
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.OsqueryStatus(1),
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos":             []map[string]string{},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{},
+			},
+		},
+		{
+			name: "software inventory turned off",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, log.NewNopLogger())
+			require.Equal(t, tc.resultsOut, tc.resultsIn)
+		})
+	}
+}
+
+func TestDetailQueriesLinuxDistros(t *testing.T) {
+	for _, linuxPlatform := range fleet.HostLinuxOSs {
+		m := expectedDetailQueriesForPlatform(linuxPlatform)
+		require.Contains(t, m, "users")
+		require.Contains(t, m, "network_interface_unix")
+		require.Contains(t, m, "disk_space_unix")
+		require.Contains(t, m, "os_unix_like")
+		require.Contains(t, m, "orbit_info")
+		require.Contains(t, m, "disk_encryption_linux")
+		require.Contains(t, m, "software_vscode_extensions")
+		require.Contains(t, m, "software_linux")
+	}
+}
+
+// Benchmark function
+func BenchmarkFindPackDelimiterStringCommon(b *testing.B) {
+	// Input data for benchmarking
+	input := "pack/Global/Foo"
+
+	// Run the benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findPackDelimiterString(input)
+	}
+}
+
+func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
+	// Input data for benchmarking
+	input := "packGlobalGlobalGlobalGlobal" // global pack delimiter, global team, query name global
+
+	// Run the benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findPackDelimiterString(input)
+	}
 }

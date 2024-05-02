@@ -8,13 +8,38 @@
     .button-wrap {
       display: flex;
       justify-content: flex-end;
-      min-width: 266px;
+      align-items: center;
+      gap: 8px;
     }
   }
 
-  &__manage-automations {
-    padding: $pad-small;
-    margin-right: $pad-small;
+  &__manage-automations-wrapper {
+    @include button-dropdown;
+    .Select-multi-value-wrapper {
+      width: 146px;
+    }
+    .Select > .Select-menu-outer {
+      left: -186px;
+      width: 360px;
+      .dropdown__help-text {
+        color: $ui-fleet-black-50;
+      }
+    }
+    .Select-control {
+      margin-top: 0;
+      gap: 6px;
+      .Select-placeholder {
+        color: $core-vibrant-blue;
+        font-weight: $bold;
+      }
+      .dropdown__custom-arrow .dropdown__icon {
+        svg {
+          path {
+            stroke: $core-vibrant-blue-over;
+          }
+        }
+      }
+    }
   }
 
   &__header {
