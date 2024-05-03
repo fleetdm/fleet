@@ -47,15 +47,6 @@ interface ICustomRenderOptions {
   withBackendMock?: boolean;
 }
 
-// TODO: types
-// type RenderOptionsWithoutUserEvents = ICustomRenderOptions & {
-//   withUserEvents: false;
-// };
-
-// type RenderOptionsWithUserEvents = ICustomRenderOptions & {
-//   withUserEvents: true;
-// };
-
 const CONTEXT_PROVIDER_MAP = {
   app: AppContext,
   notification: NotificationContext,

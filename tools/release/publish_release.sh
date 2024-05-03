@@ -855,6 +855,13 @@ if [[ "$failed" == "false" ]]; then
         echo "DRYRUN: Would have switched back to branch $target_patch_branch"
     fi
 
+    if [[ "$main_release" == "false" ]]; then
+        # Cherry-pick from update-changelog-branch
+        ch_commit=`git log -n 1 --pretty=format:"%H" $update_changelog_branch`
+        git cherry-pick $ch_commit
+        git push origin $target_patch_branch -f
+    fi
+
     # Check for QA issue
     create_qa_issue
 
