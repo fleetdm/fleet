@@ -68,28 +68,45 @@ func testListSoftwareInstallerDetails(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_ = hostInstall3
 
+	hostInstall4, err := insertHostSoftwareInstalls(ctx, ds.writer(ctx), host2.ID, "exec4", uint(installer2Id))
+	require.NoError(t, err)
+	hostInstall4Id, err := hostInstall4.LastInsertId()
+	require.NoError(t, err)
+
+	_ = ds.writer(ctx).MustExec("UPDATE host_software_installs SET install_script_exit_code = 0 WHERE id = ?", hostInstall4Id)
+
 	installDetailsList1, err := ds.ListPendingSoftwareInstallDetails(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(installDetailsList1))
 
 	installDetailsList2, err := ds.ListPendingSoftwareInstallDetails(ctx, host2.ID)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(installDetailsList2))
+	require.Equal(t, 1, len(installDetailsList2))
 
 	require.Equal(t, host1.ID, installDetailsList1[0].HostID)
 	require.Equal(t, host1.ID, installDetailsList1[1].HostID)
 	require.Equal(t, "exec1", installDetailsList1[0].ExecutionID)
 	require.Equal(t, "exec2", installDetailsList1[1].ExecutionID)
-	require.Equal(t, "hello", installDetailsList1[0].InstallScript)
-	require.Equal(t, "world", installDetailsList1[1].InstallScript)
-	require.Equal(t, "world", installDetailsList1[0].PostInstallScript)
-	require.Equal(t, "hello", installDetailsList1[1].PostInstallScript)
-	require.Equal(t, installer1Id, installDetailsList1[0].InstallerID)
-	require.Equal(t, installer2Id, installDetailsList1[1].InstallerID)
+	require.Equal(t, []byte("hello"), installDetailsList1[0].InstallScript)
+	require.Equal(t, []byte("world"), installDetailsList1[1].InstallScript)
+	require.Equal(t, []byte("world"), installDetailsList1[0].PostInstallScript)
+	require.Equal(t, []byte("hello"), installDetailsList1[1].PostInstallScript)
+	require.Equal(t, uint(installer1Id), installDetailsList1[0].InstallerID)
+	require.Equal(t, uint(installer2Id), installDetailsList1[1].InstallerID)
 	require.Equal(t, "SELECT 1", installDetailsList1[0].PreInstallCondition)
 	require.Equal(t, "SELECT 2", installDetailsList1[1].PreInstallCondition)
 
 	require.Equal(t, installDetailsList1[0].InstallerID, installDetailsList2[0].InstallerID)
+
+	exec1, err := ds.GetSoftwareInstallDetails(ctx, "exec1")
+	require.NoError(t, err)
+
+	require.Equal(t, host1.ID, exec1.HostID)
+	require.Equal(t, "exec1", exec1.ExecutionID)
+	require.Equal(t, []byte("hello"), exec1.InstallScript)
+	require.Equal(t, []byte("world"), exec1.PostInstallScript)
+	require.Equal(t, uint(installer1Id), exec1.InstallerID)
+	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
 }
 
 func insertHostSoftwareInstalls(
