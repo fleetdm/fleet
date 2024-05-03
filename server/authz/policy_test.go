@@ -595,6 +595,63 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 	})
 }
 
+func TestAuthorizeHostSoftwareInstallerResult(t *testing.T) {
+	t.Parallel()
+
+	noTeamInstallRequest := &fleet.HostSoftwareInstallerResultAuthz{}
+	team1InstallRequest := &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: ptr.Uint(1)}
+	team2InstallRequest := &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: ptr.Uint(2)}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: noTeamInstallRequest, action: write, allow: false},
+		{user: nil, object: team1InstallRequest, action: write, allow: false},
+		{user: nil, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserNoRoles, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserNoRoles, object: team1InstallRequest, action: write, allow: false},
+		{user: test.UserNoRoles, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserAdmin, object: noTeamInstallRequest, action: write, allow: true},
+		{user: test.UserAdmin, object: team1InstallRequest, action: write, allow: true},
+		{user: test.UserAdmin, object: team2InstallRequest, action: write, allow: true},
+
+		{user: test.UserMaintainer, object: noTeamInstallRequest, action: write, allow: true},
+		{user: test.UserMaintainer, object: team1InstallRequest, action: write, allow: true},
+		{user: test.UserMaintainer, object: team2InstallRequest, action: write, allow: true},
+
+		{user: test.UserObserver, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserObserver, object: team1InstallRequest, action: write, allow: false},
+		{user: test.UserObserver, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserObserverPlus, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team1InstallRequest, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserGitOps, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserGitOps, object: team1InstallRequest, action: write, allow: false},
+		{user: test.UserGitOps, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1InstallRequest, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1InstallRequest, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1InstallRequest, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1InstallRequest, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team2InstallRequest, action: write, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstallRequest, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1InstallRequest, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team2InstallRequest, action: write, allow: false},
+	})
+}
+
 func TestAuthorizeHost(t *testing.T) {
 	t.Parallel()
 

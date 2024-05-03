@@ -2467,3 +2467,72 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 
 	return labelIDs, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Software
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostSoftwareRequest struct {
+	ID          uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type getHostSoftwareResponse struct {
+	Software []*fleet.HostSoftwareWithInstaller `json:"software"`
+	Meta     *fleet.PaginationMetadata          `json:"meta,omitempty"`
+	Err      error                              `json:"error,omitempty"`
+}
+
+func (r getHostSoftwareResponse) error() error { return r.Err }
+
+func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostSoftwareRequest)
+	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.ListOptions)
+	if err != nil {
+		return getHostSoftwareResponse{Err: err}, nil
+	}
+	if res == nil {
+		res = []*fleet.HostSoftwareWithInstaller{}
+	}
+	return getHostSoftwareResponse{Software: res, Meta: meta}, nil
+}
+
+func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	// if the request is token-authenticated ("My device" page), we don't include software
+	// that is not installed but for which there's an installer available for that host.
+	var includeAvailableForInstall bool
+
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
+		includeAvailableForInstall = true
+
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, nil, err
+		}
+
+		host, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get host lite")
+		}
+
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// cursor-based pagination is not supported
+	opts.After = ""
+	// custom ordering is not supported
+	opts.OrderKey = ""
+	// always include metadata
+	opts.IncludeMetadata = true
+
+	software, meta, err := svc.ds.ListHostSoftware(ctx, hostID, includeAvailableForInstall, opts)
+	if !includeAvailableForInstall {
+		// for the device page, we don't want to return the package name
+		for _, s := range software {
+			s.PackageAvailableForInstall = nil
+		}
+	}
+	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
+}

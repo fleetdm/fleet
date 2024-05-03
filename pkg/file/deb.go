@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -19,15 +20,17 @@ import (
 
 // ExtractDebMetadata extracts the name and version metadata from a .deb file ,
 // a debian installer package which is in archive format.
-func ExtractDebMetadata(b []byte) (name, version string, err error) {
-	r := ar.NewReader(bytes.NewReader(b))
+func ExtractDebMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
+	h := sha256.New()
+	r = io.TeeReader(r, h)
+	rr := ar.NewReader(r)
 
 	for {
-		hdr, err := r.Next()
+		hdr, err := rr.Next()
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return "", "", fmt.Errorf("failed to advance to next file in archive: %w", err)
+			return "", "", nil, fmt.Errorf("failed to advance to next file in archive: %w", err)
 		}
 
 		name := path.Clean(hdr.Name)
@@ -36,12 +39,26 @@ func ExtractDebMetadata(b []byte) (name, version string, err error) {
 			if ext == ".tar" {
 				ext = ""
 			}
-			return parseControl(r, ext)
+			name, version, err = parseControl(rr, ext)
+			if err != nil {
+				return "", "", nil, err
+			}
+
+			// ensure the whole file is read to get the correct hash
+			if _, err := io.Copy(io.Discard, r); err != nil {
+				return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+			}
+			return name, version, h.Sum(nil), nil
 		}
 	}
 
+	// ensure the whole file is read to get the correct hash
+	if _, err := io.Copy(io.Discard, r); err != nil {
+		return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+	}
+
 	// no control.tar file found, return empty information
-	return "", "", nil
+	return "", "", h.Sum(nil), nil
 }
 
 // parseControl adapted from

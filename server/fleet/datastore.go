@@ -490,6 +490,9 @@ type Datastore interface {
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitle, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 
+	// InsertSoftwareInstallRequest tracks a new request to install the provided software installer in the host
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
@@ -543,6 +546,8 @@ type Datastore interface {
 	HostsByCVE(ctx context.Context, cve string) ([]HostVulnerabilitySummary, error)
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
+
+	ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
@@ -1453,6 +1458,19 @@ type Datastore interface {
 	// Apple hosts. It is optimized to update using only the information
 	// available in the Apple MDM protocol.
 	UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID, cmdUUID, requestType string, succeeded bool) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Software installers
+	//
+
+	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
+	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
+
+	// GetSoftwareInstallerMetadata returns the software installer corresponding to the id.
+	GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*SoftwareInstaller, error)
+
+	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
+	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
