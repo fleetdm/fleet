@@ -28,6 +28,7 @@ import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
+import AddSoftwareModal from "./components/AddSoftwareModal";
 import { ISoftwareDropdownFilterVal } from "./SoftwareTitles/SoftwareTable/helpers";
 
 interface ISoftwareSubNavItem {
@@ -122,6 +123,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
+    isTeamAdmin,
+    isTeamMaintainer,
     isPremiumTier,
     isSandboxMode,
   } = useContext(AppContext);
@@ -156,6 +159,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
+  const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
 
   const {
     currentTeamId,
@@ -232,12 +236,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
 
-  const canManageAutomations =
-    isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
-
   const toggleManageAutomationsModal = useCallback(() => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
   }, [setShowManageAutomationsModal, showManageAutomationsModal]);
+
+  const toggleAddSoftwareModal = useCallback(() => {
+    setShowAddSoftwareModal(!showAddSoftwareModal);
+  }, [showAddSoftwareModal]);
 
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
@@ -309,6 +314,35 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     );
   };
 
+  const renderPageActions = () => {
+    const canManageAutomations =
+      isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
+
+    const canAddSoftware =
+      isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+
+    if (!isSoftwareConfigLoaded) return null;
+
+    return (
+      <div className={`${baseClass}__action-buttons`}>
+        {canManageAutomations && (
+          <Button
+            onClick={toggleManageAutomationsModal}
+            className={`${baseClass}__manage-automations`}
+            variant="text-link"
+          >
+            <span>Manage automations</span>
+          </Button>
+        )}
+        {canAddSoftware && (
+          <Button onClick={toggleAddSoftwareModal} variant="brand">
+            <span>Add software</span>
+          </Button>
+        )}
+      </div>
+    );
+  };
+
   const renderHeaderDescription = () => {
     return (
       <p>
@@ -365,15 +399,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
               <div className={`${baseClass}__title`}>{renderTitle()}</div>
             </div>
           </div>
-          {canManageAutomations && isSoftwareConfigLoaded && (
-            <Button
-              onClick={toggleManageAutomationsModal}
-              className={`${baseClass}__manage-automations button`}
-              variant="brand"
-            >
-              <span>Manage automations</span>
-            </Button>
-          )}
+          {renderPageActions()}
         </div>
         <div className={`${baseClass}__description`}>
           {renderHeaderDescription()}
@@ -391,6 +417,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             softwareVulnerabilityWebhookEnabled={isVulnWebhookEnabled}
             currentDestinationUrl={vulnWebhookSettings?.destination_url || ""}
             recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
+          />
+        )}
+        {showAddSoftwareModal && (
+          <AddSoftwareModal
+            teamId={currentTeamId ?? 0}
+            onExit={toggleAddSoftwareModal}
           />
         )}
       </div>

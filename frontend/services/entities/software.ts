@@ -10,6 +10,7 @@ import {
   ISoftwareTitle,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -190,5 +191,24 @@ export default {
     const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
     return sendRequest("GET", path);
+  },
+
+  addSoftwarePackage: (data: IAddSoftwareFormData, teamId?: number) => {
+    const { SOFTWARE_PACKAGE } = endpoints;
+
+    if (!data.software) {
+      throw new Error("Software package is required");
+    }
+
+    const formData = new FormData();
+    formData.append("software", data.software);
+    data.installScript && formData.append("install_script", data.installScript);
+    data.preInstallCondition &&
+      formData.append("pre_install_query", data.preInstallCondition);
+    data.postInstallScript &&
+      formData.append("post_install_script", data.postInstallScript);
+    teamId && formData.append("team_id", teamId.toString());
+
+    return sendRequest("POST", SOFTWARE_PACKAGE, formData);
   },
 };
