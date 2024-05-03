@@ -65,7 +65,6 @@ func (s *CVE) getVulnCheckIndexCVEs(ctx context.Context, url, cursor *string, la
 	if cursor != nil {
 		q.Add("cursor", *cursor)
 	}
-	q.Add("limit", "50")
 	q.Add("lastModStartDate", lastModStartDate.Format("2006-01-02"))
 	req.URL.RawQuery = q.Encode()
 
