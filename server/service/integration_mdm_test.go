@@ -8690,6 +8690,21 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 	resp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
+	titleResp := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp)
+	// TODO: confirm expected behavior of the title response host counts (unspecified)
+	require.Zero(t, titleResp.SoftwareTitle.HostsCount)
+	require.Nil(t, titleResp.SoftwareTitle.CountsUpdatedAt)
+
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.Status)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+		Installed: 0,
+		Pending:   1,
+		Failed:    0,
+	}, *titleResp.SoftwareTitle.SoftwarePackage.Status)
+
 	// TODO(roberto): once we have endpoints to retrieve installers,
 	// request them using the orbit node key
 }

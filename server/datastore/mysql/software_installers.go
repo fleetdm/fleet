@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -122,6 +123,41 @@ WHERE
 	return &dest, nil
 }
 
+func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+	query := `
+SELECT
+	id,
+	team_id,
+	title_id,
+	storage_id,
+	filename,
+	version,
+	install_script_content_id,
+	pre_install_query,
+	post_install_script_content_id,
+	uploaded_at
+FROM 
+	software_installers
+WHERE 
+	title_id = ? AND global_or_team_id = ?`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var dest fleet.SoftwareInstaller
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, titleID, tmID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller"), "get software installer metadata")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
+	}
+
+	return &dest, nil
+}
+
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id)
 	if err != nil {
@@ -183,4 +219,69 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	)
 
 	return ctxerr.Wrap(ctx, err, "inserting new install software request")
+}
+
+func tmplNamedSQLCaseHostSoftwareInstallStatus(alias string) string {
+	return fmt.Sprintf(`
+	CASE WHEN %[1]s.post_install_script_exit_code IS NOT NULL AND %[1]s.post_install_script_exit_code = 0 THEN
+		:installed
+	WHEN %[1]s.post_install_script_exit_code IS NOT NULL
+		AND %[1]s.post_install_script_exit_code != 0 THEN
+		:failed
+	WHEN %[1]s.install_script_exit_code IS NOT NULL
+		AND %[1]s.install_script_exit_code = 0 THEN
+		:installed
+	WHEN %[1]s.install_script_exit_code IS NOT NULL
+		AND %[1]s.install_script_exit_code != 0 THEN
+		:failed
+	WHEN %[1]s.pre_install_query_output IS NOT NULL
+		AND %[1]s.pre_install_query_output = '' THEN
+		:failed
+	WHEN %[1]s.host_id IS NOT NULL THEN
+		:pending
+	ELSE
+		NULL -- not installed from Fleet installer
+	END`, alias)
+}
+
+func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+	var dest fleet.SoftwareInstallerStatusSummary
+
+	stmt := fmt.Sprintf(`
+SELECT
+	COALESCE(SUM( IF(status = :pending, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :failed, 1, 0)), 0) AS failed,
+	COALESCE(SUM( IF(status = :installed, 1, 0)), 0) AS installed
+FROM (
+SELECT
+	software_installer_id,
+	%s AS status
+FROM
+	host_software_installs hsi
+WHERE
+	id IN(
+		SELECT
+			max(id) -- ensure we use only the most recently created install attempt for each host
+			FROM host_software_installs
+		WHERE 
+			software_installer_id = :installer_id
+		GROUP BY
+			host_id)) s`, tmplNamedSQLCaseHostSoftwareInstallStatus("hsi"))
+
+	query, args, err := sqlx.Named(stmt, map[string]interface{}{
+		"installer_id": installerID,
+		"pending":      fleet.SoftwareInstallerPending,
+		"failed":       fleet.SoftwareInstallerFailed,
+		"installed":    fleet.SoftwareInstallerInstalled,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
+	}
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host software install status")
+	}
+
+	return &dest, nil
 }

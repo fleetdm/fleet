@@ -63,6 +63,8 @@ type SoftwareInstaller struct {
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
 	StorageID string `json:"-" db:"storage_id"`
+	// Status is the status of the software installer package.
+	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -83,7 +85,7 @@ type SoftwareInstallerStatusSummary struct {
 // SoftwareInstallerStatus represents the status of a software installer package on a host.
 type SoftwareInstallerStatus string
 
-var (
+const (
 	SoftwareInstallerPending   SoftwareInstallerStatus = "pending"
 	SoftwareInstallerFailed    SoftwareInstallerStatus = "failed"
 	SoftwareInstallerInstalled SoftwareInstallerStatus = "installed"
