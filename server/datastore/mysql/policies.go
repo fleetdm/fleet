@@ -1229,18 +1229,18 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	db := ds.writer(ctx)
 
 	// Inherited policies are only relevant for teams, so we check whether we have teams
-	var teamCount int
-	err := sqlx.GetContext(ctx, db, &teamCount, `SELECT COUNT(*) FROM teams`)
+	var hasTeams bool
+	err := sqlx.GetContext(ctx, db, &hasTeams, `SELECT 1 FROM teams`)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// No teams, so no inherited policies
-			teamCount = 0
+			hasTeams = false
 		} else {
 			return ctxerr.Wrap(ctx, err, "count teams")
 		}
 	}
 
-	if teamCount > 0 {
+	if hasTeams {
 		globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list global policies")
