@@ -147,28 +147,8 @@ func runScriptCommand() *cli.Command {
 				}
 			}
 
-			if !async {
-				if !quiet {
-					fmt.Println("\nScript is running. Please wait for it to finish...")
-				}
-
-				res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team"))
-				if err != nil {
-					if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
-						return errors.New("Only one of '--script-path' or '--team' is allowed.")
-					}
-					return err
-				}
-
-				if !quiet {
-					if err := renderScriptResult(c, res); err != nil {
-						return err
-					}
-				} else {
-					fmt.Printf("%s", res.Output)
-				}
-			} else {
-				res, err := client.RunHostScript(h.ID, b, name, c.Uint("team"))
+			if async {
+				res, err := client.RunHostScriptAsync(h.ID, b, name, c.Uint("team"))
 				if err != nil {
 					if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
 						return errors.New("Only one of '--script-path' or '--team' is allowed.")
@@ -176,6 +156,27 @@ func runScriptCommand() *cli.Command {
 					return err
 				}
 				fmt.Printf("%s\n", res.ExecutionID)
+				return nil
+			}
+
+			if !quiet {
+				fmt.Println("\nScript is running. Please wait for it to finish...")
+			}
+
+			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team"))
+			if err != nil {
+				if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
+					return errors.New("Only one of '--script-path' or '--team' is allowed.")
+				}
+				return err
+			}
+
+			if !quiet {
+				if err := renderScriptResult(c, res); err != nil {
+					return err
+				}
+			} else {
+				fmt.Printf("%s", res.Output)
 			}
 
 			return nil
