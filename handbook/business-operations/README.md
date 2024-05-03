@@ -104,7 +104,9 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 - Number of customers awaiting invoices = `todo`
 - Number of past-due renewals = `todo`
 ```
+
 - Send payment reminders via email to all outstanding accounts by responding to the invoice email initially sent to the customer.
+
 ```
 Hello,
 This is a reminder that you have an outstanding balance due for your Fleet Device Management premium subscription.
@@ -114,6 +116,7 @@ For payment instructions please refer to your invoice, and reach out to [Fleet's
 Thanks,
 [name]
 ```
+
 - If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
 
 ### Run US commission payroll
