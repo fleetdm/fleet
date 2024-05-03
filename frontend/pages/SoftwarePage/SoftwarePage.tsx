@@ -312,15 +312,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     return (
       <p>
-        Search for installed software{" "}
-        {(isGlobalAdmin || isGlobalMaintainer) &&
-          (!isPremiumTier || !isAnyTeamSelected) &&
-          "and manage automations for detected vulnerabilities (CVEs)"}{" "}
-        on{" "}
-        {isPremiumTier && isAnyTeamSelected
-          ? "all hosts assigned to this team"
-          : "all of your hosts"}
-        .
+        Manage software and search for installed software, OS and
+        vulnerabilities {isAnyTeamSelected ? "on this team" : "for all hosts"}.
       </p>
     );
   };
