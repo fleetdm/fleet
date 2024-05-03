@@ -22,6 +22,7 @@ import {
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
+  isPlatformLabelNameFromAPI,
   PolicyResponse,
 } from "utilities/constants";
 
@@ -134,7 +135,9 @@ const HostsFilterBlock = ({
     if (selectedLabel) {
       const { description, display_text, label_type } = selectedLabel;
       const pillLabel =
-        PLATFORM_LABEL_DISPLAY_NAMES[display_text] ?? display_text;
+        (isPlatformLabelNameFromAPI(display_text) &&
+          PLATFORM_LABEL_DISPLAY_NAMES[display_text]) ||
+        display_text;
 
       return (
         <>

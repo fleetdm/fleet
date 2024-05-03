@@ -21,8 +21,8 @@ func TestLabelsAuth(t *testing.T) {
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 		return lbl, nil
 	}
-	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label) (*fleet.Label, error) {
-		return lbl, nil
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label) (*fleet.Label, []uint, error) {
+		return lbl, nil, nil
 	}
 	ds.DeleteLabelFunc = func(ctx context.Context, nm string) error {
 		return nil
@@ -30,8 +30,8 @@ func TestLabelsAuth(t *testing.T) {
 	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
 		return nil
 	}
-	ds.LabelFunc = func(ctx context.Context, id uint) (*fleet.Label, error) {
-		return &fleet.Label{}, nil
+	ds.LabelFunc = func(ctx context.Context, id uint) (*fleet.Label, []uint, error) {
+		return &fleet.Label{}, nil, nil
 	}
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
 		return nil, nil
@@ -90,16 +90,16 @@ func TestLabelsAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: ptr.String(t.Name()), Query: ptr.String(`SELECT 1`)})
+			_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: t.Name(), Query: `SELECT 1`})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{})
+			_, _, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.GetLabel(ctx, 1)
+			_, _, err = svc.GetLabel(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetLabelSpecs(ctx)
@@ -155,7 +155,7 @@ func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
 	assert.Nil(t, err)
 	assert.NotZero(t, label.ID)
 
-	labelVerify, err := svc.GetLabel(test.UserContext(ctx, test.UserAdmin), label.ID)
+	labelVerify, _, err := svc.GetLabel(test.UserContext(ctx, test.UserAdmin), label.ID)
 	assert.Nil(t, err)
 	assert.Equal(t, label.ID, labelVerify.ID)
 }

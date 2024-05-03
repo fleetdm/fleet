@@ -13,9 +13,6 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
 
-  // Bypass the `is-logged-in` policy for experiments, such as temporary landing pages.
-  'imagine/*': true,
-
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
   'webhooks/*': true,
@@ -56,4 +53,6 @@ module.exports.policies = {
   'try-fleet/view-explore-data': true,
   'try-fleet/view-query-report': true,
   'deliver-talk-to-us-form-submission': true,
+  'get-human-interpretation-from-osquery-sql': true,
+  'customers/view-new-license': true,
 };

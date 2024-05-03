@@ -105,7 +105,48 @@ hello world
 		{
 			name:         "invalid hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#! /foo/bar", ".sh") },
-			expectErrMsg: `Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`,
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+		},
+		{
+			name:         "unsupported hashbang",
+			scriptPath:   func() string { return writeTmpScriptContents(t, "#!/bin/ksh", ".sh") },
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+		},
+		{
+			name:       "posix shell hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/sh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "zsh hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/zsh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "usr zsh hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/usr/bin/zsh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "zsh hashbang with arguments",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/zsh -x", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
 		},
 		{
 			name: "script too long (unsaved)",

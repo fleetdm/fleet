@@ -2,6 +2,7 @@ package osquery_utils
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -172,6 +173,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
+		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version number) to
+		// correctly map OS vulnerabilities to hosts. The UBR is not available in the os_version table.
+		// The full version number is available in the `kernel_info` table, but there is a Win10 bug
+		// which is reporting an incorrect build number (3rd part), so we query the Windows registry for the UBR
+		// here instead.  To note, osquery 5.12.0 will have the UBR in the os_version table.
+
 		// display_version is not available in some versions of
 		// Windows (Server 2019). By including it using a JOIN it can
 		// return no rows and the query will still succeed
@@ -180,16 +187,23 @@ var hostDetailQueries = map[string]DetailQuery{
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		ubr_table AS (
+			SELECT data AS ubr
+			FROM registry
+			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
 		)
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			k.version
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
-			display_version_table d`,
+			display_version_table d
+		LEFT JOIN
+			ubr_table u`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -541,6 +555,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
+		// See above description for the `os_version_windows` detail query.
 		//
 		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
 		// To prevent the query from failing in those cases, we join
@@ -551,19 +566,26 @@ var extraDetailQueries = map[string]DetailQuery{
 		SELECT data as display_version
 		FROM registry
 		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	),
+	ubr_table AS (
+	SELECT data AS ubr
+	FROM registry
+	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
 	)
 	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version,
+		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
 		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
 		kernel_info k
 	LEFT JOIN
-		display_version_table d`,
+		display_version_table d
+	LEFT JOIN
+		ubr_table u`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -607,8 +629,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
 	"orbit_info": {
-		Query:            `SELECT version FROM orbit_info`,
+		Query:            `SELECT * FROM orbit_info`,
 		DirectIngestFunc: directIngestOrbitInfo,
+		Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"),
 		Discovery:        discoveryTable("orbit_info"),
 	},
 	"disk_encryption_darwin": {
@@ -628,11 +651,26 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_windows": {
-		Query:            `SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;`,
+		// Bitlocker is an optional component on Windows Server and
+		// isn't guaranteed to be installed. If we try to query the
+		// bitlocker_info table when the bitlocker component isn't
+		// present, the query will crash and fail to report back to
+		// the server. Before querying bitlocke_info, we check if it's
+		// either:
+		// 1. both an optional component, and installed.
+		// OR
+		// 2. not optional, meaning it's built into the OS
+		Query: `
+	WITH encrypted(enabled) AS (
+		SELECT CASE WHEN
+			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+			OR
+			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+	END)
+	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryption,
-		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
-		// osquery table on windows, it is always present.
 	},
 }
 
@@ -1038,7 +1076,7 @@ var usersQuery = DetailQuery{
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
 	Query:            usersQueryStr,
-	Platforms:        []string{"linux", "darwin", "windows"},
+	Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"),
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -1054,7 +1092,15 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 		return ctxerr.Errorf(ctx, "directIngestOrbitInfo invalid number of rows: %d", len(rows))
 	}
 	version := rows[0]["version"]
-	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version); err != nil {
+	var desktopVersion sql.NullString
+	desktopVersion.String, desktopVersion.Valid = rows[0]["desktop_version"]
+	var scriptsEnabled sql.NullBool
+	scriptsEnabledStr, ok := rows[0]["scripts_enabled"]
+	if ok {
+		scriptsEnabled.Bool = scriptsEnabledStr == "1"
+		scriptsEnabled.Valid = true
+	}
+	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version, desktopVersion, scriptsEnabled); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOrbitInfo update host orbit info")
 	}
 
@@ -1070,9 +1116,9 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 	hostOS := fleet.OperatingSystem{
 		Name:          rows[0]["name"],
 		Arch:          rows[0]["arch"],
-		KernelVersion: rows[0]["kernel_version"],
+		KernelVersion: rows[0]["version"],
 		Platform:      rows[0]["platform"],
-		Version:       rows[0]["kernel_version"],
+		Version:       rows[0]["version"],
 	}
 
 	displayVersion := rows[0]["display_version"]

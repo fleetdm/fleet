@@ -9,14 +9,16 @@ import { COLORS } from "styles/var/colors";
 interface ITooltipTruncatedTextCellProps {
   value: React.ReactNode;
   /** Tooltip to dispay. If this is provided then this will be rendered as the tooltip content. If
-   * not the value will be displayed as the tooltip content. Defaults to `undefined` */
+   * not, the value will be displayed as the tooltip content. Defaults to `undefined` */
   tooltip?: React.ReactNode;
   /** If set to `true` the text inside the tooltip will break on words instead of any character.
    * By default the tooltip text breaks on any character.
    * Default is `false`.
    */
   tooltipBreakOnWord?: boolean;
+  /** @deprecated use the prop `className` in order to add custom classes to this component */
   classes?: string;
+  className?: string;
 }
 
 const baseClass = "tooltip-truncated-cell";
@@ -26,8 +28,9 @@ const TooltipTruncatedTextCell = ({
   tooltip,
   tooltipBreakOnWord = false,
   classes = "w250",
+  className,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
-  const classNames = classnames(baseClass, classes, {
+  const classNames = classnames(baseClass, classes, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
   });
 

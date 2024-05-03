@@ -18,110 +18,19 @@ MacOS setup features require connecting Fleet to Apple Business Manager (ABM). L
 
 Using Fleet, you can require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
-To require end user authentication, we will do the following steps:
+### End user authentication
 
-1. Connect Fleet to your IdP
-2. Upload a EULA to Fleet (optional)
-3. Enable end user authentication
+To require end user authentication, first [configure single sign-on (SSO)](../Deploy/single-sign-on-sso.md). Next, enable end user authentication by heading to to **Controls > Setup experience End user authentication** or use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
-### Step 1: connect Fleet to your IdP
+If you've already configured SSO in Fleet, create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
 
-Fleet UI:
+In your IdP, make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
-1. Head to the **Settings > Integrations > Automatic enrollment** page.
+In your IdP, set **Name ID** to email. Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
 
-2. Under **End user authentication**, enter your IdP credentials and select **Save**.
+### EULA
 
-  > If you've already configured [single sign-on (SSO) for logging in to Fleet](https://fleetdm.com/docs/configuration/fleet-server-configuration#okta-idp-configuration), you'll need to create a separate app in your IdP so your end users can't log in to Fleet. In this separate app, use "https://fleetserver.com/api/v1/fleet/mdm/sso/callback" for the SSO URL.
-
-fleetctl CLI:
-
-1. Create a `fleet-config.yaml` file or add to your existing `config` YAML file:
-
-  ```yaml
-  apiVersion: v1
-  kind: config
-  spec:
-    mdm:
-      end_user_authentication:
-        identity_provider_name: "Okta"
-        entity_id: "https://fleetserver.com"
-        issuer_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
-        metadata_url: "https://okta-instance.okta.com/84598y345hjdsshsfg/sso/saml/metadata"
-    ...
-  ```
-
-2. Fill in the relevant information from your IdP under the `mdm.end_user_authentication` key.
-
-3. Run the fleetctl `apply -f fleet-config.yml` command to add your IdP credentials.
-
-4. Confirm that your IdP credentials were saved by running `fleetctl get config`.
-
-### Step 2: upload a EULA to Fleet
-
-1. Head to the **Settings > Integrations > Automatic enrollment** page.
-
-2. Under **End user license agreement (EULA)**, select **Upload** and choose your EULA.
-
-  > Uploading a EULA is optional. If you don't upload a EULA, the end user will skip this step and continue to the next step of the new Mac setup experience after they authenticate with your IdP.
-
-### Step 3: enable end user authentication
-
-You can enable end user authentication using the Fleet UI or fleetctl command-line tool.
-
-Fleet UI:
-
-1. Head to the **Controls > macOS settings > macOS setup > End user authentication** page.
-
-2. Choose which team you want to enable end user authentication for by selecting the desired team in the teams dropdown in the upper left corner.
-
-3. Select the **On** checkbox and select **Save**.
-
-fleetctl CLI:
-
-1. Choose which team you want to enable end user authentication on.
-
-   In this example, we'll enable end user authentication on the "Workstations (canary)" team so that the authentication is only required for hosts that automatically enroll to this team.
-
-2. Create a `workstations-canary-config.yaml` file:
-
-  ```yaml
-  apiVersion: v1
-  kind: team
-  spec:
-    team:
-      name: Workstations (canary)
-      mdm:
-        macos_setup:
-          enable_end_user_authentication: true
-      ...
-  ```
-
-  Learn more about team configurations options [here](./configuration-files/README.md#teams).
-
-  If you want to enable authentication on hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
-
-  ```yaml
-  apiVersion: v1
-  kind: config
-  spec:
-    mdm:
-      macos_setup:
-        enable_end_user_authentication: true
-    ...
-  ```
-
-Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
-
-3. Add an `mdm.macos_setup.enable_end_user_authentication` key to your YAML document. This key accepts a boolean value.
-
-4. Run the `fleetctl apply -f workstations-canary-config.yml` command to enable authentication for this team.
-
-5. Confirm that end user authentication is enabled by running the `fleetctl get teams --name=Workstations --yaml` command.
-
-  If you enabled authentication on "No team," run `fleetctl get config`.
-
-  You should see a `true` value for `mdm.macos_setup.enable_end_user_authentication`.
+To require a EULA, in Fleet, head to **Settings > Integrations > Automatic enrollment > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
 ## Bootstrap package
 
@@ -273,7 +182,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 ### Step 1: create an automatic enrollment profile
 
-1. Download Fleet's example automatic enrollment profile by navigating to the example [here on GitHub](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/automatic-enrollment.dep.json) and clicking the download icon.
+1. Download Fleet's example automatic enrollment profile by navigating to the example [here](fleetdm.com/example-dep-profile) and clicking the download icon.
 
 2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
 

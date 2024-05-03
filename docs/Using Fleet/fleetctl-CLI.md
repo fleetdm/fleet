@@ -30,7 +30,7 @@ npm install -g fleetctl@latest
 ### Available commands
 
 
-Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate agent (fleetd) installers to add new hosts, get information about existing hosts, and more!
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate Fleet's agent (fleetd) to add new hosts, get information about existing hosts, and more!
 
 To see the available commands you can run:
 
@@ -120,14 +120,13 @@ An API-only user does not have access to the Fleet UI. Instead, it's only purpos
 
 ### Create API-only user
 
+Before creating the API-only user, log in to `fleetctl` as an admin.  See [authentication](https://#authentication) above for details.
+
 To create your new API-only user, use `fleetctl user create`:
 
 ```sh
 fleetctl user create --name "API User" --email api@example.com --password temp@pass123 --api-only
 ```
-
-
-To use fleetctl with an API-only user, you will need to log in via `fleetctl`.  See [authentication](https://#authentication) above for details.
 
 #### Permissions
 
@@ -220,5 +219,5 @@ This will generate a `tar.gz` file with:
 - Files containing database-specific information.
 
 <meta name="pageOrderInSection" value="300">
-<meta name="description" value="Read about fleetctl, a CLI tool for managing Fleet and osquery configurations, running queries, generating installers, and more.">
+<meta name="description" value="Read about fleetctl, a CLI tool for managing Fleet and osquery configurations, running queries, generating Fleet's agent (fleetd) and more.">
 <meta name="navSection" value="The basics">

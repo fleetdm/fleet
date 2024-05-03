@@ -136,7 +136,8 @@ type VulnerabilityWithMetadata struct {
 }
 
 type VulnListOptions struct {
-	ListOptions
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions      ListOptions `url:"list_options"`
 	IsEE             bool
 	ValidSortColumns []string
 	TeamID           uint `query:"team_id,optional"`
@@ -144,11 +145,11 @@ type VulnListOptions struct {
 }
 
 func (opt VulnListOptions) HasValidSortColumn() bool {
-	if opt.OrderKey == "" || len(opt.ValidSortColumns) == 0 {
+	if opt.ListOptions.OrderKey == "" || len(opt.ValidSortColumns) == 0 {
 		return true
 	}
 	for _, c := range opt.ValidSortColumns {
-		if c == opt.OrderKey {
+		if c == opt.ListOptions.OrderKey {
 			return true
 		}
 	}

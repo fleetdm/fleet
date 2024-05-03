@@ -161,15 +161,6 @@ type EnrolledAPIResult struct {
 // EnrolledAPIResults is a map of enrollments to a per-enrollment API result.
 type EnrolledAPIResults map[string]*EnrolledAPIResult
 
-// MDMAppleHostDetails represents the device identifiers used to ingest an MDM device as a Fleet
-// host pending enrollment.
-// See also https://developer.apple.com/documentation/devicemanagement/authenticaterequest.
-type MDMAppleHostDetails struct {
-	SerialNumber string
-	UDID         string
-	Model        string
-}
-
 type MDMAppleCommandTimeoutError struct{}
 
 func (e MDMAppleCommandTimeoutError) Error() string {
@@ -450,8 +441,6 @@ const (
 	DEPAssignProfileResponseNotAccessible DEPAssignProfileResponseStatus = "NOT_ACCESSIBLE"
 	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
 )
-
-const MDMAppleDeclarationUUIDPrefix = "d"
 
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
@@ -818,4 +807,24 @@ type MDMAppleDDMStatusErrorReason struct {
 	// Details is a dictionary that contains further details about this
 	// error.
 	Details map[string]any `json:"Details"`
+}
+
+// MDMAppleDDMActivationPayload represents the payload of an activation declaration.
+//
+// https://developer.apple.com/documentation/devicemanagement/activationsimple
+type MDMAppleDDMActivationPayload struct {
+	Predicate              string   `json:"Predicate"`
+	StandardConfigurations []string `json:"StandardConfigurations"`
+}
+
+// MDMAppleDDMActivation represents the declaration of an activation. It combines the base
+// declaation with the activation payload.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationbase
+// https://developer.apple.com/documentation/devicemanagement/activationsimple
+type MDMAppleDDMActivation struct {
+	Identifier  string                       `json:"Identifier"`
+	Payload     MDMAppleDDMActivationPayload `json:"Payload"`
+	ServerToken string                       `json:"ServerToken"`
+	Type        string                       `json:"Type"` // "com.apple.activation.simple"
 }

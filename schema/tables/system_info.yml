@@ -86,5 +86,5 @@ examples: >-
   SELECT CPU_type, hardware_vendor, hardware_model, hardware_serial FROM system_info;
 
   ```
-notes: |
+notes: >-
   - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

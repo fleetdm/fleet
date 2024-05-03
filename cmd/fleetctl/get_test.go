@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -131,7 +132,7 @@ func TestGetTeams(t *testing.T) {
 				require.NoError(t, err)
 				return []*fleet.Team{
 					{
-						ID:          42,
+						ID:          12,
 						CreatedAt:   created_at,
 						Name:        "team1",
 						Description: "team1 description",
@@ -145,7 +146,7 @@ func TestGetTeams(t *testing.T) {
 						},
 					},
 					{
-						ID:          43,
+						ID:          32,
 						CreatedAt:   created_at,
 						Name:        "team2",
 						Description: "team2 description",
@@ -245,11 +246,11 @@ func TestGetTeamsByName(t *testing.T) {
 		}, nil
 	}
 
-	expectedText := `+-----------+------------+------------+
-| TEAM NAME | HOST COUNT | USER COUNT |
-+-----------+------------+------------+
-| team1     |         43 |         99 |
-+-----------+------------+------------+
+	expectedText := `+-----------+---------+------------+------------+
+| TEAM NAME | TEAM ID | HOST COUNT | USER COUNT |
++-----------+---------+------------+------------+
+| team1     |      42 |         43 |         99 |
++-----------+---------+------------+------------+
 `
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams", "--name", "test1"}))
 }
@@ -944,6 +945,7 @@ apiVersion: v1
 kind: label
 spec:
   description: some description
+  hosts: null
   id: 32
   label_membership_type: dynamic
   name: label1
@@ -954,14 +956,15 @@ apiVersion: v1
 kind: label
 spec:
   description: some other description
+  hosts: null
   id: 33
   label_membership_type: dynamic
   name: label2
   platform: linux
   query: select 42;
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
-{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic"}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "labels"}))
@@ -990,13 +993,14 @@ apiVersion: v1
 kind: label
 spec:
   description: some description
+  hosts: null
   id: 32
   label_membership_type: dynamic
   name: label1
   platform: windows
   query: select 1;
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))
@@ -1457,9 +1461,9 @@ func TestGetQuery(t *testing.T) {
 				Platform:           "linux",
 				Logging:            "differential",
 			}, nil
-		} else {
-			return nil, &notFoundError{}
 		}
+
+		return nil, &notFoundError{}
 	}
 
 	expectedYaml := `---
@@ -2215,6 +2219,17 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
 		return nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})

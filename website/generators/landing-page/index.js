@@ -219,8 +219,8 @@ module.exports = {
         <h1>${_.capitalize(scope.stem.replace(/\-/gim, ' '))}</h1>
         <p>Vitae architecto reiciendis in temporibus consequatur doloremque reprehenderit perferendis? Eaque quod voluptates earum corporis, quo labore reprehenderit libero sint.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-          <a purpose="cta-button" href="/contact">Talk to us</a>
-          <a purpose="animated-arrow-button-red" href="/register">Try it out</a>
+          <a purpose="cta-button" href="/register">Start now</a>
+          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
         </div>
       </div>
     </div>
@@ -274,8 +274,8 @@ module.exports = {
     </div>
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-      <a purpose="cta-button" href="/contact">Talk to us</a>
-      <a purpose="animated-arrow-button-red" href="/register">Try it out</a>
+      <a purpose="cta-button" href="/register">Start now</a>
+      <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
     </div>
 
   </div>
@@ -296,8 +296,8 @@ module.exports = {
         <h4>Open-source device management</h4>
         <h1>Lighter than air</h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/contact">Talk to us</a>
-          <a purpose="animated-arrow-button-red" href="/register">Try it out</a>
+          <a purpose="cta-button" href="/register">Start now</a>
+          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
         </div>
       </div>
     </div>

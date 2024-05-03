@@ -2,7 +2,10 @@
 
   <div class="d-flex justify-content-center">
     <div class="container justify-content-center library">
-      <h2 class="mb-3">Device health checks</h2>
+      <h2 class="mb-3">
+        <%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %>
+
+      </h2>
       <p class="pb-3 description">Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery. Want to add your own query? Please contribute <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">over on GitHub</a>.</p>
       <div class="p-0 m-0">
         <div class="d-md-none">
