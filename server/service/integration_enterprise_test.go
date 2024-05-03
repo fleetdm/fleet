@@ -8601,6 +8601,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	ctx := context.Background()
 	t := s.T()
 
+	// clean up any software titles from previous tests
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_titles`)
+		return err
+	})
+
 	token := "good_token"
 	host := createHostAndDeviceToken(t, s.ds, token)
 
