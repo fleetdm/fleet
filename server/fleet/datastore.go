@@ -549,6 +549,10 @@ type Datastore interface {
 
 	ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
+	// SetHostSoftwareInstallResult records the result of a software installation
+	// attempt on the host.
+	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 

@@ -50,7 +50,7 @@ type SoftwareInstaller struct {
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
-	InstallerID uint `json:"-" db:"id"`
+	InstallerID uint `json:"installer_id" db:"id"`
 	// InstallScript is the script to run to install the software package.
 	InstallScript string `json:"install_script" db:"-"`
 	// InstallScriptContentID is the ID of the install script content.
@@ -138,6 +138,13 @@ type UploadSoftwareInstallerPayload struct {
 	Source            string
 }
 
+// DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
+type DownloadSoftwareInstallerPayload struct {
+	Filename  string
+	Installer io.ReadCloser
+	Size      int64
+}
+
 func SofwareInstallerSourceFromFilename(filename string) (string, error) {
 	switch ext := filepath.Ext(filename); ext {
 	case ".deb":
@@ -184,4 +191,20 @@ type HostSoftwareInstalledVersion struct {
 	LastOpenedAt    *time.Time `json:"last_opened_at" db:"last_opened_at"`
 	Vulnerabilities []string   `json:"vulnerabilities" db:"vulnerabilities"`
 	InstalledPaths  []string   `json:"installed_paths" db:"installed_paths"`
+}
+
+// HostSoftwareInstallResultPayload is the payload provided by fleetd to record
+// the results of a software installation attempt.
+type HostSoftwareInstallResultPayload struct {
+	HostID      uint   `json:"host_id"`
+	InstallUUID string `json:"install_uuid"`
+
+	// the following fields are nil-able because the corresponding steps may not
+	// have been executed (optional step, or executed conditionally to a previous
+	// step).
+	PreInstallConditionOutput *string `json:"pre_install_condition_output"`
+	InstallScriptExitCode     *int    `json:"install_script_exit_code"`
+	InstallScriptOutput       *string `json:"install_script_output"`
+	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
+	PostInstallScriptOutput   *string `json:"post_install_script_output"`
 }

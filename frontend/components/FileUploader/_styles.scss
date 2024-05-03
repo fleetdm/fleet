@@ -10,6 +10,12 @@
   text-align: center;
   gap: $pad-small;
 
+  // when the file preview is showing, we want the padding to be
+  // slightly smaller on the top and bottom.
+  &__file-preview {
+    padding: $pad-medium $pad-large;
+  }
+
   &__graphics {
     display: flex;
     align-items: center;
@@ -39,6 +45,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: $pad-small;
 
     &:hover {
       cursor: pointer;
