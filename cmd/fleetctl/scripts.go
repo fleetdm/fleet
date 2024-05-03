@@ -17,10 +17,10 @@ import (
 
 // Helper function to convert a boolean to an integer
 func boolToInt(b bool) int {
-    if b {
-        return 1
-    }
-    return 0
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func runScriptCommand() *cli.Command {
