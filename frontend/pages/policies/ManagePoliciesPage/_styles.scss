@@ -193,29 +193,30 @@
                 }
               }
 
-              .critical-badge,
-              .inherited-badge {
-                display: inline-flex;
-              }
-
-              .inherited-badge {
-                display: flex;
-                padding: 4px;
-                justify-content: center;
-                align-items: center;
-                gap: 4px;
-                font-weight: $bold;
-                font-size: $xxx-small;
-                color: $core-fleet-black;
-                border-radius: 4px;
-                background: $ui-vibrant-blue-10;
-              }
-
               .policy-name-text {
                 text-overflow: ellipsis;
                 overflow: hidden;
               }
             }
+          }
+
+          .critical-badge,
+          .policy-has-not-run {
+            .critical-badge-icon {
+              display: inline-flex;
+            }
+
+            @include tooltip5-arrow-styles;
+
+            .react-tooltip {
+              @include tooltip-text;
+              font-style: normal;
+              text-align: center;
+            }
+          }
+
+          .inherited-badge {
+            overflow: initial;
           }
         }
       }
