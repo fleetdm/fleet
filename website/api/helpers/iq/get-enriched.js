@@ -55,7 +55,7 @@ module.exports = {
 
     require('assert')(sails.config.custom.iqSecret);// FUTURE: Rename this config
 
-    let RX_PROTOCOL_AND_COMMON_SUBDOMAINS = /^(https?\:\/\/)?(www\.|about\.)*/;
+    let RX_PROTOCOL_AND_COMMON_SUBDOMAINS = /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.)*/;
 
     sails.log.verbose('Enriching from…', emailAddress,linkedinUrl,firstName,lastName,organization);
 
