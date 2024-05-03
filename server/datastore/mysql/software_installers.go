@@ -209,7 +209,8 @@ SELECT
 			hsi.pre_install_query_output = '' THEN ? -- failed
 		WHEN hsi.host_id IS NOT NULL THEN ? -- pending
 		ELSE NULL -- not installed from Fleet installer
-	END, '') AS status	
+	END, '') AS status,
+	si.filename AS software_package
 FROM
 	host_software_installs hsi
 	JOIN hosts h ON h.id = hsi.host_id
