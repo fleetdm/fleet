@@ -157,7 +157,9 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getSoftwareTitles: (params: ISoftwareApiParams) => {
+  getSoftwareTitles: (
+    params: ISoftwareApiParams
+  ): Promise<ISoftwareTitlesResponse> => {
     const { SOFTWARE_TITLES } = endpoints;
     const snakeCaseParams = convertParamsToSnakeCase(params);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

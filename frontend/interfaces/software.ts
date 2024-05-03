@@ -53,6 +53,7 @@ export interface ISoftwareTitleVersion {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  software_package: string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
