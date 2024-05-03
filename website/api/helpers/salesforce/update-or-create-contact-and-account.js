@@ -56,7 +56,7 @@ module.exports = {
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
     require('assert')(sails.config.custom.salesforceIntegrationPasskey);
     require('assert')(sails.config.custom.iqSecret);
-    require('assert')(sails.config.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
+    require('assert')(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
 
 
     if(!emailAddress && !linkedinUrl){

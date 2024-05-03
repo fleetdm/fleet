@@ -54,7 +54,7 @@ module.exports = {
   fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization}) {
 
     require('assert')(sails.config.custom.iqSecret);// FUTURE: Rename this config
-    require('assert')(sails.config.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
+    require('assert')(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
 
     sails.log.verbose('Enriching from…', emailAddress,linkedinUrl,firstName,lastName,organization);
 
