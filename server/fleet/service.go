@@ -607,6 +607,7 @@ type Service interface {
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
+	AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software
