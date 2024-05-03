@@ -94,19 +94,19 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Version",
-      disableSortBy: true,
-      accessor: "versions",
-      Cell: (cellProps: IVersionsCellProps) => (
-        <VersionCell versions={cellProps.cell.value} />
-      ),
-    },
-    {
       Header: "Type",
       disableSortBy: true,
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={formatSoftwareType(cellProps.row.original)} />
+      ),
+    },
+    {
+      Header: "Version",
+      disableSortBy: true,
+      accessor: "versions",
+      Cell: (cellProps: IVersionsCellProps) => (
+        <VersionCell versions={cellProps.cell.value} />
       ),
     },
     // the "vulnerabilities" accessor is used but the data is actually coming
