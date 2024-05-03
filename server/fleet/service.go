@@ -619,6 +619,10 @@ type Service interface {
 	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
+	// SaveHostSoftwareInstallResult saves information about execution of a
+	// software installation on a host.
+	SaveHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software Titles
 

@@ -790,3 +790,51 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 
 	return nil, fleet.ErrMissingLicense
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit software install result
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostSoftwareInstallResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	*fleet.HostSoftwareInstallResultPayload
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostSoftwareInstallResultRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *orbitPostSoftwareInstallResultRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostSoftwareInstallResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostSoftwareInstallResultResponse) error() error { return r.Err }
+func (r orbitPostSoftwareInstallResultResponse) Status() int  { return http.StatusNoContent }
+
+func postOrbitSoftwareInstallResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostSoftwareInstallResultRequest)
+	if err := svc.SaveHostSoftwareInstallResult(ctx, req.HostSoftwareInstallResultPayload); err != nil {
+		return orbitPostSoftwareInstallResultResponse{Err: err}, nil
+	}
+	return orbitPostSoftwareInstallResultResponse{}, nil
+}
+
+func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
+	}
+
+	// always use the authenticated host's ID as host_id
+	result.HostID = host.ID
+	err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
+	return ctxerr.Wrap(ctx, err, "save host software installation result")
+}
