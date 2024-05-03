@@ -727,9 +727,9 @@ Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#owner
 ## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner.
 
-Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the 4A feedback pattern: 
+Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
 
-When giving feedback:
+When _giving_ feedback:
 
 1. Aim to assist
   - Feedback must be given with positive intent.
@@ -737,7 +737,7 @@ When giving feedback:
 2. Actionable
   - Feedback must be actionable and focus on what the recipient can do differently.
 
-When receiving feedback:
+When _receiving_ feedback:
 
 3. Appreciate
   - It is natural to feel defensive when hearing criticism.
@@ -745,6 +745,9 @@ When receiving feedback:
 4. Accept or discard
   - Listen and consider all feedback, then decide to accept or discard.
   - The decision to react to the feedback is entirely up to the recipient.
+
+> When delivering feedback, you can also use the [other person's personality type](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0&range=AA1) as [a guide](https://drive.google.com/file/d/1iWHYJzc6WKdR95GBFAvjumouh0ej2DQM/view).  For example, when delivering feedback to a ["type 1" personality](https://www.enneagraminstitute.com/type-1/), it helps to focus on minimizing the extent to which the person spirals into self-blame.  In contrast, when delivering feedback to a ["type 7" personality](https://www.enneagraminstitute.com/type-7/), it is better to focus on being sensitive to the person's tendency to avoid negative emotions and reframe things positively.
+
 
 ## Equipment
 Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
@@ -833,10 +836,10 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - ***Struggling with this?*** It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
 
 #### Capitalization and proper nouns
-- **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management."
-- **Fleet the product:** We say either “Fleet” or “Fleet for osquery.”
-- **Core team members:** Team members who've signed an NDA employment agreement, are “Fleeties.”
-- **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).  
+- **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
+- **Fleet the product:** We always say “Fleet” or “Fleet for osquery".  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
+- **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “fleeties".
+- **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.
 - **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
 

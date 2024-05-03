@@ -165,3 +165,10 @@
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential" 
+-
+  task: "Downgrade unused license seats" 
+  startedOn: "2024-03-31" 
+  frequency: "Quarterly"
+  description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#downgrade-an-unused-license-seat"
+  dri: "sampfluger88"
