@@ -196,7 +196,7 @@ SELECT
 	h.computer_name AS host_display_name,
 	st.name AS software_title,
 	st.id AS software_title_id,
-	CASE
+	COALESCE(CASE
 		WHEN hsi.post_install_script_exit_code IS NOT NULL AND
 			hsi.post_install_script_exit_code = 0 THEN ? -- installed
 		WHEN hsi.post_install_script_exit_code IS NOT NULL AND
@@ -209,7 +209,7 @@ SELECT
 			hsi.pre_install_query_output = '' THEN ? -- failed
 		WHEN hsi.host_id IS NOT NULL THEN ? -- pending
 		ELSE NULL -- not installed from Fleet installer
-	END AS status	
+	END, '') AS status	
 FROM
 	host_software_installs hsi
 	JOIN hosts h ON h.id = hsi.host_id

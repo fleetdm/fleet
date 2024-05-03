@@ -85,32 +85,48 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	teamID := team.ID
 
-	// create a host and software installer
+	for _, tc := range []struct {
+		name                  string
+		uuid                  string
+		expectedStatus        fleet.SoftwareInstallerStatus
+		postInstallScriptEC   *uint
+		preInstallQueryOutput *string
+		installScriptEC       *uint
+	}{
+		{name: "pending install", uuid: "pending", expectedStatus: fleet.SoftwareInstallerPending},
+		{name: "failing install post install script", uuid: "fail_post_install_script", expectedStatus: fleet.SoftwareInstallerFailed, postInstallScriptEC: ptr.Uint(1)},
+		{name: "failing install install script", uuid: "fail_install_script", expectedStatus: fleet.SoftwareInstallerFailed, installScriptEC: ptr.Uint(1)},
+		{name: "failing install pre install query", uuid: "fail_pre_install_query", expectedStatus: fleet.SoftwareInstallerFailed, preInstallQueryOutput: ptr.String("")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// create a host and software installer
+			installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				Title:         "foo" + tc.name,
+				Source:        "bar" + tc.name,
+				InstallScript: "echo " + tc.name,
+				TeamID:        &teamID,
+			})
+			require.NoError(t, err)
+			host, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "macos-test-" + tc.name,
+				OsqueryHostID: ptr.String("osquery-macos-" + tc.name),
+				NodeKey:       ptr.String("node-key-macos-" + tc.name),
+				UUID:          uuid.NewString(),
+				Platform:      "darwin",
+				TeamID:        &teamID,
+			})
+			require.NoError(t, err)
 
-	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "foo",
-		Source:        "bar",
-		InstallScript: "echo",
-		TeamID:        &teamID,
-	})
-	require.NoError(t, err)
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "macos-test",
-		OsqueryHostID: ptr.String("osquery-macos"),
-		NodeKey:       ptr.String("node-key-macos"),
-		UUID:          uuid.NewString(),
-		Platform:      "darwin",
-		TeamID:        &teamID,
-	})
-	require.NoError(t, err)
+			// Need to insert manually so we have access to the UUID (it's generated in the SQL method)
+			query := `INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, post_install_script_exit_code, install_script_exit_code, pre_install_query_output) VALUES (?,?,?,?,?,?)`
+			_, err = ds.writer(ctx).ExecContext(ctx, query, tc.uuid, host.ID, installerID, tc.postInstallScriptEC, tc.installScriptEC, tc.preInstallQueryOutput)
+			require.NoError(t, err)
 
-	// Need to insert manually so we have access to the UUID (it's generated in the SQL method)
-	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?,?,?)`, "1234", host.ID, installerID)
-	require.NoError(t, err)
+			res, err := ds.GetSoftwareInstallResults(ctx, tc.uuid)
+			require.NoError(t, err)
 
-	res, err := ds.GetSoftwareInstallResults(ctx, "1234")
-	require.NoError(t, err)
-
-	require.Equal(t, "1234", res.InstallUUID)
-	require.Equal(t, fleet.SoftwareInstallerPending, res.Status)
+			require.Equal(t, tc.uuid, res.InstallUUID)
+			require.Equal(t, tc.expectedStatus, res.Status)
+		})
+	}
 }
