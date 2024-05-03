@@ -18,6 +18,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"InsertSoftwareInstallRequest", testInsertSoftwareInstallRequest},
+		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
 	}
 
 	for _, c := range cases {
@@ -75,4 +76,41 @@ func testInsertSoftwareInstallRequest(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	// create a host and software installer
+
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:         "foo",
+		Source:        "bar",
+		InstallScript: "echo",
+		TeamID:        &teamID,
+	})
+	require.NoError(t, err)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "macos-test",
+		OsqueryHostID: ptr.String("osquery-macos"),
+		NodeKey:       ptr.String("node-key-macos"),
+		UUID:          uuid.NewString(),
+		Platform:      "darwin",
+		TeamID:        &teamID,
+	})
+	require.NoError(t, err)
+
+	// Need to insert manually so we have access to the UUID (it's generated in the SQL method)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?,?,?)`, "1234", host.ID, installerID)
+	require.NoError(t, err)
+
+	res, err := ds.GetSoftwareInstallResults(ctx, "1234")
+	require.NoError(t, err)
+
+	require.Equal(t, "1234", res.InstallUUID)
+	require.Equal(t, fleet.SoftwareInstallerPending, res.Status)
 }
