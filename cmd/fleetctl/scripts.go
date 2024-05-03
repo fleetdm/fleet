@@ -87,13 +87,13 @@ func runScriptCommand() *cli.Command {
 			name := c.String("script-name")
 			args := c.Args().Len()
 
-			not_empty := boolToInt(path != "") + boolToInt(name != "") + boolToInt(args > 0)
+			notEmpty := boolToInt(path != "") + boolToInt(name != "") + boolToInt(args > 0)
 
-			if not_empty < 1 {
+			if notEmpty < 1 {
 				return errors.New("One of '--script-path' or '--script-name' or '-- <contents>' must be specified.")
 			}
 
-			if not_empty > 1 {
+			if notEmpty > 1 {
 				return errors.New("Only one of '--script-path' or '--script-name' or '-- <contents>' is allowed.")
 			}
 

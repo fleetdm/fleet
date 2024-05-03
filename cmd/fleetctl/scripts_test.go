@@ -70,6 +70,13 @@ hello world
 -------------------------------------------------------------------------------------
 `
 
+	expectedQuietOutputSuccess := `
+hello world
+`
+	expectedAsyncOutputSuccess := `
+423e5330-3591-440a-8908-fceb336a3643
+`
+
 	type testCase struct {
 		name                string
 		scriptPath          func() string
@@ -77,6 +84,8 @@ hello world
 		teamID              *uint
 		savedScriptContents func() ([]byte, error)
 		scriptResult        *fleet.HostScriptResult
+		quiet               bool
+		async               bool
 		expectOutput        string
 		expectErrMsg        string
 		expectNotFound      bool
@@ -190,11 +199,11 @@ hello world
 			name:         "script-path and script-name disallowed",
 			scriptPath:   generateValidPath,
 			scriptName:   "foo",
-			expectErrMsg: `Only one of '--script-path' or '--script-name' is allowed.`,
+			expectErrMsg: `One of '--script-path' or '--script-name' or '-- <contents>' must be specified.`,
 		},
 		{
 			name:         "missing one of script-path and script-nqme",
-			expectErrMsg: `One of '--script-path' or '--script-name' must be specified.`,
+			expectErrMsg: `One of '--script-path' or '--script-name' or '-- <contents>' must be specified.`,
 		},
 		{
 			name:         "script-path and team disallowed",
@@ -226,6 +235,26 @@ hello world
 				Output:   "hello world",
 			},
 			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "script quiet",
+			scriptPath: generateValidPath,
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedQuietOutputSuccess,
+			quiet: true,
+		},
+		{
+			name:       "script async",
+			scriptPath: generateValidPath,
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedAsyncOutputSuccess,
+			async: true,
 		},
 		{
 			name:       "script failed",
@@ -392,11 +421,20 @@ Fleet records the last 10,000 characters to prevent downtime.
 				args = append(args, "--script-name", c.scriptName)
 			}
 
+			if c.quiet {
+				args = append(args, "--quiet")
+			}
+
+			if c.async {
+				args = append(args, "--async")
+			}
+
 			if c.teamID != nil {
 				args = append(args, "--team", fmt.Sprintf("%d", *c.teamID))
 			}
 
 			b, err := runAppNoChecks(args)
+			fmt.Printf("B?: %s\n", b.String())
 			if c.expectErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.expectErrMsg)
