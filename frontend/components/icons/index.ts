@@ -53,6 +53,7 @@ import Profile from "./Profile";
 import Download from "./Download";
 import Upload from "./Upload";
 import Refresh from "./Refresh";
+import Install from "./Install";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -110,6 +111,7 @@ export const ICON_MAP = {
   download: Download,
   upload: Upload,
   refresh: Refresh,
+  install: Install,
 };
 
 export type IconNames = keyof typeof ICON_MAP;
