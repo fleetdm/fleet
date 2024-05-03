@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -161,8 +160,6 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-
-	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetSoftwareInstallResults").Info("JVE_LOG: we out here\n\n\n\n ")
 
 	res, err := svc.ds.GetSoftwareInstallResults(ctx, resultUUID)
 	if err != nil {
