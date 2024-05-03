@@ -3,7 +3,7 @@ export type ISoftwareDropdownFilterVal =
   | "vulnerableSoftware"
   | "installableSoftware";
 
-export const VULNERABLE_DROPDOWN_OPTIONS = [
+export const SOFTWARE_VERSIONS_DROPDOWN_OPTIONS = [
   {
     disabled: false,
     label: "All software",
@@ -17,6 +17,10 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
     helpText:
       "All software installed on your hosts with detected vulnerabilities.",
   },
+];
+
+export const SOFTWARE_TITLES_DROPDOWN_OPTIONS = [
+  ...SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
   {
     disabled: false,
     label: "Available for install",

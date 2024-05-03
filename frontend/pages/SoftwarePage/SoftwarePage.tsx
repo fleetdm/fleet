@@ -21,7 +21,6 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { buildQueryStringFromParams } from "utilities/url";
-import { ISoftwareDropdownFilterVal } from "utilities/constants/software";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
@@ -29,6 +28,7 @@ import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
+import { ISoftwareDropdownFilterVal } from "./SoftwareTitles/SoftwareTable/helpers";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -144,8 +144,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       : DEFAULT_PAGE;
   // TODO: move these down into the Software Titles component.
   const query = queryParams && queryParams.query ? queryParams.query : "";
-  const showVulnerableSoftware =
-    queryParams !== undefined && queryParams.vulnerable === "true";
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
   const softwareFilter = getSoftwareFilter(
@@ -358,7 +356,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           teamId: teamIdForApi,
           // TODO: move down into the Software Titles component
           query,
-          showVulnerableSoftware,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
         })}

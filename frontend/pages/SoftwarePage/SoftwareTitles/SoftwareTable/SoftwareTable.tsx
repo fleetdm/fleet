@@ -11,21 +11,12 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import {
-  ISoftwareDropdownFilterVal,
-  VULNERABLE_DROPDOWN_OPTIONS,
-} from "utilities/constants/software";
 import { buildQueryStringFromParams } from "utilities/url";
 import {
-  ISoftwareApiParams,
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import {
-  ISoftware,
-  ISoftwareTitle,
-  ISoftwareVersion,
-} from "interfaces/software";
+import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -39,6 +30,11 @@ import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable
 
 import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
+import {
+  ISoftwareDropdownFilterVal,
+  SOFTWARE_TITLES_DROPDOWN_OPTIONS,
+  SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
+} from "./helpers";
 
 interface IRowProps extends Row {
   original: {
@@ -64,7 +60,6 @@ interface ISoftwareTableProps {
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
-  showVulnerableSoftware: boolean;
   softwareFilter: ISoftwareDropdownFilterVal;
   currentPage: number;
   teamId?: number;
@@ -82,14 +77,11 @@ const SoftwareTable = ({
   perPage,
   orderDirection,
   orderKey,
-  showVulnerableSoftware,
   softwareFilter,
   currentPage,
   teamId,
   isLoading,
 }: ISoftwareTableProps) => {
-  const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
-
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
     : PATHS.SOFTWARE_TITLES;
@@ -104,8 +96,6 @@ const SoftwareTable = ({
             return val !== orderDirection;
           case "sortHeader":
             return val !== orderKey;
-          case "vulnerable":
-            return val !== showVulnerableSoftware.toString();
           case "pageIndex":
             return val !== currentPage;
           default:
@@ -114,15 +104,12 @@ const SoftwareTable = ({
       });
       return changedEntry?.[0] ?? "";
     },
-    [currentPage, orderDirection, orderKey, query, showVulnerableSoftware]
+    [currentPage, orderDirection, orderKey, query]
   );
 
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
-      const newQueryParam: Record<
-        string,
-        string | number | boolean | undefined
-      > = {
+      const newQueryParam: Record<string, string | number | undefined> = {
         query: newTableQuery.searchQuery,
         team_id: teamId,
         order_direction: newTableQuery.sortDirection,
@@ -130,9 +117,11 @@ const SoftwareTable = ({
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
       };
       if (softwareFilter === "installableSoftware") {
-        newQueryParam.available_for_install = true;
+        newQueryParam.available_for_install = true.toString();
       } else {
-        newQueryParam.vulnerable = softwareFilter === "vulnerableSoftware";
+        newQueryParam.vulnerable = (
+          softwareFilter === "vulnerableSoftware"
+        ).toString();
       }
 
       return newQueryParam;
@@ -186,7 +175,7 @@ const SoftwareTable = ({
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
-    (!!tableData || query !== "" || showVulnerableSoftware);
+    (!!tableData || query !== "" || softwareFilter === "vulnerableSoftware");
 
   const getItemsCountText = () => {
     const count = data?.count;
@@ -206,20 +195,31 @@ const SoftwareTable = ({
   };
 
   const handleShowVersionsToggle = () => {
+    const queryParams: Record<string, string | number | undefined> = {
+      query,
+      team_id: teamId,
+      order_direction: orderDirection,
+      order_key: orderKey,
+      page: 0, // resets page index
+    };
+
+    // if we are currently showing installable titles, we want to switch to
+    // all software versions. If not, we want to keep the current filter.
+    if (softwareFilter === "installableSoftware") {
+      queryParams.vulnerable = "false";
+    } else {
+      queryParams.vulnerable = (
+        softwareFilter === "vulnerableSoftware"
+      ).toString();
+    }
+
     router.replace(
       getNextLocationPath({
         pathPrefix: showVersions
           ? PATHS.SOFTWARE_TITLES
           : PATHS.SOFTWARE_VERSIONS,
         routeTemplate: "",
-        queryParams: {
-          query,
-          team_id: teamId,
-          order_direction: orderDirection,
-          order_key: orderKey,
-          vulnerable: showVulnerableSoftware.toString(),
-          page: 0, // resets page index
-        },
+        queryParams,
       })
     );
   };
@@ -283,6 +283,10 @@ const SoftwareTable = ({
   };
 
   const renderCustomFilters = () => {
+    const options = showVersions
+      ? SOFTWARE_VERSIONS_DROPDOWN_OPTIONS
+      : SOFTWARE_TITLES_DROPDOWN_OPTIONS;
+
     return (
       <div className={`${baseClass}__filter-controls`}>
         <div className={`${baseClass}__version-slider`}>
@@ -297,7 +301,7 @@ const SoftwareTable = ({
         <Dropdown
           value={softwareFilter}
           className={`${baseClass}__vuln_dropdown`}
-          options={VULNERABLE_DROPDOWN_OPTIONS}
+          options={options}
           searchable={false}
           onChange={handleVulnFilterDropdownChange}
           tableFilterDropdown
@@ -328,12 +332,10 @@ const SoftwareTable = ({
         resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
+            softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isFilterVulnerable={showVulnerableSoftware}
-            isSandboxMode={isSandboxMode}
             isCollectingSoftware={false} // TODO: update with new API
             isSearching={query !== ""}
-            noSandboxHosts={noSandboxHosts}
           />
         )}
         defaultSortHeader={orderKey}
@@ -351,7 +353,7 @@ const SoftwareTable = ({
         // additionalQueries serves as a trigger for the useDeepEffect hook
         // to fire onQueryChange for events happeing outside of
         // the TableContainer.
-        additionalQueries={softwareFilter}
+        // additionalQueries={softwareFilter}
         customControl={searchable ? renderCustomFilters : undefined}
         stackControls
         renderCount={renderSoftwareCount}

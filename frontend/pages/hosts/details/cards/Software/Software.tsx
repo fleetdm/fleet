@@ -6,11 +6,8 @@ import { isEmpty } from "lodash";
 
 import { AppContext } from "context/app";
 import { ISoftware } from "interfaces/software";
-import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants/software";
 import { buildQueryStringFromParams } from "utilities/url";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Card from "components/Card";
@@ -193,19 +190,6 @@ const SoftwareTable = ({
     router.push(path);
   };
 
-  const renderVulnFilterDropdown = () => {
-    return (
-      <Dropdown
-        value={filterVuln}
-        className={`${baseClass}__vuln_dropdown`}
-        options={VULNERABLE_DROPDOWN_OPTIONS}
-        searchable={false}
-        onChange={handleVulnFilterDropdownChange}
-        tableFilterDropdown
-      />
-    );
-  };
-
   return (
     <Card
       borderRadiusSize="large"
@@ -242,16 +226,11 @@ const SoftwareTable = ({
                 inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
                 onQueryChange={onQueryChange}
                 emptyComponent={() => (
-                  <EmptySoftwareTable
-                    isFilterVulnerable={filterVuln}
-                    isSearching={searchQuery !== ""}
-                    isSandboxMode={isSandboxMode}
-                  />
+                  <EmptySoftwareTable isSearching={searchQuery !== ""} />
                 )}
                 showMarkAllPages={false}
                 isAllPagesSelected={false}
                 searchable
-                customControl={renderVulnFilterDropdown}
                 isClientSidePagination
                 onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter
@@ -262,10 +241,7 @@ const SoftwareTable = ({
           )}
         </>
       ) : (
-        <EmptySoftwareTable
-          isSandboxMode={isSandboxMode}
-          isFilterVulnerable={filterVuln}
-        />
+        <EmptySoftwareTable />
       )}
     </Card>
   );
