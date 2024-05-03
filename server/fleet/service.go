@@ -629,6 +629,9 @@ type Service interface {
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
 
+	// InstallSoftwareTitle installs a software title in the given host.
+	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
@@ -1007,4 +1010,7 @@ type Service interface {
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) error
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
+	GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*SoftwareInstaller, error)
+	DownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
+	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 }

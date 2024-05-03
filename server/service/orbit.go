@@ -344,7 +344,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
-
 			}
 		}
 	}
@@ -748,6 +747,49 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	return nil
 }
 
+// Download Orbit software installer request
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitDownloadSoftwareInstallerRequest struct {
+	Alt          string `query:"alt"`
+	OrbitNodeKey string `json:"orbit_node_key"`
+	InstallerID  uint   `json:"installer_id"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitDownloadSoftwareInstallerRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitDownloadSoftwareInstallerRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+func orbitDownloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitDownloadSoftwareInstallerRequest)
+
+	downloadRequested := req.Alt == "media"
+	if !downloadRequested {
+		// TODO: confirm error handling
+		return downloadSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
+	}
+
+	p, err := svc.OrbitDownloadSoftwareInstaller(ctx, req.InstallerID)
+	if err != nil {
+		return downloadSoftwareInstallerResponse{Err: err}, nil
+	}
+	return downloadSoftwareInstallerResponse{payload: p}, nil
+}
+
+func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Post Orbit software install result
 /////////////////////////////////////////////////////////////////////////////////
@@ -762,7 +804,6 @@ func (r *orbitPostSoftwareInstallResultRequest) setOrbitNodeKey(nodeKey string) 
 	r.OrbitNodeKey = nodeKey
 }
 
-// interface implementation required by orbit authentication
 func (r *orbitPostSoftwareInstallResultRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
