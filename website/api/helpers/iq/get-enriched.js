@@ -54,8 +54,7 @@ module.exports = {
   fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization}) {
 
     require('assert')(sails.config.custom.iqSecret);// FUTURE: Rename this config
-
-    let RX_PROTOCOL_AND_COMMON_SUBDOMAINS = /^(https?\:\/\/)?(www\.|about\.)*/;
+    require('assert')(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
 
     sails.log.verbose('Enriching from…', emailAddress,linkedinUrl,firstName,lastName,organization);
 
@@ -161,7 +160,7 @@ module.exports = {
         }
 
         person = {
-          linkedinUrl: matchingPersonInfo.canonical_url.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
+          linkedinUrl: matchingPersonInfo.canonical_url.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
           firstName: matchingPersonInfo.first_name,
           lastName: matchingPersonInfo.last_name,
           organization: matchedOrganizationName || '',
@@ -240,12 +239,12 @@ module.exports = {
       if (matchingCompanyPageInfo) {
         let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
         // If a company's website does not include the protocol (https://), url.parse will return null as the hostname, if this happens, we'll use the href value returned instead.
-        let emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.href.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
+        let emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.href.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
         employer = {
           organization: matchingCompanyPageInfo.name,
           numberOfEmployees: matchingCompanyPageInfo.employees_count,
           emailDomain: emailDomain,
-          linkedinCompanyPageUrl: matchingCompanyPageInfo.canonical_url.replace(RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
+          linkedinCompanyPageUrl: matchingCompanyPageInfo.canonical_url.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
         };
         if (organization && employer.organization && employer.organization !== organization) {
           sails.log.info(`Unexpected result when enriching: Matched organization name (${employer.organization}) does not equal the provided "organization" (${organization})`);
