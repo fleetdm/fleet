@@ -219,11 +219,11 @@ module.exports = {
           primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
           organization: this.req.me.organization,
           psychologicalStage,
-        }).catch((err)=>{
-          sails.log.warn(`When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM. Full error:`, err);
+        }).tolerate((err)=>{
+          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM. Full error:`, err);
         });
-      });
-    }
+      });//_∏_  (Meanwhile...)
+    }//ﬁ
     // TODO: send all other answers to Salesforce (when there are fields for them)
 
     // await sails.helpers.http.post.with({
