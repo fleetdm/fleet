@@ -29,7 +29,7 @@ module.exports = {
     });
 
     // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = ['Erik Gomez', 'Nick Fohs', 'Dan Grzelak', 'Kenny Botelho', 'Wes Whetstone', 'Matt Carr'];
+    let testimonialOrderForThisPage = ['Erik Gomez', 'Kenny Botelho', 'Wes Whetstone', 'Matt Carr', 'Dan Grzelak', 'Nick Fohs'];
     testimonialsForScrollableTweets.sort((a, b)=>{
       if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName) === -1){
         return 1;
