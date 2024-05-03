@@ -3,7 +3,10 @@ package fleet
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"path/filepath"
+	"time"
 )
 
 // SoftwareInstallerStore is the interface to store and retrieve software
@@ -54,20 +57,28 @@ type SoftwareInstaller struct {
 	// TeamID is the ID of the team. A value of nil means it is scoped to hosts that are assigned to
 	// no team.
 	TeamID *uint `json:"team_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID uint `json:"-" db:"title_id"`
 	// Name is the name of the software package.
-	Name string `json:"name" db:"name"`
+	Name string `json:"name" db:"filename"`
 	// Version is the version of the software package.
 	Version string `json:"version" db:"version"`
 	// UploadedAt is the time the software package was uploaded.
-	UploadedAt string `json:"uploaded_at" db:"uploaded_at"`
+	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
-	InstallerID uint `json:"-" db:"installer_id"`
+	InstallerID uint `json:"installer_id" db:"id"`
 	// InstallScript is the script to run to install the software package.
-	InstallScript string `json:"install_script" db:"install_script"`
+	InstallScript string `json:"install_script" db:"-"`
+	// InstallScriptContentID is the ID of the install script content.
+	InstallScriptContentID uint `json:"-" db:"install_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
-	PreInstallQuery string `json:"pre_install_query" db:"pre_install_condition"`
+	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
 	// PostInstallScript is the script to run after installing the software package.
-	PostInstallScript string `json:"post_install_script"`
+	PostInstallScript string `json:"post_install_script" db:"-"`
+	// PostInstallScriptContentID is the ID of the post-install script content.
+	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
+	// StorageID is the unique identifier for the software package in the software installer store.
+	StorageID string `json:"-" db:"storage_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -118,4 +129,97 @@ type HostSoftwareInstallerResult struct {
 	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
+}
+
+type HostSoftwareInstallerResultAuthz struct {
+	HostTeamID *uint `json:"host_team_id"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
+	return "host_software_installer_result"
+}
+
+type UploadSoftwareInstallerPayload struct {
+	TeamID            *uint
+	InstallScript     string
+	PreInstallQuery   string
+	PostInstallScript string
+	InstallerFile     io.ReadSeeker // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StorageID         string
+	Filename          string
+	Title             string
+	Version           string
+	Source            string
+}
+
+// DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
+type DownloadSoftwareInstallerPayload struct {
+	Filename  string
+	Installer io.ReadCloser
+	Size      int64
+}
+
+func SofwareInstallerSourceFromFilename(filename string) (string, error) {
+	switch ext := filepath.Ext(filename); ext {
+	case ".deb":
+		return "deb_packages", nil
+	case ".exe", ".msi":
+		return "programs", nil
+	case ".pkg":
+		return "pkg_packages", nil
+	default:
+		return "", fmt.Errorf("unsupported file type: %s", filename)
+	}
+}
+
+// HostSoftwareWithInstaller represents the list of software installed on a
+// host with installer information if a matching installer exists. This is the
+// payload returned by the "Get host's (device's) software" endpoints.
+type HostSoftwareWithInstaller struct {
+	ID                uint                            `json:"id" db:"id"`
+	Name              string                          `json:"name" db:"name"`
+	Source            string                          `json:"source" db:"source"`
+	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
+	LastInstall       *HostSoftwareInstall            `json:"last_install"`
+	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
+
+	// PackageAvailableForInstall is only present for the user-authenticated
+	// endpoint, not the device-authenticated one. I.e. when
+	// available-but-not-installed software are part of the response.
+	PackageAvailableForInstall *string `json:"package_available_for_install,omitempty" db:"package_available_for_install"`
+}
+
+// HostSoftwareInstall represents installation of software on a host from a
+// Fleet software installer.
+type HostSoftwareInstall struct {
+	InstallUUID string    `json:"install_uuid" db:"install_id"`
+	InstalledAt time.Time `json:"installed_at" db:"installed_at"`
+}
+
+// HostSoftwareInstalledVersion represents a version of software installed on a
+// host.
+type HostSoftwareInstalledVersion struct {
+	SoftwareID      uint       `json:"-" db:"software_id"`
+	SoftwareTitleID uint       `json:"-" db:"software_title_id"`
+	Version         string     `json:"version" db:"version"`
+	LastOpenedAt    *time.Time `json:"last_opened_at" db:"last_opened_at"`
+	Vulnerabilities []string   `json:"vulnerabilities" db:"vulnerabilities"`
+	InstalledPaths  []string   `json:"installed_paths" db:"installed_paths"`
+}
+
+// HostSoftwareInstallResultPayload is the payload provided by fleetd to record
+// the results of a software installation attempt.
+type HostSoftwareInstallResultPayload struct {
+	HostID      uint   `json:"host_id"`
+	InstallUUID string `json:"install_uuid"`
+
+	// the following fields are nil-able because the corresponding steps may not
+	// have been executed (optional step, or executed conditionally to a previous
+	// step).
+	PreInstallConditionOutput *string `json:"pre_install_condition_output"`
+	InstallScriptExitCode     *int    `json:"install_script_exit_code"`
+	InstallScriptOutput       *string `json:"install_script_output"`
+	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
+	PostInstallScriptOutput   *string `json:"post_install_script_output"`
 }
