@@ -15,24 +15,23 @@ func (ds *Datastore) ListPendingSoftwareInstallDetails(ctx context.Context, host
     hsi.execution_id AS execution_id,
     hsi.software_installer_id AS installer_id,
     si.pre_install_query AS pre_install_condition,
-    is.contents AS install_script,
-    pis.contents AS post_install_script
+    inst.contents AS install_script,
+    pinst.contents AS post_install_script
   FROM
     host_software_installs hsi
-  JOIN
+  INNER JOIN
     software_installers si
     ON hsi.software_installer_id = si.id
-  JOIN
-    script_contents is
-    ON is.id = si.install_script_content_id
-  JOIN
-    script_contents pis
-    ON pis.id = si.post_install_script_content_id
+  LEFT JOIN
+    script_contents inst
+    ON inst.id = si.install_script_content_id
+  LEFT JOIN
+    script_contents pinst
+    ON pinst.id = si.post_install_script_content_id
   WHERE
     hsi.host_id = ?
   AND
-    hsi.install_script_exit_code IS NOT NULL
-`
+    hsi.install_script_exit_code IS NOT NULL`
 
 	var results []*fleet.SoftwareInstallDetails
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID); err != nil {
