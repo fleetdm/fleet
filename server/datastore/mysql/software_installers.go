@@ -177,9 +177,9 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
-		hostID,
 		uuid.NewString(),
-		softwareTitleID,
+		hostID,
+		installerID,
 	)
 
 	return ctxerr.Wrap(ctx, err, "inserting new install software request")
