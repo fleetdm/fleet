@@ -1,12 +1,14 @@
 package spec
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,5 +111,84 @@ kind: ""
 			_, err := GroupFromBytes(tt.in)
 			require.ErrorContains(t, err, tt.want)
 		})
+	}
+}
+
+func TestEscapeString(t *testing.T) {
+	for _, tc := range []struct {
+		s         string
+		expResult string
+	}{
+		{`$foo`, `$foo`},                                      // nothing to escape
+		{`bar$foo`, `bar$foo`},                                // nothing to escape
+		{`bar${foo}`, `bar${foo}`},                            // nothing to escape
+		{`\$foo`, `$PREVENT_ESCAPING_foo`},                    // escaping
+		{`bar\$foo`, `bar$PREVENT_ESCAPING_foo`},              // escaping
+		{`\\$foo`, `\\$foo`},                                  // no escaping
+		{`bar\\$foo`, `bar\\$foo`},                            // no escaping
+		{`\\\$foo`, `\$PREVENT_ESCAPING_foo`},                 // escaping
+		{`bar\\\$foo`, `bar\$PREVENT_ESCAPING_foo`},           // escaping
+		{`bar\\\${foo}bar`, `bar\$PREVENT_ESCAPING_{foo}bar`}, // escaping
+		{`\\\\$foo`, `\\\\$foo`},                              // no escaping
+		{`bar\\\\$foo`, `bar\\\\$foo`},                        // no escaping
+		{`bar\\\\${foo}`, `bar\\\\${foo}`},                    // no escaping
+	} {
+		result := escapeString(tc.s)
+		require.Equal(t, tc.expResult, result)
+	}
+}
+
+func TestExpandEnv(t *testing.T) {
+	checkMultiErrors := func(errs ...string) func(err error) {
+		return func(err error) {
+			me, ok := err.(*multierror.Error)
+			require.True(t, ok)
+			require.Len(t, me.Errors, len(errs))
+			for i, err := range me.Errors {
+				require.Equal(t, errs[i], err.Error())
+			}
+		}
+	}
+
+	for _, tc := range []struct {
+		environment map[string]string
+		s           string
+		expResult   string
+		checkErr    func(error)
+	}{
+		{map[string]string{"foo": "1"}, `$foo`, `1`, nil},
+		{map[string]string{"foo": ""}, `$foo`, ``, nil},
+		{map[string]string{}, `$foo`, ``, checkMultiErrors("variable \"foo\" not set")},
+		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors("variable \"bar\" not set")},
+		{map[string]string{"bar": "1"}, `$foo $bar $zoo`, ``, checkMultiErrors("variable \"foo\" not set", "variable \"zoo\" not set")},
+		{map[string]string{"foo": "4", "bar": "2"}, `$foo$bar`, `42`, nil},
+		{map[string]string{"foo": "42", "bar": ""}, `$foo$bar`, `42`, nil},
+		{map[string]string{}, `$$`, ``, checkMultiErrors("variable \"$\" not set")},
+		{map[string]string{"foo": "1"}, `$$foo`, ``, checkMultiErrors("variable \"$\" not set")},
+		{map[string]string{"foo": "1"}, `\$${foo}`, `$1`, nil},
+		{map[string]string{}, `\$foo`, `$foo`, nil},                            // escaped
+		{map[string]string{"foo": "1"}, `\\$foo`, `\\1`, nil},                  // not escaped
+		{map[string]string{}, `\\\$foo`, `\$foo`, nil},                         // escaped
+		{map[string]string{}, `\\\$foo$`, `\$foo$`, nil},                       // escaped
+		{map[string]string{}, `bar\\\$foo$`, `bar\$foo$`, nil},                 // escaped
+		{map[string]string{"foo": "1"}, `$foo var`, `1 var`, nil},              // not escaped
+		{map[string]string{"foo": "1"}, `${foo}var`, `1var`, nil},              // not escaped
+		{map[string]string{"foo": "1"}, `\${foo}var`, `${foo}var`, nil},        // escaped
+		{map[string]string{"foo": ""}, `${foo}var`, `var`, nil},                // escaped
+		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil}, // escaped
+		{map[string]string{}, `${foo}var`, ``, checkMultiErrors("variable \"foo\" not set")},
+		{map[string]string{}, fmt.Sprintf("foo%sbar", preventEscapingPrefix), ``, func(err error) { require.Equal(t, err, escapingPrefixPresentErr) }},
+	} {
+		os.Clearenv()
+		for k, v := range tc.environment {
+			os.Setenv(k, v)
+		}
+		result, err := ExpandEnv(tc.s)
+		if tc.checkErr == nil {
+			require.NoError(t, err)
+		} else {
+			tc.checkErr(err)
+		}
+		require.Equal(t, tc.expResult, result)
 	}
 }
