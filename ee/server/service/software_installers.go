@@ -156,7 +156,6 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	// TODO(JVE): check the host is in the right team?
 	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
