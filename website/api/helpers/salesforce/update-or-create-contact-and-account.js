@@ -61,6 +61,11 @@ module.exports = {
     if(!emailAddress && !linkedinUrl){
       throw new Error('UsageError: when updating or creating a contact and account in salesforce, either an email or linkedInUrl is required.');
     }
+
+    if(linkedinUrl){
+      // If linkedinUrl was prvided, strip the protocol and subdomain from the URL.
+      linkedinUrl = linkedinUrl.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS, '');
+    }
     // Send the information we have to the enrichment helper.
     let enrichmentData = await sails.helpers.iq.getEnriched(emailAddress, linkedinUrl, firstName, lastName, organization);
     // console.log(enrichmentData);
