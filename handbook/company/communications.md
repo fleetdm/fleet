@@ -836,10 +836,10 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - ***Struggling with this?*** It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
 
 #### Capitalization and proper nouns
-- **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management."
-- **Fleet the product:** We say either “Fleet” or “Fleet for osquery.”
-- **Core team members:** Team members who've signed an NDA employment agreement, are “Fleeties.”
-- **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).  
+- **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
+- **Fleet the product:** We always say “Fleet” or “Fleet for osquery".  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
+- **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “fleeties".
+- **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.
 - **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
 
