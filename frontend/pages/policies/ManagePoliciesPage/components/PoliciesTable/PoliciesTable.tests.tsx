@@ -6,8 +6,6 @@ import { createCustomRenderer } from "test/test-utils";
 import createMockUser from "__mocks__/userMock";
 import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
-import userEvent from "@testing-library/user-event";
-import createMockQuery from "__mocks__/queryMock";
 
 describe("Policies table", () => {
   it("Renders the page-wide empty state when no policies are present", async () => {
