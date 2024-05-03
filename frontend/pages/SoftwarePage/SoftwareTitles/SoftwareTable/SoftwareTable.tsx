@@ -17,6 +17,7 @@ import {
 } from "utilities/constants/software";
 import { buildQueryStringFromParams } from "utilities/url";
 import {
+  ISoftwareApiParams,
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
@@ -118,16 +119,25 @@ const SoftwareTable = ({
 
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
-      return {
+      const newQueryParam: Record<
+        string,
+        string | number | boolean | undefined
+      > = {
         query: newTableQuery.searchQuery,
         team_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
-        vulnerable: showVulnerableSoftware.toString(),
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
       };
+      if (softwareFilter === "installableSoftware") {
+        newQueryParam.available_for_install = true;
+      } else {
+        newQueryParam.vulnerable = softwareFilter === "vulnerableSoftware";
+      }
+
+      return newQueryParam;
     },
-    [showVulnerableSoftware, teamId]
+    [softwareFilter, teamId]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -138,7 +148,9 @@ const SoftwareTable = ({
       const changedParam = determineQueryParamChange(newTableQuery);
 
       // if nothing has changed, don't update the route. this can happen when
-      // this handler is called on the inital render.
+      // this handler is called on the inital render. Can also happen when
+      // the filter dropdown is changed. That is handled on the onChange handler
+      // for the dropdown.
       if (changedParam === "") return;
 
       const newRoute = getNextLocationPath({
@@ -212,7 +224,9 @@ const SoftwareTable = ({
     );
   };
 
-  const handleVulnFilterDropdownChange = (value: string) => {
+  const handleVulnFilterDropdownChange = (
+    value: ISoftwareDropdownFilterVal
+  ) => {
     const queryParams: Record<string, any> = {
       query,
       team_id: teamId,
@@ -224,7 +238,7 @@ const SoftwareTable = ({
     if (value === "installableSoftware") {
       queryParams.available_for_install = true;
     } else {
-      queryParams.vulnerable = value === "allSoftware";
+      queryParams.vulnerable = value === "vulnerableSoftware";
     }
 
     router.replace(
@@ -337,7 +351,7 @@ const SoftwareTable = ({
         // additionalQueries serves as a trigger for the useDeepEffect hook
         // to fire onQueryChange for events happeing outside of
         // the TableContainer.
-        additionalQueries={showVulnerableSoftware ? "vulnerable" : ""}
+        additionalQueries={softwareFilter}
         customControl={searchable ? renderCustomFilters : undefined}
         stackControls
         renderCount={renderSoftwareCount}

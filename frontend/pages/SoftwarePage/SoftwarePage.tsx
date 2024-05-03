@@ -103,12 +103,12 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
+      available_for_install?: string;
       exploit?: string;
       page?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
-      available_to_install?: string;
     };
     hash?: string;
   };
@@ -150,7 +150,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams !== undefined && queryParams.exploit === "true";
   const softwareFilter = getSoftwareFilter(
     queryParams.vulnerable,
-    queryParams.available_to_install
+    queryParams.available_for_install
   );
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(

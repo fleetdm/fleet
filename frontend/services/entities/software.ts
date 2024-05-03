@@ -18,6 +18,7 @@ export interface ISoftwareApiParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   vulnerable?: boolean;
+  availableForInstall?: boolean;
   teamId?: number;
 }
 
@@ -100,6 +101,7 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     vulnerable,
+    availableForInstall,
     teamId,
   }: ISoftwareApiParams): Promise<ISoftwareResponse> => {
     const { SOFTWARE } = endpoints;
@@ -111,6 +113,7 @@ export default {
       teamId,
       query,
       vulnerable,
+      availableForInstall,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);

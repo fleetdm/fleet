@@ -6,7 +6,7 @@ import { isEmpty } from "lodash";
 
 import { AppContext } from "context/app";
 import { ISoftware } from "interfaces/software";
-import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
+import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants/software";
 import { buildQueryStringFromParams } from "utilities/url";
 
 // @ts-ignore

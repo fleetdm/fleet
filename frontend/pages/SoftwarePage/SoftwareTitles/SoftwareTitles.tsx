@@ -27,10 +27,9 @@ const QUERY_OPTIONS = {
   staleTime: DATA_STALE_TIME,
 };
 
-type ISoftwareTitlesQueryKey = Omit<ISoftwareApiParams, "vulnerable"> & {
-  softwareFilter: ISoftwareDropdownFilterVal;
+interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   scope: "software-titles";
-};
+}
 
 interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
   scope: "software-versions";
@@ -63,6 +62,25 @@ const SoftwareTitles = ({
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
+  const generateSoftwareTitlesQueryKey = (): ISoftwareTitlesQueryKey => {
+    const queryKey: ISoftwareTitlesQueryKey = {
+      scope: "software-titles",
+      page: currentPage,
+      perPage,
+      query,
+      orderDirection,
+      orderKey,
+      teamId,
+    };
+    if (softwareFilter === "installableSoftware") {
+      queryKey.availableForInstall = true;
+    } else {
+      queryKey.vulnerable = softwareFilter === "vulnerableSoftware";
+    }
+
+    return queryKey;
+  };
+
   // request to get software data
   const {
     data: titlesData,
@@ -75,18 +93,7 @@ const SoftwareTitles = ({
     ISoftwareTitlesResponse,
     ISoftwareTitlesQueryKey[]
   >(
-    [
-      {
-        scope: "software-titles",
-        page: currentPage,
-        perPage,
-        query,
-        orderDirection,
-        orderKey,
-        teamId,
-        softwareFilter,
-      },
-    ],
+    [generateSoftwareTitlesQueryKey()],
     ({ queryKey }) => softwareAPI.getSoftwareTitles(queryKey[0]),
     {
       ...QUERY_OPTIONS,
