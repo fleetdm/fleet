@@ -1,7 +1,7 @@
 ---
 name: 🌐 Digital Experience request [FKA Website request]
 about: Propose a new feature or enhancement to fleetdm.com.
-title: 'Request: __________________________'
+title: 'TODO: '
 labels: '#g-digital-experience'
 assignees: ''
 
