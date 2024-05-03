@@ -37,8 +37,8 @@ func TestUp_20240430111727(t *testing.T) {
 		for i := 0; i < resultCount; i++ {
 			args = append(args, queryID, hostID, fmt.Sprintf(`{"foo": "bar%d"}`, i))
 		}
-		values := strings.TrimSuffix(strings.Repeat("(?, ?, ?),", resultCount), ",")
-		_, err := db.Exec(fmt.Sprintf(`INSERT INTO query_results (query_id, host_id, data) VALUES %s;`, values),
+		values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, NOW()),", resultCount), ",")
+		_, err := db.Exec(fmt.Sprintf(`INSERT INTO query_results (query_id, host_id, data, last_fetched) VALUES %s;`, values),
 			args...,
 		)
 		require.NoError(t, err)
