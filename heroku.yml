@@ -1,8 +1,8 @@
 build:
   docker:
-    web: infrastructure/heroku/Dockerfile
+    web: Dockerfile-heroku
 release:
   command:
-    - ./build/fleet prepare db
+    - fleet prepare db
 run:
-  web: ./build/fleet serve
+  web: fleet serve

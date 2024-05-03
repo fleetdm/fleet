@@ -1,0 +1,44 @@
+# Use a base image that includes necessary tools
+FROM alpine:3.18.2@sha256:82d1e9d7ed48a7523bdebc18cf6290bdb97b82302a8a9c27d4fe885949ea94d1
+
+LABEL maintainer="Fleet Developers"
+
+# Install system dependencies including Go, build-base for make, gcc, g++, and Git
+RUN apk add --no-cache ca-certificates jq curl bash binutils-gold \
+    && apk add --no-cache go \
+    && apk add --no-cache build-base \
+    && apk add --no-cache git \
+    && apk add --no-cache coreutils python3 linux-headers binutils-gold gnupg libuv-dev
+
+# Install NVM and Node.js specific version using NVM
+ENV NVM_DIR /usr/local/nvm
+ENV NODE_VERSION 20.11.1
+
+RUN mkdir -p $NVM_DIR && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash \
+    && . $NVM_DIR/nvm.sh \
+    && nvm install $NODE_VERSION \
+    && nvm use $NODE_VERSION \
+    && nvm alias default $NODE_VERSION
+
+# Add node and npm to path so the commands are available
+ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
+
+# Install Yarn globally
+RUN npm install --global yarn
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the Makefile and source code into the Docker image
+COPY . /app
+
+# Optionally run make commands if your application requires them
+# RUN make deps \
+#     && make generate \
+#     && make
+
+# Create a non-root user and switch to it
+RUN addgroup -S fleet && adduser -S fleet -G fleet
+USER fleet
+
+CMD ["fleet", "serve"]
