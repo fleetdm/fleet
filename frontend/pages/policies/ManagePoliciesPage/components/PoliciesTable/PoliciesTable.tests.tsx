@@ -6,6 +6,8 @@ import { createCustomRenderer } from "test/test-utils";
 import createMockUser from "__mocks__/userMock";
 import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
+import userEvent from "@testing-library/user-event";
+import createMockQuery from "__mocks__/queryMock";
 
 describe("Policies table", () => {
   it("Renders the page-wide empty state when no policies are present", async () => {
@@ -26,7 +28,6 @@ describe("Policies table", () => {
         onDeletePolicyClick={() => {}}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
-        isSandboxMode={false}
         searchQuery=""
         page={0}
         onQueryChange={noop}
@@ -48,7 +49,7 @@ describe("Policies table", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
@@ -56,7 +57,6 @@ describe("Policies table", () => {
         onDeletePolicyClick={() => {}}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
-        isSandboxMode={false}
         searchQuery="shouldn't match anything"
         page={0}
         onQueryChange={noop}
@@ -88,7 +88,6 @@ describe("Policies table", () => {
         onDeletePolicyClick={() => {}}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
-        isSandboxMode={false}
         searchQuery=""
         page={0}
         onQueryChange={noop}
@@ -127,7 +126,6 @@ describe("Policies table", () => {
         onDeletePolicyClick={() => {}}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
-        isSandboxMode={false}
         searchQuery=""
         page={0}
         onQueryChange={noop}
@@ -166,7 +164,6 @@ describe("Policies table", () => {
         onDeletePolicyClick={() => {}}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
-        isSandboxMode={false}
         searchQuery=""
         page={0}
         onQueryChange={noop}
@@ -175,5 +172,64 @@ describe("Policies table", () => {
     );
 
     expect(screen.queryByText("Inherited")).not.toBeInTheDocument();
+  });
+
+  it("Renders the correct number of checkboxes for team policies and not inherited policies on a team's policies page and can check select all box", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testInheritedPolicies = [
+      createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
+      createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
+      createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
+    ];
+
+    const testTeamPolicies = [
+      createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
+      createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
+    ];
+
+    const { container, user } = render(
+      <PoliciesTable
+        policiesList={[...testInheritedPolicies, ...testTeamPolicies]}
+        isLoading={false}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        onDeletePolicyClick={() => {}}
+        currentTeam={{ id: 2, name: "Team 2" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        canAddOrDeletePolicy
+        hasPoliciesToDelete
+      />
+    );
+
+    const numberOfCheckboxes = container.querySelectorAll(
+      "input[type='checkbox']"
+    ).length;
+
+    expect(numberOfCheckboxes).toBe(
+      testTeamPolicies.length + 1 // +1 for Select all checkbox
+    );
+
+    const checkbox = container.querySelectorAll(
+      "input[type='checkbox']"
+    )[0] as HTMLInputElement;
+
+    await waitFor(() => {
+      waitFor(() => {
+        user.click(checkbox);
+      });
+
+      expect(checkbox.checked).toBe(true);
+    });
   });
 });

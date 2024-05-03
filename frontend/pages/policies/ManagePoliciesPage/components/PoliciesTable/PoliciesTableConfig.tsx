@@ -104,8 +104,7 @@ const generateTableHeaders = (
     tableType?: string;
   },
   policiesList: IPolicyStats[] = [],
-  isPremiumTier?: boolean,
-  isSandboxMode?: boolean
+  isPremiumTier?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;

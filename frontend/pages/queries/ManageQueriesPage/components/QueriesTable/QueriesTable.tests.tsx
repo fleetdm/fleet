@@ -319,4 +319,49 @@ describe("QueriesTable", () => {
 
     expect(screen.queryByText("Inherited")).not.toBeInTheDocument();
   });
+
+  it("Renders the correct number of checkboxes for team queries and not inherited queries on a team's queries page and can check select all box", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const { container, user } = render(
+      <QueriesTable
+        queriesList={[...testTeamQueries, ...testGlobalQueries]}
+        onlyInheritedQueries={false}
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        onCreateQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={1}
+      />
+    );
+
+    const numberOfCheckboxes = container.querySelectorAll(
+      "input[type='checkbox']"
+    ).length;
+
+    expect(numberOfCheckboxes).toBe(
+      testTeamQueries.length + 1 // +1 for Select all checkbox
+    );
+
+    const checkbox = container.querySelectorAll(
+      "input[type='checkbox']"
+    )[0] as HTMLInputElement;
+
+    await waitFor(() => {
+      waitFor(() => {
+        user.click(checkbox);
+      });
+
+      expect(checkbox.checked).toBe(true);
+    });
+  });
 });
