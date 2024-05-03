@@ -137,12 +137,12 @@ Fleet added support for [scripting and management capabilities](https://fleetdm.
 ## Org chart
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and [every manager](https://fleetdm.com/handbook/company/leadership) has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
-- 🔦 [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for these traditional functions: People, Finance, tax, compliance, Legal, and IT.
+- 🔦 [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for people operations, finance + invoicing, tax, compliance, and legal + deal desk.
 - 🌦️ [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 - 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
-- 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
-- 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
+- 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product, as well as Fleet's Information technology (IT) infrastucture.
+- 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product, Fleet API, and reference documentation.
 - 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience): The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture and overall brand experience, including fleetdm.com, the handbook, issue templates, UI style guides, consistent brandfronts, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
 ## Advisors
