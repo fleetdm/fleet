@@ -131,14 +131,26 @@ module.exports = {
       if (matchingPersonInfo) {
 
         require('assert')(Array.isArray(matchingPersonInfo.member_experience_collection));
-        let matchingWorkExperience = (
-          matchingPersonInfo.member_experience_collection.filter((workExperience) =>
-            !workExperience.deleted &&
-            workExperience.order_in_profile === 1 &&
-            !workExperience.date_to
-            // FUTURE: Be smarter by also trying to match the stated organization, if one is provided, for the edge case where someone has multiple current positions.
-          )
-        )[0];
+        let matchingWorkExperience;
+        if(organization){
+          // If organization was provided, we know it is listed in this person's work experience so we'll use it to filter the results.
+          matchingWorkExperience = (
+            matchingPersonInfo.member_experience_collection.filter((workExperience) =>
+              !workExperience.deleted &&
+              !workExperience.date_to &&
+              workExperience.company_name === organization
+            )
+          )[0];
+        } else {
+          // Otherwise, we'll use the top experience on this user's profile.
+          matchingWorkExperience = (
+            matchingPersonInfo.member_experience_collection.filter((workExperience) =>
+              !workExperience.deleted &&
+              workExperience.order_in_profile === 1 &&
+              !workExperience.date_to
+            )
+          )[0];
+        }//ﬁ
 
         let matchedOrganizationName;
         let matchedTitle;
