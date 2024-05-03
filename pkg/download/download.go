@@ -66,6 +66,10 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return err
+	}
+
 	r := io.Reader(resp.Body)
 
 	// extract (optional)

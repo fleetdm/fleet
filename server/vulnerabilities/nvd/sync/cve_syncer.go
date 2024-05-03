@@ -404,16 +404,6 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 		startIndex += cveResponse.ResultsPerPage
 		newLastModStartDate = cveResponse.Timestamp
 
-		// Environment variable NETWORK_TEST_NVD_CVE_END_IDX is set only in tests
-		// (to reduce test duration time).
-		if v := os.Getenv("NETWORK_TEST_NVD_CVE_END_IDX"); v != "" {
-			endIdx, err := strconv.ParseInt(v, 10, 32)
-			if err != nil {
-				return "", err
-			}
-			totalResults = int(endIdx)
-		}
-
 		for _, vuln := range cveResponse.Vulnerabilities {
 			year, err := strconv.Atoi((*vuln.CVE.ID)[4:8])
 			if err != nil {
