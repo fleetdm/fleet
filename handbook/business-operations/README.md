@@ -349,7 +349,5 @@ Please see [handbook/engineering#book-an-event](https://www.fleetdm.com/handbook
 Please see [handbook/engineering#order-swag](https://www.fleetdm.com/handbook/engineering#order-swag)
 
 
-
-
 <meta name="maintainedBy" value="jostableford">
 <meta name="title" value="🔦 Business Operations">
