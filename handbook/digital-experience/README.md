@@ -4,10 +4,11 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Head of Digital Experience      | <sup><sub>See [🌐 Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team)</sup></sub>
-| Head of Design                                            | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Software Engineer                                         | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Apprentice to the CEO                                     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ <br> [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
+| Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
+| Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
+| Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Apprentice to the CEO           | <sup><sub> See [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team) <sup><sub>
+| Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
 
 
 ## Contact us
