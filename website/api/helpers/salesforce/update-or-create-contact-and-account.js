@@ -56,6 +56,7 @@ module.exports = {
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
     require('assert')(sails.config.custom.salesforceIntegrationPasskey);
     require('assert')(sails.config.custom.iqSecret);
+    require('assert')(sails.config.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
 
 
     if(!emailAddress && !linkedinUrl){
@@ -63,7 +64,7 @@ module.exports = {
     }
 
     if(linkedinUrl){
-      // If linkedinUrl was prvided, strip the protocol and subdomain from the URL.
+      // If linkedinUrl was provided, strip the protocol and subdomain from the URL.
       linkedinUrl = linkedinUrl.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS, '');
     }
     // Send the information we have to the enrichment helper.
