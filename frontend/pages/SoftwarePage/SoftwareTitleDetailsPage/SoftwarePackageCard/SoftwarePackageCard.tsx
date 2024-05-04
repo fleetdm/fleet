@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import { ISoftwarePackage } from "interfaces/software";
 import PATHS from "router/paths";
@@ -12,6 +12,7 @@ import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import { buildQueryStringFromParams } from "utilities/url";
+import DeleteSoftwareModal from "../DeleteSoftwareModal";
 
 const baseClass = "software-package-card";
 
@@ -96,6 +97,11 @@ const SoftwarePackageCard = ({
   softwareId,
   teamId,
 }: ISoftwarePackageCardProps) => {
+  const [showAdvancedOptionsModal, setShowAdvancedOptionsModal] = useState(
+    false
+  );
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const onAdvancedOptionsClick = () => {
     console.log("Advanced options clicked");
   };
@@ -105,7 +111,7 @@ const SoftwarePackageCard = ({
   };
 
   const onDeleteClick = () => {
-    console.log("Delete clicked");
+    setShowDeleteModal(true);
   };
 
   return (
@@ -164,6 +170,12 @@ const SoftwarePackageCard = ({
           <Icon name="trash" color={"ui-fleet-black-75"} />
         </Button>
       </div>
+      {showDeleteModal && (
+        <DeleteSoftwareModal
+          softwareId={softwareId}
+          onExit={() => setShowDeleteModal(false)}
+        />
+      )}
     </Card>
   );
 };
