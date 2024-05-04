@@ -137,6 +137,8 @@ const SoftwareTitleDetailsPage = ({
             />
             <SoftwarePackageCard
               softwarePackage={createMockSoftwarePackage()}
+              softwareId={softwareId}
+              teamId={currentTeamId}
             />
             <Card
               borderRadiusSize="large"

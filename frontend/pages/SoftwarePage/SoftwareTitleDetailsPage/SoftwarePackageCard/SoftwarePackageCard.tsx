@@ -1,6 +1,7 @@
 import React from "react";
 
 import { ISoftwarePackage } from "interfaces/software";
+import PATHS from "router/paths";
 
 import Card from "components/Card";
 import Graphic from "components/Graphic";
@@ -10,6 +11,7 @@ import { internationalTimeFormat } from "utilities/helpers";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import { buildQueryStringFromParams } from "utilities/url";
 
 const baseClass = "software-package-card";
 
@@ -42,12 +44,24 @@ const STATUS_DISPLAY_OPTIONS: Record<
 };
 
 interface IPackageStatusCountProps {
+  softwareId: number;
   status: IPackageInstallStatus;
   count: number;
+  teamId?: number;
 }
 
-const PackageStatusCount = ({ status, count }: IPackageStatusCountProps) => {
+const PackageStatusCount = ({
+  softwareId,
+  status,
+  count,
+  teamId,
+}: IPackageStatusCountProps) => {
   const displayData = STATUS_DISPLAY_OPTIONS[status];
+  const linkUrl = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+    software_title_id: softwareId,
+    software_title_status: status,
+    team_id: teamId,
+  })}`;
   return (
     <DataSet
       title={
@@ -62,17 +76,25 @@ const PackageStatusCount = ({ status, count }: IPackageStatusCountProps) => {
           </div>
         </TooltipWrapper>
       }
-      value={<a className={`${baseClass}__status-count`}>{count} hosts</a>}
+      value={
+        <a className={`${baseClass}__status-count`} href={linkUrl}>
+          {count} hosts
+        </a>
+      }
     />
   );
 };
 
 interface ISoftwarePackageCardProps {
   softwarePackage: ISoftwarePackage;
+  softwareId: number;
+  teamId?: number;
 }
 
 const SoftwarePackageCard = ({
   softwarePackage,
+  softwareId,
+  teamId,
 }: ISoftwarePackageCardProps) => {
   const onAdvancedOptionsClick = () => {
     console.log("Advanced options clicked");
@@ -112,16 +134,22 @@ const SoftwarePackageCard = ({
         </div>
         <div className={`${baseClass}__package-statuses`}>
           <PackageStatusCount
+            softwareId={softwareId}
             status="installed"
             count={softwarePackage.status.installed}
+            teamId={teamId}
           />
           <PackageStatusCount
+            softwareId={softwareId}
             status="pending"
             count={softwarePackage.status.pending}
+            teamId={teamId}
           />
           <PackageStatusCount
+            softwareId={softwareId}
             status="failed"
             count={softwarePackage.status.failed}
+            teamId={teamId}
           />
         </div>
       </div>
