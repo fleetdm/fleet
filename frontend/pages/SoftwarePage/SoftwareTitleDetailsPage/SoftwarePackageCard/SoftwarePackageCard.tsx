@@ -9,6 +9,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { internationalTimeFormat } from "utilities/helpers";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
+import Button from "components/buttons/Button";
 
 const baseClass = "software-package-card";
 
@@ -73,9 +74,23 @@ interface ISoftwarePackageCardProps {
 const SoftwarePackageCard = ({
   softwarePackage,
 }: ISoftwarePackageCardProps) => {
+  const onAdvancedOptionsClick = () => {
+    console.log("Advanced options clicked");
+  };
+
+  const onDownloadClick = () => {
+    console.log("Download clicked");
+  };
+
+  const onDeleteClick = () => {
+    console.log("Delete clicked");
+  };
+
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
       <div className={`${baseClass}__main-content`}>
+        {/* TODO: main-info could be a seperate component as its reused on a couple
+        pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
           <Graphic name="file-pkg" />
           <div className={`${baseClass}__info`}>
@@ -110,7 +125,17 @@ const SoftwarePackageCard = ({
           />
         </div>
       </div>
-      <div className={`${baseClass}__actions`}>test</div>
+      <div className={`${baseClass}__actions`}>
+        <Button variant="icon" onClick={onAdvancedOptionsClick}>
+          <Icon name="settings" color={"ui-fleet-black-75"} />
+        </Button>
+        <Button variant="icon" onClick={onDownloadClick}>
+          <Icon name="download" color={"ui-fleet-black-75"} />
+        </Button>
+        <Button variant="icon" onClick={onDeleteClick}>
+          <Icon name="trash" color={"ui-fleet-black-75"} />
+        </Button>
+      </div>
     </Card>
   );
 };
