@@ -37,39 +37,42 @@ const AdvancedOptionsModal = ({
             label="Install script"
             tooltip="For security agents, add the script provided by the vendor."
           />
-          <div className={`${baseClass}__input-field`}>
-            <span>Pre-install condition:</span>
-            <FleetAce
-              readOnly
-              value={preInstallQuery}
-              label="Query"
-              name="preInstallQuery"
-              maxLines={10}
-              helpText={
-                <>
-                  Software will be installed only if the{" "}
-                  <CustomLink
-                    className={`${baseClass}__table-link`}
-                    text="query returns results"
-                    url="https://fleetdm.com/tables"
-                    newTab
-                  />
-                </>
-              }
-            />
-          </div>
-          <div className={`${baseClass}__input-field`}>
-            <span>Post-install script:</span>
-            <Editor
-              focus
-              readOnly
-              wrapEnabled
-              name="post-install-script-editor"
-              maxLines={10}
-              value={postInstallScript}
-              helpText="Shell (macOS and Linux) or PowerShell (Windows)."
-            />
-          </div>
+          {preInstallQuery && (
+            <div className={`${baseClass}__input-field`}>
+              <span>Pre-install condition:</span>
+              <FleetAce
+                readOnly
+                value={preInstallQuery}
+                label="Query"
+                name="preInstallQuery"
+                maxLines={10}
+                helpText={
+                  <>
+                    Software will be installed only if the{" "}
+                    <CustomLink
+                      className={`${baseClass}__table-link`}
+                      text="query returns results"
+                      url="https://fleetdm.com/tables"
+                      newTab
+                    />
+                  </>
+                }
+              />
+            </div>
+          )}
+          {postInstallScript && (
+            <div className={`${baseClass}__input-field`}>
+              <span>Post-install script:</span>
+              <Editor
+                readOnly
+                wrapEnabled
+                name="post-install-script-editor"
+                maxLines={10}
+                value={postInstallScript}
+                helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+              />
+            </div>
+          )}
         </div>
         <div className="modal-cta-wrap">
           <Button variant="brand" onClick={onExit}>
