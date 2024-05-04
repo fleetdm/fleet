@@ -91,6 +91,18 @@ const (
 	SoftwareInstallerInstalled SoftwareInstallerStatus = "installed"
 )
 
+func (s SoftwareInstallerStatus) IsValid() bool {
+	switch s {
+	case
+		SoftwareInstallerFailed,
+		SoftwareInstallerInstalled,
+		SoftwareInstallerPending:
+		return true
+	default:
+		return false
+	}
+}
+
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
 type HostSoftwareInstallerResult struct {
 	// InstallUUID is the unique identifier for the software install operation associated with the host.

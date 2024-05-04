@@ -8705,6 +8705,10 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 		Failed:    0,
 	}, *titleResp.SoftwareTitle.SoftwarePackage.Status)
 
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 1)
+
 	// TODO(roberto): once we have endpoints to retrieve installers,
 	// request them using the orbit node key
 }
@@ -8755,3 +8759,23 @@ func (s *integrationMDMTestSuite) uploadSoftwareInstaller(payload *fleet.UploadS
 		require.Contains(t, errMsg, expectedError)
 	}
 }
+
+// func (s *integrationMDMTestSuite) TestSoftwareInstallerHostFilter() {
+// 	t := s.T()
+
+// 	r := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "uninstalled")
+// 	require.Contains(t, extractServerErrorText(r.Body), "Invalid software_status")
+
+// 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed")
+// 	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
+
+// 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "software_title_id", "1")
+// 	require.Contains(t, extractServerErrorText(r.Body), "Missing team_id")
+
+// 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1")
+// 	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
+
+// 	var resp listHostsResponse
+// 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_status", "installed", "team_id", "0", "software_title_id", "1")
+// 	require.Len(t, resp.Hosts, 1)
+// }

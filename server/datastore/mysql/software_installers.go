@@ -259,7 +259,8 @@ SELECT
 FROM
 	host_software_installs hsi
 WHERE
-	id IN(
+	software_installer_id = :installer_id
+	AND id IN(
 		SELECT
 			max(id) -- ensure we use only the most recently created install attempt for each host
 			FROM host_software_installs
@@ -284,4 +285,32 @@ WHERE
 	}
 
 	return &dest, nil
+}
+
+func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	stmt := fmt.Sprintf(`JOIN (
+SELECT
+	host_id
+FROM
+	host_software_installs hsi
+WHERE
+	software_installer_id = :installer_id
+	AND hsi.id IN(
+		SELECT
+			max(id) -- ensure we use only the most recent install attempt for each host
+			FROM host_software_installs
+		WHERE
+			software_installer_id = :installer_id
+		GROUP BY
+			host_id, software_installer_id)
+	AND (%s) = :status) hss ON hss.host_id = h.id
+`, tmplNamedSQLCaseHostSoftwareInstallStatus("hsi"))
+
+	return sqlx.Named(stmt, map[string]interface{}{
+		"status":       status,
+		"installer_id": installerID,
+		"installed":    fleet.SoftwareInstallerInstalled,
+		"failed":       fleet.SoftwareInstallerFailed,
+		"pending":      fleet.SoftwareInstallerPending,
+	})
 }
