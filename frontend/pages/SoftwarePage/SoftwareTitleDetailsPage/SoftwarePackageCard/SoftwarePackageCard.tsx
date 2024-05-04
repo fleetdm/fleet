@@ -13,6 +13,7 @@ import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import { buildQueryStringFromParams } from "utilities/url";
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
+import AdvancedOptionsModal from "../AdvancedOptionsModal";
 
 const baseClass = "software-package-card";
 
@@ -103,7 +104,7 @@ const SoftwarePackageCard = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const onAdvancedOptionsClick = () => {
-    console.log("Advanced options clicked");
+    setShowAdvancedOptionsModal(true);
   };
 
   const onDownloadClick = () => {
@@ -170,6 +171,14 @@ const SoftwarePackageCard = ({
           <Icon name="trash" color={"ui-fleet-black-75"} />
         </Button>
       </div>
+      {showAdvancedOptionsModal && (
+        <AdvancedOptionsModal
+          installScript={softwarePackage.install_script}
+          preInstallQuery={softwarePackage.pre_install_query}
+          postInstallScript={softwarePackage.post_install_script}
+          onExit={() => setShowAdvancedOptionsModal(false)}
+        />
+      )}
       {showDeleteModal && (
         <DeleteSoftwareModal
           softwareId={softwareId}
