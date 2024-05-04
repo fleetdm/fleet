@@ -54,8 +54,6 @@ var (
 	maxRetryAttempts = 10
 	// waitTimeForRetry is the time to wait between retries.
 	waitTimeForRetry = 30 * time.Second
-	// vulnCheckStartDate is the earliest date to start processing the vulncheck data.
-	vulnCheckStartDate = time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC)
 )
 
 // CVEOption allows configuring a CVE syncer.
