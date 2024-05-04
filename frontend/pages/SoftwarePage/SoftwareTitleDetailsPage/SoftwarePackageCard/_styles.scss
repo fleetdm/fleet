@@ -49,4 +49,15 @@
     justify-content: flex-end;
     gap: $pad-medium;
   }
+
+  @media (max-width: $break-md) {
+    align-items: flex-start;
+
+    &__main-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: $pad-large;
+    }
+  }
 }
