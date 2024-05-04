@@ -27,6 +27,8 @@ import Card from "components/Card";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
+import SoftwarePackageCard from "./SoftwarePackageCard";
+import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 
 const baseClass = "software-title-details-page";
 
@@ -132,6 +134,9 @@ const SoftwareTitleDetailsPage = ({
               }}
               name={softwareTitle.name}
               source={softwareTitle.source}
+            />
+            <SoftwarePackageCard
+              softwarePackage={createMockSoftwarePackage()}
             />
             <Card
               borderRadiusSize="large"
