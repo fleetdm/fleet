@@ -155,7 +155,7 @@ func runScriptCommand() *cli.Command {
 					}
 					return err
 				}
-				fmt.Printf("%s\n", res.ExecutionID)
+				fmt.Fprintf(c.App.Writer, "%s\n", res.ExecutionID)
 				return nil
 			}
 
@@ -176,7 +176,7 @@ func runScriptCommand() *cli.Command {
 					return err
 				}
 			} else {
-				fmt.Printf("%s", res.Output)
+				fmt.Fprintf(c.App.Writer, "%s", res.Output)
 			}
 
 			return nil
