@@ -73,7 +73,7 @@ hello world
 	expectedQuietOutputSuccess := `hello world
 `
 	//expectedAsyncOutputSuccess := `423e5330-3591-440a-8908-fceb336a3643
-//`
+	//`
 
 	type testCase struct {
 		name                string
@@ -246,15 +246,15 @@ hello world
 		},
 		// TODO finish plumbing for async endpoint to return host result for mock datastore
 		//{
-			//name:       "script async",
-			//scriptPath: generateValidPath,
-			//scriptResult: &fleet.HostScriptResult{
-				//ExitCode: ptr.Int64(0),
-				//Output:   "",
-				//ExecutionID: "423e5330-3591-440a-8908-fceb336a3643",
-			//},
-			//expectOutput: expectedAsyncOutputSuccess,
-			//async:        true,
+		//name:       "script async",
+		//scriptPath: generateValidPath,
+		//scriptResult: &fleet.HostScriptResult{
+		//ExitCode: ptr.Int64(0),
+		//Output:   "",
+		//ExecutionID: "423e5330-3591-440a-8908-fceb336a3643",
+		//},
+		//expectOutput: expectedAsyncOutputSuccess,
+		//async:        true,
 		//},
 		{
 			name:       "script failed",
