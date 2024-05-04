@@ -40,6 +40,10 @@
     gap: $pad-xsmall;
   }
 
+  &__status-count {
+    font-weight: normal;
+  }
+
   &__actions {
     display: flex;
     justify-content: flex-end;

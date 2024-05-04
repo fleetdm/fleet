@@ -74,7 +74,7 @@ const SoftwarePackageCard = ({
   softwarePackage,
 }: ISoftwarePackageCardProps) => {
   return (
-    <Card className={baseClass}>
+    <Card borderRadiusSize="large" includeShadow className={baseClass}>
       <div className={`${baseClass}__main-content`}>
         <div className={`${baseClass}__main-info`}>
           <Graphic name="file-pkg" />

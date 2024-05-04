@@ -7,6 +7,7 @@ import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
+import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 
 import { AppContext } from "context/app";
 
@@ -28,7 +29,6 @@ import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
 import SoftwarePackageCard from "./SoftwarePackageCard";
-import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 
 const baseClass = "software-title-details-page";
 
