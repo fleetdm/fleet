@@ -172,3 +172,25 @@
   description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#downgrade-an-unused-license-seat"
   dri: "sampfluger88"
+-
+  task: "Communicate Fleet's potential energy to stakeholders" 
+  startedOn: "2024-05-01" 
+  frequency: "Monthly"
+  description: "Via hand or automation, send a monthly update email to all investors that hold 4% equity or greater in Fleet who have opted in to receive emails on the company's progress." 
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#communicate-fleets-potential-energy-to-stakeholders"
+  dri: "sampfluger88"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+
+
+
+
+
+
+
+
+
+
+
+
