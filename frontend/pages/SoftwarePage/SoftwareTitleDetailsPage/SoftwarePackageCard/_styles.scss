@@ -6,6 +6,11 @@
   &__main-content {
     display: flex;
     align-items: center;
+    gap: $pad-xxlarge;
+  }
+
+  &__main-info {
+    display: flex;
     gap: $pad-medium;
   }
 
@@ -22,6 +27,17 @@
 
   &__details {
     font-size: $xx-small;
+  }
+
+  &__package-statuses {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  &__status-title {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
   }
 
   &__actions {
