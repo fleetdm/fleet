@@ -128,7 +128,9 @@ export default {
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
-  SOFTWARE_PACKAGE: `/${API_VERSION}/fleet/software/package`,
+  SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
+  SOFTWARE_PACKAGE: (id: number) =>
+    `/${API_VERSION}/fleet/software/packages/${id}`,
 
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,

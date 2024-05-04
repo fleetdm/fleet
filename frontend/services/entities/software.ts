@@ -201,7 +201,7 @@ export default {
   },
 
   addSoftwarePackage: (data: IAddSoftwareFormData, teamId?: number) => {
-    const { SOFTWARE_PACKAGE } = endpoints;
+    const { SOFTWARE_PACKAGE_ADD } = endpoints;
 
     if (!data.software) {
       throw new Error("Software package is required");
@@ -216,6 +216,11 @@ export default {
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
 
-    return sendRequest("POST", SOFTWARE_PACKAGE, formData);
+    return sendRequest("POST", SOFTWARE_PACKAGE_ADD, formData);
+  },
+
+  deleteSoftwarePackage: (softwareId: number) => {
+    const { SOFTWARE_PACKAGE } = endpoints;
+    return sendRequest("DELETE", SOFTWARE_PACKAGE(softwareId));
   },
 };

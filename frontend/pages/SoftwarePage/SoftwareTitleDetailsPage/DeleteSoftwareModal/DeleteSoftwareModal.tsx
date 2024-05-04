@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
+
+import softwareAPI from "services/entities/software";
+import { NotificationContext } from "context/notification";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -14,8 +17,15 @@ const DeleteSoftwareModal = ({
   softwareId,
   onExit,
 }: IDeleteSoftwareModalProps) => {
-  const onDeleteSoftware = () => {
-    console.log("Delete software");
+  const { renderFlash } = useContext(NotificationContext);
+
+  const onDeleteSoftware = async () => {
+    try {
+      await softwareAPI.deleteSoftwarePackage(softwareId);
+      renderFlash("success", "Software deleted successfully!");
+    } catch {
+      renderFlash("error", "Couldn't delete. Please try again.");
+    }
     onExit();
   };
 
