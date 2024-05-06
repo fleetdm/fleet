@@ -177,10 +177,58 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
-		hostID,
 		uuid.NewString(),
-		softwareTitleID,
+		hostID,
+		installerID,
 	)
 
 	return ctxerr.Wrap(ctx, err, "inserting new install software request")
+}
+
+func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	query := `
+SELECT
+	hsi.execution_id AS execution_id,
+	COALESCE(hsi.pre_install_query_output, '') AS pre_install_query_output,
+	COALESCE(hsi.post_install_script_output, '') AS post_install_script_output,
+	COALESCE(hsi.install_script_output, '') AS install_script_output,
+	hsi.host_id AS host_id,
+	h.computer_name AS host_display_name,
+	st.name AS software_title,
+	st.id AS software_title_id,
+	COALESCE(CASE
+		WHEN hsi.post_install_script_exit_code IS NOT NULL AND
+			hsi.post_install_script_exit_code = 0 THEN ? -- installed
+		WHEN hsi.post_install_script_exit_code IS NOT NULL AND
+			hsi.post_install_script_exit_code != 0 THEN ? -- failed
+		WHEN hsi.install_script_exit_code IS NOT NULL AND
+			hsi.install_script_exit_code = 0 THEN ? -- installed
+		WHEN hsi.install_script_exit_code IS NOT NULL AND
+			hsi.install_script_exit_code != 0 THEN ? -- failed
+		WHEN hsi.pre_install_query_output IS NOT NULL AND
+			hsi.pre_install_query_output = '' THEN ? -- failed
+		WHEN hsi.host_id IS NOT NULL THEN ? -- pending
+		ELSE NULL -- not installed from Fleet installer
+	END, '') AS status,
+	si.filename AS software_package,
+	h.team_id AS host_team_id
+FROM
+	host_software_installs hsi
+	JOIN hosts h ON h.id = hsi.host_id
+	JOIN software_installers si ON si.id = hsi.software_installer_id
+	JOIN software_titles st ON si.title_id = st.id
+WHERE
+	hsi.execution_id = ?
+	`
+
+	var dest fleet.HostSoftwareInstallerResult
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, fleet.SoftwareInstallerInstalled, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerInstalled, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerPending, resultsUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostSoftwareInstallerResult"), "get host software installer results")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host software installer results")
+	}
+
+	return &dest, nil
 }

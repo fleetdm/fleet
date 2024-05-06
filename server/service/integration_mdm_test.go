@@ -8685,13 +8685,28 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
-	// install script request succeds
+	// install script request succeeds
 	titleID := getTitleID(t, payload.Title, "deb_packages")
 	resp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
 	// TODO(roberto): once we have endpoints to retrieve installers,
 	// request them using the orbit node key
+
+	// Get the results, should be pending
+	r := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &r)
+	require.Len(t, r.Software, 1)
+	require.NotNil(t, r.Software[0].LastInstall)
+	installUUID := r.Software[0].LastInstall.InstallUUID
+
+	gsirr := getSoftwareInstallResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
+	require.NoError(t, gsirr.Err)
+	require.NotNil(t, gsirr.Results)
+	results := gsirr.Results
+	require.Equal(t, installUUID, results.InstallUUID)
+	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
 }
 
 func (s *integrationMDMTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
