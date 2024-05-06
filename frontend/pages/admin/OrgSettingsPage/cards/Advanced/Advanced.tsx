@@ -25,6 +25,7 @@ interface IAdvancedConfigFormData {
   activityExpiryWindow: number;
   disableLiveQuery: boolean;
   disableScripts: boolean;
+  disableAIFeatures: boolean;
   disableQueryReports: boolean;
 }
 
@@ -52,9 +53,10 @@ const Advanced = ({
     activityExpiryWindow:
       appConfig.activity_expiry_settings?.activity_expiry_window || 30,
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
+    disableScripts: appConfig.server_settings.scripts_disabled || false,
+    disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
-    disableScripts: appConfig.server_settings.scripts_disabled || false,
   });
 
   const {
@@ -67,6 +69,7 @@ const Advanced = ({
     activityExpiryWindow,
     disableLiveQuery,
     disableScripts,
+    disableAIFeatures,
     disableQueryReports,
   } = formData;
 
@@ -114,6 +117,7 @@ const Advanced = ({
         query_reports_disabled: disableQueryReports,
         scripts_disabled: disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
+        ai_features_disabled: disableAIFeatures,
       },
       smtp_settings: {
         domain,
@@ -293,6 +297,25 @@ const Advanced = ({
             }
           >
             Disable scripts
+          </Checkbox>
+          <Checkbox
+            onChange={onInputChange}
+            name="disableAIFeatures"
+            value={disableAIFeatures}
+            parseTarget
+            tooltipContent={
+              <>
+                When enabled, disables AI features such as pre-filling forms
+                <br />
+                with LLM-generated descriptions.{" "}
+                <em>
+                  (Default: <strong>Off</strong>)
+                </em>
+              </>
+            }
+            helpText="Only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
+          >
+            Disable generative AI features
           </Checkbox>
           <Checkbox
             onChange={onInputChange}

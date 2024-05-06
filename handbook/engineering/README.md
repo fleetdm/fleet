@@ -182,6 +182,10 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 
  > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
+ - Order a pack of two [YubiKey 5C NFC security keys](https://www.yubico.com/product/yubikey-5-series/yubikey-5c-nfc/) for new team member, shipped to them directly.
+
+- Include delivery tracking information when closing the support request so the new employee can be notified.
+
 ### Register a domain for Fleet
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 

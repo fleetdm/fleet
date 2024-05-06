@@ -110,6 +110,21 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 	return &policy, nil
 }
 
+func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite, error) {
+	var policy fleet.PolicyLite
+	err := sqlx.GetContext(
+		ctx, ds.reader(ctx), &policy,
+		`SELECT id, description, resolution FROM policies WHERE id=?`, id,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting policy")
+	}
+	return &policy, nil
+}
+
 // SavePolicy updates some fields of the given policy on the datastore.
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
@@ -826,6 +841,22 @@ func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
+func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	// Similar to cleanupPolicyMembershipOnTeamChange, hosts can belong to one team only, so we just delete all
+	// the query results of the hosts that belong to queries that are not global.
+	const cleanupQuery = `
+		DELETE FROM query_results
+		WHERE query_id IN (SELECT id FROM queries WHERE team_id IS NOT NULL) AND host_id IN (?)`
+	query, args, err := sqlx.In(cleanupQuery, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build cleanup query results query")
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec cleanup query results query")
+	}
+	return nil
+}
+
 func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
 	if platforms == "" {
 		// all platforms allowed, nothing to clean up
@@ -1289,14 +1320,15 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	SELECT 
 		COALESCE(sh.email, '') AS email,
 		COALESCE(pm.passing, 1) AS passing,
+		COALESCE(pm.failing_policy_ids, '') AS failing_policy_ids,
 		h.id AS host_id,
 		COALESCE(hdn.display_name, '') AS host_display_name,
 		h.hardware_serial AS host_hardware_serial
 	FROM hosts h
 	LEFT JOIN (
-		SELECT host_id, BIT_AND(passes) AS passing
+		SELECT host_id, 0 AS passing, GROUP_CONCAT(policy_id) AS failing_policy_ids
 		FROM policy_membership
-		WHERE policy_id IN (?) AND passes IS NOT NULL
+		WHERE policy_id IN (?) AND passes = 0
 		GROUP BY host_id
 	) pm ON h.id = pm.host_id
 	LEFT JOIN (

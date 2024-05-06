@@ -395,6 +395,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].ApiKey["client_email"])
 	assert.True(t, savedAppConfig.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Equal(t, 60, savedAppConfig.ActivityExpirySettings.ActivityExpiryWindow)
+	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
 }
 
 func TestFullTeamGitOps(t *testing.T) {
