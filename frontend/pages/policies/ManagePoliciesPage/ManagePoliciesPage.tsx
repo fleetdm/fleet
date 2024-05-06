@@ -339,11 +339,10 @@ const ManagePolicyPage = ({
     }
   );
 
-  const canAddOrDeletePolicy: boolean =
+  const canAddOrDeletePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;
-  const hasPoliciesToAutomateOrDelete: boolean =
-    policiesAvailableToAutomate.length > 0;
+  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
+  const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
 
   const {
     data: config,
@@ -523,7 +522,7 @@ const ManagePolicyPage = ({
 
       // update changed policies calendar events enabled
       const changedPolicies = formData.policies.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate?.find(
+        const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
         );
         return (

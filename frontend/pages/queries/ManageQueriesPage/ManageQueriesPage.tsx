@@ -145,12 +145,11 @@ const ManageQueriesPage = ({
         if (data) {
           const enhancedAllQueries = data.map(enhanceQuery);
 
-          const allQueriesAvailableToAutomate =
-            teamIdForApi && enhancedAllQueries
-              ? enhancedAllQueries.filter(
-                  (query: IEnhancedQuery) => query.team_id === currentTeamId
-                )
-              : enhancedAllQueries;
+          const allQueriesAvailableToAutomate = teamIdForApi
+            ? enhancedAllQueries.filter(
+                (query: IEnhancedQuery) => query.team_id === currentTeamId
+              )
+            : enhancedAllQueries;
 
           setQueriesAvailableToAutomate(allQueriesAvailableToAutomate);
         }
@@ -168,10 +167,8 @@ const ManageQueriesPage = ({
 
   const automatedQueryIds = useMemo(() => {
     return queriesAvailableToAutomate
-      ? queriesAvailableToAutomate
-          .filter((query) => query.automations_enabled)
-          .map((query) => query.id)
-      : [];
+      .filter((query) => query.automations_enabled)
+      .map((query) => query.id);
   }, [queriesAvailableToAutomate]);
 
   useEffect(() => {
