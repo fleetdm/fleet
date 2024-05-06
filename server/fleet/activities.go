@@ -1451,8 +1451,7 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 
 type ActivityTypeAddedSoftware struct {
 	SoftwareTitle   string `json:"software_title"`
-	SoftwarePackage string `json:"software_package"` // TODO(JVE): is this called something different elsewhere?
-	Status          string `json:"status"`
+	SoftwarePackage string `json:"software_package"`
 }
 
 func (a ActivityTypeAddedSoftware) ActivityName() string {
@@ -1460,13 +1459,19 @@ func (a ActivityTypeAddedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
-	return "TODO(JVE): addme!", "TODO(JVE)", "TODO(JVE)"
+	return `Generated when a software installer is uploaded to Fleet.`, `This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.`,
+		`{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg"
+}
+`
 }
 
 type ActivityTypeDeletedSoftware struct {
 	SoftwareTitle   string `json:"software_title"`
-	SoftwarePackage string `json:"software_package"` // TODO(JVE): is this called something different elsewhere?
-	Status          string `json:"status"`
+	SoftwarePackage string `json:"software_package"`
 }
 
 func (a ActivityTypeDeletedSoftware) ActivityName() string {
@@ -1474,7 +1479,14 @@ func (a ActivityTypeDeletedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
-	return "TODO(JVE): addme!", "TODO(JVE)", "TODO(JVE)"
+	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.`,
+		`{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg"
+}
+`
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
