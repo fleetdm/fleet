@@ -86,7 +86,7 @@ module.exports = {
       // Special sacraficial meat cave where the contacts with no organization go.
       // https://fleetdm.lightning.force.com/lightning/r/Account/0014x000025JC8DAAW/view
       salesforceAccountId = '0014x000025JC8DAAW';
-      salesforceAccountOwnerId = '0054x00000735wDAAQ';// « "Integrations Admin" user.
+      salesforceAccountOwnerId = '0054x00000735wDAAQ';// « "Integrations admin" user.
     } else {
       let existingAccountRecord = await salesforceConnection.sobject('Account')
       .findOne({
