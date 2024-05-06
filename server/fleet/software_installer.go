@@ -35,6 +35,24 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 	return false, errors.New("software installer store not properly configured")
 }
 
+// SoftwareInstallDetailsResult contains all of the information
+// required for a client to pull in and install software from the fleet server
+type SoftwareInstallDetails struct {
+	// HostID is used for authentication on the backend and should not
+	// be passed to the client
+	HostID uint `json:"-" db:"host_id"`
+	// ExecutionID is a unique identifier for this installation
+	ExecutionID string `json:"install_id" db:"execution_id"`
+	// InstallerID is the unique identifier for the software package metadata in Fleet.
+	InstallerID uint `json:"installer_id" db:"installer_id"`
+	// PreInstallCondition is the query to run as a condition to installing the software package.
+	PreInstallCondition string `json:"pre_install_condition" db:"pre_install_condition"`
+	// InstallScript is the script to run to install the software package.
+	InstallScript string `json:"install_script" db:"install_script"`
+	// PostInstallScript is the script to run after installing the software package.
+	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
+}
+
 // SoftwareInstaller represents a software installer package that can be used to install software on
 // hosts in Fleet.
 type SoftwareInstaller struct {
@@ -105,7 +123,8 @@ type HostSoftwareInstallerResult struct {
 	HostDisplayName string `json:"host_display_name" db:"host_display_name"`
 	// Status is the status of the software installer package on the host.
 	Status SoftwareInstallerStatus `json:"status" db:"status"`
-	// Detail is the detail of the software installer package on the host.
+	// Detail is the detail of the software installer package on the host. TODO: does this field
+	// have specific values that should be used? If so, how are they calculated?
 	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
 	Output string `json:"output" db:"install_script_output"`
@@ -113,6 +132,9 @@ type HostSoftwareInstallerResult struct {
 	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
+	// HostTeamID is the team ID of the host on which this software install was attempted. This
+	// field is not sent in the response, it is only used for internal authorization.
+	HostTeamID *uint `json:"-" db:"host_team_id"`
 }
 
 type HostSoftwareInstallerResultAuthz struct {
