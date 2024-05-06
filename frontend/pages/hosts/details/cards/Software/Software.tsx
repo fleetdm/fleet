@@ -14,8 +14,6 @@ import Card from "components/Card";
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { getNextLocationPath } from "utilities/helpers";
 
-import SoftwareVulnCount from "./SoftwareVulnCount";
-
 import {
   generateSoftwareTableHeaders,
   generateSoftwareTableData,
@@ -35,7 +33,6 @@ interface ISoftwareTableProps {
   isSoftwareEnabled?: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    vulnerable?: string;
     page?: string;
     query?: string;
     order_key?: string;
@@ -68,20 +65,18 @@ const SoftwareTable = ({
   pathPrefix,
   pathname,
 }: ISoftwareTableProps): JSX.Element => {
-  const { isSandboxMode, setFilteredSoftwarePath } = useContext(AppContext);
+  const { setFilteredSoftwarePath } = useContext(AppContext);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() => queryParams?.order_key ?? "name")();
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
-  const initialVulnFilter = (() => queryParams?.vulnerable === "true")();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // Never set as state as URL is source of truth
   const searchQuery = initialSearchQuery;
-  const filterVuln = initialVulnFilter;
   const page = initialPage;
   const sortDirection = initialSortDirection;
   const sortHeader = initialSortHeader;
@@ -106,7 +101,6 @@ const SoftwareTable = ({
       newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
       newQueryParams.order_direction =
         newSortDirection || DEFAULT_SORT_DIRECTION;
-      newQueryParams.vulnerable = filterVuln ? "true" : "false"; // must set from URL
       newQueryParams.page = newPageIndex;
       // Reset page number to 0 for new filters
       if (
@@ -125,7 +119,7 @@ const SoftwareTable = ({
 
       router?.replace(locationPath);
     },
-    [sortHeader, sortDirection, searchQuery, filterVuln, router, routeTemplate]
+    [sortHeader, sortDirection, searchQuery, router, routeTemplate]
   );
 
   const onClientSidePaginationChange = useCallback(
@@ -136,7 +130,6 @@ const SoftwareTable = ({
         queryParams: {
           ...queryParams,
           page: pageIndex,
-          vulnerable: filterVuln ? "true" : "false",
           query: searchQuery,
           order_direction: sortDirection,
           order_key: sortHeader,
@@ -144,7 +137,7 @@ const SoftwareTable = ({
       });
       router?.replace(locationPath);
     },
-    [filterVuln, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
+    [searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
   );
 
   const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
@@ -160,19 +153,6 @@ const SoftwareTable = ({
       }),
     [deviceUser, router, pathname]
   );
-
-  const handleVulnFilterDropdownChange = (isFilterVulnerable: boolean) => {
-    const nextPath = getNextLocationPath({
-      pathPrefix,
-      routeTemplate,
-      queryParams: {
-        ...queryParams,
-        page: 0,
-        vulnerable: isFilterVulnerable.toString(),
-      },
-    });
-    router?.replace(nextPath);
-  };
 
   const handleRowSelect = (row: IRowProps) => {
     if (deviceUser || !router) {
@@ -202,12 +182,6 @@ const SoftwareTable = ({
       {software?.length ? (
         <>
           {software && (
-            <SoftwareVulnCount
-              softwareList={software}
-              deviceUser={deviceUser}
-            />
-          )}
-          {software && (
             <div className={deviceType || ""}>
               <TableContainer
                 resultsTitle="software items"
@@ -215,7 +189,6 @@ const SoftwareTable = ({
                 data={tableSoftware || []}
                 filters={{
                   global: searchQuery,
-                  vulnerabilities: filterVuln,
                 }}
                 isLoading={isLoading}
                 defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
@@ -223,7 +196,7 @@ const SoftwareTable = ({
                 defaultSearchQuery={searchQuery}
                 defaultPageIndex={page}
                 pageSize={DEFAULT_PAGE_SIZE}
-                inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
+                inputPlaceHolder="Search by name"
                 onQueryChange={onQueryChange}
                 emptyComponent={() => (
                   <EmptySoftwareTable isSearching={searchQuery !== ""} />
