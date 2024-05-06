@@ -210,7 +210,8 @@ SELECT
 		WHEN hsi.host_id IS NOT NULL THEN ? -- pending
 		ELSE NULL -- not installed from Fleet installer
 	END, '') AS status,
-	si.filename AS software_package
+	si.filename AS software_package,
+	h.team_id AS host_team_id
 FROM
 	host_software_installs hsi
 	JOIN hosts h ON h.id = hsi.host_id

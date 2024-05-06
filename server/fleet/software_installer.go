@@ -114,6 +114,9 @@ type HostSoftwareInstallerResult struct {
 	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
+	// HostTeamID is the team ID of the host on which this software install was attempted. This
+	// field is not sent in the response, it is only used for internal authorization.
+	HostTeamID *uint `json:"-" db:"host_team_id"`
 }
 
 type HostSoftwareInstallerResultAuthz struct {

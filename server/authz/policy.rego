@@ -699,7 +699,7 @@ allow {
 # gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_software_installer_result"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
@@ -708,7 +708,7 @@ allow {
 allow {
   object.type == "host_software_installer_result"
   not is_null(object.host_team_id)
-  team_role(subject, object.host_team_id) == [admin, maintainer][_]
+  team_role(subject, object.host_team_id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 

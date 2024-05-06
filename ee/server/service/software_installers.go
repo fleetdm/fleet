@@ -238,12 +238,18 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	// Basic auth check to see if user can access results at all.
 	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	res, err := svc.ds.GetSoftwareInstallResults(ctx, resultUUID)
 	if err != nil {
+		return nil, err
+	}
+
+	// Team specific auth check
+	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: res.HostTeamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
