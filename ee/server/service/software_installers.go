@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -58,9 +57,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.InstallScript == "" {
-		installerType := file.InstallerType(strings.TrimPrefix(filepath.Ext(payload.Filename), "."))
-		installerPath := payload.Filename // TODO: Confirm pending product input
-		payload.InstallScript = file.GetInstallScript(installerType, installerPath)
+		payload.InstallScript = file.GetInstallScript(payload.Filename)
 	}
 
 	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
