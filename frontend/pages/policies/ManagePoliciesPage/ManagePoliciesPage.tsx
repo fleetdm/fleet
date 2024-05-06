@@ -18,6 +18,7 @@ import {
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
   IPoliciesCountResponse,
+  IPolicy,
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 
@@ -133,8 +134,10 @@ const ManagePolicyPage = ({
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
-
-  const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[]>();
+  const [
+    policiesAvailableToAutomate,
+    setPoliciesAvailableToAutomate,
+  ] = useState<IPolicyStats[]>([]);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
@@ -214,6 +217,9 @@ const ManagePolicyPage = ({
       enabled: isRouteOk && !isAnyTeamSelected,
       select: (data) => data.policies,
       staleTime: 5000,
+      onSuccess: (data) => {
+        setPoliciesAvailableToAutomate(data);
+      },
     }
   );
 
@@ -240,13 +246,14 @@ const ManagePolicyPage = ({
   );
 
   const {
+    data: teamPolicies,
     error: teamPoliciesError,
     isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
   } = useQuery<
     ILoadTeamPoliciesResponse,
     Error,
-    ILoadTeamPoliciesResponse,
+    IPolicyStats[],
     ITeamPoliciesQueryKey[]
   >(
     [
@@ -266,8 +273,12 @@ const ManagePolicyPage = ({
     },
     {
       enabled: isRouteOk && isPremiumTier && !!teamIdForApi,
+      select: (data: ILoadTeamPoliciesResponse) => data.policies,
       onSuccess: (data) => {
-        setTeamPolicies(data.policies);
+        const allPoliciesAvailableToAutomate = data.filter(
+          (policy: IPolicy) => policy.team_id === currentTeamId
+        );
+        setPoliciesAvailableToAutomate(allPoliciesAvailableToAutomate);
       },
     }
   );
@@ -331,9 +342,8 @@ const ManagePolicyPage = ({
   const canAddOrDeletePolicy: boolean =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;
-  const hasPoliciesToAutomateOrDelete: boolean = teamIdForApi
-    ? !isFetchingTeamCount && !!teamPoliciesCount && teamPoliciesCount > 0
-    : !!globalPoliciesCount && globalPoliciesCount > 0;
+  const hasPoliciesToAutomateOrDelete: boolean =
+    policiesAvailableToAutomate.length > 0;
 
   const {
     data: config,
@@ -513,7 +523,7 @@ const ManagePolicyPage = ({
 
       // update changed policies calendar events enabled
       const changedPolicies = formData.policies.filter((formPolicy) => {
-        const prevPolicyState = teamPolicies?.find(
+        const prevPolicyState = policiesAvailableToAutomate?.find(
           (policy) => policy.id === formPolicy.id
         );
         return (
@@ -587,9 +597,6 @@ const ManagePolicyPage = ({
       setIsUpdatingPolicies(false);
     }
   };
-
-  const availablePoliciesForAutomation =
-    (isAnyTeamSelected ? teamPolicies : globalPolicies) || [];
 
   const policiesErrors = isAnyTeamSelected
     ? teamPoliciesError
@@ -801,7 +808,7 @@ const ManagePolicyPage = ({
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
-            availablePolicies={availablePoliciesForAutomation}
+            availablePolicies={policiesAvailableToAutomate}
             isUpdatingAutomations={isUpdatingAutomations}
             onExit={toggleOtherWorkflowsModal}
             handleSubmit={handleUpdateOtherWorkflows}
@@ -834,7 +841,7 @@ const ManagePolicyPage = ({
                 ?.enable_calendar_events ?? false
             }
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
-            policies={teamPolicies || []}
+            policies={policiesAvailableToAutomate}
             isUpdating={updatingPolicyEnabledCalendarEvents}
           />
         )}
