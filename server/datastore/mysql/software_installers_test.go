@@ -73,6 +73,30 @@ func testInsertSoftwareInstallRequest(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			err = ds.InsertSoftwareInstallRequest(ctx, host.ID, installerMeta.TitleID, teamID)
 			require.NoError(t, err)
+
+			// list hosts with software install requests
+			userTeamFilter := fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String("admin")},
+			}
+			expectStatus := fleet.SoftwareInstallerPending
+			hosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: &installerMeta.TitleID,
+				SoftwareStatusFilter:  &expectStatus,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			require.Len(t, hosts, 1)
+			require.Equal(t, host.ID, hosts[0].ID)
+
+			// get software title includes status
+			summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+				Installed: 0,
+				Pending:   1,
+				Failed:    0,
+			}, *summary)
 		})
 	}
 }

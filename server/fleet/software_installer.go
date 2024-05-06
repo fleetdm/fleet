@@ -105,12 +105,16 @@ func (s SoftwareInstallerStatus) IsValid() bool {
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
 type HostSoftwareInstallerResult struct {
+	// ID is the unique numerical ID of the result assigned by the datastore.
+	ID uint `json:"-" db:"id"`
 	// InstallUUID is the unique identifier for the software install operation associated with the host.
 	InstallUUID string `json:"install_uuid" db:"execution_id"`
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
 	// SoftwareVersion is the version of the software.
 	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
+	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
+	SoftwareInstallerID uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
@@ -122,11 +126,19 @@ type HostSoftwareInstallerResult struct {
 	// Detail is the detail of the software installer package on the host.
 	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
-	Output string `json:"output" db:"install_script_output"`
+	Output *string `json:"output" db:"install_script_output"`
+	// InstallScriptExitCode is the exit code of the install script on the host.
+	InstallScriptExitCode *int `json:"-" db:"install_script_exit_code"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
-	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
+	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
-	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
+	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
+	// PostInstallScriptExitCode is the exit code of the post-install script on the host.
+	PostInstallScriptExitCode *int `json:"-" db:"post_install_script_exit_code"`
+	// CreatedAt is the time the software installer request was triggered.
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// UpdatedAt is the time the software installer request was last updated.
+	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type HostSoftwareInstallerResultAuthz struct {

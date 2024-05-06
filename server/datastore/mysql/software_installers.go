@@ -213,9 +213,9 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
-		hostID,
 		uuid.NewString(),
-		softwareTitleID,
+		hostID,
+		installerID,
 	)
 
 	return ctxerr.Wrap(ctx, err, "inserting new install software request")
@@ -223,7 +223,8 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 
 func tmplNamedSQLCaseHostSoftwareInstallStatus(alias string) string {
 	return fmt.Sprintf(`
-	CASE WHEN %[1]s.post_install_script_exit_code IS NOT NULL AND %[1]s.post_install_script_exit_code = 0 THEN
+	CASE WHEN %[1]s.post_install_script_exit_code IS NOT NULL
+		AND %[1]s.post_install_script_exit_code = 0 THEN
 		:installed
 	WHEN %[1]s.post_install_script_exit_code IS NOT NULL
 		AND %[1]s.post_install_script_exit_code != 0 THEN
