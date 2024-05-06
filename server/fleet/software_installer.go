@@ -191,3 +191,19 @@ type HostSoftwareInstalledVersion struct {
 	Vulnerabilities []string   `json:"vulnerabilities" db:"vulnerabilities"`
 	InstalledPaths  []string   `json:"installed_paths" db:"installed_paths"`
 }
+
+// HostSoftwareInstallResultPayload is the payload provided by fleetd to record
+// the results of a software installation attempt.
+type HostSoftwareInstallResultPayload struct {
+	HostID      uint   `json:"host_id"`
+	InstallUUID string `json:"install_uuid"`
+
+	// the following fields are nil-able because the corresponding steps may not
+	// have been executed (optional step, or executed conditionally to a previous
+	// step).
+	PreInstallConditionOutput *string `json:"pre_install_condition_output"`
+	InstallScriptExitCode     *int    `json:"install_script_exit_code"`
+	InstallScriptOutput       *string `json:"install_script_output"`
+	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
+	PostInstallScriptOutput   *string `json:"post_install_script_output"`
+}
