@@ -1470,9 +1470,9 @@ type Datastore interface {
 	// GetSoftwareInstallDetails returns details required to fetch and
 	// run software installers
 	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
-	// ListPendingSoftwareInstallDetails returns a list of software
+	// ListPendingSoftwareInstalls returns a list of software
 	// installer execution IDs that have not yet been run for a given host
-	ListPendingSoftwareInstallDetails(ctx context.Context, hostID uint) ([]string, error)
+	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
 
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)

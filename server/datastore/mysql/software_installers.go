@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ListPendingSoftwareInstallDetails(ctx context.Context, hostID uint) ([]string, error) {
+func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	const stmt = `
   SELECT
     execution_id

@@ -22,7 +22,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"testListSoftwareInstallerDetails", testListSoftwareInstallerDetails},
+		{"ListSoftwareInstallers", testListSoftwareInstallerDetails},
 		{"InsertSoftwareInstallRequest", testInsertSoftwareInstallRequest},
 	}
 
@@ -86,11 +86,11 @@ func testListSoftwareInstallerDetails(t *testing.T, ds *Datastore) {
 
 	_ = ds.writer(ctx).MustExec("UPDATE host_software_installs SET pre_install_query_output = 'output' WHERE id = ?", hostInstall5Id)
 
-	installDetailsList1, err := ds.ListPendingSoftwareInstallDetails(ctx, host1.ID)
+	installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(installDetailsList1))
 
-	installDetailsList2, err := ds.ListPendingSoftwareInstallDetails(ctx, host2.ID)
+	installDetailsList2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(installDetailsList2))
 

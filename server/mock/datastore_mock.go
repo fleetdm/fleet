@@ -927,7 +927,7 @@ type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, ho
 
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
-type ListPendingSoftwareInstallDetailsFunc func(ctx context.Context, hostID uint) ([]string, error)
+type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
 
@@ -2298,8 +2298,8 @@ type DataStore struct {
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
 
-	ListPendingSoftwareInstallDetailsFunc        ListPendingSoftwareInstallDetailsFunc
-	ListPendingSoftwareInstallDetailsFuncInvoked bool
+	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
+	ListPendingSoftwareInstallsFuncInvoked bool
 
 	MatchOrCreateSoftwareInstallerFunc        MatchOrCreateSoftwareInstallerFunc
 	MatchOrCreateSoftwareInstallerFuncInvoked bool
@@ -5491,11 +5491,11 @@ func (s *DataStore) GetSoftwareInstallDetails(ctx context.Context, executionId s
 	return s.GetSoftwareInstallDetailsFunc(ctx, executionId)
 }
 
-func (s *DataStore) ListPendingSoftwareInstallDetails(ctx context.Context, hostID uint) ([]string, error) {
+func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	s.mu.Lock()
-	s.ListPendingSoftwareInstallDetailsFuncInvoked = true
+	s.ListPendingSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingSoftwareInstallDetailsFunc(ctx, hostID)
+	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
 }
 
 func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
