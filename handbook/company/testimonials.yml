@@ -64,7 +64,7 @@
   quoteAuthorName: Nico Waisman
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
   quoteAuthorJobTitle: CISO of Lyft
-  productCategories: [Device management]
+  productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
 -
   quote: Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.
   quoteAuthorName: Kenny Botelho
