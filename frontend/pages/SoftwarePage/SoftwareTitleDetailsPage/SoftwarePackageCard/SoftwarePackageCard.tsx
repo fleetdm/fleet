@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 
-import { ISoftwarePackage } from "interfaces/software";
+import endpoints from "utilities/endpoints";
+import software, { ISoftwarePackage } from "interfaces/software";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -127,6 +128,10 @@ const SoftwarePackageCard = ({
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
+  const downloadUrl = `/api${endpoints.SOFTWARE_PACKAGE(
+    softwareId
+  )}?${buildQueryStringFromParams({ alt: "media" })}`;
+
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
       <div className={`${baseClass}__main-content`}>
@@ -177,9 +182,14 @@ const SoftwarePackageCard = ({
           <Button variant="icon" onClick={onAdvancedOptionsClick}>
             <Icon name="settings" color={"ui-fleet-black-75"} />
           </Button>
-          <Button variant="icon" onClick={onDownloadClick}>
-            <Icon name="download" color={"ui-fleet-black-75"} />
-          </Button>
+          {/* TODO: make a component for download icons */}
+          <a
+            className={`${baseClass}__download-icon`}
+            href={downloadUrl}
+            download
+          >
+            <Icon name="download" />
+          </a>
           <Button variant="icon" onClick={onDeleteClick}>
             <Icon name="trash" color={"ui-fleet-black-75"} />
           </Button>

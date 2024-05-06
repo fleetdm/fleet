@@ -50,6 +50,12 @@
     gap: $pad-medium;
   }
 
+  &__download-icon {
+    display: flex;
+    justify-content: center;
+    width: 44px;
+  }
+
   @media (max-width: $break-md) {
     align-items: flex-start;
 

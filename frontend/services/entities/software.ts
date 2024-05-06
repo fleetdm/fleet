@@ -223,4 +223,12 @@ export default {
     const { SOFTWARE_PACKAGE } = endpoints;
     return sendRequest("DELETE", SOFTWARE_PACKAGE(softwareId));
   },
+
+  downloadSoftwarePackage: (softwareId: number) => {
+    const { SOFTWARE_PACKAGE } = endpoints;
+    const path = `${SOFTWARE_PACKAGE(softwareId)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
+    return sendRequest("GET", path);
+  },
 };
