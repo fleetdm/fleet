@@ -57,6 +57,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 
 	result := &fleet.SoftwareInstallDetails{}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), result, stmt, executionId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstallerDetails").WithName(executionId), "get software installer details")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
 	}
 	return result, nil
