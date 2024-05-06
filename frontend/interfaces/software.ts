@@ -53,6 +53,7 @@ export interface ISoftwareTitleVersion {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  software_package: string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
@@ -133,7 +134,3 @@ export const formatSoftwareType = ({
   }
   return type;
 };
-
-// ISoftwareInstallerType defines the supported installer types for
-// software uploaded by the IT admin.
-export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "exe";

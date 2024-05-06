@@ -16,6 +16,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import IconCell from "pages/SoftwarePage/components/IconCell";
 
 import VersionCell from "../../components/VersionCell";
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
@@ -26,6 +27,10 @@ import SoftwareIcon from "../../components/icons/SoftwareIcon";
 
 type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
+type ISoftwarePackageCellProps = CellProps<
+  ISoftwareTitle,
+  ISoftwareTitle["software_package"]
+>;
 type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
 type IVulnerabilitiesCellProps = IVersionsCellProps;
 type IHostCountCellProps = CellProps<
@@ -94,12 +99,12 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Version",
+      Header: "Install status",
       disableSortBy: true,
-      accessor: "versions",
-      Cell: (cellProps: IVersionsCellProps) => (
-        <VersionCell versions={cellProps.cell.value} />
-      ),
+      accessor: "software_package",
+      Cell: (cellProps: ISoftwarePackageCellProps) => {
+        return cellProps.cell.value ? <IconCell iconName="install" /> : null;
+      },
     },
     {
       Header: "Type",
@@ -107,6 +112,14 @@ const generateTableHeaders = (
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={formatSoftwareType(cellProps.row.original)} />
+      ),
+    },
+    {
+      Header: "Version",
+      disableSortBy: true,
+      accessor: "versions",
+      Cell: (cellProps: IVersionsCellProps) => (
+        <VersionCell versions={cellProps.cell.value} />
       ),
     },
     // the "vulnerabilities" accessor is used but the data is actually coming
