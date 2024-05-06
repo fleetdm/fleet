@@ -748,6 +748,19 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Get Orbit pending software installations
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitGetSoftwareInstallRequest struct {
+	OrbitNodeKey string `json:"orbot_node_key"`
+	InstallUUID  string `json:"install_uuid"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
 // Download Orbit software installer request
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -763,6 +776,48 @@ func (r *orbitDownloadSoftwareInstallerRequest) setOrbitNodeKey(nodeKey string) 
 }
 
 // interface implementation required by orbit authentication
+func (r *orbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitGetSoftwareInstallResponse struct {
+	Err error `json:"error,omitempty"`
+	*fleet.SoftwareInstallDetails
+}
+
+func (r orbitGetSoftwareInstallResponse) error() error { return r.Err }
+
+func getOrbitSoftwareInstallDetails(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitGetSoftwareInstallRequest)
+	details, err := svc.GetSoftwareInstallDetails(ctx, req.InstallUUID)
+	if err != nil {
+		return orbitGetSoftwareInstallResponse{Err: err}, nil
+	}
+
+	return orbitGetSoftwareInstallResponse{SoftwareInstallDetails: details}, nil
+}
+
+func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error) {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+
+	details, err := svc.ds.GetSoftwareInstallDetails(ctx, installUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ensure it cannot get access to a different host's installers
+	if details.HostID != host.ID {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no installer found for this host")
+	}
+	return details, nil
+}
+
 func (r *orbitDownloadSoftwareInstallerRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
