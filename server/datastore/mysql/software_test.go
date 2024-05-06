@@ -3193,7 +3193,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		PackageAvailableForInstall: ptr.String("installer-4.pkg"),
 	}
 
-	// request without available software, returns failed first, pending, installed, other
+	// request without available software
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
@@ -3201,13 +3201,25 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"],
 	}, sw)
 
-	// request with available software, returns failed first, pending, installed, available, other
+	// request with available software
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"], expected["i2"],
 	}, sw)
+
+	// request in descending order
+	opts.OrderDirection = fleet.OrderDescending
+	opts.TestSecondaryOrderDirection = fleet.OrderDescending
+	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	compareResults([]*fleet.HostSoftwareWithInstaller{
+		expected["i1"], expected["i0"], expected["d"], expected["c"], expected["b"], expected["a2"], expected["a1"],
+	}, sw)
+	opts.OrderDirection = fleet.OrderAscending
+	opts.TestSecondaryOrderDirection = fleet.OrderAscending
 
 	// record a new install request for i1, this time as pending, and mark install request for b (swi1) as failed
 	time.Sleep(time.Second) // ensure the timestamp is later

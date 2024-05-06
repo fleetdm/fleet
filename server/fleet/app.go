@@ -998,10 +998,10 @@ type ListOptions struct {
 	// Used to request the metadata of a query
 	IncludeMetadata bool
 
-	// The following fields are for tests, to ensure a deterministic sort oder
+	// The following fields are for tests, to ensure a deterministic sort order
 	// when the single-column order key is not unique.
-	TestSecondaryOrderKey       string         `query:"-"`
-	TestSecondaryOrderDirection OrderDirection `query:"-"`
+	TestSecondaryOrderKey       string         `query:"-,optional"`
+	TestSecondaryOrderDirection OrderDirection `query:"-,optional"`
 }
 
 func (l ListOptions) Empty() bool {
