@@ -5496,6 +5496,7 @@ func (s *DataStore) ListPendingSoftwareInstallDetails(ctx context.Context, hostI
 	s.ListPendingSoftwareInstallDetailsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingSoftwareInstallDetailsFunc(ctx, hostID)
+}
 
 func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 	s.mu.Lock()
