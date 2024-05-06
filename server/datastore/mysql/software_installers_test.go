@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
- 	"github.com/google/uuid"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -85,20 +87,10 @@ func testListSoftwareInstallerDetails(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(installDetailsList2))
 
-	require.Equal(t, host1.ID, installDetailsList1[0].HostID)
-	require.Equal(t, host1.ID, installDetailsList1[1].HostID)
-	require.Equal(t, "exec1", installDetailsList1[0].ExecutionID)
-	require.Equal(t, "exec2", installDetailsList1[1].ExecutionID)
-	require.Equal(t, []byte("hello"), installDetailsList1[0].InstallScript)
-	require.Equal(t, []byte("world"), installDetailsList1[1].InstallScript)
-	require.Equal(t, []byte("world"), installDetailsList1[0].PostInstallScript)
-	require.Equal(t, []byte("hello"), installDetailsList1[1].PostInstallScript)
-	require.Equal(t, uint(installer1Id), installDetailsList1[0].InstallerID)
-	require.Equal(t, uint(installer2Id), installDetailsList1[1].InstallerID)
-	require.Equal(t, "SELECT 1", installDetailsList1[0].PreInstallCondition)
-	require.Equal(t, "SELECT 2", installDetailsList1[1].PreInstallCondition)
+	require.Contains(t, "exec1", installDetailsList1)
+	require.Contains(t, "exec2", installDetailsList1)
 
-	require.Equal(t, installDetailsList1[0].InstallerID, installDetailsList2[0].InstallerID)
+	require.Contains(t, "exec3", installDetailsList2)
 
 	exec1, err := ds.GetSoftwareInstallDetails(ctx, "exec1")
 	require.NoError(t, err)
