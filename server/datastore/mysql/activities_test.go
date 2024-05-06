@@ -341,6 +341,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Source:        "apps",
 		Version:       "0.0.1",
 	})
+	require.NoError(t, err)
 	sw2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install bar",
 		InstallerFile: installer,
@@ -350,6 +351,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Source:        "apps",
 		Version:       "0.0.2",
 	})
+	require.NoError(t, err)
 
 	latestSoftwareInstallerUUID := func() string {
 		var id string
@@ -424,7 +426,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooInstalled, h1Foo)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
+	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
 
 	execIDsWithUser := map[string]bool{
 		h1A:   true,

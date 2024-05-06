@@ -11146,7 +11146,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	// force an order to the activities
 	endTime := mysql.SetOrderedCreatedAtTimestamps(t, s.ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)
 	endTime = mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_software_installs", "execution_id", h1Foo)
-	endTime = mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
+	mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
 
 	// modify the timestamp h1A and h1B to simulate an script that has
 	// been pending for a long time
