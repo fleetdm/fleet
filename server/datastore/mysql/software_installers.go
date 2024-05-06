@@ -182,8 +182,8 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 		userID = &ctxUser.ID
 	}
 	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
-		hostID,
 		uuid.NewString(),
+		hostID,
 		softwareTitleID,
 		userID,
 	)
