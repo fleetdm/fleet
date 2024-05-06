@@ -304,7 +304,8 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 // getProfilesContents takes file paths and creates a slice of profile payloads
 // ready to batch-apply.
 func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fleet.MDMProfileBatchPayload, error) {
-	fileNameMap := make(map[string]struct{}, len(profiles))
+	// map to check for duplicate names
+	extByName := make(map[string]string, len(profiles))
 	result := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
 
 	for _, profile := range profiles {
@@ -324,10 +325,10 @@ func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fle
 			}
 			name = strings.TrimSpace(mc.Name)
 		}
-		if _, isDuplicate := fileNameMap[name]; isDuplicate {
-			return nil, errors.New("Couldn't edit windows_settings.custom_settings. More than one configuration profile have the same name (Windows .xml file name or macOS PayloadDisplayName).")
+		if e, isDuplicate := extByName[name]; isDuplicate {
+			return nil, errors.New(fmtDuplicateNameErrMsg(name, e, ext))
 		}
-		fileNameMap[name] = struct{}{}
+		extByName[name] = ext
 		result = append(result, fleet.MDMProfileBatchPayload{
 			Name:     name,
 			Contents: fileContents,
@@ -561,7 +562,11 @@ func (c *Client) ApplyGroup(
 		// Next, apply the teams specs before saving the profiles, so that any
 		// non-existing team gets created.
 		var err error
-		teamIDsByName, err = c.ApplyTeams(specs.Teams, opts)
+		teamOpts := fleet.ApplyTeamSpecOptions{
+			ApplySpecOptions:  opts,
+			DryRunAssumptions: specs.TeamsDryRunAssumptions,
+		}
+		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
 			return nil, fmt.Errorf("applying teams: %w", err)
 		}
@@ -573,7 +578,7 @@ func (c *Client) ApplyGroup(
 					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
 				} else {
 					logfn("[+] applying MDM profiles for team %s\n", tmName)
-					if err := c.ApplyTeamProfiles(tmName, profs, opts); err != nil {
+					if err := c.ApplyTeamProfiles(tmName, profs, teamOpts); err != nil {
 						return nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
 					}
 				}
@@ -887,8 +892,10 @@ func (c *Client) DoGitOps(
 	baseDir string,
 	logf func(format string, args ...interface{}),
 	dryRun bool,
+	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
 	appConfig *fleet.EnrichedAppConfig,
-) error {
+) (*fleet.TeamSpecsDryRunAssumptions, error) {
+	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
 	var err error
 	logFn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -933,7 +940,7 @@ func (c *Client) DoGitOps(
 		}
 		mdmAppConfig, ok = mdmConfig.(map[string]interface{})
 		if !ok {
-			return errors.New("org_settings.mdm config is not a map")
+			return nil, errors.New("org_settings.mdm config is not a map")
 		}
 
 		// Put in default values for macos_migration
@@ -952,6 +959,11 @@ func (c *Client) DoGitOps(
 			mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
 		} else {
 			mdmAppConfig["windows_enabled_and_configured"] = false
+		}
+		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_enabled_and_configured"].(bool); ok {
+			teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{
+				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
+			}
 		}
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 	} else {
@@ -987,14 +999,14 @@ func (c *Client) DoGitOps(
 		team["integrations"] = integrations
 		_, ok = integrations.(map[string]interface{})
 		if !ok {
-			return errors.New("team_settings.integrations config is not a map")
+			return nil, errors.New("team_settings.integrations config is not a map")
 		}
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = map[string]interface{}{}
 		} else {
 			_, ok = googleCal.(map[string]interface{})
 			if !ok {
-				return errors.New("team_settings.integrations.google_calendar config is not a map")
+				return nil, errors.New("team_settings.integrations.google_calendar config is not a map")
 			}
 		}
 
@@ -1060,10 +1072,10 @@ func (c *Client) DoGitOps(
 	if appConfig.License.IsPremium() {
 		windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
 		if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
-			windowsUpdates["deadline_days"] = 0
+			windowsUpdates["deadline_days"] = nil
 		}
 		if gracePeriodDays, ok := windowsUpdates["grace_period_days"]; !ok || gracePeriodDays == nil {
-			windowsUpdates["grace_period_days"] = 0
+			windowsUpdates["grace_period_days"] = nil
 		}
 	}
 	// Put in default value for enable_disk_encryption
@@ -1075,39 +1087,40 @@ func (c *Client) DoGitOps(
 	if config.TeamName != nil {
 		rawTeam, err := json.Marshal(team)
 		if err != nil {
-			return fmt.Errorf("error marshalling team spec: %w", err)
+			return nil, fmt.Errorf("error marshalling team spec: %w", err)
 		}
 		group.Teams = []json.RawMessage{rawTeam}
+		group.TeamsDryRunAssumptions = teamDryRunAssumptions
 	}
 
 	// Apply org settings, scripts, enroll secrets, and controls
 	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if config.TeamName != nil {
 		teamID, ok := teamIDsByName[*config.TeamName]
 		if !ok || teamID == 0 {
 			if dryRun {
 				logFn("[+] would've added any policies/queries to new team %s\n", *config.TeamName)
-				return nil
+				return nil, nil
 			}
-			return fmt.Errorf("team %s not created", *config.TeamName)
+			return nil, fmt.Errorf("team %s not created", *config.TeamName)
 		}
 		config.TeamID = &teamID
 	}
 
 	err = c.doGitOpsPolicies(config, logFn, dryRun)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = c.doGitOpsQueries(config, logFn, dryRun)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return teamAssumptions, nil
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {

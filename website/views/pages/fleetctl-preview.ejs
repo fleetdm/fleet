@@ -102,15 +102,22 @@
         </div>
       </div>
     </div>
-    <h2 class="pt-0">Next steps</h2>
-    <div purpose="next-steps" class="d-flex flex-sm-row flex-column align-items-center">
-      <a purpose="docs-button" href="/docs" class="btn btn-primary">
-        Read the docs
-      </a>
-      <a href="/docs/deploying" purpose="animated-arrow-button-red" class=" d-flex">
-        Deploy to production
-      </a>
+    <div v-if="me">
+      <h2 class="pt-0">Need help?</h2>
+      <p><a purpose="contact-link" href="/contact">Get in touch</a> with us.</p>
+    </div>
+    <div v-else>
+      <h2 class="pt-0">Next steps</h2>
+      <div purpose="next-steps" class="d-flex flex-sm-row flex-column align-items-center">
+        <a purpose="docs-button" href="/docs" class="btn btn-primary">
+          Read the docs
+        </a>
+        <a href="/docs/deploying" purpose="animated-arrow-button-red" class=" d-flex">
+          Deploy to production
+        </a>
+      </div>
     </div>
   </div>
   <parallax-city></parallax-city>
 </div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

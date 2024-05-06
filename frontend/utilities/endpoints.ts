@@ -44,15 +44,22 @@ export default {
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+  HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
+
+  // labels
+  LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
   LABELS: `/${API_VERSION}/fleet/labels`,
+  LABELS_SUMMARY: `/${API_VERSION}/fleet/labels/summary`,
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
   LABEL_SPEC_BY_NAME: (labelName: string) => {
     return `/${API_VERSION}/fleet/spec/labels/${labelName}`;
   },
+
   LOGIN: `/${API_VERSION}/fleet/login`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
@@ -121,6 +128,9 @@ export default {
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
+
+  // AI endpoints
+  AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
 
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,

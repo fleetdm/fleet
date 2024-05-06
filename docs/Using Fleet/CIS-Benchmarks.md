@@ -2,8 +2,6 @@
 
 _Available in Fleet Premium_.
 
-## Overview
-
 CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
@@ -46,22 +44,6 @@ Two things are being evaluated in this policy:
 
 If either of these conditions fails, the host is considered to be failing the policy.
 
-## Requirements
-
-Following are the requirements to use the CIS Benchmarks in Fleet:
-
-- To use these policies, Fleet must have an up-to-date paid license (≥Fleet Premium).
-- Devices must be running [`fleetd`](https://fleetdm.com/docs/using-fleet/orbit), the lightweight agent that bundles the latest osqueryd.
-- Some CIS Benchmarks explicitly involve verifying MDM-based controls, so devices must be enrolled to an MDM solution.  (Any MDM solution works, it doesn't have to be Fleet.)
-- On macOS, the orbit executable in Fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](./Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
-
-### MDM required
-Some of the policies created by Fleet use the [managed_policies](https://www.fleetdm.com/tables/managed_policies) table. This checks whether an MDM solution has turned on the setting to enforce the policy.
-Using MDM is the recommended way to manage and enforce CIS Benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-macos-setup).
-
-### Fleetd required
-Fleet's CIS Benchmarks require our [osquery manager, Fleetd](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). This is because Fleetd includes tables which are not part of vanilla osquery in order to accomplish auditing the benchmarks.
-
 ## How to add CIS Benchmarks
 
 All CIS policies are stored under our restricted licensed folder `ee/cis/`.
@@ -89,25 +71,6 @@ To apply the policies on a specific team use the `--policies-team` flag:
 fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 ```
 
-## Limitations
-
-Certain benchmarks require human action to audit, and cannot be automated by a policy in Fleet. For a list of specific benchmarks which are not covered, please visit the README for each benchmark:
-
-- [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-13/README.md)
-- [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/README.md)
-- [Windows 10 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-10/README.md)
-- [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/README.md)
-
-### Audit vs. remediation
-Each benchmark has two elements:
-1. Audit - how to find out whether the host is in compliance with the benchmark
-2. Remediation - if the host is out of compliance with the benchmark, how to fix it
-
-Since Fleetd is currently read-only without the ability to execute actions on the host, Fleet does not implement the remediation portions of CIS benchmarks.
-
-To implement automated remediation, you can install a separate agent such as Munki, Chef, Puppet, etc. which has write functionality.
-
-
 ## Levels 1 and 2
 CIS designates various benchmarks as Level 1 or Level 2 to describe the level of thoroughness and burden that each benchmark represents.
 
@@ -126,6 +89,22 @@ This profile extends the "Level 1" profile. Items in this profile exhibit one or
 - are intended for environments or use cases where security is paramount or acts as defense in depth measure
 - may negatively inhibit the utility or performance of the technology.
 
+## Requirements
+
+Following are the requirements to use the CIS Benchmarks in Fleet:
+
+- Devices must be running [`fleetd`](https://fleetdm.com/docs/using-fleet/orbit), Fleet's lightweight agent.
+- Some CIS Benchmarks explicitly involve verifying MDM-based controls, so devices must be enrolled to an MDM solution.
+- On macOS, the orbit component of fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](./Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
+
+## Limitations
+
+Certain benchmarks cannot be automated by a policy in Fleet. For a list of specific benchmarks which are not covered, please visit the README for each benchmark:
+
+- [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-13/README.md)
+- [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/README.md)
+- [Windows 10 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-10/README.md)
+- [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/README.md)
 
 ## Performance testing
 In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS hosts. Ultimately, we validated both server and host performance at that scale.

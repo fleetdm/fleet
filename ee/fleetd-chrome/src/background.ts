@@ -4,6 +4,11 @@ import VirtualDatabase from "./db";
 declare var FLEET_URL: string;
 declare var FLEET_ENROLL_SECRET: string;
 
+// Memory leaks have been observed in WASM sqlite implementation due to thrown errors by Javascript,
+// which may be caused by improper SQL syntax or insufficient error handling in table implementations.
+// Handling this error at the top level will prevent the extension from becoming non-functional.
+const MEMORY_RUNTIME_ERROR_MESSAGE = "memory access out of bounds";
+
 // TODO: Globals should probably be cleaned up into a class encapsulating state.
 let DATABASE: VirtualDatabase;
 
@@ -133,6 +138,10 @@ const live_query = async () => {
           continue;
         }
       } catch (err) {
+        if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
+          // We completely cancel the live query if wa-sqlite hit a memory error to prevent returning bogus data.
+          throw err
+        }
         // Discovery queries failing is typical -- they are often used to "discover" whether the
         // tables exist.
         console.debug(
@@ -156,6 +165,10 @@ const live_query = async () => {
         messages[query_name] = query_result.warnings; // Warnings array is concatenated in Table.ts xfilter
       }
     } catch (err) {
+      if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
+        // We completely cancel the live query if wa-sqlite hit a memory error to prevent returning bogus data.
+        throw err
+      }
       console.warn(`Query (${query_name} sql: "${query_sql}") failed: ${err}`);
       results[query_name] = null;
       statuses[query_name] = 1;
@@ -200,11 +213,7 @@ const main = async () => {
   }
 
   if (!DATABASE) {
-    const virtual = await VirtualDatabase.init();
-    DATABASE = virtual;
-
-    // Expose it for debugging in console
-    globalThis.DB = DATABASE;
+    await initDB();
   }
 
   const node_key = await getNodeKey();
@@ -214,6 +223,11 @@ const main = async () => {
   await live_query();
   //await sqlite3.close(db);
 };
+
+const initDB = async () => {
+  DATABASE = await VirtualDatabase.init();
+  globalThis.DB = DATABASE;
+}
 
 class NodeInvalidError extends Error {
   constructor(message: string) {
@@ -238,6 +252,10 @@ const mainLoop = async () => {
     mainTimeout = setTimeout(mainLoop, 10 * 1000);
   } catch (err) {
     console.error(err);
+    if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
+      console.info("Restarting DB after wa-sqlite RuntimeError")
+      await initDB();
+    }
   }
 };
 mainLoop();

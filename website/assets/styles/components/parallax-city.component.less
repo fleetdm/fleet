@@ -14,6 +14,14 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  [purpose='static-cloud-city'] {
+    background-image: url('/images/parallax-cloud-city/cloud-city-static-7050x600@2x.png');
+    background-size: cover;
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    height: 456px;
+    position: relative;
+  }
   [purpose='parallax-city-container'] {
     height: 456px;
     position: relative;
@@ -75,9 +83,15 @@
     [purpose='parallax-city-container'] {
       height: 400px;
     }
+    [purpose='static-cloud-city'] {
+      height: 400px;
+    }
   }
   @media (max-width: 768px) {
     [purpose='parallax-city-container'] {
+      height: 300px;
+    }
+    [purpose='static-cloud-city'] {
       height: 300px;
     }
   }
@@ -92,9 +106,22 @@
         display: none;
       }
     }
+    [purpose='static-cloud-city'] {
+      height: 300px;
+      background-image: url('/images/parallax-cloud-city/cloud-city-static-576x300@2x.png');
+      background-size: cover;
+      background-position: center bottom;
+      background-repeat: no-repeat;
+      .parallax-layer {
+        display: none;
+      }
+    }
   }
   @media (max-width: 375px) {
     [purpose='parallax-city-container'] {
+      height: 200px;
+    }
+    [purpose='static-cloud-city'] {
       height: 200px;
     }
   }

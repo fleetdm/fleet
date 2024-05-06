@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -17,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -146,21 +148,75 @@ contexts:
 	teamsDir := path.Join(repoDir, "teams")
 	teamFiles, err := os.ReadDir(teamsDir)
 	require.NoError(t, err)
-
-	// Dry run
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+	teamFileNames := make([]string, 0, len(teamFiles))
 	for _, file := range teamFiles {
 		if filepath.Ext(file.Name()) == ".yml" {
-			_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", path.Join(teamsDir, file.Name()), "--dry-run"})
+			teamFileNames = append(teamFileNames, path.Join(teamsDir, file.Name()))
 		}
 	}
 
-	// Real run
+	// Create a team to be deleted.
+	deletedTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	const deletedTeamName = "team_to_be_deleted"
+
+	_, err = deletedTeamFile.WriteString(
+		fmt.Sprintf(
+			`
+controls:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"deleted_team_secret"}]
+`, deletedTeamName,
+		),
+	)
+	require.NoError(t, err)
+	// Apply the team to be deleted
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()})
+
+	// Dry run
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+	for _, fileName := range teamFileNames {
+		_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"})
+	}
+
+	// Dry run with all the files
+	args := []string{"gitops", "--config", fleetctlConfig.Name(), "--dry-run", "--delete-other-teams", "-f", globalFile}
+	for _, fileName := range teamFileNames {
+		args = append(args, "-f", fileName)
+	}
+	_ = runAppForTest(t, args)
+
+	// Real run with all the files, but don't delete other teams
+	args = []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}
+	for _, fileName := range teamFileNames {
+		args = append(args, "-f", fileName)
+	}
+	_ = runAppForTest(t, args)
+
+	// Check that all the teams exist
+	teamsJSON := runAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
+	assert.Equal(t, 3, strings.Count(teamsJSON, "team_id"))
+
+	// Real run with all the files, and delete other teams
+	args = []string{"gitops", "--config", fleetctlConfig.Name(), "--delete-other-teams", "-f", globalFile}
+	for _, fileName := range teamFileNames {
+		args = append(args, "-f", fileName)
+	}
+	_ = runAppForTest(t, args)
+
+	// Check that only the right teams exist
+	teamsJSON = runAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
+	assert.Equal(t, 2, strings.Count(teamsJSON, "team_id"))
+	assert.NotContains(t, teamsJSON, deletedTeamName)
+
+	// Real run with one file at a time
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
-	for _, file := range teamFiles {
-		if filepath.Ext(file.Name()) == ".yml" {
-			_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", path.Join(teamsDir, file.Name())})
-		}
+	for _, fileName := range teamFileNames {
+		_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName})
 	}
 
 }

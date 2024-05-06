@@ -54,5 +54,5 @@ examples: >-
   SELECT version FROM osquery_info; 
   
   ```
-notes: |
+notes: >-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

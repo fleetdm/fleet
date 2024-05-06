@@ -2,13 +2,14 @@ package spec
 
 import (
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var topLevelOptions = map[string]string{
@@ -99,6 +100,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Contains(t, gitops.OrgSettings, "webhook_settings")
 					assert.Contains(t, gitops.OrgSettings, "fleet_desktop")
 					assert.Contains(t, gitops.OrgSettings, "host_expiry_settings")
+					assert.Contains(t, gitops.OrgSettings, "activity_expiry_settings")
 					assert.Contains(t, gitops.OrgSettings, "features")
 					assert.Contains(t, gitops.OrgSettings, "vulnerability_settings")
 					assert.Contains(t, gitops.OrgSettings, "secrets")
@@ -107,6 +109,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 					require.Len(t, secrets.([]*fleet.EnrollSecret), 2)
 					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
 					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
+					activityExpirySettings, ok := gitops.OrgSettings["activity_expiry_settings"].(map[string]interface{})
+					require.True(t, ok)
+					activityExpiryEnabled, ok := activityExpirySettings["activity_expiry_enabled"].(bool)
+					require.True(t, ok)
+					require.True(t, activityExpiryEnabled)
+					activityExpiryWindow, ok := activityExpirySettings["activity_expiry_window"].(float64)
+					require.True(t, ok)
+					require.Equal(t, 30, int(activityExpiryWindow))
 				}
 
 				// Check controls
@@ -144,7 +154,6 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.Equal(t, "No root logins (macOS, Linux)", gitops.Policies[2].Name)
 				assert.Equal(t, "🔥 Failing policy", gitops.Policies[3].Name)
 				assert.Equal(t, "😊😊 Failing policy", gitops.Policies[4].Name)
-
 			},
 		)
 	}
@@ -239,7 +248,6 @@ func TestMixingGlobalAndTeamConfig(t *testing.T) {
 	config += "team_settings:\n  secrets: []\n"
 	_, err = GitOpsFromBytes([]byte(config), "")
 	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name' or 'team_settings'")
-
 }
 
 func TestInvalidGitOpsYaml(t *testing.T) {

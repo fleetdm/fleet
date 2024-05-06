@@ -6,9 +6,13 @@ set -m
 # Fleet enroll secret placed in $FLEET_ENROLL_SECRET
 # Fleet URL placed in $FLEET_URL
 # Optional VM name in $MACOS_ENROLLMENT_VM_NAME
+# Optional VM image in $MACOS_ENROLLMENT_VM_IMAGE
+#  For others see https://tart.run/quick-start/
+#  - ghcr.io/cirruslabs/macos-ventura-base:latest
+#  - ghcr.io/cirruslabs/macos-monterey-base:latest
 
 vm_name="${MACOS_ENROLLMENT_VM_NAME:-enrollment-test}"
-image_name="ghcr.io/cirruslabs/macos-sonoma-base:latest"
+image_name="${MACOS_ENROLLMENT_VM_IMAGE:-ghcr.io/cirruslabs/macos-sonoma-base:latest}"
 
 alias ssh_cmd="sshpass -p admin ssh -o \"StrictHostKeyChecking no\" admin@\$(tart ip $vm_name)"
 alias ssh_interactive_cmd="sshpass -p admin ssh -o \"StrictHostKeyChecking no\" -t admin@\$(tart ip $vm_name)"

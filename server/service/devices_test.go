@@ -114,10 +114,11 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				OsqueryHostID:      ptr.String("test"),
 				DEPAssignedToFleet: &c.depAssigned,
 				MDMInfo: &fleet.HostMDM{
-					IsServer:         false,
-					InstalledFromDep: true,
-					Enrolled:         true,
-					Name:             fleet.WellKnownMDMIntune,
+					IsServer:               false,
+					InstalledFromDep:       true,
+					Enrolled:               true,
+					Name:                   fleet.WellKnownMDMIntune,
+					DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseSuccess)),
 				}})
 			sum, err := svc.GetFleetDesktopSummary(ctx)
 			require.NoError(t, err)
@@ -206,10 +207,11 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				OsqueryHostID:      ptr.String("test"),
 				DEPAssignedToFleet: &c.depAssigned,
 				MDMInfo: &fleet.HostMDM{
-					IsServer:         false,
-					InstalledFromDep: true,
-					Enrolled:         false,
-					Name:             fleet.WellKnownMDMFleet,
+					IsServer:               false,
+					InstalledFromDep:       true,
+					Enrolled:               false,
+					Name:                   fleet.WellKnownMDMFleet,
+					DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseSuccess)),
 				}})
 			sum, err := svc.GetFleetDesktopSummary(ctx)
 			require.NoError(t, err)
@@ -262,10 +264,11 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					OsqueryHostID:      ptr.String("test"),
 					DEPAssignedToFleet: ptr.Bool(false),
 					MDMInfo: &fleet.HostMDM{
-						IsServer:         false,
-						InstalledFromDep: false,
-						Enrolled:         true,
-						Name:             fleet.WellKnownMDMIntune,
+						IsServer:               false,
+						InstalledFromDep:       false,
+						Enrolled:               true,
+						Name:                   fleet.WellKnownMDMIntune,
+						DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseSuccess)),
 					}},
 				err: nil,
 				out: fleet.DesktopNotifications{
@@ -279,10 +282,11 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					DEPAssignedToFleet: ptr.Bool(true),
 					OsqueryHostID:      ptr.String("test"),
 					MDMInfo: &fleet.HostMDM{
-						IsServer:         false,
-						InstalledFromDep: true,
-						Enrolled:         false,
-						Name:             fleet.WellKnownMDMFleet,
+						IsServer:               false,
+						InstalledFromDep:       true,
+						Enrolled:               false,
+						Name:                   fleet.WellKnownMDMFleet,
+						DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseSuccess)),
 					}},
 				err: nil,
 				out: fleet.DesktopNotifications{
@@ -296,10 +300,83 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					DEPAssignedToFleet: ptr.Bool(true),
 					OsqueryHostID:      ptr.String("test"),
 					MDMInfo: &fleet.HostMDM{
-						IsServer:         false,
-						InstalledFromDep: true,
-						Enrolled:         true,
-						Name:             fleet.WellKnownMDMFleet,
+						IsServer:               false,
+						InstalledFromDep:       true,
+						Enrolled:               true,
+						Name:                   fleet.WellKnownMDMFleet,
+						DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseSuccess)),
+					}},
+				err: nil,
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
+				name: "failed ADE assignment status",
+				host: &fleet.Host{
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
+					MDMInfo: &fleet.HostMDM{
+						IsServer:               false,
+						InstalledFromDep:       true,
+						Enrolled:               true,
+						Name:                   fleet.WellKnownMDMIntune,
+						DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseFailed)),
+					}},
+				err: nil,
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
+				name: "not accessible ADE assignment status",
+				host: &fleet.Host{
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
+					MDMInfo: &fleet.HostMDM{
+						IsServer:               false,
+						InstalledFromDep:       true,
+						Enrolled:               true,
+						Name:                   fleet.WellKnownMDMIntune,
+						DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseNotAccessible)),
+					}},
+				err: nil,
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
+				name: "empty ADE assignment status",
+				host: &fleet.Host{
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
+					MDMInfo: &fleet.HostMDM{
+						IsServer:               false,
+						InstalledFromDep:       true,
+						Enrolled:               true,
+						Name:                   fleet.WellKnownMDMIntune,
+						DEPProfileAssignStatus: ptr.String(""),
+					}},
+				err: nil,
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
+				name: "nil ADE assignment status",
+				host: &fleet.Host{
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
+					MDMInfo: &fleet.HostMDM{
+						IsServer:               false,
+						InstalledFromDep:       true,
+						Enrolled:               true,
+						Name:                   fleet.WellKnownMDMIntune,
+						DEPProfileAssignStatus: nil,
 					}},
 				err: nil,
 				out: fleet.DesktopNotifications{
@@ -313,10 +390,11 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					DEPAssignedToFleet: ptr.Bool(true),
 					OsqueryHostID:      ptr.String("test"),
 					MDMInfo: &fleet.HostMDM{
-						IsServer:         false,
-						InstalledFromDep: true,
-						Enrolled:         true,
-						Name:             fleet.WellKnownMDMIntune,
+						IsServer:               false,
+						InstalledFromDep:       true,
+						Enrolled:               true,
+						Name:                   fleet.WellKnownMDMIntune,
+						DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseSuccess)),
 					}},
 				err: nil,
 				out: fleet.DesktopNotifications{

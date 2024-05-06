@@ -68,15 +68,20 @@ module.exports = {
 
   fn: async function ({emailAddress, firstName, lastName, organization, numberOfHosts, primaryBuyingSituation}) {
 
-    const bannedEmailDomainsForContactFormMessages = [
-      'gmail.com','yahoo.com', 'yahoo.co.uk','hotmail.com','hotmail.co.uk', 'outlook.com', 'icloud.com', 'proton.me','live.com','yandex.ru','ymail.com',
-    ];
 
     let emailDomain = emailAddress.split('@')[1];
-
-    if(_.includes(bannedEmailDomainsForContactFormMessages, emailDomain.toLowerCase())){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
+
+    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress,
+      firstName,
+      lastName,
+      organization: organization,
+      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : 'Vulnerability management',
+    });
+
     await sails.helpers.http.post.with({
       url: 'https://hooks.zapier.com/hooks/catch/3627242/3cxwxdo/',
       data: {

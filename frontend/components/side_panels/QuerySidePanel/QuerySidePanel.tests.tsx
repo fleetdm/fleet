@@ -38,7 +38,7 @@ describe("QuerySidePanel - component", () => {
     expect(platformCompatibility).toHaveTextContent(/chromeos/i);
   });
 
-  it("renders the correct number of columns including hiding columns set to hidden", () => {
+  it("renders the correct number of columns including rendering hidden columns", () => {
     const { container } = render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
@@ -48,9 +48,21 @@ describe("QuerySidePanel - component", () => {
     );
 
     const platformList = container.getElementsByClassName("column-list-item");
-    expect(platformList.length).toBe(11); // 2 columns are set to hidden
+    expect(platformList.length).toBe(13); // 2 of 13 columns are set to hidden but still show
   });
+  it("renders the hidden column tooltip", async () => {
+    render(
+      <QuerySidePanel
+        selectedOsqueryTable={createMockOsqueryTable()}
+        onOsqueryTableSelect={() => noop}
+        onClose={noop}
+      />
+    );
+    await fireEvent.mouseEnter(screen.getByText("type"));
 
+    const tooltip = screen.getByText(/Not returned in SELECT */i);
+    expect(tooltip).toBeInTheDocument();
+  });
   it("renders the platform specific column tooltip", async () => {
     render(
       <QuerySidePanel
