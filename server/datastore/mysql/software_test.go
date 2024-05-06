@@ -2937,7 +2937,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
-	opts := fleet.ListOptions{PerPage: 10, IncludeMetadata: true}
+	opts := fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}
 
 	// no software yet
 	sw, meta, err := ds.ListHostSoftware(ctx, host.ID, false, opts)
@@ -3092,10 +3092,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 				globalOrTeamID = tm.ID
 			}
 			res, err := q.ExecContext(ctx, `
-			INSERT INTO software_installers
-				(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id)
-			VALUES
-				(?, ?, ?, ?, ?, ?, unhex(?))`,
+				INSERT INTO software_installers
+					(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id)
+				VALUES
+					(?, ?, ?, ?, ?, ?, unhex(?))`,
 				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")))
 			if err != nil {
 				return err
@@ -3109,7 +3109,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi1 is pending (all results are NULL)
 		_, err = q.ExecContext(ctx, `
-				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
 			"uuid1", host.ID, swi1Pending)
 		if err != nil {
 			return err
@@ -3117,8 +3117,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi2 is installed
 		_, err = q.ExecContext(ctx, `
-				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
-				VALUES (?, ?, ?, ?, ?, ?)`,
+					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
+					VALUES (?, ?, ?, ?, ?, ?)`,
 			"uuid2", host.ID, swi2Installed, "ok", 0, 0)
 		if err != nil {
 			return err
@@ -3126,14 +3126,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi3 is failed, also add an install request on the other host
 		_, err = q.ExecContext(ctx, `
-				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
-				VALUES (?, ?, ?, ?, ?)`,
+					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
+					VALUES (?, ?, ?, ?, ?)`,
 			"uuid3", host.ID, swi3Failed, "ok", 1)
 		if err != nil {
 			return err
 		}
 		_, err = q.ExecContext(ctx, `
-				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
 			uuid.NewString(), otherHost.ID, swi3Failed)
 		if err != nil {
 			return err
@@ -3141,7 +3141,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi4 is available (no install request), but add a pending request on the other host
 		_, err = q.ExecContext(ctx, `
-				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
 			uuid.NewString(), otherHost.ID, swi4Available)
 		if err != nil {
 			return err
@@ -3198,7 +3198,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
-		expected["i1"], expected["b"], expected["i0"], expected["a1"], expected["a2"], expected["c"], expected["d"],
+		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"],
 	}, sw)
 
 	// request with available software, returns failed first, pending, installed, available, other
@@ -3206,7 +3206,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
-		expected["i1"], expected["b"], expected["i0"], expected["i2"], expected["a1"], expected["a2"], expected["c"], expected["d"],
+		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"], expected["i2"],
 	}, sw)
 
 	// record a new install request for i1, this time as pending, and mark install request for b (swi1) as failed
@@ -3221,8 +3221,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		// swi3 has a new install request pending
 		_, err = q.ExecContext(ctx, `
-				INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
-				VALUES (?, ?, ?)`,
+					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
+					VALUES (?, ?, ?)`,
 			"uuid4", host.ID, swi3Failed)
 		if err != nil {
 			return err
@@ -3248,20 +3248,20 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
 	}
 
-	// request without available software, returns failed first, pending, installed, other
+	// request without available software
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
-		expected["b"], expected["i1"], expected["i0"], expected["a1"], expected["a2"], expected["c"], expected["d"],
+		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"],
 	}, sw)
 
-	// request with available software, returns failed first, pending, installed, available, other
+	// request with available software
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
-		expected["b"], expected["i1"], expected["i0"], expected["i2"], expected["a1"], expected["a2"], expected["c"], expected["d"],
+		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"], expected["i2"],
 	}, sw)
 
 	// create a new host in the team, with no software
@@ -3307,19 +3307,19 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		{
 			opts:          fleet.ListOptions{PerPage: 3},
 			withAvailable: false,
-			wantNames:     []string{expected["b"].Name, expected["i1"].Name, expected["i0"].Name},
+			wantNames:     []string{expected["a1"].Name, expected["a2"].Name, expected["b"].Name},
 			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			opts:          fleet.ListOptions{Page: 1, PerPage: 3},
 			withAvailable: false,
-			wantNames:     []string{expected["a1"].Name, expected["a2"].Name, expected["c"].Name},
+			wantNames:     []string{expected["c"].Name, expected["d"].Name, expected["i0"].Name},
 			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
 		},
 		{
 			opts:          fleet.ListOptions{Page: 2, PerPage: 3},
 			withAvailable: false,
-			wantNames:     []string{expected["d"].Name},
+			wantNames:     []string{expected["i1"].Name},
 			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
@@ -3331,13 +3331,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		{
 			opts:          fleet.ListOptions{PerPage: 4},
 			withAvailable: true,
-			wantNames:     []string{expected["b"].Name, expected["i1"].Name, expected["i0"].Name, expected["i2"].Name},
+			wantNames:     []string{expected["a1"].Name, expected["a2"].Name, expected["b"].Name, expected["c"].Name},
 			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			opts:          fleet.ListOptions{Page: 1, PerPage: 4},
 			withAvailable: true,
-			wantNames:     []string{expected["a1"].Name, expected["a2"].Name, expected["c"].Name, expected["d"].Name},
+			wantNames:     []string{expected["d"].Name, expected["i0"].Name, expected["i1"].Name, expected["i2"].Name},
 			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
@@ -3351,6 +3351,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		t.Run(fmt.Sprintf("%t: %#v", c.withAvailable, c.opts), func(t *testing.T) {
 			// always include metadata
 			c.opts.IncludeMetadata = true
+			c.opts.OrderKey = "name"
+			c.opts.TestSecondaryOrderKey = "source"
 
 			sw, meta, err := ds.ListHostSoftware(ctx, host.ID, c.withAvailable, c.opts)
 			require.NoError(t, err)

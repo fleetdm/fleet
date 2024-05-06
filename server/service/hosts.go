@@ -2522,8 +2522,8 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 
 	// cursor-based pagination is not supported
 	opts.After = ""
-	// custom ordering is not supported
-	opts.OrderKey = ""
+	// custom ordering is not supported, always by name (but asc/desc is configurable)
+	opts.OrderKey = "name"
 	// always include metadata
 	opts.IncludeMetadata = true
 

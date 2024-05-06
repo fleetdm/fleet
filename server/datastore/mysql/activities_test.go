@@ -355,6 +355,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 
 	// no script request for h3
 
+	// TODO(mna): instead of sleeps, update the created_at in the DB manually in the desired order
+
 	execIDsWithUser := map[string]bool{
 		h1A: true,
 		h1B: true,
