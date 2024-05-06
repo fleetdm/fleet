@@ -7,6 +7,8 @@
 #   quoteImageFilename: 
 #   youtubeVideoUrl: 
 #.  productCategories: [Endpoint operations, Vulnerability management, Device management]
+#
+# TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
 -
   quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
   quoteAuthorName: Andre Shields
