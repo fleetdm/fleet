@@ -4,7 +4,7 @@
 
 * Improved Windows OS version reporting.
 * Fixed a bug where when updating a policy's 'platform' field, the aggregated policy stats were not cleared.
-* UI: Improved URL and email validation.
+Improved URL and email validation in the UI.
 
 ## Fleet 4.49.2 (Apr 30, 2024)
 
