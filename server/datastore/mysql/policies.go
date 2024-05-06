@@ -1245,40 +1245,95 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	// NOTE these queries are duplicated in the below migration.  Updates
 	// to these queries should be reflected there as well.
 	// https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/migrations/tables/20231215122713_InsertPolicyStatsData.go#L12
+	// This implementation should be functionally equivalent to the migration.
 
 	// Update Counts for Inherited Global Policies for each Team
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
-		SELECT
-			p.id,
-			t.id AS inherited_team_id,
-			(
-				SELECT COUNT(*) 
-				FROM policy_membership pm 
-				INNER JOIN hosts h ON pm.host_id = h.id 
-				WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id = t.id
-			) AS passing_host_count,
-			(
-				SELECT COUNT(*) 
-				FROM policy_membership pm 
-				INNER JOIN hosts h ON pm.host_id = h.id 
-				WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id = t.id
-			) AS failing_host_count
-		FROM policies p
-		CROSS JOIN teams t
-		WHERE p.team_id IS NULL
-		GROUP BY p.id, t.id
-		ON DUPLICATE KEY UPDATE 
-			updated_at = NOW(),
-			passing_host_count = VALUES(passing_host_count),
-			failing_host_count = VALUES(failing_host_count);
-    `)
+	// The original implementation that used INSERT ... SELECT (SELECT COUNT(*)) ... caused performance issues.
+	// Given 50 global policies, 10 teams, and 10,000 hosts per team, the INSERT query took 30-60 seconds to complete.
+	// Since it was an INSERT query, it blocked other hosts from updating their policy results in policy_membership.
+
+	// Now, we separate the INSERT from the SELECT, since SELECT by itself does not block other hosts from updating their policy results.
+	// In addition, we process one global policy at a time, which reduces the time to complete the SELECT query to <2 seconds, and limits the memory usage.
+	// We are not using a transaction to reduce locks. This means that INSERT may fail if the policy was deleted by a parallel process.
+	// Also, the INSERT may overwrite a clearing of the stats. This is acceptable, since these are very rare cases. We log and proceed in that case.
+
+	db := ds.writer(ctx)
+
+	// Inherited policies are only relevant for teams, so we check whether we have teams
+	var hasTeams bool
+	err := sqlx.GetContext(ctx, db, &hasTeams, `SELECT 1 FROM teams`)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update host policy counts for inherited global policies")
+		if errors.Is(err, sql.ErrNoRows) {
+			// No teams, so no inherited policies
+			hasTeams = false
+		} else {
+			return ctxerr.Wrap(ctx, err, "count teams")
+		}
+	}
+
+	if hasTeams {
+		globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list global policies")
+		}
+		type policyStat struct {
+			PolicyID         uint `db:"policy_id"`
+			InheritedTeamID  uint `db:"inherited_team_id"`
+			PassingHostCount uint `db:"passing_host_count"`
+			FailingHostCount uint `db:"failing_host_count"`
+		}
+		var policyStats []policyStat
+		for _, policy := range globalPolicies {
+			selectStmt := `SELECT
+				p.id as policy_id,
+				t.id AS inherited_team_id,
+				(
+					SELECT COUNT(*) 
+					FROM policy_membership pm 
+					INNER JOIN hosts h ON pm.host_id = h.id 
+					WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id = t.id
+				) AS passing_host_count,
+				(
+					SELECT COUNT(*) 
+					FROM policy_membership pm 
+					INNER JOIN hosts h ON pm.host_id = h.id 
+					WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id = t.id
+				) AS failing_host_count
+			FROM policies p
+			CROSS JOIN teams t
+			WHERE p.team_id IS NULL AND p.id = ?
+			GROUP BY t.id, p.id`
+			err = sqlx.SelectContext(ctx, db, &policyStats, selectStmt, policy.ID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				if errors.Is(err, sql.ErrNoRows) {
+					// Policy or team was deleted by a parallel process. We proceed.
+					level.Error(ds.logger).Log(
+						"msg", "policy not found for inherited global policies. Was policy or team(s) deleted?", "policy_id", policy.ID,
+					)
+					continue
+				}
+				return ctxerr.Wrap(ctx, err, "select policy counts for inherited global policies")
+			}
+			insertStmt := `INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+			VALUES (:policy_id, :inherited_team_id, :passing_host_count, :failing_host_count)
+			ON DUPLICATE KEY UPDATE
+				updated_at = NOW(),
+				passing_host_count = VALUES(passing_host_count),
+				failing_host_count = VALUES(failing_host_count)`
+			_, err = sqlx.NamedExecContext(ctx, db, insertStmt, policyStats)
+			if err != nil {
+				// INSERT may fail due to rare race conditions. We log and proceed.
+				level.Error(ds.logger).Log(
+					"msg", "insert policy stats for inherited global policies. Was policy deleted?", "policy_id", policy.ID, "err", err,
+				)
+			}
+		}
 	}
 
 	// Update Counts for Global and Team Policies
-	_, err = ds.writer(ctx).ExecContext(ctx, `
+	// The performance of this query is linear with the number of policies.
+	_, err = db.ExecContext(
+		ctx, `
 		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
 		SELECT
 			p.id,
