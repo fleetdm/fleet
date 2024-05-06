@@ -8526,7 +8526,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 		})
 		require.NotZero(t, id)
 
-		meta, err := s.ds.GetSoftwareInstallerMetadata(context.Background(), id)
+		meta, err := s.ds.GetSoftwareInstallerMetadata(context.Background(), id, false)
 		require.NoError(t, err)
 
 		if payload.TeamID != nil {

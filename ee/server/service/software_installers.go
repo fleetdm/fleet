@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 )
@@ -25,6 +26,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.InstallerFile == nil {
 		return ctxerr.New(ctx, "installer file is required")
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
 	}
 
 	title, vers, hash, err := file.ExtractInstallerMetadata(payload.Filename, payload.InstallerFile)
@@ -81,12 +87,17 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// TODO: QA what breaks when you have a software title with no versions?
 
+	// Create activity
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{SoftwareTitle: title, SoftwarePackage: payload.Filename}); err != nil {
+		return nil
+	}
+
 	return nil
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	// get the software installer to have its team id
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, id)
+	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, id, true)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			// couldn't get the metadata to have its team, authorize with a no-team
@@ -105,8 +116,17 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 		return err
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
 	if err := svc.ds.DeleteSoftwareInstaller(ctx, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting software installer")
+	}
+
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{SoftwareTitle: meta.SoftwareTitle, SoftwarePackage: meta.Name}); err != nil {
+		return nil
 	}
 
 	return nil
@@ -119,7 +139,7 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, installerI
 	}
 
 	// get the installer's metadata
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
+	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
@@ -153,7 +173,7 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	}
 
 	// get the installer's metadata
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
+	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}

@@ -63,6 +63,8 @@ type SoftwareInstaller struct {
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
 	StorageID string `json:"-" db:"storage_id"`
+	// SoftwareTitle is the title of the software pointed installed by this installer.
+	SoftwareTitle string `json:"-" db:"software_title"`
 }
 
 // AuthzType implements authz.AuthzTyper.

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -93,23 +94,31 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	return titleID, nil
 }
 
-func (ds *Datastore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+func (ds *Datastore) GetSoftwareInstallerMetadata(ctx context.Context, id uint, includeTitle bool) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT
-	id,
-	team_id,
-	title_id,
-	storage_id,
-	filename,
-	version,
-	install_script_content_id,
-	pre_install_query,
-	post_install_script_content_id,
-	uploaded_at
+	si.id,
+	si.team_id,
+	si.title_id,
+	si.storage_id,
+	si.filename,
+	si.version,
+	si.install_script_content_id,
+	si.pre_install_query,
+	si.post_install_script_content_id,
+	si.uploaded_at
+	%s
 FROM
-	software_installers
+	software_installers si
+	%s
 WHERE
-	id = ?`
+	si.id = ?`
+
+	if includeTitle {
+		query = fmt.Sprintf(query, ", st.name AS software_title", "JOIN software_titles st ON st.id = si.title_id")
+	} else {
+		query = fmt.Sprintf(query, "", "")
+	}
 
 	var dest fleet.SoftwareInstaller
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, id)

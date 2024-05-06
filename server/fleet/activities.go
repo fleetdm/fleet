@@ -92,6 +92,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeResentConfigurationProfile{},
 
 	ActivityTypeInstalledSoftware{},
+	ActivityTypeAddedSoftware{},
 }
 
 type ActivityDetails interface {
@@ -1446,6 +1447,34 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending"
 }`
+}
+
+type ActivityTypeAddedSoftware struct {
+	SoftwareTitle   string `json:"software_title"`
+	SoftwarePackage string `json:"software_package"` // TODO(JVE): is this called something different elsewhere?
+	Status          string `json:"status"`
+}
+
+func (a ActivityTypeAddedSoftware) ActivityName() string {
+	return "added_software"
+}
+
+func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
+	return "TODO(JVE): addme!", "TODO(JVE)", "TODO(JVE)"
+}
+
+type ActivityTypeDeletedSoftware struct {
+	SoftwareTitle   string `json:"software_title"`
+	SoftwarePackage string `json:"software_package"` // TODO(JVE): is this called something different elsewhere?
+	Status          string `json:"status"`
+}
+
+func (a ActivityTypeDeletedSoftware) ActivityName() string {
+	return "deleted_software"
+}
+
+func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
+	return "TODO(JVE): addme!", "TODO(JVE)", "TODO(JVE)"
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.

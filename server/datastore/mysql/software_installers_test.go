@@ -55,7 +55,7 @@ func testInsertSoftwareInstallRequest(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			installerMeta, err := ds.GetSoftwareInstallerMetadata(ctx, installerID)
+			installerMeta, err := ds.GetSoftwareInstallerMetadata(ctx, installerID, false)
 			require.NoError(t, err)
 
 			err = ds.InsertSoftwareInstallRequest(ctx, 12, installerMeta.TitleID, teamID)

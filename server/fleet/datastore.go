@@ -1471,7 +1471,7 @@ type Datastore interface {
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
 
 	// GetSoftwareInstallerMetadata returns the software installer corresponding to the id.
-	GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*SoftwareInstaller, error)
+	GetSoftwareInstallerMetadata(ctx context.Context, id uint, includeTitle bool) (*SoftwareInstaller, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
