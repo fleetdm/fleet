@@ -494,6 +494,7 @@ module.exports.routes = {
   'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
   'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
   'GET /learn-more-about/rotating-enroll-secrets': '/docs/configuration/configuration-files#rotating-enroll-secrets',
+  'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
 
   // Sitemap
   // =============================================================================================================
@@ -523,6 +524,12 @@ module.exports.routes = {
   'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
   'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
+
+  // Temporary redirects
+  // =============================================================================================================
+  // For events, etc. that can be removed after a certain date. Please leave a comment with a valid until date.
+  'GET /rsaparty':               'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm', // Valid until 2024-05-09
+  'GET /rsavip':                 'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm&discount=Fleet2024', // Valid until 2024-05-09
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗

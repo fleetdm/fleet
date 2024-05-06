@@ -4,7 +4,7 @@
 
 Open-source platform for IT and security teams with thousands of computers.  Designed for APIs, GitOps, webhooks, YAML, and humans.
 
-<a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f705c7ee-6efe-448e-b5ee-f5535d7cd101" alt="A glass city in the clouds"/></a>
+<a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f835ec29-1cb9-49ba-a0f3-395ffd9d5c9f" alt="A glass city in the clouds"/></a>
 
 
 ## What's it for?

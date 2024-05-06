@@ -881,6 +881,7 @@ type ServerSettings struct {
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
+	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -1033,6 +1034,11 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+}
+
+type ApplyTeamSpecOptions struct {
+	ApplySpecOptions
+	DryRunAssumptions *TeamSpecsDryRunAssumptions
 }
 
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
