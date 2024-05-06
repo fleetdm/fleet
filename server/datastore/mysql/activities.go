@@ -213,8 +213,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// NOTE: Be sure to update both the count and list statements if the list query is modified
 	listStmts := []string{
 		// list pending scripts
-		`
-		SELECT
+		`SELECT
 			hsr.execution_id as uuid,
 			u.name as name,
 			u.id as user_id,
@@ -246,8 +245,36 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			)
 `,
 		// list pending software installs
-		//		`
-		//`,
+		fmt.Sprintf(`SELECT
+			hsi.execution_id as uuid,
+			u.name as name,
+			u.id as user_id,
+			u.gravatar_url as gravatar_url,
+			u.email as user_email,
+			:installed_software_type as activity_type,
+			hsi.created_at as created_at,
+			JSON_OBJECT(
+				'host_id', hsi.host_id,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'software_title', COALESCE(st.name, ''),
+				'install_uuid', hsi.execution_id,
+				'status', %s
+			) as details
+		FROM
+			host_software_installs hsi
+		INNER JOIN
+			software_installers si ON si.id = hsi.software_installer_id
+		LEFT OUTER JOIN
+			software_titles st ON st.id = si.title_id
+		LEFT OUTER JOIN
+			users u ON u.id = hsi.user_id
+		LEFT OUTER JOIN
+			host_display_names hdn ON hdn.host_id = hsi.host_id
+		WHERE
+			hsi.host_id = :host_id AND
+			hsi.pre_install_query_output IS NULL AND
+			hsi.install_script_exit_code IS NULL
+		`, softwareInstallerHostStatusNamedQuery("")),
 	}
 
 	seconds := int(scripts.MaxServerWaitTime.Seconds())
@@ -263,9 +290,13 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			details
 		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming `
 	listStmt, args, err = sqlx.Named(listStmt, map[string]any{
-		"host_id":         hostID,
-		"ran_script_type": fleet.ActivityTypeRanScript{}.ActivityName(),
-		"max_wait_time":   seconds,
+		"host_id":                   hostID,
+		"ran_script_type":           fleet.ActivityTypeRanScript{}.ActivityName(),
+		"installed_software_type":   fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
+		"max_wait_time":             seconds,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_pending":   fleet.SoftwareInstallerPending,
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
