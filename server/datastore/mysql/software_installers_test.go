@@ -79,6 +79,13 @@ func testListSoftwareInstallerDetails(t *testing.T, ds *Datastore) {
 
 	_ = ds.writer(ctx).MustExec("UPDATE host_software_installs SET install_script_exit_code = 0 WHERE id = ?", hostInstall4Id)
 
+	hostInstall5, err := insertHostSoftwareInstalls(ctx, ds.writer(ctx), host2.ID, "exec5", uint(installer2Id))
+	require.NoError(t, err)
+	hostInstall5Id, err := hostInstall5.LastInsertId()
+	require.NoError(t, err)
+
+	_ = ds.writer(ctx).MustExec("UPDATE host_software_installs SET pre_install_query_output = \"output\" WHERE id = ?", hostInstall5Id)
+
 	installDetailsList1, err := ds.ListPendingSoftwareInstallDetails(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(installDetailsList1))
