@@ -1,9 +1,10 @@
 import React from "react";
 
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 
 import { createCustomRenderer } from "test/test-utils";
 import createMockUser from "__mocks__/userMock";
+import createMockQuery from "__mocks__/queryMock";
 
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import QueriesTable, { IQueriesTableProps } from "./QueriesTable";
@@ -205,6 +206,162 @@ describe("QueriesTable", () => {
       dataStrings.forEach((val) => {
         expect(screen.getAllByText(val)).toHaveLength(0);
       });
+    });
+  });
+
+  it("Renders an observer can run badge and tooltip for a observer can run query", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testObserverCanRunQuery = [
+      createMockQuery({
+        observer_can_run: true,
+      }),
+    ];
+    const testQueries = testObserverCanRunQuery.map(enhanceQuery);
+
+    const { user } = render(
+      <QueriesTable
+        queriesList={testQueries}
+        onlyInheritedQueries={false}
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        onCreateQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={1}
+      />
+    );
+
+    await waitFor(() => {
+      waitFor(() => {
+        user.hover(screen.getByTestId("query-icon"));
+      });
+
+      expect(
+        screen.getByText("Observers can run this query.")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("Renders an inherited badge and tooltip for inherited query on a team's queries page", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testInheritedQuery = [createMockQuery()];
+
+    const testQueries = testInheritedQuery.map(enhanceQuery);
+
+    const { user } = render(
+      <QueriesTable
+        queriesList={testQueries}
+        onlyInheritedQueries={false}
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        onCreateQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={1}
+      />
+    );
+
+    await waitFor(() => {
+      waitFor(() => {
+        user.hover(screen.getByText("Inherited"));
+      });
+
+      expect(
+        screen.getByText("This query runs on all hosts.")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("Does not render an inherited badge and tooltip for global query on the All team's queries page", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testGlobalQuery = [createMockQuery()];
+    const testQueries = testGlobalQuery.map(enhanceQuery);
+
+    render(
+      <QueriesTable
+        queriesList={testQueries}
+        onlyInheritedQueries={false}
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        onCreateQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={undefined}
+      />
+    );
+
+    expect(screen.queryByText("Inherited")).not.toBeInTheDocument();
+  });
+
+  it("Renders the correct number of checkboxes for team queries and not inherited queries on a team's queries page and can check select all box", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const { container, user } = render(
+      <QueriesTable
+        queriesList={[...testTeamQueries, ...testGlobalQueries]}
+        onlyInheritedQueries={false}
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        onCreateQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={1}
+      />
+    );
+
+    const numberOfCheckboxes = container.querySelectorAll(
+      "input[type='checkbox']"
+    ).length;
+
+    expect(numberOfCheckboxes).toBe(
+      testTeamQueries.length + 1 // +1 for Select all checkbox
+    );
+
+    const checkbox = container.querySelectorAll(
+      "input[type='checkbox']"
+    )[0] as HTMLInputElement;
+
+    await waitFor(() => {
+      waitFor(() => {
+        user.click(checkbox);
+      });
+
+      expect(checkbox.checked).toBe(true);
     });
   });
 });

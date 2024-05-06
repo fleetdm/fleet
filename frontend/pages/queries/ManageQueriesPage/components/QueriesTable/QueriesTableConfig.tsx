@@ -26,7 +26,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import InheritedBadge from "components/InheritedBadge";
-import { COLORS } from "styles/var/colors";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
 interface IQueryRow {
@@ -136,25 +136,50 @@ const generateTableHeaders = ({
               <>
                 <div className="query-name-text">{cellProps.cell.value}</div>
                 {!isOnlyObserver && cellProps.row.original.observer_can_run && (
-                  <>
+                  <div className="observer-can-run-badge">
                     <span
-                      className="tooltip-base"
-                      data-tip
-                      data-for={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                      className="observer-can-run-icon"
+                      data-tooltip-id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
                     >
-                      <Icon className="query-icon" name="query" size="small" />
+                      <Icon
+                        className="observer-can-run-query-icon"
+                        name="query"
+                        size="small"
+                        color="core-fleet-blue"
+                      />
                     </span>
-                    <ReactTooltip
+                    <ReactTooltip5
                       className="observer-can-run-tooltip"
+                      disableStyleInjection
                       place="top"
-                      type="dark"
-                      effect="solid"
+                      opacity={1}
                       id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
-                      backgroundColor={COLORS["tooltip-bg"]}
+                      offset={8}
+                      positionStrategy="fixed"
                     >
                       Observers can run this query.
-                    </ReactTooltip>
-                  </>
+                    </ReactTooltip5>
+                  </div>
+
+                  // <>
+                  //   <span
+                  //     className="tooltip-base"
+                  //     data-tip
+                  //     data-for={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                  //   >
+                  //     <Icon className="query-icon" name="query" size="small" />
+                  //   </span>
+                  //   <ReactTooltip
+                  //     className="observer-can-run-tooltip"
+                  //     place="top"
+                  //     type="dark"
+                  //     effect="solid"
+                  //     id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                  //     backgroundColor={COLORS["tooltip-bg"]}
+                  //   >
+                  //     Observers can run this query.
+                  //   </ReactTooltip>
+                  // </>
                 )}
                 {viewingTeamScope &&
                   // inherited

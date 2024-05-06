@@ -26,7 +26,6 @@ interface IPoliciesTableProps {
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
-  isSandboxMode?: boolean;
   renderPoliciesCount: () => JSX.Element | null;
   onQueryChange: (newTableQuery: ITableQueryData) => void;
   searchQuery: string;
@@ -45,7 +44,6 @@ const PoliciesTable = ({
   currentTeam,
   currentAutomatedPolicies,
   isPremiumTier,
-  isSandboxMode,
   onQueryChange,
   renderPoliciesCount,
   searchQuery,
@@ -104,8 +102,7 @@ const PoliciesTable = ({
             hasPermissionAndPoliciesToDelete,
           },
           policiesList,
-          isPremiumTier,
-          isSandboxMode
+          isPremiumTier
         )}
         data={generateDataSet(
           policiesList,

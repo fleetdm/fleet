@@ -15,7 +15,7 @@ const InheritedBadge = ({
 }: IInheritedBadgeProps) => {
   const tooltipId = uniqueId();
   return (
-    <div className={`${baseClass}`}>
+    <div className={baseClass}>
       <span
         className={`${baseClass}__element-text`}
         data-tooltip-id={tooltipId}
