@@ -820,6 +820,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        added {activity.details?.software_title} (
+        {activity.details?.software_package}) software
+      </>
+    );
+  },
+  deletedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted {activity.details?.software_title} (
+        {activity.details?.software_package}) software
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -992,6 +1010,12 @@ const getDetail = (
     }
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.AddedSoftware: {
+      return TAGGED_TEMPLATES.addedSoftware(activity);
+    }
+    case ActivityType.DeletedSoftware: {
+      return TAGGED_TEMPLATES.deletedSoftware(activity);
     }
 
     default: {

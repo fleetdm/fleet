@@ -71,6 +71,8 @@ export enum ActivityType {
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
+  AddedSoftware = "added_software",
+  DeletedSoftware = "deleted_software"
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
@@ -133,4 +135,6 @@ export interface IActivityDetails {
   grace_period_days?: number;
   stats?: IScheduledQueryStats;
   host_id?: number;
+  software_title?: string;
+  software_package?: string;
 }

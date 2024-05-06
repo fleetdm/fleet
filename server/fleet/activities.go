@@ -1452,6 +1452,7 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 type ActivityTypeAddedSoftware struct {
 	SoftwareTitle   string `json:"software_title"`
 	SoftwarePackage string `json:"software_package"`
+	TeamName        string `json:"team_name"`
 }
 
 func (a ActivityTypeAddedSoftware) ActivityName() string {
@@ -1472,6 +1473,7 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 type ActivityTypeDeletedSoftware struct {
 	SoftwareTitle   string `json:"software_title"`
 	SoftwarePackage string `json:"software_package"`
+	TeamName        string `json:"team_name"`
 }
 
 func (a ActivityTypeDeletedSoftware) ActivityName() string {
