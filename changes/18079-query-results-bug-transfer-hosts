@@ -1,0 +1,1 @@
+* Fixed bug where hosts query results were not cleared after transferring the host to other teams.

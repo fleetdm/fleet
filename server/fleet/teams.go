@@ -425,6 +425,11 @@ type TeamSpecIntegrations struct {
 	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
 }
 
+// TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
+type TeamSpecsDryRunAssumptions struct {
+	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
+}
+
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
 func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	features, err := json.Marshal(t.Config.Features)

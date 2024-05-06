@@ -971,7 +971,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -988,6 +988,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
@@ -1177,7 +1178,15 @@ func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
 	// using the writer even when doing a read to get the data from the main db node
 	err := ds.writer(ctx).GetContext(ctx, &status, "show engine innodb status")
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "Getting innodb status")
+		// To read innodb tables, DB user must have PROCESS privilege
+		// This can be set by DB admin like: GRANT PROCESS,SELECT ON *.* TO 'fleet'@'%';
+		if isMySQLAccessDenied(err) {
+			return "", &accessDeniedError{
+				Message:     "getting innodb status: DB user must have global PROCESS and SELECT privilege",
+				InternalErr: err,
+			}
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting innodb status")
 	}
 	return status.Status, nil
 }

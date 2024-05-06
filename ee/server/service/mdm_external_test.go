@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -133,6 +134,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.NewJobFuncInvoked = false
 		ds.GetMDMAppleSetupAssistantFuncInvoked = false
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
+		ds.LabelIDsByNameFuncInvoked = false
+		ds.SetOrUpdateMDMAppleDeclarationFuncInvoked = false
+		ds.BulkSetPendingMDMHostProfilesFuncInvoked = false
 	}
 	setupDS := func(t *testing.T) {
 		resetInvoked()
@@ -182,6 +186,18 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
 			return nil, errors.New("not implemented")
+		}
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+			require.Len(t, names, 1)
+			require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
+			return map[string]uint{names[0]: 1}, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+			declaration.DeclarationUUID = uuid.NewString()
+			return declaration, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
+			return nil
 		}
 	}
 
@@ -407,7 +423,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		spec := &fleet.TeamSpec{
 			Name: team2.Name,
 		}
-		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.SaveTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -506,7 +522,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 
 		// apply team spec creates new team without defaults
-		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.NewTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -519,7 +535,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 
 		// apply team spec edits existing team without applying defaults
 		spec.MDM.MacOSUpdates.Deadline = optjson.SetString("2025-01-01")
-		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.SaveTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)

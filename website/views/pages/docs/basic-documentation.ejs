@@ -114,7 +114,7 @@
               </ul>
               <ul class="px-0 mb-0 pt-3" purpose="mobile-docs-nav-other-links">
                 <li class="px-0 mb-3"><a href="/tables">Data tables</a></li>
-                <li class="px-0 mb-3"><a href="/queries">Built-in queries</a></li>
+                <li class="px-0 mb-3"><a href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a></li>
                 <li class="px-0 mb-3"><a href="https://github.com/fleetdm/fleet/releases" target="_blank">Releases</a></li>
                 <li class="px-0 mb-3"><a href="/support">Support</a></li>
               </ul>
@@ -152,10 +152,10 @@
               </div>
             </li>
           </ul>
-          <a class="pt-4 pb-3" target="_blank" href="https://fleetdm.com/tables">Data tables</a>
-          <a class="pb-3" target="_blank" href="https://fleetdm.com/queries">Built-in queries</a>
+          <a class="pt-4 pb-3" target="_blank" href="/tables">Data tables</a>
+          <a class="pb-3" target="_blank" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
           <a class="pb-3" target="_blank" href="https://github.com/fleetdm/fleet/releases">Releases</a>
-          <a class="pb-3" target="_blank" href="https://fleetdm.com/support">Support</a>
+          <a class="pb-3" target="_blank" href="/support">Support</a>
           <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
             <a class="d-flex align-items-center justify-content-center" href="https://kqphpqst851.typeform.com/to/ZfA3sOu0" target="_blank">
               <div class="d-flex flex-column align-items-center">

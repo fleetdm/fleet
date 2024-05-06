@@ -10,7 +10,7 @@
     </div>
     <div purpose="customer-portal-form"  class="card card-body mb-5">
       <div purpose="register-link" v-if="showCustomerLogin">
-        <a href="/register">Create an account</a>
+        <a :href="registerSlug">Create an account</a>
       </div>
       <ajax-form class="customers-login" action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
         <div class="form-group">

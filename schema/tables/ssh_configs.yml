@@ -1,5 +1,11 @@
 name: ssh_configs
 examples: >-
+  ```
+
+  SELECT * FROM users CROSS JOIN ssh_configs USING (uid);
+
+  ```
+
   Identify SSH clients configured to send their locales to the server.
   
   ```
@@ -9,4 +15,4 @@ examples: >-
   ```
 columns:
   - name: uid
-    requires_user_context: true
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

@@ -4,7 +4,7 @@ import CustomLink from "components/CustomLink";
 
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
-import MacOSUpdateScreenshot from "../../../../../../assets/images/nudge-screenshot.png";
+import MacOSUpdateScreenshot from "../../../../../../assets/images/macos-updates-preview.png";
 import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
 
 const baseClass = "nudge-preview";
@@ -17,12 +17,12 @@ const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
     <>
       <h3>End user experience on macOS</h3>
       <p>
-        When a minimum version is saved, the end user sees the below window
-        until their macOS version is at or above the minimum version.
+        For macOS 14 and above, end users will see native macOS notifications
+        (DDM).
       </p>
-      <p>As the deadline gets closer, Fleet provides stronger encouragement.</p>
+      <p>Everyone else will see the Nudge window.</p>
       <CustomLink
-        text="Learn more about macOS updates in Fleet"
+        text="Learn more"
         url="https://fleetdm.com/learn-more-about/os-updates"
         newTab
       />
@@ -33,8 +33,8 @@ const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
       <p>
         When a Windows host becomes aware of a new update, end users are able to
         defer restarts. Automatic restarts happen before 8am and after 5pm (end
-        user’s local time). After the deadline, restarts are forced regardless
-        of active hours.
+        user&apos;s local time). After the deadline, restarts are forced
+        regardless of active hours.
       </p>
       <CustomLink
         text="Learn more about Windows updates in Fleet"
