@@ -33,6 +33,9 @@ type OrbitConfigNotifications struct {
 	// EnforceBitLockerEncryption is sent as true if Windows MDM is
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
+
+	// OrbitSoftwareInstallers contains a list of software install_ids queued for installation
+	OrbitSoftwareInstallers []string `json:"software_installers,omitempty"`
 }
 
 type OrbitConfig struct {

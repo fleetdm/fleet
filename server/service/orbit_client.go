@@ -230,6 +230,17 @@ func (oc *OrbitClient) SaveHostScriptResult(result *fleet.HostScriptResultPayloa
 	return nil
 }
 
+func (oc *OrbitClient) GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error) {
+	verb, path := "POST", "/api/fleet/orbit/software_install/details"
+	var resp orbitGetSoftwareInstallResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitGetSoftwareInstallRequest{
+		InstallUUID: installId,
+	}, &resp); err != nil {
+		return nil, err
+	}
+	return resp.SoftwareInstallDetails, nil
+}
+
 // Ping sends a ping request to the orbit/ping endpoint.
 func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
