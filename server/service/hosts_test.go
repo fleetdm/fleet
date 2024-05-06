@@ -1667,6 +1667,9 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		return []*fleet.Host{}, nil
 	}
 
+	// TODO(sarah): Future improvement to auto-generate a list of all possible filter values
+	// from `fleet.HostListOptions` and iterate to test that only a limited subset of filter (i.e.
+	// label_id, team_id, status, query) are allowed for bulk operations.
 	tc := []struct {
 		name      string
 		filters   *map[string]interface{}

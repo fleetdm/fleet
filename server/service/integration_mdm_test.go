@@ -8709,6 +8709,38 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, h.ID, listResp.Hosts[0].ID)
 
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 0)
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 0)
+
+	var labelResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		Name:  "test",
+		Hosts: []string{h.Hostname},
+	}}, http.StatusOK, &labelResp)
+	require.NotZero(t, labelResp.Label.ID)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, h.ID, listResp.Hosts[0].ID)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, h.ID, listResp.Hosts[0].ID)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 0)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 0)
+
+	// install script request fails because the host is already installing the software
 	// TODO(roberto): once we have endpoints to retrieve installers,
 	// request them using the orbit node key
 }
