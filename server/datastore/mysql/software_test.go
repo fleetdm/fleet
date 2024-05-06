@@ -927,6 +927,14 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 }
 
 func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
+	countHostSoftwareBatchSizeOrig := countHostSoftwareBatchSize
+	t.Cleanup(
+		func() {
+			countHostSoftwareBatchSize = countHostSoftwareBatchSizeOrig
+		},
+	)
+	countHostSoftwareBatchSize = 2
+
 	ctx := context.Background()
 
 	cmpNameVersionCount := func(want, got []fleet.Software) {
@@ -950,6 +958,12 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
+	// Get counts without any software.
+	globalOpts := fleet.SoftwareListOptions{
+		WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending},
+	}
+	_ = listSoftwareCheckCount(t, ds, 0, 0, globalOpts, false)
+
 	software1 := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
@@ -967,7 +981,6 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
-	globalOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 
 	want := []fleet.Software{
