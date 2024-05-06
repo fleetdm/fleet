@@ -230,7 +230,7 @@ const SaveNewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
             label={renderAutofillLabel("Resolution")}
             type="textarea"
-            helpText="If this policy fails, what should the end user expect?"
+            helpText="If this policy fails, what action should the device owner expect to be taken?"
             disabled={disableForm}
           />
           {platformSelector.render()}
