@@ -229,3 +229,23 @@ type HostSoftwareInstallResultPayload struct {
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
 }
+
+// Status returns the status computed from the result payload. It should match the logic
+// found in the database-computed status (see
+// softwareInstallerHostStatusNamedQuery in mysql/software.go).
+func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
+	switch {
+	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode == 0:
+		return SoftwareInstallerInstalled
+	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode != 0:
+		return SoftwareInstallerFailed
+	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode == 0:
+		return SoftwareInstallerInstalled
+	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
+		return SoftwareInstallerFailed
+	case h.PreInstallConditionOutput != nil && *h.PreInstallConditionOutput == "":
+		return SoftwareInstallerFailed
+	default:
+		return SoftwareInstallerPending
+	}
+}
