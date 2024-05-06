@@ -46,9 +46,9 @@ type SoftwareInstallDetails struct {
 	// PreInstallCondition is the query to run as a condition to installing the software package.
 	PreInstallCondition string `json:"pre_install_condition" db:"pre_install_condition"`
 	// InstallScript is the script to run to install the software package.
-	InstallScript []byte `json:"install_script" db:"install_script"`
+	InstallScript string `json:"install_script" db:"install_script"`
 	// PostInstallScript is the script to run after installing the software package.
-	PostInstallScript []byte `json:"post_install_script" db:"post_install_script"`
+	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 }
 
 // SoftwareInstaller represents a software installer package that can be used to install software on
