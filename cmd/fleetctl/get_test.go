@@ -677,6 +677,7 @@ spec:
 - hosts_count: 2
   id: 0
   name: foo
+  software_package: null
   source: chrome_extensions
   versions:
   - id: 0
@@ -696,6 +697,7 @@ spec:
 - hosts_count: 0
   id: 0
   name: bar
+  software_package: null
   source: deb_packages
   versions:
   - id: 0
@@ -738,7 +740,8 @@ spec:
             "cve-123-456-003"
           ]
         }
-      ]
+      ],
+	  "software_package": null
     },
     {
       "id": 0,
@@ -752,7 +755,8 @@ spec:
           "version": "0.0.3",
 		  "vulnerabilities": null
         }
-      ]
+      ],
+	  "software_package": null
     }
   ]
 }

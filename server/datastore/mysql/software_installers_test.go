@@ -163,7 +163,6 @@ func insertSoftwareInstaller(
 		postInstallScriptId,
 		storageId,
 	)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting software installer")
 	}

@@ -597,11 +597,12 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	}
 
 	softwareStatusJoin := ""
-	if opt.SoftwareVersionIDFilter != nil {
-		// TODO: Do we currently support filtering by software version ID and label?
-	} else if opt.SoftwareIDFilter != nil {
-		// TODO: Do we currently support filtering by software version ID and label?
-	} else if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
+	// if opt.SoftwareVersionIDFilter != nil {
+	// 	// TODO: Do we currently support filtering by software version ID and label?
+	// } else if opt.SoftwareIDFilter != nil {
+	// 	// TODO: Do we currently support filtering by software version ID and label?
+	// }
+	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
 		// get the installer id
 		meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
 		if err != nil {

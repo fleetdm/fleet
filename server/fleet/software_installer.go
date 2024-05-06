@@ -145,15 +145,11 @@ type HostSoftwareInstallerResult struct {
 	// have specific values that should be used? If so, how are they calculated?
 	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
-	Output *string `json:"output" db:"install_script_output"`
-	// InstallScriptExitCode is the exit code of the install script on the host.
-	InstallScriptExitCode *int `json:"-" db:"install_script_exit_code"`
+	Output string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
-	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"`
+	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
-	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
-	// PostInstallScriptExitCode is the exit code of the post-install script on the host.
-	PostInstallScriptExitCode *int `json:"-" db:"post_install_script_exit_code"`
+	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
 	// CreatedAt is the time the software installer request was triggered.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt is the time the software installer request was last updated.
