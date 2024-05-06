@@ -212,12 +212,12 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 // Add a typed parameter in key=value format
 // -H, --header <key:value>
 // Add a HTTP request header in key:value format
-// -X, --method <string> (default "GET") 
+// -X, --method <string> (default "GET")
 // The HTTP method for the request
 func apiCommand() *cli.Command {
 	var (
-		flField string
-		flHeader string
+		flField  []string
+		flHeader []string
 		flMethod string
 	)
 	return &cli.Command{
@@ -225,23 +225,18 @@ func apiCommand() *cli.Command {
 		Usage:     "Run an api command by uri",
 		UsageText: `fleetctl api [options] [url]`,
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "F",
-				EnvVars:     []string{"FIELD"},
-				Value:       "",
-				Destination: &flField,
-				Usage:       "Add a typed parameter in key=value format",
+			&cli.StringSliceFlag{
+				Name:    "F",
+				Aliases: []string{"field"},
+				Usage:   "Add a typed parameter in key=value format",
 			},
-			&cli.StringFlag{
-				Name:        "H",
-				EnvVars:     []string{"HEADER"},
-				Value:       "",
-				Destination: &flHeader,
-				Usage:       "Add a HTTP request header in key:value format",
+			&cli.StringSliceFlag{
+				Name:    "H",
+				Aliases: []string{"header"},
+				Usage:   "Add a HTTP request header in key:value format",
 			},
 			&cli.StringFlag{
 				Name:        "X",
-				EnvVars:     []string{"METHOD"},
 				Value:       "GET",
 				Destination: &flMethod,
 				Usage:       "The HTTP method for the request",
@@ -252,7 +247,7 @@ func apiCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			uriString := c.Args().First()
-			params := ""
+			params := url.Values{}
 			method := "GET"
 			// TODO add param for body for POST etc
 			//body := nil
@@ -261,20 +256,36 @@ func apiCommand() *cli.Command {
 				return errors.New("must provide uri first argument")
 			}
 
-			if flField != "" {
+			flField = c.StringSlice("F")
+			flHeader = c.StringSlice("H")
+
+			if len(flField) > 0 {
 				// TODO this could be multiple and needs to be encoded
-				params = flField
+				for _, each := range flField {
+					kv := strings.Split(each, "=")
+					params.Add(kv[0], kv[1])
+				}
 			}
 
 			headers := map[string]string{}
-			if flHeader != "" {
+			if len(flHeader) > 0 {
 				// TODO support headers
-				values := strings.Split(flHeader, ":")
-				headers[values[0]] = values[1]
+				for _, each := range flHeader {
+					values := strings.Split(each, ":")
+					headers[values[0]] = values[1]
+				}
 			}
 
 			if flMethod != "" {
 				method = flMethod
+			}
+
+			if !strings.HasPrefix(uriString, "/") {
+				uriString = fmt.Sprintf("/%s", uriString)
+			}
+
+			if !strings.HasPrefix(uriString, "/api/v1/fleet") {
+				uriString = fmt.Sprintf("/api/v1/fleet%s", uriString)
 			}
 
 			fleetClient, err := clientFromCLI(c)
@@ -283,19 +294,17 @@ func apiCommand() *cli.Command {
 			}
 
 			//                                string  string     string  interface
-			resp, err := fleetClient.AuthenticatedDoCustomHeaders(method, uriString, params, nil, headers)
+			resp, err := fleetClient.AuthenticatedDoCustomHeaders(method, uriString, params.Encode(), nil, headers)
 			if err != nil {
 				return err
 			}
 			defer resp.Body.Close()
 
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				bodyBytes, err := io.ReadAll(resp.Body)
+				_, err := io.Copy(os.Stdout, resp.Body)
 				if err != nil {
 					return err
 				}
-				bodyString := string(bodyBytes)
-				fmt.Printf("%s", bodyString)
 			} else {
 				return fmt.Errorf("Got non 2XX return of %d", resp.StatusCode)
 			}
