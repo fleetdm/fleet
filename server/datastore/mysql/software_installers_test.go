@@ -94,18 +94,18 @@ func testListSoftwareInstallerDetails(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(installDetailsList2))
 
-	require.Contains(t, "exec1", installDetailsList1)
-	require.Contains(t, "exec2", installDetailsList1)
+	require.Contains(t, installDetailsList1, "exec1")
+	require.Contains(t, installDetailsList1, "exec2")
 
-	require.Contains(t, "exec3", installDetailsList2)
+	require.Contains(t, installDetailsList2, "exec3")
 
 	exec1, err := ds.GetSoftwareInstallDetails(ctx, "exec1")
 	require.NoError(t, err)
 
 	require.Equal(t, host1.ID, exec1.HostID)
 	require.Equal(t, "exec1", exec1.ExecutionID)
-	require.Equal(t, []byte("hello"), exec1.InstallScript)
-	require.Equal(t, []byte("world"), exec1.PostInstallScript)
+	require.Equal(t, "hello", exec1.InstallScript)
+	require.Equal(t, "world", exec1.PostInstallScript)
 	require.Equal(t, uint(installer1Id), exec1.InstallerID)
 	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
 }
