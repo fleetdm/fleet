@@ -255,8 +255,6 @@ let mainTimeout: ReturnType<typeof setTimeout>;
 const mainLoop = async () => {
   try {
     await runExclusive(main);
-    clearTimeout(mainTimeout);
-    mainTimeout = setTimeout(mainLoop, 10 * 1000);
   } catch (err) {
     console.error(err);
     if (err === E_ALREADY_LOCKED) {
@@ -268,6 +266,8 @@ const mainLoop = async () => {
       await initDB();
     }
   }
+  clearTimeout(mainTimeout);
+  mainTimeout = setTimeout(mainLoop, 10 * 1000);
 };
 mainLoop();
 
