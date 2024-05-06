@@ -132,7 +132,7 @@ func TestGetTeams(t *testing.T) {
 				require.NoError(t, err)
 				return []*fleet.Team{
 					{
-						ID:          42,
+						ID:          12,
 						CreatedAt:   created_at,
 						Name:        "team1",
 						Description: "team1 description",
@@ -146,7 +146,7 @@ func TestGetTeams(t *testing.T) {
 						},
 					},
 					{
-						ID:          43,
+						ID:          32,
 						CreatedAt:   created_at,
 						Name:        "team2",
 						Description: "team2 description",
@@ -246,11 +246,11 @@ func TestGetTeamsByName(t *testing.T) {
 		}, nil
 	}
 
-	expectedText := `+-----------+------------+------------+
-| TEAM NAME | HOST COUNT | USER COUNT |
-+-----------+------------+------------+
-| team1     |         43 |         99 |
-+-----------+------------+------------+
+	expectedText := `+-----------+---------+------------+------------+
+| TEAM NAME | TEAM ID | HOST COUNT | USER COUNT |
++-----------+---------+------------+------------+
+| team1     |      42 |         43 |         99 |
++-----------+---------+------------+------------+
 `
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams", "--name", "test1"}))
 }

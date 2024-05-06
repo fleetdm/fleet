@@ -728,7 +728,9 @@ func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fle
 	return nil
 }
 
-func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) (map[string]uint, error) {
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (
+	map[string]uint, error,
+) {
 	if len(specs) == 0 {
 		setAuthCheckedOnPreAuthErr(ctx)
 		// Nothing to do.
@@ -814,7 +816,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			continue
 		}
 
-		if err := svc.editTeamFromSpec(ctx, team, spec, appConfig, secrets, applyOpts.DryRun); err != nil {
+		if err := svc.editTeamFromSpec(ctx, team, spec, appConfig, secrets, applyOpts); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "editing team from spec")
 		}
 
@@ -967,7 +969,7 @@ func (svc *Service) editTeamFromSpec(
 	spec *fleet.TeamSpec,
 	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
-	dryRun bool,
+	opts fleet.ApplyTeamSpecOptions,
 ) error {
 	team.Name = spec.Name
 
@@ -1064,8 +1066,12 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
+		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
+	}
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
-		if !appCfg.MDM.WindowsEnabledAndConfigured &&
+		if !windowsEnabledAndConfigured &&
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
@@ -1101,7 +1107,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
-		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, dryRun, invalid)
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
@@ -1112,7 +1118,7 @@ func (svc *Service) editTeamFromSpec(
 		return ctxerr.Wrap(ctx, invalid)
 	}
 
-	if dryRun {
+	if opts.DryRun {
 		return nil
 	}
 

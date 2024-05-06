@@ -39,7 +39,7 @@ example
 # Tag main
 ./tools/release/publish_release.sh -ag
 # Publish main
-./tools/release/publish_release.sh -au
+./tools/release/publish_release.sh -auq
 # Go update osquery-slack version
 ```
 

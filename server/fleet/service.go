@@ -542,7 +542,7 @@ type Service interface {
 	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
 	// On success, it returns the mapping of team names to team ids.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) (map[string]uint, error)
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplyTeamSpecOptions) (map[string]uint, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
@@ -607,6 +607,7 @@ type Service interface {
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
+	AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software
@@ -931,7 +932,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled bool,
+		assumeEnabled *bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////
