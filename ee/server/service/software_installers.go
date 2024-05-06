@@ -247,7 +247,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		requiredPlatform = "linux"
 	default:
 		// this should never happen
-		return ctxerr.Errorf(ctx, "software installer has unrecognized extension %s", ext)
+		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
 	}
 
 	hostPlatform := host.FleetPlatform()
@@ -255,7 +255,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, hostPlatform),
 			InternalErr: ctxerr.WrapWithData(
-				ctx, err, "couldn't find an installer for software title",
+				ctx, err, "invalid host platform for requested installer",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
 			),
 		}
