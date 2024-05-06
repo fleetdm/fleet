@@ -8685,11 +8685,27 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerHostRequests() {
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
-	// install script request succeds
+	// install script request succeeds
 	titleID := getTitleID(t, payload.Title, "deb_packages")
 	resp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
+	// Get the results, should be pending
+	getHostSoftwareResp := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	require.NotNil(t, getHostSoftwareResp.Software[0].LastInstall)
+	installUUID := getHostSoftwareResp.Software[0].LastInstall.InstallUUID
+
+	gsirr := getSoftwareInstallResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
+	require.NoError(t, gsirr.Err)
+	require.NotNil(t, gsirr.Results)
+	results := gsirr.Results
+	require.Equal(t, installUUID, results.InstallUUID)
+	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
+
+	// status is reflected in software title response
 	titleResp := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp)
 	// TODO: confirm expected behavior of the title response host counts (unspecified)
@@ -8704,6 +8720,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerHostRequests() {
 		Failed:    0,
 	}, *titleResp.SoftwareTitle.SoftwarePackage.Status)
 
+	// status is reflected in list hosts responses and counts when filtering by software title and status
 	var listResp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
 	require.Len(t, listResp.Hosts, 1)

@@ -23,32 +23,32 @@ func TestMain(m *testing.M) {
 //
 // go test ./pkg/file/... -update
 func TestGetInstallAndRemoveScript(t *testing.T) {
-	scriptsByType := map[InstallerType][2]string{
-		InstallerTypeMsi: {
+	scriptsByType := map[string][2]string{
+		"msi": {
 			"./scripts/install_msi.ps1",
 			"./scripts/remove_msi.ps1",
 		},
-		InstallerTypePkg: {
+		"pkg": {
 			"./scripts/install_pkg.sh",
 			"./scripts/remove_pkg.sh",
 		},
-		InstallerTypeDeb: {
+		"deb": {
 			"./scripts/install_deb.sh",
 			"./scripts/remove_deb.sh",
 		},
-		InstallerTypeExe: {
+		"exe": {
 			"./scripts/install_exe.ps1",
 			"./scripts/remove_exe.ps1",
 		},
 	}
 
 	for itype, scripts := range scriptsByType {
-		installerPath := "./foo/bar baz.f"
+		installerPath := "./foo/bar baz." + itype
 
-		gotScript := GetInstallScript(itype, installerPath)
+		gotScript := GetInstallScript(installerPath)
 		assertGoldenMatches(t, scripts[0], gotScript, *update)
 
-		gotScript = GetRemoveScript(itype, installerPath)
+		gotScript = GetRemoveScript(installerPath)
 		assertGoldenMatches(t, scripts[1], gotScript, *update)
 	}
 }

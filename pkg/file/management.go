@@ -2,16 +2,7 @@ package file
 
 import (
 	_ "embed"
-	"strings"
-)
-
-type InstallerType string
-
-const (
-	InstallerTypeMsi InstallerType = "msi"
-	InstallerTypeDeb InstallerType = "deb"
-	InstallerTypePkg InstallerType = "pkg"
-	InstallerTypeExe InstallerType = "exe"
+	"path/filepath"
 )
 
 //go:embed scripts/install_pkg.sh
@@ -26,25 +17,20 @@ var installExeScript string
 //go:embed scripts/install_deb.sh
 var installDebScript string
 
-// GetInstallScript returns a script that can be used to install the given
-// installer based on the provided type
-func GetInstallScript(installerType InstallerType, installerPath string) string {
-	var rawScript string
-
-	switch installerType {
-	case InstallerTypeMsi:
-		rawScript = installMsiScript
-	case InstallerTypeDeb:
-		rawScript = installDebScript
-	case InstallerTypePkg:
-		rawScript = installPkgScript
-	case InstallerTypeExe:
-		rawScript = installExeScript
+// GetInstallScript returns a script that can be used to install the given file
+func GetInstallScript(filename string) string {
+	switch ext := filepath.Ext(filename); ext {
+	case ".msi":
+		return installMsiScript
+	case ".deb":
+		return installDebScript
+	case ".pkg":
+		return installPkgScript
+	case ".exe":
+		return installExeScript
 	default:
 		return ""
 	}
-
-	return replaceVars(rawScript, installerPath)
 }
 
 //go:embed scripts/remove_exe.ps1
@@ -59,27 +45,18 @@ var removeMsiScript string
 //go:embed scripts/remove_deb.sh
 var removeDebScript string
 
-// GetRemoveScript returns a script that can be used to remove the given
-// installer based on the provided type
-func GetRemoveScript(installerType InstallerType, installerPath string) string {
-	var rawScript string
-
-	switch installerType {
-	case InstallerTypeMsi:
-		rawScript = removeMsiScript
-	case InstallerTypeDeb:
-		rawScript = removeDebScript
-	case InstallerTypePkg:
-		rawScript = removePkgScript
-	case InstallerTypeExe:
-		rawScript = removeExeScript
+// GetRemoveScript returns a script that can be used to remove the given file
+func GetRemoveScript(filename string) string {
+	switch ext := filepath.Ext(filename); ext {
+	case ".msi":
+		return removeMsiScript
+	case ".deb":
+		return removeDebScript
+	case ".pkg":
+		return removePkgScript
+	case ".exe":
+		return removeExeScript
 	default:
 		return ""
 	}
-
-	return replaceVars(rawScript, installerPath)
-}
-
-func replaceVars(rawScript string, installerPath string) string {
-	return strings.Replace(rawScript, "$INSTALLER_PATH", installerPath, -1)
 }
