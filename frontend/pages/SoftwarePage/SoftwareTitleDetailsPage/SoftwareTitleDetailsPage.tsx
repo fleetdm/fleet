@@ -17,7 +17,7 @@ import softwareAPI, {
   ISoftwareTitleResponse,
   IGetSoftwareTitleQueryKey,
 } from "services/entities/software";
-
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -47,7 +47,13 @@ const SoftwareTitleDetailsPage = ({
   routeParams,
   location,
 }: ISoftwareTitleDetailsPageProps) => {
-  const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isOnGlobalTeam,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isTeamObserver,
+  } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   // TODO: handle non integer values
@@ -96,6 +102,10 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
+  const showPackageCard =
+    currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
+    (isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver);
+
   const renderContent = () => {
     if (isSoftwareTitleLoading) {
       return <Spinner />;
@@ -135,11 +145,13 @@ const SoftwareTitleDetailsPage = ({
               name={softwareTitle.name}
               source={softwareTitle.source}
             />
-            <SoftwarePackageCard
-              softwarePackage={createMockSoftwarePackage()}
-              softwareId={softwareId}
-              teamId={currentTeamId}
-            />
+            {showPackageCard && (
+              <SoftwarePackageCard
+                softwarePackage={createMockSoftwarePackage()}
+                softwareId={softwareId}
+                teamId={currentTeamId}
+              />
+            )}
             <Card
               borderRadiusSize="large"
               includeShadow

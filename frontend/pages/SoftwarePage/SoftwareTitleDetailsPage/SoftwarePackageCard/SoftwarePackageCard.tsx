@@ -1,17 +1,19 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 
 import { ISoftwarePackage } from "interfaces/software";
 import PATHS from "router/paths";
+import { AppContext } from "context/app";
+import { buildQueryStringFromParams } from "utilities/url";
+import { internationalTimeFormat } from "utilities/helpers";
+import { uploadedFromNow } from "utilities/date_format";
 
 import Card from "components/Card";
 import Graphic from "components/Graphic";
-import { uploadedFromNow } from "utilities/date_format";
 import TooltipWrapper from "components/TooltipWrapper";
-import { internationalTimeFormat } from "utilities/helpers";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import { buildQueryStringFromParams } from "utilities/url";
+
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
 
@@ -98,6 +100,13 @@ const SoftwarePackageCard = ({
   softwareId,
   teamId,
 }: ISoftwarePackageCardProps) => {
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+  } = useContext(AppContext);
+
   const [showAdvancedOptionsModal, setShowAdvancedOptionsModal] = useState(
     false
   );
@@ -114,6 +123,9 @@ const SoftwarePackageCard = ({
   const onDeleteClick = () => {
     setShowDeleteModal(true);
   };
+
+  const showActions =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
@@ -160,17 +172,19 @@ const SoftwarePackageCard = ({
           />
         </div>
       </div>
-      <div className={`${baseClass}__actions`}>
-        <Button variant="icon" onClick={onAdvancedOptionsClick}>
-          <Icon name="settings" color={"ui-fleet-black-75"} />
-        </Button>
-        <Button variant="icon" onClick={onDownloadClick}>
-          <Icon name="download" color={"ui-fleet-black-75"} />
-        </Button>
-        <Button variant="icon" onClick={onDeleteClick}>
-          <Icon name="trash" color={"ui-fleet-black-75"} />
-        </Button>
-      </div>
+      {showActions && (
+        <div className={`${baseClass}__actions`}>
+          <Button variant="icon" onClick={onAdvancedOptionsClick}>
+            <Icon name="settings" color={"ui-fleet-black-75"} />
+          </Button>
+          <Button variant="icon" onClick={onDownloadClick}>
+            <Icon name="download" color={"ui-fleet-black-75"} />
+          </Button>
+          <Button variant="icon" onClick={onDeleteClick}>
+            <Icon name="trash" color={"ui-fleet-black-75"} />
+          </Button>
+        </div>
+      )}
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal
           installScript={softwarePackage.install_script}
