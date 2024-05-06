@@ -260,7 +260,6 @@ func apiCommand() *cli.Command {
 			flHeader = c.StringSlice("H")
 
 			if len(flField) > 0 {
-				// TODO this could be multiple and needs to be encoded
 				for _, each := range flField {
 					kv := strings.Split(each, "=")
 					params.Add(kv[0], kv[1])
@@ -269,7 +268,6 @@ func apiCommand() *cli.Command {
 
 			headers := map[string]string{}
 			if len(flHeader) > 0 {
-				// TODO support headers
 				for _, each := range flHeader {
 					values := strings.Split(each, ":")
 					headers[values[0]] = values[1]
