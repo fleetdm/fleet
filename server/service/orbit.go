@@ -758,7 +758,7 @@ type orbitGetSoftwareInstallRequest struct {
 
 // interface implementation required by the OrbitClient
 func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
-  r.OrbitNodeKey = nodeKey
+	r.OrbitNodeKey = nodeKey
 }
 
 // Download Orbit software installer request
@@ -774,7 +774,6 @@ type orbitDownloadSoftwareInstallerRequest struct {
 func (r *orbitDownloadSoftwareInstallerRequest) setOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
-
 
 // interface implementation required by orbit authentication
 func (r *orbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
@@ -799,7 +798,7 @@ func getOrbitSoftwareInstallDetails(ctx context.Context, request any, svc fleet.
 }
 
 func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error) {
-  // this is not a user-authenticated endpoint
+	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
@@ -881,7 +880,7 @@ func postOrbitSoftwareInstallResultEndpoint(ctx context.Context, request interfa
 }
 
 func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
-  	// this is not a user-authenticated endpoint
+	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
