@@ -490,6 +490,9 @@ type Datastore interface {
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitle, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 
+	// InsertSoftwareInstallRequest tracks a new request to install the provided software installer in the host
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
@@ -545,6 +548,10 @@ type Datastore interface {
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
 	ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
+
+	// SetHostSoftwareInstallResult records the result of a software installation
+	// attempt on the host.
+	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore

@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -133,4 +134,53 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	}
 
 	return nil
+}
+
+func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint, teamID *uint) error {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	const (
+		insertStmt = `
+		  INSERT INTO host_software_installs
+		    (execution_id, host_id, software_installer_id)
+		  VALUES
+		    (?, ?, ?)
+		    `
+
+		getInstallerIDStmt = `SELECT id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?`
+
+		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
+	)
+
+	// we need to explicitly do this check here because we can't set a FK constraint on the schema
+	var hostExists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostExists, hostExistsStmt, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return notFound("Host").WithID(hostID)
+		}
+
+		return ctxerr.Wrap(ctx, err, "inserting new install software request")
+	}
+
+	var installerID uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &installerID, getInstallerIDStmt, softwareTitleID, tmID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return notFound("SoftwareInstaller")
+		}
+
+		return ctxerr.Wrap(ctx, err, "inserting new install software request")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
+		hostID,
+		uuid.NewString(),
+		softwareTitleID,
+	)
+
+	return ctxerr.Wrap(ctx, err, "inserting new install software request")
 }
