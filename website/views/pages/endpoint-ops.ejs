@@ -41,11 +41,39 @@
       </div>
     </div>
     <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
-      <% if(primaryBuyingSituation === 'eo-it') { %>
-        <div purpose="testimonial-quote">
+      <% if (['eo-security'].includes(primaryBuyingSituation)) { %>
+        <div purpose="testimonial-quote" @click="window.location='https://www.linkedin.com/in/charleszaffery/'">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p>“Fleet provides a way to surface device data to our other teams and partners.”</p>
+            <p>"Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it."</p>
+          </div>
+          <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
+            <div purpose="quote-image"><img src="testimonial-author-charles-zaffery-48x48@2x.png" alt="Charles Zaffery"></div>
+            <div class="d-flex flex-column">
+              <p purpose="name">Charles Zaffery</p>
+              <p purpose="title">Principal computer janitor</p>
+            </div>
+          </div>
+        </div>
+      <% } else if (['vm'].includes(primaryBuyingSituation)) { %>
+        <div purpose="testimonial-quote" @click="window.location='https://www.linkedin.com/in/austin-anderson-73172185/'">
+          <div purpose="quote">
+            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+            <p>"Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."</p>
+          </div>
+          <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
+            <div purpose="quote-image"><img src="testimonial-author-austin-anderson-48x48@2x.png" alt="Austin Anderson"></div>
+            <div class="d-flex flex-column">
+              <p purpose="name">Austin Anderson</p>
+              <p purpose="title">Cybersecurity team senior manager</p>
+            </div>
+          </div>
+        </div>
+      <% } else { %>
+        <div purpose="testimonial-quote" @click="window.location='https://www.linkedin.com/in/nickfohs/'">>
+          <div purpose="quote">
+            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+            <p>“Fleet provides a way to surface <% ['eo-it'].includes(primaryBuyingSituation) ? 'device data and endpoint telemetry' : 'device data' %> to our other teams and partners.”</p>
           </div>
           <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
             <div purpose="quote-image"><img src="/images/testimonial-author-nick-fohs-24x24@2x.png" alt="Nick Fohs"></div>
@@ -55,23 +83,13 @@
             </div>
           </div>
         </div>
-      <% } else { %>
-        <div purpose="testimonial-quote">
-          <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p>"I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work."</p>
-          </div>
-          <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
-            <div purpose="quote-image"><img src="/images/testimonial-daniel-grzelak-48x48@2x.png" alt="Daniel Grzelak"></div>
-            <div class="d-flex flex-column">
-              <p purpose="name">Daniel Grzelak</p>
-              <p purpose="title">CISO</p>
-            </div>
-          </div>
-        </div>
       <% } %>
       <div purpose="testimonial-videos" class="d-flex">
-        <%if(['eo-security', 'vm'].includes(primaryBuyingSituation)){%>
+        <%if(['eo-security'].includes(primaryBuyingSituation)) {%>
+        <div purpose="testimonial-video" class="charles-zaffery mx-auto" @click="clickOpenVideoModal('charles-zaffery')">
+          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
+        </div>
+        <%} else if(['vm'].includes(primaryBuyingSituation)){%>
         <div purpose="testimonial-video" class="austin-anderson mx-auto" @click="clickOpenVideoModal('austin-anderson')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
@@ -79,13 +97,13 @@
         <div purpose="testimonial-video" class="nick-fohs mx-auto" @click="clickOpenVideoModal('nick-fohs')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
-        <% } else { %>
-        <div purpose="testimonial-video" class="austin-anderson" @click="clickOpenVideoModal('austin-anderson')">
+        <% } else { /* Display no videos for now.  FUTURE: make the agnostic version have 2 appropriate vids */ %>
+        <!-- <div purpose="testimonial-video" class="austin-anderson" @click="clickOpenVideoModal('austin-anderson')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
         <div purpose="testimonial-video" class="nick-fohs" @click="clickOpenVideoModal('nick-fohs')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
-        </div>
+        </div> -->
         <% } %>
       </div>
     </div>
@@ -255,7 +273,7 @@
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
         <h4>Who else uses Fleet?</h4>
-        <h3>Empowering <%= ['mdm', 'eo-it'].includes(primaryBuyingSituation) ? 'IT and security' : 'security and IT' %> teams, globally</h3>
+        <h3>Empowering <%= ['mdm'].includes(primaryBuyingSituation) ? 'IT and corporate engineering' : ['eo-it'].includes(primaryBuyingSituation) ? 'IT and platform' : ['eo-security'].includes(primaryBuyingSituation) ? 'security and platform' : ['vm'].includes(primaryBuyingSituation) ? 'security and IT' : 'IT and security' %> teams, globally</h3>
       </div>
     </div>
 
@@ -274,6 +292,9 @@
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <modal purpose="video-modal" v-if="modal === 'charles-zaffery'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/watch?v=nRbZJflWqCo?si=vv0AfRe30yssWWRM&amp&autoplay=1;rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>  
   <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp&autoplay=1;rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
