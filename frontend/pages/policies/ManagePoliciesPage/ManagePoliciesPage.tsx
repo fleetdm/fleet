@@ -664,7 +664,6 @@ const ManagePolicyPage = ({
               null
             }
             isPremiumTier={isPremiumTier}
-            isSandboxMode={isSandboxMode}
             searchQuery={searchQuery}
             sortHeader={sortHeader}
             sortDirection={sortDirection}
@@ -684,7 +683,6 @@ const ManagePolicyPage = ({
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             isPremiumTier={isPremiumTier}
-            isSandboxMode={isSandboxMode}
             renderPoliciesCount={() =>
               (!isFetchingGlobalCount &&
                 renderPoliciesCount(globalPoliciesCount)) ||

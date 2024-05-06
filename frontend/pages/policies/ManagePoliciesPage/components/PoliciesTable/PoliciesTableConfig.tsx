@@ -7,7 +7,7 @@ import {
   millisecondsToHours,
   millisecondsToMinutes,
 } from "date-fns";
-import ReactTooltip from "react-tooltip";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -18,7 +18,7 @@ import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
-import { COLORS } from "styles/var/colors";
+import InheritedBadge from "components/InheritedBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import PassingColumnHeader from "../PassingColumnHeader";
 
@@ -87,11 +87,11 @@ const getPolicyRefreshTime = (ms: number): string => {
 
 const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
   return (
-    <span className={`tooltip__tooltip-text`}>
+    <>
       Fleet is collecting policy results. Try again
       <br />
       in about {getPolicyRefreshTime(osqueryPolicyMs)} as the system catches up.
-    </span>
+    </>
   );
 };
 
@@ -104,8 +104,7 @@ const generateTableHeaders = (
     tableType?: string;
   },
   policiesList: IPolicyStats[] = [],
-  isPremiumTier?: boolean,
-  isSandboxMode?: boolean
+  isPremiumTier?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
@@ -143,11 +142,10 @@ const generateTableHeaders = (
             <>
               <div className="policy-name-text">{cellProps.cell.value}</div>
               {isPremiumTier && cellProps.row.original.critical && (
-                <>
+                <div className="critical-badge">
                   <span
-                    className="critical-badge"
-                    data-tip
-                    data-for={`critical-tooltip-${cellProps.row.original.id}`}
+                    className="critical-badge-icon"
+                    data-tooltip-id={`critical-tooltip-${cellProps.row.original.id}`}
                   >
                     <Icon
                       className="critical-policy-icon"
@@ -156,44 +154,21 @@ const generateTableHeaders = (
                       color="core-fleet-blue"
                     />
                   </span>
-                  <ReactTooltip
+                  <ReactTooltip5
                     className="critical-tooltip"
+                    disableStyleInjection
                     place="top"
-                    type="dark"
-                    effect="solid"
+                    opacity={1}
                     id={`critical-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor={COLORS["tooltip-bg"]}
+                    offset={8}
+                    positionStrategy="fixed"
                   >
                     This policy has been marked as critical.
-                    {isSandboxMode && (
-                      <>
-                        <br />
-                        This is a premium feature.
-                      </>
-                    )}
-                  </ReactTooltip>
-                </>
+                  </ReactTooltip5>
+                </div>
               )}
               {viewingTeamPolicies && !cellProps.row.original.team_id && (
-                <>
-                  <span
-                    className="inherited-badge"
-                    data-tip
-                    data-for={`inherited-tooltip-${cellProps.row.original.id}`}
-                  >
-                    Inherited
-                  </span>
-                  <ReactTooltip
-                    className="inherited-tooltip"
-                    place="top"
-                    type="dark"
-                    effect="solid"
-                    id={`inherited-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor={COLORS["tooltip-bg"]}
-                  >
-                    This policy runs on all hosts.
-                  </ReactTooltip>
-                </>
+                <InheritedBadge tooltipContent="This policy runs on all hosts." />
               )}
             </>
           }
@@ -228,24 +203,24 @@ const generateTableHeaders = (
           );
         }
         return (
-          <>
+          <div className="policy-has-not-run">
             <span
-              className="text-cell text-muted has-not-run tooltip"
-              data-tip
-              data-for={`passing_${cellProps.row.original.id.toString()}`}
+              data-tooltip-id={`passing_${cellProps.row.original.id.toString()}`}
             >
               ---
             </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
+            <ReactTooltip5
+              className="policy-has-not-run-tooltip"
+              disableStyleInjection
+              place="top"
+              opacity={1}
               id={`passing_${cellProps.row.original.id.toString()}`}
-              data-html
+              offset={8}
+              positionStrategy="fixed"
             >
               {getTooltip(cellProps.row.original.next_update_ms)}
-            </ReactTooltip>
-          </>
+            </ReactTooltip5>
+          </div>
         );
       },
     },
@@ -279,33 +254,30 @@ const generateTableHeaders = (
           );
         }
         return (
-          <>
+          <div className="policy-has-not-run">
             <span
-              className="text-cell text-muted has-not-run tooltip"
-              data-tip
-              data-for={`failing_${cellProps.row.original.id.toString()}`}
+              data-tooltip-id={`passing_${cellProps.row.original.id.toString()}`}
             >
               ---
             </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`failing_${cellProps.row.original.id.toString()}`}
-              data-html
+            <ReactTooltip5
+              className="policy-has-not-run-tooltip"
+              disableStyleInjection
+              place="top"
+              opacity={1}
+              id={`passing_${cellProps.row.original.id.toString()}`}
+              offset={8}
+              positionStrategy="fixed"
             >
               {getTooltip(cellProps.row.original.next_update_ms)}
-            </ReactTooltip>
-          </>
+            </ReactTooltip5>
+          </div>
         );
       },
       sortType: "caseInsensitive",
     },
   ];
-  console.log(
-    "hasPermissionAndPoliciesToDelete",
-    hasPermissionAndPoliciesToDelete
-  );
+
   if (hasPermissionAndPoliciesToDelete) {
     tableHeaders.unshift({
       id: "selection",
