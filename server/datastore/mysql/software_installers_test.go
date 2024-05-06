@@ -18,6 +18,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"InsertSoftwareInstallRequest", testInsertSoftwareInstallRequest},
+		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
 	}
 
 	for _, c := range cases {
@@ -73,6 +74,110 @@ func testInsertSoftwareInstallRequest(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			err = ds.InsertSoftwareInstallRequest(ctx, host.ID, installerMeta.TitleID, teamID)
 			require.NoError(t, err)
+		})
+	}
+}
+
+func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+	teamID := team.ID
+
+	for _, tc := range []struct {
+		name                    string
+		uuid                    string
+		expectedStatus          fleet.SoftwareInstallerStatus
+		postInstallScriptEC     *uint
+		preInstallQueryOutput   *string
+		installScriptEC         *uint
+		postInstallScriptOutput *string
+		installScriptOutput     *string
+	}{
+		{
+			name:                    "pending install",
+			uuid:                    "pending",
+			expectedStatus:          fleet.SoftwareInstallerPending,
+			postInstallScriptOutput: ptr.String("post install output"),
+			installScriptOutput:     ptr.String("install output"),
+		},
+		{
+			name:                    "failing install post install script",
+			uuid:                    "fail_post_install_script",
+			expectedStatus:          fleet.SoftwareInstallerFailed,
+			postInstallScriptEC:     ptr.Uint(1),
+			postInstallScriptOutput: ptr.String("post install output"),
+			installScriptOutput:     ptr.String("install output"),
+		},
+		{
+			name:                    "failing install install script",
+			uuid:                    "fail_install_script",
+			expectedStatus:          fleet.SoftwareInstallerFailed,
+			installScriptEC:         ptr.Uint(1),
+			postInstallScriptOutput: ptr.String("post install output"),
+			installScriptOutput:     ptr.String("install output"),
+		},
+		{
+			name:                    "failing install pre install query",
+			uuid:                    "fail_pre_install_query",
+			expectedStatus:          fleet.SoftwareInstallerFailed,
+			preInstallQueryOutput:   ptr.String(""),
+			postInstallScriptOutput: ptr.String("post install output"),
+			installScriptOutput:     ptr.String("install output"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// create a host and software installer
+			swFilename := "file_" + tc.name + ".pkg"
+			installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				Title:         "foo" + tc.name,
+				Source:        "bar" + tc.name,
+				InstallScript: "echo " + tc.name,
+				TeamID:        &teamID,
+				Filename:      swFilename,
+			})
+			require.NoError(t, err)
+			host, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:      "macos-test-" + tc.name,
+				ComputerName:  "macos-test-" + tc.name,
+				OsqueryHostID: ptr.String("osquery-macos-" + tc.name),
+				NodeKey:       ptr.String("node-key-macos-" + tc.name),
+				UUID:          uuid.NewString(),
+				Platform:      "darwin",
+				TeamID:        &teamID,
+			})
+			require.NoError(t, err)
+
+			// Need to insert manually so we have access to the UUID (it's generated in the DS method)
+			query := `INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, post_install_script_exit_code, install_script_exit_code, pre_install_query_output, install_script_output, post_install_script_output) VALUES (?,?,?,?,?,?,?,?)`
+			_, err = ds.writer(ctx).ExecContext(ctx, query, tc.uuid, host.ID, installerID, tc.postInstallScriptEC, tc.installScriptEC, tc.preInstallQueryOutput, tc.installScriptOutput, tc.postInstallScriptOutput)
+			require.NoError(t, err)
+
+			res, err := ds.GetSoftwareInstallResults(ctx, tc.uuid)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.uuid, res.InstallUUID)
+			require.Equal(t, tc.expectedStatus, res.Status)
+			require.Equal(t, swFilename, res.SoftwarePackage)
+			require.Equal(t, host.ID, res.HostID)
+			require.Equal(t, host.DisplayName(), res.HostDisplayName)
+			expectedPreInstallQueryOutput := ""
+			if tc.preInstallQueryOutput != nil {
+				expectedPreInstallQueryOutput = *tc.preInstallQueryOutput
+			}
+			require.Equal(t, expectedPreInstallQueryOutput, res.PreInstallQueryOutput)
+
+			expectedPostInstallScriptOutput := ""
+			if tc.postInstallScriptOutput != nil {
+				expectedPostInstallScriptOutput = *tc.postInstallScriptOutput
+			}
+			require.Equal(t, expectedPostInstallScriptOutput, res.PostInstallScriptOutput)
+			expectedInstallScriptOutput := ""
+			if tc.installScriptOutput != nil {
+				expectedInstallScriptOutput = *tc.installScriptOutput
+			}
+			require.Equal(t, expectedInstallScriptOutput, res.Output)
 		})
 	}
 }

@@ -376,6 +376,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/software/package/{id:[0-9]+}", getSoftwareInstallerEndpoint, getSoftwareInstallerRequest{})
 	ue.POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
 	ue.DELETE("/api/_version_/fleet/software/package/{id:[0-9]+}", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
+	ue.GET("/api/_version_/fleet/software/install/results/{install_uuid}", getSoftwareInstallResultsEndpoint, getSoftwareInstallResultsRequest{})
 
 	// Vulnerabilities
 	ue.GET("/api/_version_/fleet/vulnerabilities", listVulnerabilitiesEndpoint, listVulnerabilitiesRequest{})

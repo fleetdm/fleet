@@ -1475,6 +1475,8 @@ type Datastore interface {
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
+
+	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

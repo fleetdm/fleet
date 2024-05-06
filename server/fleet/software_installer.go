@@ -105,7 +105,8 @@ type HostSoftwareInstallerResult struct {
 	HostDisplayName string `json:"host_display_name" db:"host_display_name"`
 	// Status is the status of the software installer package on the host.
 	Status SoftwareInstallerStatus `json:"status" db:"status"`
-	// Detail is the detail of the software installer package on the host.
+	// Detail is the detail of the software installer package on the host. TODO: does this field
+	// have specific values that should be used? If so, how are they calculated?
 	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
 	Output string `json:"output" db:"install_script_output"`
@@ -113,6 +114,9 @@ type HostSoftwareInstallerResult struct {
 	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
+	// HostTeamID is the team ID of the host on which this software install was attempted. This
+	// field is not sent in the response, it is only used for internal authorization.
+	HostTeamID *uint `json:"-" db:"host_team_id"`
 }
 
 type HostSoftwareInstallerResultAuthz struct {
