@@ -90,6 +90,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedDeclarationProfile{},
 
 	ActivityTypeResentConfigurationProfile{},
+
+	ActivityTypeInstalledSoftware{},
 }
 
 type ActivityDetails interface {
@@ -1411,6 +1413,38 @@ func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "profile_name": "Passcode requirements"
+}`
+}
+
+type ActivityTypeInstalledSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	InstallUUID     string `json:"install_uuid"`
+	Status          string `json:"status"`
+}
+
+func (a ActivityTypeInstalledSoftware) ActivityName() string {
+	return "installed_software"
+}
+
+func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a software is installed on a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "install_uuid": ID of the software installation.
+- "software_title": Name of the software.
+- "status": Status of the software installation.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Falcon.app",
+  "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "status": "pending"
 }`
 }
 
