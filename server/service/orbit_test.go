@@ -315,3 +315,45 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
 	})
 }
+
+func TestGetSoftwareInstallDetails(t *testing.T) {
+	t.Run("hosts can't get each others installers", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		ds.GetSoftwareInstallDetailsFunc = func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error) {
+			return &fleet.SoftwareInstallDetails{
+				HostID: 1,
+			}, nil
+		}
+
+		goodCtx := test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+			MDMInfo: &fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         true,
+				Name:             fleet.WellKnownMDMFleet,
+			}})
+
+		badCtx := test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            2,
+			MDMInfo: &fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         true,
+				Name:             fleet.WellKnownMDMFleet,
+			}})
+
+		d1, err := svc.GetSoftwareInstallDetails(goodCtx, "")
+		require.NoError(t, err)
+		require.Equal(t, uint(1), d1.HostID)
+
+		d2, err := svc.GetSoftwareInstallDetails(badCtx, "")
+		require.Error(t, err)
+		require.Nil(t, d2)
+	})
+}
