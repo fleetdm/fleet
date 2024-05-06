@@ -38,9 +38,11 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 // SoftwareInstallDetailsResult contains all of the information
 // required for a client to pull in and install software from the fleet server
 type SoftwareInstallDetails struct {
+	// HostID is used for authentication on the backend and should not
+	// be passed to the client
 	HostID uint `json:"-" db:"host_id"`
 	// ExecutionID is a unique identifier for this installation
-	ExecutionID string `json:"execution_id" db:"execution_id"`
+	ExecutionID string `json:"install_id" db:"execution_id"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
 	InstallerID uint `json:"installer_id" db:"installer_id"`
 	// PreInstallCondition is the query to run as a condition to installing the software package.
