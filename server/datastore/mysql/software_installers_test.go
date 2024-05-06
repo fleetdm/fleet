@@ -22,7 +22,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"ListSoftwareInstallers", testListSoftwareInstallerDetails},
+		{"SoftwareInstallerDetails", testListSoftwareInstallerDetails},
 		{"InsertSoftwareInstallRequest", testInsertSoftwareInstallRequest},
 	}
 
