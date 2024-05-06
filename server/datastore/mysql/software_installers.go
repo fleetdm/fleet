@@ -13,15 +13,17 @@ import (
 func (ds *Datastore) ListPendingSoftwareInstallDetails(ctx context.Context, hostID uint) ([]string, error) {
 	const stmt = `
   SELECT
-    hsi.execution_id
+    execution_id
   FROM
-    host_software_installs hsi
+    host_software_installs
   WHERE
-    hsi.host_id = ?
+    host_id = ?
   AND
-    hsi.install_script_exit_code IS NULL
+    install_script_exit_code IS NULL
   AND
-    hsi.pre_install_query_output IS NULL
+    pre_install_query_output IS NULL
+  ORDER BY
+    created_at ASC
 `
 	var results []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID); err != nil {
