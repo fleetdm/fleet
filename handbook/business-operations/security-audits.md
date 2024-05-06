@@ -16,7 +16,7 @@ You can find the full report here: [2023-06-09-fleet-penetration-test.pdf](https
 
 All tooltips using the "tipContent" tag are set using "dangerouslySetInnerHTML". This allows manipulation of the DOM without sanitization. If a user can control the content sent to this function, it can lead to a cross-site scripting vulnerability. 
 
-- Resolved. Resolution information TBA
+- Resolved in version release [4.33.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) with [implementation of DOMPurify library](https://github.com/fleetdm/fleet/pull/12229) to remove dangerous dataset.
 
 #### 2 - Broken authorization leads to observers able to add hosts
 | Type                | Latacora Severity |
