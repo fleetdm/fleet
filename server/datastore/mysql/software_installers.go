@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -38,13 +39,13 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	stmt := `
 INSERT INTO software_installers (
 	team_id,
-	global_or_team_id, 
-	title_id, 
+	global_or_team_id,
+	title_id,
 	storage_id,
-	filename, 
+	filename,
 	version,
-	install_script_content_id, 
-	pre_install_query, 
+	install_script_content_id,
+	pre_install_query,
 	post_install_script_content_id
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
@@ -105,9 +106,9 @@ SELECT
 	pre_install_query,
 	post_install_script_content_id,
 	uploaded_at
-FROM 
+FROM
 	software_installers
-WHERE 
+WHERE
 	id = ?`
 
 	var dest fleet.SoftwareInstaller
@@ -145,9 +146,9 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id)
+		    (execution_id, host_id, software_installer_id, user_id)
 		  VALUES
-		    (?, ?, ?)
+		    (?, ?, ?, ?)
 		    `
 
 		getInstallerIDStmt = `SELECT id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?`
@@ -176,10 +177,15 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 		return ctxerr.Wrap(ctx, err, "inserting new install software request")
 	}
 
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
 	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
 		hostID,
 		uuid.NewString(),
 		softwareTitleID,
+		userID,
 	)
 
 	return ctxerr.Wrap(ctx, err, "inserting new install software request")
