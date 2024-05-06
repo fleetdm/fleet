@@ -117,6 +117,9 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
+  const [queriesAvailableToAutomate, setQueriesAvailableToAutomate] = useState<
+    IEnhancedQuery[] | []
+  >([]);
 
   const {
     data: enhancedQueries,
@@ -138,6 +141,19 @@ const ManageQueriesPage = ({
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
       staleTime: 5000,
+      onSuccess: (data) => {
+        if (data) {
+          const enhancedAllQueries = data.map(enhanceQuery);
+
+          const allQueriesAvailableToAutomate = teamIdForApi
+            ? enhancedAllQueries.filter(
+                (query: IEnhancedQuery) => query.team_id === currentTeamId
+              )
+            : enhancedAllQueries;
+
+          setQueriesAvailableToAutomate(allQueriesAvailableToAutomate);
+        }
+      },
     }
   );
 
@@ -150,12 +166,10 @@ const ManageQueriesPage = ({
   }, [teamIdForApi, enhancedQueries]);
 
   const automatedQueryIds = useMemo(() => {
-    return enhancedQueries
-      ? enhancedQueries
-          .filter((query) => query.automations_enabled)
-          .map((query) => query.id)
-      : [];
-  }, [enhancedQueries]);
+    return queriesAvailableToAutomate
+      .filter((query) => query.automations_enabled)
+      .map((query) => query.id);
+  }, [queriesAvailableToAutomate]);
 
   useEffect(() => {
     const path = location.pathname + location.search;
@@ -330,7 +344,7 @@ const ManageQueriesPage = ({
             onCancel={toggleManageAutomationsModal}
             isShowingPreviewDataModal={showPreviewDataModal}
             togglePreviewDataModal={togglePreviewDataModal}
-            availableQueries={enhancedQueries}
+            availableQueries={queriesAvailableToAutomate}
             automatedQueryIds={automatedQueryIds}
             logDestination={config?.logging.result.plugin || ""}
           />
