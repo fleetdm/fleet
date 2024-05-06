@@ -29,6 +29,7 @@ import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
+import { ISoftwareDropdownFilterVal } from "./SoftwareTitles/SoftwareTable/helpers";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -62,6 +63,16 @@ const getTabIndex = (path: string): number => {
   });
 };
 
+const getSoftwareFilter = (
+  vulnerable?: string,
+  installable?: string
+): ISoftwareDropdownFilterVal => {
+  if (installable === "true") return "installableSoftware";
+  return vulnerable && vulnerable === "true"
+    ? "vulnerableSoftware"
+    : "allSoftware";
+};
+
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
@@ -93,6 +104,7 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
+      available_for_install?: string;
       exploit?: string;
       page?: string;
       query?: string;
@@ -135,10 +147,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       : DEFAULT_PAGE;
   // TODO: move these down into the Software Titles component.
   const query = queryParams && queryParams.query ? queryParams.query : "";
-  const showVulnerableSoftware =
-    queryParams !== undefined && queryParams.vulnerable === "true";
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
+  const softwareFilter = getSoftwareFilter(
+    queryParams.vulnerable,
+    queryParams.available_for_install
+  );
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -332,15 +346,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     return (
       <p>
-        Search for installed software{" "}
-        {(isGlobalAdmin || isGlobalMaintainer) &&
-          (!isPremiumTier || !isAnyTeamSelected) &&
-          "and manage automations for detected vulnerabilities (CVEs)"}{" "}
-        on{" "}
-        {isPremiumTier && isAnyTeamSelected
-          ? "all hosts assigned to this team"
-          : "all of your hosts"}
-        .
+        Manage software and search for installed software, OS and
+        vulnerabilities {isAnyTeamSelected ? "on this team" : "for all hosts"}.
       </p>
     );
   };
@@ -376,8 +383,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           teamId: teamIdForApi,
           // TODO: move down into the Software Titles component
           query,
-          showVulnerableSoftware,
           showExploitedVulnerabilitiesOnly,
+          softwareFilter,
         })}
       </div>
     );

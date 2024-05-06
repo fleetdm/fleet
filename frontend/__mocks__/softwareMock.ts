@@ -45,6 +45,7 @@ export const createMockSoftwareTitleVersion = (
 const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   id: 1,
   name: "mock software 1.app",
+  software_package: null,
   versions_count: 1,
   source: "apps",
   hosts_count: 1,

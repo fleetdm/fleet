@@ -75,19 +75,19 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Version",
-      disableSortBy: true,
-      accessor: "version",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    {
       Header: "Type",
       disableSortBy: true,
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={formatSoftwareType(cellProps.row.original)} />
+      ),
+    },
+    {
+      Header: "Version",
+      disableSortBy: true,
+      accessor: "version",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
       ),
     },
     {
