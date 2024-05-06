@@ -1,26 +1,43 @@
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/edwardsb/fleet-on-render)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/fleetdm/fleet/infrustructure/render)
 
-# Fleet on Render
+# Fleet Deployment Guide
 
-Welcome to the "fleet-on-render" repository! This repository contains the necessary blueprint to deploy FleetDM, an osquery fleet management tool, onto Render. FleetDM allows you to query and monitor your devices as if they're a big database, providing powerful insights and management capabilities.
+This guide outlines the services configured in the Render blueprint for deploying the Fleet system, which includes a web service, a MySQL database, and a Redis server.
 
-## Overview
+## Services Overview
 
-FleetDM is an open-source osquery fleet manager which simplifies managing osquery across a range of devices, providing real-time monitoring and querying capabilities. By deploying FleetDM on Render, you can leverage Render's streamlined cloud services to ensure your fleet management is both scalable and reliable.
+### 1. Fleet Web Service
+- **Type:** Web
+- **Environment:** Docker
+- **Image:** `fleetdm/fleet:latest`
+- **Description:** Main web service running the Fleet application, which is deployed using the latest Fleet Docker image. Configured to prepare the database before deployment.
+- **Health Check Path:** `/healthz`
+- **Environment Variables:** Connects to MySQL and Redis using service-bound environment variables.
 
-## Features
+### 2. Fleet MySQL Database
+- **Type:** Private Service (pserv)
+- **Environment:** Docker
+- **Repository:** [MySQL Example on Render](https://github.com/render-examples/mysql)
+- **Disk:** 10 GB mounted at `/var/lib/mysql`
+- **Description:** MySQL database used by the Fleet web service. Environment variables for database credentials are managed within the service and some are automatically generated.
 
-- **Automated Deployment**: Easy deployment of FleetDM using Render's infrastructure.
-- **Scalability**: Leverage Render's capabilities to scale your FleetDM deployment as your fleet grows.
-- **Security**: Built-in security features to help safeguard your data.
-- **Maintenance and Updates**: Simplified updates and maintenance through Render's managed services.
+### 3. Fleet Redis Service
+- **Type:** Private Service (pserv)
+- **Environment:** Docker
+- **Repository:** [Redis Example on Render](https://github.com/render-examples/redis)
+- **Disk:** 10 GB mounted at `/var/lib/redis`
+- **Description:** Redis service for caching and other in-memory data storage needs of the Fleet web service.
 
-## Prerequisites
+## Deployment Guide
 
-Before you begin, you will need:
-- A Render account.
-- Basic knowledge of YAML and Docker.
+### Prerequisites
+- You need an account on [Render](https://render.com).
+- Familiarity with Render's dashboard and deployment concepts.
 
-## Getting Started
+### Steps to Deploy
 
-TODO
+Click the deploy on render button or import the blueprint from the Render service deployment dashboard.
+
+### Post-Deployment
+
+Navigate to the generated URL and run through the initial setup.

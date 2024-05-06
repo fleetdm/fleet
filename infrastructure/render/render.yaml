@@ -3,6 +3,8 @@ services:
   plan: standard
   type: web
   env: docker
+  image: fleetdm/fleet:latest
+  preDeployCommand: "fleet prepare --no-prompt=true db"
   healthCheckPath: /healthz
   envVars:
   - key: FLEET_MYSQL_ADDRESS
