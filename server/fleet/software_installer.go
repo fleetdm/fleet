@@ -38,6 +38,8 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 // SoftwareInstaller represents a software installer package that can be used to install software on
 // hosts in Fleet.
 type SoftwareInstaller struct {
+	// ID is the unique identifier used in the database
+	ID uint `json:"-" db:"id"`
 	// TeamID is the ID of the team. A value of nil means it is scoped to hosts that are assigned to
 	// no team.
 	TeamID *uint `json:"team_id" db:"team_id"`
