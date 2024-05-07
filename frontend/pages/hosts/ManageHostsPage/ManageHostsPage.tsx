@@ -112,7 +112,7 @@ interface IManageHostsProps {
   router: InjectedRouter;
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  location: any; // no type in react-router v3
+  location: any; // no type in react-router v3 TODO: Improve this type
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
