@@ -2030,7 +2030,8 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			post_install_script_exit_code = ?,
 			post_install_script_output = ?
 		WHERE
-			execution_id = ?
+			execution_id = ? AND
+			host_id = ?
 `
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
 		result.PreInstallConditionOutput,
@@ -2039,6 +2040,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		result.PostInstallScriptExitCode,
 		result.PostInstallScriptOutput,
 		result.InstallUUID,
+		result.HostID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software installation result")
