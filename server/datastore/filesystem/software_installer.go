@@ -2,6 +2,7 @@ package filesystem
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -90,6 +91,37 @@ func (i *SoftwareInstallerStore) Exists(ctx context.Context, installerID string)
 		return false, ctxerr.Wrap(ctx, err, "looking up software installer in filesystem store")
 	}
 	return true, nil
+}
+
+func (i *SoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error) {
+	usedSet := make(map[string]struct{}, len(usedInstallerIDs))
+	for _, id := range usedInstallerIDs {
+		usedSet[id] = struct{}{}
+	}
+
+	baseDir := filepath.Join(i.rootDir, softwareInstallersPrefix)
+	dirEnts, err := os.ReadDir(baseDir)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "listing software installers in filesystem store")
+	}
+
+	// collect deletion errors so that it keeps going if possible
+	var errs []error
+	var count int
+	for _, de := range dirEnts {
+		if !de.Type().IsRegular() {
+			continue
+		}
+		if _, isUsed := usedSet[de.Name()]; isUsed {
+			continue
+		}
+		if err := os.Remove(filepath.Join(baseDir, de.Name())); err != nil {
+			errs = append(errs, err)
+		} else {
+			count++
+		}
+	}
+	return count, ctxerr.Wrap(ctx, errors.Join(errs...), "delete unused software installers")
 }
 
 // pathForInstaller builds local filesystem path to identify the software
