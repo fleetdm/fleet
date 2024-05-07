@@ -35,12 +35,9 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: (teamId?: number, mergeInherited = false) => {
+  loadAll: (teamId?: number) => {
     const { QUERIES } = endpoints;
-    const queryString = buildQueryStringFromParams({
-      team_id: teamId,
-      merge_inherited: mergeInherited || null,
-    });
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
     const path = `${QUERIES}`;
 
     return sendRequest(

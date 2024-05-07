@@ -4,8 +4,6 @@
  * Also please check the README for how to use the mock service :)
  */
 
-import { createMockPoliciesResponse } from "__mocks__/policyMock";
-
 const count = {
   targets_count: 1,
   targets_online: 0,
@@ -10592,7 +10590,6 @@ const globalQuery5 = { query: globalQueries.queries[5] };
 const globalQuery6 = { query: globalQueries.queries[6] };
 const teamQuery1 = { query: teamQueries.queries[0] };
 const teamQuery2 = { query: teamQueries.queries[1] };
-const teamPolicy1 = createMockPoliciesResponse();
 
 const aiAutofillPolicy = {
   description:
@@ -10617,5 +10614,4 @@ export default {
   teamQuery1,
   teamQuery2,
   aiAutofillPolicy,
-  teamPolicy1,
 };
