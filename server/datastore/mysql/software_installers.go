@@ -313,3 +313,19 @@ WHERE
 
 	return &dest, nil
 }
+
+func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore) error {
+	if softwareInstallStore == nil {
+		// no-op in this case, possible if not running with a Premium license
+		return nil
+	}
+
+	// get the list of software installers hashes that are in use
+	var storageIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_installers`); err != nil {
+		return ctxerr.Wrap(ctx, err, "get list of software installers in use")
+	}
+
+	_, err := softwareInstallStore.Cleanup(ctx, storageIDs)
+	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
+}
