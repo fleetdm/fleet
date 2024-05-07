@@ -2,9 +2,14 @@ package installer
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/osquery/osquery-go"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
@@ -16,7 +21,7 @@ type QueryResponse = osquery_gen.ExtensionResponse
 // fleet.OrbitClient type satisfies this interface.
 type Client interface {
 	GetHostScript(execID string) (*fleet.HostScriptResult, error)
-	GetInstaller(installerID, downloadDir string) (string, error)
+	GetInstaller(installerID uint, downloadDir string) (string, error)
 	GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
 }
@@ -57,4 +62,110 @@ func NewRunner(client Client, socketPath string, timeout time.Duration) (*Runner
 	r.OsqueryClient = osqueryClient.Client
 
 	return r, nil
+}
+
+func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, string, error) {
+	res, err := r.OsqueryClient.Query(ctx, query)
+	if err != nil {
+		return false, "", ctxerr.Wrap(ctx, err, "precondition check")
+	}
+
+	if res.Status == nil {
+		return false, "", errors.New("no query status")
+	}
+
+	if res.Status.Code != 0 {
+		return false, res.String(), ctxerr.Wrap(ctx, fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message))
+	}
+
+	if len(res.Response) == 0 {
+		return false, res.String(), nil
+	}
+
+	return true, res.String(), nil
+}
+
+func (r *Runner) InstallSoftware(ctx context.Context, installId string) (*fleet.HostSoftwareInstallResultPayload, error) {
+	installer, err := r.OrbitClient.GetInstallerDetails(installId)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetching software installer details")
+	}
+
+	payload := &fleet.HostSoftwareInstallResultPayload{}
+
+	payload.InstallUUID = installId
+
+	shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
+	payload.PreInstallConditionOutput = &output
+	if err != nil {
+		return payload, err
+	}
+
+	if !shouldInstall {
+		return payload, nil
+	}
+
+	installScript, err := r.OrbitClient.GetHostScript(installer.InstallScript)
+	if err != nil {
+		return payload, err
+	}
+
+	postInstallScript, err := r.OrbitClient.GetHostScript(installer.PostInstallScript)
+	if err != nil {
+		return payload, err
+	}
+
+	if r.tempDirFn == nil {
+		r.tempDirFn = os.TempDir
+	}
+	tmpDir := r.tempDirFn()
+
+	installerPath, err := r.OrbitClient.GetInstaller(installer.InstallerID, tmpDir)
+	if err != nil {
+		return payload, err
+	}
+
+	// remove tmp directory and installer
+	defer func() {
+		if r.removeAllFn == nil {
+			r.removeAllFn = os.RemoveAll
+		}
+		r.removeAllFn(tmpDir)
+	}()
+
+	installOutput, installExitCode, err := r.runInstallerScript(ctx, installScript, installerPath)
+	payload.InstallScriptOutput = &installOutput
+	payload.InstallScriptExitCode = &installExitCode
+	if err != nil {
+		return payload, err
+	}
+
+	postOutput, postExitCode, err := r.runInstallerScript(ctx, postInstallScript, installerPath)
+	payload.PostInstallScriptOutput = &postOutput
+	payload.PostInstallScriptExitCode = &postExitCode
+	if err != nil {
+		return payload, err
+	}
+
+	return payload, nil
+}
+
+func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScriptResult, installerPath string) (string, int, error) {
+	// run script in installer directory
+	scriptPath := filepath.Join(installerPath, strconv.Itoa(int(script.ID)))
+	if err := os.WriteFile(scriptPath, []byte(script.ScriptContents), os.ModePerm); err != nil {
+		return "", -1, ctxerr.Wrap(ctx, err, "writing script")
+	}
+
+	if r.execCmdFn == nil {
+		// TODO merge in main first, add env variables
+		// r.execCmdFn = scripts.ExecCmd
+	}
+
+	output, exitCode, err := r.execCmdFn(ctx, scriptPath)
+	if err != nil {
+		return string(output), exitCode, err
+	}
+
+	return string(output), exitCode, nil
 }
