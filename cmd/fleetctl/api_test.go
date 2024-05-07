@@ -28,7 +28,6 @@ func TestRunApiCommand(t *testing.T) {
 		args           []string
 		expectOutput   string
 		expectErrMsg   string
-		expectNotFound bool
 	}
 
 	expectedScripts := `{
@@ -120,9 +119,8 @@ func TestRunApiCommand(t *testing.T) {
 				}
 				page := fleet.PaginationMetadata{}
 				return ret, &page, nil
-			} else {
-				return []*fleet.Script{}, &fleet.PaginationMetadata{}, nil
 			}
+			return []*fleet.Script{}, &fleet.PaginationMetadata{}, nil
 		}
 	}
 
