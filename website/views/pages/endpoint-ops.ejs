@@ -42,13 +42,13 @@
     </div>
     <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
       <% if (['eo-security'].includes(primaryBuyingSituation)) { %>
-        <div purpose="testimonial-quote" @click="window.location='https://www.linkedin.com/in/charleszaffery/'">
+        <div purpose="testimonial-quote" @click="goto('https://www.linkedin.com/in/charleszaffery/')">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
             <p>"Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it."</p>
           </div>
           <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
-            <div purpose="quote-image"><img src="testimonial-author-charles-zaffery-48x48@2x.png" alt="Charles Zaffery"></div>
+            <div purpose="quote-image"><img src="/images/testimonial-author-charles-zaffery-48x48@2x.png" alt="Charles Zaffery"></div>
             <div class="d-flex flex-column">
               <p purpose="name">Charles Zaffery</p>
               <p purpose="title">Principal computer janitor</p>
@@ -56,13 +56,13 @@
           </div>
         </div>
       <% } else if (['vm'].includes(primaryBuyingSituation)) { %>
-        <div purpose="testimonial-quote" @click="window.location='https://www.linkedin.com/in/austin-anderson-73172185/'">
+        <div purpose="testimonial-quote" @click="goto('https://www.linkedin.com/in/austin-anderson-73172185/')">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
             <p>"Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."</p>
           </div>
           <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
-            <div purpose="quote-image"><img src="testimonial-author-austin-anderson-48x48@2x.png" alt="Austin Anderson"></div>
+            <div purpose="quote-image"><img src="/images/testimonial-author-austin-anderson-48x48@2x.png" alt="Austin Anderson"></div>
             <div class="d-flex flex-column">
               <p purpose="name">Austin Anderson</p>
               <p purpose="title">Cybersecurity team senior manager</p>
@@ -70,10 +70,10 @@
           </div>
         </div>
       <% } else { %>
-        <div purpose="testimonial-quote" @click="window.location='https://www.linkedin.com/in/nickfohs/'">
+        <div purpose="testimonial-quote" @click="goto('https://www.linkedin.com/in/nickfohs/')">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p>“Fleet provides a way to surface <% ['eo-it'].includes(primaryBuyingSituation) ? 'device data and endpoint telemetry' : 'device data' %> to our other teams and partners.”</p>
+            <p>“Fleet provides a way to surface device data and telemetry to our other teams and partners.”</p>
           </div>
           <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
             <div purpose="quote-image"><img src="/images/testimonial-author-nick-fohs-24x24@2x.png" alt="Nick Fohs"></div>
@@ -293,7 +293,7 @@
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
   <modal purpose="video-modal" v-if="modal === 'charles-zaffery'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/watch?v=nRbZJflWqCo?si=vv0AfRe30yssWWRM&amp&autoplay=1;rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/nRbZJflWqCo?si=c4M4iOXEZ03ahHaC&amp&autoplay=1;rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>  
   <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp&autoplay=1;rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
