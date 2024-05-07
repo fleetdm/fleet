@@ -256,11 +256,11 @@ const mainLoop = async () => {
   try {
     await runExclusive(main);
   } catch (err) {
-    console.error(err);
     if (err === E_ALREADY_LOCKED) {
       console.info("'main' mutex already locked, skipping run")
       return
     }
+    console.error(err);
     if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
       console.info("Restarting DB after wa-sqlite RuntimeError")
       await initDB();
