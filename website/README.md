@@ -13,8 +13,7 @@ Run the following commands to test the site locally:
 npm install -g sails
 cd website/
 npm install
-sails run scripts/build-static-content.js
-sails lift
+npm run start-website
 ```
 
 Your local copy of the website is now running at [http://localhost:2024](http://localhost:2024)!
