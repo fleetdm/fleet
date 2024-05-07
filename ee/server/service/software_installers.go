@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -64,9 +63,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.InstallScript == "" {
-		installerType := file.InstallerType(strings.TrimPrefix(filepath.Ext(payload.Filename), "."))
-		installerPath := payload.Filename // TODO: Confirm pending product input
-		payload.InstallScript = file.GetInstallScript(installerType, installerPath)
+		payload.InstallScript = file.GetInstallScript(payload.Filename)
 	}
 
 	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
@@ -273,4 +270,23 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	}
 
 	return nil
+}
+
+func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	// Basic auth check
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	res, err := svc.ds.GetSoftwareInstallResults(ctx, resultUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Team specific auth check
+	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: res.HostTeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }

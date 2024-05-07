@@ -93,6 +93,7 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeInstalledSoftware{},
 	ActivityTypeAddedSoftware{},
+	ActivityTypeDeletedSoftware{},
 }
 
 type ActivityDetails interface {

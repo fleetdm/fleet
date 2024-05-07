@@ -632,6 +632,9 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+	// GetSoftwareInstallResults gets the results for a particular software install attempt.
+	GetSoftwareInstallResults(ctx context.Context, installUUID string) (*HostSoftwareInstallerResult, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
@@ -666,6 +669,11 @@ type Service interface {
 
 	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	CheckInstallerExistence(ctx context.Context, installer Installer) error
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Software Installers
+
+	GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*SoftwareInstallDetails, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Apple MDM

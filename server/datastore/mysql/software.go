@@ -1840,33 +1840,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		package_available_for_install,
 		last_install_installed_at,
 		last_install_install_uuid,
-		status,
-		CASE
-			WHEN status = :software_status_failed THEN 4
-			WHEN status = :software_status_pending THEN 3
-			WHEN status = :software_status_installed THEN 2
-			WHEN installer_id IS NOT NULL THEN 1 -- installer exists, not installed
-			ELSE 0 -- no installer exists
-		END AS status_sort
+		status
 `
 
-	args := []any{
-		// for status_sort
-		fleet.SoftwareInstallerFailed,
-		fleet.SoftwareInstallerPending,
-		fleet.SoftwareInstallerInstalled,
-
-		// for status
-		fleet.SoftwareInstallerInstalled,
-		fleet.SoftwareInstallerFailed,
-		fleet.SoftwareInstallerInstalled,
-		fleet.SoftwareInstallerFailed,
-		fleet.SoftwareInstallerFailed,
-		fleet.SoftwareInstallerPending,
-
-		hostID,
-		hostID,
-	}
 	stmt := stmtInstalled
 	if includeAvailableForInstall {
 		stmt += ` UNION ` + stmtAvailable
@@ -1890,10 +1866,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		stmt, args = searchLike(stmt, args, opts.MatchQuery, "name")
 	}
 
-	// apply default sort (adding source just to make it deterministic)
-	if opts.OrderKey == "" {
-		stmt += ` ORDER BY status_sort DESC, name ASC, source ASC `
-	}
 	stmt, _ = appendListOptionsToSQL(stmt, &opts)
 
 	type hostSoftware struct {
@@ -2058,7 +2030,8 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			post_install_script_exit_code = ?,
 			post_install_script_output = ?
 		WHERE
-			execution_id = ?
+			execution_id = ? AND
+			host_id = ?
 `
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
 		result.PreInstallConditionOutput,
@@ -2067,6 +2040,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		result.PostInstallScriptExitCode,
 		result.PostInstallScriptOutput,
 		result.InstallUUID,
+		result.HostID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software installation result")
