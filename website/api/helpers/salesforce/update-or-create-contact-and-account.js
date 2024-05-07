@@ -94,7 +94,7 @@ module.exports = {
         // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
       });
       // console.log(existingAccountRecord);
-      if(existingAccountRecord && salesforceAccountId === '0054x00000735wDAAQ') {
+      if(existingAccountRecord && salesforceAccountId !== '0054x00000735wDAAQ') {
         // Store the ID of the Account record we found.
         salesforceAccountId = existingAccountRecord.Id;
         salesforceAccountOwnerId = existingAccountRecord.OwnerId;
