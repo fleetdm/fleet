@@ -191,7 +191,6 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.ErrorAs(t, err, &nfe)
 			require.Nil(t, si)
 
-			// non-existent host
 			installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 				Title:         "foo",
 				Source:        "bar",
