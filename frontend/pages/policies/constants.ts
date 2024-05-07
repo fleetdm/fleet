@@ -209,7 +209,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     name: "Operating system up to date (macOS)",
     description: "Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.",
     resolution:
-      "We will update your macOS to the latest CFBundleShortVersionString to enhance security and stability.",
+      "We will update your macOS to the latest version to enhance security and stability.",
     critical: false,
     platform: "darwin",
   },
