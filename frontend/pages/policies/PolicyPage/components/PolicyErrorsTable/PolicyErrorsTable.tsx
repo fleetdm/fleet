@@ -26,7 +26,11 @@ const PolicyErrorsTable = ({
   canAddOrDeletePolicy,
 }: IPolicyErrorsTableProps): JSX.Element => {
   return (
-    <div className={baseClass}>
+    <div
+      className={`${baseClass} ${
+        canAddOrDeletePolicy ? "" : "hide-selection-column"
+      }`}
+    >
       <TableContainer
         resultsTitle={resultsTitle || "policies"}
         columnConfigs={generateTableHeaders()}

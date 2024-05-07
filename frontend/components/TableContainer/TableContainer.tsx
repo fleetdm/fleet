@@ -12,7 +12,7 @@ import Icon from "components/Icon/Icon";
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
-import TableContainerUtils from "./utilities/TableContainerUtils";
+import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
@@ -100,7 +100,6 @@ interface ITableContainerProps<T = any> {
   setExportRows?: (rows: Row[]) => void;
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
-  show0Count?: boolean;
 }
 
 const baseClass = "table-container";
@@ -157,7 +156,6 @@ const TableContainer = <T,>({
   setExportRows,
   resetPageIndex,
   disableTableHeader,
-  show0Count,
 }: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -323,7 +321,7 @@ const TableContainer = <T,>({
               )}
               {!renderCount &&
               !disableCount &&
-              (isMultiColumnFilter || displayCount() || show0Count) ? (
+              (isMultiColumnFilter || displayCount()) ? (
                 <div
                   className={`${baseClass}__results-count ${
                     stackControls ? "stack-table-controls" : ""
@@ -332,8 +330,7 @@ const TableContainer = <T,>({
                 >
                   {TableContainerUtils.generateResultsCountText(
                     resultsTitle,
-                    displayCount(),
-                    show0Count
+                    displayCount()
                   )}
                   {resultsHtml}
                 </div>
