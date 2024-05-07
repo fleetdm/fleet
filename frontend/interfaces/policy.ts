@@ -74,13 +74,16 @@ export interface IHostPolicy extends IPolicy {
   response: PolicyStatusResponse;
 }
 
+// Policies API can return {}
 export interface ILoadAllPoliciesResponse {
-  policies: IPolicyStats[];
+  policies?: IPolicyStats[];
 }
 
+// Team policies API can return {}
 export interface ILoadTeamPoliciesResponse {
-  policies: IPolicyStats[];
+  policies?: IPolicyStats[];
 }
+
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
