@@ -137,7 +137,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Secure keyboard entry for Terminal application enabled (macOS)",
     description:
-      "If Secure Keyboard Entry is disabled, it increases vulnerability to keyloggers and other snooping software.",
+      "If secure keyboard entry is disabled, it increases vulnerability to keyloggers and other snooping software.",
     resolution:
       "Secure Keyboard Entry will be enabled to enhance protection against keystroke logging.",
     critical: false,
