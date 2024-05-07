@@ -830,7 +830,7 @@ func main() {
 		orbitClient.RegisterConfigReceiver(flagUpdateReciver)
 
 		if !c.Bool("disable-updates") {
-			serverOverridesReceiver := newServerOverridesReveiver(
+			serverOverridesReceiver := newServerOverridesReceiver(
 				c.String("root-dir"),
 				fallbackServerOverridesConfig{
 					OsquerydPath: osquerydPath,
