@@ -362,7 +362,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description:
       "Without firewall logging enabled, it becomes difficult to monitor and track network traffic, increasing the risk of undetected malicious activities or unauthorized access.",
     resolution:
-      "Cloud sync will be disabled.",
+      "Firewall logging will be enabled on the workstation.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
