@@ -192,7 +192,7 @@ module.exports = {
       } else if(currentStep === 'how-many-hosts') {
         if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
           psychologicalStage = '6 - Has team buy-in';
-        } else if(valueFromFormData === 'yes-recently-deployed'){
+        } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
           psychologicalStage = '5 - Personally confident';
         } else {
           // IWMIH then we want Fleet to host for us (either because we wanted that from the get-go, or we backtracked because deploying looked too time-consuming)
@@ -201,7 +201,7 @@ module.exports = {
       } else if(currentStep === 'will-you-be-self-hosting') {
         if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
           psychologicalStage = '6 - Has team buy-in';
-        } else if(valueFromFormData === 'yes-recently-deployed'){
+        } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
           psychologicalStage = '5 - Personally confident';
         } else { require('assert')(false, 'This should never happen.'); }
       }//ﬁ
