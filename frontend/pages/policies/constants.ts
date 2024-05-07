@@ -32,7 +32,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;",
     name: "Antivirus healthy (Linux)",
     description:
-      "If ClamAV and Freshclam are not running, the laptop lacks active virus scanning, increasing malware infection risk.",
+      "If ClamAV and Freshclam are not running, the workstation lacks active virus scanning, increasing malware infection risk.",
     resolution: "ClamAV and Freshclam will be checked and restarted if necessary, restoring virus protection.",
     critical: false,
     platform: "linux",
@@ -55,7 +55,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;",
     name: "Antivirus healthy (Windows)",
     description:
-      "Lack of active, updated antivirus exposes the laptop to malware and security threats.",
+      "Lack of active, updated antivirus exposes the workstation to malware and security threats.",
     resolution:
       "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center.",
     critical: false,
@@ -67,9 +67,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;",
     name: "Automatic login disabled (macOS)",
     description:
-      "Auto-login being enabled increases risk of unauthorized access if the laptop is compromised.",
+      "Auto-login being enabled increases risk of unauthorized access if the workstation is compromised.",
     resolution:
-      "Auto-login will be disabled to secure the laptop against unauthorized use.",
+      "Auto-login will be disabled to secure the workstation against unauthorized use.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -104,7 +104,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;",
     name: "Full disk encryption enabled (Windows)",
     description:
-      "If BitLocker is disabled, the laptop's data is at risk of unauthorized access and theft.",
+      "If BitLocker is disabled, the workstation's data is at risk of unauthorized access and theft.",
     resolution:
       "Full disk encryption will be enabled to secure data.",
     critical: false,
@@ -126,7 +126,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     query: "SELECT 1 FROM mdm WHERE enrolled='true';",
     name: "MDM enrolled (macOS)",
     description:
-      "Laptops not enrolled to MDM miss critical security updates and remote management capabilities.",
+      "Workstations not enrolled to MDM miss critical security updates and remote management capabilities.",
     resolution: "Enroll device to MDM.",
     critical: false,
     platform: "darwin",
@@ -160,7 +160,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     key: 12,
     query: "SELECT 1 FROM alf WHERE global_state >= 1;",
     name: "Firewall enabled (macOS)",
-    description: "If the firewall is disabled, the laptop is vulnerable to unauthorized network access and attacks.",
+    description: "If the firewall is disabled, the workstation is vulnerable to unauthorized network access and attacks.",
     resolution:
       "The firewall will be enabled to protect against external threats.",
     critical: false,
@@ -246,7 +246,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description:
       "When the Mac is not configureed to automatically install updates to Apple applications, this risks security vulnerabilities and potential exploitation.",
     resolution:
-      "The automatic software update feature will be enabled to ensure that the laptop receives timely updates.",
+      "The automatic software update feature will be enabled to ensure that the workstation receives timely updates.",
     critical: false,
     platform: "darwin",
   },
@@ -296,7 +296,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);",
     name: "Lock screen after inactivity of 20 minutes or less (macOS)",
     description:
-      "Inadequate screen saver security settings could potentially allow unauthorized access to the laptop if left unattended for extended periods.",
+      "Inadequate screen saver security settings could potentially allow unauthorized access to the workstation if left unattended for extended periods.",
     resolution:
       "Ensure screen saver is enabled after inactivity of 20 minutes or less.",
     critical: false,
@@ -399,7 +399,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallDomainProfileEnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, domain profile enabled (Windows)",
     description:
-      "If the Windows Firewall is not enabled for the domain profile, the laptop may be more vulnerable to unauthorized network access and potential security breaches.",
+      "If the Windows Firewall is not enabled for the domain profile, the workstation may be more vulnerable to unauthorized network access and potential security breaches.",
     resolution:
       "The Windows Firewall will be enabled for the domain profile.",
     critical: false,
@@ -411,7 +411,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallPrivateProfileEnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, private profile enabled (Windows)",
     description:
-      "If the Windows Firewall is not enabled for the private profile, the laptop may be more susceptible to unauthorized access and potential security breaches, particularly when connected to private networks.",
+      "If the Windows Firewall is not enabled for the private profile, the workstation may be more susceptible to unauthorized access and potential security breaches, particularly when connected to private networks.",
     resolution:
       "The Windows Firewall will be enabled for the private profile",
     critical: false,
@@ -423,7 +423,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallPublicProfileEnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, public profile enabled (Windows)",
     description:
-      "If the Windows Firewall is not enabled for the public profile, the laptop may be more vulnerable to unauthorized access and potential security threats, especially when connected to public networks.",
+      "If the Windows Firewall is not enabled for the public profile, the workstation may be more vulnerable to unauthorized access and potential security threats, especially when connected to public networks.",
     resolution:
       "The Windows Firewall will be enabled for the public profile.",
     critical: false,
@@ -445,7 +445,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     query:
       "SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1",
     name: "SMBv1 server disabled (Windows)",
-    description: "Leaving the SMBv1 server enabled exposes the laptop to potential security vulnerabilities and exploitation by malicious actors.",
+    description: "Leaving the SMBv1 server enabled exposes the workstation to potential security vulnerabilities and exploitation by malicious actors.",
     resolution:
       "The SMBv1 server will be disabled.",
     critical: false,
@@ -457,7 +457,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESOFTWAREPoliciesMicrosoftWindows NTDNSClientEnableMulticast' AND CAST(data as integer) = 0;",
     name: "LLMNR disabled (Windows)",
     description:
-      "If the laptop does not have LLMNR disabled, it could be vulnerable to DNS spoofing attacks, potentially leading to unauthorized access or data interception.",
+      "If the workstation does not have LLMNR disabled, it could be vulnerable to DNS spoofing attacks, potentially leading to unauthorized access or data interception.",
     resolution:
       "LLMNR will be disabled on your system.",
     critical: false,
@@ -482,7 +482,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     name:
       "No 1Password emergency kit stored on desktop or in downloads (macOS)",
     description:
-      "Storing the 1Password emergency kit on the desktop or in the downloads folder increases the risk of unauthorized access to sensitive credentials if the laptop is compromised or accessed by unauthorized users.",
+      "Storing the 1Password emergency kit on the desktop or in the downloads folder increases the risk of unauthorized access to sensitive credentials if the workstation is compromised or accessed by unauthorized users.",
     resolution:
       "1Password emergency kits should only be printed and stored in a physically secure location.",
     critical: false,
@@ -493,9 +493,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     query:
       "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');",
     name: "No unencrypted SSH keys present",
-    description: "Having unencrypted SSH keys poses the risk of unauthorized access to sensitive systems and data if the laptop is compromised.",
+    description: "Having unencrypted SSH keys poses the risk of unauthorized access to sensitive systems and data if the workstation is compromised.",
     resolution:
-      "Any unencrypted SSH keys will be encrypted or removed from the laptop.",
+      "Any unencrypted SSH keys will be encrypted or removed from the workstation.",
     critical: false,
     platform: "darwin",
   },
@@ -507,7 +507,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description:
       "Storing Apple signing or notarization credentials poses the risk of unauthorized access to sensitive development assets and potential compromise of software integrity.",
     resolution:
-      "Apple signing or notarization credentials secrets will be removed from the laptop.",
+      "Apple signing or notarization credentials secrets will be removed from the workstation.",
     critical: false,
     platform: "darwin",
   },
