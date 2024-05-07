@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -231,9 +232,9 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id)
+		    (execution_id, host_id, software_installer_id, user_id)
 		  VALUES
-		    (?, ?, ?)
+		    (?, ?, ?, ?)
 		    `
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
@@ -250,10 +251,15 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 		return ctxerr.Wrap(ctx, err, "checking if host exists")
 	}
 
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
 	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
 		uuid.NewString(),
 		hostID,
 		softwareInstallerID,
+		userID,
 	)
 
 	return ctxerr.Wrap(ctx, err, "inserting new install software request")
@@ -285,7 +291,8 @@ SELECT
 		ELSE NULL -- not installed from Fleet installer
 	END, '') AS status,
 	si.filename AS software_package,
-	h.team_id AS host_team_id
+	h.team_id AS host_team_id,
+	hsi.user_id AS user_id
 FROM
 	host_software_installs hsi
 	JOIN hosts h ON h.id = hsi.host_id

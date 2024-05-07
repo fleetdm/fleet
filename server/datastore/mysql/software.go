@@ -1721,12 +1721,41 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
+// colAlias is the name to be assigned to the computed status column, pass
+// empty to have the value only, no column alias set.
+func softwareInstallerHostStatusNamedQuery(colAlias string) string {
+	if colAlias != "" {
+		colAlias = " AS " + colAlias
+	}
+	return fmt.Sprintf(`
+			CASE
+				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
+					hsi.post_install_script_exit_code = 0 THEN :software_status_installed
+
+				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
+					hsi.post_install_script_exit_code != 0 THEN :software_status_failed
+
+				WHEN hsi.install_script_exit_code IS NOT NULL AND
+					hsi.install_script_exit_code = 0 THEN :software_status_installed
+
+				WHEN hsi.install_script_exit_code IS NOT NULL AND
+					hsi.install_script_exit_code != 0 THEN :software_status_failed
+
+				WHEN hsi.pre_install_query_output IS NOT NULL AND
+					hsi.pre_install_query_output = '' THEN :software_status_failed
+
+				WHEN hsi.host_id IS NOT NULL THEN :software_status_pending
+
+				ELSE NULL -- not installed from Fleet installer
+			END %s `, colAlias)
+}
+
 func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	// `status` computed column assumes that all results (pre, install and post)
 	// are stored at once, so that if there is an exit code for the install
 	// script and none for the post-install, it is because there is no
 	// post-install.
-	const stmtInstalled = `
+	stmtInstalled := fmt.Sprintf(`
 		SELECT
 			st.id,
 			st.name,
@@ -1734,33 +1763,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 			si.filename as package_available_for_install,
 			hsi.created_at as last_install_installed_at,
 			hsi.execution_id as last_install_install_uuid,
-			CASE
-				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
-					hsi.post_install_script_exit_code = 0 THEN ? -- installed
-
-				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
-					hsi.post_install_script_exit_code != 0 THEN ? -- failed
-
-				WHEN hsi.install_script_exit_code IS NOT NULL AND
-					hsi.install_script_exit_code = 0 THEN ? -- installed
-
-				WHEN hsi.install_script_exit_code IS NOT NULL AND
-					hsi.install_script_exit_code != 0 THEN ? -- failed
-
-				WHEN hsi.pre_install_query_output IS NOT NULL AND
-					hsi.pre_install_query_output = '' THEN ? -- failed
-
-				WHEN hsi.host_id IS NOT NULL THEN ? -- pending
-
-				ELSE NULL -- not installed from Fleet installer
-			END AS status,
+			%s,
 			si.id AS installer_id -- NULL if no Fleet installer
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id
 		LEFT OUTER JOIN
-			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = ?
+			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
 		WHERE
 			-- use the latest install only
 			( hsi.id IS NULL OR hsi.id = (
@@ -1777,12 +1787,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 				INNER JOIN
 					software s ON hs.software_id = s.id
 				WHERE
-					hs.host_id = ? AND
+					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) OR
 			-- or software install has been attempted on host
 			hsi.host_id IS NOT NULL )
-`
+`, softwareInstallerHostStatusNamedQuery("status"))
 
 	const stmtAvailable = `
 		SELECT
@@ -1807,7 +1817,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 				INNER JOIN
 					software s ON hs.software_id = s.id
 				WHERE
-					hs.host_id = ? AND
+					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) AND
 			-- sofware install has not been attempted on host
@@ -1816,10 +1826,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 				FROM
 					host_software_installs hsi
 				WHERE
-					hsi.host_id = ? AND
+					hsi.host_id = :host_id AND
 					hsi.software_installer_id = si.id
 			) AND
-			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
+			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = :host_id)
 `
 
 	const selectColNames = `
@@ -1830,48 +1840,32 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		package_available_for_install,
 		last_install_installed_at,
 		last_install_install_uuid,
-		status,
-		CASE
-			WHEN status = ? THEN 4 -- failed
-			WHEN status = ? THEN 3 -- pending
-			WHEN status = ? THEN 2 -- installed
-			WHEN installer_id IS NOT NULL THEN 1 -- installer exists, not installed
-			ELSE 0 -- no installer exists
-		END AS status_sort
+		status
 `
 
-	args := []any{
-		// for status_sort
-		fleet.SoftwareInstallerFailed,
-		fleet.SoftwareInstallerPending,
-		fleet.SoftwareInstallerInstalled,
-
-		// for status
-		fleet.SoftwareInstallerInstalled,
-		fleet.SoftwareInstallerFailed,
-		fleet.SoftwareInstallerInstalled,
-		fleet.SoftwareInstallerFailed,
-		fleet.SoftwareInstallerFailed,
-		fleet.SoftwareInstallerPending,
-
-		hostID,
-		hostID,
-	}
 	stmt := stmtInstalled
 	if includeAvailableForInstall {
 		stmt += ` UNION ` + stmtAvailable
-		args = append(args, hostID, hostID, hostID)
 	}
+
 	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
+	// must resolve the named bindings here, before adding the searchLike which
+	// uses standard placeholders.
+	stmt, args, err := sqlx.Named(stmt, map[string]any{
+		"host_id":                   hostID,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"software_status_installed": fleet.SoftwareInstallerInstalled,
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
+	}
+
 	if opts.MatchQuery != "" {
 		stmt += " WHERE TRUE " // searchLike adds a "AND <condition>"
 		stmt, args = searchLike(stmt, args, opts.MatchQuery, "name")
 	}
 
-	// apply default sort (adding source just to make it deterministic)
-	if opts.OrderKey == "" {
-		stmt += ` ORDER BY status_sort DESC, name ASC, source ASC `
-	}
 	stmt, _ = appendListOptionsToSQL(stmt, &opts)
 
 	type hostSoftware struct {
@@ -2036,7 +2030,8 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			post_install_script_exit_code = ?,
 			post_install_script_output = ?
 		WHERE
-			execution_id = ?
+			execution_id = ? AND
+			host_id = ?
 `
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
 		result.PreInstallConditionOutput,
@@ -2045,6 +2040,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		result.PostInstallScriptExitCode,
 		result.PostInstallScriptOutput,
 		result.InstallUUID,
+		result.HostID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software installation result")
