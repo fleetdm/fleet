@@ -18,20 +18,6 @@
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
-#-
-#   task: "Review ongoing articles"
-#   startedOn: "2023-10-02"
-#   frequency: "Daily"
-#   description: "Check 📃 Planned articles and complete steps in each issue"
-#   moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
-#   dri: "spokanemac"
--
-  task: "Check ongoing events"
-  startedOn: "2024-02-09"
-  frequency: "Daily"
-  description: "Check event issues and complete steps"
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#book-an-event"
-  dri: "joStableford"
 -
   task: "KPI roundup + weekly update" 
   startedOn: "2024-02-16" 
@@ -103,7 +89,7 @@
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
-  task: "Run US commission payroll" # TODO is this Jo or Taylor?
+  task: "Run US commission payroll" 
   startedOn: "2024-02-28" 
   frequency: "Monthly"
   description: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" 
@@ -132,13 +118,6 @@
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential" 
--
-  task: "Downgrade unused license seats" 
-  startedOn: "2024-03-31" 
-  frequency: "Quarterly"
-  description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#downgrade-an-unused-license-seat"
-  dri: "joStableford"
 -
   task: "Investor reporting" 
   startedOn: "2024-03-31" 

@@ -9,19 +9,31 @@ module.exports = {
 
   inputs: {
 
-    salesforceAccountId: { type: 'string', required: true },
-    salesforceContactId: { type: 'string', required: true },
-    leadDescription: { type: 'string', description: 'A description of what this lead is about; e.g. a contact form message, or the size of t-shirt being requested.' },
-    leadSource: { type: 'string', required: true, isIn: ['Website - Contact forms', 'Website - Sign up', 'Website - Waitlist', 'Website - swag request'], },// TODO verify and complete enum
-
-
-    // FUTURE: Move these off eventually:
-    firstName: { type: 'string', required: true, description: 'The first name of the referenced contact.' },
-    lastName: { type: 'string', required: true, description: 'The last name of the referenced contact.' },
-    emailAddress: { type: 'string', description: 'The email address of the referenced contact.', extendedDescription: 'Included here so that the little Salesforce thingie that shows email and calendar activity shows maximum contact in both the Contact and Lead views.' },
-    primaryBuyingSituation: { type: 'string' },
+    salesforceAccountId: {
+      type: 'string',
+      required: true,
+      description: 'The ID of the Account record that was found or updated by the updateOrCreateContactAndAccount helper.'
+    },
+    salesforceContactId: {
+      type: 'string',
+      required: true
+    },
+    leadDescription: {
+      type: 'string',
+      description: 'A description of what this lead is about; e.g. a contact form message, or the size of t-shirt being requested.'
+    },
+    leadSource: {
+      type: 'string',
+      required: true,
+      isIn: [
+        'Website - Contact forms',
+        'Website - Sign up',
+        'Website - Waitlist',
+        'Website - swag request',
+      ],
+    },
+    primaryBuyingSituation: { type: 'string', isin: ['eo-it', 'eo-security', 'mdm', 'vm'] },
     numberOfHosts: { type: 'number' },
-
   },
 
 
@@ -34,55 +46,68 @@ module.exports = {
   },
 
 
-  fn: async function ({salesforceAccountId, salesforceContactId, leadDescription, leadSource, firstName, lastName, emailAddress, primaryBuyingSituation, numberOfHosts}) {
+  fn: async function ({salesforceAccountId, salesforceContactId, leadDescription, leadSource, primaryBuyingSituation, numberOfHosts}) {
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
     require('assert')(sails.config.custom.salesforceIntegrationPasskey);
     let jsforce = require('jsforce');
-    console.log(firstName, lastName, emailAddress, primaryBuyingSituation, numberOfHosts);
+
+    // login to Salesforce
     let salesforceConnection = new jsforce.Connection({
       loginUrl : 'https://fleetdm.my.salesforce.com'
     });
     await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
-    // Get the contact record
-    let contactRecord = await salesforceConnection.sobject('Contact')
-    .retrieve(salesforceContactId);
-    // Verify that the account ID provided is valid.
-    let accountRecord = await salesforceConnection.sobject('Account')
-    .retrieve(salesforceAccountId);
 
-    // TODO better error messages
-    if(contactRecord === null) {
-      throw new Error(`When attempting to create a Salesforce lead using the ID of a Contact record, no Contact matching the id provided (${salesforceContactId} was found.`);
-    }
-    if(accountRecord === null) {
-      throw new Error(`When attempting to create a Salesforce lead, no account matching the id provided (${salesforceContactId} could be found`);
-    }
-
-    // TODO: wrap this in a try-catch block to handle errors from Salesforce.
-    // Create the new Lead record.
-    let lead = await salesforceConnection.sobject('Lead')
-    .create({
-      FirstName: contactRecord.FirstName,
-      LastName: contactRecord.LastName,
-      Email: contactRecord.Email,
-      Website: contactRecord.Website,
-      // eslint-disable-next-line camelcase
-      of_hosts__c: contactRecord.of_hosts__c,
-      // eslint-disable-next-line camelcase
-      Primary_buying_scenario__c: contactRecord.Primary_buying_situation__c,
-      // eslint-disable-next-line camelcase
-      LinkedIn_profile__c: contactRecord.LinkedIn_profile__c,
-      Description: leadDescription,
-      LeadSource: leadSource,
-      // eslint-disable-next-line camelcase
-      Contact_associated_by_website__c: salesforceContactId,
-      // eslint-disable-next-line camelcase
-      Account__c: salesforceAccountId,
-      OwnerId: accountRecord.OwnerId
+    // Get the Contact record.
+    let contactRecord = await sails.helpers.flow.build(async ()=>{
+      return await salesforceConnection.sobject('Contact')
+      .retrieve(salesforceContactId);
+    }).intercept((err)=>{
+      return new Error(`When attempting to create a new Lead record using an existing Contact record (ID: ${salesforceContactId}), an error occurred when retreiving the specified record. Full error: ${err}`);
     });
-    console.log(`Created lead! ${lead}`);
 
-    // TODO handle duplicate leads:
+    // Get the Account record.
+    let accountRecord = await sails.helpers.flow.build(async ()=>{
+      return await salesforceConnection.sobject('Account')
+      .retrieve(salesforceAccountId);
+    }).intercept((err)=>{
+      return new Error(`When attempting to create a Lead record using an exisitng Account record (ID: ${salesforceAccountId}), An error occured when retreiving the specified record. Full error: ${err}`);
+    });
+
+    let primaryBuyingSituationValuesByCodename = {
+      'vm': 'Vulnerability management',
+      'mdm': 'Device management (MDM)',
+      'eo-it': 'Endpoint operations - IT',
+      'eo-security': 'Endpoint operations - Security',
+    };
+
+    // If numberOfHosts or primaryBuyingSituationToSet was provided, set that value on the new Lead, otherwise fallback to the value on the contact record. (If it has one)
+    // Note: If these were not provided and a retreived contact record does not have this information, these values will be set to 'null' and are safe to pass into the sobject('Lead').create method below.
+    let numberOfHostsToSet = numberOfHosts ? numberOfHosts : contactRecord.of_hosts__c;
+    let primaryBuyingSituationToSet = primaryBuyingSituation ? primaryBuyingSituationValuesByCodename[primaryBuyingSituation] : contactRecord.Primary_buying_situation__c;
+
+    // Create the new Lead record.
+    await sails.helpers.flow.build(async ()=>{
+      return await salesforceConnection.sobject('Lead')
+      .create({
+        // Information from inputs:
+        Description: leadDescription,
+        LeadSource: leadSource,
+        Account__c: salesforceAccountId,// eslint-disable-line camelcase
+        Contact_associated_by_website__c: salesforceContactId,// eslint-disable-line camelcase
+        // Information from contact record:
+        FirstName: contactRecord.FirstName,
+        LastName: contactRecord.LastName,
+        Email: contactRecord.Email,
+        Website: contactRecord.Website,
+        of_hosts__c: numberOfHostsToSet,// eslint-disable-line camelcase
+        Primary_buying_scenario__c: primaryBuyingSituationToSet,// eslint-disable-line camelcase
+        LinkedIn_profile__c: contactRecord.LinkedIn_profile__c,// eslint-disable-line camelcase
+        // Information from the account record:
+        OwnerId: accountRecord.OwnerId
+      });
+    }).intercept((err)=>{
+      return new Error(`Could not create new Lead record. Full error: ${err}`);
+    });
   }
 
 
