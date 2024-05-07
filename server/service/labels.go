@@ -539,6 +539,9 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			}
 		}
 	}
+	if len(regularSpecs) == 0 {
+		return nil
+	}
 	return svc.ds.ApplyLabelSpecs(ctx, regularSpecs)
 }
 
