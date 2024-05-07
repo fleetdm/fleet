@@ -824,14 +824,16 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        added {activity.details?.software_title} (
+        added <b>{activity.details?.software_title}</b> (
         {activity.details?.software_package}) software to{" "}
-        <b>
-          {activity.details?.team_name
-            ? `team ${activity.details?.team_name}`
-            : "no team"}
-        </b>
-        .
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
       </>
     );
   },
@@ -839,14 +841,16 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted {activity.details?.software_title} (
+        deleted <b>{activity.details?.software_title}</b> (
         {activity.details?.software_package}) software from{" "}
-        <b>
-          {activity.details?.team_name
-            ? `team ${activity.details?.team_name}`
-            : "no team"}
-        </b>
-        .
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
       </>
     );
   },
