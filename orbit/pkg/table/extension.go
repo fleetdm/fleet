@@ -44,9 +44,9 @@ type Extension interface {
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
 
-// tableOpts provides options required by some tables.
-type tableOpts struct {
-	socket string
+// PluginOpts provides options required by some tables.
+type PluginOpts struct {
+	Socket string
 }
 
 // Logger for osquery tables
@@ -109,7 +109,7 @@ func (r *Runner) Execute() error {
 
 	plugins := OrbitDefaultTables()
 
-	opts := tableOpts{socket: r.socket}
+	opts := PluginOpts{Socket: r.socket}
 	plugins = append(plugins, PlatformTables(opts)...)
 	for _, t := range r.tableExtensions {
 		plugins = append(plugins, table.NewPlugin(

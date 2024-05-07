@@ -36,7 +36,7 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-func PlatformTables(opts tableOpts) []osquery.OsqueryPlugin {
+func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
@@ -70,13 +70,13 @@ func PlatformTables(opts tableOpts) []osquery.OsqueryPlugin {
 		table.NewPlugin(
 			"sofa_security_release_info", sofa.SofaSecurityReleaseInfoColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-				return sofa.SofaSecurityReleaseInfoGenerate(ctx, queryContext, opts.socket)
+				return sofa.SofaSecurityReleaseInfoGenerate(ctx, queryContext, opts.Socket)
 			},
 		),
 		table.NewPlugin(
 			"sofa_unpatched_cves", sofa.SofaUnpatchedCVEsColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.socket)
+				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.Socket)
 			},
 		),
 
