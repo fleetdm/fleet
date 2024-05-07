@@ -496,13 +496,16 @@ CREATE TABLE `host_software_installs` (
   `install_script_exit_code` int(10) DEFAULT NULL,
   `post_install_script_output` text COLLATE utf8mb4_unicode_ci,
   `post_install_script_exit_code` int(10) DEFAULT NULL,
+  `user_id` int(10) unsigned DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_software_installs_execution_id` (`execution_id`),
   KEY `fk_host_software_installs_installer_id` (`software_installer_id`),
+  KEY `fk_host_software_installs_user_id` (`user_id`),
   KEY `idx_host_software_installs_host_installer` (`host_id`,`software_installer_id`),
-  CONSTRAINT `fk_host_software_installs_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `fk_host_software_installs_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_host_software_installs_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
