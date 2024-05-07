@@ -250,10 +250,9 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
 	}
 
-	hostPlatform := host.FleetPlatform()
-	if hostPlatform != requiredPlatform {
+	if host.FleetPlatform() != requiredPlatform {
 		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, hostPlatform),
+			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
 			InternalErr: ctxerr.WrapWithData(
 				ctx, err, "invalid host platform for requested installer",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},

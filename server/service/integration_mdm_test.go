@@ -8752,7 +8752,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
+		Platform:        "linux",
 	})
 	require.NoError(t, err)
 
