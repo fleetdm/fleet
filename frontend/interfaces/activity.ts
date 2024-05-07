@@ -1,6 +1,6 @@
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
-import { ISchedulableQueryStats } from "./schedulable_query";
+import { IScheduledQueryStats } from "./scheduled_query_stats";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -131,6 +131,6 @@ export interface IActivityDetails {
   script_name?: string;
   deadline_days?: number;
   grace_period_days?: number;
-  stats?: ISchedulableQueryStats;
+  stats?: IScheduledQueryStats;
   host_id?: number;
 }

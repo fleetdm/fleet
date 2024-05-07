@@ -53,7 +53,7 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
-import { ISchedulableQueryStats } from "interfaces/schedulable_query";
+import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
@@ -686,7 +686,7 @@ export const readableDate = (date: string) => {
 };
 
 export const getPerformanceImpactDescription = (
-  scheduledQueryStats: ISchedulableQueryStats
+  scheduledQueryStats: IScheduledQueryStats
 ) => {
   if (
     !scheduledQueryStats.total_executions ||

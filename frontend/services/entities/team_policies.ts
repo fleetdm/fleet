@@ -17,11 +17,14 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+  inheritedPage?: number;
+  inheritedPerPage?: number;
+  inheritedOrderKey?: string;
+  inheritedOrderDirection?: "asc" | "desc";
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
   teamId: number;
-  mergeInherited?: boolean;
 }
 
 export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
@@ -29,14 +32,13 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId" | "mergeInherited"> {
-  scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
+  extends Pick<IPoliciesApiParams, "query" | "teamId"> {
+  scope: "teamPoliciesCount";
 }
 
 interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
-  mergeInherited?: boolean;
 }
 
 const ORDER_KEY = "name";
@@ -116,6 +118,7 @@ export default {
   load: (team_id: number, id: number) => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
+
     return sendRequest("GET", path);
   },
   loadAll: (team_id?: number): Promise<ILoadTeamPoliciesResponse> => {
@@ -134,7 +137,10 @@ export default {
     orderKey = ORDER_KEY,
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
-    mergeInherited,
+    inheritedPage,
+    inheritedPerPage,
+    inheritedOrderKey = ORDER_KEY,
+    inheritedOrderDirection: inheritedOrderDir = ORDER_DIRECTION,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -144,7 +150,10 @@ export default {
       orderKey,
       orderDirection: orderDir,
       query,
-      mergeInherited,
+      inheritedPage,
+      inheritedPerPage,
+      inheritedOrderKey,
+      inheritedOrderDirection: inheritedOrderDir,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -159,16 +168,14 @@ export default {
   getCount: async ({
     query,
     teamId,
-    mergeInherited = false,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId" | "mergeInherited"
+    "query" | "teamId"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
     const queryParams = {
       query,
-      mergeInherited,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

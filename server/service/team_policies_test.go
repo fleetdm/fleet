@@ -149,7 +149,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false)
+			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetTeamPolicyByIDQueries(ctx, 1, 1)

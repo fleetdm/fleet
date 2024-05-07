@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
+import PATHS from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary } from "interfaces/team";
@@ -13,6 +14,12 @@ import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 
 const baseClass = "policies-table";
 
+const TAGGED_TEMPLATES = {
+  hostsByTeamRoute: (teamId: number | undefined | null) => {
+    return `${teamId ? `/?team_id=${teamId}` : ""}`;
+  },
+};
+
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 
@@ -22,11 +29,13 @@ interface IPoliciesTableProps {
   onAddPolicyClick?: () => void;
   onDeletePolicyClick: (selectedTableIds: number[]) => void;
   canAddOrDeletePolicy?: boolean;
-  hasPoliciesToDelete?: boolean;
+  tableType?: "inheritedPolicies";
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
-  renderPoliciesCount: () => JSX.Element | null;
+  isSandboxMode?: boolean;
+  // onClientSidePaginationChange?: (pageIndex: number) => void;
+  renderPoliciesCount: any; // TODO: typing
   onQueryChange: (newTableQuery: ITableQueryData) => void;
   searchQuery: string;
   sortHeader?: "name" | "failing_host_count";
@@ -40,11 +49,13 @@ const PoliciesTable = ({
   onAddPolicyClick,
   onDeletePolicyClick,
   canAddOrDeletePolicy,
-  hasPoliciesToDelete,
+  tableType,
   currentTeam,
   currentAutomatedPolicies,
   isPremiumTier,
+  isSandboxMode,
   onQueryChange,
+  // onClientSidePaginationChange,
   renderPoliciesCount,
   searchQuery,
   sortHeader,
@@ -53,18 +64,23 @@ const PoliciesTable = ({
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
+  // Inherited table uses the same onQueryChange but require different URL params
   const onTableQueryChange = (newTableQuery: ITableQueryData) => {
     onQueryChange({
       ...newTableQuery,
+      editingInheritedTable: tableType === "inheritedPolicies",
     });
   };
 
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
       graphicName: "empty-policies",
-      header: "You don't have any policies",
-      info:
-        "Add policies to detect device health issues and trigger automations.",
+      header: <>You don&apos;t have any policies</>,
+      info: (
+        <>
+          Add policies to detect device health issues and trigger automations.
+        </>
+      ),
     };
     if (canAddOrDeletePolicy) {
       emptyPolicies.primaryButton = (
@@ -80,8 +96,9 @@ const PoliciesTable = ({
     if (searchQuery) {
       delete emptyPolicies.graphicName;
       delete emptyPolicies.primaryButton;
-      emptyPolicies.header = "No matching policies";
-      emptyPolicies.info = "No policies match the current filters.";
+      emptyPolicies.header = "No policies match the current search criteria.";
+      emptyPolicies.info =
+        "Expecting to see policies? Try again in a few seconds as the system catches up.";
     }
 
     return emptyPolicies;
@@ -89,20 +106,23 @@ const PoliciesTable = ({
 
   const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
-  const hasPermissionAndPoliciesToDelete =
-    canAddOrDeletePolicy && hasPoliciesToDelete;
-
   return (
-    <div className={baseClass}>
+    <div
+      className={`${baseClass} ${
+        canAddOrDeletePolicy ? "" : "hide-selection-column"
+      }`}
+    >
       <TableContainer
         resultsTitle="policies"
         columnConfigs={generateTableHeaders(
           {
             selectedTeamId: currentTeam?.id,
-            hasPermissionAndPoliciesToDelete,
+            canAddOrDeletePolicy,
+            tableType,
           },
           policiesList,
-          isPremiumTier
+          isPremiumTier,
+          isSandboxMode
         )}
         data={generateDataSet(
           policiesList,
@@ -132,6 +152,7 @@ const PoliciesTable = ({
             primaryButton: emptyState().primaryButton,
           })
         }
+        disableCount={tableType === "inheritedPolicies"}
         renderCount={renderPoliciesCount}
         onQueryChange={onTableQueryChange}
         inputPlaceHolder="Search by name"
