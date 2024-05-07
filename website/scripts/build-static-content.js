@@ -9,7 +9,6 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
-    skipGithubRequests: { type: 'boolean', description: 'Support for this flag has been disabled, it is only left as an input to not throw errors when contributors'},
     githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
