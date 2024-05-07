@@ -142,7 +142,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	if meta.TeamID != nil {
 		t, err := svc.ds.Team(ctx, *meta.TeamID)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "getting team name for deleted software")
 		}
 		teamName = &t.Name
 	}
