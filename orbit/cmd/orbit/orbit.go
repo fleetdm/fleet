@@ -1650,7 +1650,7 @@ type serverOverridesRunner struct {
 }
 
 // newServerOverridesReveiver creates a runner for updating server overrides configuration with values fetched from Fleet.
-func newServerOverridesReveiver(
+func newServerOverridesReceiver(
 	rootDir string,
 	fallbackCfg fallbackServerOverridesConfig,
 	desktopEnabled bool,
