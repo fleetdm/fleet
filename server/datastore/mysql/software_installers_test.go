@@ -1,12 +1,16 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -25,6 +29,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SoftwareInstallerDetails", testListSoftwareInstallerDetails},
 		{"InsertSoftwareInstallRequest", testInsertSoftwareInstallRequest},
 		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
+		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
 	}
 
 	for _, c := range cases {
@@ -322,4 +327,59 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, expectedInstallScriptOutput, res.Output)
 		})
 	}
+}
+
+func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	dir := t.TempDir()
+	store, err := filesystem.NewSoftwareInstallerStore(dir)
+	require.NoError(t, err)
+
+	assertExisting := func(want []string) {
+		dirEnts, err := os.ReadDir(filepath.Join(dir, "software-installers"))
+		require.NoError(t, err)
+		got := make([]string, 0, len(dirEnts))
+		for _, de := range dirEnts {
+			if de.Type().IsRegular() {
+				got = append(got, de.Name())
+			}
+		}
+		require.ElementsMatch(t, want, got)
+	}
+
+	// cleanup an empty store
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	require.NoError(t, err)
+	assertExisting(nil)
+
+	// put an installer and save it in the DB
+	ins0 := "installer0"
+	ins0File := bytes.NewReader([]byte("installer0"))
+	err = store.Put(ctx, ins0, ins0File)
+	require.NoError(t, err)
+	assertExisting([]string{ins0})
+
+	swi, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		InstallerFile: ins0File,
+		StorageID:     ins0,
+		Filename:      "installer0",
+		Title:         "ins0",
+		Source:        "apps",
+	})
+	require.NoError(t, err)
+
+	assertExisting([]string{ins0})
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	require.NoError(t, err)
+	assertExisting([]string{ins0})
+
+	// remove it from the DB, will now cleanup
+	err = ds.DeleteSoftwareInstaller(ctx, swi)
+	require.NoError(t, err)
+
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	require.NoError(t, err)
+	assertExisting(nil)
 }

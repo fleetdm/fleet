@@ -1507,7 +1507,7 @@ CREATE TABLE `software_installers` (
   `pre_install_query` text COLLATE utf8mb4_unicode_ci,
   `install_script_content_id` int(10) unsigned NOT NULL,
   `post_install_script_content_id` int(10) unsigned DEFAULT NULL,
-  `storage_id` binary(64) NOT NULL,
+  `storage_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
   `uploaded_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_software_installers_team_id_title_id` (`global_or_team_id`,`title_id`),
