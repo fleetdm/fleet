@@ -139,7 +139,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description:
       "If secure keyboard entry is disabled, it increases vulnerability to keyloggers and other snooping software.",
     resolution:
-      "Secure Keyboard Entry will be enabled to enhance protection against keystroke logging.",
+      "Secure keyboard entry will be enabled to enhance protection against keystroke logging.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
