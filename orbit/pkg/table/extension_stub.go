@@ -7,4 +7,4 @@ package table
 
 import "github.com/osquery/osquery-go"
 
-func PlatformTables() []osquery.OsqueryPlugin { return nil }
+func PlatformTables(_ tableOpts) []osquery.OsqueryPlugin { return nil }
