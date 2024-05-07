@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -8637,16 +8638,98 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 	})
 }
 
-func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
+func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {
 	t := s.T()
 
-	getTitleID := func(t *testing.T, title string, source string) uint {
-		var id uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`, title, source)
-		})
-		return id
+	hostsByPlatform := map[string]*fleet.Host{
+		"linux": nil, "darwin": nil, "windows": nil,
 	}
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	for platform := range hostsByPlatform {
+		h, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+			NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		setOrbitEnrollment(t, h, s.ds)
+
+		err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{h.ID})
+		require.NoError(t, err)
+
+		hostsByPlatform[platform] = h
+	}
+
+	softwareTitles := map[string]uint{
+		"deb": 0, "msi": 0, "exe": 0, "pkg": 0,
+	}
+
+	for kind := range softwareTitles {
+		// TODO(roberto): we need real binaries for exe, msi and pkg to
+		// perform the API calls.
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			ctx := context.Background()
+			installScript := fmt.Sprintf(`echo '%s'`, kind)
+			res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+			if err != nil {
+				return err
+			}
+			scriptContentID, _ := res.LastInsertId()
+
+			res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', ?)`, kind)
+			if err != nil {
+				return err
+			}
+			titleID, _ := res.LastInsertId()
+			softwareTitles[kind] = uint(titleID)
+
+			_, err = q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(title_id, filename, version, install_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query)
+			VALUES
+				(?, ?, ?, ?, unhex(?), ?, ?, ?)`,
+				titleID, fmt.Sprintf("installer.%s", kind), "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo")
+			return err
+		})
+	}
+
+	testCases := []struct {
+		platform            string
+		supportedInstallers []string
+	}{
+		{"windows", []string{"exe", "msi"}},
+		{"darwin", []string{"pkg"}},
+		{"linux", []string{"deb"}},
+	}
+
+	for _, tc := range testCases {
+		for platform, host := range hostsByPlatform {
+			for _, kind := range tc.supportedInstallers {
+				wantStatus := http.StatusAccepted
+				if tc.platform != platform {
+					wantStatus = http.StatusBadRequest
+				}
+
+				var resp installSoftwareResponse
+				s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", host.ID, softwareTitles[kind]), nil, wantStatus, &resp)
+			}
+		}
+	}
+}
+
+func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
+	t := s.T()
 
 	var resp installSoftwareResponse
 	// non-existent host
@@ -8661,7 +8744,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
+		Platform:        "linux",
 	})
 	require.NoError(t, err)
 
@@ -8686,7 +8769,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
 	// install script request succeeds
-	titleID := getTitleID(t, payload.Title, "deb_packages")
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
 	resp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
@@ -8707,6 +8790,123 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 	results := gsirr.Results
 	require.Equal(t, installUUID, results.InstallUUID)
 	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
+}
+
+func (s *integrationMDMTestSuite) TestHostSoftwareInstallResult() {
+	ctx := context.Background()
+	t := s.T()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+
+	// create a software installer and some host install requests
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install script",
+		PreInstallQuery:   "pre install query",
+		PostInstallScript: "post install script",
+		Filename:          "ruby.deb",
+		Title:             "ruby",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
+
+	latestInstallUUID := func() string {
+		var id string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
+		})
+		return id
+	}
+
+	// create some install requests for the host
+	installUUIDs := make([]string, 3)
+	for i := 0; i < len(installUUIDs); i++ {
+		resp := installSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", host.ID, titleID), nil, http.StatusAccepted, &resp)
+		installUUIDs[i] = latestInstallUUID()
+	}
+
+	type result struct {
+		HostID      uint
+		InstallUUID string
+		Status      fleet.SoftwareInstallerStatus
+	}
+	checkResults := func(want result) {
+		var resp getSoftwareInstallResultsResponse
+		s.DoJSON("GET", "/api/v1/fleet/software/install/results/"+want.InstallUUID, nil, http.StatusOK, &resp)
+
+		assert.Equal(t, want.HostID, resp.Results.HostID)
+		assert.Equal(t, want.InstallUUID, resp.Results.InstallUUID)
+		assert.Equal(t, want.Status, resp.Results.Status)
+	}
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 1,
+			"install_script_output": "failed"
+		}`, *host.OrbitNodeKey, installUUIDs[0])),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:      host.ID,
+		InstallUUID: installUUIDs[0],
+		Status:      fleet.SoftwareInstallerFailed,
+	})
+	wantAct := fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   payload.Title,
+		InstallUUID:     installUUIDs[0],
+		Status:          string(fleet.SoftwareInstallerFailed),
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": ""
+		}`, *host.OrbitNodeKey, installUUIDs[1])),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:      host.ID,
+		InstallUUID: installUUIDs[1],
+		Status:      fleet.SoftwareInstallerFailed,
+	})
+	wantAct.InstallUUID = installUUIDs[1]
+	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 0,
+			"install_script_output": "success",
+			"post_install_script_exit_code": 0,
+			"post_install_script_output": "ok"
+		}`, *host.OrbitNodeKey, installUUIDs[2])),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:      host.ID,
+		InstallUUID: installUUIDs[2],
+		Status:      fleet.SoftwareInstallerInstalled,
+	})
+	wantAct.InstallUUID = installUUIDs[2]
+	wantAct.Status = string(fleet.SoftwareInstallerInstalled)
+	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	// non-existing installation uuid
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": "uuid-no-such",
+			"pre_install_condition_output": ""
+		}`, *host.OrbitNodeKey)),
+		http.StatusNotFound)
+	// no new activity created
+	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), lastActID)
 }
 
 func (s *integrationMDMTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
@@ -8754,4 +8954,12 @@ func (s *integrationMDMTestSuite) uploadSoftwareInstaller(payload *fleet.UploadS
 		errMsg := extractServerErrorText(r.Body)
 		require.Contains(t, errMsg, expectedError)
 	}
+}
+
+func getSoftwareTitleID(t *testing.T, ds *mysql.Datastore, title, source string) uint {
+	var id uint
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`, title, source)
+	})
+	return id
 }

@@ -898,6 +898,37 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
-	return ctxerr.Wrap(ctx, err, "save host software installation result")
+	if err := svc.ds.SetHostSoftwareInstallResult(ctx, result); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host software installation result")
+	}
+
+	if status := result.Status(); status != fleet.SoftwareInstallerPending {
+		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host software installation result information")
+		}
+
+		var user *fleet.User
+		if hsi.UserID != nil {
+			user, err = svc.ds.UserByID(ctx, *hsi.UserID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host software installation user")
+			}
+		}
+
+		if err := svc.ds.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeInstalledSoftware{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				SoftwareTitle:   hsi.SoftwareTitle,
+				InstallUUID:     result.InstallUUID,
+				Status:          string(status),
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for software installation")
+		}
+	}
+	return nil
 }

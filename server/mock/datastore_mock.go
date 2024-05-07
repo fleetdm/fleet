@@ -365,7 +365,9 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
-type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error
+type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
+
+type GetSoftwareInstallerForTitleFunc func(ctx context.Context, softwareTitleID uint, teamID *uint) (*fleet.SoftwareInstaller, error)
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -1459,6 +1461,9 @@ type DataStore struct {
 
 	InsertSoftwareInstallRequestFunc        InsertSoftwareInstallRequestFunc
 	InsertSoftwareInstallRequestFuncInvoked bool
+
+	GetSoftwareInstallerForTitleFunc        GetSoftwareInstallerForTitleFunc
+	GetSoftwareInstallerForTitleFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -3529,11 +3534,18 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
-func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error {
+func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	s.mu.Lock()
 	s.InsertSoftwareInstallRequestFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareInstallerID, teamID)
+	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareTitleID)
+}
+
+func (s *DataStore) GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallerForTitleFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallerForTitleFunc(ctx, softwareTitleID, teamID)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {

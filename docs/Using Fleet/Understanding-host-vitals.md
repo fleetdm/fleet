@@ -45,7 +45,14 @@ SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_al
 
 - Query:
 ```sql
-SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;
+WITH encrypted(enabled) AS (
+		SELECT CASE WHEN
+			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+			OR
+			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+	END)
+	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL
 ```
 
 ## disk_space_unix
@@ -304,7 +311,7 @@ LIMIT 1;
 
 ## orbit_info
 
-- Platforms: all
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows
 
 - Discovery query:
 ```sql
@@ -313,7 +320,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 
 - Query:
 ```sql
-SELECT version FROM orbit_info
+SELECT * FROM orbit_info
 ```
 
 ## os_chrome
@@ -779,7 +786,7 @@ select * from uptime limit 1
 
 ## users
 
-- Platforms: linux, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows
 
 - Query:
 ```sql
