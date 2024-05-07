@@ -1150,6 +1150,46 @@ This activity contains the following fields:
 }
 ```
 
+## added_software
+
+Generated when a software installer is uploaded to Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. Empty string if it was added to no team.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "foo"
+}
+
+```
+
+## deleted_software
+
+Generated when a software installer is deleted from Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. Empty string if it was added to no team.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "foo"
+}
+
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

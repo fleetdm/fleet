@@ -1463,10 +1463,12 @@ func (a ActivityTypeAddedSoftware) ActivityName() string {
 func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 	return `Generated when a software installer is uploaded to Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
-- "software_package": Filename of the installer.`,
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. Empty string if it was added to no team.`,
 		`{
   "software_title": "Falcon.app",
-  "software_package": "FalconSensor-6.44.pkg"
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "foo"
 }
 `
 }
@@ -1484,10 +1486,12 @@ func (a ActivityTypeDeletedSoftware) ActivityName() string {
 func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
 	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
-- "software_package": Filename of the installer.`,
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. Empty string if it was added to no team.`,
 		`{
   "software_title": "Falcon.app",
-  "software_package": "FalconSensor-6.44.pkg"
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "foo"
 }
 `
 }
