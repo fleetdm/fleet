@@ -35,6 +35,7 @@ func TestPolicies(t *testing.T) {
 		{"MembershipViewNotDeferred", func(t *testing.T, ds *Datastore) { testPoliciesMembershipView(false, t, ds) }},
 		{"TeamPolicyLegacy", testTeamPolicyLegacy},
 		{"TeamPolicyProprietary", testTeamPolicyProprietary},
+		{"ListMergedTeamPolicies", testListMergedTeamPolicies},
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
 		{"PoliciesByID", testPoliciesByID},
@@ -707,6 +708,75 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query2 other resolution", *teamPolicies[0].Resolution)
 	require.NotNil(t, team2Policies[0].AuthorID)
 	require.Equal(t, user1.ID, *team2Policies[0].AuthorID)
+}
+
+func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	gpol, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:        "query1 global",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	p, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:        "query2 team1",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	_, err = ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name:        "query3 team2",
+		Query:       "select 2;",
+		Description: "query2 desc",
+		Resolution:  "query2 resolution",
+	})
+	require.NoError(t, err)
+
+	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	})
+	require.NoError(t, err)
+
+	require.Len(t, merged, 2)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, p.ID, merged[1].ID)
+
+	// Test list options affect both global and team policies
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderDescending,
+	})
+	require.NoError(t, err)
+
+	require.Len(t, merged, 2)
+	assert.Equal(t, p.ID, merged[0].ID)
+	assert.Equal(t, gpol.ID, merged[1].ID)
+
+	// Test filter
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		MatchQuery: "query1",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		MatchQuery: "query2",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, p.ID, merged[0].ID)
 }
 
 func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform string, teamID *uint) *fleet.Host {
@@ -2899,6 +2969,10 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
+	mergedCount, err := ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 0, mergedCount)
+
 	// 10 global policies
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
@@ -2913,6 +2987,10 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 10, mergedCount)
+
 	// add 5 team policies
 	for i := 0; i < 5; i++ {
 		_, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
@@ -2926,6 +3004,10 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	globalCount, err = ds.CountPolicies(ctx, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
+
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 15, mergedCount)
 }
 
 func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
