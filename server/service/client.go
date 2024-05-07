@@ -172,6 +172,24 @@ func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}
 	return c.doContextWithHeaders(context.Background(), verb, path, rawQuery, params, headers)
 }
 
+func (c *Client) AuthenticatedDoCustomHeaders(verb, path, rawQuery string, params interface{}, customHeaders map[string]string) (*http.Response, error) {
+	if c.token == "" {
+		return nil, errors.New("authentication token is empty")
+	}
+
+	headers := map[string]string{
+		"Content-Type":  "application/json",
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", c.token),
+	}
+
+	for key, value := range customHeaders {
+		headers[key] = value
+	}
+
+	return c.doContextWithHeaders(context.Background(), verb, path, rawQuery, params, headers)
+}
+
 func (c *Client) SetToken(t string) {
 	c.token = t
 }
