@@ -939,7 +939,7 @@ type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]s
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
 
-type GetSoftwareInstallerMetadataFunc func(ctx context.Context, id uint, includeTitle bool) (*fleet.SoftwareInstaller, error)
+type GetSoftwareInstallerMetadataFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
@@ -5558,11 +5558,11 @@ func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload 
 	return s.MatchOrCreateSoftwareInstallerFunc(ctx, payload)
 }
 
-func (s *DataStore) GetSoftwareInstallerMetadata(ctx context.Context, id uint, includeTitle bool) (*fleet.SoftwareInstaller, error) {
+func (s *DataStore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetSoftwareInstallerMetadataFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareInstallerMetadataFunc(ctx, id, includeTitle)
+	return s.GetSoftwareInstallerMetadataFunc(ctx, id)
 }
 
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {

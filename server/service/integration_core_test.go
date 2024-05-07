@@ -11154,7 +11154,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		Version:       "0.0.1",
 	})
 	require.NoError(t, err)
-	s1Meta, err := s.ds.GetSoftwareInstallerMetadata(ctx, sw1, false)
+	s1Meta, err := s.ds.GetSoftwareInstallerMetadata(ctx, sw1)
 	require.NoError(t, err)
 	err = s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID)
 	require.NoError(t, err)
@@ -11675,5 +11675,4 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusBadRequest)
 	assertBodyContains(t, resp, "AI features are disabled")
-
 }

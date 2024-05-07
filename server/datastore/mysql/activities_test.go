@@ -352,9 +352,9 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Version:       "0.0.2",
 	})
 	require.NoError(t, err)
-	sw1Meta, err := ds.GetSoftwareInstallerMetadata(ctx, sw1, false)
+	sw1Meta, err := ds.GetSoftwareInstallerMetadata(ctx, sw1)
 	require.NoError(t, err)
-	sw2Meta, err := ds.GetSoftwareInstallerMetadata(ctx, sw2, false)
+	sw2Meta, err := ds.GetSoftwareInstallerMetadata(ctx, sw2)
 	require.NoError(t, err)
 
 	latestSoftwareInstallerUUID := func() string {

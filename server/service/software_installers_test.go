@@ -59,12 +59,24 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			ds.GetSoftwareInstallerMetadataFunc = func(ctx context.Context, installerID uint, includeTitle bool) (*fleet.SoftwareInstaller, error) {
+			ds.GetSoftwareInstallerMetadataFunc = func(ctx context.Context, installerID uint) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
 
 			ds.DeleteSoftwareInstallerFunc = func(ctx context.Context, installerID uint) error {
 				return nil
+			}
+
+			ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+				return nil
+			}
+
+			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+				if tt.teamID != nil {
+					return &fleet.Team{ID: *tt.teamID}, nil
+				}
+
+				return nil, nil
 			}
 
 			_, err := svc.DownloadSoftwareInstaller(ctx, 1)

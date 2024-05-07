@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -149,7 +148,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	return titleID, nil
 }
 
-func (ds *Datastore) GetSoftwareInstallerMetadata(ctx context.Context, id uint, includeTitle bool) (*fleet.SoftwareInstaller, error) {
+func (ds *Datastore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT
 	si.id,
@@ -161,19 +160,13 @@ SELECT
 	si.install_script_content_id,
 	si.pre_install_query,
 	si.post_install_script_content_id,
-	si.uploaded_at
-	%s
+	si.uploaded_at,
+	COALESCE(st.name, '') AS software_title
 FROM
 	software_installers si
-	%s
+	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
 WHERE
 	si.id = ?`
-
-	if includeTitle {
-		query = fmt.Sprintf(query, ", st.name AS software_title", "JOIN software_titles st ON st.id = si.title_id")
-	} else {
-		query = fmt.Sprintf(query, "", "")
-	}
 
 	var dest fleet.SoftwareInstaller
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, id)
@@ -300,7 +293,8 @@ SELECT
 		ELSE NULL -- not installed from Fleet installer
 	END, '') AS status,
 	si.filename AS software_package,
-	h.team_id AS host_team_id
+	h.team_id AS host_team_id,
+	hsi.user_id AS user_id
 FROM
 	host_software_installs hsi
 	JOIN hosts h ON h.id = hsi.host_id

@@ -86,18 +86,23 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// TODO: QA what breaks when you have a software title with no versions?
 
-	var teamName string
+	var teamName *string
 	if payload.TeamID != nil {
 		t, err := svc.ds.Team(ctx, *payload.TeamID)
 		if err != nil {
 			return err
 		}
-		teamName = t.Name
+		teamName = &t.Name
 	}
 
 	// Create activity
-	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{SoftwareTitle: title, SoftwarePackage: payload.Filename, TeamName: teamName}); err != nil {
-		return nil
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+		SoftwareTitle:   title,
+		SoftwarePackage: payload.Filename,
+		TeamName:        teamName,
+		TeamID:          payload.TeamID,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
 	return nil
@@ -105,7 +110,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	// get the software installer to have its team id
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, id, true)
+	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, id)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			// couldn't get the metadata to have its team, authorize with a no-team
@@ -133,17 +138,22 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 		return ctxerr.Wrap(ctx, err, "deleting software installer")
 	}
 
-	var teamName string
+	var teamName *string
 	if meta.TeamID != nil {
 		t, err := svc.ds.Team(ctx, *meta.TeamID)
 		if err != nil {
 			return err
 		}
-		teamName = t.Name
+		teamName = &t.Name
 	}
 
-	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{SoftwareTitle: meta.SoftwareTitle, SoftwarePackage: meta.Name, TeamName: teamName}); err != nil {
-		return nil
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
+		SoftwareTitle:   meta.SoftwareTitle,
+		SoftwarePackage: meta.Name,
+		TeamName:        teamName,
+		TeamID:          meta.TeamID,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
 
 	return nil
@@ -156,7 +166,7 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, installerI
 	}
 
 	// get the installer's metadata
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID, false)
+	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
@@ -190,7 +200,7 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	}
 
 	// get the installer's metadata
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID, false)
+	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
