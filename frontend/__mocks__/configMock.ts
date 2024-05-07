@@ -14,6 +14,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     deferred_save_host: false,
     query_reports_disabled: false,
     scripts_disabled: false,
+    ai_features_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,
@@ -45,6 +46,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   host_expiry_settings: {
     host_expiry_enabled: false,
     host_expiry_window: 0,
+  },
+  activity_expiry_settings: {
+    activity_expiry_enabled: true,
+    activity_expiry_window: 90,
   },
   agent_options: "",
   license: {

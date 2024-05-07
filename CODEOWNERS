@@ -77,12 +77,12 @@ go.mod @fleetdm/go
 /handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
 
 ##############################################################################################
-# 🦿 Repo automation and change control settings
+# 🌐 Repo automation and change control settings
 ##############################################################################################
 # /CODEOWNERS                 @mikermcneil  # Covered in DRIs
 
 ##############################################################################################
-# 🦿 Handbook
+# 🌐 Handbook
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
@@ -102,9 +102,9 @@ go.mod @fleetdm/go
 /handbook/product-design            @sampfluger88
 
 ##############################################################################################
-# 🦿 GitHub issue templates
+# 🌐 GitHub issue templates
 ##############################################################################################
-/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # See https://github.com/fleetdm/fleet/pull/16203
+#/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
 
 ##############################################################################################
 # 🌐 GitHub workflows

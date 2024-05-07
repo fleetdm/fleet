@@ -1,3 +1,28 @@
+## Fleet 4.49.3 (May 06, 2024)
+
+### Bug fixes
+
+* Improved Windows OS version reporting.
+* Fixed a bug where when updating a policy's 'platform' field, the aggregated policy stats were not cleared.
+* Improved URL and email validation in the UI.
+
+## Fleet 4.49.2 (Apr 30, 2024)
+
+### Bug fixes
+
+* Restored missing tooltips when hovering over the disabled "Calendar events" manage automations dropdown option.
+* Fixed an issue on Windows hosts enrolled in MDM via Azure AD where the command to install Fleetd on the device was sent repeatedly, even though `fleetd` had been properly installed.
+* Improved handling of different scenarios and edge cases when hosts turned on/off MDM.
+* Fixed issue with uploading of some signed Apple mobileconfig profiles.
+* Added an informative flash message when the user tries to save a query with invalid platform(s).
+* Fixed bug where Linux host wipe would repeat if the host got re-enrolled.
+
+## Fleet 4.49.1 (Apr 26, 2024)
+
+### Bug fixes
+
+* Fixed a bug that prevented the Fleet server from starting if Windows MDM was configured but Apple MDM wasn't.
+
 ## Fleet 4.49.0 (Apr 24, 2024)
 
 ### Endpoint operations

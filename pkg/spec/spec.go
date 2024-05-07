@@ -24,9 +24,10 @@ type Group struct {
 	Policies []*fleet.PolicySpec
 	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
 	// server like the user explicitly set the zero values.
-	AppConfig    interface{}
-	EnrollSecret *fleet.EnrollSecretSpec
-	UsersRoles   *fleet.UsersRoleSpec
+	AppConfig              interface{}
+	EnrollSecret           *fleet.EnrollSecretSpec
+	UsersRoles             *fleet.UsersRoleSpec
+	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 }
 
 // Metadata holds the metadata for a single YAML section/item.

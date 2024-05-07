@@ -971,6 +971,9 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 
 	// a second device requests tokens
 	_, mdmDeviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+
 	_, err = mdmDeviceTwo.DeclarativeManagement("tokens")
 	require.NoError(t, err)
 	verifyTransactionRecord(record{
