@@ -627,12 +627,12 @@ the way that the Fleet server works.
 				initFatal(err, "initializing service")
 			}
 
+			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
 				var profileMatcher fleet.ProfileMatcher
 				if appCfg.MDM.EnabledAndConfigured {
 					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
 				}
-				var softwareInstallStore fleet.SoftwareInstallerStore
 				if config.S3.Bucket != "" {
 					store, err := s3.NewSoftwareInstallerStore(config.S3)
 					if err != nil {
@@ -724,7 +724,7 @@ the way that the Fleet server works.
 						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 					}
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore,
 					)
 				},
 			); err != nil {

@@ -6,10 +6,14 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -81,4 +85,61 @@ func TestSoftwareInstaller(t *testing.T) {
 
 	// read it back, it should still match
 	getAndCheck(id0, b0)
+}
+
+func TestSoftwareInstallerCleanup(t *testing.T) {
+	ctx := context.Background()
+
+	dir := t.TempDir()
+	store, err := NewSoftwareInstallerStore(dir)
+	require.NoError(t, err)
+
+	assertExisting := func(want []string) {
+		dirEnts, err := os.ReadDir(filepath.Join(dir, softwareInstallersPrefix))
+		require.NoError(t, err)
+		got := make([]string, 0, len(dirEnts))
+		for _, de := range dirEnts {
+			if de.Type().IsRegular() {
+				got = append(got, de.Name())
+			}
+		}
+		require.ElementsMatch(t, want, got)
+	}
+
+	// cleanup an empty store
+	n, err := store.Cleanup(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// put an installer
+	ins0 := uuid.NewString()
+	err = store.Put(ctx, ins0, bytes.NewReader([]byte("installer0")))
+	require.NoError(t, err)
+
+	// cleanup but mark it as used
+	n, err = store.Cleanup(ctx, []string{ins0})
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	assertExisting([]string{ins0})
+
+	// cleanup but mark it as unused
+	n, err = store.Cleanup(ctx, []string{})
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+
+	assertExisting(nil)
+
+	// put a few installers
+	installers := []string{uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()}
+	for i, ins := range installers {
+		err = store.Put(ctx, ins, bytes.NewReader([]byte("installer"+fmt.Sprint(i))))
+		require.NoError(t, err)
+	}
+
+	n, err = store.Cleanup(ctx, []string{installers[0], installers[2]})
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+
+	assertExisting([]string{installers[0], installers[2]})
 }

@@ -16,6 +16,7 @@ type SoftwareInstallerStore interface {
 	Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
+	Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error)
 }
 
 // FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
@@ -33,6 +34,13 @@ func (FailingSoftwareInstallerStore) Put(ctx context.Context, installerID string
 
 func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID string) (bool, error) {
 	return false, errors.New("software installer store not properly configured")
+}
+
+func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error) {
+	// do not fail for the failing store's cleanup, as unlike the other store
+	// methods, this will be called even if software installers are otherwise not
+	// used (by the cron job).
+	return 0, nil
 }
 
 // SoftwareInstallDetailsResult contains all of the information
