@@ -406,25 +406,32 @@ const OtherWorkflowsModal = ({
             {availablePolicies?.length ? (
               <>
                 <div className="form-field__label">Policies:</div>
-                {policyItems &&
-                  policyItems.map((policyItem) => {
-                    const { isChecked, name, id } = policyItem;
-                    return (
-                      <div key={id}>
-                        <Checkbox
-                          value={isChecked}
-                          name={name}
-                          onChange={() => {
-                            updatePolicyItems(policyItem.id);
-                            !isChecked &&
-                              setErrors((errs) => omit(errs, "policyItems"));
-                          }}
+                <div className="automated-policies-section">
+                  {policyItems &&
+                    policyItems.map((policyItem) => {
+                      const { isChecked, name, id } = policyItem;
+                      return (
+                        <div
+                          className="checkbox-row"
+                          id={`checkbox-row--${id}`}
+                          key={id}
                         >
-                          {name}
-                        </Checkbox>
-                      </div>
-                    );
-                  })}
+                          <Checkbox
+                            value={isChecked}
+                            name={name}
+                            onChange={() => {
+                              updatePolicyItems(policyItem.id);
+                              !isChecked &&
+                                setErrors((errs) => omit(errs, "policyItems"));
+                            }}
+                            smallTick
+                          >
+                            {name}
+                          </Checkbox>
+                        </div>
+                      );
+                    })}
+                </div>
               </>
             ) : (
               <>

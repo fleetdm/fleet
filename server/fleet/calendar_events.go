@@ -38,4 +38,5 @@ type HostPolicyMembershipData struct {
 	HostID             uint   `db:"host_id"`
 	HostDisplayName    string `db:"host_display_name"`
 	HostHardwareSerial string `db:"host_hardware_serial"`
+	FailingPolicyIDs   string `db:"failing_policy_ids"`
 }

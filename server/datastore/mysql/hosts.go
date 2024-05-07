@@ -2717,6 +2717,9 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 		if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, hostIDs); err != nil {
 			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
 		}
+		if err := cleanupQueryResultsOnTeamChange(ctx, tx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete query results")
+		}
 
 		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {

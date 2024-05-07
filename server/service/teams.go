@@ -178,9 +178,10 @@ func (svc *Service) DeleteTeam(ctx context.Context, tid uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyTeamSpecsRequest struct {
-	Force  bool              `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
-	DryRun bool              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	Specs  []*fleet.TeamSpec `json:"specs"`
+	Force             bool                              `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
+	DryRun            bool                              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	DryRunAssumptions *fleet.TeamSpecsDryRunAssumptions `json:"dry_run_assumptions,omitempty"`
+	Specs             []*fleet.TeamSpec                 `json:"specs"`
 }
 
 func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
@@ -224,6 +225,9 @@ func (r applyTeamSpecsResponse) error() error { return r.Err }
 
 func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyTeamSpecsRequest)
+	if !req.DryRun {
+		req.DryRunAssumptions = nil
+	}
 
 	// remove any nil spec (may happen in conversion from YAML to JSON with fleetctl, but also
 	// with the API should someone send such JSON)
@@ -236,17 +240,21 @@ func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.
 		}
 	}
 
-	idsByName, err := svc.ApplyTeamSpecs(ctx, actualSpecs, fleet.ApplySpecOptions{
-		Force:  req.Force,
-		DryRun: req.DryRun,
-	})
+	idsByName, err := svc.ApplyTeamSpecs(
+		ctx, actualSpecs, fleet.ApplyTeamSpecOptions{
+			ApplySpecOptions: fleet.ApplySpecOptions{
+				Force:  req.Force,
+				DryRun: req.DryRun,
+			},
+			DryRunAssumptions: req.DryRunAssumptions,
+		})
 	if err != nil {
 		return applyTeamSpecsResponse{Err: err}, nil
 	}
 	return applyTeamSpecsResponse{TeamIDsByName: idsByName}, nil
 }
 
-func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) (map[string]uint, error) {
+func (svc Service) ApplyTeamSpecs(ctx context.Context, _ []*fleet.TeamSpec, _ fleet.ApplyTeamSpecOptions) (map[string]uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
