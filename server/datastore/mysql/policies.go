@@ -451,6 +451,25 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	return count, nil
 }
 
+func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
+	var args []interface{}
+
+	query := `SELECT count(*) FROM policies p WHERE p.team_id = ? OR p.team_id IS NULL`
+	args = append(args, teamID)
+
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(matchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
+
+	var count int
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting merged team policies")
+	}
+
+	return count, nil
+}
+
 func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 	sql := `SELECT ` + policyCols + `,
 	  COALESCE(u.name, '<deleted>') AS author_name,
@@ -606,6 +625,40 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 		return nil, nil, err
 	}
 	return teamPolicies, inheritedPolicies, err
+}
+
+func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	var args []interface{}
+
+	query := `
+		SELECT 
+			` + policyCols + `,
+			COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+			ps.updated_at as host_count_updated_at,
+			COALESCE(ps.passing_host_count, 0) as passing_host_count,
+			COALESCE(ps.failing_host_count, 0) as failing_host_count
+		FROM policies p
+		LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
+		AND ps.inherited_team_id = COALESCE(p.team_id, 0)
+		WHERE (p.team_id = ? OR p.team_id IS NULL)
+    `
+
+	args = append(args, teamID)
+
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(opts.MatchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
+	query, _ = appendListOptionsToSQL(query, &opts)
+
+	var policies []*fleet.Policy
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing merged team policies")
+	}
+
+	return policies, nil
 }
 
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {

@@ -22131,7 +22131,7 @@
         "type": "text"
       },
       {
-        "name": "noop_prending",
+        "name": "noop_pending",
         "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
         "required": false,
         "type": "text"
