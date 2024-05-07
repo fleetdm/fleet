@@ -147,7 +147,7 @@ type HostListOptions struct {
 	// version.
 	SoftwareTitleIDFilter *uint
 	// SoftwareStatusFilter filters the hosts by the status of the software installer, if any,
-	// managed by Fleet. If specified, the SoftwareIDFilter must also be specified.
+	// managed by Fleet. If specified, the SoftwareTitleIDFilter must also be specified.
 	SoftwareStatusFilter *SoftwareInstallerStatus
 
 	OSIDFilter        *uint
