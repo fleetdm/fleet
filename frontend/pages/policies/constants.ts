@@ -484,7 +484,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description:
       "Storing the 1Password emergency kit on the desktop or in the downloads folder increases the risk of unauthorized access to sensitive credentials if the workstation is compromised or accessed by unauthorized users.",
     resolution:
-      "1Password emergency kits should only be printed and stored in a physically secure location.",
+      "1Password emergency kits must be printed and stored in a physically secure location.",
     critical: false,
     platform: "darwin",
   },
