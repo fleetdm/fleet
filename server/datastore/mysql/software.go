@@ -1326,7 +1326,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		return ctxerr.Wrap(ctx, err, "get min/max software_id")
 	}
 
-	for minSoftwareID, maxSoftwareID := minMax.Min-1, countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
+	for minSoftwareID, maxSoftwareID := minMax.Min-1, minMax.Min-1+countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
 
 		// next get a cursor for the global and team counts for each software
 		stmtLabel := []string{"global", "team"}
