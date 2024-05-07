@@ -8638,7 +8638,6 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 	})
 }
 
-
 func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {
 	t := s.T()
 
