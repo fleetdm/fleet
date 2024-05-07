@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # grab the identifier from the first PackageInfo we find. Those are placed in different locations depending on the installer
 pkg_id=$(tar xOvf "$INSTALLER_PATH" --include='*PackageInfo*' 2>/dev/null | sed -n 's/.*identifier="\([^"]*\)".*/\1/p')
 

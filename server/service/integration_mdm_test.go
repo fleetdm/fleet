@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -8649,6 +8650,96 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 	})
 }
 
+func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {
+	t := s.T()
+
+	hostsByPlatform := map[string]*fleet.Host{
+		"linux": nil, "darwin": nil, "windows": nil,
+	}
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	for platform := range hostsByPlatform {
+		h, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+			NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		setOrbitEnrollment(t, h, s.ds)
+
+		err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{h.ID})
+		require.NoError(t, err)
+
+		hostsByPlatform[platform] = h
+	}
+
+	softwareTitles := map[string]uint{
+		"deb": 0, "msi": 0, "exe": 0, "pkg": 0,
+	}
+
+	for kind := range softwareTitles {
+		// TODO(roberto): we need real binaries for exe, msi and pkg to
+		// perform the API calls.
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			ctx := context.Background()
+			installScript := fmt.Sprintf(`echo '%s'`, kind)
+			res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+			if err != nil {
+				return err
+			}
+			scriptContentID, _ := res.LastInsertId()
+
+			res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', ?)`, kind)
+			if err != nil {
+				return err
+			}
+			titleID, _ := res.LastInsertId()
+			softwareTitles[kind] = uint(titleID)
+
+			_, err = q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(title_id, filename, version, install_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query)
+			VALUES
+				(?, ?, ?, ?, unhex(?), ?, ?, ?)`,
+				titleID, fmt.Sprintf("installer.%s", kind), "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo")
+			return err
+		})
+	}
+
+	testCases := []struct {
+		platform            string
+		supportedInstallers []string
+	}{
+		{"windows", []string{"exe", "msi"}},
+		{"darwin", []string{"pkg"}},
+		{"linux", []string{"deb"}},
+	}
+
+	for _, tc := range testCases {
+		for platform, host := range hostsByPlatform {
+			for _, kind := range tc.supportedInstallers {
+				wantStatus := http.StatusAccepted
+				if tc.platform != platform {
+					wantStatus = http.StatusBadRequest
+				}
+
+				var resp installSoftwareResponse
+				s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", host.ID, softwareTitles[kind]), nil, wantStatus, &resp)
+			}
+		}
+	}
+}
+
 func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 	t := s.T()
 
@@ -8665,7 +8756,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
+		Platform:        "linux",
 	})
 	require.NoError(t, err)
 

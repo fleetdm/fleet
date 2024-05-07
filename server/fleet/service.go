@@ -270,7 +270,9 @@ type Service interface {
 	// for distributed queries but not saved should not be returned).
 	// When is set to scheduled != nil, then only scheduled queries will be returned if `*scheduled == true`
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
-	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool) ([]*Query, error)
+	// If mergeInherited is true and a teamID is provided, then queries from the global team will be
+	// included in the results.
+	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to
 	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, error)
@@ -546,7 +548,7 @@ type Service interface {
 	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
 	// On success, it returns the mapping of team names to team ids.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) (map[string]uint, error)
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplyTeamSpecOptions) (map[string]uint, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
@@ -611,6 +613,7 @@ type Service interface {
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
+	AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software
@@ -653,11 +656,11 @@ type Service interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
-	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
+	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Geolocation
@@ -950,7 +953,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled bool,
+		assumeEnabled *bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////

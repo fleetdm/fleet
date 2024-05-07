@@ -22,8 +22,8 @@ func TestSoftwareInstallers(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"SoftwareInstallRequests", testSoftwareInstallRequests},
 		{"SoftwareInstallerDetails", testListSoftwareInstallerDetails},
-		{"InsertSoftwareInstallRequest", testInsertSoftwareInstallRequest},
 		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
 	}
 
@@ -163,7 +163,6 @@ func insertSoftwareInstaller(
 		postInstallScriptId,
 		storageId,
 	)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting software installer")
 	}
@@ -171,7 +170,7 @@ func insertSoftwareInstaller(
 	return res, nil
 }
 
-func testInsertSoftwareInstallRequest(t *testing.T, ds *Datastore) {
+func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// create a team
@@ -185,23 +184,30 @@ func testInsertSoftwareInstallRequest(t *testing.T, ds *Datastore) {
 
 	for tc, teamID := range cases {
 		t.Run(tc, func(t *testing.T) {
-			// non-existent installer and host does the installer check first
-			err := ds.InsertSoftwareInstallRequest(ctx, 1, 1, teamID)
+			// non-existent installer
+			si, err := ds.GetSoftwareInstallerForTitle(ctx, 1, teamID)
 			var nfe fleet.NotFoundError
 			require.ErrorAs(t, err, &nfe)
+			require.Nil(t, si)
 
-			// non-existent host
 			installerID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 				Title:         "foo",
 				Source:        "bar",
 				InstallScript: "echo",
 				TeamID:        teamID,
+				Filename:      "foo.pkg",
 			})
 			require.NoError(t, err)
 			installerMeta, err := ds.GetSoftwareInstallerMetadata(ctx, installerID, false)
 			require.NoError(t, err)
 
-			err = ds.InsertSoftwareInstallRequest(ctx, 12, installerMeta.TitleID, teamID)
+			si, err = ds.GetSoftwareInstallerForTitle(ctx, installerMeta.TitleID, teamID)
+			require.NoError(t, err)
+			require.NotNil(t, si)
+			require.Equal(t, "foo.pkg", si.Name)
+
+			// non-existent host
+			err = ds.InsertSoftwareInstallRequest(ctx, 12, si.InstallerID)
 			require.ErrorAs(t, err, &nfe)
 
 			// successful insert
@@ -214,7 +220,7 @@ func testInsertSoftwareInstallRequest(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareInstallRequest(ctx, host.ID, installerMeta.TitleID, teamID)
+			err = ds.InsertSoftwareInstallRequest(ctx, host.ID, si.InstallerID)
 			require.NoError(t, err)
 		})
 	}

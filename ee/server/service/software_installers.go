@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -257,19 +259,47 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return err
 	}
 
-	err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, softwareTitleID, host.TeamID)
+	installer, err := svc.ds.GetSoftwareInstallerForTitle(ctx, softwareTitleID, host.TeamID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{
-				Message:     "The software title provided doesn't have an installer",
-				InternalErr: ctxerr.Wrapf(ctx, err, "couldn't find an installer for software title"),
+				Message: "Software title has no package added. Please add software package to install.",
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "couldn't find an installer for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
 			}
 		}
 
-		return ctxerr.Wrap(ctx, err, "inserting software install request")
+		return ctxerr.Wrap(ctx, err, "finding software installer for title")
 	}
 
-	return nil
+	ext := filepath.Ext(installer.Name)
+	var requiredPlatform string
+	switch ext {
+	case ".msi", ".exe":
+		requiredPlatform = "windows"
+	case ".pkg":
+		requiredPlatform = "darwin"
+	case ".deb":
+		requiredPlatform = "linux"
+	default:
+		// this should never happen
+		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
+	}
+
+	if host.FleetPlatform() != requiredPlatform {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+			InternalErr: ctxerr.WrapWithData(
+				ctx, err, "invalid host platform for requested installer",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
+		}
+	}
+
+	err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, installer.InstallerID)
+	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
