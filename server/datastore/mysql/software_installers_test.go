@@ -209,7 +209,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.Equal(t, "foo.pkg", si.Name)
 
 			// non-existent host
-			err = ds.InsertSoftwareInstallRequest(ctx, 12, si.ID)
+			err = ds.InsertSoftwareInstallRequest(ctx, 12, si.InstallerID)
 			require.ErrorAs(t, err, &nfe)
 
 			// successful insert
@@ -222,7 +222,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareInstallRequest(ctx, host.ID, si.ID)
+			err = ds.InsertSoftwareInstallRequest(ctx, host.ID, si.InstallerID)
 			require.NoError(t, err)
 		})
 	}
