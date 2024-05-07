@@ -241,6 +241,17 @@ func (oc *OrbitClient) GetInstallerDetails(installId string) (*fleet.SoftwareIns
 	return resp.SoftwareInstallDetails, nil
 }
 
+func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
+	verb, path := "POST", "/api/fleet/orbit/software_install/details"
+	var resp orbitPostSoftwareInstallResultResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostSoftwareInstallResultRequest{
+		HostSoftwareInstallResultPayload: payload,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Ping sends a ping request to the orbit/ping endpoint.
 func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
