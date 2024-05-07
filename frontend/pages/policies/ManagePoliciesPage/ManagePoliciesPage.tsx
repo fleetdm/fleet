@@ -215,10 +215,10 @@ const ManagePolicyPage = ({
     },
     {
       enabled: isRouteOk && !isAnyTeamSelected,
-      select: (data) => data.policies,
+      select: (data) => data.policies || [],
       staleTime: 5000,
       onSuccess: (data) => {
-        setPoliciesAvailableToAutomate(data);
+        setPoliciesAvailableToAutomate(data || []);
       },
     }
   );
@@ -273,12 +273,12 @@ const ManagePolicyPage = ({
     },
     {
       enabled: isRouteOk && isPremiumTier && !!teamIdForApi,
-      select: (data: ILoadTeamPoliciesResponse) => data.policies,
+      select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
       onSuccess: (data) => {
         const allPoliciesAvailableToAutomate = data.filter(
           (policy: IPolicy) => policy.team_id === currentTeamId
         );
-        setPoliciesAvailableToAutomate(allPoliciesAvailableToAutomate);
+        setPoliciesAvailableToAutomate(allPoliciesAvailableToAutomate || []);
       },
     }
   );
