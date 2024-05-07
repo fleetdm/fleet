@@ -113,7 +113,6 @@ resource "aws_cloudwatch_metric_alarm" "lb" {
   evaluation_periods  = "1"
   metric_name         = each.value.alert
   namespace           = "AWS/ApplicationELB"
-  # These are ugly, but it probably isn't worth the effort to separate them in the local
   period              = each.value.alert_thresholds[each.value.alert].period
   statistic           = "Sum"
   threshold           = each.value.alert_thresholds[each.value.alert].threshold
