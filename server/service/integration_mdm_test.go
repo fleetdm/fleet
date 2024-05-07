@@ -8569,6 +8569,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 
 		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": ""}`, 0)
+
 		// check the software installer
 		installerID := checkSoftwareInstaller(t, payload)
 
@@ -8589,6 +8592,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/package/%d", installerID), nil, http.StatusNoContent)
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": ""}`, 0)
 	})
 
 	t.Run("create team software installer", func(t *testing.T) {
@@ -8616,6 +8622,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 		// check the software installer
 		installerID := checkSoftwareInstaller(t, payload)
 
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s"}`, createTeamResp.Team.Name), 0)
+
 		// upload again fails
 		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
@@ -8634,6 +8643,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/package/%d", installerID), nil, http.StatusNoContent)
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s"}`, createTeamResp.Team.Name), 0)
 	})
 }
 
