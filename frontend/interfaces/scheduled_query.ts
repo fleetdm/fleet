@@ -1,8 +1,7 @@
-// legacy interfaces to maintain packs support
 import PropTypes from "prop-types";
-import ILegacySchedulableQueryStats, {
-  ISchedulableQueryStats,
-} from "interfaces/schedulable_query";
+import scheduledQueryStatsInterface, {
+  IScheduledQueryStats,
+} from "./scheduled_query_stats";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -20,7 +19,7 @@ export default PropTypes.shape({
   version: PropTypes.string,
   shard: PropTypes.number,
   denylist: PropTypes.bool,
-  stats: ILegacySchedulableQueryStats,
+  stats: scheduledQueryStatsInterface,
 });
 
 export interface IPackQueryFormData {
@@ -53,7 +52,7 @@ export interface IScheduledQuery {
   shard?: number | undefined;
   denylist?: boolean;
   logging_type?: string;
-  stats: ISchedulableQueryStats;
+  stats: IScheduledQueryStats;
   team_id?: number;
 }
 export interface IEditScheduledQuery extends IScheduledQuery {

@@ -263,7 +263,7 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	}
 	var createQueryResp createQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
-	defer s.cleanupQuery(createQueryResp.Query.ID)
+	defer cleanupQuery(s, createQueryResp.Query.ID)
 
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
@@ -1579,7 +1579,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
-	defer s.cleanupQuery(q.ID)
+	defer cleanupQuery(s, q.ID)
 	globalPolicy0, err := s.ds.NewGlobalPolicy(
 		context.Background(), &user1.ID, fleet.PolicyPayload{
 			QueryID: &q.ID,
@@ -5791,7 +5791,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	require.NotNil(t, createQueryResp.Query)
 	existingQueryID := createQueryResp.Query.ID
-	defer s.cleanupQuery(existingQueryID)
+	defer cleanupQuery(s, existingQueryID)
 
 	for _, tc := range []struct {
 		tname    string
@@ -9011,7 +9011,7 @@ func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	return ssn
 }
 
-func (s *integrationTestSuite) cleanupQuery(queryID uint) {
+func cleanupQuery(s *integrationTestSuite, queryID uint) {
 	var delResp deleteQueryByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
 }

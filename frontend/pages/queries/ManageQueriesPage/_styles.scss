@@ -96,8 +96,6 @@
         }
         &__table {
           thead {
-            // maintain height when select header is removed
-            height: 52.3833px;
             .name__header {
               width: auto;
             }
@@ -133,39 +131,24 @@
               .query-name-cell {
                 display: flex; // required for inline icon
                 gap: $pad-xsmall;
-                text-decoration: none;
-                align-items: center;
-                &:hover {
+
+                .children-wrapper {
                   .query-name-text {
-                    text-decoration: underline;
-                  }
-                }
-
-                .query-name-text {
-                  text-overflow: ellipsis;
-                  overflow: hidden;
-                }
-
-                .inherited-badge {
-                  overflow: initial;
-                }
-                .observer-can-run-badge {
-                  @include tooltip5-arrow-styles;
-
-                  .react-tooltip {
-                    @include tooltip-text;
-                    font-style: normal;
-                    text-align: center;
+                    text-overflow: ellipsis;
+                    overflow: hidden;
                   }
                 }
               }
-              .observer-can-run-query-icon {
+              .query-icon {
                 display: block;
               }
 
               .children-wrapper {
                 display: flex;
                 gap: $pad-xsmall;
+              }
+              .observer-can-run-tooltip {
+                font-weight: $regular;
               }
             }
 
@@ -198,13 +181,6 @@
               }
             }
           }
-        }
-      }
-    }
-    .empty-table {
-      &__additional-info {
-        * {
-          font-size: $xx-small;
         }
       }
     }
