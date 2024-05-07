@@ -11141,7 +11141,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadata(ctx, sw1)
 	require.NoError(t, err)
-	err = s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.TitleID, nil)
+	err = s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID)
 	require.NoError(t, err)
 	h1Foo := latestSoftwareInstallerUUID()
 

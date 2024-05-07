@@ -382,10 +382,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h1E := hsr.ExecutionID
 	// create some software installs requests for h1, make some complete
-	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.TitleID, nil)
+	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID)
 	require.NoError(t, err)
 	h1FooFailed := latestSoftwareInstallerUUID()
-	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.TitleID, nil)
+	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID)
 	require.NoError(t, err)
 	h1Bar := latestSoftwareInstallerUUID()
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -394,7 +394,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		PreInstallConditionOutput: ptr.String(""), // pre-install failed
 	})
 	require.NoError(t, err)
-	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.TitleID, nil)
+	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID)
 	require.NoError(t, err)
 	h1FooInstalled := latestSoftwareInstallerUUID()
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -404,7 +404,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		InstallScriptExitCode:     ptr.Int(0),
 	})
 	require.NoError(t, err)
-	err = ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.TitleID, nil) // no user for this one
+	err = ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID) // no user for this one
 	require.NoError(t, err)
 	h1Foo := latestSoftwareInstallerUUID()
 
@@ -418,7 +418,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h2F := hsr.ExecutionID
 	// add a pending software install request for h2
-	err = ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.TitleID, nil)
+	err = ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID)
 	require.NoError(t, err)
 	h2Bar := latestSoftwareInstallerUUID()
 

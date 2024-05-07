@@ -491,7 +491,10 @@ type Datastore interface {
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided software installer in the host
-	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) error
+
+	// GetSoftwareInstallerForTitle TODO
+	GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*SoftwareInstaller, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
