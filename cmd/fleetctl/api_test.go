@@ -24,10 +24,10 @@ func TestRunApiCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	type testCase struct {
-		name           string
-		args           []string
-		expectOutput   string
-		expectErrMsg   string
+		name         string
+		args         []string
+		expectOutput string
+		expectErrMsg string
 	}
 
 	expectedScripts := `{
