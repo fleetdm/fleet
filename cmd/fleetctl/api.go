@@ -250,7 +250,6 @@ func apiCommand() *cli.Command {
 			params := url.Values{}
 			method := "GET"
 			// TODO add param for body for POST etc
-			//body := nil
 
 			if uriString == "" {
 				return errors.New("must provide uri first argument")
@@ -261,16 +260,18 @@ func apiCommand() *cli.Command {
 
 			if len(flField) > 0 {
 				for _, each := range flField {
-					kv := strings.Split(each, "=")
-					params.Add(kv[0], kv[1])
+					k, v, found := strings.Cut(each, "=")
+					if !found { continue }
+					params.Add(k, v)
 				}
 			}
 
 			headers := map[string]string{}
 			if len(flHeader) > 0 {
 				for _, each := range flHeader {
-					values := strings.Split(each, ":")
-					headers[values[0]] = values[1]
+					k, v, found := strings.Cut(each, ":")
+					if !found { continue }
+					headers[k] = v
 				}
 			}
 
@@ -291,7 +292,6 @@ func apiCommand() *cli.Command {
 				return err
 			}
 
-			//                                string  string     string  interface
 			resp, err := fleetClient.AuthenticatedDoCustomHeaders(method, uriString, params.Encode(), nil, headers)
 			if err != nil {
 				return err
@@ -299,7 +299,7 @@ func apiCommand() *cli.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				_, err := io.Copy(os.Stdout, resp.Body)
+				_, err := io.Copy(c.App.Writer, resp.Body)
 				if err != nil {
 					return err
 				}
