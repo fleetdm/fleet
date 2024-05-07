@@ -114,9 +114,9 @@ resource "aws_cloudwatch_metric_alarm" "lb" {
   metric_name         = each.value.alert
   namespace           = "AWS/ApplicationELB"
   # These are ugly, but it probably isn't worth the effort to separate them in the local
-  period              = each.value[each.value.alert].period
+  period              = each.value.alert_thresholds[each.value.alert].period
   statistic           = "Sum"
-  threshold           = each.value[each.value.alert].threshold
+  threshold           = each.value.alert_thresholds[each.value.alert].threshold
   alarm_description   = "This alarm indicates there are an abnormal amount of 5XX responses.  Either the lb cannot talk with the Fleet backend target or Fleet is returning an error."
   alarm_actions       = lookup(var.sns_topic_arns_map, "alb_httpcode_5xx", var.default_sns_topic_arns)
   ok_actions          = lookup(var.sns_topic_arns_map, "alb_httpcode_5xx", var.default_sns_topic_arns)
