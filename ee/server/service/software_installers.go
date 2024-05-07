@@ -87,8 +87,17 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// TODO: QA what breaks when you have a software title with no versions?
 
+	var teamName string
+	if payload.TeamID != nil {
+		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		if err != nil {
+			return err
+		}
+		teamName = t.Name
+	}
+
 	// Create activity
-	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{SoftwareTitle: title, SoftwarePackage: payload.Filename}); err != nil {
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{SoftwareTitle: title, SoftwarePackage: payload.Filename, TeamName: teamName}); err != nil {
 		return nil
 	}
 
@@ -125,7 +134,16 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 		return ctxerr.Wrap(ctx, err, "deleting software installer")
 	}
 
-	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{SoftwareTitle: meta.SoftwareTitle, SoftwarePackage: meta.Name}); err != nil {
+	var teamName string
+	if meta.TeamID != nil {
+		t, err := svc.ds.Team(ctx, *meta.TeamID)
+		if err != nil {
+			return err
+		}
+		teamName = t.Name
+	}
+
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{SoftwareTitle: meta.SoftwareTitle, SoftwarePackage: meta.Name, TeamName: teamName}); err != nil {
 		return nil
 	}
 

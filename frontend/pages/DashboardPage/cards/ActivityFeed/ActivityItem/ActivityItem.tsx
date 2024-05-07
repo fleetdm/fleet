@@ -825,7 +825,11 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added {activity.details?.software_title} (
-        {activity.details?.software_package}) software
+        {activity.details?.software_package}) software to{" "}
+        {activity.details?.team_name
+          ? `team ${activity.details?.team_name}`
+          : "no team"}
+        .
       </>
     );
   },
@@ -834,7 +838,11 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         deleted {activity.details?.software_title} (
-        {activity.details?.software_package}) software
+        {activity.details?.software_package}) software from{" "}
+        {activity.details?.team_name
+          ? `team ${activity.details?.team_name}`
+          : "no team"}
+        .
       </>
     );
   },
