@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/osquery/osquery-go"
@@ -42,7 +43,7 @@ type Runner struct {
 	// execCmdFn can be set for tests to mock actual execution of the script. If
 	// nil, execCmd will be used, which has a different implementation on Windows
 	// and non-Windows platforms.
-	execCmdFn func(ctx context.Context, scriptPath string) ([]byte, int, error)
+	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
@@ -153,16 +154,19 @@ func (r *Runner) InstallSoftware(ctx context.Context, installId string) (*fleet.
 func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScriptResult, installerPath string) (string, int, error) {
 	// run script in installer directory
 	scriptPath := filepath.Join(installerPath, strconv.Itoa(int(script.ID)))
-	if err := os.WriteFile(scriptPath, []byte(script.ScriptContents), os.ModePerm); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(script.ScriptContents), 0700); err != nil {
 		return "", -1, ctxerr.Wrap(ctx, err, "writing script")
 	}
 
 	if r.execCmdFn == nil {
-		// TODO merge in main first, add env variables
-		// r.execCmdFn = scripts.ExecCmd
+		r.execCmdFn = scripts.ExecCmd
 	}
 
-	output, exitCode, err := r.execCmdFn(ctx, scriptPath)
+	env := os.Environ()
+	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", scriptPath)
+	env = append(env, installerPathEnv)
+
+	output, exitCode, err := r.execCmdFn(ctx, scriptPath, env)
 	if err != nil {
 		return string(output), exitCode, err
 	}
