@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -83,7 +84,6 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.user_id,
 			a.created_at,
 			a.activity_type,
-			a.details,
 			a.user_name as name,
 			a.streamed,
 			a.user_email
@@ -100,10 +100,42 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
 
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
-	if err == sql.ErrNoRows {
-		return nil, nil, ctxerr.Wrap(ctx, notFound("Activity"))
-	} else if err != nil {
+	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
+	}
+
+	if len(activities) > 0 {
+		// Fetch details as a separate query due to sort buffer issue triggered by large JSON details entries. Issue last reproduced on MySQL 8.0.36
+		// https://stackoverflow.com/questions/29575835/error-1038-out-of-sort-memory-consider-increasing-sort-buffer-size/67266529
+		IDs := make([]uint, 0, len(activities))
+		for _, a := range activities {
+			IDs = append(IDs, a.ID)
+		}
+		detailsStmt, detailsArgs, err := sqlx.In("SELECT id, details FROM activities WHERE id IN (?)", IDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding activity IDs")
+		}
+		type activityDetails struct {
+			ID      uint             `db:"id"`
+			Details *json.RawMessage `db:"details"`
+		}
+		var details []activityDetails
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &details, detailsStmt, detailsArgs...)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "select activities details")
+		}
+		detailsLookup := make(map[uint]*json.RawMessage, len(details))
+		for _, d := range details {
+			detailsLookup[d.ID] = d.Details
+		}
+		for _, a := range activities {
+			det, ok := detailsLookup[a.ID]
+			if !ok {
+				level.Warn(ds.logger).Log("msg", "Activity details not found", "activity_id", a.ID)
+				continue
+			}
+			a.Details = det
+		}
 	}
 
 	// Fetch users as a stand-alone query (because of performance reasons)
