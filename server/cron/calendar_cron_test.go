@@ -2,7 +2,10 @@ package cron
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"strconv"
 	"strings"
@@ -166,9 +169,10 @@ func TestEventForDifferentHost(t *testing.T) {
 		require.Equal(t, []uint{policyID1}, policyIDs)
 		return []fleet.HostPolicyMembershipData{
 			{
-				HostID:  hostID1,
-				Email:   userEmail1,
-				Passing: false,
+				HostID:           hostID1,
+				Email:            userEmail1,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d", policyID1),
 			},
 		}, nil
 	}
@@ -278,9 +282,10 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		require.Equal(t, []uint{policyID1, policyID2}, policyIDs)
 		return []fleet.HostPolicyMembershipData{
 			{
-				HostID:  hostID1,
-				Email:   userEmail1,
-				Passing: false,
+				HostID:           hostID1,
+				Email:            userEmail1,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d,%d", policyID1, policyID2),
 			},
 			{
 				HostID:  hostID2,
@@ -288,9 +293,10 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 				Passing: true,
 			},
 			{
-				HostID:  hostID3,
-				Email:   "", // because it does not belong to example.com
-				Passing: false,
+				HostID:           hostID3,
+				Email:            "", // because it does not belong to example.com
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d,%d", policyID1, policyID2),
 			},
 			{
 				HostID:  hostID4,
@@ -298,6 +304,23 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 				Passing: true,
 			},
 		}, nil
+	}
+	ds.PolicyLiteFunc = func(ctx context.Context, policyID uint) (*fleet.PolicyLite, error) {
+		switch policyID {
+		case policyID1:
+			return &fleet.PolicyLite{
+				ID:          policyID1,
+				Description: "Policy 1",
+			}, nil
+		case policyID2:
+			return &fleet.PolicyLite{
+				ID:          policyID2,
+				Description: "Policy 2",
+			}, nil
+		default:
+			t.Errorf("unexpected policy ID: %d", policyID)
+			return nil, nil
+		}
 	}
 
 	ds.GetHostCalendarEventByEmailFunc = func(ctx context.Context, email string) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {
@@ -352,6 +375,8 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 
 	createdCalendarEvents := calendar.ListGoogleMockEvents()
 	require.Len(t, createdCalendarEvents, 1)
+	strings.Contains(createdCalendarEvents["1"].Description, defaultDescription)
+	strings.Contains(createdCalendarEvents["1"].Description, defaultResolution)
 }
 
 type notFoundErr struct{}
@@ -531,13 +556,36 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 
 	hosts := make([]fleet.HostPolicyMembershipData, 0, 1000)
 	for i := 0; i < 1000; i++ {
-		hosts = append(hosts, fleet.HostPolicyMembershipData{
+		newHost := fleet.HostPolicyMembershipData{
 			Email:              fmt.Sprintf("user%d@example.com", i),
 			Passing:            i%2 == 0,
 			HostID:             uint(i),
 			HostDisplayName:    fmt.Sprintf("display_name%d", i),
 			HostHardwareSerial: fmt.Sprintf("serial%d", i),
-		})
+		}
+		if !newHost.Passing {
+			switch {
+			case i >= 0 && i < 200:
+				newHost.FailingPolicyIDs = fmt.Sprintf("%d,%d", policyID1, policyID2)
+			case i >= 200 && i < 400:
+				newHost.FailingPolicyIDs = fmt.Sprintf("%d", policyID4)
+			case i >= 400 && i < 600:
+				newHost.FailingPolicyIDs = fmt.Sprintf("%d", policyID5)
+			case i >= 600 && i < 800:
+				newHost.FailingPolicyIDs = fmt.Sprintf("%d,%d", policyID7, policyID8)
+			default:
+				newHost.FailingPolicyIDs = fmt.Sprintf("%d,%d", policyID9, policyID10)
+			}
+		}
+		hosts = append(hosts, newHost)
+	}
+	ds.PolicyLiteFunc = func(ctx context.Context, policyID uint) (*fleet.PolicyLite, error) {
+		resolution := fmt.Sprintf("Resolution for policy %d", policyID)
+		return &fleet.PolicyLite{
+			ID:          policyID,
+			Description: fmt.Sprintf("Policy %d", policyID),
+			Resolution:  &resolution,
+		}, nil
 	}
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
@@ -644,4 +692,263 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 
 	createdCalendarEvents = calendar.ListGoogleMockEvents()
 	require.Len(t, createdCalendarEvents, 0)
+}
+
+// TestEventDescription tests generation of the event description.
+func TestEventDescription(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
+	t.Cleanup(
+		func() {
+			calendar.ClearMockEvents()
+		},
+	)
+
+	//
+	// Test setup
+	//
+	//	team1:
+	//
+	//	policyID1 (calendar) -- has description and resolution
+	//	policyID2 (calendar) -- has description, but blank resolution
+	//	policyID3 (calendar) -- has description, but nil resolution
+	//	policyID4 (calendar) -- has no description, but has resolution
+	//  policyID5 (calendar) -- returns error on lookup
+	//
+	// 	hostID1 not passing policyID1
+	// 	hostID2 not passing policyID2
+	// 	hostID3 not passing policyID3
+	// 	hostID4 not passing policyID4
+	//  hostID5 not passing policies 1,2,3,4
+	//  hostID6 also not passing policyID1
+	//  hostID7 not passing policyID5
+	//
+
+	const orgName = "Test Organization"
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: orgName,
+			},
+			Integrations: fleet.Integrations{
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+					{
+						Domain: "example.com",
+						ApiKey: map[string]string{
+							fleet.GoogleCalendarEmail: "calendar-mock@example.com",
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	teamID1 := uint(1)
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{
+			{
+				ID: teamID1,
+				Config: fleet.TeamConfig{
+					Integrations: fleet.TeamIntegrations{
+						GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
+							Enable:     true,
+							WebhookURL: "https://foo.example.com",
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	policyID1 := uint(10)
+	policyID2 := uint(11)
+	policyID3 := uint(12)
+	policyID4 := uint(13)
+	policyID5 := uint(14)
+	ds.GetCalendarPoliciesFunc = func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
+		require.Equal(t, teamID1, teamID)
+		return []fleet.PolicyCalendarData{
+			{
+				ID:   policyID1,
+				Name: "Policy 1",
+			},
+			{
+				ID:   policyID2,
+				Name: "Policy 2",
+			},
+			{
+				ID:   policyID3,
+				Name: "Policy 3",
+			},
+			{
+				ID:   policyID4,
+				Name: "Policy 4",
+			},
+			{
+				ID:   policyID5,
+				Name: "Policy 5",
+			},
+		}, nil
+	}
+
+	hostID1, userEmail1 := uint(100), "user1@example.com"
+	hostID2, userEmail2 := uint(101), "user2@example.com"
+	hostID3, userEmail3 := uint(102), "user3@example.com"
+	hostID4, userEmail4 := uint(103), "user4@example.com"
+	hostID5, userEmail5 := uint(104), "user5@example.com"
+	hostID6, userEmail6 := uint(105), "user6@example.com"
+	hostID7, userEmail7 := uint(106), "user7@example.com"
+
+	ds.GetTeamHostsPolicyMembershipsFunc = func(
+		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+	) ([]fleet.HostPolicyMembershipData, error) {
+		require.Equal(t, "example.com", domain)
+		require.Equal(t, teamID1, teamID)
+		require.Equal(t, []uint{policyID1, policyID2, policyID3, policyID4, policyID5}, policyIDs)
+		return []fleet.HostPolicyMembershipData{
+			{
+				HostID:           hostID1,
+				Email:            userEmail1,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d", policyID1),
+			},
+			{
+				HostID:           hostID2,
+				Email:            userEmail2,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d", policyID2),
+			},
+			{
+				HostID:           hostID3,
+				Email:            userEmail3,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d", policyID3),
+			},
+			{
+				HostID:           hostID4,
+				Email:            userEmail4,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d", policyID4),
+			},
+			{
+				HostID:           hostID5,
+				Email:            userEmail5,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d,%d,%d,%d", policyID1, policyID2, policyID3, policyID4),
+			},
+			{
+				HostID:           hostID6,
+				Email:            userEmail6,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d", policyID1),
+			},
+			{
+				HostID:           hostID7,
+				Email:            userEmail7,
+				Passing:          false,
+				FailingPolicyIDs: fmt.Sprintf("%d", policyID5),
+			},
+		}, nil
+	}
+	ds.PolicyLiteFunc = func(ctx context.Context, policyID uint) (*fleet.PolicyLite, error) {
+		switch policyID {
+		case policyID1:
+			return &fleet.PolicyLite{
+				ID:          policyID1,
+				Description: "Description for policy 1",
+				Resolution:  ptr.String("Resolution for policy 1"),
+			}, nil
+		case policyID2:
+			return &fleet.PolicyLite{
+				ID:          policyID2,
+				Description: "Description for policy 2",
+				Resolution:  ptr.String(""),
+			}, nil
+		case policyID3:
+			return &fleet.PolicyLite{
+				ID:          policyID2,
+				Description: "Description for policy 3",
+				Resolution:  nil,
+			}, nil
+		case policyID4:
+			return &fleet.PolicyLite{
+				ID:         policyID4,
+				Resolution: ptr.String("Resolution for policy 4"),
+			}, nil
+		case policyID5:
+			return nil, notFoundErr{}
+		default:
+			t.Errorf("unexpected policy ID: %d", policyID)
+			return nil, nil
+		}
+	}
+
+	ds.GetHostCalendarEventByEmailFunc = func(ctx context.Context, email string) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {
+		return nil, nil, notFoundErr{}
+	}
+
+	var eventsMu sync.Mutex
+	calendarEvents := make(map[uint]*fleet.CalendarEvent)
+	hostCalendarEvents := make(map[uint]*fleet.HostCalendarEvent)
+
+	ds.CreateOrUpdateCalendarEventFunc = func(
+		ctx context.Context,
+		email string,
+		startTime, endTime time.Time,
+		data []byte,
+		hostID uint,
+		webhookStatus fleet.CalendarWebhookStatus,
+	) (*fleet.CalendarEvent, error) {
+		require.Equal(t, fleet.CalendarWebhookStatusNone, webhookStatus)
+		require.NotEmpty(t, data)
+		require.NotZero(t, startTime)
+		require.NotZero(t, endTime)
+
+		eventsMu.Lock()
+		calendarEventID := uint(len(calendarEvents) + 1)
+		calendarEvents[hostID] = &fleet.CalendarEvent{
+			ID:        calendarEventID,
+			Email:     email,
+			StartTime: startTime,
+			EndTime:   endTime,
+			Data:      data,
+		}
+		hostCalendarEventID := uint(len(hostCalendarEvents) + 1)
+		hostCalendarEvents[hostID] = &fleet.HostCalendarEvent{
+			ID:              hostCalendarEventID,
+			HostID:          hostID,
+			CalendarEventID: calendarEventID,
+			WebhookStatus:   webhookStatus,
+		}
+		eventsMu.Unlock()
+		return nil, nil
+	}
+
+	err := cronCalendarEvents(ctx, ds, logger)
+	require.NoError(t, err)
+
+	numberOfEvents := 7
+	eventsMu.Lock()
+	require.Len(t, calendarEvents, numberOfEvents)
+	require.Len(t, hostCalendarEvents, numberOfEvents)
+	eventsMu.Unlock()
+
+	createdCalendarEvents := calendar.ListGoogleMockEvents()
+	require.Len(t, createdCalendarEvents, numberOfEvents)
+	for _, hostCalEvent := range hostCalendarEvents {
+		var details map[string]string
+		err = json.Unmarshal(calendarEvents[hostCalEvent.HostID].Data, &details)
+		require.NoError(t, err)
+		description := createdCalendarEvents[details["id"]].Description
+		defaultDescriptionWithOrg := fmt.Sprintf("%s %s", orgName, defaultDescription)
+		switch hostCalEvent.HostID {
+		case hostID1, hostID6:
+			assert.Contains(t, description, "Description for policy 1")
+			assert.Contains(t, description, "Resolution for policy 1")
+		default:
+			assert.Contains(t, description, defaultDescriptionWithOrg)
+			assert.Contains(t, description, defaultResolution)
+		}
+	}
 }

@@ -949,7 +949,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 				},
 			},
 		}
-		if _, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{}); err != nil {
+		if _, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{}); err != nil {
 			return nil, err
 		}
 		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {

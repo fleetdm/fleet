@@ -165,6 +165,7 @@ func TestHosts(t *testing.T) {
 		{"HostHealth", testHostHealth},
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
+		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -8859,4 +8860,201 @@ func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
 			require.ElementsMatch(t, c.out, got)
 		})
 	}
+}
+
+func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	hostCount := 1
+	newHost := func(teamID *uint) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String(fmt.Sprintf("foobar%d", hostCount)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey%d", hostCount)),
+			TeamID:        teamID,
+		})
+		require.NoError(t, err)
+		hostCount++
+		return h
+	}
+	newQuery := func(name string, teamID *uint) *fleet.Query {
+		q, err := ds.NewQuery(ctx, &fleet.Query{
+			Name:    name,
+			Query:   "SELECT 1:",
+			TeamID:  teamID,
+			Logging: fleet.LoggingSnapshot,
+		})
+		require.NoError(t, err)
+		return q
+	}
+
+	h0 := newHost(nil)
+	h1 := newHost(&team1.ID)
+	h2 := newHost(&team2.ID)
+	h3 := newHost(&team2.ID)
+
+	hostStaticOnTeam1 := newHost(&team1.ID) // host that we won't move
+
+	query0Global := newQuery("query0Global", nil)
+	query1Team1 := newQuery("query1Team1", &team1.ID)
+	query2Team2 := newQuery("query2Team2", &team2.ID)
+
+	// Transfer h2 from team2 to team1 and back without any query results yet.
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h2.ID})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{h2.ID})
+	require.NoError(t, err)
+
+	data := ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`))
+	h0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h0.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h1Global0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h1.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h1Query1Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h1.ID,
+			QueryID: query1Team1.ID,
+			Data:    data,
+		},
+	}
+	h2Global0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h2.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h2Query2Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h2.ID,
+			QueryID: query2Team2.ID,
+			Data:    data,
+		},
+	}
+	h3Global0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h3.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h3Query2Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h3.ID,
+			QueryID: query2Team2.ID,
+			Data:    data,
+		},
+	}
+	h4Global0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  hostStaticOnTeam1.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h4Query1Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  hostStaticOnTeam1.ID,
+			QueryID: query1Team1.ID,
+			Data:    data,
+		},
+	}
+	for _, results := range [][]*fleet.ScheduledQueryResultRow{
+		h0Results,
+		h1Global0Results,
+		h1Query1Results,
+		h2Global0Results,
+		h2Query2Results,
+		h3Global0Results,
+		h3Query2Results,
+		h4Global0Results,
+		h4Query1Results,
+	} {
+		err = ds.OverwriteQueryResultRows(ctx, results)
+		require.NoError(t, err)
+	}
+
+	tf := fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	}
+
+	rows, err := ds.QueryResultRows(ctx, query0Global.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 5)
+	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+
+	// Transfer h2 from team2 to team1.
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h2.ID})
+	require.NoError(t, err)
+	// Transfer h1 from team1 to team2.
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{h1.ID})
+	require.NoError(t, err)
+	// Transfer h3 from team2 to global.
+	err = ds.AddHostsToTeam(ctx, nil, []uint{h3.ID})
+	require.NoError(t, err)
+
+	// No global query results should be deleted
+	rows, err = ds.QueryResultRows(ctx, query0Global.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 5)
+	// Results for h1 should be gone, and results for hostStaticOnTeam1 should be here.
+	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, hostStaticOnTeam1.ID, rows[0].HostID)
+	// Results for h2 and h3 should be gone.
+	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	require.NoError(t, err)
+	require.Empty(t, rows)
+
+	// h1 should have only the global result.
+	h1, err = ds.Host(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, h1.PackStats, 1)
+	require.Len(t, h1.PackStats[0].QueryStats, 1)
+	require.Equal(t, query0Global.ID, h1.PackStats[0].QueryStats[0].ScheduledQueryID)
+
+	// h2 should have only the global result.
+	h2, err = ds.Host(ctx, h2.ID)
+	require.NoError(t, err)
+	require.Len(t, h2.PackStats, 1)
+	require.Len(t, h2.PackStats[0].QueryStats, 1)
+	require.Equal(t, query0Global.ID, h2.PackStats[0].QueryStats[0].ScheduledQueryID)
+
+	// h3 should have only the global result.
+	h3, err = ds.Host(ctx, h3.ID)
+	require.NoError(t, err)
+	require.Len(t, h3.PackStats, 1)
+	require.Len(t, h3.PackStats[0].QueryStats, 1)
+	require.Equal(t, query0Global.ID, h3.PackStats[0].QueryStats[0].ScheduledQueryID)
+
+	// hostStaticOnTeam1 should have the global result and the team1 result.
+	hostStaticOnTeam1, err = ds.Host(ctx, hostStaticOnTeam1.ID)
+	require.NoError(t, err)
+	require.Len(t, hostStaticOnTeam1.PackStats, 2)
+	require.Len(t, hostStaticOnTeam1.PackStats[0].QueryStats, 1)
+	require.Equal(t, query0Global.ID, hostStaticOnTeam1.PackStats[0].QueryStats[0].ScheduledQueryID)
+	require.Len(t, hostStaticOnTeam1.PackStats[1].QueryStats, 1)
+	require.Equal(t, query1Team1.ID, hostStaticOnTeam1.PackStats[1].QueryStats[0].ScheduledQueryID)
 }
