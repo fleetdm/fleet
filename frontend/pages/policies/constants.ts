@@ -80,7 +80,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM (SELECT encrypted, path FROM disk_encryption FULL OUTER JOIN mounts ON mounts.device_alias = disk_encryption.name) WHERE encrypted = 1 AND path = '/';",
     name: "Full disk encryption enabled (Linux)",
     description:
-      "Unencrypted root filesystem means sensitive data might be easily accessible to unauthorized parties, increases data breach risks.",
+      "Unencrypted root filesystem means sensitive data might be easily accessible to unauthorized parties, increasing data breach risks.",
     resolution:
       "Ensure the image deployed to your Linux workstation includes full disk encryption.",
     critical: false,
