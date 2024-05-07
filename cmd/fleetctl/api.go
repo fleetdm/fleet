@@ -261,7 +261,9 @@ func apiCommand() *cli.Command {
 			if len(flField) > 0 {
 				for _, each := range flField {
 					k, v, found := strings.Cut(each, "=")
-					if !found { continue }
+					if !found {
+						continue
+					}
 					params.Add(k, v)
 				}
 			}
@@ -270,7 +272,9 @@ func apiCommand() *cli.Command {
 			if len(flHeader) > 0 {
 				for _, each := range flHeader {
 					k, v, found := strings.Cut(each, ":")
-					if !found { continue }
+					if !found {
+						continue
+					}
 					headers[k] = v
 				}
 			}

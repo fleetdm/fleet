@@ -24,11 +24,11 @@ func TestRunApiCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	type testCase struct {
-		name                string
-		args                []string
-		expectOutput        string
-		expectErrMsg        string
-		expectNotFound      bool
+		name           string
+		args           []string
+		expectOutput   string
+		expectErrMsg   string
+		expectNotFound bool
 	}
 
 	expectedScripts := `{
@@ -56,7 +56,6 @@ func TestRunApiCommand(t *testing.T) {
   "scripts": []
 }
 `
-
 
 	cases := []testCase{
 		{
@@ -92,18 +91,18 @@ func TestRunApiCommand(t *testing.T) {
 				created_at.Format(time.RFC3339Nano)),
 		},
 		{
-			name: "get scripts team",
-			args: []string{"-F", "team_id=1", "scripts"},
+			name:         "get scripts team",
+			args:         []string{"-F", "team_id=1", "scripts"},
 			expectOutput: expectedEmptyScripts,
 		},
 		{
-			name: "get scripts team no cache",
-			args: []string{"-H", "cache-control:no-cache", "-F", "team_id=1", "scripts"},
+			name:         "get scripts team no cache",
+			args:         []string{"-H", "cache-control:no-cache", "-F", "team_id=1", "scripts"},
 			expectOutput: expectedEmptyScripts,
 		},
 		{
-			name: "get typo",
-			args: []string{"vresion"},
+			name:         "get typo",
+			args:         []string{"vresion"},
 			expectErrMsg: "Got non 2XX return of 404",
 		},
 	}
@@ -113,8 +112,8 @@ func TestRunApiCommand(t *testing.T) {
 			if teamID == nil {
 				ret := []*fleet.Script{
 					&fleet.Script{
-						ID: 23,
-						Name: "get_my_device_page.sh",
+						ID:        23,
+						Name:      "get_my_device_page.sh",
 						CreatedAt: created_at,
 						UpdatedAt: created_at,
 					},
@@ -126,7 +125,7 @@ func TestRunApiCommand(t *testing.T) {
 			}
 		}
 	}
-	
+
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			setupDS(t, c)
