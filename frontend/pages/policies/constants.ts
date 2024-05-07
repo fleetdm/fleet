@@ -244,9 +244,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;",
     name: "Installation of application updates is enabled (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to Apple applications.",
+      "When the Mac is not configureed to automatically install updates to Apple applications, this risks security vulnerabilities and potential exploitation.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that enables installation of application updates.",
+      "The automatic software update feature will be enabled to ensure that the laptop receives timely updates.",
     critical: false,
     platform: "darwin",
   },
@@ -256,9 +256,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;",
     name: "Automatic security and data file updates is enabled (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools.",
+      "If the Mac is not automatically downloading updates to built-in macOS security tools, critical updates may not be installed, leaving the device vulnerable to potential exploitation.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation.",
+      "Enable automatic security and data update installation.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -270,9 +270,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     name:
       "Automatic installation of operating system updates is enabled (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates.",
+      "If automatic macOS updates are not enabled, critical updates may not be installed, leaving the device vulnerable to potential exploitation.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates.",
+      "Enable automatic installation of operating system updates.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -283,9 +283,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;",
     name: "Time and date are configured to be updated automatically (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date.",
+      "If the automatic setting of date and time is disabled, there could be synchronization issues with other systems, services, or applications.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration.",
+      "Enable automatic time and date configuration.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -296,9 +296,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);",
     name: "Lock screen after inactivity of 20 minutes or less (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less.",
+      "Inadequate screen saver security settings could potentially allow unauthorized access to the laptop if left unattended for extended periods.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less.",
+      "Ensure screen saver is enabled after inactivity of 20 minutes or less.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -309,9 +309,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;",
     name: "Internet sharing blocked (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing.",
+      "Unauthorized Internet sharing could potentially expose sensitive network resources to external threats.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing.",
+      "The Internet sharing setting will be disabled",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -322,9 +322,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;",
     name: "Content caching is disabled (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching.",
+      "Failing to disable content caching could lead to unauthorized caching of sensitive data, potentially exposing it to unauthorized access.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching.",
+      "Content caching will be disabled.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -335,9 +335,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;",
     name: "Ad tracking is limited (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking.",
+      "Failure to limit ad tracking could result in excessive tracking of user behavior and preferences by advertisers, compromising privacy.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking.",
+      "Advertisement tracking will be disabled.",
     critical: false,
     platform: "darwin",
   },
@@ -360,9 +360,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;",
     name: "Firewall logging is enabled (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity.",
+      "Failure to disable cloud sync could result in unauthorized access to sensitive data stored in the cloud, potentially leading to data breaches and compromising confidentiality.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging.",
+      "Cloud sync will be disabled.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -373,9 +373,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;",
     name: "Guest account disabled (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account.",
+      "Use of the guest account could allow unauthorized users to access the system, potentially leading to unauthorized access to sensitive data and security breaches.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account.",
+      "The guest account will be disabled.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -386,9 +386,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;",
     name: "Guest access to shared folders is disabled (macOS)",
     description:
-      "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders.",
+      "Guest access to shared folders could allow unauthorized users to access sensitive files and data, potentially leading to data breaches or unauthorized modifications.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders.",
+      "Guest access to shared folders will be disabled.",
     critical: false,
     platform: "darwin",
     mdm_required: true,
@@ -397,11 +397,11 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     key: 31,
     query:
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallDomainProfileEnableFirewall' AND CAST(data as integer) = 1;",
-    name: "Windows Firewall, Domain Profile enabled (Windows)",
+    name: "Windows Firewall, domain profile enabled (Windows)",
     description:
-      "Checks if a Group Policy configures the computer to enable the domain profile for Windows Firewall. The domain profile applies to networks where the host system can authenticate to a domain controller. Some auditors require that this setting is configured by a Group Policy.",
+      "If the Windows Firewall is not enabled for the domain profile, the laptop may be more vulnerable to unauthorized network access and potential security breaches.",
     resolution:
-      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall.",
+      "The Windows Firewall will be enabled for the domain profile.",
     critical: false,
     platform: "windows",
   },
@@ -409,11 +409,11 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     key: 32,
     query:
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallPrivateProfileEnableFirewall' AND CAST(data as integer) = 1;",
-    name: "Windows Firewall, Private Profile enabled (Windows)",
+    name: "Windows Firewall, private profile enabled (Windows)",
     description:
-      "Checks if a Group Policy configures the computer to enable the private profile for Windows Firewall. The private profile applies to networks where the host system is connected to a private or home network. Some auditors require that this setting is configured by a Group Policy.",
+      "If the Windows Firewall is not enabled for the private profile, the laptop may be more susceptible to unauthorized access and potential security breaches, particularly when connected to private networks.",
     resolution:
-      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall.",
+      "The Windows Firewall will be enabled for the private profile",
     critical: false,
     platform: "windows",
   },
@@ -421,11 +421,11 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     key: 33,
     query:
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsFirewallPublicProfileEnableFirewall' AND CAST(data as integer) = 1;",
-    name: "Windows Firewall, Public Profile enabled (Windows)",
+    name: "Windows Firewall, public profile enabled (Windows)",
     description:
-      "Checks if a Group Policy configures the computer to enable the public profile for Windows Firewall. The public profile applies to networks where the host system is connected to public networks such as Wi-Fi hotspots at coffee shops and airports. Some auditors require that this setting is configured by a Group Policy.",
+      "If the Windows Firewall is not enabled for the public profile, the laptop may be more vulnerable to unauthorized access and potential security threats, especially when connected to public networks.",
     resolution:
-      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall.",
+      "The Windows Firewall will be enabled for the public profile.",
     critical: false,
     platform: "windows",
   },
@@ -434,9 +434,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     query:
       "SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;",
     name: "SMBv1 client driver disabled (Windows)",
-    description: "Checks that the SMBv1 client is disabled.",
+    description: "Leaving the SMBv1 client enabled increases vulnerability to security threats and potential exploitation by malicious actors.",
     resolution:
-      "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+      "The SMBv1 client will be disabled.",
     critical: false,
     platform: "windows",
   },
@@ -445,9 +445,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     query:
       "SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1",
     name: "SMBv1 server disabled (Windows)",
-    description: "Checks that the SMBv1 server is disabled.",
+    description: "Leaving the SMBv1 server enabled exposes the laptop to potential security vulnerabilities and exploitation by malicious actors.",
     resolution:
-      "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+      "The SMBv1 server will be disabled.",
     critical: false,
     platform: "windows",
   },
@@ -457,9 +457,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESOFTWAREPoliciesMicrosoftWindows NTDNSClientEnableMulticast' AND CAST(data as integer) = 0;",
     name: "LLMNR disabled (Windows)",
     description:
-      "Checks if a Group Policy configures the computer to disable LLMNR. Some auditors requires that this setting is configured by a Group Policy.",
+      "If the laptop does not have LLMNR disabled, it could be vulnerable to DNS spoofing attacks, potentially leading to unauthorized access or data interception.",
     resolution:
-      "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system.",
+      "LLMNR will be disabled on your system.",
     critical: false,
     platform: "windows",
   },
@@ -469,9 +469,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINESoftwarePoliciesMicrosoftWindowsWindowsUpdateAUNoAutoUpdate' AND CAST(data as integer) = 0;",
     name: "Automatic updates enabled (Windows)",
     description:
-      "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors requires that this setting is configured by a Group Policy.",
+      "Enabling automatic updates ensures the computer downloads and installs security and other important updates automatically.",
     resolution:
-      "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates.",
+      "Automatic updates will be enabled.",
     critical: false,
     platform: "windows",
   },
@@ -482,9 +482,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     name:
       "No 1Password emergency kit stored on desktop or in downloads (macOS)",
     description:
-      "Looks for PDF files with file names typically used by 1Password for emergency recovery kits.",
+      "Storing the 1Password emergency kit on the desktop or in the downloads folder increases the risk of unauthorized access to sensitive credentials if the laptop is compromised or accessed by unauthorized users.",
     resolution:
-      "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location.",
+      "1Password emergency kits should only be printed and stored in a physically secure location.",
     critical: false,
     platform: "darwin",
   },
@@ -493,9 +493,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     query:
       "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');",
     name: "No unencrypted SSH keys present",
-    description: "Checks if unencrypted SSH keys are present on the system.",
+    description: "Having unencrypted SSH keys poses the risk of unauthorized access to sensitive systems and data if the laptop is compromised.",
     resolution:
-      "Remove SSH keys that are not necessary, and encrypt those that are. On Mac and Linux, use this command to encrypt your existing SSH keys: ssh-keygen -o -p -f path/to/keyfile",
+      "Any unencrypted SSH keys will be encrypted or removed from the laptop.",
     critical: false,
     platform: "darwin",
   },
@@ -505,9 +505,9 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM keychain_items WHERE label LIKE '%ABCDEFG%' LIMIT 1);",
     name: "No Apple signing or notarization credentials secrets stored (macOS)",
     description:
-      "Looks for certificate material linked to a company's Apple Developer account, which should only be present on build servers and not workstations. Replace *ABCDEFG* with your company's identifier.",
+      "Storing Apple signing or notarization credentials poses the risk of unauthorized access to sensitive development assets and potential compromise of software integrity.",
     resolution:
-      "Ensure your official Apple builds, signing and notarization happen on a centralized system, and remove these certificates from workstations.",
+      "Apple signing or notarization credentials secrets will be removed from the laptop.",
     critical: false,
     platform: "darwin",
   },
