@@ -91,6 +91,7 @@ module.exports.custom = {
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
   // salesforceIntegrationUsername: undefined,
   // salesforceIntegrationPasskey: undefined,
+  RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.)*/,// For cleaning up LinkedIn URLs before creating CRM records.
 
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
@@ -170,7 +171,7 @@ module.exports.custom = {
 
 
     // 🌐 GitHub issue templates
-    //'.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
+    '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
   },
 
@@ -262,9 +263,9 @@ module.exports.custom = {
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','noahtalerman'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential

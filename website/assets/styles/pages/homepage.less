@@ -1,7 +1,7 @@
 #homepage {
   h1 {
     font-weight: 800;
-    font-size: 64px;
+    font-size: 48px;
     line-height: 120%;
   }
   h3 {
@@ -18,13 +18,14 @@
   }
 
   h4 {
+    text-transform: uppercase;
     font-family: 'Roboto Mono';
     font-style: normal;
     font-weight: 400;
-    font-size: 18px;
+    font-size: 14px;
     line-height: 120%;
     color: @core-fleet-black-75;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
   p {
     color: @core-fleet-black-75;
@@ -36,22 +37,22 @@
   }
 
   [purpose='hero-container'] {
-    background: #E4F4F4;
+    background: linear-gradient(#E4F3F4, #FFFFFF);
     overflow: hidden;
   }
 
   [purpose='hero-background-image'] {
-    background: url('/images/homepage-hero-background-3840x500@2x.png');
-    background-size: 3840px auto;
+    background: url('/images/homepage-hero-3227x920@2x.png');
+    background-size: auto 400px;
     background-position: center bottom;
     background-repeat: repeat-x;
   }
 
   [purpose='homepage-hero'] {
-    padding-top: 100px;
+    padding-top: 64px;
     padding-left: 40px;
     padding-right: 40px;
-    padding-bottom: 480px;
+    padding-bottom: 380px;
     max-width: 1200px;
   }
 
@@ -62,8 +63,8 @@
       margin-bottom: 16px;
     }
     p {
-      margin-bottom: 40px;
-      font-size: 18px;
+      margin-bottom: 32px;
+      font-size: 16px;
     }
   }
 
@@ -85,6 +86,80 @@
     margin-left: auto;
     margin-right: auto;
   }
+
+  [purpose='calendar-feature'] {
+    margin-bottom: 120px; /*increased while testimonial videos are temporarily hidden.*/
+    h3 {
+      margin-bottom: 24px;
+    }
+    [purpose='calendar-feature-text'] {
+      max-width: 480px;
+    }
+    [purpose='new-badge'] {
+      background-color: #0587FF;
+      padding: 4px 8px 3px 8px;
+      display: flex;
+      align-items: center;
+      border-radius: 14px;
+      color: #FFF;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 18px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      width: min-content;
+    }
+    [purpose='calendar-checklist'] {
+      margin-top: 8px;
+      margin-bottom: 24px;
+      p {
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 21px;
+        padding-left: 37px;
+        text-indent: -37px;
+        margin-bottom: 1.5rem;
+        &:last-of-type {
+          margin-bottom: 0px;
+        }
+      }
+      p::before {
+        content: ' ';
+        background-image: url('/images/icon-checkmark-green-20x20@2x.png');
+        background-size: 20px 20px;
+        display: inline-block;
+        position: relative;
+        top: 5px;
+        margin-right: 16px;
+        width: 20px;
+        height: 20px;
+      }
+    }
+    [purpose='feature-video'] {
+      margin-left: 80px;
+      max-width: 468px;
+      video {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 16px;
+      }
+    }
+    [purpose='video-button'] {
+      margin-top: 16px;
+      cursor: pointer;
+      img {
+        height: 32px;
+        margin-right: 8px;
+      }
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 21px;
+    }
+  }
+
+
+
 
   [purpose='testimonials'] {
     margin-bottom: 80px;
@@ -228,9 +303,6 @@
 
   [purpose='category-text-block'] {
     max-width: 468px;
-    h4 {
-      font-size: 16px;
-    }
     h3 {
       font-size: 32px;
       margin-bottom: 32px;
@@ -594,16 +666,13 @@
   @media (max-width: 1199px) {
 
     [purpose='hero-background-image'] {
-      background-size: 3400px auto;
+      background-size: auto 400px;
       background-position: center bottom;
       background-repeat: no-repeat;
     }
-    [purpose='calendar-section'] {
-      padding: 40px;
-
-    }
     [purpose='homepage-hero'] {
       max-width: 1080px;
+      padding-bottom: 380px;
     }
 
     [purpose='hero-logos'] {
@@ -656,26 +725,21 @@
       font-size: 48px;
     }
 
-
-    [purpose='calendar-section'] {
-      padding: 40px 32px;
+    [purpose='calendar-feature'] {
+      [purpose='feature-video'] {
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 40px;
+      }
     }
-
-    [purpose='calendar-card-body'] {
-      padding: 60px 24px 24px 24px;
-    }
-
-    [purpose='hero-background-image'] {
-      background-size: 2800px auto;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
-
     [purpose='homepage-hero'] {
       max-width: 100%;
-      padding-top: 80px;
-      padding-bottom: 400px;
+      padding-bottom: 380px;
     }
+    [purpose='hero-background-image'] {
+      background-size: auto 400px;
+    }
+
     [purpose='homepage-content'] {
       padding-right: 60px;
       padding-left: 60px;
@@ -865,20 +929,13 @@
       font-size: 48px;
     }
 
-    [purpose='calendar-section'] {
-      padding: 40px 24px;
+    [purpose='homepage-hero'] {
+      padding-top: 64px;
+      padding-bottom: 360px;
     }
     [purpose='hero-background-image'] {
-      background-size: auto 278px;
-      background-position: center bottom;
-      background-repeat: no-repeat;
+      background-size: auto 360px;
     }
-
-    [purpose='homepage-hero'] {
-      padding-top: 80px;
-      padding-bottom: 308px;
-    }
-
     [purpose='homepage-content'] {
       padding-right: 40px;
       padding-left: 40px;
@@ -1137,16 +1194,22 @@
       height: 287px;
     }
     [purpose='homepage-hero'] {
-      padding-top: 60px;
-      padding-bottom: 270px;
+      padding-bottom: 320px;
       padding-left: 24px;
       padding-right: 24px;
     }
-
+    [purpose='hero-background-image'] {
+      background-size: auto 320px;
+    }
     [purpose='hero-text'] {
       p {
         font-size: 16px;
       }
+    }
+    [purpose='button-row'] {
+      max-width: 224px;
+      margin-left: auto;
+      margin-right: auto;
     }
     [purpose='platform-block'] {
       margin-bottom: 100px;
@@ -1350,6 +1413,14 @@
       display: none;
     }
 
+    [purpose='homepage-hero'] {
+      padding-top: 40px;
+      padding-bottom: 220px;
+    }
+
+    [purpose='hero-background-image'] {
+      background-size: auto 220px;
+    }
 
     [purpose='hero-text'] {
       p {

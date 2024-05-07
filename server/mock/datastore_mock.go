@@ -365,7 +365,9 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
-type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error
+type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
+
+type GetSoftwareInstallerForTitleFunc func(ctx context.Context, softwareTitleID uint, teamID *uint) (*fleet.SoftwareInstaller, error)
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -441,6 +443,8 @@ type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.Po
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
+type PolicyLiteFunc func(ctx context.Context, id uint) (*fleet.PolicyLite, error)
+
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
@@ -450,6 +454,8 @@ type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Pol
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
 type CountPoliciesFunc func(ctx context.Context, teamID *uint, matchQuery string) (int, error)
+
+type CountMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string) (int, error)
 
 type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
@@ -498,6 +504,8 @@ type ListOutOfDateCalendarEventsFunc func(ctx context.Context, t time.Time) ([]*
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+
+type ListMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -1462,6 +1470,9 @@ type DataStore struct {
 	InsertSoftwareInstallRequestFunc        InsertSoftwareInstallRequestFunc
 	InsertSoftwareInstallRequestFuncInvoked bool
 
+	GetSoftwareInstallerForTitleFunc        GetSoftwareInstallerForTitleFunc
+	GetSoftwareInstallerForTitleFuncInvoked bool
+
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
 
@@ -1573,6 +1584,9 @@ type DataStore struct {
 	PolicyFunc        PolicyFunc
 	PolicyFuncInvoked bool
 
+	PolicyLiteFunc        PolicyLiteFunc
+	PolicyLiteFuncInvoked bool
+
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
 
@@ -1587,6 +1601,9 @@ type DataStore struct {
 
 	CountPoliciesFunc        CountPoliciesFunc
 	CountPoliciesFuncInvoked bool
+
+	CountMergedTeamPoliciesFunc        CountMergedTeamPoliciesFunc
+	CountMergedTeamPoliciesFuncInvoked bool
 
 	UpdateHostPolicyCountsFunc        UpdateHostPolicyCountsFunc
 	UpdateHostPolicyCountsFuncInvoked bool
@@ -1659,6 +1676,9 @@ type DataStore struct {
 
 	ListTeamPoliciesFunc        ListTeamPoliciesFunc
 	ListTeamPoliciesFuncInvoked bool
+
+	ListMergedTeamPoliciesFunc        ListMergedTeamPoliciesFunc
+	ListMergedTeamPoliciesFuncInvoked bool
 
 	DeleteTeamPoliciesFunc        DeleteTeamPoliciesFunc
 	DeleteTeamPoliciesFuncInvoked bool
@@ -3534,11 +3554,18 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
-func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error {
+func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	s.mu.Lock()
 	s.InsertSoftwareInstallRequestFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareInstallerID, teamID)
+	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareTitleID)
+}
+
+func (s *DataStore) GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallerForTitleFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallerForTitleFunc(ctx, softwareTitleID, teamID)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {
@@ -3800,6 +3827,13 @@ func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) 
 	return s.PolicyFunc(ctx, id)
 }
 
+func (s *DataStore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite, error) {
+	s.mu.Lock()
+	s.PolicyLiteFuncInvoked = true
+	s.mu.Unlock()
+	return s.PolicyLiteFunc(ctx, id)
+}
+
 func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	s.mu.Lock()
 	s.SavePolicyFuncInvoked = true
@@ -3833,6 +3867,13 @@ func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint, matchQuery 
 	s.CountPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountPoliciesFunc(ctx, teamID, matchQuery)
+}
+
+func (s *DataStore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
+	s.mu.Lock()
+	s.CountMergedTeamPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountMergedTeamPoliciesFunc(ctx, teamID, matchQuery)
 }
 
 func (s *DataStore) UpdateHostPolicyCounts(ctx context.Context) error {
@@ -4001,6 +4042,13 @@ func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts)
+}
+
+func (s *DataStore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ListMergedTeamPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMergedTeamPoliciesFunc(ctx, teamID, opts)
 }
 
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {

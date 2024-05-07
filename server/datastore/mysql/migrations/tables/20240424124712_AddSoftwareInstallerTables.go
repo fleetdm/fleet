@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS software_installers (
   global_or_team_id INT(10) UNSIGNED NOT NULL DEFAULT 0,
 
   -- FK to the "software title" this installer matches
- title_id int(10) unsigned DEFAULT NULL,
+  title_id int(10) unsigned DEFAULT NULL,
 
   -- Filename of the uploaded installer
   filename varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -110,6 +110,9 @@ CREATE TABLE IF NOT EXISTS host_software_installs (
   -- Exit code of the post-script run after the software is installed
   post_install_script_exit_code int(10) DEFAULT NULL,
 
+  -- User that requested the installation, for upcoming activities
+  user_id int(10) unsigned DEFAULT NULL,
+
   created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -119,6 +122,11 @@ CREATE TABLE IF NOT EXISTS host_software_installs (
     FOREIGN KEY (software_installer_id)
     REFERENCES software_installers (id)
     ON DELETE CASCADE ON UPDATE CASCADE,
+
+  CONSTRAINT fk_host_software_installs_user_id
+    FOREIGN KEY (user_id)
+    REFERENCES users (id)
+    ON DELETE SET NULL,
 
   KEY idx_host_software_installs_host_installer (host_id, software_installer_id),
 

@@ -143,6 +143,8 @@ type HostSoftwareInstallerResult struct {
 	// HostTeamID is the team ID of the host on which this software install was attempted. This
 	// field is not sent in the response, it is only used for internal authorization.
 	HostTeamID *uint `json:"-" db:"host_team_id"`
+	// UserID is the user ID that requested the software installation on that host.
+	UserID *uint `json:"-" db:"user_id"`
 }
 
 type HostSoftwareInstallerResultAuthz struct {
@@ -236,4 +238,24 @@ type HostSoftwareInstallResultPayload struct {
 	InstallScriptOutput       *string `json:"install_script_output"`
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
+}
+
+// Status returns the status computed from the result payload. It should match the logic
+// found in the database-computed status (see
+// softwareInstallerHostStatusNamedQuery in mysql/software.go).
+func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
+	switch {
+	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode == 0:
+		return SoftwareInstallerInstalled
+	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode != 0:
+		return SoftwareInstallerFailed
+	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode == 0:
+		return SoftwareInstallerInstalled
+	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
+		return SoftwareInstallerFailed
+	case h.PreInstallConditionOutput != nil && *h.PreInstallConditionOutput == "":
+		return SoftwareInstallerFailed
+	default:
+		return SoftwareInstallerPending
+	}
 }
