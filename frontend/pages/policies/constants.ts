@@ -322,7 +322,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;",
     name: "Content caching is disabled (macOS)",
     description:
-      "Failing to disable content caching could lead to unauthorized caching of sensitive data, potentially exposing it to unauthorized access.",
+      "Enabling content caching could lead to unauthorized caching of sensitive data, potentially exposing it to unauthorized access.",
     resolution:
       "Content caching will be disabled.",
     critical: false,
