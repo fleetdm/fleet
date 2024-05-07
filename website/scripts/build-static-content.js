@@ -9,6 +9,7 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
+    skipGithubRequests: { type: 'boolean', description: 'Support for this flag has been disabled, it is only left as an input to not throw errors when contributors'},
     githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
@@ -116,23 +117,8 @@ module.exports = {
 
         let githubDataByUsername = {};
 
-        if(!githubAccessToken) {// If no github token was provided, don't validate
-          // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
-          for (let query of queries) {
-            let usernames = query.contributors.split(',');
-            let contributorProfiles = [];
-            for (let username of usernames) {
-              contributorProfiles.push({
-                name: username,
-                handle: username,
-                avatarUrl: 'https://placekitten.com/200/200',
-                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
-              });
-            }
-            query.contributors = contributorProfiles;
-          }
-        } else {// Otherwise, validate all users listed in the standard query library YAML.
-
+        // If a GitHub access token was provided, validate all users listed in the standard query library YAML.
+        if(githubAccessToken) {
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
@@ -152,6 +138,20 @@ module.exports = {
                 handle: githubDataByUsername[username].login,
                 avatarUrl: githubDataByUsername[username].avatar_url,
                 htmlUrl: githubDataByUsername[username].html_url,
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
+        } else {// Otherwise, use the Github username as contributor's names and handles and use fake profile pictures.
+          for (let query of queries) {
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: username,
+                handle: username,
+                avatarUrl: 'https://placekitten.com/200/200',
+                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
               });
             }
             query.contributors = contributorProfiles;
