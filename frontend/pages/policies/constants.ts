@@ -360,7 +360,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;",
     name: "Firewall logging is enabled (macOS)",
     description:
-      "Failure to disable cloud sync could result in unauthorized access to sensitive data stored in the cloud, potentially leading to data breaches and compromising confidentiality.",
+      "Without firewall logging enabled, it becomes difficult to monitor and track network traffic, increasing the risk of undetected malicious activities or unauthorized access.",
     resolution:
       "Cloud sync will be disabled.",
     critical: false,
