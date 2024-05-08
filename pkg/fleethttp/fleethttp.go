@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -108,6 +109,16 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 	if to.tlsConf != nil {
 		tr.TLSClientConfig = to.tlsConf
 	}
+	defaultTransportDialContext := func(dialer *net.Dialer) func(ctx context.Context, network string, address string) (net.Conn, error) {
+		return func(ctx context.Context, network string, address string) (net.Conn, error) {
+			fmt.Printf("connect: %s: %s: %s\n", time.Now(), network, address)
+			return dialer.DialContext(ctx, network, address)
+		}
+	}
+	tr.DialContext = defaultTransportDialContext(&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	})
 	return tr
 }
 

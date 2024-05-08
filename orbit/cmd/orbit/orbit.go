@@ -804,9 +804,14 @@ func main() {
 			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
-		configFetcher, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
-			configFetcher, c.Bool("enable-scripts"), orbitClient,
-		)
+		/*
+			configFetcher, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
+				configFetcher, c.Bool("enable-scripts"), orbitClient,
+			)
+		*/
+		scriptsEnabledFn := func() bool {
+			return false
+		}
 
 		switch runtime.GOOS {
 		case "darwin":
@@ -1080,7 +1085,8 @@ func main() {
 		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
 		// We populate the known capabilities so that the capability checker does not need to do the initial check on startup.
 		checkerClient.GetServerCapabilities().Copy(orbitClient.GetServerCapabilities())
-		g.Add(capabilitiesChecker.actor())
+		// g.Add(capabilitiesChecker.actor())
+		_ = capabilitiesChecker
 
 		var desktopVersion string
 		if c.Bool("fleet-desktop") {
