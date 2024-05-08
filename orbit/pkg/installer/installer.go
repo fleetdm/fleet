@@ -74,7 +74,7 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 				errs = append(errs, err)
 			}
 			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
-				return ctxerr.Wrap(ctx, err, "saving software install results")
+				errs = append(errs, ctxerr.Wrap(ctx, err, "saving software install results"))
 			}
 		}
 	}
