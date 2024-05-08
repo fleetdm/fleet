@@ -6523,7 +6523,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\W32Time\\TimeProviders\\NtpClient\Enabled' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2
+  tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -6542,7 +6542,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\W32Time\\TimeProviders\\NtpServer' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2
+  tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
 ---
 apiVersion: v1
