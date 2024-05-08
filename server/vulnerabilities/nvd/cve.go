@@ -732,7 +732,7 @@ func preprocessVersion(version string) string {
 	if strings.Contains(version, "+") {
 		part := strings.Split(version, "+")[0]
 		if semverPattern.MatchString(part) {
-			return strings.Replace(version, "+", "-", 1)
+			return version
 		}
 	}
 
