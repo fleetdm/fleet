@@ -10093,26 +10093,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Password protect the screen saver' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines whether screen savers used on the computer are password protected.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'User Configuration\Policies\Administrative Templates\Control Panel\Personalization\Password protect the screen saver'
-    Note: This Group Policy path is provided by the Group Policy template ControlPanelDisplay.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
-  query: |
-    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop\ScreenSaverIsSecure' and data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Screen saver timeout' is set to 'Enabled: 900 seconds or fewer, but not 0'
   platforms: win11
   platform: windows
