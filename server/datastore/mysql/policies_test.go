@@ -743,14 +743,8 @@ func TestListMergedTeamPolicies(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
-		OrderKey:       "name",
-		OrderDirection: fleet.OrderAscending,
-	})
-	require.NoError(t, err)
-
 	// Test list options affect both global and team policies
-	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderDescending,
 	})
