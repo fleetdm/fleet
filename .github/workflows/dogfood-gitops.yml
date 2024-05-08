@@ -7,7 +7,16 @@ on:
     paths:
       - 'it-and-security/**'
       - '.github/workflows/dogfood-gitops.yml'
+  pull_request:
+    paths:
+      - 'it-and-security/**'
+      - '.github/workflows/dogfood-gitops.yml'
   workflow_dispatch: # allows manual triggering
+
+# Prevent concurrent runs of this workflow, but allow all runs to finish.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -48,6 +57,7 @@ jobs:
         uses: ./fleet-gitops/.github/gitops-action
         with:
           working-directory: ${{ github.workspace }}/fleet-gitops
+          dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
         env:
           FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
           FLEET_URL: https://dogfood.fleetdm.com

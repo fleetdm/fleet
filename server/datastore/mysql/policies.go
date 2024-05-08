@@ -641,11 +641,11 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
-		AND ps.inherited_team_id = COALESCE(p.team_id, 0)
+		AND ps.inherited_team_id = IF(p.team_id IS NULL, ?, 0)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
     `
 
-	args = append(args, teamID)
+	args = append(args, teamID, teamID)
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
