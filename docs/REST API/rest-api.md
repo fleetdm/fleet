@@ -1106,15 +1106,15 @@ Modifies the Fleet's configuration with the supplied information.
 | apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
 | windows_enabled_and_configured    | boolean | body  | _mdm settings_. Enables Windows MDM support. |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
-| deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
-| deadline_days                     | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows. **Requires Fleet Premium license** |
-| grace_period_days                 | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates. **Requires Fleet Premium license** |
+| deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
+| deadline_days                     | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team will have this number of days before updates are installed on Windows. **Requires Fleet Premium license** |
+| grace_period_days                 | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team will have this number of days before Windows restarts to install updates. **Requires Fleet Premium license** |
 | enable                          | boolean  | body  | _mdm.macos_migration settings_. Whether to enable the end user migration workflow for devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | mode                          | string  | body  | _mdm.macos_migration settings_. The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. **Requires Fleet Premium license** |
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
-| custom_settings                   | list    | body  | _mdm.macos_settings settings_. macOS hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
-| enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
-| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
+| custom_settings                   | list    | body  | _mdm.macos_settings settings_. macOS hosts that belong to no team, and are members of targets (if specified) will have custom profiles applied. |
+| enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
+| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Windows hosts that belong to no team, and are members of targets (if specified) will have custom profiles applied. |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
@@ -1212,18 +1212,18 @@ Note that when making changes to the `integrations` object, all integrations mus
     "macos_settings": {
       "custom_settings": {
         "path": "path/to/profile1.mobileconfig",
-        "labels": ["Label 1", "Label 2"]
+        "labels_exclude_any": ["Label 1", "Label 2"]
       },
       {
         "path": "path/to/profile2.json",
-        "labels": ["Label 3", "Label 4"]
+        "labels_include_all": ["Label 3", "Label 4"]
       },
       "enable_disk_encryption": true
     },
     "windows_settings": {
       "custom_settings": {
         "path": "path/to/profile3.xml",
-        "labels": ["Label 1", "Label 2"]
+        "labels_exclude_any": ["Label 1", "Label 2"]
       }      
     },
     "end_user_authentication": {
@@ -4721,7 +4721,8 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels                    | array     | form | _Available in Fleet Premium_. An array of labels to filter hosts in a team (or no team) that should get a profile. |
+| labels_include_all                    | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. |
+| labels_exclude_any                    | array     | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. |
 
 
 #### Example
@@ -4747,11 +4748,11 @@ Content-Disposition: form-data; name="team_id"
 
 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels"
+Content-Disposition: form-data; name="labels_include_all"
 
 Label name 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels"
+Content-Disposition: form-data; name="labels_exclude_all"
 
 Label name 2
 --------------------------f02md47480und42y
@@ -4858,7 +4859,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
-      "labels": [
+      "labels_exclude_any": [
        {
         "name": "Label name 1"
        }
@@ -4872,7 +4873,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
-      "labels": [
+      "labels_include_all": [
        {
          "name": "Label name 1",
          "broken": true
@@ -4923,7 +4924,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "created_at": "2023-03-31T00:00:00Z",
   "updated_at": "2023-03-31T00:00:00Z",
   "checksum": "dGVzdAo=",
-  "labels": [
+  "labels_include_all": [
     {
       "name": "Label name 1",
       "broken": true
@@ -8744,10 +8745,10 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes .mobileconfig or JSON file (configuration profile) and label name to apply to macOS hosts that belong to this team and are members of the specified label.                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes .mobileconfig or JSON file (configuration profile) and label name to apply to macOS hosts that are assigned to this team.                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
 | &nbsp;&nbsp;windows_settings                            | object  | body | Windows-specific settings.                                                                                                                                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that belong to this team and are members of the specified label.                                                                                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that are assigned to this team.                                                                                                                             |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
 | integrations                                            | object  | body | Integration settings for this team.                                                                                                                                                                   |
