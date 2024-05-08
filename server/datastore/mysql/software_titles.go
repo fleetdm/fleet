@@ -191,15 +191,18 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
-	MAX(sthc.hosts_count) as hosts_count,
-	MAX(sthc.updated_at) as counts_updated_at
+	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
+	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at
 FROM software_titles st
-JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s
 -- placeholder for optional extra WHERE filter
-WHERE sthc.team_id = ? %s
-AND sthc.hosts_count > 0
+WHERE %s
+AND (
+	sthc.hosts_count > 0 OR
+	EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?)
+)
 GROUP BY st.id`
 
 	cveJoinType := "LEFT"
@@ -207,27 +210,34 @@ GROUP BY st.id`
 		cveJoinType = "INNER"
 	}
 
+	var globalOrTeamID uint
 	args := []any{0}
 	if opt.TeamID != nil {
 		args[0] = *opt.TeamID
+		globalOrTeamID = *opt.TeamID
 	}
 
-	additionalWhere := ""
+	additionalWhere := "TRUE"
 	match := opt.ListOptions.MatchQuery
 	softwareJoin := ""
 	if match != "" || opt.VulnerableOnly {
+		// if we do a match but not vulnerable only, we want a LEFT JOIN on
+		// software because software installers may not have entries in software
+		// for their software title. If we do want vulnerable only, then we have to
+		// INNER JOIN because a CVE implies a specific software version.
 		softwareJoin = fmt.Sprintf(`
-			JOIN software s ON s.title_id = st.id
+			%s JOIN software s ON s.title_id = st.id
 			-- placeholder for changing the JOIN type to filter vulnerable software
-			%s JOIN software_cve scve ON s.id = scve.software_id
+			%[1]s JOIN software_cve scve ON s.id = scve.software_id
 		`, cveJoinType)
 	}
 
 	if match != "" {
-		additionalWhere += " AND (st.name LIKE ? OR scve.cve LIKE ?)"
+		additionalWhere = " (st.name LIKE ? OR scve.cve LIKE ?)"
 		match = likePattern(match)
 		args = append(args, match, match)
 	}
+	args = append(args, globalOrTeamID)
 
 	stmt = fmt.Sprintf(stmt, softwareJoin, additionalWhere)
 	return stmt, args
