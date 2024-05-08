@@ -643,6 +643,7 @@ func TestGitOpsPaths(t *testing.T) {
 				// Test a relative top level path
 				config = getConfig([]string{name})
 				mainTmpFile, err := os.CreateTemp(tmpDir, "*main.yml")
+				require.NoError(t, err)
 				dir, file := filepath.Split(tmpFile.Name())
 				if test.isArray {
 					config += fmt.Sprintf("%s:\n  - path: ./%s\n", name, file)
