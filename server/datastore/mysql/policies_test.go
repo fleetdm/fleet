@@ -35,7 +35,7 @@ func TestPolicies(t *testing.T) {
 		{"MembershipViewNotDeferred", func(t *testing.T, ds *Datastore) { testPoliciesMembershipView(false, t, ds) }},
 		{"TeamPolicyLegacy", testTeamPolicyLegacy},
 		{"TeamPolicyProprietary", testTeamPolicyProprietary},
-		// {"ListMergedTeamPolicies", testListMergedTeamPolicies},
+		{"ListMergedTeamPolicies", testListMergedTeamPolicies},
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
 		{"PoliciesByID", testPoliciesByID},
@@ -710,8 +710,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.Equal(t, user1.ID, *team2Policies[0].AuthorID)
 }
 
-func TestListMergedTeamPolicies(t *testing.T) {
-	ds := CreateMySQLDS(t)
+func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	gpol, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
 		Name:        "query1 global",
