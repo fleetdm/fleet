@@ -67,7 +67,7 @@ func NewRunner(client Client, socketPath string, timeout time.Duration) (*Runner
 
 func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 	for _, installerID := range config.Notifications.PendingSoftwareInstallerIDs {
-		if ctx.Err() != nil {
+		if ctx.Err() == nil {
 			payload, err := r.InstallSoftware(ctx, installerID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "installing software")
