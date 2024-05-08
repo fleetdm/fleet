@@ -34,8 +34,8 @@ type OrbitConfigNotifications struct {
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
 
-	// OrbitSoftwareInstallers contains a list of software install_ids queued for installation
-	OrbitSoftwareInstallers []string `json:"software_installers,omitempty"`
+	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
+	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 }
 
 type OrbitConfig struct {
