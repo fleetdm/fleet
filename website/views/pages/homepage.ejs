@@ -42,7 +42,7 @@
           <h2>Tell employees why</h2>
           <p>Use AI to explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
         <%} %>
-          <% if (!primaryBuyingSituation) { %><div purpose="calendar-checklist" class="flex-column d-flex">
+          <% if (primaryBuyingSituation && !['eo-security'].includes(primaryBuyingSituation) { %><div purpose="calendar-checklist" class="flex-column d-flex">
             <p>Say goodbye to annoying IT notifications and restarts.</p>
             <p>Use AI to explain why your security policies matter.</p>
             <p>Stop making exceptions for executives when OS updates lock them out of important meetings.</p>
