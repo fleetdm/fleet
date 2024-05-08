@@ -92,6 +92,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeResentConfigurationProfile{},
 
 	ActivityTypeInstalledSoftware{},
+	ActivityTypeAddedSoftware{},
+	ActivityTypeDeletedSoftware{},
 }
 
 type ActivityDetails interface {
@@ -379,7 +381,7 @@ func (a ActivityTypeCreatedTeam) Documentation() (activity string, details strin
 - "team_id": unique ID of the created team.
 - "team_name": the name of the created team.`, `{
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }`
 }
 
@@ -398,7 +400,7 @@ func (a ActivityTypeDeletedTeam) Documentation() (activity string, details strin
 - "team_id": unique ID of the deleted team.
 - "team_name": the name of the deleted team.`, `{
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }`
 }
 
@@ -471,7 +473,7 @@ func (a ActivityTypeEditedAgentOptions) Documentation() (activity string, detail
 - "team_id": unique ID of the team for which the agent options were updated (` + "`null`" + ` if global is true).
 - "team_name": the name of the team for which the agent options were updated (` + "`null`" + ` if global is true).`, `{
 	"team_id": 123,
-	"team_name": "foo",
+	"team_name": "Workstations",
 	"global": false
 }`
 }
@@ -1446,6 +1448,58 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending"
 }`
+}
+
+type ActivityTypeAddedSoftware struct {
+	SoftwareTitle   string  `json:"software_title"`
+	SoftwarePackage string  `json:"software_package"`
+	TeamName        *string `json:"team_name"`
+	TeamID          *uint   `json:"team_id"`
+}
+
+func (a ActivityTypeAddedSoftware) ActivityName() string {
+	return "added_software"
+}
+
+func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
+	return `Generated when a software installer is uploaded to Fleet.`, `This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
+- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.`,
+		`{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123
+}
+`
+}
+
+type ActivityTypeDeletedSoftware struct {
+	SoftwareTitle   string  `json:"software_title"`
+	SoftwarePackage string  `json:"software_package"`
+	TeamName        *string `json:"team_name"`
+	TeamID          *uint   `json:"team_id"`
+}
+
+func (a ActivityTypeDeletedSoftware) ActivityName() string {
+	return "deleted_software"
+}
+
+func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
+	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added.` + " `null " + `if it was added to no team.
+- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.`,
+		`{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123
+}
+`
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.

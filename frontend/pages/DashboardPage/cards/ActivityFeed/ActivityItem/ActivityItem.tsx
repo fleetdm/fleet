@@ -820,6 +820,40 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        added <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) software to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  deletedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) software from{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -992,6 +1026,12 @@ const getDetail = (
     }
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.AddedSoftware: {
+      return TAGGED_TEMPLATES.addedSoftware(activity);
+    }
+    case ActivityType.DeletedSoftware: {
+      return TAGGED_TEMPLATES.deletedSoftware(activity);
     }
 
     default: {

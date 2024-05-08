@@ -151,20 +151,22 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 func (ds *Datastore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT
-	id,
-	team_id,
-	title_id,
-	storage_id,
-	filename,
-	version,
-	install_script_content_id,
-	pre_install_query,
-	post_install_script_content_id,
-	uploaded_at
+	si.id,
+	si.team_id,
+	si.title_id,
+	si.storage_id,
+	si.filename,
+	si.version,
+	si.install_script_content_id,
+	si.pre_install_query,
+	si.post_install_script_content_id,
+	si.uploaded_at,
+	COALESCE(st.name, '') AS software_title
 FROM
-	software_installers
+	software_installers si
+	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
 WHERE
-	id = ?`
+	si.id = ?`
 
 	var dest fleet.SoftwareInstaller
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, id)
