@@ -10,6 +10,7 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import { AppContext } from "context/app";
+import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 
 interface IMainContentProps {
   children: ReactNode;
@@ -49,37 +50,24 @@ const MainContent = ({
   const showAppleABMBanner =
     isAppleBmTermsExpired && isPremiumTier && !isSandboxMode;
 
+  // ABM banner takes precedence
   const showLicenseExpirationBanner =
-    !isLicenseExpired && isPremiumTier && !isAppleBmTermsExpired;
+    isLicenseExpired && isPremiumTier && !isAppleBmTermsExpired;
 
   return (
     <div className={classes}>
-      {showAppleABMBanner && <AppleBMTermsMessage />}
-      {showLicenseExpirationBanner && (
-        <InfoBanner
-          className="license-expiry-banner"
-          color="yellow"
-          cta={
-            <CustomLink
-              url="https://fleetdm.com/learn-more-about/downgrading"
-              text="Downgrade or renew"
-              newTab
-              iconColor="core-fleet-black"
-              color="core-fleet-black"
+      <div className={`${baseClass}--animation-disabled`}>
+        {showAppleABMBanner && <AppleBMTermsMessage />}
+        {showLicenseExpirationBanner && <LicenseExpirationBanner />}
+        <SandboxGate
+          fallbackComponent={() => (
+            <SandboxExpiryMessage
+              expiry={sandboxExpiryTime}
+              noSandboxHosts={noSandboxHosts}
             />
-          }
-        >
-          Your Fleet Premium license is about to expire.
-        </InfoBanner>
-      )}
-      <SandboxGate
-        fallbackComponent={() => (
-          <SandboxExpiryMessage
-            expiry={sandboxExpiryTime}
-            noSandboxHosts={noSandboxHosts}
-          />
-        )}
-      />
+          )}
+        />
+      </div>
       {children}
     </div>
   );
