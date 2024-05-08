@@ -723,7 +723,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	p, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+	team1policy, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
 		Name:        "query2 team1",
 		Query:       "select 1;",
 		Description: "query1 desc",
@@ -734,7 +734,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	_, err = ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+	team2policy, err := ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
 		Name:        "query3 team2",
 		Query:       "select 2;",
 		Description: "query2 desc",
@@ -742,25 +742,15 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
-		OrderKey:       "name",
-		OrderDirection: fleet.OrderAscending,
-	})
-	require.NoError(t, err)
-
-	require.Len(t, merged, 2)
-	assert.Equal(t, gpol.ID, merged[0].ID)
-	assert.Equal(t, p.ID, merged[1].ID)
-
 	// Test list options affect both global and team policies
-	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderDescending,
 	})
 	require.NoError(t, err)
 
 	require.Len(t, merged, 2)
-	assert.Equal(t, p.ID, merged[0].ID)
+	assert.Equal(t, team1policy.ID, merged[0].ID)
 	assert.Equal(t, gpol.ID, merged[1].ID)
 
 	// Test filter
@@ -776,7 +766,68 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Len(t, merged, 1)
-	assert.Equal(t, p.ID, merged[0].ID)
+	assert.Equal(t, team1policy.ID, merged[0].ID)
+
+	// Test HostPolicyCounts
+
+	// Global Host
+	host, err := ds.NewHost(context.Background(), &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprint("host1")), NodeKey: ptr.String(fmt.Sprint("host1", 1)), TeamID: nil})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{gpol.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	err = ds.UpdateHostPolicyCounts(context.Background())
+	require.NoError(t, err)
+
+	// team 1 shows no host counts
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		OrderKey: "name",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 2)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, uint(0), merged[0].PassingHostCount)
+	assert.Equal(t, uint(0), merged[0].FailingHostCount)
+	assert.Equal(t, team1policy.ID, merged[1].ID)
+	assert.Equal(t, uint(0), merged[1].PassingHostCount)
+	assert.Equal(t, uint(0), merged[1].FailingHostCount)
+
+	// move host to team1
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{team1policy.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	err = ds.UpdateHostPolicyCounts(context.Background())
+	require.NoError(t, err)
+
+	// team 1 shows host counts
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		OrderKey: "name",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 2)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, uint(1), merged[0].PassingHostCount)
+	assert.Equal(t, uint(0), merged[0].FailingHostCount)
+	assert.Equal(t, team1policy.ID, merged[1].ID)
+	assert.Equal(t, uint(1), merged[1].PassingHostCount)
+	assert.Equal(t, uint(0), merged[1].FailingHostCount)
+
+	// team2 shows no host counts
+	merged, err = ds.ListMergedTeamPolicies(ctx, team2.ID, fleet.ListOptions{
+		OrderKey: "name",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 2)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, uint(0), merged[0].PassingHostCount)
+	assert.Equal(t, uint(0), merged[0].FailingHostCount)
+	assert.Equal(t, team2policy.ID, merged[1].ID)
+	assert.Equal(t, uint(0), merged[1].PassingHostCount)
+	assert.Equal(t, uint(0), merged[1].FailingHostCount)
 }
 
 func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform string, teamID *uint) *fleet.Host {
@@ -1760,7 +1811,6 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), polsByName[teamNames[0]].FailingHostCount)   // updated platform
 	assert.Equal(t, uint(1), polsByName[teamNames[1]].FailingHostCount)   // platform is "darwin" -- no change
 	assert.Equal(t, uint(0), polsByName[teamNames[2]].FailingHostCount)   // updated query
-
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
@@ -3180,7 +3230,6 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	assert.True(
 		t, policy2.HostCountUpdatedAt.Compare(later) < 0, fmt.Sprintf("later:%v HostCountUpdatedAt:%v", later, *policy2.HostCountUpdatedAt),
 	)
-
 }
 
 func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
