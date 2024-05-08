@@ -226,7 +226,7 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilt
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
 	}
-	return labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
+	return ds.labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
 }
 
 // DeleteLabel deletes a fleet.Label
@@ -262,21 +262,20 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 // Label returns a fleet.Label identified by lid if one exists.
 func (ds *Datastore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-	return labelDB(ctx, lid, teamFilter, ds.reader(ctx))
+	return ds.labelDB(ctx, lid, teamFilter, ds.reader(ctx))
 }
 
-func labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.QueryerContext) (*fleet.Label, []uint, error) {
-	// TODO(mna): use teamFilter to count only visible hosts for the user. See how ListLabels work.
-	stmt := `
+func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.QueryerContext) (*fleet.Label, []uint, error) {
+	stmt := fmt.Sprintf(`
 		SELECT
 		       l.*,
-		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id) AS host_count
+		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
 		FROM labels l
 		WHERE id = ?
-	`
-	label := &fleet.Label{}
+	`, ds.whereFilterHostsByTeams(teamFilter, "h"))
 
-	if err := sqlx.GetContext(ctx, q, label, stmt, lid); err != nil {
+	var label fleet.Label
+	if err := sqlx.GetContext(ctx, q, &label, stmt, lid); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
 		}
@@ -290,7 +289,7 @@ func labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.
 		}
 	}
 
-	return label, hostIDs, nil
+	return &label, hostIDs, nil
 }
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
