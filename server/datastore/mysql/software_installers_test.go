@@ -168,7 +168,6 @@ func insertSoftwareInstaller(
 		postInstallScriptId,
 		storageId,
 	)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting software installer")
 	}
@@ -204,11 +203,10 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				Filename:      "foo.pkg",
 			})
 			require.NoError(t, err)
-
 			installerMeta, err := ds.GetSoftwareInstallerMetadata(ctx, installerID)
 			require.NoError(t, err)
 
-			si, err = ds.GetSoftwareInstallerForTitle(ctx, installerMeta.TitleID, teamID)
+			si, err = ds.GetSoftwareInstallerForTitle(ctx, *installerMeta.TitleID, teamID)
 			require.NoError(t, err)
 			require.NotNil(t, si)
 			require.Equal(t, "foo.pkg", si.Name)
