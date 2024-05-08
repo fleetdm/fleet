@@ -66,17 +66,22 @@ func NewRunner(client Client, socketPath string, timeout time.Duration) (*Runner
 }
 
 func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
+	var errs []error
 	for _, installerID := range config.Notifications.PendingSoftwareInstallerIDs {
 		if ctx.Err() == nil {
 			payload, err := r.InstallSoftware(ctx, installerID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "installing software")
+				errs = append(errs, err)
 			}
 			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
 				return ctxerr.Wrap(ctx, err, "saving software install results")
 			}
 		}
 	}
+	if len(errs) != 0 {
+		return errors.Join(errs...)
+	}
+
 	return nil
 }
 
