@@ -166,10 +166,10 @@ func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc 
 
 	payload, err := svc.DownloadSoftwareInstaller(ctx, req.InstallerID)
 	if err != nil {
-		return downloadSoftwareInstallerResponse{Err: err}, nil
+		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
 
-	return downloadSoftwareInstallerResponse{payload: payload}, nil
+	return orbitDownloadSoftwareInstallerResponse{payload: payload}, nil
 }
 
 func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
@@ -180,15 +180,15 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (
 	return nil, fleet.ErrMissingLicense
 }
 
-type downloadSoftwareInstallerResponse struct {
+type orbitDownloadSoftwareInstallerResponse struct {
 	Err error `json:"error,omitempty"`
 	// fields used by hijackRender for the response.
 	payload *fleet.DownloadSoftwareInstallerPayload
 }
 
-func (r downloadSoftwareInstallerResponse) error() error { return r.Err }
+func (r orbitDownloadSoftwareInstallerResponse) error() error { return r.Err }
 
-func (r downloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -250,6 +251,32 @@ func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallRes
 		return err
 	}
 	return nil
+}
+
+func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirectory string) (string, error) {
+	verb, path := "POST", "/api/fleet/orbit/software_install/package"
+	var resp orbitDownloadSoftwareInstallerResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
+		InstallerID: installerID,
+		Alt:         "media",
+	}, &resp); err != nil {
+		return "", err
+	}
+
+	defer resp.payload.Installer.Close()
+
+	installerPath := filepath.Join(downloadDirectory, resp.payload.Filename)
+	installerFile, err := os.Create(installerPath)
+	if err != nil {
+		return "", fmt.Errorf("creating installer file: %w", err)
+	}
+
+	defer installerFile.Close()
+
+	// TODO add the ability to cancel on context timeout?
+	io.Copy(installerFile, resp.payload.Installer)
+
+	return installerPath, nil
 }
 
 // Ping sends a ping request to the orbit/ping endpoint.

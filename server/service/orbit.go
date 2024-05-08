@@ -836,14 +836,14 @@ func orbitDownloadSoftwareInstallerEndpoint(ctx context.Context, request interfa
 	downloadRequested := req.Alt == "media"
 	if !downloadRequested {
 		// TODO: confirm error handling
-		return downloadSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
+		return orbitDownloadSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
 	}
 
 	p, err := svc.OrbitDownloadSoftwareInstaller(ctx, req.InstallerID)
 	if err != nil {
-		return downloadSoftwareInstallerResponse{Err: err}, nil
+		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
-	return downloadSoftwareInstallerResponse{payload: p}, nil
+	return orbitDownloadSoftwareInstallerResponse{payload: p}, nil
 }
 
 func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {

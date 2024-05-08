@@ -22,7 +22,7 @@ type QueryResponse = osquery_gen.ExtensionResponse
 // fleet.OrbitClient type satisfies this interface.
 type Client interface {
 	GetHostScript(execID string) (*fleet.HostScriptResult, error)
-	GetInstaller(installerID uint, downloadDir string) (string, error)
+	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
 	GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
 }
@@ -136,7 +136,7 @@ func (r *Runner) InstallSoftware(ctx context.Context, installId string) (*fleet.
 	}
 	tmpDir := r.tempDirFn()
 
-	installerPath, err := r.OrbitClient.GetInstaller(installer.InstallerID, tmpDir)
+	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
 	if err != nil {
 		return payload, err
 	}
