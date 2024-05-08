@@ -1631,16 +1631,16 @@ func TestApplyLabels(t *testing.T) {
 	// The label values below should match the spec.
 	ubuntuLabel := &fleet.Label{
 		ID:                  8,
-		Name:                "Ubuntu Linux",
+		Name:                fleet.BuiltinLabelNameUbuntuLinux,
 		Query:               "select 1 from os_version where platform = 'ubuntu';",
 		Description:         "All Ubuntu hosts",
 		LabelType:           fleet.LabelTypeBuiltIn,
 		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 	}
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
-		assert.ElementsMatch(t, []string{"Ubuntu Linux"}, names)
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameUbuntuLinux}, names)
 		return map[string]*fleet.Label{
-			"Ubuntu Linux": ubuntuLabel,
+			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
 		}, nil
 	}
 
