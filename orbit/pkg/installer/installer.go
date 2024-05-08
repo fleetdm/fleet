@@ -69,7 +69,7 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 	var errs []error
 	for _, installerID := range config.Notifications.PendingSoftwareInstallerIDs {
 		if ctx.Err() == nil {
-			payload, err := r.InstallSoftware(ctx, installerID)
+			payload, err := r.installSoftware(ctx, installerID)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -106,7 +106,7 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 	return true, res.String(), nil
 }
 
-func (r *Runner) InstallSoftware(ctx context.Context, installId string) (*fleet.HostSoftwareInstallResultPayload, error) {
+func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.HostSoftwareInstallResultPayload, error) {
 	installer, err := r.OrbitClient.GetInstallerDetails(installId)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching software installer details")
