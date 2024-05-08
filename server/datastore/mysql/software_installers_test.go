@@ -235,7 +235,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			expectStatus := fleet.SoftwareInstallerPending
 			hosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
 				ListOptions:           fleet.ListOptions{PerPage: 100},
-				SoftwareTitleIDFilter: &installerMeta.TitleID,
+				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
 				TeamFilter:            teamID,
 			})
