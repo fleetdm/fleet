@@ -1129,7 +1129,6 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 // deleteMDMOSCustomSettingsForHost deletes configuration profiles and
 // declarations for a host based on its platform.
 func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
-
 	tableMap := map[string][]string{
 		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
 		"windows": {"host_mdm_windows_profiles"},
@@ -2084,9 +2083,12 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 }
 
 func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+	// Remove profile if the removal operation was verified, or if the removal operation failed
+	// because the profile can't be found on the host; in this case, the MDM protocol will return
+	// error code 89.
 	if profile.OperationType == fleet.MDMOperationTypeRemove &&
 		profile.Status != nil &&
-		(*profile.Status == fleet.MDMDeliveryVerifying || *profile.Status == fleet.MDMDeliveryVerified) {
+		(*profile.Status == fleet.MDMDeliveryVerifying || *profile.Status == fleet.MDMDeliveryVerified || strings.Contains(profile.Detail, "MDMClientError (89)")) {
 		_, err := ds.writer(ctx).ExecContext(ctx, `
           DELETE FROM host_mdm_apple_profiles
           WHERE host_uuid = ? AND command_uuid = ?

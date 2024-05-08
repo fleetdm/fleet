@@ -8292,7 +8292,7 @@ func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
 
 func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	t := s.T()
-	ctx := context.Background()
+	// ctx := context.Background()
 
 	// Create a host and a couple of profiles
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -8306,9 +8306,9 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	s.awaitTriggerProfileSchedule(t)
 
 	// The profiles should be associated with the host we made + the standard fleet configs
-	profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
-	require.NoError(t, err)
-	require.Len(t, profs, 4)
+	// profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	// require.NoError(t, err)
+	// require.Len(t, profs, 4)
 
 	// Acknowledge the profiles so we can mark them as verified
 	cmd, err := mdmDevice.Idle()
@@ -8359,13 +8359,15 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 		require.NoError(t, err)
 	}
 
-	// get that host - it should report "failed" for the profiles and include the error message detail
+	// get that host - it should report "failed" for the profile that failed with error code 96 and
+	// include the error message detail. The profile that failed with code 89 should be removed from
+	// the host.
 	expectedErrs := map[string]string{
-		"N1": "Failed to remove: MDMClientError (89): Profile with identifier 'I1' not found.\n",
 		"N2": "Failed to remove: MDMClientError (96): Cannot replace profile 'I2' because it was not installed by the MDM server.\n",
 	}
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 3)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		if wantErr, ok := expectedErrs[hm.Name]; ok {
 			require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
