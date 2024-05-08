@@ -23,8 +23,8 @@ type QueryResponse = osquery_gen.ExtensionResponse
 // fleet.OrbitClient type satisfies this interface.
 type Client interface {
 	GetHostScript(execID string) (*fleet.HostScriptResult, error)
-	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
 	GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error)
+	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
 }
 
