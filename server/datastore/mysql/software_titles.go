@@ -221,10 +221,14 @@ GROUP BY st.id`
 	match := opt.ListOptions.MatchQuery
 	softwareJoin := ""
 	if match != "" || opt.VulnerableOnly {
+		// if we do a match but not vulnerable only, we want a LEFT JOIN on
+		// software because software installers may not have entries in software
+		// for their software title. If we do want vulnerable only, then we have to
+		// INNER JOIN because a CVE implies a specific software version.
 		softwareJoin = fmt.Sprintf(`
-			JOIN software s ON s.title_id = st.id
+			%s JOIN software s ON s.title_id = st.id
 			-- placeholder for changing the JOIN type to filter vulnerable software
-			%s JOIN software_cve scve ON s.id = scve.software_id
+			%[1]s JOIN software_cve scve ON s.id = scve.software_id
 		`, cveJoinType)
 	}
 
