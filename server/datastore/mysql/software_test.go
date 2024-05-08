@@ -997,7 +997,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
-	globalCounts := listSoftwareCheckCount(t, ds, 16, 16, globalOpts, false)
+	_ = listSoftwareCheckCount(t, ds, 16, 16, globalOpts, false)
 	checkTableTotalCount(16)
 
 	// Now, delete 2 hosts. Software with the lowest ID is removed, and there should be a chunk with missing software IDs from the deleted hostTemp software.
@@ -1005,7 +1005,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteHost(ctx, hostTemp.ID))
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	globalCounts = listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
+	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 	want := []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 2},
 		{Name: "foo", Version: "0.0.1", HostsCount: 1},
