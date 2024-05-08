@@ -5,6 +5,9 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
 import hostAPI, { IGetHostSoftwareResponse } from "services/entities/hosts";
+import deviceAPI, {
+  IGetDeviceSoftwareResponse,
+} from "services/entities/device_user";
 import { ISoftware } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -22,7 +25,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 }
 
 interface ISoftwareCardProps {
-  hostId: number;
+  id: number | string;
   router: InjectedRouter;
   queryParams?: {
     page?: string;
@@ -41,7 +44,7 @@ const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE = 0;
 
 const SoftwareCard = ({
-  hostId,
+  id,
   router,
   queryParams,
   pathname,
@@ -55,7 +58,7 @@ const SoftwareCard = ({
     isFetching: hostSoftwareFetching,
   } = useQuery<IGetHostSoftwareResponse, AxiosError>(
     ["host-software", queryParams],
-    () => hostAPI.getHostSoftware(hostId),
+    () => hostAPI.getHostSoftware(id as number),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isSoftwareEnabled && !isMyDevicePage,
@@ -68,9 +71,9 @@ const SoftwareCard = ({
     isLoading: deviceSoftwareLoading,
     isError: deviceSoftwareError,
     isFetching: deviceSoftwareFetching,
-  } = useQuery<IGetHostSoftwareResponse, AxiosError>(
+  } = useQuery<IGetDeviceSoftwareResponse, AxiosError>(
     ["host-software", queryParams],
-    () => hostAPI.getHostSoftware(hostId),
+    () => deviceAPI.getDeviceSoftware(id as string),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isSoftwareEnabled && isMyDevicePage,

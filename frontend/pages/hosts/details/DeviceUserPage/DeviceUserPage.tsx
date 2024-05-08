@@ -406,7 +406,7 @@ const DeviceUserPage = ({
                 </TabPanel>
                 <TabPanel>
                   <SoftwareCard
-                    hostId={host?.id}
+                    id={deviceAuthToken}
                     router={router}
                     pathname={location.pathname}
                     queryParams={queryParams}

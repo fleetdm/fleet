@@ -128,13 +128,11 @@ interface IHostDetailsSubNavItem {
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
 
 const HostDetailsPage = ({
-  route,
   router,
   location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
-  const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
 
   const {
@@ -176,10 +174,8 @@ const HostDetailsPage = ({
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [packsState, setPackState] = useState<IPackStats[]>();
-  const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
-  const [pathname, setPathname] = useState("");
   const [
     hostMdmDeviceStatus,
     setHostMdmDeviceState,
@@ -332,7 +328,6 @@ const HostDetailsPage = ({
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
         setSchedule(schedule);
         if (returnedHost.pack_stats) {
@@ -459,11 +454,6 @@ const HostDetailsPage = ({
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
-
-  // Used for back to software pathname
-  useEffect(() => {
-    setPathname(location.pathname + location.search);
-  }, [location]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -846,7 +836,7 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <SoftwareCard
-                hostId={host.id}
+                id={host.id}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={queryParams}

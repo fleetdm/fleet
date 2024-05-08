@@ -10,6 +10,7 @@ import { InjectedRouter } from "react-router";
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { getNextLocationPath } from "utilities/helpers";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -17,7 +18,7 @@ const baseClass = "host-software-table";
 
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
-  data: IGetHostSoftwareResponse;
+  data: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
   isLoading: boolean;
   router: InjectedRouter;
   sortHeader: string;
