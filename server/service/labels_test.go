@@ -21,7 +21,7 @@ func TestLabelsAuth(t *testing.T) {
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 		return lbl, nil
 	}
-	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label) (*fleet.Label, []uint, error) {
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 		return lbl, nil, nil
 	}
 	ds.DeleteLabelFunc = func(ctx context.Context, nm string) error {
@@ -30,7 +30,7 @@ func TestLabelsAuth(t *testing.T) {
 	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
 		return nil
 	}
-	ds.LabelFunc = func(ctx context.Context, id uint) (*fleet.Label, []uint, error) {
+	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 		return &fleet.Label{}, nil, nil
 	}
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
