@@ -2939,6 +2939,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 	opts := fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}
 
+	expectStatus := func(s fleet.SoftwareInstallerStatus) *fleet.SoftwareInstallerStatus {
+		return &s
+	}
+
 	// no software yet
 	sw, meta, err := ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
@@ -3157,7 +3161,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected["b"] = &fleet.HostSoftwareWithInstaller{
 		Name:                       "b",
 		Source:                     "apps",
-		Status:                     &fleet.SoftwareInstallerPending,
+		Status:                     expectStatus(fleet.SoftwareInstallerPending),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid1"},
 		PackageAvailableForInstall: ptr.String("installer-0.pkg"),
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
@@ -3167,14 +3171,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected["i0"] = &fleet.HostSoftwareWithInstaller{
 		Name:                       "i0",
 		Source:                     "apps",
-		Status:                     &fleet.SoftwareInstallerInstalled,
+		Status:                     expectStatus(fleet.SoftwareInstallerInstalled),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid2"},
 		PackageAvailableForInstall: ptr.String("installer-1.pkg"),
 	}
 	expected["i1"] = &fleet.HostSoftwareWithInstaller{
 		Name:                       "i1",
 		Source:                     "apps",
-		Status:                     &fleet.SoftwareInstallerFailed,
+		Status:                     expectStatus(fleet.SoftwareInstallerFailed),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid3"},
 		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
 	}
@@ -3245,7 +3249,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected["b"] = &fleet.HostSoftwareWithInstaller{
 		Name:                       "b",
 		Source:                     "apps",
-		Status:                     &fleet.SoftwareInstallerFailed,
+		Status:                     expectStatus(fleet.SoftwareInstallerFailed),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid1"},
 		PackageAvailableForInstall: ptr.String("installer-0.pkg"),
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
@@ -3255,7 +3259,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected["i1"] = &fleet.HostSoftwareWithInstaller{
 		Name:                       "i1",
 		Source:                     "apps",
-		Status:                     &fleet.SoftwareInstallerPending,
+		Status:                     expectStatus(fleet.SoftwareInstallerPending),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid4"},
 		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
 	}

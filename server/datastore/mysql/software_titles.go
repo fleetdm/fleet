@@ -13,11 +13,16 @@ import (
 )
 
 func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
-	var teamFilter string
+	var teamFilter string // used to filter software titles host counts by team
 	if teamID != nil {
 		teamFilter = fmt.Sprintf("sthc.team_id = %d", *teamID)
 	} else {
 		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
+	}
+
+	var tmID uint // used to filter software installers by team
+	if teamID != nil {
+		tmID = *teamID
 	}
 
 	selectSoftwareTitleStmt := fmt.Sprintf(`
@@ -26,12 +31,12 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
-	SUM(sthc.hosts_count) as hosts_count,
+	COALESCE(SUM(sthc.hosts_count), 0) as hosts_count,
 	MAX(sthc.updated_at)  as counts_updated_at
 FROM software_titles st
-JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
-WHERE st.id = ? AND %s
-AND sthc.hosts_count > 0
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
+WHERE st.id = ? 
+AND (sthc.hosts_count > 0 OR EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?))
 GROUP BY
 	st.id,
 	st.name,
@@ -40,7 +45,7 @@ GROUP BY
 	`, teamFilter,
 	)
 	var title fleet.SoftwareTitle
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id, tmID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("SoftwareTitle").WithID(id)
 		}
@@ -184,6 +189,8 @@ func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions
 	return strings.Replace(stmt, targetSubstr, targetSubstr+secondaryOrderBy, 1)
 }
 
+// TODO: Does this need to be updated to include software installers? Otherwise, this list won't
+// include software packages that haven't been installed on any hosts (see SoftwareTitleByID above).
 func selectSoftwareTitlesSQL(opt fleet.SoftwareTitleListOptions) (string, []any) {
 	stmt := `
 SELECT

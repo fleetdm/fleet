@@ -89,6 +89,8 @@ type SoftwareInstaller struct {
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
 	StorageID string `json:"-" db:"storage_id"`
+	// Status is the status of the software installer package.
+	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.
 	SoftwareTitle string `json:"-" db:"software_title"`
 }
@@ -111,20 +113,36 @@ type SoftwareInstallerStatusSummary struct {
 // SoftwareInstallerStatus represents the status of a software installer package on a host.
 type SoftwareInstallerStatus string
 
-var (
+const (
 	SoftwareInstallerPending   SoftwareInstallerStatus = "pending"
 	SoftwareInstallerFailed    SoftwareInstallerStatus = "failed"
 	SoftwareInstallerInstalled SoftwareInstallerStatus = "installed"
 )
 
+func (s SoftwareInstallerStatus) IsValid() bool {
+	switch s {
+	case
+		SoftwareInstallerFailed,
+		SoftwareInstallerInstalled,
+		SoftwareInstallerPending:
+		return true
+	default:
+		return false
+	}
+}
+
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
 type HostSoftwareInstallerResult struct {
+	// ID is the unique numerical ID of the result assigned by the datastore.
+	ID uint `json:"-" db:"id"`
 	// InstallUUID is the unique identifier for the software install operation associated with the host.
 	InstallUUID string `json:"install_uuid" db:"execution_id"`
 	// SoftwareTitle is the title of the software.
 	SoftwareTitle string `json:"software_title" db:"software_title"`
 	// SoftwareVersion is the version of the software.
 	SoftwareTitleID uint `json:"software_title_id" db:"software_title_id"`
+	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
+	SoftwareInstallerID uint `json:"-" db:"software_installer_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
@@ -142,6 +160,10 @@ type HostSoftwareInstallerResult struct {
 	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
+	// CreatedAt is the time the software installer request was triggered.
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// UpdatedAt is the time the software installer request was last updated.
+	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
 	// HostTeamID is the team ID of the host on which this software install was attempted. This
 	// field is not sent in the response, it is only used for internal authorization.
 	HostTeamID *uint `json:"-" db:"host_team_id"`
