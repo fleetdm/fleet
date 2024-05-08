@@ -220,13 +220,13 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 	return label, nil
 }
 
-func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error) {
+func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
 	_, err := ds.writer(ctx).ExecContext(ctx, query, label.Name, label.Description, label.ID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
 	}
-	return labelDB(ctx, label.ID, ds.writer(ctx))
+	return labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
 }
 
 // DeleteLabel deletes a fleet.Label
@@ -261,11 +261,12 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
-func (ds *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, []uint, error) {
-	return labelDB(ctx, lid, ds.reader(ctx))
+func (ds *Datastore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+	return labelDB(ctx, lid, teamFilter, ds.reader(ctx))
 }
 
-func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, []uint, error) {
+func labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.QueryerContext) (*fleet.Label, []uint, error) {
+	// TODO(mna): use teamFilter to count only visible hosts for the user. See how ListLabels work.
 	stmt := `
 		SELECT
 		       l.*,
