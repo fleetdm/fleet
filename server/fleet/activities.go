@@ -1466,7 +1466,7 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
-- "team_id": The ID of the team to which this software was added.` + " `null` " + `0 if it was added to no team.`,
+- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.`,
 		`{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
