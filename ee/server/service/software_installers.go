@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 )
@@ -26,6 +27,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.InstallerFile == nil {
 		return ctxerr.New(ctx, "installer file is required")
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
 	}
 
 	title, vers, hash, err := file.ExtractInstallerMetadata(payload.Filename, payload.InstallerFile)
@@ -80,6 +86,25 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// TODO: QA what breaks when you have a software title with no versions?
 
+	var teamName *string
+	if payload.TeamID != nil {
+		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		if err != nil {
+			return err
+		}
+		teamName = &t.Name
+	}
+
+	// Create activity
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+		SoftwareTitle:   title,
+		SoftwarePackage: payload.Filename,
+		TeamName:        teamName,
+		TeamID:          payload.TeamID,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for added software")
+	}
+
 	return nil
 }
 
@@ -104,8 +129,31 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 		return err
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
 	if err := svc.ds.DeleteSoftwareInstaller(ctx, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting software installer")
+	}
+
+	var teamName *string
+	if meta.TeamID != nil {
+		t, err := svc.ds.Team(ctx, *meta.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting team name for deleted software")
+		}
+		teamName = &t.Name
+	}
+
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
+		SoftwareTitle:   meta.SoftwareTitle,
+		SoftwarePackage: meta.Name,
+		TeamName:        teamName,
+		TeamID:          meta.TeamID,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
 
 	return nil

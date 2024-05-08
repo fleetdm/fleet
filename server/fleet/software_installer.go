@@ -68,7 +68,7 @@ type SoftwareInstaller struct {
 	// no team.
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
-	TitleID uint `json:"-" db:"title_id"`
+	TitleID *uint `json:"-" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
 	// Version is the version of the software package.
@@ -91,6 +91,8 @@ type SoftwareInstaller struct {
 	StorageID string `json:"-" db:"storage_id"`
 	// Status is the status of the software installer package.
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
+	// SoftwareTitle is the title of the software pointed installed by this installer.
+	SoftwareTitle string `json:"-" db:"software_title"`
 }
 
 // AuthzType implements authz.AuthzTyper.
