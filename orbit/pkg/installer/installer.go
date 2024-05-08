@@ -2,6 +2,7 @@ package installer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -95,15 +96,20 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 		return false, "", errors.New("no query status")
 	}
 
+	response, err := json.Marshal(res.Response)
+	if err != nil {
+		return false, "", ctxerr.Wrap(ctx, err, "marshalling query response")
+	}
+
 	if res.Status.Code != 0 {
-		return false, res.String(), ctxerr.Wrap(ctx, fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message))
+		return false, string(response), ctxerr.Wrap(ctx, fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message))
 	}
 
 	if len(res.Response) == 0 {
-		return false, res.String(), nil
+		return false, string(response), nil
 	}
 
-	return true, res.String(), nil
+	return true, string(response), nil
 }
 
 func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.HostSoftwareInstallResultPayload, error) {
@@ -173,7 +179,8 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 
 func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScriptResult, installerPath string) (string, int, error) {
 	// run script in installer directory
-	scriptPath := filepath.Join(installerPath, strconv.Itoa(int(script.ID)))
+	installerDir := filepath.Dir(installerPath)
+	scriptPath := filepath.Join(installerDir, strconv.Itoa(int(script.ID)))
 	if err := os.WriteFile(scriptPath, []byte(script.ScriptContents), 0700); err != nil {
 		return "", -1, ctxerr.Wrap(ctx, err, "writing script")
 	}
@@ -183,7 +190,7 @@ func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScrip
 	}
 
 	env := os.Environ()
-	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", scriptPath)
+	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", installerPath)
 	env = append(env, installerPathEnv)
 
 	output, exitCode, err := r.execCmdFn(ctx, scriptPath, env)
