@@ -635,6 +635,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
 	}}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
 	require.EqualValues(t, 2, counts)
 	require.Len(t, titles, 2)
 	require.Equal(t, "installer1", titles[0].Name)
@@ -653,6 +654,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 		MatchQuery:     "installer1",
 	}}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
 	require.EqualValues(t, 1, counts)
 	require.Len(t, titles, 1)
 	require.Equal(t, "installer1", titles[0].Name)
@@ -665,6 +667,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 		MatchQuery:     "installer1",
 	}, VulnerableOnly: true}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
 	require.EqualValues(t, 0, counts)
 	require.Len(t, titles, 0)
 }
