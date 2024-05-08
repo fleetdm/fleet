@@ -151,19 +151,19 @@ func NewOrbitClient(
 }
 
 // closeIdleConnections attempts to close idle connections from the pool
-// every 10 minutes.
+// every 55 minutes.
 //
 // Some load balancers (e.g. AWS ELB) have a maximum lifetime for a connection
 // (no matter if the connection is active or not) and will forcefully close the
 // connection causing errors in the client (e.g. https://github.com/fleetdm/fleet/issues/18783).
-// To prevent these errors, we will attempt to cleanup idle connections every 10
+// To prevent these errors, we will attempt to cleanup idle connections every 55
 // minutes to not let these connection grow too old. (AWS ELB's default value for maximum
 // lifetime of a connection is 3600 seconds.)
 func (oc *OrbitClient) closeIdleConnections() {
 	oc.lastIdleConnectionsCleanupMu.Lock()
 	defer oc.lastIdleConnectionsCleanupMu.Unlock()
 
-	if time.Since(oc.lastIdleConnectionsCleanup) < 10*time.Minute {
+	if time.Since(oc.lastIdleConnectionsCleanup) < 55*time.Minute {
 		return
 	}
 
