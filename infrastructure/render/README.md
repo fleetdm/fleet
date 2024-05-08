@@ -8,24 +8,23 @@ This guide outlines the services configured in the Render blueprint for deployin
 
 ### 1. Fleet Web Service
 - **Type:** Web
-- **Environment:** Docker
-- **Image:** `fleetdm/fleet:latest`
+- **Runtime:** Image
+- **Image:** `fleetdm/fleet:latest` 
 - **Description:** Main web service running the Fleet application, which is deployed using the latest Fleet Docker image. Configured to prepare the database before deployment.
 - **Health Check Path:** `/healthz`
 - **Environment Variables:** Connects to MySQL and Redis using service-bound environment variables.
 
 ### 2. Fleet MySQL Database
 - **Type:** Private Service (pserv)
-- **Environment:** Docker
+- **Runtime:** Docker
 - **Repository:** [MySQL Example on Render](https://github.com/render-examples/mysql)
 - **Disk:** 10 GB mounted at `/var/lib/mysql`
 - **Description:** MySQL database used by the Fleet web service. Environment variables for database credentials are managed within the service and some are automatically generated.
 
 ### 3. Fleet Redis Service
 - **Type:** Private Service (pserv)
-- **Environment:** Docker
-- **Repository:** [Redis Example on Render](https://github.com/render-examples/redis)
-- **Disk:** 10 GB mounted at `/var/lib/redis`
+- **Runtime:** Image
+- **Repository:** [Redis Docker image](https://hub.docker.com/_/redis)
 - **Description:** Redis service for caching and other in-memory data storage needs of the Fleet web service.
 
 ## Deployment Guide
