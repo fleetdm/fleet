@@ -846,15 +846,11 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <SoftwareCard
-                isLoading={isLoadingHost}
-                software={hostSoftware}
+                hostId={host.id}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
-                deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
                 queryParams={queryParams}
-                routeTemplate={routeTemplate}
-                pathname={pathname}
-                pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
+                pathname={location.pathname}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard

@@ -2,11 +2,7 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import {
-  ISoftwareTitleVersion,
-  ISoftwareTitle,
-  formatSoftwareType,
-} from "interfaces/software";
+import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
 import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -41,7 +37,11 @@ type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
 
 type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
 
-const getVulnerabilities = (versions: ISoftwareTitleVersion[]) => {
+export const getVulnerabilities = <
+  T extends { vulnerabilities: string[] | null }
+>(
+  versions: T[]
+) => {
   if (!versions) {
     return [];
   }

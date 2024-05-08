@@ -46,6 +46,7 @@ export default {
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
+  HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
 

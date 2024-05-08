@@ -1,23 +1,19 @@
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import PATHS from "router/paths";
-import { isEmpty } from "lodash";
+import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 
-import { AppContext } from "context/app";
+import hostAPI, { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { ISoftware } from "interfaces/software";
-import { buildQueryStringFromParams } from "utilities/url";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import TableContainer from "components/TableContainer";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Card from "components/Card";
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
-import { getNextLocationPath } from "utilities/helpers";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
-import {
-  generateSoftwareTableHeaders,
-  generateSoftwareTableData,
-} from "./SoftwareTableConfig";
+import { generateSoftwareTableHeaders } from "./HostSoftwareTableConfig";
+import HostSoftwareTable from "./HostSoftwareTable";
 
 const baseClass = "software-card";
 
@@ -25,149 +21,103 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
 }
 
-interface ISoftwareTableProps {
-  isLoading: boolean;
-  software: ISoftware[];
-  deviceUser?: boolean;
-  deviceType?: string;
-  isSoftwareEnabled?: boolean;
-  router?: InjectedRouter;
+interface ISoftwareCardProps {
+  hostId: number;
+  router: InjectedRouter;
   queryParams?: {
     page?: string;
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
   };
-  routeTemplate?: string;
   pathname: string;
-  pathPrefix: string;
-}
-
-interface IRowProps extends Row {
-  original: {
-    id?: number;
-  };
   isSoftwareEnabled?: boolean;
+  isMyDevicePage?: boolean;
 }
 
+const DEFAULT_SEARCH_QUERY = "";
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "name";
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE = 0;
 
-const SoftwareTable = ({
-  isLoading,
-  software,
-  deviceUser,
-  deviceType,
+const SoftwareCard = ({
+  hostId,
   router,
   queryParams,
-  routeTemplate,
-  pathPrefix,
   pathname,
-}: ISoftwareTableProps): JSX.Element => {
-  const { setFilteredSoftwarePath } = useContext(AppContext);
-
-  // Functions to avoid race conditions
-  const initialSearchQuery = (() => queryParams?.query ?? "")();
-  const initialSortHeader = (() => queryParams?.order_key ?? "name")();
-  const initialSortDirection = (() =>
-    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
-  const initialPage = (() =>
-    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
-
-  // Never set as state as URL is source of truth
-  const searchQuery = initialSearchQuery;
-  const page = initialPage;
-  const sortDirection = initialSortDirection;
-  const sortHeader = initialSortHeader;
-
-  // TODO: Look into useDebounceCallback with dependencies
-  const onQueryChange = useCallback(
-    async (newTableQuery: ITableQueryData) => {
-      const {
-        pageIndex: newPageIndex,
-        searchQuery: newSearchQuery,
-        sortDirection: newSortDirection,
-        sortHeader: newSortHeader,
-      } = newTableQuery;
-
-      // Rebuild queryParams to dispatch new browser location to react-router
-      const newQueryParams: { [key: string]: string | number | undefined } = {};
-
-      if (!isEmpty(newSearchQuery)) {
-        newQueryParams.query = newSearchQuery;
-      }
-
-      newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
-      newQueryParams.order_direction =
-        newSortDirection || DEFAULT_SORT_DIRECTION;
-      newQueryParams.page = newPageIndex;
-      // Reset page number to 0 for new filters
-      if (
-        newSortDirection !== sortDirection ||
-        newSortHeader !== sortHeader ||
-        newSearchQuery !== searchQuery
-      ) {
-        newQueryParams.page = 0;
-      }
-
-      const locationPath = getNextLocationPath({
-        pathPrefix,
-        routeTemplate,
-        queryParams: newQueryParams,
-      });
-
-      router?.replace(locationPath);
-    },
-    [sortHeader, sortDirection, searchQuery, router, routeTemplate]
+  isSoftwareEnabled = false,
+  isMyDevicePage = false,
+}: ISoftwareCardProps) => {
+  const {
+    data: hostSoftwareRes,
+    isLoading: hostSoftwareLoading,
+    isError: hostSoftwareError,
+    isFetching: hostSoftwareFetching,
+  } = useQuery<IGetHostSoftwareResponse, AxiosError>(
+    ["host-software", queryParams],
+    () => hostAPI.getHostSoftware(hostId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isSoftwareEnabled && !isMyDevicePage,
+    }
   );
 
-  const onClientSidePaginationChange = useCallback(
-    (pageIndex: number) => {
-      const locationPath = getNextLocationPath({
-        pathPrefix,
-        routeTemplate,
-        queryParams: {
-          ...queryParams,
-          page: pageIndex,
-          query: searchQuery,
-          order_direction: sortDirection,
-          order_key: sortHeader,
-        },
-      });
-      router?.replace(locationPath);
-    },
-    [searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
+  // TODO: device call
+  const {
+    data: deviceSoftwareRes,
+    isLoading: deviceSoftwareLoading,
+    isError: deviceSoftwareError,
+    isFetching: deviceSoftwareFetching,
+  } = useQuery<IGetHostSoftwareResponse, AxiosError>(
+    ["host-software", queryParams],
+    () => hostAPI.getHostSoftware(hostId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isSoftwareEnabled && isMyDevicePage,
+    }
   );
 
-  const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
-    software,
-  ]);
+  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
+  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
+  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
+  const page = queryParams?.page
+    ? parseInt(queryParams.page, 10)
+    : DEFAULT_PAGE;
+
   const tableHeaders = useMemo(
     () =>
       generateSoftwareTableHeaders({
-        deviceUser,
         router,
-        setFilteredSoftwarePath,
-        pathname,
       }),
-    [deviceUser, router, pathname]
+    [router]
   );
 
-  const handleRowSelect = (row: IRowProps) => {
-    if (deviceUser || !router) {
-      return;
+  const renderSoftwareTable = () => {
+    if (hostSoftwareLoading || deviceSoftwareLoading) {
+      return <Spinner />;
     }
 
-    const hostsBySoftwareParams = { software_id: row.original.id };
+    if (hostSoftwareError || deviceSoftwareError) {
+      return <DataError />;
+    }
 
-    const path = hostsBySoftwareParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-          hostsBySoftwareParams
-        )}`
-      : PATHS.MANAGE_HOSTS;
+    if (!hostSoftwareRes || !deviceSoftwareRes) {
+      return null;
+    }
 
-    router.push(path);
+    return (
+      <HostSoftwareTable
+        isLoading={hostSoftwareFetching || deviceSoftwareFetching}
+        data={isMyDevicePage ? hostSoftwareRes : deviceSoftwareRes}
+        router={router}
+        tableConfig={tableHeaders}
+        sortHeader={sortHeader}
+        sortDirection={sortDirection}
+        searchQuery={searchQuery}
+        page={page}
+        pagePath={pathname}
+      />
+    );
   };
 
   return (
@@ -178,45 +128,8 @@ const SoftwareTable = ({
       className={baseClass}
     >
       <p className="card__header">Software</p>
-
-      {software?.length ? (
-        <>
-          {software && (
-            <div className={deviceType || ""}>
-              <TableContainer
-                resultsTitle="software items"
-                columnConfigs={tableHeaders}
-                data={tableSoftware || []}
-                filters={{
-                  global: searchQuery,
-                }}
-                isLoading={isLoading}
-                defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
-                defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-                defaultSearchQuery={searchQuery}
-                defaultPageIndex={page}
-                pageSize={DEFAULT_PAGE_SIZE}
-                inputPlaceHolder="Search by name"
-                onQueryChange={onQueryChange}
-                emptyComponent={() => (
-                  <EmptySoftwareTable isSearching={searchQuery !== ""} />
-                )}
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                searchable
-                isClientSidePagination
-                onClientSidePaginationChange={onClientSidePaginationChange}
-                isClientSideFilter
-                disableMultiRowSelect={!deviceUser && !!router} // device user cannot view hosts by software
-                onSelectSingleRow={handleRowSelect}
-              />
-            </div>
-          )}
-        </>
-      ) : (
-        <EmptySoftwareTable />
-      )}
+      {renderSoftwareTable()}
     </Card>
   );
 };
-export default SoftwareTable;
+export default SoftwareCard;

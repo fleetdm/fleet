@@ -1,0 +1,133 @@
+import React from "react";
+import { InjectedRouter } from "react-router";
+import { CellProps, Column } from "react-table";
+
+import { IHostSoftware, SOURCE_TYPE_CONVERSION } from "interfaces/software";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import PATHS from "router/paths";
+import { buildQueryStringFromParams } from "utilities/url";
+
+import IconCell from "pages/SoftwarePage/components/IconCell";
+
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
+import VersionCell from "pages/SoftwarePage/components/VersionCell";
+import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
+
+type ISoftwareTableConfig = Column<IHostSoftware>;
+type ITableHeaderProps = IHeaderProps<IHostSoftware>;
+type ITableStringCellProps = IStringCellProps<IHostSoftware>;
+type IInstalledVersionsCellProps = CellProps<
+  IHostSoftware,
+  IHostSoftware["installed_versions"]
+>;
+type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
+
+const formatSoftwareType = (source: string) => {
+  const DICT = SOURCE_TYPE_CONVERSION;
+  return DICT[source] || "Unknown";
+};
+
+interface ISoftwareTableHeadersProps {
+  deviceUser?: boolean;
+  router?: InjectedRouter;
+}
+
+export const generateSoftwareTableData = (
+  software: IHostSoftware[]
+): IHostSoftware[] => {
+  return software;
+};
+
+// NOTE: cellProps come from react-table
+// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
+export const generateSoftwareTableHeaders = ({
+  router,
+}: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
+  const tableHeaders: ISoftwareTableConfig[] = [
+    {
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
+      ),
+      accessor: "name",
+      disableSortBy: false,
+      disableGlobalFilter: false,
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { id, name, source } = cellProps.row.original;
+
+        const teamQueryParam = buildQueryStringFromParams({ team_id: 1 }); // TODO: team id added
+        const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
+          id.toString()
+        )}?${teamQueryParam}`;
+
+        const onClickSoftware = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+
+          router?.push(softwareTitleDetailsPath);
+        };
+
+        return (
+          <LinkCell
+            path={softwareTitleDetailsPath}
+            customOnClick={onClickSoftware}
+            value={
+              <>
+                <SoftwareIcon name={name} source={source} />
+                <span className="software-name">{name}</span>
+              </>
+            }
+          />
+        );
+      },
+      sortType: "caseInsensitive",
+    },
+    {
+      Header: "Install status",
+      disableSortBy: true,
+      accessor: "status",
+      Cell: (cellProps: ITableStringCellProps) => {
+        return cellProps.cell.value ? <IconCell iconName="install" /> : null;
+      },
+    },
+    {
+      Header: "Version",
+      disableSortBy: true,
+      // we use function as accessor because we have two columns that
+      // need to access the same data. This is not supported with a string
+      // accessor.
+      accessor: (originalRow) => originalRow.installed_versions,
+      Cell: (cellProps: IInstalledVersionsCellProps) => {
+        return <VersionCell versions={cellProps.cell.value} />;
+      },
+    },
+    {
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell value="Type" isSortedDesc={cellProps.column.isSortedDesc} />
+      ),
+      disableSortBy: false,
+      disableGlobalFilter: true,
+      accessor: "source",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} formatter={formatSoftwareType} />
+      ),
+    },
+    {
+      Header: "Vulnerabilities",
+      accessor: (originalRow) => originalRow.installed_versions,
+      disableSortBy: true,
+      Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
+        return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
+      },
+    },
+  ];
+
+  return tableHeaders;
+};
+
+export default { generateSoftwareTableHeaders, generateSoftwareTableData };

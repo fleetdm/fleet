@@ -152,3 +152,26 @@ export const formatSoftwareType = ({
 // ISoftwareInstallerType defines the supported installer types for
 // software uploaded by the IT admin.
 export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "exe";
+
+interface ISoftwareLastInstall {
+  install_uuid: string;
+  installed_at: string;
+}
+
+export interface ISoftwareInstallVersion {
+  version: string;
+  last_opened_at: string;
+  vulnerabilities: string[];
+  installed_paths: string[];
+}
+
+export interface IHostSoftware {
+  id: number;
+  name: string;
+  package_available_for_install: string;
+  source: string;
+  bundle_identifier: string;
+  status: string;
+  last_install: ISoftwareLastInstall | null;
+  installed_versions: ISoftwareInstallVersion[];
+}

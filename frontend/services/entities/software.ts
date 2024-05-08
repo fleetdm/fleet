@@ -5,7 +5,6 @@ import endpoints from "utilities/endpoints";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
-  IGetSoftwareByIdResponse,
   ISoftwareVersion,
   ISoftwareTitle,
 } from "interfaces/software";
@@ -14,7 +13,6 @@ import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareF
 import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
-  createMockSoftwareTitleResponse,
 } from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
