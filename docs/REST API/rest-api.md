@@ -7942,7 +7942,7 @@ Delete software package.
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/software/install/results`
+`GET /api/v1/fleet/software/install/results/:install_uuid`
 
 Get an installation result of the software that was installed.
 
