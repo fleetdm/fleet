@@ -4994,6 +4994,25 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This setting lets you decide whether to turn on SmartScreen Filter. SmartScreen Filter provides warning messages to help protect your employees from potential phishing scams and malicious software.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Configure Windows Defender SmartScreen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\EnabledV9' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Require domain users to elevate when setting a network's location' is set to 'Enabled'
   platforms: win11
   platform: windows
