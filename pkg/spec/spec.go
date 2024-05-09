@@ -3,6 +3,8 @@
 package spec
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -145,18 +147,25 @@ func SplitYaml(in string) []string {
 	return out
 }
 
-const preventEscapingPrefix = "PREVENT_ESCAPING_"
-
-var escapingPrefixPresentErr = fmt.Errorf(
-	"could not expand environment because input has the string \"%s\" used to escape",
-	preventEscapingPrefix,
-)
+func generateRandomString(sizeBytes int) string {
+	b := make([]byte, sizeBytes)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}
 
 func ExpandEnv(s string) (string, error) {
-	if strings.Contains(s, preventEscapingPrefix) {
-		return "", escapingPrefixPresentErr
+	// Generate a random escaping prefix that doesn't exist in s.
+	var preventEscapingPrefix string
+	for {
+		preventEscapingPrefix = "PREVENT_ESCAPING_" + generateRandomString(8)
+		if !strings.Contains(s, preventEscapingPrefix) {
+			break
+		}
 	}
-	s = escapeString(s)
+
+	s = escapeString(s, preventEscapingPrefix)
 	var err *multierror.Error
 	s = os.Expand(s, func(env string) string {
 		if strings.HasPrefix(env, preventEscapingPrefix) {
@@ -164,7 +173,7 @@ func ExpandEnv(s string) (string, error) {
 		}
 		v, ok := os.LookupEnv(env)
 		if !ok {
-			err = multierror.Append(err, fmt.Errorf("variable %q not set", env))
+			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 			return ""
 		}
 		return v
@@ -185,7 +194,7 @@ func ExpandEnvBytes(b []byte) ([]byte, error) {
 
 var escapePattern = regexp.MustCompile(`(\\+\$)`)
 
-func escapeString(s string) string {
+func escapeString(s string, preventEscapingPrefix string) string {
 	return escapePattern.ReplaceAllStringFunc(s, func(match string) string {
 		if len(match)%2 != 0 {
 			return match

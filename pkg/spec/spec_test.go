@@ -1,7 +1,6 @@
 package spec
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -133,7 +132,7 @@ func TestEscapeString(t *testing.T) {
 		{`bar\\\\$foo`, `bar\\\\$foo`},                        // no escaping
 		{`bar\\\\${foo}`, `bar\\\\${foo}`},                    // no escaping
 	} {
-		result := escapeString(tc.s)
+		result := escapeString(tc.s, "PREVENT_ESCAPING_")
 		require.Equal(t, tc.expResult, result)
 	}
 }
@@ -158,26 +157,27 @@ func TestExpandEnv(t *testing.T) {
 	}{
 		{map[string]string{"foo": "1"}, `$foo`, `1`, nil},
 		{map[string]string{"foo": ""}, `$foo`, ``, nil},
-		{map[string]string{}, `$foo`, ``, checkMultiErrors("variable \"foo\" not set")},
-		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors("variable \"bar\" not set")},
-		{map[string]string{"bar": "1"}, `$foo $bar $zoo`, ``, checkMultiErrors("variable \"foo\" not set", "variable \"zoo\" not set")},
+		{map[string]string{"foo": "", "bar": "", "zoo": ""}, `$foo${bar}$zoo`, ``, nil},
+		{map[string]string{}, `$foo`, ``, checkMultiErrors("environment variable \"foo\" not set")},
+		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors("environment variable \"bar\" not set")},
+		{map[string]string{"bar": "1"}, `$foo $bar $zoo`, ``, checkMultiErrors("environment variable \"foo\" not set", "environment variable \"zoo\" not set")},
 		{map[string]string{"foo": "4", "bar": "2"}, `$foo$bar`, `42`, nil},
 		{map[string]string{"foo": "42", "bar": ""}, `$foo$bar`, `42`, nil},
-		{map[string]string{}, `$$`, ``, checkMultiErrors("variable \"$\" not set")},
-		{map[string]string{"foo": "1"}, `$$foo`, ``, checkMultiErrors("variable \"$\" not set")},
+		{map[string]string{}, `$$`, ``, checkMultiErrors("environment variable \"$\" not set")},
+		{map[string]string{"foo": "1"}, `$$foo`, ``, checkMultiErrors("environment variable \"$\" not set")},
 		{map[string]string{"foo": "1"}, `\$${foo}`, `$1`, nil},
-		{map[string]string{}, `\$foo`, `$foo`, nil},                            // escaped
-		{map[string]string{"foo": "1"}, `\\$foo`, `\\1`, nil},                  // not escaped
-		{map[string]string{}, `\\\$foo`, `\$foo`, nil},                         // escaped
-		{map[string]string{}, `\\\$foo$`, `\$foo$`, nil},                       // escaped
-		{map[string]string{}, `bar\\\$foo$`, `bar\$foo$`, nil},                 // escaped
-		{map[string]string{"foo": "1"}, `$foo var`, `1 var`, nil},              // not escaped
-		{map[string]string{"foo": "1"}, `${foo}var`, `1var`, nil},              // not escaped
-		{map[string]string{"foo": "1"}, `\${foo}var`, `${foo}var`, nil},        // escaped
-		{map[string]string{"foo": ""}, `${foo}var`, `var`, nil},                // escaped
-		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil}, // escaped
-		{map[string]string{}, `${foo}var`, ``, checkMultiErrors("variable \"foo\" not set")},
-		{map[string]string{}, fmt.Sprintf("foo%sbar", preventEscapingPrefix), ``, func(err error) { require.Equal(t, err, escapingPrefixPresentErr) }},
+		{map[string]string{}, `\$foo`, `$foo`, nil},                     // escaped
+		{map[string]string{"foo": "1"}, `\\$foo`, `\\1`, nil},           // not escaped
+		{map[string]string{}, `\\\$foo`, `\$foo`, nil},                  // escaped
+		{map[string]string{}, `\\\$foo$`, `\$foo$`, nil},                // escaped
+		{map[string]string{}, `bar\\\$foo$`, `bar\$foo$`, nil},          // escaped
+		{map[string]string{"foo": "1"}, `$foo var`, `1 var`, nil},       // not escaped
+		{map[string]string{"foo": "1"}, `${foo}var`, `1var`, nil},       // not escaped
+		{map[string]string{"foo": "1"}, `\${foo}var`, `${foo}var`, nil}, // escaped
+		{map[string]string{"foo": ""}, `${foo}var`, `var`, nil},
+		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil},
+		{map[string]string{}, `${foo}var`, ``, checkMultiErrors("environment variable \"foo\" not set")},
+		{map[string]string{}, `foo PREVENT_ESCAPING_bar`, `foo PREVENT_ESCAPING_bar`, nil}, // nothing to replace
 	} {
 		os.Clearenv()
 		for k, v := range tc.environment {
