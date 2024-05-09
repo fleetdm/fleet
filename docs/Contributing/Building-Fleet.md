@@ -199,6 +199,10 @@ If you're using the Google Chrome web browser, you can always automatically bypa
 The Fleet UI is developed with [Typescript](https://www.typescriptlang.org/) using the [React library](https://reactjs.org/docs/getting-started.html) and [SCSS](https://sass-lang.com/) for styling.
 The source code can be found in the [frontend](https://github.com/fleetdm/fleet/tree/main/frontend) directory.
 
+## Continue setting up MDM
+
+If you need MDM functionality please [read on...](./MDM-Cert-Setup.md)
+
 ## Debugging with Delve debugger
 
 The [Delve](https://github.com/go-delve/delve) Go debugger can be used for debugging the Fleet binary.
