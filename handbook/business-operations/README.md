@@ -323,7 +323,7 @@ Within 60 days of the end of the year, follow these steps:
 ### Review an NDA
 We need to review an NDA anytime a vendor, customer or other party wants to:
 - Use their own NDA rather than Fleet's standard NDA, or
-2. "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
+- "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
 
 We should always seek to use Fleet's own NDA first, without alteration. 
 
