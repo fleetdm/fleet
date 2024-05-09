@@ -181,23 +181,33 @@ const SoftwareCard = ({
       return <DataError />;
     }
 
-    if (!hostSoftwareRes || !deviceSoftwareRes) {
-      return null;
+    const props = {
+      router,
+      tableConfig: tableHeaders,
+      sortHeader,
+      sortDirection,
+      searchQuery,
+      page,
+      pagePath: pathname,
+    };
+
+    if (!isMyDevicePage) {
+      return hostSoftwareRes ? (
+        <HostSoftwareTable
+          isLoading={hostSoftwareLoading}
+          data={hostSoftwareRes}
+          {...props}
+        />
+      ) : null;
     }
 
-    return (
+    return deviceSoftwareRes ? (
       <HostSoftwareTable
-        isLoading={hostSoftwareFetching || deviceSoftwareFetching}
-        data={isMyDevicePage ? hostSoftwareRes : deviceSoftwareRes}
-        router={router}
-        tableConfig={tableHeaders}
-        sortHeader={sortHeader}
-        sortDirection={sortDirection}
-        searchQuery={searchQuery}
-        page={page}
-        pagePath={pathname}
+        isLoading={deviceSoftwareLoading}
+        data={deviceSoftwareRes}
+        {...props}
       />
-    );
+    ) : null;
   };
 
   return (
