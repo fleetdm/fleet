@@ -9,7 +9,11 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { SelectedPlatform } from "interfaces/platform";
-import { ISoftwareTitle, ISoftware } from "interfaces/software";
+import {
+  ISoftwareTitle,
+  ISoftware,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -46,6 +50,7 @@ export type IUnlockHostResponse =
 export const HOSTS_QUERY_PARAMS = {
   OS_SETTINGS: "os_settings",
   DISK_ENCRYPTION: "os_settings_disk_encryption",
+  SOFTWARE_STATUS: "software_status",
 } as const;
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
@@ -67,6 +72,7 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
+  softwareStatus?: SoftwareInstallStatus;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -97,6 +103,7 @@ export interface IExportHostsOptions {
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
+  softwareStatus?: SoftwareInstallStatus;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -126,6 +133,7 @@ export interface IActionByFilter {
   softwareId?: number | null;
   softwareTitleId?: number | null;
   softwareVersionId?: number | null;
+  softwareStatus?: SoftwareInstallStatus;
   osName?: string;
   osVersion?: string;
   osVersionId?: number | null;
@@ -204,6 +212,7 @@ export default {
     softwareId,
     softwareTitleId,
     softwareVersionId,
+    softwareStatus,
     osName,
     osVersion,
     osVersionId,
@@ -229,6 +238,7 @@ export default {
         software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
+        [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
@@ -254,6 +264,7 @@ export default {
     const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
+    const softwareStatus = options?.softwareStatus;
     const macSettingsStatus = options?.macSettingsStatus;
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
@@ -285,6 +296,7 @@ export default {
         osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
+        teamId,
         label,
         policyId,
         policyResponse,
@@ -294,6 +306,7 @@ export default {
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        softwareStatus,
         osName,
         osVersionId,
         osVersion,
@@ -338,6 +351,7 @@ export default {
     softwareId,
     softwareTitleId,
     softwareVersionId,
+    softwareStatus,
     status,
     mdmId,
     mdmEnrollmentStatus,
@@ -372,6 +386,7 @@ export default {
         osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
+        teamId,
         label,
         policyId,
         policyResponse,
@@ -381,6 +396,7 @@ export default {
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        softwareStatus,
         lowDiskSpaceHosts,
         osVersionId,
         osName,
@@ -446,6 +462,7 @@ export default {
     softwareId,
     softwareTitleId,
     softwareVersionId,
+    softwareStatus,
     osName,
     osVersion,
     osVersionId,
@@ -472,6 +489,7 @@ export default {
         software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
+        [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
