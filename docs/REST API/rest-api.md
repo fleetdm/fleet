@@ -7948,7 +7948,7 @@ Get an installation result of the software that was installed.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| installation_uuid | string | path | **Required**. The installation UUID of the software.|
+| install_uuid | string | path | **Required**. The installation UUID of the software.|
 
 #### Example
 
