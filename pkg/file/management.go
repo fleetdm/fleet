@@ -18,15 +18,15 @@ var installExeScript string
 var installDebScript string
 
 // GetInstallScript returns a script that can be used to install the given file
-func GetInstallScript(filename string) string {
-	switch ext := filepath.Ext(filename); ext {
-	case ".msi":
+func GetInstallScript(extension string) string {
+	switch extension {
+	case "msi":
 		return installMsiScript
-	case ".deb":
+	case "deb":
 		return installDebScript
-	case ".pkg":
+	case "pkg":
 		return installPkgScript
-	case ".exe":
+	case "exe":
 		return installExeScript
 	default:
 		return ""

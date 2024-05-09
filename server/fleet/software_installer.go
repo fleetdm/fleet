@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"time"
 )
 
@@ -200,8 +199,8 @@ type DownloadSoftwareInstallerPayload struct {
 	Size      int64
 }
 
-func SofwareInstallerSourceFromFilename(filename string) (string, error) {
-	switch ext := filepath.Ext(filename); ext {
+func SofwareInstallerSourceFromExtension(ext string) (string, error) {
+	switch ext {
 	case ".deb":
 		return "deb_packages", nil
 	case ".exe", ".msi":
@@ -209,7 +208,7 @@ func SofwareInstallerSourceFromFilename(filename string) (string, error) {
 	case ".pkg":
 		return "pkg_packages", nil
 	default:
-		return "", fmt.Errorf("unsupported file type: %s", filename)
+		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
 }
 

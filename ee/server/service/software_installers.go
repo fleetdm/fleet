@@ -319,7 +319,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return ctxerr.New(ctx, "installer file is required")
 	}
 
-	title, vers, hash, err := file.ExtractInstallerMetadata(payload.InstallerFile)
+	title, vers, ext, hash, err := file.ExtractInstallerMetadata(payload.InstallerFile)
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return &fleet.BadRequestError{
@@ -339,12 +339,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 
 	if payload.InstallScript == "" {
-		payload.InstallScript = file.GetInstallScript(payload.Filename)
+		payload.InstallScript = file.GetInstallScript(ext)
 	}
 
-	source, err := fleet.SofwareInstallerSourceFromFilename(payload.Filename)
+	source, err := fleet.SofwareInstallerSourceFromExtension(ext)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "determining source from filename")
+		return ctxerr.Wrap(ctx, err, "determining source from extension")
 	}
 	payload.Source = source
 

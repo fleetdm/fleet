@@ -21,25 +21,27 @@ var ErrUnsupportedType = errors.New("unsupported file type")
 // ExtractInstallerMetadata extracts the software name and version from the
 // installer file and returns them along with the sha256 hash of the bytes. The
 // format of the installer is determined based on the magic bytes of the content.
-func ExtractInstallerMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
+func ExtractInstallerMetadata(r io.Reader) (name, version, extension string, shaSum []byte, err error) {
 	br := bufio.NewReader(r)
-	ext, err := typeFromBytes(br)
+	extension, err = typeFromBytes(br)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", "", nil, err
 	}
 
-	switch ext {
+	switch extension {
 	case "deb":
-		return ExtractDebMetadata(br)
+		name, version, shaSum, err = ExtractDebMetadata(br)
 	case "exe":
-		return ExtractPEMetadata(br)
+		name, version, shaSum, err = ExtractPEMetadata(br)
 	case "pkg":
-		return ExtractXARMetadata(br)
+		name, version, shaSum, err = ExtractXARMetadata(br)
 	case "msi":
-		return ExtractMSIMetadata(br)
+		name, version, shaSum, err = ExtractMSIMetadata(br)
 	default:
-		return "", "", nil, ErrUnsupportedType
+		return "", "", "", nil, ErrUnsupportedType
 	}
+
+	return name, version, extension, shaSum, err
 }
 
 func typeFromBytes(br *bufio.Reader) (string, error) {

@@ -124,16 +124,18 @@ func TestExtractInstallerMetadata(t *testing.T) {
 				t.Fatalf("invalid filename, expected at least 3 sections, got %d: %s", len(parts), dent.Name())
 			}
 			wantName, wantVersion, wantHash := parts[0], parts[1], parts[2]
+			wantExtension := filepath.Ext(wantName)
 
 			f, err := os.Open(filepath.Join("testdata", "installers", dent.Name()))
 			require.NoError(t, err)
 			defer f.Close()
 
-			name, version, hash, err := file.ExtractInstallerMetadata(f)
+			name, version, ext, hash, err := file.ExtractInstallerMetadata(f)
 			require.NoError(t, err)
 			assert.Equal(t, wantName, name)
 			assert.Equal(t, wantVersion, version)
 			assert.Equal(t, wantHash, hex.EncodeToString(hash))
+			assert.Equal(t, wantExtension, ext)
 		})
 	}
 }
