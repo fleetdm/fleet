@@ -2,7 +2,6 @@ name: Upload fleetd base to https://download.fleetdm.com
 
 on:
   workflow_dispatch: # Manual
-  pull_request:
   schedule:
     - cron: '0 3 * * *' # Nightly 3AM UTC
 
