@@ -454,7 +454,7 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
 	var args []interface{}
 
-	query := `SELECT count(*) FROM policies p WHERE p.team_id = ? OR p.team_id IS NULL`
+	query := `SELECT count(*) FROM policies p WHERE (p.team_id = ? OR p.team_id IS NULL)`
 	args = append(args, teamID)
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
