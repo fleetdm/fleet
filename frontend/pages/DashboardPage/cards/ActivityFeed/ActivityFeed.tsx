@@ -38,13 +38,10 @@ const ActivityFeed = ({
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
-  const [showInstalledSoftwareModal, setShowInstalledSoftwareModal] = useState(
-    false
-  );
+  const [installedSoftwareUuid, setInstalledSoftwareUuid] = useState("");
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
-  const installUuid = useRef("");
 
   const {
     data: activitiesData,
@@ -102,10 +99,9 @@ const ActivityFeed = ({
         setShowScriptDetailsModal(true);
         break;
       case ActivityType.InstalledSoftware:
-        // TODO: confirm we don't need useRef for this
-        installUuid.current = details.install_uuid ?? "";
-        console.log("installUuid.current", installUuid.current);
-        setShowInstalledSoftwareModal(true);
+        // installUuid.current = details.install_uuid ?? "";
+        // console.log("installUuid.current", installUuid.current);
+        setInstalledSoftwareUuid(details.install_uuid ?? "");
         break;
       default:
         break;
@@ -198,10 +194,10 @@ const ActivityFeed = ({
           onCancel={() => setShowScriptDetailsModal(false)}
         />
       )}
-      {showInstalledSoftwareModal && (
+      {installedSoftwareUuid && (
         <SoftwareInstallDetailsModal
-          installUuid={installUuid.current}
-          onCancel={() => setShowInstalledSoftwareModal(false)}
+          installUuid={installedSoftwareUuid}
+          onCancel={() => setInstalledSoftwareUuid("")}
         />
       )}
     </div>

@@ -7,7 +7,6 @@ import { COLORS } from "styles/var/colors";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import {
   addGravatarUrlToResource,
-  formatInstalledSoftwareForActivityItem,
   formatScriptNameForActivityItem,
   internationalTimeFormat,
 } from "utilities/helpers";
@@ -37,7 +36,14 @@ const formatPredicate = ({ type, details }: IHostActivity) => {
       return (
         <>
           told Fleet to install{" "}
-          {formatInstalledSoftwareForActivityItem(details)}
+          {details?.software_title ? (
+            <>
+              <b>{details.software_title}</b>{" "}
+            </>
+          ) : (
+            ""
+          )}
+          software
         </>
       );
     default:
