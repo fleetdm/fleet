@@ -491,7 +491,10 @@ type Datastore interface {
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided software installer in the host
-	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, teamID *uint) error
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) error
+
+	// GetSoftwareInstallerForTitle TODO
+	GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*SoftwareInstaller, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -612,6 +615,7 @@ type Datastore interface {
 
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
+	PolicyLite(ctx context.Context, id uint) (*PolicyLite, error)
 
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
@@ -622,6 +626,7 @@ type Datastore interface {
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -671,6 +676,8 @@ type Datastore interface {
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions) ([]*Policy, error)
+
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
@@ -1467,14 +1474,35 @@ type Datastore interface {
 	// Software installers
 	//
 
+	// GetSoftwareInstallDetails returns details required to fetch and
+	// run software installers
+	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
+	// ListPendingSoftwareInstalls returns a list of software
+	// installer execution IDs that have not yet been run for a given host
+	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
+
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
 
-	// GetSoftwareInstallerMetadata returns the software installer corresponding to the id.
+	// GetSoftwareInstallerMetadata returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*SoftwareInstaller, error)
+
+	// GetSoftwareInstallerMetadataByTitleID returns the software installer corresponding to the specified
+	// team and title ids.
+	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*SoftwareInstaller, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
+
+	// GetSoftwareInstallerContents returns the software install summary for the given
+	// software installer id.
+	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
+
+	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
+
+	// CleanupUnusedSoftwareInstallers will remove software installers that have
+	// no references to them from the software_installers table.
+	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

@@ -3,12 +3,69 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
+
+func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+	const stmt = `
+  SELECT
+    execution_id
+  FROM
+    host_software_installs
+  WHERE
+    host_id = ?
+  AND
+    install_script_exit_code IS NULL
+  AND
+    pre_install_query_output IS NULL
+  ORDER BY
+    created_at ASC
+`
+	var results []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
+	}
+	return results, nil
+}
+
+func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error) {
+	const stmt = `
+  SELECT
+    hsi.host_id AS host_id,
+    hsi.execution_id AS execution_id,
+    hsi.software_installer_id AS installer_id,
+    si.pre_install_query AS pre_install_condition,
+    inst.contents AS install_script,
+    pisnt.contents AS post_install_script
+  FROM
+    host_software_installs hsi
+  INNER JOIN
+    software_installers si
+    ON hsi.software_installer_id = si.id
+  LEFT OUTER JOIN
+    script_contents inst
+    ON inst.id = si.install_script_content_id
+  LEFT OUTER JOIN
+    script_contents pisnt
+    ON pisnt.id = si.post_install_script_content_id
+  WHERE
+    hsi.execution_id = ?`
+
+	result := &fleet.SoftwareInstallDetails{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), result, stmt, executionId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstallerDetails").WithName(executionId), "get software installer details")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
+	}
+	return result, nil
+}
 
 func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload.Title, payload.Source)
@@ -38,13 +95,13 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 	stmt := `
 INSERT INTO software_installers (
 	team_id,
-	global_or_team_id, 
-	title_id, 
+	global_or_team_id,
+	title_id,
 	storage_id,
-	filename, 
+	filename,
 	version,
-	install_script_content_id, 
-	pre_install_query, 
+	install_script_content_id,
+	pre_install_query,
 	post_install_script_content_id
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
@@ -95,6 +152,38 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 func (ds *Datastore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT
+	si.id,
+	si.team_id,
+	si.title_id,
+	si.storage_id,
+	si.filename,
+	si.version,
+	si.install_script_content_id,
+	si.pre_install_query,
+	si.post_install_script_content_id,
+	si.uploaded_at,
+	COALESCE(st.name, '') AS software_title
+FROM
+	software_installers si
+	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
+WHERE
+	si.id = ?`
+
+	var dest fleet.SoftwareInstaller
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller").WithID(id), "get software installer metadata")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
+	}
+
+	return &dest, nil
+}
+
+func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+	query := `
+SELECT
 	id,
 	team_id,
 	title_id,
@@ -108,13 +197,18 @@ SELECT
 FROM 
 	software_installers
 WHERE 
-	id = ?`
+	title_id = ? AND global_or_team_id = ?`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
 
 	var dest fleet.SoftwareInstaller
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, id)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, titleID, tmID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller").WithID(id), "get software installer metadata")
+			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller"), "get software installer metadata")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 	}
@@ -136,21 +230,50 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	return nil
 }
 
-func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint, teamID *uint) error {
+func (ds *Datastore) GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
 	}
 
+	const getInstallerIDStmt = `
+SELECT
+	id,
+	team_id,
+	title_id,
+	storage_id,
+	filename,
+	version,
+	install_script_content_id,
+	pre_install_query,
+	post_install_script_content_id,
+	uploaded_at
+FROM
+	software_installers
+WHERE
+	title_id = ? AND global_or_team_id = ?`
+
+	var installer fleet.SoftwareInstaller
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, getInstallerIDStmt, softwareTitleID, tmID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("SoftwareInstaller")
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "finding software installer by title")
+	}
+
+	return &installer, nil
+}
+
+func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint) error {
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id)
+		    (execution_id, host_id, software_installer_id, user_id)
 		  VALUES
-		    (?, ?, ?)
+		    (?, ?, ?, ?)
 		    `
-
-		getInstallerIDStmt = `SELECT id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?`
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
@@ -163,24 +286,179 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 			return notFound("Host").WithID(hostID)
 		}
 
-		return ctxerr.Wrap(ctx, err, "inserting new install software request")
+		return ctxerr.Wrap(ctx, err, "checking if host exists")
 	}
 
-	var installerID uint
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &installerID, getInstallerIDStmt, softwareTitleID, tmID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return notFound("SoftwareInstaller")
-		}
-
-		return ctxerr.Wrap(ctx, err, "inserting new install software request")
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
 	}
-
 	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
-		hostID,
 		uuid.NewString(),
-		softwareTitleID,
+		hostID,
+		softwareInstallerID,
+		userID,
 	)
 
 	return ctxerr.Wrap(ctx, err, "inserting new install software request")
+}
+
+func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	query := `
+SELECT
+	hsi.execution_id AS execution_id,
+	COALESCE(hsi.pre_install_query_output, '') AS pre_install_query_output,
+	COALESCE(hsi.post_install_script_output, '') AS post_install_script_output,
+	COALESCE(hsi.install_script_output, '') AS install_script_output,
+	hsi.host_id AS host_id,
+	h.computer_name AS host_display_name,
+	st.name AS software_title,
+	st.id AS software_title_id,
+	COALESCE(CASE
+		WHEN hsi.post_install_script_exit_code IS NOT NULL AND
+			hsi.post_install_script_exit_code = 0 THEN ? -- installed
+		WHEN hsi.post_install_script_exit_code IS NOT NULL AND
+			hsi.post_install_script_exit_code != 0 THEN ? -- failed
+		WHEN hsi.install_script_exit_code IS NOT NULL AND
+			hsi.install_script_exit_code = 0 THEN ? -- installed
+		WHEN hsi.install_script_exit_code IS NOT NULL AND
+			hsi.install_script_exit_code != 0 THEN ? -- failed
+		WHEN hsi.pre_install_query_output IS NOT NULL AND
+			hsi.pre_install_query_output = '' THEN ? -- failed
+		WHEN hsi.host_id IS NOT NULL THEN ? -- pending
+		ELSE NULL -- not installed from Fleet installer
+	END, '') AS status,
+	si.filename AS software_package,
+	h.team_id AS host_team_id,
+	hsi.user_id AS user_id
+FROM
+	host_software_installs hsi
+	JOIN hosts h ON h.id = hsi.host_id
+	JOIN software_installers si ON si.id = hsi.software_installer_id
+	JOIN software_titles st ON si.title_id = st.id
+WHERE
+	hsi.execution_id = ?
+	`
+
+	var dest fleet.HostSoftwareInstallerResult
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, fleet.SoftwareInstallerInstalled, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerInstalled, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerPending, resultsUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostSoftwareInstallerResult"), "get host software installer results")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host software installer results")
+	}
+
+	return &dest, nil
+}
+
+func tmplNamedSQLCaseHostSoftwareInstallStatus(alias string) string {
+	return fmt.Sprintf(`
+	CASE WHEN %[1]s.post_install_script_exit_code IS NOT NULL
+		AND %[1]s.post_install_script_exit_code = 0 THEN
+		:installed
+	WHEN %[1]s.post_install_script_exit_code IS NOT NULL
+		AND %[1]s.post_install_script_exit_code != 0 THEN
+		:failed
+	WHEN %[1]s.install_script_exit_code IS NOT NULL
+		AND %[1]s.install_script_exit_code = 0 THEN
+		:installed
+	WHEN %[1]s.install_script_exit_code IS NOT NULL
+		AND %[1]s.install_script_exit_code != 0 THEN
+		:failed
+	WHEN %[1]s.pre_install_query_output IS NOT NULL
+		AND %[1]s.pre_install_query_output = '' THEN
+		:failed
+	WHEN %[1]s.host_id IS NOT NULL THEN
+		:pending
+	ELSE
+		NULL -- not installed from Fleet installer
+	END`, alias)
+}
+
+func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+	var dest fleet.SoftwareInstallerStatusSummary
+
+	stmt := fmt.Sprintf(`
+SELECT
+	COALESCE(SUM( IF(status = :pending, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :failed, 1, 0)), 0) AS failed,
+	COALESCE(SUM( IF(status = :installed, 1, 0)), 0) AS installed
+FROM (
+SELECT
+	software_installer_id,
+	%s AS status
+FROM
+	host_software_installs hsi
+WHERE
+	software_installer_id = :installer_id
+	AND id IN(
+		SELECT
+			max(id) -- ensure we use only the most recently created install attempt for each host
+			FROM host_software_installs
+		WHERE 
+			software_installer_id = :installer_id
+		GROUP BY
+			host_id)) s`, tmplNamedSQLCaseHostSoftwareInstallStatus("hsi"))
+
+	query, args, err := sqlx.Named(stmt, map[string]interface{}{
+		"installer_id": installerID,
+		"pending":      fleet.SoftwareInstallerPending,
+		"failed":       fleet.SoftwareInstallerFailed,
+		"installed":    fleet.SoftwareInstallerInstalled,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
+	}
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host software install status")
+	}
+
+	return &dest, nil
+}
+
+func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	stmt := fmt.Sprintf(`JOIN (
+SELECT
+	host_id
+FROM
+	host_software_installs hsi
+WHERE
+	software_installer_id = :installer_id
+	AND hsi.id IN(
+		SELECT
+			max(id) -- ensure we use only the most recent install attempt for each host
+			FROM host_software_installs
+		WHERE
+			software_installer_id = :installer_id
+		GROUP BY
+			host_id, software_installer_id)
+	AND (%s) = :status) hss ON hss.host_id = h.id
+`, tmplNamedSQLCaseHostSoftwareInstallStatus("hsi"))
+
+	return sqlx.Named(stmt, map[string]interface{}{
+		"status":       status,
+		"installer_id": installerID,
+		"installed":    fleet.SoftwareInstallerInstalled,
+		"failed":       fleet.SoftwareInstallerFailed,
+		"pending":      fleet.SoftwareInstallerPending,
+	})
+}
+
+func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore) error {
+	if softwareInstallStore == nil {
+		// no-op in this case, possible if not running with a Premium license
+		return nil
+	}
+
+	// get the list of software installers hashes that are in use
+	var storageIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_installers`); err != nil {
+		return ctxerr.Wrap(ctx, err, "get list of software installers in use")
+	}
+
+	_, err := softwareInstallStore.Cleanup(ctx, storageIDs)
+	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
 }

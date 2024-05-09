@@ -49,7 +49,8 @@ When starting a new draft:
     -  **Ready.** Use this page to communicate designs reviews and development.
     -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
 - If the story requires API changes, open a draft PR with the proposed API design.
-
+    - These draft PRs are not actually merged, since they're often created weeks ahead of implementation and can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the designer closes the draft PR and opens a fresh PR from the same branch.
+      
 ### Schedule a design review
 - Prepare your draft in the user story issue.
 - Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.

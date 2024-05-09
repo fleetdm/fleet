@@ -1,1 +1,3 @@
-apt-get remove -y $(dpkg -f "./foo/bar baz.f" Package)
+#!/bin/sh
+
+apt-get remove -y $(dpkg -f "$INSTALLER_PATH" Package)

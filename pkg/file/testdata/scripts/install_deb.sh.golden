@@ -1,1 +1,3 @@
-apt-get install -f "./foo/bar baz.f"
+#!/bin/sh
+
+apt-get install -f "$INSTALLER_PATH"

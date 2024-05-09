@@ -8,7 +8,7 @@ import RESPONSES from "./responses";
 
 type IResponses = Record<string, Record<string, Record<string, unknown>>>;
 
-const DELAY = 1000;
+const DELAY = 5000;
 
 const ENDPOINT = "/latest/fleet";
 
@@ -54,6 +54,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       team_id: null,
       platform: "linux",
     },
+    "autofill/policies": RESPONSES.aiAutofillPolicy,
   },
 } as IResponses;
 

@@ -1,1 +1,3 @@
-installer -pkg "./foo/bar baz.f" -target /
+#!/bin/sh
+
+installer -pkg "$INSTALLER_PATH" -target /

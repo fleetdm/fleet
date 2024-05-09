@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 )
@@ -25,6 +27,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.InstallerFile == nil {
 		return ctxerr.New(ctx, "installer file is required")
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
 	}
 
 	title, vers, hash, err := file.ExtractInstallerMetadata(payload.Filename, payload.InstallerFile)
@@ -58,9 +65,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.InstallScript == "" {
-		installerType := file.InstallerType(strings.TrimPrefix(filepath.Ext(payload.Filename), "."))
-		installerPath := payload.Filename // TODO: Confirm pending product input
-		payload.InstallScript = file.GetInstallScript(installerType, installerPath)
+		payload.InstallScript = file.GetInstallScript(payload.Filename)
 	}
 
 	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
@@ -80,6 +85,25 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	level.Debug(svc.logger).Log("msg", "software installer uploaded", "installer_id", installerID)
 
 	// TODO: QA what breaks when you have a software title with no versions?
+
+	var teamName *string
+	if payload.TeamID != nil {
+		t, err := svc.ds.Team(ctx, *payload.TeamID)
+		if err != nil {
+			return err
+		}
+		teamName = &t.Name
+	}
+
+	// Create activity
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+		SoftwareTitle:   title,
+		SoftwarePackage: payload.Filename,
+		TeamName:        teamName,
+		TeamID:          payload.TeamID,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for added software")
+	}
 
 	return nil
 }
@@ -105,8 +129,31 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 		return err
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
 	if err := svc.ds.DeleteSoftwareInstaller(ctx, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting software installer")
+	}
+
+	var teamName *string
+	if meta.TeamID != nil {
+		t, err := svc.ds.Team(ctx, *meta.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting team name for deleted software")
+		}
+		teamName = &t.Name
+	}
+
+	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
+		SoftwareTitle:   meta.SoftwareTitle,
+		SoftwarePackage: meta.Name,
+		TeamName:        teamName,
+		TeamID:          meta.TeamID,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
 
 	return nil
@@ -222,17 +269,64 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return err
 	}
 
-	err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, softwareTitleID, host.TeamID)
+	installer, err := svc.ds.GetSoftwareInstallerForTitle(ctx, softwareTitleID, host.TeamID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{
-				Message:     "The software title provided doesn't have an installer",
-				InternalErr: ctxerr.Wrapf(ctx, err, "couldn't find an installer for software title"),
+				Message: "Software title has no package added. Please add software package to install.",
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "couldn't find an installer for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
 			}
 		}
 
-		return ctxerr.Wrap(ctx, err, "inserting software install request")
+		return ctxerr.Wrap(ctx, err, "finding software installer for title")
 	}
 
-	return nil
+	ext := filepath.Ext(installer.Name)
+	var requiredPlatform string
+	switch ext {
+	case ".msi", ".exe":
+		requiredPlatform = "windows"
+	case ".pkg":
+		requiredPlatform = "darwin"
+	case ".deb":
+		requiredPlatform = "linux"
+	default:
+		// this should never happen
+		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
+	}
+
+	if host.FleetPlatform() != requiredPlatform {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+			InternalErr: ctxerr.WrapWithData(
+				ctx, err, "invalid host platform for requested installer",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
+		}
+	}
+
+	err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, installer.InstallerID)
+	return ctxerr.Wrap(ctx, err, "inserting software install request")
+}
+
+func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	// Basic auth check
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	res, err := svc.ds.GetSoftwareInstallResults(ctx, resultUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Team specific auth check
+	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: res.HostTeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }

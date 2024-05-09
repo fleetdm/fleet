@@ -1,5 +1,3 @@
-import { ISoftwareInstallerType } from "interfaces/software";
-
 // @ts-ignore
 import installPkg from "../../pkg/file/scripts/install_pkg.sh";
 // @ts-ignore
@@ -9,42 +7,24 @@ import installExe from "../../pkg/file/scripts/install_exe.ps1";
 // @ts-ignore
 import installDeb from "../../pkg/file/scripts/install_deb.sh";
 
-const replaceVariables = (rawScript: string, installerPath: string): string => {
-  return rawScript.replace("$INSTALLER_PATH", installerPath);
-};
-
 /*
  * getInstallScript returns a string with a script to install the
  * provided software.
- *
- * Note that we don't do any sanitization of the arguments here,
- * delegating that to the caller which should have the right context
- * about what should be escaped.
  * */
-const getInstallScript = (
-  filetype: ISoftwareInstallerType,
-  path: string
-): string => {
-  let rawScript: string;
-  switch (filetype) {
+const getInstallScript = (fileName: string): string => {
+  const extension = fileName.split(".").pop();
+  switch (extension) {
     case "pkg":
-      rawScript = installPkg;
-      break;
+      return installPkg;
     case "msi":
-      rawScript = installMsi;
-      break;
+      return installMsi;
     case "deb":
-      rawScript = installDeb;
-      break;
+      return installDeb;
     case "exe":
-      rawScript = installExe;
-      break;
+      return installExe;
     default:
-      // this should never happen as this function is type-guarded
-      throw new Error(`unsupported file type: ${filetype}`);
+      throw new Error(`unsupported file extension: ${extension}`);
   }
-
-  return replaceVariables(rawScript, path);
 };
 
 export default getInstallScript;
