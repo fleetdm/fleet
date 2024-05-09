@@ -9,7 +9,7 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { SelectedPlatform } from "interfaces/platform";
-import { ISoftwareTitle, ISoftware } from "interfaces/software";
+import { ISoftwareTitle, ISoftware, IHostSoftware } from "interfaces/software";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -19,6 +19,10 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { PolicyResponse } from "utilities/constants";
+import {
+  createMockGetHostSoftwareResponse,
+  createMockHostSoftware,
+} from "__mocks__/hostMock";
 
 export interface ISortOption {
   key: string;
@@ -138,6 +142,14 @@ export interface IActionByFilter {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   vulnerability?: string;
+}
+
+export interface IGetHostSoftwareResponse {
+  software: IHostSoftware[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -529,5 +541,28 @@ export default {
     const { HOST_RESEND_PROFILE } = endpoints;
 
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
+  },
+
+  getHostSoftware: (hostId: number): Promise<IGetHostSoftwareResponse> => {
+    const { HOST_SOFTWARE } = endpoints;
+
+    // TODO: remove when API ready
+    // return sendRequest("GET", HOST_SOFTWARE(hostId));
+
+    return new Promise((resolve) => {
+      resolve(
+        createMockGetHostSoftwareResponse({
+          software: [createMockHostSoftware()],
+        })
+      );
+    });
+  },
+
+  installHostSoftwarePackage: (hostId: number, softwareId: number) => {
+    const { HOST_SOFTWARE_PACKAGE_INSTALL } = endpoints;
+    return sendRequest(
+      "POST",
+      HOST_SOFTWARE_PACKAGE_INSTALL(hostId, softwareId)
+    );
   },
 };

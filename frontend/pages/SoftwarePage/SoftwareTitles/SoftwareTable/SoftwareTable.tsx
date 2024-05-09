@@ -3,12 +3,11 @@ software/titles Software tab > Table
 software/versions Software tab > Table (version toggle on)
 */
 
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
-import { AppContext } from "context/app";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
