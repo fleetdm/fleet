@@ -31,12 +31,7 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
-	var result *fleet.UpdateHostSoftwareDBResult
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		r, err := applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
-		result = r
-		return err
-	})
+	result, err := ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
 	if err != nil {
 		return result, err
 	}
@@ -338,49 +333,60 @@ WHERE
 
 // applyChangesForNewSoftwareDB returns the current host software and the applied mutations: what
 // was inserted and what was deleted
-func applyChangesForNewSoftwareDB(
+func (ds *Datastore) applyChangesForNewSoftwareDB(
 	ctx context.Context,
-	tx sqlx.ExtContext,
 	hostID uint,
 	software []fleet.Software,
-	minLastOpenedAtDiff time.Duration,
 ) (*fleet.UpdateHostSoftwareDBResult, error) {
 	r := &fleet.UpdateHostSoftwareDBResult{}
 
-	currentSoftware, err := listSoftwareByHostIDShort(ctx, tx, hostID)
+	// This code executes once an hour for each host, so we should optimize for MySQL master (writer) DB performance.
+	// We use a slave (reader) DB to avoid accessing the master. If nothing has changed, we avoid all access to the master.
+	// It is possible that the software list is out of sync between the slave and the master. This is unlikely because
+	// it is updated once an hour under normal circumstances. If this does occur, the software list will be updated
+	// once again in an hour.
+	currentSoftware, err := listSoftwareByHostIDShort(ctx, ds.reader(ctx), hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 	r.WasCurrInstalled = currentSoftware
 
-	if nothingChanged(currentSoftware, software, minLastOpenedAtDiff) {
+	if nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff) {
 		return r, nil
 	}
 
 	current := softwareSliceToMap(currentSoftware)
 	incoming := softwareSliceToMap(software)
 
-	deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+	err = ds.withRetryTxx(
+		ctx, func(tx sqlx.ExtContext) error {
+
+			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+			if err != nil {
+				return err
+			}
+			r.Deleted = deleted
+
+			inserted, err := insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+			if err != nil {
+				return err
+			}
+			r.Inserted = inserted
+
+			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff); err != nil {
+				return err
+			}
+
+			if err = updateSoftwareUpdatedAt(ctx, tx, hostID); err != nil {
+				return err
+			}
+			return nil
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	r.Deleted = deleted
-
-	inserted, err := insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
-	if err != nil {
-		return nil, err
-	}
-	r.Inserted = inserted
-
-	if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, minLastOpenedAtDiff); err != nil {
-		return nil, err
-	}
-
-	if err = updateSoftwareUpdatedAt(ctx, tx, hostID); err != nil {
-		return nil, err
-	}
-
-	return r, nil
+	return r, err
 }
 
 // delete host_software that is in current map, but not in incoming map.
