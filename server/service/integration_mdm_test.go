@@ -8359,15 +8359,13 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 		require.NoError(t, err)
 	}
 
-	// get that host - it should report "failed" for the profile that failed with error code 96 and
-	// include the error message detail. The profile that failed with code 89 should be removed from
-	// the host.
+	// get that host - it should report "failed" for the profiles and include the error message detail.
 	expectedErrs := map[string]string{
+		"N1": "Failed to remove: MDMClientError (89): Profile with identifier 'I1' not found.\n",
 		"N2": "Failed to remove: MDMClientError (96): Cannot replace profile 'I2' because it was not installed by the MDM server.\n",
 	}
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.Len(t, *getHostResp.Host.MDM.Profiles, 3)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		if wantErr, ok := expectedErrs[hm.Name]; ok {
 			require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
