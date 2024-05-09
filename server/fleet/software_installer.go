@@ -201,11 +201,11 @@ type DownloadSoftwareInstallerPayload struct {
 
 func SofwareInstallerSourceFromExtension(ext string) (string, error) {
 	switch ext {
-	case ".deb":
+	case "deb":
 		return "deb_packages", nil
-	case ".exe", ".msi":
+	case "exe", "msi":
 		return "programs", nil
-	case ".pkg":
+	case "pkg":
 		return "pkg_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
