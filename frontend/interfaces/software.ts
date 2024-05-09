@@ -160,7 +160,7 @@ export interface ISoftwareLastInstall {
 
 export interface ISoftwareInstallVersion {
   version: string;
-  last_opened_at: string;
+  last_opened_at: string | null;
   vulnerabilities: string[];
   installed_paths: string[];
 }

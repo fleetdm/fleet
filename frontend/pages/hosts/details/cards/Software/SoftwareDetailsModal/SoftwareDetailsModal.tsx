@@ -42,23 +42,31 @@ const SoftwareDetailsInfo = ({
 }: ISoftwareDetailsInfoProps) => {
   return (
     <div className={`${baseClass}__details-info`}>
-      <DataSet title="Version" value={installedVersion.version} />
-      <DataSet title="Type" value={formatSoftwareType({ source })} />
-      <DataSet title="Bundle identifier" value={bundleIdentifier} />
-      <DataSet
-        title="Last used"
-        value={dateAgo(installedVersion.last_opened_at)}
-      />
-      <DataSet
-        title="File path"
-        value={installedVersion.installed_paths.map((path) => (
-          <>{path}</>
-        ))}
-      />
-      <DataSet
-        title="Vulnerabilities"
-        value={generateVulnerabilitiesValue(installedVersion.vulnerabilities)}
-      />
+      <div className={`${baseClass}__row`}>
+        <DataSet title="Version" value={installedVersion.version} />
+        <DataSet title="Type" value={formatSoftwareType({ source })} />
+        <DataSet title="Bundle identifier" value={bundleIdentifier} />
+        {installedVersion.last_opened_at && (
+          <DataSet
+            title="Last used"
+            value={dateAgo(installedVersion.last_opened_at)}
+          />
+        )}
+      </div>
+      <div className={`${baseClass}__row`}>
+        <DataSet
+          title="File path"
+          value={installedVersion.installed_paths.map((path) => (
+            <>{path}</>
+          ))}
+        />
+      </div>
+      <div className={`${baseClass}__row`}>
+        <DataSet
+          title="Vulnerabilities"
+          value={generateVulnerabilitiesValue(installedVersion.vulnerabilities)}
+        />
+      </div>
     </div>
   );
 };
