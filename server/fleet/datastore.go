@@ -1484,13 +1484,25 @@ type Datastore interface {
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
 
-	// GetSoftwareInstallerMetadata returns the software installer corresponding to the id.
+	// GetSoftwareInstallerMetadata returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*SoftwareInstaller, error)
+
+	// GetSoftwareInstallerMetadataByTitleID returns the software installer corresponding to the specified
+	// team and title ids.
+	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*SoftwareInstaller, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
+	// GetSoftwareInstallerContents returns the software install summary for the given
+	// software installer id.
+	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
+
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
+
+	// CleanupUnusedSoftwareInstallers will remove software installers that have
+	// no references to them from the software_installers table.
+	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

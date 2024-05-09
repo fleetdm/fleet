@@ -941,9 +941,15 @@ type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet
 
 type GetSoftwareInstallerMetadataFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
+type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error)
+
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
+type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
+
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
+
+type CleanupUnusedSoftwareInstallersFunc func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2329,11 +2335,20 @@ type DataStore struct {
 	GetSoftwareInstallerMetadataFunc        GetSoftwareInstallerMetadataFunc
 	GetSoftwareInstallerMetadataFuncInvoked bool
 
+	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
+	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
+
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
 
+	GetSummaryHostSoftwareInstallsFunc        GetSummaryHostSoftwareInstallsFunc
+	GetSummaryHostSoftwareInstallsFuncInvoked bool
+
 	GetSoftwareInstallResultsFunc        GetSoftwareInstallResultsFunc
 	GetSoftwareInstallResultsFuncInvoked bool
+
+	CleanupUnusedSoftwareInstallersFunc        CleanupUnusedSoftwareInstallersFunc
+	CleanupUnusedSoftwareInstallersFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5565,6 +5580,13 @@ func (s *DataStore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (
 	return s.GetSoftwareInstallerMetadataFunc(ctx, id)
 }
 
+func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
+}
+
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteSoftwareInstallerFuncInvoked = true
@@ -5572,9 +5594,23 @@ func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	return s.DeleteSoftwareInstallerFunc(ctx, id)
 }
 
+func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+	s.mu.Lock()
+	s.GetSummaryHostSoftwareInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSummaryHostSoftwareInstallsFunc(ctx, installerID)
+}
+
 func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
 	s.mu.Lock()
 	s.GetSoftwareInstallResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareInstallResultsFunc(ctx, resultsUUID)
+}
+
+func (s *DataStore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore) error {
+	s.mu.Lock()
+	s.CleanupUnusedSoftwareInstallersFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupUnusedSoftwareInstallersFunc(ctx, softwareInstallStore)
 }

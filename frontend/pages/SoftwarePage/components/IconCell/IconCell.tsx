@@ -8,11 +8,11 @@ import { IconNames } from "components/icons";
 
 const baseClass = "icon-cell";
 
-interface IIssueCellProps {
+interface IIconCellProps {
   iconName: IconNames;
 }
 
-const IconCell = ({ iconName }: IIssueCellProps) => {
+const IconCell = ({ iconName }: IIconCellProps) => {
   const tooltipID = uniqueId();
 
   return (

@@ -157,7 +157,9 @@ type SoftwareTitle struct {
 	Versions []SoftwareVersion `json:"versions" db:"-"`
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
-	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
+	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	// SoftwarePackage is the software installer information for this title.
+	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 }
 
 type SoftwareTitleListOptions struct {

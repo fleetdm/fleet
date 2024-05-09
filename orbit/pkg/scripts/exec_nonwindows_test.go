@@ -5,6 +5,7 @@ package scripts
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -59,6 +60,12 @@ func TestExecCmdNonWindows(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if strings.HasPrefix(tc.contents, "#!"+zshPath) {
+				// skip if zsh is not installed
+				if _, err := exec.LookPath(zshPath); err != nil {
+					t.Skipf("zsh not installed: %s", err)
+				}
+			}
 			scriptPath := strings.ReplaceAll(tc.name, " ", "_") + ".sh"
 			scriptPath = filepath.Join(tmpDir, scriptPath)
 			err := os.WriteFile(scriptPath, []byte(tc.contents), os.ModePerm)

@@ -8549,7 +8549,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 		require.Equal(t, payload.StorageID, meta.StorageID)
 		require.Equal(t, payload.Filename, meta.Name)
 		require.Equal(t, payload.Version, meta.Version)
-		require.Equal(t, checkSoftwareTitle(t, payload.Title, "deb_packages"), meta.TitleID)
+		require.Equal(t, checkSoftwareTitle(t, payload.Title, "deb_packages"), *meta.TitleID)
 		require.NotZero(t, meta.UploadedAt)
 
 		return meta.InstallerID
@@ -8569,6 +8569,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 		}
 
 		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null}`, 0)
 
 		// check the software installer
 		installerID := checkSoftwareInstaller(t, payload)
@@ -8590,6 +8593,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/package/%d", installerID), nil, http.StatusNoContent)
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null}`, 0)
 	})
 
 	t.Run("create team software installer", func(t *testing.T) {
@@ -8617,6 +8623,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 		// check the software installer
 		installerID := checkSoftwareInstaller(t, payload)
 
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+
 		// upload again fails
 		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
@@ -8635,6 +8644,9 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/package/%d", installerID), nil, http.StatusNoContent)
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 	})
 }
 
@@ -8728,7 +8740,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequestPlatform
 	}
 }
 
-func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
+func (s *integrationMDMTestSuite) TestSoftwareInstallerHostRequests() {
 	t := s.T()
 
 	var resp installSoftwareResponse
@@ -8773,15 +8785,12 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 	resp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
-	// TODO(roberto): once we have endpoints to retrieve installers,
-	// request them using the orbit node key
-
 	// Get the results, should be pending
-	r := getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &r)
-	require.Len(t, r.Software, 1)
-	require.NotNil(t, r.Software[0].LastInstall)
-	installUUID := r.Software[0].LastInstall.InstallUUID
+	getHostSoftwareResp := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 1)
+	require.NotNil(t, getHostSoftwareResp.Software[0].LastInstall)
+	installUUID := getHostSoftwareResp.Software[0].LastInstall.InstallUUID
 
 	gsirr := getSoftwareInstallResultsResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
@@ -8790,6 +8799,107 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequest() {
 	results := gsirr.Results
 	require.Equal(t, installUUID, results.InstallUUID)
 	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
+
+	// status is reflected in software title response
+	titleResp := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp)
+	// TODO: confirm expected behavior of the title response host counts (unspecified)
+	require.Zero(t, titleResp.SoftwareTitle.HostsCount)
+	require.Nil(t, titleResp.SoftwareTitle.CountsUpdatedAt)
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.Status)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+		Installed: 0,
+		Pending:   1,
+		Failed:    0,
+	}, *titleResp.SoftwareTitle.SoftwarePackage.Status)
+
+	// status is reflected in list hosts responses and counts when filtering by software title and status
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, h.ID, listResp.Hosts[0].ID)
+
+	var countResp countHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Equal(t, 1, countResp.Count)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 0)
+
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Equal(t, 0, countResp.Count)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 0)
+
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Equal(t, 0, countResp.Count)
+
+	var labelResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &createLabelRequest{fleet.LabelPayload{
+		Name:  "test",
+		Hosts: []string{h.Hostname},
+	}}, http.StatusOK, &labelResp)
+	require.NotZero(t, labelResp.Label.ID)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, h.ID, listResp.Hosts[0].ID)
+
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)), "label_id", strconv.Itoa(int(labelResp.Label.ID)))
+	require.Equal(t, 1, countResp.Count)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, h.ID, listResp.Hosts[0].ID)
+
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)), "label_id", strconv.Itoa(int(labelResp.Label.ID)))
+	require.Equal(t, 1, countResp.Count)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 0)
+
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)), "label_id", strconv.Itoa(int(labelResp.Label.ID)))
+	require.Equal(t, 0, countResp.Count)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 0)
+
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id", "0", "software_title_id", strconv.Itoa(int(titleID)), "label_id", strconv.Itoa(int(labelResp.Label.ID)))
+	require.Equal(t, 0, countResp.Count)
+
+	// filter validations
+	r := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "uninstalled")
+	require.Contains(t, extractServerErrorText(r.Body), "Invalid software_status")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed")
+	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "software_title_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Missing team_id")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_version_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_version_id and software_title_id is not allowed.")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
+
+	// TODO(roberto): once we have endpoints to retrieve installers,
+	// request them using the orbit node key
+
+	// TODO(sarah): test other statuses once we have endpoints to set results via orbit
 }
 
 func (s *integrationMDMTestSuite) TestHostSoftwareInstallResult() {

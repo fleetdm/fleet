@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -43,6 +44,16 @@ type OrbitClient struct {
 
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
+
+	// Interfaces that will receive updated configs
+	ConfigReceivers []fleet.OrbitConfigReceiver
+	// How frequently a new config will be fetched
+	ReceiverUpdateInterval time.Duration
+	// Cancelable context used by ExecuteConfigReceivers to cancel the
+	// update loop
+	ReceiverUpdateContext context.Context
+	// ReceiverUpdateCancelFunc will be called when ReceiverUpdateContext is cancelled
+	ReceiverUpdateCancelFunc context.CancelFunc
 }
 
 // time-to-live for config cache
@@ -98,8 +109,9 @@ type OnGetConfigErrFuncs struct {
 }
 
 var (
-	netErrInterval            = 5 * time.Minute
-	configRetryOnNetworkError = 30 * time.Second
+	netErrInterval                     = 5 * time.Minute
+	configRetryOnNetworkError          = 30 * time.Second
+	defaultOrbitConfigReceiverInterval = 30 * time.Second
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -125,14 +137,85 @@ func NewOrbitClient(
 	}
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
 	return &OrbitClient{
-		nodeKeyFilePath:   nodeKeyFilePath,
-		baseClient:        bc,
-		enrollSecret:      enrollSecret,
-		hostInfo:          orbitHostInfo,
-		enrolled:          false,
-		onGetConfigErrFns: onGetConfigErrFns,
+		nodeKeyFilePath:          nodeKeyFilePath,
+		baseClient:               bc,
+		enrollSecret:             enrollSecret,
+		hostInfo:                 orbitHostInfo,
+		enrolled:                 false,
+		onGetConfigErrFns:        onGetConfigErrFns,
+		ReceiverUpdateInterval:   defaultOrbitConfigReceiverInterval,
+		ReceiverUpdateContext:    ctx,
+		ReceiverUpdateCancelFunc: cancelFunc,
 	}, nil
+}
+
+func (oc *OrbitClient) RunConfigReceivers() error {
+	config, err := oc.GetConfig()
+	if err != nil {
+		return fmt.Errorf("RunConfigReceivers get config: %w", err)
+	}
+
+	var errs []error
+	var errMu sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(len(oc.ConfigReceivers))
+
+	for _, receiver := range oc.ConfigReceivers {
+		receiver := receiver
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					errMu.Lock()
+					errs = append(errs, fmt.Errorf("panic occured in receiver: %v", err))
+					errMu.Unlock()
+				}
+				wg.Done()
+			}()
+
+			err := receiver.Run(config)
+			if err != nil {
+				errMu.Lock()
+				errs = append(errs, err)
+				errMu.Unlock()
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if len(errs) != 0 {
+		return errors.Join(errs...)
+	}
+
+	return nil
+}
+
+func (oc *OrbitClient) RegisterConfigReceiver(cr fleet.OrbitConfigReceiver) {
+	oc.ConfigReceivers = append(oc.ConfigReceivers, cr)
+}
+
+func (oc *OrbitClient) ExecuteConfigReceivers() error {
+	ticker := time.NewTicker(oc.ReceiverUpdateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-oc.ReceiverUpdateContext.Done():
+			return nil
+		case <-ticker.C:
+			err := oc.RunConfigReceivers()
+			log.Error().Err(err)
+		}
+	}
+}
+
+func (oc *OrbitClient) InterruptConfigReceivers(err error) {
+	log.Error().Err(err)
+	oc.ReceiverUpdateCancelFunc()
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.

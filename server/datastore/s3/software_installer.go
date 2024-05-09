@@ -74,6 +74,53 @@ func (i *SoftwareInstallerStore) Exists(ctx context.Context, installerID string)
 	return true, nil
 }
 
+func (i *SoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error) {
+	usedSet := make(map[string]struct{}, len(usedInstallerIDs))
+	for _, id := range usedInstallerIDs {
+		usedSet[id] = struct{}{}
+	}
+
+	// ListObjectsV2 defaults to a max of 1000 keys, which is sufficient for the
+	// cleanup task - if more software installers are present, the next run will
+	// get another 1000 and will periodically complete the cleanups.
+	//
+	// Iterating over all pages would potentially take a long time and would make
+	// it more likely that a conflict arises, where an unused software installer
+	// becomes used again. This approach makes it only two API requests between
+	// the read of used installers and the deletions.
+	prefix := path.Join(i.prefix, softwareInstallersPrefix)
+	page, err := i.s3client.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: &i.bucket,
+		Prefix: &prefix,
+	})
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "listing software installers in S3 store")
+	}
+
+	var toDeleteKeys []*s3.ObjectIdentifier
+	for _, item := range page.Contents {
+		if item.Key == nil {
+			continue
+		}
+		if _, ok := usedSet[path.Base(*item.Key)]; ok {
+			continue
+		}
+		toDeleteKeys = append(toDeleteKeys, &s3.ObjectIdentifier{Key: item.Key})
+	}
+
+	if len(toDeleteKeys) == 0 {
+		return 0, nil
+	}
+
+	res, err := i.s3client.DeleteObjects(&s3.DeleteObjectsInput{
+		Bucket: &i.bucket,
+		Delete: &s3.Delete{
+			Objects: toDeleteKeys,
+		},
+	})
+	return len(res.Deleted), ctxerr.Wrap(ctx, err, "deleting software installers in S3 store")
+}
+
 // keyForInstaller builds an S3 key to identify the software installer.
 func (i *SoftwareInstallerStore) keyForInstaller(installerID string) string {
 	return path.Join(i.prefix, softwareInstallersPrefix, installerID)

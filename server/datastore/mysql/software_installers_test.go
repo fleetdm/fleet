@@ -1,12 +1,16 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -25,6 +29,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SoftwareInstallRequests", testSoftwareInstallRequests},
 		{"SoftwareInstallerDetails", testListSoftwareInstallerDetails},
 		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
+		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
 	}
 
 	for _, c := range cases {
@@ -163,7 +168,6 @@ func insertSoftwareInstaller(
 		postInstallScriptId,
 		storageId,
 	)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting software installer")
 	}
@@ -199,11 +203,10 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				Filename:      "foo.pkg",
 			})
 			require.NoError(t, err)
-
 			installerMeta, err := ds.GetSoftwareInstallerMetadata(ctx, installerID)
 			require.NoError(t, err)
 
-			si, err = ds.GetSoftwareInstallerForTitle(ctx, installerMeta.TitleID, teamID)
+			si, err = ds.GetSoftwareInstallerForTitle(ctx, *installerMeta.TitleID, teamID)
 			require.NoError(t, err)
 			require.NotNil(t, si)
 			require.Equal(t, "foo.pkg", si.Name)
@@ -224,6 +227,30 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			err = ds.InsertSoftwareInstallRequest(ctx, host.ID, si.InstallerID)
 			require.NoError(t, err)
+
+			// list hosts with software install requests
+			userTeamFilter := fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String("admin")},
+			}
+			expectStatus := fleet.SoftwareInstallerPending
+			hosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
+				ListOptions:           fleet.ListOptions{PerPage: 100},
+				SoftwareTitleIDFilter: installerMeta.TitleID,
+				SoftwareStatusFilter:  &expectStatus,
+				TeamFilter:            teamID,
+			})
+			require.NoError(t, err)
+			require.Len(t, hosts, 1)
+			require.Equal(t, host.ID, hosts[0].ID)
+
+			// get software title includes status
+			summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+				Installed: 0,
+				Pending:   1,
+				Failed:    0,
+			}, *summary)
 		})
 	}
 }
@@ -330,4 +357,59 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, expectedInstallScriptOutput, res.Output)
 		})
 	}
+}
+
+func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	dir := t.TempDir()
+	store, err := filesystem.NewSoftwareInstallerStore(dir)
+	require.NoError(t, err)
+
+	assertExisting := func(want []string) {
+		dirEnts, err := os.ReadDir(filepath.Join(dir, "software-installers"))
+		require.NoError(t, err)
+		got := make([]string, 0, len(dirEnts))
+		for _, de := range dirEnts {
+			if de.Type().IsRegular() {
+				got = append(got, de.Name())
+			}
+		}
+		require.ElementsMatch(t, want, got)
+	}
+
+	// cleanup an empty store
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	require.NoError(t, err)
+	assertExisting(nil)
+
+	// put an installer and save it in the DB
+	ins0 := "installer0"
+	ins0File := bytes.NewReader([]byte("installer0"))
+	err = store.Put(ctx, ins0, ins0File)
+	require.NoError(t, err)
+	assertExisting([]string{ins0})
+
+	swi, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		InstallerFile: ins0File,
+		StorageID:     ins0,
+		Filename:      "installer0",
+		Title:         "ins0",
+		Source:        "apps",
+	})
+	require.NoError(t, err)
+
+	assertExisting([]string{ins0})
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	require.NoError(t, err)
+	assertExisting([]string{ins0})
+
+	// remove it from the DB, will now cleanup
+	err = ds.DeleteSoftwareInstaller(ctx, swi)
+	require.NoError(t, err)
+
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	require.NoError(t, err)
+	assertExisting(nil)
 }
