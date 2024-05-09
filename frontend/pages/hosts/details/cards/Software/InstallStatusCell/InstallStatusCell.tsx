@@ -14,7 +14,7 @@ type IStatusDisplayConfig = {
   tooltip: (softwareName: string | null, lastInstall?: string) => ReactNode;
 };
 
-const CELL_DISPLAY_CONFIG: Record<IStatusValue, IStatusDisplayConfig> = {
+const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
@@ -70,7 +70,7 @@ const InstallStatusCell = ({
     displayStatus = status;
   }
 
-  const displayConfig = CELL_DISPLAY_CONFIG[displayStatus];
+  const displayConfig = CELL_DISPLAY_OPTIONS[displayStatus];
 
   return (
     <TooltipWrapper

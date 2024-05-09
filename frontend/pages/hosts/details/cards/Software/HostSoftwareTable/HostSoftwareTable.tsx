@@ -1,16 +1,14 @@
 import React, { useCallback } from "react";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import { getNextLocationPath } from "utilities/helpers";
 
 import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
-import { InjectedRouter } from "react-router";
-import { IGetHostSoftwareResponse } from "services/entities/hosts";
-import { getNextLocationPath } from "utilities/helpers";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 
 const DEFAULT_PAGE_SIZE = 20;
 

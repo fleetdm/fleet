@@ -10,7 +10,7 @@ const baseClass = "software-name-cell";
 interface ISoftwareNameCellProps {
   name: string;
   source: string;
-  path: string;
+  path?: string;
   router?: InjectedRouter;
 }
 
@@ -20,10 +20,21 @@ const SoftwareNameCell = ({
   path,
   router,
 }: ISoftwareNameCellProps) => {
+  // NO path or router means it's not clickable. return
+  // a non-clickable cell early
+  if (!router || !path) {
+    return (
+      <div className={baseClass}>
+        <SoftwareIcon name={name} source={source} />
+        <span className="software-name">{name}</span>
+      </div>
+    );
+  }
+
   const onClickSoftware = (e: React.MouseEvent) => {
     // Allows for button to be clickable in a clickable row
     e.stopPropagation();
-    router?.push(path);
+    router.push(path);
   };
 
   return (

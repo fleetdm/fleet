@@ -17,6 +17,7 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -57,32 +58,8 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
-
-        const teamQueryParam = buildQueryStringFromParams({ team_id: 1 }); // TODO: team id added
-        const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
-          id.toString()
-        )}?${teamQueryParam}`;
-
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(softwareTitleDetailsPath);
-        };
-
-        return (
-          <LinkCell
-            path={softwareTitleDetailsPath}
-            customOnClick={onClickSoftware}
-            value={
-              <>
-                <SoftwareIcon name={name} source={source} />
-                <span className="software-name">{name}</span>
-              </>
-            }
-          />
-        );
+        const { name, source } = cellProps.row.original;
+        return <SoftwareNameCell name={name} source={source} />;
       },
       sortType: "caseInsensitive",
     },
