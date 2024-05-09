@@ -229,4 +229,10 @@ export default {
     })}`;
     return sendRequest("GET", path);
   },
+
+  getSoftwareInstallResult: (installUuid: string) => {
+    const { SOFTWARE_INSTALL_RESULTS } = endpoints;
+    const path = SOFTWARE_INSTALL_RESULTS(installUuid);
+    return sendRequest("GET", path);
+  },
 };

@@ -141,6 +141,8 @@ export default {
   SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
   SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
+  SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
+    `/${API_VERSION}/fleet/software/install/results/${uuid}`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
 
