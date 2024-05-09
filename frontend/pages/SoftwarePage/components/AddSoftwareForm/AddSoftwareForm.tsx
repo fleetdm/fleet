@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import getInstallScript from "utilities/software_install_scripts";
+
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
@@ -8,11 +10,7 @@ import Editor from "components/Editor";
 
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions";
 
-import {
-  generateFormValidation,
-  getFileDetails,
-  getInstallScript,
-} from "./helpers";
+import { generateFormValidation, getFileDetails } from "./helpers";
 
 const baseClass = "add-software-form";
 
@@ -92,7 +90,7 @@ const AddSoftwareForm = ({
       const newData = {
         ...formData,
         software: file,
-        installScript: getInstallScript(file),
+        installScript: getInstallScript(file.name),
       };
       setFormData(newData);
       setFormValidation(
