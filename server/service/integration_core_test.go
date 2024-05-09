@@ -4278,7 +4278,8 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 				Hosts:               []string{"abc"},
 			},
 		},
-	}, http.StatusInternalServerError, &applyResp)
+	}, http.StatusUnprocessableEntity, &applyResp,
+	)
 
 	// apply an invalid label spec - manual membership without a host specified
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
@@ -4290,7 +4291,8 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 			},
 		},
-	}, http.StatusInternalServerError, &applyResp)
+	}, http.StatusUnprocessableEntity, &applyResp,
+	)
 
 	// apply an invalid label spec - builtin label type
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{

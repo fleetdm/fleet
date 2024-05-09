@@ -59,6 +59,7 @@ func TestLabels(t *testing.T) {
 		{"GetSpec", testLabelsGetSpec},
 		{"ApplySpecsRoundtrip", testLabelsApplySpecsRoundtrip},
 		{"IDsByName", testLabelsIDsByName},
+		{"ByName", testLabelsByName},
 		{"Save", testLabelsSave},
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
@@ -753,6 +754,30 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"})
 	require.Nil(t, err)
 	assert.Equal(t, map[string]uint{"foo": 1, "bar": 2, "bing": 3}, labels)
+}
+
+func testLabelsByName(t *testing.T, ds *Datastore) {
+	setupLabelSpecsTest(t, ds)
+
+	names := []string{"foo", "bar", "bing"}
+	labels, err := ds.LabelsByName(context.Background(), names)
+	require.NoError(t, err)
+	require.Len(t, labels, 3)
+	for _, name := range names {
+		assert.Contains(t, labels, name)
+		assert.Equal(t, name, labels[name].Name)
+		switch name {
+		case "foo":
+			assert.Equal(t, uint(1), labels[name].ID)
+			assert.Equal(t, "foo description", labels[name].Description)
+		case "bar":
+			assert.Equal(t, uint(2), labels[name].ID)
+			assert.Empty(t, labels[name].Description)
+		case "bing":
+			assert.Equal(t, uint(3), labels[name].ID)
+			assert.Empty(t, labels[name].Description)
+		}
+	}
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {

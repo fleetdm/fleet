@@ -1,0 +1,4 @@
+Built-in labels can now be applied via `fleetctl apply` as long as no changes are made to them. This allows the following workflow:
+  1. `fleetctl get labels --yaml > labels.yml`
+  2. (Optional) Edit/add non-built in labels in labels.yml
+  3. `fleetctl apply -f labels.yml`
