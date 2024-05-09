@@ -1,19 +1,12 @@
 import React from "react";
-import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
 import { IHostSoftware, SOURCE_TYPE_CONVERSION } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
-
-import IconCell from "pages/SoftwarePage/components/IconCell";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
@@ -33,10 +26,7 @@ const formatSoftwareType = (source: string) => {
   return DICT[source] || "Unknown";
 };
 
-interface ISoftwareTableHeadersProps {
-  deviceUser?: boolean;
-  router?: InjectedRouter;
-}
+// interface ISoftwareTableHeadersProps {}
 
 export const generateSoftwareTableData = (
   software: IHostSoftware[]
@@ -46,9 +36,7 @@ export const generateSoftwareTableData = (
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateSoftwareTableHeaders = ({
-  router,
-}: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
+export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
       Header: (cellProps: ITableHeaderProps) => (

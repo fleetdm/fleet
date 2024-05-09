@@ -1,8 +1,10 @@
+import React, { ReactNode } from "react";
+
+import { IPackageInstallStatus } from "interfaces/software";
+import { dateAgo } from "utilities/date_format";
+
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
-import { IPackageInstallStatus } from "interfaces/software";
-import React, { ReactNode } from "react";
-import { dateAgo } from "utilities/date_format";
 
 const baseClass = "install-status-cell";
 

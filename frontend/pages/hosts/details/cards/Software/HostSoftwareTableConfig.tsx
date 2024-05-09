@@ -5,19 +5,15 @@ import { CellProps, Column } from "react-table";
 import { IHostSoftware, SOURCE_TYPE_CONVERSION } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
-
-import IconCell from "pages/SoftwarePage/components/IconCell";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+
 import InstallStatusCell from "./InstallStatusCell";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
