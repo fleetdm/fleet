@@ -14,7 +14,8 @@
 			"query_reports_disabled": false,
 			"enable_analytics": false,
 			"deferred_save_host": false,
-			"scripts_disabled": false
+			"scripts_disabled": false,
+			"ai_features_disabled": false
 		},
 		"smtp_settings": {
 			"enable_smtp": false,

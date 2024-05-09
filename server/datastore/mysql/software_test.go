@@ -927,6 +927,14 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 }
 
 func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
+	countHostSoftwareBatchSizeOrig := countHostSoftwareBatchSize
+	t.Cleanup(
+		func() {
+			countHostSoftwareBatchSize = countHostSoftwareBatchSizeOrig
+		},
+	)
+	countHostSoftwareBatchSize = 2
+
 	ctx := context.Background()
 
 	cmpNameVersionCount := func(want, got []fleet.Software) {
@@ -947,9 +955,21 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		require.Equal(t, want, tableCount)
 	}
 
+	host0 := test.NewHost(t, ds, "host0", "", "host0key", "host0uuid", time.Now())
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	hostTemp := test.NewHost(t, ds, "hostTemp", "", "hostTempKey", "hostTempUuid", time.Now())
 
+	// Get counts without any software.
+	globalOpts := fleet.SoftwareListOptions{
+		WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending},
+	}
+	_ = listSoftwareCheckCount(t, ds, 0, 0, globalOpts, false)
+
+	software0 := []fleet.Software{
+		{Name: "abc", Version: "0.0.1", Source: "apps"},
+		{Name: "def", Version: "0.0.1", Source: "apps"},
+	}
 	software1 := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
@@ -959,17 +979,33 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
+	softwareTemp := make([]fleet.Software, 0, 10)
+	for i := 0; i < 10; i++ {
+		softwareTemp = append(
+			softwareTemp, fleet.Software{Name: fmt.Sprintf("foo%d", i), Version: fmt.Sprintf("%d.0.1", i), Source: "deb_packages"},
+		)
+	}
 
-	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	_, err := ds.UpdateHostSoftware(ctx, host0.ID, software0)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, hostTemp.ID, softwareTemp)
 	require.NoError(t, err)
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
-	globalOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
-	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
+	_ = listSoftwareCheckCount(t, ds, 16, 16, globalOpts, false)
+	checkTableTotalCount(16)
 
+	// Now, delete 2 hosts. Software with the lowest ID is removed, and there should be a chunk with missing software IDs from the deleted hostTemp software.
+	require.NoError(t, ds.DeleteHost(ctx, host0.ID))
+	require.NoError(t, ds.DeleteHost(ctx, hostTemp.ID))
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 	want := []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 2},
 		{Name: "foo", Version: "0.0.1", HostsCount: 1},
