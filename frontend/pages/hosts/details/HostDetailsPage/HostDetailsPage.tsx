@@ -13,7 +13,7 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
-  IPastActivitiesResponse,
+  IHostActivitiesResponse,
   IUpcomingActivitiesResponse,
 } from "services/entities/activities";
 import hostAPI from "services/entities/hosts";
@@ -58,6 +58,7 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import { SoftwareInstallDetailsModal } from "pages/SoftwarePage/components/SoftwareInstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -171,6 +172,7 @@ const HostDetailsPage = ({
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
+  const [softwareInstallUuid, setSoftwareInstallUuid] = useState("");
   const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
@@ -369,9 +371,9 @@ const HostDetailsPage = ({
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
-    IPastActivitiesResponse,
+    IHostActivitiesResponse,
     Error,
-    IPastActivitiesResponse,
+    IHostActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -552,6 +554,9 @@ const HostDetailsPage = ({
         case "ran_script":
           setScriptDetailsId(details?.script_execution_id || "");
           break;
+        case "installed_software":
+          setSoftwareInstallUuid(details?.install_uuid || "");
+          break;
         default: // do nothing
       }
     },
@@ -582,7 +587,11 @@ const HostDetailsPage = ({
 
   const onCancelScriptDetailsModal = useCallback(() => {
     setScriptDetailsId("");
-  }, [setScriptDetailsId]);
+  }, []);
+
+  const onCancelSoftwareInstallDetailsModal = useCallback(() => {
+    setSoftwareInstallUuid("");
+  }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
     setIsUpdatingHost(true);
@@ -965,6 +974,12 @@ const HostDetailsPage = ({
           <ScriptDetailsModal
             scriptExecutionId={scriptDetailsId}
             onCancel={onCancelScriptDetailsModal}
+          />
+        )}
+        {!!softwareInstallUuid && (
+          <SoftwareInstallDetailsModal
+            installUuid={softwareInstallUuid}
+            onCancel={onCancelSoftwareInstallDetailsModal}
           />
         )}
         {showLockHostModal && (
