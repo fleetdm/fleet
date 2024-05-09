@@ -341,7 +341,7 @@ const CalendarEventsModal = ({
       onEnter={
         configured
           ? () => {
-              onSubmit(formData);
+              onUpdateCalendarEvents();
             }
           : onExit
       }

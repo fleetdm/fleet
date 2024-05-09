@@ -98,7 +98,7 @@ const OtherWorkflowsModal = ({
   availablePolicies,
   isUpdating,
   onExit,
-  onSubmit: handleSubmit,
+  onSubmit,
 }: IOtherWorkflowsModalProps): JSX.Element => {
   const {
     webhook_settings: { failing_policies_webhook: webhook },
@@ -174,7 +174,9 @@ const OtherWorkflowsModal = ({
     );
   };
 
-  const onSubmit = (evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent) => {
+  const onUpdateOtherWorkflows = (
+    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
+  ) => {
     evt.preventDefault();
 
     const newPolicyIds: number[] = [];
@@ -259,7 +261,7 @@ const OtherWorkflowsModal = ({
       },
     };
 
-    handleSubmit({
+    onSubmit({
       webhook_settings: newWebhook,
       integrations: {
         jira: newJira,
@@ -275,7 +277,7 @@ const OtherWorkflowsModal = ({
     const listener = (event: KeyboardEvent) => {
       if (event.code === "Enter" || event.code === "NumpadEnter") {
         event.preventDefault();
-        onSubmit(event);
+        onUpdateOtherWorkflows(event);
       }
     };
     document.addEventListener("keydown", listener);
@@ -453,7 +455,7 @@ const OtherWorkflowsModal = ({
           <Button
             type="submit"
             variant="brand"
-            onClick={onSubmit}
+            onClick={onUpdateOtherWorkflows}
             className="save-loading"
             isLoading={isUpdating}
           >
