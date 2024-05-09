@@ -189,8 +189,6 @@ func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions
 	return strings.Replace(stmt, targetSubstr, targetSubstr+secondaryOrderBy, 1)
 }
 
-// TODO: Does this need to be updated to include software installers? Otherwise, this list won't
-// include software packages that haven't been installed on any hosts (see SoftwareTitleByID above).
 func selectSoftwareTitlesSQL(opt fleet.SoftwareTitleListOptions) (string, []any) {
 	stmt := `
 SELECT

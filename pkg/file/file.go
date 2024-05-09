@@ -1,33 +1,76 @@
 package file
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 )
 
+var ErrUnsupportedType = errors.New("unsupported file type")
+
 // ExtractInstallerMetadata extracts the software name and version from the
 // installer file and returns them along with the sha256 hash of the bytes. The
-// format of the installer is determined based on the extension of the
-// filename.
-func ExtractInstallerMetadata(filename string, r io.Reader) (name, version string, shaSum []byte, err error) {
-	switch ext := filepath.Ext(filename); ext {
-	case ".deb":
+// format of the installer is determined based on the magic bytes of the content.
+func ExtractInstallerMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
+	ext, err := typeFromBytes(r)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	switch ext {
+	case "deb":
 		return ExtractDebMetadata(r)
-	case ".exe":
+	case "exe":
 		return ExtractPEMetadata(r)
-	case ".pkg":
+	case "pkg":
 		return ExtractXARMetadata(r)
-	case ".msi":
+	case "msi":
 		return ExtractMSIMetadata(r)
 	default:
-		return "", "", nil, fmt.Errorf("unsupported file type: %s", ext)
+		return "", "", nil, ErrUnsupportedType
 	}
+}
+
+func typeFromBytes(r io.Reader) (string, error) {
+	br := bufio.NewReader(r)
+	switch {
+	case hasPrefix(br, []byte{0x78, 0x61, 0x72, 0x21}):
+		return "pkg", nil
+	case hasPrefix(br, []byte("!<arch>\ndebian")):
+		return "deb", nil
+	case hasPrefix(br, []byte{0xd0, 0xcf}):
+		return "msi", nil
+	case hasPrefix(br, []byte("MZ")):
+		if blob, _ := br.Peek(0x3e); len(blob) == 0x3e {
+			reloc := binary.LittleEndian.Uint16(blob[0x3c:0x3e])
+			if blob, err := br.Peek(int(reloc) + 4); err == nil {
+				if bytes.Equal(blob[reloc:reloc+4], []byte("PE\x00\x00")) {
+					return "exe", nil
+				}
+			}
+		}
+		fallthrough
+	default:
+		return "", ErrUnsupportedType
+	}
+}
+
+func hasPrefix(br *bufio.Reader, blob []byte) bool {
+	d, _ := br.Peek(len(blob))
+	if len(d) < len(blob) {
+		return false
+	}
+	return bytes.Equal(d, blob)
 }
 
 // Copy copies the file from srcPath to dstPath, using the provided permissions.
@@ -83,4 +126,28 @@ func Exists(path string) (bool, error) {
 	}
 
 	return info.Mode().IsRegular(), nil
+}
+
+func ExtractFilenameFromURLPath(p string, defaultExtension string) string {
+	u, err := url.Parse(p)
+	if err != nil {
+		return ""
+	}
+
+	invalid := map[string]struct{}{
+		"":  {},
+		".": {},
+		"/": {},
+	}
+
+	b := path.Base(u.Path)
+	if _, ok := invalid[b]; ok {
+		return ""
+	}
+
+	if _, ok := invalid[path.Ext(b)]; ok {
+		return b + defaultExtension
+	}
+
+	return b
 }

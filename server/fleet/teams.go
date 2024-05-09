@@ -156,6 +156,13 @@ type TeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
+type TeamSpecSoftware struct {
+	URL               string `json:"url"`
+	PreInstallQuery   string `json:"pre_install_query"`
+	InstallScript     string `json:"install_script"`
+	PostInstallScript string `json:"post_install_script"`
+}
+
 type TeamMDM struct {
 	EnableDiskEncryption bool           `json:"enable_disk_encryption"`
 	MacOSUpdates         MacOSUpdates   `json:"macos_updates"`
@@ -404,14 +411,15 @@ type TeamSpec struct {
 	// If the agent_options key is present but empty in the YAML, will be set to
 	// "null" (JSON null). Otherwise, if the key is present and set, it will be
 	// set to the agent options JSON object.
-	AgentOptions       json.RawMessage         `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
-	HostExpirySettings *HostExpirySettings     `json:"host_expiry_settings,omitempty"`
-	Secrets            []EnrollSecret          `json:"secrets,omitempty"`
-	Features           *json.RawMessage        `json:"features"`
-	MDM                TeamSpecMDM             `json:"mdm"`
-	Scripts            optjson.Slice[string]   `json:"scripts"`
-	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
-	Integrations       TeamSpecIntegrations    `json:"integrations"`
+	AgentOptions       json.RawMessage                 `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+	HostExpirySettings *HostExpirySettings             `json:"host_expiry_settings,omitempty"`
+	Secrets            []EnrollSecret                  `json:"secrets,omitempty"`
+	Features           *json.RawMessage                `json:"features"`
+	MDM                TeamSpecMDM                     `json:"mdm"`
+	Scripts            optjson.Slice[string]           `json:"scripts"`
+	WebhookSettings    TeamSpecWebhookSettings         `json:"webhook_settings"`
+	Integrations       TeamSpecIntegrations            `json:"integrations"`
+	Software           optjson.Slice[TeamSpecSoftware] `json:"software,omitempty"`
 }
 
 type TeamSpecWebhookSettings struct {

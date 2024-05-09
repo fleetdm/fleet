@@ -493,7 +493,8 @@ type Datastore interface {
 	// InsertSoftwareInstallRequest tracks a new request to install the provided software installer in the host
 	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-	// GetSoftwareInstallerForTitle TODO
+	// GetSoftwareInstallerForTitle returns the software installer
+	// associated with the given title - team combination.
 	GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*SoftwareInstaller, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -1503,6 +1504,9 @@ type Datastore interface {
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore) error
+
+	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

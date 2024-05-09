@@ -129,11 +129,34 @@ func TestExtractInstallerMetadata(t *testing.T) {
 			require.NoError(t, err)
 			defer f.Close()
 
-			name, version, hash, err := file.ExtractInstallerMetadata(dent.Name(), f)
+			name, version, hash, err := file.ExtractInstallerMetadata(f)
 			require.NoError(t, err)
 			assert.Equal(t, wantName, name)
 			assert.Equal(t, wantVersion, version)
 			assert.Equal(t, wantHash, hex.EncodeToString(hash))
 		})
+	}
+}
+
+func TestExtractFilenameFromURLPath(t *testing.T) {
+	cases := []struct {
+		in  string
+		out string
+	}{
+		{"http://example.com", ""},
+		{"http://example.com/", ""},
+		{"http://example.com?foo=bar", ""},
+		{"http://example.com/foo.pkg", "foo.pkg"},
+		{"http://example.com/foo.exe", "foo.exe"},
+		{"http://example.com/foo.pkg?bar=baz", "foo.pkg"},
+		{"http://example.com/foo.bar.pkg", "foo.bar.pkg"},
+		{"http://example.com/foo", "foo.pkg"},
+		{"http://example.com/foo/bar/baz", "baz.pkg"},
+		{"http://example.com/foo?bar=baz", "foo.pkg"},
+	}
+
+	for _, c := range cases {
+		got := file.ExtractFilenameFromURLPath(c.in, ".pkg")
+		require.Equalf(t, c.out, got, "for URL %s", c.in)
 	}
 }
