@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
@@ -50,6 +50,10 @@ const SoftwareCard = ({
   isSoftwareEnabled = false,
   isMyDevicePage = false,
 }: ISoftwareCardProps) => {
+  const [installingSoftwareId, setInstallingSoftwareId] = useState<
+    number | null
+  >(null);
+
   const {
     data: hostSoftwareRes,
     isLoading: hostSoftwareLoading,
@@ -64,7 +68,6 @@ const SoftwareCard = ({
     }
   );
 
-  // TODO: device call
   const {
     data: deviceSoftwareRes,
     isLoading: deviceSoftwareLoading,
@@ -86,13 +89,29 @@ const SoftwareCard = ({
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
 
-  const tableHeaders = useMemo(
-    () =>
-      generateSoftwareTableHeaders({
-        router,
-      }),
-    [router]
+  const onSelectAction = useCallback(
+    (softwareId: number, action: string) => {
+      switch (action) {
+        case "install":
+          setInstallingSoftwareId(softwareId);
+          break;
+        case "showDetails":
+          console.log("showDetails");
+          break;
+        default:
+          break;
+      }
+    },
+    [pathname, router]
   );
+
+  const tableHeaders = useMemo(() => {
+    return generateSoftwareTableHeaders({
+      router,
+      installingSoftwareId,
+      onSelectAction,
+    });
+  }, [installingSoftwareId, router, onSelectAction]);
 
   const renderSoftwareTable = () => {
     if (hostSoftwareLoading || deviceSoftwareLoading) {

@@ -23,7 +23,6 @@ interface IHostSoftwareTableProps {
   sortDirection: "asc" | "desc";
   searchQuery: string;
   page: number;
-  enableClickableRows?: boolean;
   pagePath: string;
 }
 
@@ -37,7 +36,6 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
-  enableClickableRows = true,
 }: IHostSoftwareTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
