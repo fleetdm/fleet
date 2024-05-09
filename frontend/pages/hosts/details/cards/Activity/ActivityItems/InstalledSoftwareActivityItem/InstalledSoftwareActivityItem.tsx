@@ -1,6 +1,6 @@
 import React from "react";
 
-import { SoftwareInstallStatus } from "interfaces/software";
+import { ISoftwareInstallStatus } from "interfaces/software";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 import HostActivityItem from "../../HostActivityItem";
@@ -8,7 +8,7 @@ import ShowDetailsButton from "../../ShowDetailsButton";
 
 const baseClass = "installed-software-activity-item";
 
-const STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
+const STATUS_PREDICATES: Record<ISoftwareInstallStatus, string> = {
   failed: "failed to install",
   installed: "installed",
   pending: "told Fleet to install",
@@ -21,7 +21,7 @@ export const getSoftwareInstallStatusPredicate = (
     return STATUS_PREDICATES.pending;
   }
   return (
-    STATUS_PREDICATES[status as SoftwareInstallStatus] ||
+    STATUS_PREDICATES[status as ISoftwareInstallStatus] ||
     STATUS_PREDICATES.pending
   );
 };

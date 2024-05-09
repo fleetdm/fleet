@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 
 import endpoints from "utilities/endpoints";
-import { IPackageInstallStatus, ISoftwarePackage } from "interfaces/software";
+import { ISoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -27,7 +27,7 @@ interface IStatusDisplayOption {
 }
 
 const STATUS_DISPLAY_OPTIONS: Record<
-  IPackageInstallStatus,
+  ISoftwareInstallStatus,
   IStatusDisplayOption
 > = {
   installed: {
@@ -49,7 +49,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
 
 interface IPackageStatusCountProps {
   softwareId: number;
-  status: IPackageInstallStatus;
+  status: ISoftwareInstallStatus;
   count: number;
   teamId?: number;
 }

@@ -1,6 +1,6 @@
 import React, { ReactNode } from "react";
 
-import { IPackageInstallStatus } from "interfaces/software";
+import { ISoftwareInstallStatus } from "interfaces/software";
 import { dateAgo } from "utilities/date_format";
 
 import Icon from "components/Icon";
@@ -8,7 +8,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "install-status-cell";
 
-type IStatusValue = IPackageInstallStatus | "avaiableForInstall";
+type IStatusValue = ISoftwareInstallStatus | "avaiableForInstall";
 
 type IStatusDisplayConfig = {
   iconName: "success" | "pending-outline" | "error" | "install";
@@ -55,7 +55,7 @@ const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
 };
 
 interface IInstallStatusCellProps {
-  status: IPackageInstallStatus | null;
+  status: ISoftwareInstallStatus | null;
   packageToInstall: string | null;
   installedAt?: string;
 }
