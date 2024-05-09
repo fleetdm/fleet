@@ -13,8 +13,6 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
-import IconCell from "pages/SoftwarePage/components/IconCell";
-
 import VersionCell from "../../components/VersionCell";
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 
@@ -23,10 +21,6 @@ import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 
 type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
-type ISoftwarePackageCellProps = CellProps<
-  ISoftwareTitle,
-  ISoftwareTitle["software_package"]
->;
 type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
 type IVulnerabilitiesCellProps = IVersionsCellProps;
 type IHostCountCellProps = CellProps<
