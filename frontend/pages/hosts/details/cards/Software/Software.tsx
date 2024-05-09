@@ -25,6 +25,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 }
 
 interface ISoftwareCardProps {
+  /** This is the host id or the device token */
   id: number | string;
   router: InjectedRouter;
   queryParams?: {

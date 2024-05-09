@@ -1,6 +1,7 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
+import { cloneDeep } from "lodash";
 
 import { IHostSoftware, SOURCE_TYPE_CONVERSION } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
@@ -47,7 +48,11 @@ const generateActions = (
   softwareId: number,
   installingSoftwareId: number | null
 ) => {
-  const actions = DEFAULT_ACTION_OPTIONS;
+  // this gives us a clean slate of the default actions so we can modify
+  // the options.
+  const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
+
+  // TODO: when do we not show the options?
 
   // disable install option if software is already installing
   if (softwareId === installingSoftwareId) {
@@ -56,10 +61,6 @@ const generateActions = (
       installAction.disabled = true;
     }
   }
-
-  // if (!packageToInstall && installingSoftwareId !== softwareId) {
-  //   return DEFAULT_ACTION_OPTIONS;
-  // }
 
   return actions;
 };
@@ -148,6 +149,8 @@ export const generateSoftwareTableHeaders = ({
     {
       Header: "",
       disableSortBy: true,
+      // the accessor here is insignificant, we just need it as its required
+      // but we don't use it.
       accessor: "bundle_identifier",
       Cell: (cellProps: ITableStringCellProps) => (
         <DropdownCell
