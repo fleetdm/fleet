@@ -9,6 +9,7 @@
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
+- [Software](#software)
 
 This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
@@ -2834,11 +2835,35 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 #### Example
 
-`POST /api/v1/fleet/mdm/scripts/batch`
+`POST /api/v1/fleet/scripts/batch`
 
 ##### Default response
 
-`204`
+`Status: 204`
 
-<meta name="pageOrderInSection" value="800">
-<meta name="description" value="Read about Fleet API routes that are helpful when developing or contributing to Fleet.">
+## Software
+
+### Batch-apply software 
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/software/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. |
+| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. |
+| dry_run   | bool   | query | Validate the provided software packages and return any validation errors, but do not apply the changes.                                                                         |
+| software  | array  | body  | An array of objects containing `url` to the software package (PKG, MSI, EXE or DEB), `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` that runs after software install. |
+
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+#### Example
+
+`POST /api/v1/fleet/software/batch`
+
+##### Default response
+
+`Status: 204`
