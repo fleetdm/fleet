@@ -92,7 +92,6 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
-import { createMockHostSoftware } from "__mocks__/hostMock";
 
 const baseClass = "host-details";
 
@@ -990,24 +989,9 @@ const HostDetailsPage = ({
             onClose={() => setShowWipeModal(false)}
           />
         )}
-        {true && (
+        {selectedSoftwareDetails && (
           <SoftwareDetailsModal
-            software={createMockHostSoftware({
-              installed_versions: [
-                {
-                  version: "1.0.0",
-                  installed_paths: ["/test", "/test2", "/test3"],
-                  last_opened_at: "2021-01-01T00:00:00Z",
-                  vulnerabilities: [
-                    "CVE-2021-0001",
-                    "CVE-2021-0002",
-                    "CVE-2021-0003",
-                    "CVE-2021-0004",
-                    "CVE-2021-0005",
-                  ],
-                },
-              ],
-            })}
+            software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
           />
         )}
