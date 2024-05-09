@@ -246,7 +246,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 	if len(pendingInstalls) > 0 {
-		notifs.OrbitSoftwareInstallers = pendingInstalls
+		notifs.PendingSoftwareInstallerIDs = pendingInstalls
 	}
 
 	// team ID is not nil, get team specific flags and options
