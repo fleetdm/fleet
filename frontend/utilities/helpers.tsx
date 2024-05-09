@@ -55,6 +55,7 @@ import {
 } from "utilities/constants";
 import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { IActivityDetails } from "interfaces/activity";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -495,6 +496,26 @@ export const formatScriptNameForActivityItem = (name: string | undefined) => {
     </>
   ) : (
     "a script"
+  );
+};
+
+export const formatInstalledSoftwareForActivityItem = ({
+  software_package,
+  software_title,
+}: IActivityDetails) => {
+  // TODO: API should ensure these fields are always present so remove these checks when frontend activity types are improved.
+  if (!software_title && !software_package) {
+    return "software";
+  } else if (software_title && !software_package) {
+    return <b>{software_title}</b>;
+  } else if (!software_title && software_package) {
+    return <b>{software_package}</b>;
+  }
+
+  return (
+    <>
+      <b>{software_title}</b> ({software_package})
+    </>
   );
 };
 

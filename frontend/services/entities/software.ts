@@ -211,4 +211,11 @@ export default {
 
     return sendRequest("POST", SOFTWARE_PACKAGE, formData);
   },
+
+  getSoftwareInstallResult: (installUuid: string) => {
+    const { SOFTWARE_INSTALL_RESULTS } = endpoints;
+    const path = SOFTWARE_INSTALL_RESULTS(installUuid);
+
+    return sendRequest("GET", path);
+  },
 };

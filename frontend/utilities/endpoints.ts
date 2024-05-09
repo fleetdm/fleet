@@ -129,6 +129,8 @@ export default {
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
   SOFTWARE_PACKAGE: `/${API_VERSION}/fleet/software/package`,
+  SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
+    `/${API_VERSION}/fleet/software/install/results/${uuid}`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
