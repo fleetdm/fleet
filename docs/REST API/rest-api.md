@@ -3694,7 +3694,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "name": "Google Chrome.app",
       "package_available_for_install": "GoogleChrome.pkg",
       "source": "apps",
-      "bundle_identifier": "com.google.Chrome",
       "status": "failed",
       "last_install": {
         "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
@@ -3714,7 +3713,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "name": "Falcon.app",
       "package_available_for_install": "FalconSensor-6.44.pkg",
       "source": "",
-      "bundle_identifier": "",
       "status": null,
       "last_install": null,
       "installed_versions": [],
