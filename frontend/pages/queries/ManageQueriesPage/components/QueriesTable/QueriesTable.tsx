@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import Button from "components/buttons/Button";
@@ -209,20 +210,20 @@ const QueriesTable = ({
     searchQuery,
   ]);
 
-  const handlePlatformFilterDropdownChange = (platformSelected: string) => {
-    router?.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_QUERIES,
-        queryParams: {
-          ...queryParams,
-          page: 0,
-          platform: platformSelected,
-        },
-      })
-    );
-  };
+  const renderPlatformDropdown = useCallback(() => {
+    const handlePlatformFilterDropdownChange = (platformSelected: string) => {
+      router?.replace(
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_QUERIES,
+          queryParams: {
+            ...queryParams,
+            page: 0,
+            platform: platformSelected,
+          },
+        })
+      );
+    };
 
-  const renderPlatformDropdown = () => {
     return (
       <Dropdown
         value={platform}
@@ -233,7 +234,7 @@ const QueriesTable = ({
         tableFilterDropdown
       />
     );
-  };
+  }, [platform, queryParams, router]);
 
   const columnConfigs = useMemo(
     () =>
@@ -266,6 +267,20 @@ const QueriesTable = ({
   }, [getEmptyStateParams]);
 
   const trimmedSearchQuery = searchQuery.trim();
+
+  const deleteQueryTableActionButtonProps = useMemo(
+    () =>
+      ({
+        name: "delete query",
+        buttonText: "Delete",
+        iconSvg: "trash",
+        variant: "text-icon",
+        onActionButtonClick: onDeleteQueryClick,
+        // this maintains the existing typing, which is not actually correct
+        // TODO - update this object to actually implement IActionButtonProps
+      } as IActionButtonProps),
+    [onDeleteQueryClick]
+  );
   return columnConfigs && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
@@ -290,13 +305,7 @@ const QueriesTable = ({
         isClientSidePagination
         onClientSidePaginationChange={onClientSidePaginationChange}
         isClientSideFilter
-        primarySelectAction={{
-          name: "delete query",
-          buttonText: "Delete",
-          iconSvg: "trash",
-          variant: "text-icon",
-          onActionButtonClick: onDeleteQueryClick,
-        }}
+        primarySelectAction={deleteQueryTableActionButtonProps}
         selectedDropdownFilter={platform}
         show0Count
       />
