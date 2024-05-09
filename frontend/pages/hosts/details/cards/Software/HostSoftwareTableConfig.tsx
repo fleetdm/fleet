@@ -3,7 +3,11 @@ import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 import { cloneDeep } from "lodash";
 
-import { IHostSoftware, SOURCE_TYPE_CONVERSION } from "interfaces/software";
+import {
+  IHostSoftware,
+  SOURCE_TYPE_CONVERSION,
+  formatSoftwareType,
+} from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
@@ -38,11 +42,6 @@ type IInstalledVersionsCellProps = CellProps<
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 // type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
 
-const formatSoftwareType = (source: string) => {
-  const DICT = SOURCE_TYPE_CONVERSION;
-  return DICT[source] || "Unknown";
-};
-
 const generateActions = (
   packageToInstall: string | null,
   softwareId: number,
@@ -67,7 +66,7 @@ const generateActions = (
 
 interface ISoftwareTableHeadersProps {
   installingSoftwareId: number | null;
-  onSelectAction: (softwareId: number, action: string) => void;
+  onSelectAction: (software: IHostSoftware, action: string) => void;
   router: InjectedRouter;
 }
 
@@ -134,7 +133,10 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: true,
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} formatter={formatSoftwareType} />
+        <TextCell
+          value={cellProps.cell.value}
+          formatter={() => formatSoftwareType({ source: cellProps.cell.value })}
+        />
       ),
     },
     {
@@ -160,9 +162,7 @@ export const generateSoftwareTableHeaders = ({
             cellProps.row.original.id,
             installingSoftwareId
           )}
-          onChange={(action) =>
-            onSelectAction(cellProps.row.original.id, action)
-          }
+          onChange={(action) => onSelectAction(cellProps.row.original, action)}
         />
       ),
     },

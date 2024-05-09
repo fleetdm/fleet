@@ -31,7 +31,7 @@ import {
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import { ISoftware } from "interfaces/software";
+import Software, { IHostSoftware, ISoftware } from "interfaces/software";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import {
@@ -91,6 +91,8 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
+import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
+import { createMockHostSoftware } from "__mocks__/hostMock";
 
 const baseClass = "host-details";
 
@@ -180,6 +182,10 @@ const HostDetailsPage = ({
     hostMdmDeviceStatus,
     setHostMdmDeviceState,
   ] = useState<HostMdmDeviceStatusUIState>("unlocked");
+  const [
+    selectedSoftwareDetails,
+    setSelectedSoftwareDetails,
+  ] = useState<IHostSoftware | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -841,6 +847,9 @@ const HostDetailsPage = ({
                 router={router}
                 queryParams={queryParams}
                 pathname={location.pathname}
+                onShowSoftwareDetails={(software) =>
+                  setSelectedSoftwareDetails(software)
+                }
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -979,6 +988,27 @@ const HostDetailsPage = ({
             hostName={host.display_name}
             onSuccess={() => setHostMdmDeviceState("wiping")}
             onClose={() => setShowWipeModal(false)}
+          />
+        )}
+        {true && (
+          <SoftwareDetailsModal
+            software={createMockHostSoftware({
+              installed_versions: [
+                {
+                  version: "1.0.0",
+                  installed_paths: ["/test", "/test2", "/test3"],
+                  last_opened_at: "2021-01-01T00:00:00Z",
+                  vulnerabilities: [
+                    "CVE-2021-0001",
+                    "CVE-2021-0002",
+                    "CVE-2021-0003",
+                    "CVE-2021-0004",
+                    "CVE-2021-0005",
+                  ],
+                },
+              ],
+            })}
+            onExit={() => setSelectedSoftwareDetails(null)}
           />
         )}
       </>

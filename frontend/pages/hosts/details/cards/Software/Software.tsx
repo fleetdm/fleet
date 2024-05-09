@@ -7,7 +7,7 @@ import hostAPI, { IGetHostSoftwareResponse } from "services/entities/hosts";
 import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
-import { ISoftware } from "interfaces/software";
+import { IHostSoftware, ISoftware } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 
@@ -35,6 +35,7 @@ interface ISoftwareCardProps {
     order_direction?: "asc" | "desc";
   };
   pathname: string;
+  onShowSoftwareDetails?: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
 }
@@ -49,6 +50,7 @@ const SoftwareCard = ({
   router,
   queryParams,
   pathname,
+  onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
 }: ISoftwareCardProps) => {
@@ -111,19 +113,19 @@ const SoftwareCard = ({
   );
 
   const onSelectAction = useCallback(
-    (softwareId: number, action: string) => {
+    (software: IHostSoftware, action: string) => {
       switch (action) {
         case "install":
-          installHostSoftwarePackage(softwareId);
+          installHostSoftwarePackage(software.id);
           break;
         case "showDetails":
-          console.log("showDetails");
+          onShowSoftwareDetails?.(software);
           break;
         default:
           break;
       }
     },
-    [installHostSoftwarePackage]
+    [installHostSoftwarePackage, onShowSoftwareDetails]
   );
 
   const tableHeaders = useMemo(() => {

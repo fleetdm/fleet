@@ -138,7 +138,7 @@ export const formatSoftwareType = ({
   browser,
 }: {
   source: string;
-  browser: string;
+  browser?: string;
 }) => {
   let type = SOURCE_TYPE_CONVERSION[source] || "Unknown";
   if (browser) {
@@ -175,5 +175,5 @@ export interface IHostSoftware {
   bundle_identifier: string;
   status: IPackageInstallStatus | null;
   last_install: ISoftwareLastInstall | null;
-  installed_versions: ISoftwareInstallVersion[];
+  installed_versions: ISoftwareInstallVersion[] | null;
 }
