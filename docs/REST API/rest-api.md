@@ -7959,34 +7959,18 @@ Get an installation result of the software that was installed.
 `Status: 200`
 
 ```json
-{
-  {
-    "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
-    "software_title": "Falcon.app",
-    "software_title_id": 8353,
-    "software_package": "FalconSensor-6.44.pkg",
-    "host_id": 123,
-    "host_display_name": "Marko's MacBook Pro",
-    "status": "Failed",
-    "detail": "Script after install failed",
-    "output": "Marko's MacBook Pro",
-    "pre_install_query_output": "Query returned result\nSuccess",
-    "post_install_script_output": "Installing software...\nSuccess\nRolling back software install...\nSuccess"
-  },
-  {
-    "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
-    "software_title": "Zoom.app",
-    "software_title_id": 4353,
-    "software_package": "ZoomInstallerFull.msi",
-    "host_id": 124,
-    "host_display_name": "WindowsLaptop-345034",
-    "status": "Pending",
-    "detail": "",
-    "output": "",
-    "pre_install_query_output": "",
-    "post_install_script_output": ""
-  },
-}
+ {
+   "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+   "software_title": "Falcon.app",
+   "software_title_id": 8353,
+   "software_package": "FalconSensor-6.44.pkg",
+   "host_id": 123,
+   "host_display_name": "Marko's MacBook Pro",
+   "status": "failed",
+   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+   "pre_install_query_output": "Query returned result\nSuccess",
+   "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+ }
 ```
 
 ### List software
