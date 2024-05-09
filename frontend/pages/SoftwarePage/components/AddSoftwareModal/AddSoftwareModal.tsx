@@ -6,6 +6,7 @@ import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 import { NotificationContext } from "context/notification";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -85,9 +86,15 @@ const AddSoftwareModal = ({
       await softwareAPI.addSoftwarePackage(formData, teamId);
       renderFlash("success", "Software added successfully!");
       onExit();
-      router.push(`${PATHS.SOFTWARE_TITLES}?available_for_install=true`);
+      router.push(
+        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+          available_for_install: true,
+          team_id: teamId,
+        })}`
+      );
     } catch (e) {
       renderFlash("error", getErrorReason(e));
+      onExit();
     }
 
     setIsUploading(false);
