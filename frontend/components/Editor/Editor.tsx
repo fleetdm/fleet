@@ -8,6 +8,7 @@ interface IEditorProps {
   focus?: boolean;
   label?: string;
   error?: string | null;
+  readOnly?: boolean;
   /**
    * Help text to display below the editor.
    */
@@ -28,7 +29,7 @@ interface IEditorProps {
   name?: string;
   maxLines?: number;
   className?: string;
-  onChange: (value: string, event?: any) => void;
+  onChange?: (value: string, event?: any) => void;
 }
 
 /**
@@ -45,6 +46,7 @@ const Editor = ({
   focus,
   value,
   defaultValue,
+  readOnly = false,
   wrapEnabled = false,
   name = "editor",
   maxLines = 20,
@@ -85,6 +87,7 @@ const Editor = ({
         fontSize={14}
         theme="fleet"
         width="100%"
+        readOnly={readOnly}
         minLines={2}
         maxLines={maxLines}
         editorProps={{ $blockScrolling: Infinity }}

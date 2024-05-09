@@ -11,6 +11,11 @@ import {
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
+import {
+  createMockSoftwarePackage,
+  createMockSoftwareTitle,
+  createMockSoftwareTitleResponse,
+} from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -149,15 +154,6 @@ export default {
     return sendRequest("GET", path.concat(`?${queryString}`));
   },
 
-  getSoftwareById: async (
-    softwareId: string
-  ): Promise<IGetSoftwareByIdResponse> => {
-    const { SOFTWARE } = endpoints;
-    const path = `${SOFTWARE}/${softwareId}`;
-
-    return sendRequest("GET", path);
-  },
-
   getSoftwareTitles: (
     params: ISoftwareApiParams
   ): Promise<ISoftwareTitlesResponse> => {
@@ -168,11 +164,22 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getSoftwareTitle: ({ softwareId, teamId }: IGetSoftwareTitleQueryParams) => {
+  getSoftwareTitle: ({
+    softwareId,
+    teamId,
+  }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
     const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+    // return sendRequest("GET", path);
 
-    return sendRequest("GET", path);
+    // TODO: remove when we have API ready
+    return new Promise((resolve) => {
+      resolve({
+        software_title: createMockSoftwareTitle({
+          software_package: createMockSoftwarePackage(),
+        }),
+      });
+    });
   },
 
   getSoftwareVersions: (params: ISoftwareApiParams) => {
@@ -194,7 +201,7 @@ export default {
   },
 
   addSoftwarePackage: (data: IAddSoftwareFormData, teamId?: number) => {
-    const { SOFTWARE_PACKAGE } = endpoints;
+    const { SOFTWARE_PACKAGE_ADD } = endpoints;
 
     if (!data.software) {
       throw new Error("Software package is required");
@@ -209,6 +216,19 @@ export default {
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
 
-    return sendRequest("POST", SOFTWARE_PACKAGE, formData);
+    return sendRequest("POST", SOFTWARE_PACKAGE_ADD, formData);
+  },
+
+  deleteSoftwarePackage: (softwareId: number) => {
+    const { SOFTWARE_PACKAGE } = endpoints;
+    return sendRequest("DELETE", SOFTWARE_PACKAGE(softwareId));
+  },
+
+  downloadSoftwarePackage: (softwareId: number) => {
+    const { SOFTWARE_PACKAGE } = endpoints;
+    const path = `${SOFTWARE_PACKAGE(softwareId)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
+    return sendRequest("GET", path);
   },
 };

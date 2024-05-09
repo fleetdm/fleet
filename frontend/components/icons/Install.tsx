@@ -1,13 +1,24 @@
 import React from "react";
+
 import { COLORS, Colors } from "styles/var/colors";
+import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IInstallProps {
   color?: Colors;
+  size?: IconSizes;
 }
 
-const Install = ({ color = "ui-fleet-black-50" }: IInstallProps) => {
+const Install = ({
+  color = "ui-fleet-black-50",
+  size = "medium",
+}: IInstallProps) => {
   return (
-    <svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      width={ICON_SIZES[size]}
+      height={ICON_SIZES[size]}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <g
         clipPath="url(#a)"
         fillRule="evenodd"
