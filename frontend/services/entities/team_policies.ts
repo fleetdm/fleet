@@ -159,7 +159,7 @@ export default {
   getCount: async ({
     query,
     teamId,
-    mergeInherited = false,
+    mergeInherited = true,
   }: Pick<
     IPoliciesCountApiParams,
     "query" | "teamId" | "mergeInherited"
