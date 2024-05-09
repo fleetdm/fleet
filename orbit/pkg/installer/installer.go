@@ -10,11 +10,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/osquery/osquery-go"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
+	"github.com/rs/zerolog/log"
 )
 
 type QueryResponse = osquery_gen.ExtensionResponse
@@ -158,7 +160,10 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 		if r.removeAllFn == nil {
 			r.removeAllFn = os.RemoveAll
 		}
-		r.removeAllFn(tmpDir)
+		err := r.removeAllFn(tmpDir)
+		if err != nil {
+			log.Err(err)
+		}
 	}()
 
 	installOutput, installExitCode, err := r.runInstallerScript(ctx, installScript, installerPath)
@@ -182,7 +187,7 @@ func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScrip
 	// run script in installer directory
 	installerDir := filepath.Dir(installerPath)
 	scriptPath := filepath.Join(installerDir, strconv.Itoa(int(script.ID)))
-	if err := os.WriteFile(scriptPath, []byte(script.ScriptContents), 0700); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(script.ScriptContents), constant.DefaultFileMode); err != nil {
 		return "", -1, ctxerr.Wrap(ctx, err, "writing script")
 	}
 

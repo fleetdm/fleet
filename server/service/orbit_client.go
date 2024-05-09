@@ -274,7 +274,10 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 	defer installerFile.Close()
 
 	// TODO add the ability to cancel on context timeout?
-	io.Copy(installerFile, resp.payload.Installer)
+	_, err = io.Copy(installerFile, resp.payload.Installer)
+	if err != nil {
+		return "", fmt.Errorf("copying installer from http stream to file: %w", err)
+	}
 
 	return installerPath, nil
 }
