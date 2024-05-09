@@ -3,8 +3,10 @@ package installer
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -19,8 +21,8 @@ type TestOrbitClient struct {
 	saveInstallerResultFn func(*fleet.HostSoftwareInstallResultPayload) error
 }
 
-func (oc *TestOrbitClient) GetHostScript(execID string) (*fleet.HostScriptResult, error) {
-	return oc.getHostScriptFn(execID)
+func (oc *TestOrbitClient) GetHostScript(scriptID string) (*fleet.HostScriptResult, error) {
+	return oc.getHostScriptFn(scriptID)
 }
 
 func (oc *TestOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
@@ -139,14 +141,20 @@ func TestInstallerRun(t *testing.T) {
 	oc := &TestOrbitClient{}
 
 	var getHostScriptFnCalled bool
-	oc.getHostScriptFn = func(execID string) (*fleet.HostScriptResult, error) {
+	var hostScriptsRequested []string
+	oc.getHostScriptFn = func(scriptID string) (*fleet.HostScriptResult, error) {
 		getHostScriptFnCalled = true
+		hostScriptsRequested = append(hostScriptsRequested, scriptID)
+		id, err := strconv.Atoi(strings.ReplaceAll(scriptID, "script", ""))
+		require.NoError(t, err, "test internal scriptID to script id")
 		return &fleet.HostScriptResult{
-			ScriptContents: execID,
+			ID:             uint(id),
+			ScriptContents: scriptID,
 		}, nil
 	}
 
 	var getInstallerDetailsFnCalled bool
+	var installIdRequested string
 	installDetails := &fleet.SoftwareInstallDetails{
 		ExecutionID:         "exec1",
 		InstallerID:         1337,
@@ -156,7 +164,8 @@ func TestInstallerRun(t *testing.T) {
 	}
 	oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
 		getInstallerDetailsFnCalled = true
-		return installDetails
+		installIdRequested = installID
+		return installDetails, nil
 	}
 
 	var downloadInstallerFnCalled bool
@@ -171,20 +180,40 @@ func TestInstallerRun(t *testing.T) {
 		return nil
 	}
 
-	r := &Runner{OrbitClient: oc}
+	q := &TestQueryClient{}
+
+	var queryFnCalled bool
+	var queryFnQuery string
+	q.queryFn = func(ctx context.Context, query string) (*QueryResponse, error) {
+		queryFnCalled = true
+		res := make(map[string]string, 0)
+		res["col"] = "1"
+		return &QueryResponse{
+			Response: []map[string]string{res},
+		}, nil
+	}
+
+	r := &Runner{
+		OrbitClient:   oc,
+		OsqueryClient: q,
+	}
 
 	var execCalled bool
 	var executedScripts []string
+	var execEnv []string
 	r.execCmdFn = func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
 		execCalled = true
+		execEnv = env
 		executedScripts = append(executedScripts, scriptPath)
 		return []byte("execOutput"), 0, nil
 	}
 
 	var tmpDirFnCalled bool
+	var tmpDir string
 	r.tempDirFn = func() string {
 		tmpDirFnCalled = true
-		return "/tmp/installer"
+		tmpDir = os.TempDir()
+		return tmpDir
 	}
 
 	var removeAllFnCalled bool
@@ -194,4 +223,39 @@ func TestInstallerRun(t *testing.T) {
 		removeAllFnCalled = true
 		return nil
 	}
+
+	var config fleet.OrbitConfig
+	config.Notifications.PendingSoftwareInstallerIDs = []string{"exec1"}
+
+	err := r.run(context.Background(), &config)
+	require.NoError(t, err)
+
+	require.True(t, removeAllFnCalled)
+	require.Equal(t, tmpDir, removedDir)
+
+	require.True(t, tmpDirFnCalled)
+
+	require.True(t, execCalled)
+	require.Contains(t, executedScripts, filepath.Join(tmpDir, "1"))
+	require.Contains(t, executedScripts, filepath.Join(tmpDir, "2"))
+	require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, strconv.Itoa(int(installDetails.InstallerID))+".pkg"))
+
+	require.True(t, queryFnCalled)
+	require.Equal(t, queryFnQuery, installDetails.PreInstallCondition)
+
+	require.NotNil(t, savedInstallerResult)
+	require.Equal(t, 0, savedInstallerResult.InstallScriptExitCode)
+	require.Equal(t, "execOutput", savedInstallerResult.InstallScriptOutput)
+	require.Equal(t, 0, savedInstallerResult.PostInstallScriptExitCode)
+	require.Equal(t, "execOutput", savedInstallerResult.PostInstallScriptOutput)
+	require.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
+
+	require.True(t, downloadInstallerFnCalled)
+
+	require.True(t, getInstallerDetailsFnCalled)
+	require.Equal(t, installDetails.ExecutionID, installIdRequested)
+
+	require.True(t, getHostScriptFnCalled)
+	require.Contains(t, hostScriptsRequested, installDetails.InstallScript)
+	require.Contains(t, hostScriptsRequested, installDetails.PostInstallScript)
 }

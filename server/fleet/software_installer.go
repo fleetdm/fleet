@@ -47,9 +47,9 @@ type SoftwareInstallDetails struct {
 	InstallerID uint `json:"installer_id" db:"installer_id"`
 	// PreInstallCondition is the query to run as a condition to installing the software package.
 	PreInstallCondition string `json:"pre_install_condition" db:"pre_install_condition"`
-	// InstallScript is the script to run to install the software package.
+	// InstallScript is the ID of the script to run to install the software package.
 	InstallScript string `json:"install_script" db:"install_script"`
-	// PostInstallScript is the script to run after installing the software package.
+	// PostInstallScript is the ID of the script script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 }
 
