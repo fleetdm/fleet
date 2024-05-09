@@ -25,13 +25,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	if payload == nil {
-		return ctxerr.New(ctx, "payload is required")
-	}
-
-	if payload.InstallerFile == nil {
-		return ctxerr.New(ctx, "installer file is required")
-	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -39,11 +32,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if err := svc.addMetadataToSoftwarePayload(ctx, payload); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
 	if err := svc.storeSoftware(ctx, payload); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "storing software installer")
 	}
 
 	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
@@ -340,7 +333,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.Version = vers
 	payload.StorageID = hex.EncodeToString(hash)
 
-	// reset the reader before storing (it was consumed to extract metadata)
+	// reset the reade (it was consumed to extract metadata)
 	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
 		return ctxerr.Wrap(ctx, err, "resetting installer file reader")
 	}
