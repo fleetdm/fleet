@@ -1,5 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
+import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
@@ -38,10 +40,15 @@ const AllTeamsMessage = ({ onExit }: IAllTeamsMessageProps) => {
 
 interface IAddSoftwareModalProps {
   teamId: number;
+  router: InjectedRouter;
   onExit: () => void;
 }
 
-const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
+const AddSoftwareModal = ({
+  teamId,
+  router,
+  onExit,
+}: IAddSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -77,6 +84,8 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId);
       renderFlash("success", "Software added successfully!");
+      onExit();
+      router.push(`${PATHS.SOFTWARE_TITLES}?available_for_install=true`);
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
