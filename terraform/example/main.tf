@@ -185,8 +185,7 @@ module "acm" {
   # If you change the route53 zone to a data source this needs to become "data.aws_route53_zone.main.id"
   zone_id     = aws_route53_zone.main.id
 
-  # This allows us to get the DNS Zone outputs from below without this failing.
-  wait_for_validation = false
+  wait_for_validation = true
 }
 
 # If you already are managing your zone in AWS in the same account,
