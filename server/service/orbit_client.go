@@ -51,7 +51,7 @@ type OrbitClient struct {
 	// Cancelable context used by ExecuteConfigReceivers to cancel the
 	// update loop
 	ReceiverUpdateContext context.Context
-	// Cancel func for ReceiverUpdateContext
+	// ReceiverUpdateCancelFunc will be called when ReceiverUpdateContext is cancelled
 	ReceiverUpdateCancelFunc context.CancelFunc
 }
 
@@ -155,7 +155,7 @@ func NewOrbitClient(
 func (oc *OrbitClient) RunConfigReceivers() error {
 	config, err := oc.GetConfig()
 	if err != nil {
-		return fmt.Errorf("RunReceivers get config: %w", err)
+		return fmt.Errorf("RunConfigReceivers get config: %w", err)
 	}
 
 	var errs []error
