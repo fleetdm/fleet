@@ -336,7 +336,7 @@ When reading an NDA, we want to pay close attention to the following:
 
 ### Review a vendor agreement
 When reviewing contracts from a vendor, Fleet is concerned about the following:
-1. If there are confidentiality provisions in the agreement, in the place of a stand-alone NDA, we want to make sure that the confidentiality provisions are appropriate and protect Fleet when sensitive data is involved that isn't otherwise available to the public.
+1. If there are confidentiality provisions in the agreement in place of a stand-alone NDA, verify the confidentiality provisions are appropriate and protect Fleet when sensitive data is involved that isn't otherwise available to the public.
 2. We want to make sure there are no _do not solicit_ or _do not compete_ clauses in the contract.  To aid in this search, we double check by using the cmd + f function and searching for "solici", "compet" and "hir" and then looking through the results to be sure that nothing prohibits Fleet from independently developing competing products or from hiring personnel with ties to the vendor.
 3. we want to make sure that contracts can be terminated relatively easily and be aware of what the process is for terminating them, avoiding commitments over 12 months in length.
 4. We want to make sure the payment terms work for us (i.e. being able to pay via wire transfer, credit card or bill.com) and that the price in any contract or order form is what we have agreed to.  While almost never malicious, mistakes often occur in the steps between agreeing on a price, negotiating a contract, and receiving an invoice.  We want to be sure at every step that the dollar amount and service provided is consistent with what has been negotiated and agreed upon.
