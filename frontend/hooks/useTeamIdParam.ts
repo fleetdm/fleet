@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, trimStart } from "lodash";
+import { findLastIndex, over, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
@@ -283,7 +283,7 @@ export const useTeamIdParam = ({
   includeNoTeam,
   permittedAccessByTeamRole,
   resetSelectedRowsOnTeamChange = true,
-  overrideParamsOnTeamChange: resetAdditionalParamsOnTeamChange,
+  overrideParamsOnTeamChange,
 }: {
   location?: {
     pathname: string;
@@ -342,23 +342,20 @@ export const useTeamIdParam = ({
         setResetSelectedRows(true);
       }
 
-      const oveOverrrides = {
-        [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
-          !newTeamId || newTeamId < 1,
-      };
-
       router.replace(
         pathname
           .concat(
-            rebuildQueryStringWithTeamId(search, teamId, {
-              [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
-                !newTeamId || newTeamId < 1,
-            })
+            rebuildQueryStringWithTeamId(
+              search,
+              teamId,
+              overrideParamsOnTeamChange
+            )
           )
           .concat(hash || "")
       );
     },
     [
+      overrideParamsOnTeamChange,
       resetSelectedRowsOnTeamChange,
       router,
       pathname,
