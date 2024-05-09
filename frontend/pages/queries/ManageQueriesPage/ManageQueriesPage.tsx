@@ -340,7 +340,7 @@ const ManageQueriesPage = ({
         {showManageAutomationsModal && (
           <ManageQueryAutomationsModal
             isUpdatingAutomations={isUpdatingAutomations}
-            handleSubmit={onSaveQueryAutomations}
+            onSubmit={onSaveQueryAutomations}
             onCancel={toggleManageAutomationsModal}
             isShowingPreviewDataModal={showPreviewDataModal}
             togglePreviewDataModal={togglePreviewDataModal}

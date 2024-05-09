@@ -33,9 +33,9 @@ interface IOtherWorkflowsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
   availableIntegrations: IGlobalIntegrations | ITeamIntegrations;
   availablePolicies: IPolicy[];
-  isUpdatingAutomations: boolean;
+  isUpdating: boolean;
   onExit: () => void;
-  handleSubmit: (formData: {
+  onSubmit: (formData: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
     integrations: IGlobalIntegrations | ITeamIntegrations;
   }) => void;
@@ -96,9 +96,9 @@ const OtherWorkflowsModal = ({
   automationsConfig,
   availableIntegrations,
   availablePolicies,
-  isUpdatingAutomations,
+  isUpdating,
   onExit,
-  handleSubmit,
+  onSubmit: handleSubmit,
 }: IOtherWorkflowsModalProps): JSX.Element => {
   const {
     webhook_settings: { failing_policies_webhook: webhook },
@@ -455,7 +455,7 @@ const OtherWorkflowsModal = ({
             variant="brand"
             onClick={onSubmit}
             className="save-loading"
-            isLoading={isUpdatingAutomations}
+            isLoading={isUpdating}
           >
             Save
           </Button>
