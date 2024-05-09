@@ -1,3 +1,5 @@
+import software from "interfaces/software";
+
 const API_VERSION = "latest";
 
 export default {
@@ -52,6 +54,8 @@ export default {
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
+  HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/install/${softwareId}`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
 
@@ -136,6 +140,8 @@ export default {
     `/${API_VERSION}/fleet/software/versions/${id}`,
   SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
   SOFTWARE_PACKAGE: (id: number) =>
+    `/${API_VERSION}/fleet/software/packages/${id}`,
+  SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
 
   SSO: `/v1/fleet/sso`,

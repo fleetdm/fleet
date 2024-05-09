@@ -35,7 +35,7 @@ type IInstalledVersionsCellProps = CellProps<
   IHostSoftware["installed_versions"]
 >;
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
-type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
+// type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
 
 const formatSoftwareType = (source: string) => {
   const DICT = SOURCE_TYPE_CONVERSION;

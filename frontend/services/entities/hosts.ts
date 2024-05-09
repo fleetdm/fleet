@@ -557,4 +557,12 @@ export default {
       );
     });
   },
+
+  installHostSoftwarePackage: (hostId: number, softwareId: number) => {
+    const { HOST_SOFTWARE_PACKAGE_INSTALL } = endpoints;
+    return sendRequest(
+      "POST",
+      HOST_SOFTWARE_PACKAGE_INSTALL(hostId, softwareId)
+    );
+  },
 };

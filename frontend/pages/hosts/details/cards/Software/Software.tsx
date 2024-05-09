@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
@@ -9,6 +9,7 @@ import deviceAPI, {
 } from "services/entities/device_user";
 import { ISoftware } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
 import Spinner from "components/Spinner";
@@ -50,6 +51,8 @@ const SoftwareCard = ({
   isSoftwareEnabled = false,
   isMyDevicePage = false,
 }: ISoftwareCardProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+
   const [installingSoftwareId, setInstallingSoftwareId] = useState<
     number | null
   >(null);
@@ -89,11 +92,28 @@ const SoftwareCard = ({
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
 
+  const installHostSoftwarePackage = useCallback(
+    async (softwareId: number) => {
+      setInstallingSoftwareId(softwareId);
+      try {
+        await hostAPI.installHostSoftwarePackage(id as number, softwareId);
+        renderFlash(
+          "success",
+          "Software is installing or will install when the host comes online."
+        );
+      } catch {
+        renderFlash("error", "Couldn't install. Please try again.");
+      }
+      setInstallingSoftwareId(null);
+    },
+    [id, renderFlash]
+  );
+
   const onSelectAction = useCallback(
     (softwareId: number, action: string) => {
       switch (action) {
         case "install":
-          setInstallingSoftwareId(softwareId);
+          installHostSoftwarePackage(softwareId);
           break;
         case "showDetails":
           console.log("showDetails");
@@ -102,7 +122,7 @@ const SoftwareCard = ({
           break;
       }
     },
-    [pathname, router]
+    [installHostSoftwarePackage]
   );
 
   const tableHeaders = useMemo(() => {
