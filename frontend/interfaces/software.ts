@@ -50,10 +50,24 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
+export interface ISoftwarePackage {
+  name: string;
+  version: string;
+  uploaded_at: string;
+  install_script: string;
+  pre_install_query?: string;
+  post_install_script?: string;
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+}
+
 export interface ISoftwareTitle {
   id: number;
   name: string;
-  software_package: string | null;
+  software_package: ISoftwarePackage | string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
