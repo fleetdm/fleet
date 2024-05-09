@@ -9571,7 +9571,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging\\EnableScriptBlockLogging' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1
+  tags: compliance, CIS, CIS_Level2
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -10066,7 +10066,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription\\EnableTranscripting' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  tags: compliance, CIS, CIS_Level2, CIS_group_policy_template_required
   contributors: marcosd4h
 ---
 apiVersion: v1
