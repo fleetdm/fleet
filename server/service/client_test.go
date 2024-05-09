@@ -605,8 +605,8 @@ func TestGetProfilesContents(t *testing.T) {
 			name:    "with environment variables",
 			baseDir: tempDir,
 			setupFiles: [][2]string{
-				{"bar.mobileconfig", string(darwinProfileWithFooEnv)},
-				{"foo.xml", string(windowsProfileWithBarEnv)},
+				{"bar.mobileconfig", darwinProfileWithFooEnv},
+				{"foo.xml", windowsProfileWithBarEnv},
 			},
 			environment: map[string]string{"FOO": "42", "BAR": "24"},
 			expandEnv:   true,
@@ -658,8 +658,8 @@ func TestGetProfilesContents(t *testing.T) {
 			name:    "with environment variables but not set",
 			baseDir: tempDir,
 			setupFiles: [][2]string{
-				{"bar.mobileconfig", string(darwinProfileWithFooEnv)},
-				{"foo.xml", string(windowsProfileWithBarEnv)},
+				{"bar.mobileconfig", darwinProfileWithFooEnv},
+				{"foo.xml", windowsProfileWithBarEnv},
 			},
 			environment: map[string]string{},
 			expandEnv:   true,

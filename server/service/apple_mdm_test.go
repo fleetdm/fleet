@@ -2804,30 +2804,6 @@ func mobileconfigForTest(name, identifier string) []byte {
 `, name, identifier, uuid.New().String()))
 }
 
-func mobileconfigWithFooEnvForTest(name string) []byte {
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array/>
-	<key>PayloadDisplayName</key>
-	<string>%s</string>
-	<key>PayloadIdentifier</key>
-	<string>%s</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>%s</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-	<key>someConfig</key>
-	<integer>$FOO</integer>
-</dict>
-</plist>
-`, name, uuid.New().String(), uuid.New().String()))
-}
-
 func declBytesForTest(identifier string, payloadContent string) []byte {
 	tmpl := `{
 		"Type": "com.apple.configuration.decl%s",
