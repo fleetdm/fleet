@@ -2399,25 +2399,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Internet Connection Sharing (ICS) (SharedAccess)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Provides network access translation, addressing, name resolution and/or intrusion prevention services for a home or small office network.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Internet Connection Sharing (ICS)'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -6800,14 +6781,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Key' is set to 'Enabled: Allow 256-bit recovery key'
+    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Key' is set to 'Enabled: Allow 256-bit recovery key or higher'
   platforms: win11
   platform: windows
   description: |
     This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
     In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Allow 256-bit recovery key':
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Allow 256-bit recovery key' or 'Enabled: Require 256-bit recovery key':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker- protected fixed drives can be recovered: Recovery Key'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
   query: |
