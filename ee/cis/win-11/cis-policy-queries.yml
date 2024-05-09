@@ -3163,25 +3163,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Domain: Outbound connections' is set to 'Allow (default)'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines the behavior for outbound connections that do not match an outbound firewall rule.
-    The recommended state for this setting is: Allow (default).
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Allow (default):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Domain Profile\Outbound connections'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\\Microsoft\WindowsFirewall\DomainProfile\DefaultOutboundAction' and data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Windows Firewall: Domain: Settings: Display a notification' is set to 'No'
   platforms: win11
   platform: windows
@@ -3315,25 +3296,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Private: Outbound connections' is set to 'Allow (default)'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines the behavior for outbound connections that do not match an outbound firewall rule.
-    The recommended state for this setting is: Allow (default).
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Allow (default)'':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Outbound connections'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\DefaultOutboundAction' and data == 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: RachelElysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Windows Firewall: Private: Settings: Display a notification' is set to 'No'
   platforms: win11
   platform: windows
@@ -3459,25 +3421,6 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Inbound connections'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\DefaultInboundAction' and data == 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: RachelElysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Windows Firewall: Public: Outbound connections' is set to 'Allow (default)'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines the behavior for outbound connections that do not match an outbound firewall rule.
-    The recommended state for this setting is: Allow (default).
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Allow (default):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Outbound connections'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\DefaultOutboundAction' and data == 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: RachelElysia
