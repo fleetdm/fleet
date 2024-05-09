@@ -76,7 +76,7 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
 
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId);
-      renderFlash("success", "Software added successfully!"); // TODO: change message
+      renderFlash("success", "Software added successfully!");
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
