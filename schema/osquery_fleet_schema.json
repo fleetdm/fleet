@@ -2079,10 +2079,11 @@
   },
   {
     "name": "battery",
-    "description": "Provides information about the internal battery of a Macbook.",
+    "description": "Provides information about the internal battery of a laptop. Note: On Windows, columns with Ah or mAh units assume that the battery is 12V.",
     "url": "https://fleetdm.com/tables/battery",
     "platforms": [
-      "darwin"
+      "darwin",
+      "windows"
     ],
     "evented": false,
     "cacheable": false,
@@ -2099,15 +2100,6 @@
         "index": false
       },
       {
-        "name": "manufacture_date",
-        "description": "The date the battery was manufactured UNIX Epoch",
-        "type": "integer",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
         "name": "model",
         "description": "The battery's model number",
         "type": "text",
@@ -2118,7 +2110,7 @@
       },
       {
         "name": "serial_number",
-        "description": "The battery's unique serial number",
+        "description": "The battery's serial number",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -2129,24 +2121,6 @@
         "name": "cycle_count",
         "description": "The number of charge/discharge cycles",
         "type": "integer",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "health",
-        "description": "One of the following: \"Good\" describes a well-performing battery, \"Fair\" describes a functional battery with limited capacity, or \"Poor\" describes a battery that's not capable of providing power",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "condition",
-        "description": "One of the following: \"Normal\" indicates the condition of the battery is within normal tolerances, \"Service Needed\" indicates that the battery should be checked out by a licensed Mac repair service, \"Permanent Failure\" indicates the battery needs replacement",
-        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -2199,7 +2173,7 @@
       },
       {
         "name": "current_capacity",
-        "description": "The battery's current charged capacity in mAh",
+        "description": "The battery's current capacity (level of charge) in mAh",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -2217,7 +2191,7 @@
       },
       {
         "name": "amperage",
-        "description": "The battery's current amperage in mA",
+        "description": "The current amperage in/out of the battery in mA (positive means charging, negative means discharging)",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -2244,12 +2218,60 @@
       },
       {
         "name": "minutes_to_full_charge",
-        "description": "The number of minutes until the battery is fully charged. This value is -1 if this time is still being calculated",
+        "description": "The number of minutes until the battery is fully charged. This value is -1 if this time is still being calculated. On Windows this is calculated from the charge rate and capacity and may not agree with the number reported in \"Power & Battery\"",
         "type": "integer",
         "notes": "",
         "hidden": false,
         "required": false,
         "index": false
+      },
+      {
+        "name": "chemistry",
+        "description": "The battery chemistry type (eg. LiP). Some possible values are documented in https://learn.microsoft.com/en-us/windows/win32/power/battery-information-str.",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "Windows"
+        ]
+      },
+      {
+        "name": "health",
+        "description": "One of the following: \"Good\" describes a well-performing battery, \"Fair\" describes a functional battery with limited capacity, or \"Poor\" describes a battery that's not capable of providing power",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
+      },
+      {
+        "name": "condition",
+        "description": "One of the following: \"Normal\" indicates the condition of the battery is within normal tolerances, \"Service Needed\" indicates that the battery should be checked out by a licensed Mac repair service, \"Permanent Failure\" indicates the battery needs replacement",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
+      },
+      {
+        "name": "manufacture_date",
+        "description": "The date the battery was manufactured UNIX Epoch",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/battery.yml"
@@ -4851,11 +4873,25 @@
         ]
       },
       {
+        "name": "load_percentage",
+        "description": "The current percentage of utilization of the CPU.",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
         "name": "number_of_efficiency_cores",
         "description": "The number of efficiency cores of the CPU. Only available on Apple Silicon",
         "type": "integer",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -4867,7 +4903,7 @@
         "description": "The number of performance cores of the CPU. Only available on Apple Silicon",
         "type": "integer",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -11535,6 +11571,15 @@
         "index": false
       },
       {
+        "name": "type",
+        "description": "Package type ('formula' or 'cask')",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "prefix",
         "description": "Homebrew install prefix",
         "type": "text",
@@ -12878,7 +12923,7 @@
       },
       {
         "name": "usage",
-        "description": "the number of threads and open file references thatrefer to this key.",
+        "description": "the number of threads and open file references that refer to this key.",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -12887,7 +12932,7 @@
       },
       {
         "name": "timeout",
-        "description": "The amount of time until the key will expire,expressed in human-readable form. The string perm heremeans that the key is permanent (no timeout).  Thestring expd means that the key has already expired.",
+        "description": "The amount of time until the key will expire, expressed in human-readable form. The string perm here means that the key is permanent (no timeout).  The string expd means that the key has already expired.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -12896,7 +12941,7 @@
       },
       {
         "name": "permissions",
-        "description": "The key permissions, expressed as four hexadecimalbytes containing, from left to right, thepossessor, user, group, and other permissions.",
+        "description": "The key permissions, expressed as four hexadecimal bytes containing, from left to right, the possessor, user, group, and other permissions.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -17830,7 +17875,7 @@
         "description": "Optional extra release specification",
         "type": "text",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -17847,6 +17892,20 @@
         "index": false,
         "platforms": [
           "Windows"
+        ]
+      },
+      {
+        "name": "revision",
+        "description": "Update Build Revision, refers to the specific revision number of a Windows update",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
         ]
       },
       {
@@ -21899,7 +21958,7 @@
         "description": "The full hierarchical path of the process's control group",
         "type": "text",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -23536,7 +23595,7 @@
         "description": "(Intel) Secure mode: 0 disabled, 1 full security, 2 medium security",
         "type": "integer",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -23548,7 +23607,7 @@
         "description": "(Apple Silicon) Human-readable description: 'Full Security', 'Reduced Security', or 'Permissive Security'",
         "type": "text",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -23560,7 +23619,7 @@
         "description": "(Apple Silicon) Allow user management of kernel extensions from identified developers (1 if allowed)",
         "type": "integer",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -23572,7 +23631,7 @@
         "description": "(Apple Silicon) Allow remote (MDM) management of kernel extensions and automatic software updates (1 if allowed)",
         "type": "integer",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -23584,7 +23643,7 @@
         "description": "Whether setup mode is enabled",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
