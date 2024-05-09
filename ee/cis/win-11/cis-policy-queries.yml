@@ -8041,14 +8041,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Turn off files from Office.com in Quick access view' is set to 'Enabled' 
+    CIS - Ensure 'Turn off account-based insights, recent, favorite, and recommended files in File Explorer' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
     This policy setting controls whether or not File Explorer will request files from the cloud and display them in Quick access view.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\File Explorer\Turn off files from Office.com in Quick access view'
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\File Explorer\Turn off account-based insights, recent, favorite, and recommended files in File Explorer'
   query: |
      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\\DisableGraphRecentItems' AND data = 1);
   purpose: Informational
