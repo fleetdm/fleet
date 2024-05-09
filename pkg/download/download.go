@@ -59,6 +59,14 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 	}()
 
 	operation := func() error {
+		if err := tmpFile.Truncate(0); err != nil {
+			return fmt.Errorf("truncate temporary file: %w", err)
+		}
+
+		if _, err := tmpFile.Seek(0, 0); err != nil {
+			return fmt.Errorf("seek temporary file: %w", err)
+		}
+
 		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 		if err != nil {
 			return err
