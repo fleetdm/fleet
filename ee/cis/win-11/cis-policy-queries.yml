@@ -4360,28 +4360,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Enable Local Admin Password Management' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    In May 2015, Microsoft released the Local Administrator Password Solution (LAPS) tool, which is free and supported software that allows an organization to automatically set randomized and unique local Administrator account passwords on domain-attached workstations and Member Servers. The passwords are stored in a confidential attribute of the domain computer account and can be retrieved from Active Directory by approved Sysadmins when needed.
-    The LAPS tool requires a small Active Directory Schema update in order to implement, as well as installation of a Group Policy Client Side Extension (CSE) on targeted computers. Please see the LAPS documentation for details.
-    LAPS supports Windows Vista or newer workstation OSes, and Server 2003 or newer server OSes. LAPS does not support standalone computers - they must be joined to a domain.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\LAPS\Enable Local Admin Password Management'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (AdmPwd.admx/adml) is required - it is included with Microsoft Local Administrator Password Solution (LAPS).
-  query: |
-    SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft Services\\AdmPwd\\AdmPwdEnabled' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Password Settings: Password Complexity' is set to 'Enabled: Large letters + small letters + numbers + special characters'
   platforms: win11
   platform: windows
