@@ -169,7 +169,7 @@ const QueriesTable = ({
     [platform, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
   );
 
-  const emptyState = () => {
+  const getEmptyStateParams = useCallback(() => {
     const emptyQueries: IEmptyTableProps = {
       graphicName: "empty-queries",
       header: "You don't have any queries",
@@ -201,7 +201,13 @@ const QueriesTable = ({
     }
 
     return emptyQueries;
-  };
+  }, [
+    isAnyTeamObserverPlus,
+    isObserverPlus,
+    isOnlyObserver,
+    onCreateQueryClick,
+    searchQuery,
+  ]);
 
   const handlePlatformFilterDropdownChange = (platformSelected: string) => {
     router?.replace(
@@ -242,6 +248,23 @@ const QueriesTable = ({
 
   const searchable = !(queriesList?.length === 0 && searchQuery === "");
 
+  const emptyComponent = useCallback(() => {
+    const {
+      graphicName,
+      header,
+      info,
+      additionalInfo,
+      primaryButton,
+    } = getEmptyStateParams();
+    return EmptyTable({
+      graphicName,
+      header,
+      info,
+      additionalInfo,
+      primaryButton,
+    });
+  }, [getEmptyStateParams]);
+
   const trimmedSearchQuery = searchQuery.trim();
   return columnConfigs && !isLoading ? (
     <div className={`${baseClass}`}>
@@ -258,15 +281,7 @@ const QueriesTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState().graphicName,
-            header: emptyState().header,
-            info: emptyState().info,
-            additionalInfo: emptyState().additionalInfo,
-            primaryButton: emptyState().primaryButton,
-          })
-        }
+        emptyComponent={emptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={searchable}
