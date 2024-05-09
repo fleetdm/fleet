@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { Row } from "react-table";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 

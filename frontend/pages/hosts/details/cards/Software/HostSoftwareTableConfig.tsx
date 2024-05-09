@@ -17,10 +17,16 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import InstallStatusCell from "./InstallStatusCell";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
 type ITableStringCellProps = IStringCellProps<IHostSoftware>;
+type IInstalledStatusCellProps = CellProps<
+  IHostSoftware,
+  IHostSoftware["status"]
+>;
 type IInstalledVersionsCellProps = CellProps<
   IHostSoftware,
   IHostSoftware["installed_versions"]
@@ -56,23 +62,12 @@ export const generateSoftwareTableHeaders = ({
           id.toString()
         );
 
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(softwareTitleDetailsPath);
-        };
-
         return (
-          <LinkCell
+          <SoftwareNameCell
+            name={name}
+            source={source}
             path={softwareTitleDetailsPath}
-            customOnClick={onClickSoftware}
-            value={
-              <>
-                <SoftwareIcon name={name} source={source} />
-                <span className="software-name">{name}</span>
-              </>
-            }
+            router={router}
           />
         );
       },
@@ -81,8 +76,16 @@ export const generateSoftwareTableHeaders = ({
       Header: "Install status",
       disableSortBy: true,
       accessor: "status",
-      Cell: (cellProps: ITableStringCellProps) => {
-        return cellProps.cell.value ? <IconCell iconName="install" /> : null;
+      Cell: (cellProps: IInstalledStatusCellProps) => {
+        const { original } = cellProps.row;
+        const { value } = cellProps.cell;
+        return value ? (
+          <InstallStatusCell
+            status={value}
+            packageToInstall={original.package_available_for_install}
+            installedAt={original.last_install?.installed_at}
+          />
+        ) : null;
       },
     },
     {

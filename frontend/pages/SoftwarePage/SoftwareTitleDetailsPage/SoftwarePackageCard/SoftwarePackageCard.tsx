@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 
 import endpoints from "utilities/endpoints";
-import software, { ISoftwarePackage } from "interfaces/software";
+import { IPackageInstallStatus, ISoftwarePackage } from "interfaces/software";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -20,7 +20,6 @@ import AdvancedOptionsModal from "../AdvancedOptionsModal";
 
 const baseClass = "software-package-card";
 
-type IPackageInstallStatus = "installed" | "pending" | "failed";
 interface IStatusDisplayOption {
   displayName: string;
   iconName: "success" | "pending-outline" | "error";
@@ -115,10 +114,6 @@ const SoftwarePackageCard = ({
 
   const onAdvancedOptionsClick = () => {
     setShowAdvancedOptionsModal(true);
-  };
-
-  const onDownloadClick = () => {
-    console.log("Download clicked");
   };
 
   const onDeleteClick = () => {

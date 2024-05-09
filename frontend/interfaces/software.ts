@@ -153,7 +153,7 @@ export const formatSoftwareType = ({
 // software uploaded by the IT admin.
 export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "exe";
 
-interface ISoftwareLastInstall {
+export interface ISoftwareLastInstall {
   install_uuid: string;
   installed_at: string;
 }
@@ -165,13 +165,15 @@ export interface ISoftwareInstallVersion {
   installed_paths: string[];
 }
 
+export type IPackageInstallStatus = "installed" | "pending" | "failed";
+
 export interface IHostSoftware {
   id: number;
   name: string;
-  package_available_for_install: string;
+  package_available_for_install: string | null;
   source: string;
   bundle_identifier: string;
-  status: string;
+  status: IPackageInstallStatus | null;
   last_install: ISoftwareLastInstall | null;
   installed_versions: ISoftwareInstallVersion[];
 }

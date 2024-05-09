@@ -87,14 +87,6 @@ export const generateSoftwareTableHeaders = ({
       sortType: "caseInsensitive",
     },
     {
-      Header: "Install status",
-      disableSortBy: true,
-      accessor: "status",
-      Cell: (cellProps: ITableStringCellProps) => {
-        return cellProps.cell.value ? <IconCell iconName="install" /> : null;
-      },
-    },
-    {
       Header: "Version",
       disableSortBy: true,
       // we use function as accessor because we have two columns that
