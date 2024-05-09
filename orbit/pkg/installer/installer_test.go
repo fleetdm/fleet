@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -243,13 +244,14 @@ func TestInstallerRun(t *testing.T) {
 	var execCalled bool
 	var executedScripts []string
 	var execEnv []string
+	var execErr error
 	execOutput := []byte("execOutput")
 	execExitCode := 0
 	execCmdDefaultFn := func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
 		execCalled = true
 		execEnv = env
 		executedScripts = append(executedScripts, scriptPath)
-		return execOutput, execExitCode, nil
+		return execOutput, execExitCode, execErr
 	}
 	r.execCmdFn = execCmdDefaultFn
 
@@ -275,6 +277,7 @@ func TestInstallerRun(t *testing.T) {
 		execEnv = nil
 		execOutput = []byte("execOutput")
 		execExitCode = 0
+		execErr = nil
 		r.execCmdFn = execCmdDefaultFn
 
 		tmpDirFnCalled = false
@@ -347,5 +350,51 @@ func TestInstallerRun(t *testing.T) {
 		require.Nil(t, savedInstallerResult.InstallScriptOutput)
 		require.Nil(t, savedInstallerResult.PostInstallScriptExitCode)
 		require.Nil(t, savedInstallerResult.PostInstallScriptOutput)
+	})
+
+	t.Run("failed install script", func(t *testing.T) {
+		resetAll()
+
+		execErr = &exec.ExitError{}
+		execExitCode = 2
+
+		err := r.run(context.Background(), &config)
+		require.Error(t, err)
+
+		require.True(t, downloadInstallerFnCalled)
+		require.True(t, execCalled)
+		require.True(t, removeAllFnCalled)
+		require.NotNil(t, savedInstallerResult)
+		require.Equal(t, 2, *savedInstallerResult.InstallScriptExitCode)
+		require.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
+		require.Nil(t, savedInstallerResult.PostInstallScriptExitCode)
+		require.Nil(t, savedInstallerResult.PostInstallScriptOutput)
+	})
+
+	t.Run("failed post install script", func(t *testing.T) {
+		resetAll()
+
+		r.execCmdFn = func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
+			execCalled = true
+			execEnv = env
+			executedScripts = append(executedScripts, scriptPath)
+			// bad exit on the post-install script
+			if len(executedScripts) == 2 {
+				return execOutput, 1, &exec.ExitError{}
+			}
+			return execOutput, execExitCode, execErr
+		}
+
+		err := r.run(context.Background(), &config)
+		require.Error(t, err)
+
+		require.True(t, downloadInstallerFnCalled)
+		require.True(t, execCalled)
+		require.True(t, removeAllFnCalled)
+		require.NotNil(t, savedInstallerResult)
+		require.Equal(t, 0, *savedInstallerResult.InstallScriptExitCode)
+		require.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
+		require.Equal(t, 1, *savedInstallerResult.PostInstallScriptExitCode)
+		require.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
 	})
 }
