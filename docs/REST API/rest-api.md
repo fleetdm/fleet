@@ -7952,7 +7952,7 @@ Get an installation result of the software that was installed.
 
 #### Example
 
-`GET /api/v1/fleet/software/install/results`
+`GET /api/v1/fleet/software/install/results/b15ce221-e22e-4c6a-afe7-5b3400a017da`
 
 ##### Default response
 
