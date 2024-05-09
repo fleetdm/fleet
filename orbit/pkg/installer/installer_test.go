@@ -146,7 +146,7 @@ func TestInstallerRun(t *testing.T) {
 		getHostScriptFnCalled = true
 		hostScriptsRequested = append(hostScriptsRequested, scriptID)
 		id, err := strconv.Atoi(strings.ReplaceAll(scriptID, "script", ""))
-		require.NoError(t, err, "test internal scriptID to script id")
+		require.NoError(t, err, "test internal scriptID (string) to script id (int)")
 		return &fleet.HostScriptResult{
 			ID:             uint(id),
 			ScriptContents: scriptID,
@@ -184,13 +184,18 @@ func TestInstallerRun(t *testing.T) {
 
 	var queryFnCalled bool
 	var queryFnQuery string
+	queryFnResMap := make(map[string]string, 0)
+	queryFnResArr := []map[string]string{queryFnResMap}
+	queryFnResStatus := &QueryResponseStatus{}
+	queryFnResponse := &QueryResponse{
+		Response: queryFnResArr,
+		Status:   queryFnResStatus,
+	}
 	q.queryFn = func(ctx context.Context, query string) (*QueryResponse, error) {
+		queryFnQuery = query
 		queryFnCalled = true
-		res := make(map[string]string, 0)
-		res["col"] = "1"
-		return &QueryResponse{
-			Response: []map[string]string{res},
-		}, nil
+		queryFnResMap["col"] = "true"
+		return queryFnResponse, nil
 	}
 
 	r := &Runner{
@@ -201,11 +206,13 @@ func TestInstallerRun(t *testing.T) {
 	var execCalled bool
 	var executedScripts []string
 	var execEnv []string
+	execOutput := []byte("execOutput")
+	execExitCode := 0
 	r.execCmdFn = func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
 		execCalled = true
 		execEnv = env
 		executedScripts = append(executedScripts, scriptPath)
-		return []byte("execOutput"), 0, nil
+		return execOutput, execExitCode, nil
 	}
 
 	var tmpDirFnCalled bool
@@ -241,13 +248,13 @@ func TestInstallerRun(t *testing.T) {
 	require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, strconv.Itoa(int(installDetails.InstallerID))+".pkg"))
 
 	require.True(t, queryFnCalled)
-	require.Equal(t, queryFnQuery, installDetails.PreInstallCondition)
+	require.Equal(t, installDetails.PreInstallCondition, queryFnQuery)
 
 	require.NotNil(t, savedInstallerResult)
-	require.Equal(t, 0, savedInstallerResult.InstallScriptExitCode)
-	require.Equal(t, "execOutput", savedInstallerResult.InstallScriptOutput)
-	require.Equal(t, 0, savedInstallerResult.PostInstallScriptExitCode)
-	require.Equal(t, "execOutput", savedInstallerResult.PostInstallScriptOutput)
+	require.Equal(t, execExitCode, *savedInstallerResult.InstallScriptExitCode)
+	require.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
+	require.Equal(t, execExitCode, *savedInstallerResult.PostInstallScriptExitCode)
+	require.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
 	require.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
 
 	require.True(t, downloadInstallerFnCalled)

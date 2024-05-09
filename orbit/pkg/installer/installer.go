@@ -18,6 +18,7 @@ import (
 )
 
 type QueryResponse = osquery_gen.ExtensionResponse
+type QueryResponseStatus = osquery_gen.ExtensionStatus
 
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.
