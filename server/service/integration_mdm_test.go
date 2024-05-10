@@ -8292,7 +8292,7 @@ func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
 
 func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	t := s.T()
-	// ctx := context.Background()
+	ctx := context.Background()
 
 	// Create a host and a couple of profiles
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -8306,9 +8306,9 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	s.awaitTriggerProfileSchedule(t)
 
 	// The profiles should be associated with the host we made + the standard fleet configs
-	// profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
-	// require.NoError(t, err)
-	// require.Len(t, profs, 4)
+	profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
 
 	// Acknowledge the profiles so we can mark them as verified
 	cmd, err := mdmDevice.Idle()
@@ -8458,4 +8458,82 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &hr)
 	require.NotNil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
+}
+
+func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
+	t := s.T()
+	ctx := context.Background()
+
+	teamName := t.Name()
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc " + teamName,
+	}
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+
+	// Create a host and a couple of profiles
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	ident := uuid.NewString()
+
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", ident),
+		mobileconfigForTest("N2", "I2"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	var cmdUUID string
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		if cmd.Command.RequestType == "InstallProfile" {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+			if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), ident) {
+				fmt.Println("failing profile")
+				var errChain []mdm.ErrorChain
+				errChain = append(errChain, mdm.ErrorChain{ErrorCode: -102, ErrorDomain: "CPProfile", USEnglishDescription: "The profile is either missing some required information, or contains information in an invalid format."})
+				fmt.Println("failed command uuid: ", cmd.CommandUUID)
+				cmdUUID = cmd.CommandUUID
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
+				require.NoError(t, err)
+				continue
+			}
+		}
+		fmt.Println("regular profile")
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	r, err := s.ds.GetMDMAppleCommandResults(ctx, cmdUUID)
+	require.NoError(t, err)
+	for _, result := range r {
+		fmt.Println("result: ", result.CommandUUID, result.Result, result.Status)
+	}
+
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
+		"I2": {Identifier: "I2", DisplayName: "I2", InstallDate: time.Now()},
+		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
+	}))
+
+	// Check that the profile is marked as verified when fetching the host
+	getHostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 2)
+	for _, hm := range *getHostResp.Host.MDM.Profiles {
+		if hm.Name == "N1" {
+			fmt.Printf("failed profile: %+v", hm)
+			assert.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
+			continue
+		}
+
+		fmt.Println("expect verified", hm.Name)
+		assert.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
+	}
 }
