@@ -7892,19 +7892,19 @@ _Available in Fleet Premium_
 
 Download software package.
 
-`GET /api/v1/fleet/software/package/:software_title_id?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to download software package.|
-| team_id | integer | form | The team ID. If specified, downloads software package uploaded to the specified team. If not specified, downloads the package added to "No team" (team_id: 0). |
+| team_id | integer | form | **Required**. The team ID. Downloads a software package added to the specified team. |
 | alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software package. |
 
 #### Example
 
-`GET /api/v1/fleet/software/package/123?alt=media`
+`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
 
 ##### Default response
 
@@ -7924,18 +7924,18 @@ _Available in Fleet Premium_
 
 Delete software package.
 
-`DELETE /api/v1/fleet/software/package/:id`
+`DELETE /api/v1/fleet/software/titles/:software_title_id/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to delete the software package. |
-| team_id | integer | form | The team ID. If specified, deletes software package uploaded to the specified team. If not specified, deletes the package added to "No team" (team_id: 0). |
+| team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/package/24`
+`DELETE /api/v1/fleet/software/titles/24/package?team_id=2`
 
 ##### Default response
 
