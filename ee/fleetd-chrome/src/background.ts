@@ -1,4 +1,5 @@
 import VirtualDatabase from "./db";
+import {Mutex, withTimeout, tryAcquire, E_ALREADY_LOCKED} from 'async-mutex';
 
 // ENV Vars
 declare var FLEET_URL: string;
@@ -236,6 +237,12 @@ class NodeInvalidError extends Error {
   }
 }
 
+// We use a mutex to ensure that only one instance of main is running at a time.
+const mutexWithTimeout = withTimeout(new Mutex(), 60 * 1000) // 60 second timeout
+async function runExclusive(callback: () => Promise<void>) {
+  await tryAcquire(mutexWithTimeout).runExclusive(callback)
+}
+
 // QUESTION maybe we should use one of the persistence mechanisms described in
 // https://stackoverflow.com/a/66618269/491710? The "offscreen API" mechanism might be useful. On
 // the other hand, this seems to work decently well and adding the complexity might not be worth it.
@@ -247,16 +254,20 @@ class NodeInvalidError extends Error {
 let mainTimeout: ReturnType<typeof setTimeout>;
 const mainLoop = async () => {
   try {
-    await main();
-    clearTimeout(mainTimeout);
-    mainTimeout = setTimeout(mainLoop, 10 * 1000);
+    await runExclusive(main);
   } catch (err) {
+    if (err === E_ALREADY_LOCKED) {
+      console.info("'main' mutex already locked, skipping run")
+      return
+    }
     console.error(err);
     if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
       console.info("Restarting DB after wa-sqlite RuntimeError")
       await initDB();
     }
   }
+  clearTimeout(mainTimeout);
+  mainTimeout = setTimeout(mainLoop, 10 * 1000);
 };
 mainLoop();
 
