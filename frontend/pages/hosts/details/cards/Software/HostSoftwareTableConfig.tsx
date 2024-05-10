@@ -51,6 +51,7 @@ const generateActions = (
   softwareId: number,
   status: ISoftwareInstallStatus | null,
   installingSoftwareId: number | null,
+  canInstall: boolean,
   packageToInstall?: string | null
 ) => {
   // this gives us a clean slate of the default actions so we can modify
@@ -58,7 +59,7 @@ const generateActions = (
   let actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
 
   // remove install if there is no package to install
-  if (!packageToInstall) {
+  if (!packageToInstall || !canInstall) {
     actions = actions.filter((action) => action.value !== "install");
   }
 
@@ -76,6 +77,7 @@ const generateActions = (
 interface ISoftwareTableHeadersProps {
   installingSoftwareId: number | null;
   onSelectAction: (software: IHostSoftware, action: string) => void;
+  canInstall: boolean;
   router: InjectedRouter;
 }
 
@@ -85,6 +87,7 @@ export const generateSoftwareTableHeaders = ({
   router,
   installingSoftwareId,
   onSelectAction,
+  canInstall,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -170,6 +173,7 @@ export const generateSoftwareTableHeaders = ({
             cellProps.row.original.id,
             cellProps.row.original.status,
             installingSoftwareId,
+            canInstall,
             cellProps.row.original.package_available_for_install
           )}
           onChange={(action) => onSelectAction(cellProps.row.original, action)}

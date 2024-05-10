@@ -14,6 +14,7 @@ import deviceAPI, {
 import { IHostSoftware, ISoftware } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 import Card from "components/Card";
 import Spinner from "components/Spinner";
@@ -61,6 +62,12 @@ const SoftwareCard = ({
   isMyDevicePage = false,
 }: ISoftwareCardProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+  } = useContext(AppContext);
 
   const [installingSoftwareId, setInstallingSoftwareId] = useState<
     number | null
@@ -132,6 +139,10 @@ const SoftwareCard = ({
     }
   );
 
+  const canInstallSoftware = Boolean(
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
+  );
+
   const installHostSoftwarePackage = useCallback(
     async (softwareId: number) => {
       setInstallingSoftwareId(softwareId);
@@ -171,9 +182,16 @@ const SoftwareCard = ({
       : generateHostSoftwareTableConfig({
           router,
           installingSoftwareId,
+          canInstall: canInstallSoftware,
           onSelectAction,
         });
-  }, [isMyDevicePage, router, installingSoftwareId, onSelectAction]);
+  }, [
+    isMyDevicePage,
+    router,
+    installingSoftwareId,
+    canInstallSoftware,
+    onSelectAction,
+  ]);
 
   const renderSoftwareTable = () => {
     if (hostSoftwareLoading || deviceSoftwareLoading) {
