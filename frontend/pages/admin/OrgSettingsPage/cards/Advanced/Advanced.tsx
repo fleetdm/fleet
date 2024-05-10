@@ -260,7 +260,7 @@ const Advanced = ({
               placeholder="Select"
               value={activityExpiryWindow}
               label="Max activity age"
-              name="Max activity age"
+              name="activityExpiryWindow"
               parseTarget
             />
           )}
