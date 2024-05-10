@@ -91,12 +91,11 @@ const SoftwareDetailsModal = ({
   onExit,
 }: ISoftwareDetailsModalProps) => {
   const renderSoftwareDetails = () => {
+    const { installed_versions } = software;
+
     // special case when we dont have installed versions. We can only show the
     // software type atm.
-    if (
-      !software.installed_versions ||
-      software.installed_versions.length === 0
-    ) {
+    if (!installed_versions || installed_versions.length === 0) {
       return (
         <DataSet
           title="Type"
@@ -105,16 +104,20 @@ const SoftwareDetailsModal = ({
       );
     }
 
-    return software.installed_versions.map((installedVersion) => {
-      return (
-        <SoftwareDetailsInfo
-          key={installedVersion.version}
-          installedVersion={installedVersion}
-          source={software.source}
-          bundleIdentifier={software.bundle_identifier}
-        />
-      );
-    });
+    return (
+      <div className={`${baseClass}__software-details`}>
+        {installed_versions.map((installedVersion) => {
+          return (
+            <SoftwareDetailsInfo
+              key={installedVersion.version}
+              installedVersion={installedVersion}
+              source={software.source}
+              bundleIdentifier={software.bundle_identifier}
+            />
+          );
+        })}
+      </div>
+    );
   };
 
   const renderTabs = () => {
