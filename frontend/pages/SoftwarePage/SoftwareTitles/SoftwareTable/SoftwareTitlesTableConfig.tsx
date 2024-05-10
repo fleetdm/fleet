@@ -63,7 +63,7 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
+        const { id, name, source, software_package } = cellProps.row.original;
 
         const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
         const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
@@ -76,6 +76,7 @@ const generateTableHeaders = (
             source={source}
             path={softwareTitleDetailsPath}
             router={router}
+            hasPackage={Boolean(software_package)}
           />
         );
       },

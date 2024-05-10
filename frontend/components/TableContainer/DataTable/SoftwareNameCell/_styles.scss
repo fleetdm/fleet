@@ -13,4 +13,10 @@
     border: 1px solid $ui-fleet-black-10;
     border-radius: 8px;
   }
+
+  &__install-icon {
+    // TODO: we do not want to use !important but have to for now. This is
+    // the same issue as the .software-name-cell class display value.
+    display: inline-flex !important;
+  }
 }

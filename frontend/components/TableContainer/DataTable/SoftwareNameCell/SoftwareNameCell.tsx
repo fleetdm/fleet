@@ -1,6 +1,8 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
+import Icon from "components/Icon";
+
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import LinkCell from "../LinkCell";
@@ -12,6 +14,7 @@ interface ISoftwareNameCellProps {
   source: string;
   path?: string;
   router?: InjectedRouter;
+  hasPackage?: boolean;
 }
 
 const SoftwareNameCell = ({
@@ -19,6 +22,7 @@ const SoftwareNameCell = ({
   source,
   path,
   router,
+  hasPackage = false,
 }: ISoftwareNameCellProps) => {
   // NO path or router means it's not clickable. return
   // a non-clickable cell early
@@ -46,6 +50,9 @@ const SoftwareNameCell = ({
         <>
           <SoftwareIcon name={name} source={source} />
           <span className="software-name">{name}</span>
+          {hasPackage && (
+            <Icon name="install" className={`${baseClass}__install-icon`} />
+          )}
         </>
       }
     />
