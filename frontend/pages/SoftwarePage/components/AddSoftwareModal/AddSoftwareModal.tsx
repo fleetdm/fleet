@@ -1,9 +1,12 @@
 import React, { useContext, useEffect, useState } from "react";
+import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 import { NotificationContext } from "context/notification";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -38,10 +41,15 @@ const AllTeamsMessage = ({ onExit }: IAllTeamsMessageProps) => {
 
 interface IAddSoftwareModalProps {
   teamId: number;
+  router: InjectedRouter;
   onExit: () => void;
 }
 
-const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
+const AddSoftwareModal = ({
+  teamId,
+  router,
+  onExit,
+}: IAddSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -50,7 +58,8 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
 
     const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      // Included for legacy support, e.g. Chrome/Edge < 119
+      // Next line with e.returnValue is included for legacy support
+      // e.g.Chrome / Edge < 119
       e.returnValue = true;
     };
 
@@ -76,9 +85,23 @@ const AddSoftwareModal = ({ teamId, onExit }: IAddSoftwareModalProps) => {
 
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId);
-      renderFlash("success", "Software added successfully!"); // TODO: change message
+      renderFlash(
+        "success",
+        <>
+          {formData.software?.name} successfully added. Go to Host details page
+          to install software.
+        </>
+      );
+      onExit();
+      router.push(
+        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+          available_for_install: true,
+          team_id: teamId,
+        })}`
+      );
     } catch (e) {
       renderFlash("error", getErrorReason(e));
+      onExit();
     }
 
     setIsUploading(false);

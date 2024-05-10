@@ -24,10 +24,6 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { PolicyResponse } from "utilities/constants";
-import {
-  createMockGetHostSoftwareResponse,
-  createMockHostSoftware,
-} from "__mocks__/hostMock";
 
 export interface ISortOption {
   key: string;
@@ -159,6 +155,14 @@ export interface IGetHostSoftwareResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+}
+
+export interface IHostSoftwareQueryParams {
+  page: number;
+  per_page: number;
+  query: string;
+  order_key: string;
+  order_direction: "asc" | "desc";
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -562,19 +566,14 @@ export default {
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
   },
 
-  getHostSoftware: (hostId: number): Promise<IGetHostSoftwareResponse> => {
+  getHostSoftware: (
+    hostId: number,
+    params: IHostSoftwareQueryParams
+  ): Promise<IGetHostSoftwareResponse> => {
     const { HOST_SOFTWARE } = endpoints;
+    const queryString = buildQueryStringFromParams(params as any); // TODO: fix with generics
 
-    // TODO: remove when API ready
-    // return sendRequest("GET", HOST_SOFTWARE(hostId));
-
-    return new Promise((resolve) => {
-      resolve(
-        createMockGetHostSoftwareResponse({
-          software: [createMockHostSoftware()],
-        })
-      );
-    });
+    return sendRequest("GET", `${HOST_SOFTWARE(hostId)}?${queryString}`);
   },
 
   installHostSoftwarePackage: (hostId: number, softwareId: number) => {

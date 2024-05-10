@@ -31,11 +31,15 @@ const AdvancedOptionsModal = ({
           add again.
         </p>
         <div className={`${baseClass}__form-inputs`}>
-          <InputField
+          <Editor
+            readOnly
+            wrapEnabled
+            maxLines={10}
+            name="install-script"
             value={installScript}
-            name="install script"
+            helpText="Fleet will run this command on hosts to install software."
             label="Install script"
-            tooltip="For security agents, add the script provided by the vendor."
+            labelTooltip="For security agents, add the script provided by the vendor."
           />
           {preInstallQuery && (
             <div className={`${baseClass}__input-field`}>

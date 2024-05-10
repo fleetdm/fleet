@@ -5,6 +5,7 @@ import { dateAgo } from "utilities/date_format";
 
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 
 const baseClass = "install-status-cell";
 
@@ -13,7 +14,7 @@ type IStatusValue = ISoftwareInstallStatus | "avaiableForInstall";
 type IStatusDisplayConfig = {
   iconName: "success" | "pending-outline" | "error" | "install";
   displayText: string;
-  tooltip: (softwareName: string | null, lastInstall?: string) => ReactNode;
+  tooltip: (softwareName?: string | null, lastInstall?: string) => ReactNode;
 };
 
 const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
@@ -56,7 +57,7 @@ const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
 
 interface IInstallStatusCellProps {
   status: ISoftwareInstallStatus | null;
-  packageToInstall: string | null;
+  packageToInstall?: string | null;
   installedAt?: string;
 }
 
@@ -66,10 +67,13 @@ const InstallStatusCell = ({
   installedAt,
 }: IInstallStatusCellProps) => {
   let displayStatus: IStatusValue;
-  if (status === null) {
+
+  if (packageToInstall) {
     displayStatus = "avaiableForInstall";
-  } else {
+  } else if (status !== null) {
     displayStatus = status;
+  } else {
+    return <TextCell value="---" greyed />;
   }
 
   const displayConfig = CELL_DISPLAY_OPTIONS[displayStatus];
@@ -79,6 +83,7 @@ const InstallStatusCell = ({
       tipContent={displayConfig.tooltip(packageToInstall, installedAt)}
       underline={false}
       className={baseClass}
+      tooltipClass={`${baseClass}__status-tooltip`}
       position="top"
     >
       <div className={`${baseClass}__status-content`}>
