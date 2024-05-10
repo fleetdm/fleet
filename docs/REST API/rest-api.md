@@ -7843,7 +7843,7 @@ Add software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
-| team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
+| team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](#TODO-link-to-docs) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
