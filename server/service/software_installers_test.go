@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSoftwareInstallersAuth(t *testing.T) {
@@ -80,10 +81,18 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			}
 
 			_, err := svc.DownloadSoftwareInstaller(ctx, 1, tt.teamID)
-			checkAuthErr(t, tt.shouldFailRead, err)
+			if tt.teamID == nil {
+				require.Error(t, err)
+			} else {
+				checkAuthErr(t, tt.shouldFailRead, err)
+			}
 
 			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID)
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			if tt.teamID == nil {
+				require.Error(t, err)
+			} else {
+				checkAuthErr(t, tt.shouldFailWrite, err)
+			}
 
 			// TODO: configure test with mock software installer store and add tests to check upload auth
 		})
