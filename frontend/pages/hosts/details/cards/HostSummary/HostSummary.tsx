@@ -321,7 +321,7 @@ const HostSummary = ({
     if (platform === "chrome") {
       return <DataSet title="Agent" value={summaryData.osquery_version} />;
     }
-    if (summaryData.orbit_version) {
+    if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
       return (
         <DataSet
           title="Agent"
@@ -332,7 +332,8 @@ const HostSummary = ({
                   osquery: {summaryData.osquery_version}
                   <br />
                   Orbit: {summaryData.orbit_version}
-                  {summaryData.fleet_desktop_version && (
+                  {summaryData.fleet_desktop_version !==
+                    DEFAULT_EMPTY_CELL_VALUE && (
                     <>
                       <br />
                       Fleet Desktop: {summaryData.fleet_desktop_version}

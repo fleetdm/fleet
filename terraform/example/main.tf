@@ -50,7 +50,7 @@ locals {
 }
 
 module "fleet" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.7.1"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.7.3"
   certificate_arn = module.acm.acm_certificate_arn
 
   vpc = {
@@ -59,8 +59,8 @@ module "fleet" {
 
   fleet_config = {
     # To avoid pull-rate limiting from dockerhub, consider using our quay.io mirror
-    # for the Fleet image. e.g. "quay.io/fleetdm/fleet:v4.48.0"
-    image = "fleetdm/fleet:v4.48.0" # override default to deploy the image you desire
+    # for the Fleet image. e.g. "quay.io/fleetdm/fleet:v4.49.3"
+    image = "fleetdm/fleet:v4.49.3" # override default to deploy the image you desire
     # See https://fleetdm.com/docs/deploy/reference-architectures#aws for appropriate scaling
     # memory and cpu.
     autoscaling = {
@@ -82,6 +82,11 @@ module "fleet" {
   rds_config = {
     # See https://fleetdm.com/docs/deploy/reference-architectures#aws for instance classes.
     instance_class = "db.t4g.medium"
+    # Prevents edge case render failure in Audit log on the home screen.
+    db_parameters = {
+      # 8mb up from 262144 (256k) default
+      sort_buffer_size = 8388608
+    }
   }
   redis_config = {
     # See https://fleetdm.com/docs/deploy/reference-architectures#aws for instance types.

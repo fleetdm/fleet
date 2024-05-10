@@ -270,7 +270,10 @@ const QueryDetailsPage = ({
                         className={`${baseClass}__run`}
                         variant="blue-green"
                         onClick={() => {
-                          queryId && router.push(PATHS.LIVE_QUERY(queryId));
+                          queryId &&
+                            router.push(
+                              PATHS.LIVE_QUERY(queryId, currentTeamId)
+                            );
                         }}
                         disabled={disabledLiveQuery}
                       >

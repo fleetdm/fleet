@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -83,7 +84,6 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.user_id,
 			a.created_at,
 			a.activity_type,
-			a.details,
 			a.user_name as name,
 			a.streamed,
 			a.user_email
@@ -100,10 +100,42 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
 
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
-	if err == sql.ErrNoRows {
-		return nil, nil, ctxerr.Wrap(ctx, notFound("Activity"))
-	} else if err != nil {
+	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
+	}
+
+	if len(activities) > 0 {
+		// Fetch details as a separate query due to sort buffer issue triggered by large JSON details entries. Issue last reproduced on MySQL 8.0.36
+		// https://stackoverflow.com/questions/29575835/error-1038-out-of-sort-memory-consider-increasing-sort-buffer-size/67266529
+		IDs := make([]uint, 0, len(activities))
+		for _, a := range activities {
+			IDs = append(IDs, a.ID)
+		}
+		detailsStmt, detailsArgs, err := sqlx.In("SELECT id, details FROM activities WHERE id IN (?)", IDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding activity IDs")
+		}
+		type activityDetails struct {
+			ID      uint             `db:"id"`
+			Details *json.RawMessage `db:"details"`
+		}
+		var details []activityDetails
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &details, detailsStmt, detailsArgs...)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "select activities details")
+		}
+		detailsLookup := make(map[uint]*json.RawMessage, len(details))
+		for _, d := range details {
+			detailsLookup[d.ID] = d.Details
+		}
+		for _, a := range activities {
+			det, ok := detailsLookup[a.ID]
+			if !ok {
+				level.Warn(ds.logger).Log("msg", "Activity details not found", "activity_id", a.ID)
+				continue
+			}
+			a.Details = det
+		}
 	}
 
 	// Fetch users as a stand-alone query (because of performance reasons)
@@ -287,4 +319,62 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 	}
 
 	return activities, metaData, nil
+}
+
+func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiredWindowDays int) error {
+	const selectActivitiesQuery = `
+		SELECT a.id FROM activities a
+		LEFT JOIN host_activities ha ON (a.id=ha.activity_id)
+		WHERE ha.activity_id IS NULL AND a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+		ORDER BY a.id ASC
+		LIMIT ?;`
+	var activityIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &activityIDs, selectActivitiesQuery, expiredWindowDays, maxCount); err != nil {
+		return ctxerr.Wrap(ctx, err, "select activities for deletion")
+	}
+	if len(activityIDs) > 0 {
+		deleteActivitiesQuery, args, err := sqlx.In(`DELETE FROM activities WHERE id IN (?);`, activityIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build activities IN query")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteActivitiesQuery, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete expired activities")
+		}
+	}
+
+	//
+	// `activities` and `queries` are not tied because the activity itself holds
+	// the query SQL so they don't need to be executed on the same transaction.
+	//
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete temporary queries (aka "not saved").
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM queries
+			WHERE NOT saved AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+			LIMIT ?`,
+			expiredWindowDays, maxCount,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete expired non-saved queries")
+		}
+		// Delete distributed campaigns that reference unexisting query (removed in the previous query).
+		if _, err := tx.ExecContext(ctx,
+			`DELETE distributed_query_campaigns FROM distributed_query_campaigns
+			LEFT JOIN queries ON (distributed_query_campaigns.query_id=queries.id)
+			WHERE queries.id IS NULL`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete expired orphaned distributed_query_campaigns")
+		}
+		// Delete distributed campaign targets that reference unexisting distributed campaign (removed in the previous query).
+		if _, err := tx.ExecContext(ctx,
+			`DELETE distributed_query_campaign_targets FROM distributed_query_campaign_targets
+			LEFT JOIN distributed_query_campaigns ON (distributed_query_campaign_targets.distributed_query_campaign_id=distributed_query_campaigns.id)
+			WHERE distributed_query_campaigns.id IS NULL`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete expired orphaned distributed_query_campaign_targets")
+		}
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete expired distributed queries")
+	}
+	return nil
 }

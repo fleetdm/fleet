@@ -810,6 +810,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+
+  resentConfigProfile: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.profile_name} configuration profile to{" "}
+        {activity.details?.host_display_name}.
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -979,6 +989,9 @@ const getDetail = (
     }
     case ActivityType.EditedDeclarationProfile: {
       return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
+    }
+    case ActivityType.ResentConfigurationProfile: {
+      return TAGGED_TEMPLATES.resentConfigProfile(activity);
     }
 
     default: {

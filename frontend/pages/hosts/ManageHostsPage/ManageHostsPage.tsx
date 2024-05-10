@@ -45,6 +45,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
@@ -111,7 +112,7 @@ interface IManageHostsProps {
   router: InjectedRouter;
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  location: any; // no type in react-router v3
+  location: any; // no type in react-router v3 TODO: Improve this type
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -1023,7 +1024,11 @@ const ManageHostsPage = ({
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not delete label. Please try again.");
+      if (getErrorReason(error).includes("built-in")) {
+        renderFlash("error", "Built-in labels can’t be modified or deleted.");
+      } else {
+        renderFlash("error", "Could not delete label. Please try again.");
+      }
     } finally {
       setIsUpdatingLabel(false);
     }
@@ -1457,7 +1462,8 @@ const ManageHostsPage = ({
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
         } else if (canEnrollHosts) {
           emptyHosts.header = "Add your hosts to Fleet";
-          emptyHosts.info = "Generate an installer to add your own hosts.";
+          emptyHosts.info =
+            "Generate Fleet's agent (fleetd) to add your own hosts.";
           emptyHosts.primaryButton = (
             <Button variant="brand" onClick={toggleAddHostsModal} type="button">
               Add hosts

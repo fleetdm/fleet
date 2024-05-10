@@ -42,37 +42,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # note: in order to test both the wix and the docker flow for msi
+        # packages, this worker needs to run on an x86_64 architecture.
+        # `macos-latest` uses arm64 by default now, so please be careful when
+        # updating this version.
+        os: [ubuntu-latest, macos-13]
         go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ${{ matrix.os }}
 
     steps:
 
-    # Docker needs to be installed manually on macOS.
-    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
-    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
     - name: Harden Runner
       uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
       with:
         egress-policy: audit
 
-    - name: Install Docker
-      timeout-minutes: 20
-      if: matrix.os == 'macos-latest'
-      run: |
-        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
-        brew install --cask docker.rb
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
-          sleep 1;
-        done
-        echo "Docker is ready."
-
     - name: Pull fleetdm/wix
       # Run in background while other steps complete to speed up the workflow
       run: docker pull fleetdm/wix:latest &
+
+    - name: Run Colima
+      if: startsWith(matrix.os, 'macos')
+      timeout-minutes: 10
+      # notes:
+      # - docker to install the docker CLI and interact with the Colima
+      #   container runtime
+      # - colima is pre-installed in macos-12 runners, but not in macos-13 or
+      #   macos-14 runners
+      run: |
+        brew install docker colima
+        colima start --mount $TMPDIR:w
 
     - name: Install Go
       uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
@@ -83,9 +82,9 @@ jobs:
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
     - name: Install wine and wix
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: |
-        ./scripts/macos-install-wine.sh
+        ./scripts/macos-install-wine.sh -n
         wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
         mkdir wix
         unzip wix.zip -d wix
@@ -124,5 +123,5 @@ jobs:
       run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
     - name: Build MSI (using local Wix)
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix

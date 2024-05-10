@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
@@ -1166,15 +1168,36 @@ func processCalendarPolicies(
 	}
 
 	go func() {
-		if err := fleet.FireCalendarWebhook(
-			team.Config.Integrations.GoogleCalendar.WebhookURL,
-			host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
-		); err != nil {
+		retryStrategy := backoff.NewExponentialBackOff()
+		retryStrategy.MaxElapsedTime = 30 * time.Minute
+		err := backoff.Retry(
+			func() error {
+				if err := fleet.FireCalendarWebhook(
+					team.Config.Integrations.GoogleCalendar.WebhookURL,
+					host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
+				); err != nil {
+					var statusCoder kithttp.StatusCoder
+					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {
+						level.Debug(logger).Log("msg", "fire webhook", "err", err)
+						if err := ds.UpdateHostCalendarWebhookStatus(
+							context.Background(), host.ID, fleet.CalendarWebhookStatusRetry,
+						); err != nil {
+							level.Error(logger).Log("msg", "mark fired webhook as retry", "err", err)
+						}
+						return err
+					}
+					return backoff.Permanent(err)
+				}
+				return nil
+			}, retryStrategy,
+		)
+		nextStatus := fleet.CalendarWebhookStatusSent
+		if err != nil {
 			level.Error(logger).Log("msg", "fire webhook", "err", err)
-			return
+			nextStatus = fleet.CalendarWebhookStatusError
 		}
-		if err := ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusSent); err != nil {
-			level.Error(logger).Log("msg", "mark fired webhook as sent", "err", err)
+		if err := ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, nextStatus); err != nil {
+			level.Error(logger).Log("msg", fmt.Sprintf("mark fired webhook as %v", nextStatus), "err", err)
 		}
 	}()
 
@@ -1842,6 +1865,16 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			continue
 		}
 
+		hostTeamID := uint(0)
+		if host.TeamID != nil {
+			hostTeamID = *host.TeamID
+		}
+		if dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID {
+			// The host was transferred to another team/global so we ignore the incoming results
+			// of this query that belong to a different team.
+			continue
+		}
+
 		// We first check the current query results count using the DB reader (also cached)
 		// to reduce the DB writer load of osquery/log requests when the host count is high.
 		count, err := svc.ds.ResultCountForQuery(ctx, dbQuery.ID)
@@ -1935,18 +1968,45 @@ func getMostRecentResults(results []*fleet.ScheduledQueryResult) []*fleet.Schedu
 // The expected format for s is "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
 //
 // Returns "" if it failed to parse the pack_delimiter.
+
+var (
+	dcounter = regexp.MustCompile(`(Global)|(team-\d+)`)
+	pattern  = regexp.MustCompile(`^(.*)(?:(Global)|(team-\d+))`)
+)
+
 func findPackDelimiterString(scheduledQueryName string) string {
-	// Go's regexp doesn't support backreferences so we have to perform some manual work.
 	scheduledQueryName = scheduledQueryName[4:] // always starts with "pack"
-	for l := 1; l < len(scheduledQueryName); l++ {
-		sep := scheduledQueryName[:l]
-		rest := scheduledQueryName[l:]
-		pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
-		matched, _ := regexp.MatchString(pattern, rest)
-		if matched {
-			return sep
+
+	count := dcounter.FindAllString(scheduledQueryName, -1)
+
+	// If Global or team-<team_id> does not appear, then the
+	// pack_delimiter is invalid.
+	if len(count) == 0 {
+		return ""
+	}
+
+	if len(count) == 1 {
+		matches := pattern.FindStringSubmatch(scheduledQueryName)
+		if len(matches) > 1 {
+			return matches[1]
 		}
 	}
+
+	// Handle edge cases where "Global" or "team-<team_id>"" appears multiple times in the query
+	// name. Regex is not pre-compiled, so it is a less performant operation.
+	// Go's regexp doesn't support backreferences so we have to perform some manual work.
+	if len(count) > 1 {
+		for l := 1; l < len(scheduledQueryName); l++ {
+			sep := scheduledQueryName[:l]
+			rest := scheduledQueryName[l:]
+			pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
+			matched, _ := regexp.MatchString(pattern, rest)
+			if matched {
+				return sep
+			}
+		}
+	}
+
 	return ""
 }
 
@@ -1972,6 +2032,10 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	// For pattern: pack/Global/Name
 	globalPattern := "pack" + sep + "Global" + sep
 	if strings.HasPrefix(path, globalPattern) {
+		name := strings.TrimPrefix(path, globalPattern)
+		if name == "" {
+			return nil, "", fmt.Errorf("parsing query name: %s", path)
+		}
 		return nil, strings.TrimPrefix(path, globalPattern), nil
 	}
 
@@ -1982,6 +2046,9 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		teamIDAndQueryNameParts := strings.SplitN(teamIDAndRest, sep, 2)
 		if len(teamIDAndQueryNameParts) != 2 {
 			return nil, "", fmt.Errorf("parsing team number part: %s", path)
+		}
+		if teamIDAndQueryNameParts[1] == "" {
+			return nil, "", fmt.Errorf("parsing query name: %s", path)
 		}
 		teamNumberUint, err := strconv.ParseUint(teamIDAndQueryNameParts[0], 10, 32)
 		if err != nil {

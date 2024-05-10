@@ -80,19 +80,25 @@ const SelectQueryModal = ({
 
   const queriesCount = queriesFiltered.length;
 
-  const customQueryButton = () => {
+  const renderDescription = (): JSX.Element => {
     return (
-      <Button
-        onClick={() => onQueryHostCustom()}
-        variant="brand"
-        className={`${baseClass}__custom-query-button`}
-      >
-        Create custom query
-      </Button>
+      <div className={`${baseClass}__description`}>
+        Choose a query to run on this host
+        {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
+          <>
+            {" "}
+            or{" "}
+            <Button variant="text-link" onClick={onQueryHostCustom}>
+              create your own query
+            </Button>
+          </>
+        )}
+        .
+      </div>
     );
   };
 
-  const results = (): JSX.Element => {
+  const renderResults = (): JSX.Element => {
     if (queryErrors) {
       return <DataError />;
     }
@@ -105,10 +111,6 @@ const SelectQueryModal = ({
             Expecting to see queries? Try again in a few seconds as the system
             catches up.
           </span>
-          <div className="modal-cta-wrap">
-            {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) &&
-              customQueryButton()}
-          </div>
         </div>
       );
     }
@@ -131,55 +133,38 @@ const SelectQueryModal = ({
           </Button>
         );
       });
+
       return (
-        <div>
-          <div className={`${baseClass}__filter-create-wrapper`}>
-            <div className={`${baseClass}__filter-queries`}>
-              <InputFieldWithIcon
-                name="query-filter"
-                onChange={onFilterQueries}
-                placeholder="Filter queries"
-                value={queriesFilter}
-                autofocus
-                iconSvg="search"
-                iconPosition="start"
-              />
-            </div>
-            {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
-              <div className={`${baseClass}__create-query`}>
-                <span>OR</span>
-                {customQueryButton()}
-              </div>
-            )}
-          </div>
+        <>
+          <InputFieldWithIcon
+            name="query-filter"
+            onChange={onFilterQueries}
+            placeholder="Filter queries"
+            value={queriesFilter}
+            autofocus
+            iconSvg="search"
+            iconPosition="start"
+          />
           <div>{queryList}</div>
-        </div>
+        </>
       );
     }
 
     if (queriesFilter && queriesCount === 0) {
       return (
-        <div>
-          <div className={`${baseClass}__filter-create-wrapper`}>
-            <div className={`${baseClass}__filter-queries`}>
-              <InputFieldWithIcon
-                name="query-filter"
-                onChange={onFilterQueries}
-                placeholder="Filter queries"
-                value={queriesFilter}
-                autofocus
-                iconSvg="search"
-                iconPosition="start"
-              />
-            </div>
-            {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
-              <div className={`${baseClass}__create-query`}>
-                <span>OR</span>
-                {customQueryButton()}
-              </div>
-            )}
+        <>
+          <div className={`${baseClass}__filter-queries`}>
+            <InputFieldWithIcon
+              name="query-filter"
+              onChange={onFilterQueries}
+              placeholder="Filter queries"
+              value={queriesFilter}
+              autofocus
+              iconSvg="search"
+              iconPosition="start"
+            />
           </div>
-          <div className={`${baseClass}__no-query-results`}>
+          <div className={`${baseClass}__no-queries`}>
             <span className="info__header">
               No queries match the current search criteria.
             </span>
@@ -188,7 +173,7 @@ const SelectQueryModal = ({
               catches up.
             </span>
           </div>
-        </div>
+        </>
       );
     }
     return <></>;
@@ -198,10 +183,13 @@ const SelectQueryModal = ({
     <Modal
       title="Select a query"
       onExit={onCancel}
-      className={`${baseClass}__modal`}
-      width="xlarge"
+      className={baseClass}
+      width="large"
     >
-      {results()}
+      <>
+        {renderDescription()}
+        {renderResults()}
+      </>
     </Modal>
   );
 };

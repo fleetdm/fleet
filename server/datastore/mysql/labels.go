@@ -15,6 +15,11 @@ import (
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO: do we want to allow on duplicate updating label_type or
+		// label_membership_type or should those always be immutable?
+		// are we ok depending solely on the caller to ensure that these fields
+		// are not changed?
+
 		sql := `
 		INSERT INTO labels (
 			name,
@@ -215,11 +220,11 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 	return label, nil
 }
 
-func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
+func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error) {
 	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
 	_, err := ds.writer(ctx).ExecContext(ctx, query, label.Name, label.Description, label.ID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "saving label")
+		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
 	}
 	return labelDB(ctx, label.ID, ds.writer(ctx))
 }
@@ -256,11 +261,11 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
-func (ds *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
+func (ds *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, []uint, error) {
 	return labelDB(ctx, lid, ds.reader(ctx))
 }
 
-func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, error) {
+func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, []uint, error) {
 	stmt := `
 		SELECT
 		       l.*,
@@ -272,19 +277,31 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 
 	if err := sqlx.GetContext(ctx, q, label, stmt, lid); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
+			return nil, nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
 		}
-		return nil, ctxerr.Wrap(ctx, err, "selecting label")
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting label")
 	}
 
-	return label, nil
+	var hostIDs []uint
+	if label.LabelMembershipType == fleet.LabelMembershipTypeManual && label.HostCount > 0 {
+		if err := sqlx.SelectContext(ctx, q, &hostIDs, `SELECT host_id FROM label_membership WHERE label_id = ?`, lid); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "selecting label host IDs")
+		}
+	}
+
+	return label, hostIDs, nil
 }
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
+// MatchQuery not supported
 func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	if opt.After != "" {
-		return nil, &fleet.BadRequestError{Message: "after parameter is not supported"}
+		return nil, &fleet.BadRequestError{Message: "parameter 'after' is not supported"}
 	}
+	if opt.MatchQuery != "" {
+		return nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
+	}
+
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
@@ -893,6 +910,34 @@ func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string) (map[st
 	return result, nil
 }
 
+func (ds *Datastore) LabelsByName(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	if len(names) == 0 {
+		return map[string]*fleet.Label{}, nil
+	}
+
+	sqlStatement := `
+		SELECT * FROM labels
+		WHERE name IN (?)
+	`
+
+	sqlStatement, args, err := sqlx.In(sqlStatement, names)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
+	}
+
+	var labels []*fleet.Label
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, sqlStatement, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get label ids by name")
+	}
+
+	result := make(map[string]*fleet.Label, len(labels))
+	for _, label := range labels {
+		result[label.Name] = label
+	}
+
+	return result, nil
+}
+
 // AsyncBatchInsertLabelMembership inserts into the label_membership table the
 // batch of label_id + host_id tuples represented by the [2]uint array.
 func (ds *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
@@ -1004,4 +1049,37 @@ func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, lab
 	}
 
 	return ok, nil
+}
+
+func (ds *Datastore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	sql := `INSERT INTO label_membership (host_id, label_id) VALUES `
+	sql += strings.Repeat(`(?, ?),`, len(labelIDs))
+	sql = strings.TrimSuffix(sql, ",")
+	sql += ` ON DUPLICATE KEY UPDATE updated_at = NOW()`
+	args := make([]interface{}, 0, len(labelIDs)*2)
+	for _, labelID := range labelIDs {
+		args = append(args, hostID, labelID)
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert into label_membership")
+	}
+	return nil
+}
+
+func (ds *Datastore) RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
+	sql, args, err := sqlx.In(sql, hostID, labelIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build label_membership IN query")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from label_membership")
+	}
+	return nil
 }

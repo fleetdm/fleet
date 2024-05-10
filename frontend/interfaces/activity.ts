@@ -1,6 +1,6 @@
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
-import { IScheduledQueryStats } from "./scheduled_query_stats";
+import { ISchedulableQueryStats } from "./schedulable_query";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -70,6 +70,7 @@ export enum ActivityType {
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
+  ResentConfigurationProfile = "resent_configuration_profile",
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
@@ -130,6 +131,6 @@ export interface IActivityDetails {
   script_name?: string;
   deadline_days?: number;
   grace_period_days?: number;
-  stats?: IScheduledQueryStats;
+  stats?: ISchedulableQueryStats;
   host_id?: number;
 }

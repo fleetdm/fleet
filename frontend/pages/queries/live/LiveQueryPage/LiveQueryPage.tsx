@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
@@ -41,6 +42,13 @@ const RunQueryPage = ({
 }: IRunQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
+  const { currentTeamId } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
+
   const handlePageError = useErrorHandler();
   const { config } = useContext(AppContext);
   const {
@@ -78,8 +86,8 @@ const RunQueryPage = ({
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
     queryId
-      ? router.push(PATHS.QUERY_DETAILS(queryId))
-      : router.push(PATHS.NEW_QUERY());
+      ? router.push(PATHS.QUERY_DETAILS(queryId, currentTeamId))
+      : router.push(PATHS.NEW_QUERY(currentTeamId));
   }
 
   // disabled on page load so we can control the number of renders
@@ -150,8 +158,8 @@ const RunQueryPage = ({
   const goToQueryEditor = useCallback(
     () =>
       queryId
-        ? router.push(PATHS.EDIT_QUERY(queryId))
-        : router.push(PATHS.NEW_QUERY()),
+        ? router.push(PATHS.EDIT_QUERY(queryId, currentTeamId))
+        : router.push(PATHS.NEW_QUERY(currentTeamId)),
     []
   );
 

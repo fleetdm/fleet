@@ -17,7 +17,7 @@ provider "aws" {
 }
 
 locals {
-  fleet_image = "fleetdm/fleet:v4.48.0"
+  fleet_image = "fleetdm/fleet:v4.49.3"
   domain_name = "example.com"
 }
 

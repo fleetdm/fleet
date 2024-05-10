@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -22,9 +23,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/gocarina/gocsv"
 )
 
@@ -283,19 +285,44 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
+	doDelete := func(hostIDs []uint, hosts []*fleet.Host) error {
+		if err := svc.ds.DeleteHosts(ctx, hostIDs); err != nil {
+			return err
+		}
+
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		for _, host := range hosts {
+			if host.Platform == "darwin" || host.Platform == "windows" {
+				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+					Action:   mdmlifecycle.HostActionDelete,
+					Host:     host,
+					Platform: host.Platform,
+				})
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	if len(ids) > 0 {
-		err := svc.checkWriteForHostIDs(ctx, ids)
+		if err := svc.checkWriteForHostIDs(ctx, ids); err != nil {
+			return err
+		}
+
+		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, ids)
 		if err != nil {
 			return err
 		}
-		return svc.ds.DeleteHosts(ctx, ids)
+
+		return doDelete(ids, hosts)
 	}
 
 	if opts == nil {
 		opts = &fleet.HostListOptions{}
 	}
 	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
-	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
+	hostIDs, _, hosts, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
 	if err != nil {
 		return err
 	}
@@ -308,7 +335,8 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	if err != nil {
 		return err
 	}
-	return svc.ds.DeleteHosts(ctx, hostIDs)
+
+	return doDelete(hostIDs, hosts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -718,8 +746,15 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host")
 	}
 
-	if host.Platform == "darwin" {
-		return svc.maybeRestorePendingDEPHost(ctx, host)
+	if host.Platform == "windows" || host.Platform == "darwin" {
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+			Action:   mdmlifecycle.HostActionDelete,
+			Platform: host.Platform,
+			UUID:     host.UUID,
+			Host:     host,
+		})
+		return ctxerr.Wrap(ctx, err, "performing MDM actions after delete")
 	}
 
 	return nil
@@ -887,7 +922,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		return &fleet.BadRequestError{Message: "filters must be specified"}
 	}
 
-	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
+	hostIDs, hostNames, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
 	if err != nil {
 		return err
 	}
@@ -1240,10 +1275,10 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 	return result, lastFetched, nil
 }
 
-func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, error) {
+func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, []*fleet.Host, error) {
 	filter, err := processHostFilters(ctx, opt, lid)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Load hosts, either from label if provided or from all hosts.
@@ -1255,11 +1290,11 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if len(hosts) == 0 {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	hostIDs := make([]uint, 0, len(hosts))
@@ -1268,7 +1303,7 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 		hostIDs = append(hostIDs, h.ID)
 		hostNames = append(hostNames, h.DisplayName())
 	}
-	return hostIDs, hostNames, nil
+	return hostIDs, hostNames, hosts, nil
 }
 
 func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) (fleet.TeamFilter, error) {
@@ -2260,4 +2295,175 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 	}
 
 	return &opt, labelID, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Labels
+////////////////////////////////////////////////////////////////////////////////
+
+type addLabelsToHostRequest struct {
+	ID     uint     `url:"id"`
+	Labels []string `json:"labels"`
+}
+
+type addLabelsToHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r addLabelsToHostResponse) error() error { return r.Err }
+
+func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*addLabelsToHostRequest)
+	if err := svc.AddLabelsToHost(ctx, req.ID, req.Labels); err != nil {
+		return addLabelsToHostResponse{Err: err}, nil
+	}
+	return addLabelsToHostResponse{}, nil
+}
+
+func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []string) error {
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "load host")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWriteHostLabel); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames)
+	if err != nil {
+		return err
+	}
+	if len(labelIDs) == 0 {
+		return nil
+	}
+
+	if err := svc.ds.AddLabelsToHost(ctx, host.ID, labelIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "add labels to host")
+	}
+
+	return nil
+}
+
+type removeLabelsFromHostRequest struct {
+	ID     uint     `url:"id"`
+	Labels []string `json:"labels"`
+}
+
+type removeLabelsFromHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r removeLabelsFromHostResponse) error() error { return r.Err }
+
+func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*removeLabelsFromHostRequest)
+	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
+		return removeLabelsFromHostResponse{Err: err}, nil
+	}
+	return removeLabelsFromHostResponse{}, nil
+}
+
+func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelNames []string) error {
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "load host")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWriteHostLabel); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames)
+	if err != nil {
+		return err
+	}
+	if len(labelIDs) == 0 {
+		return nil
+	}
+
+	if err := svc.ds.RemoveLabelsFromHost(ctx, host.ID, labelIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove labels from host")
+	}
+
+	return nil
+}
+
+func (svc *Service) validateLabelNames(ctx context.Context, action string, labelNames []string) ([]uint, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
+
+	// Filter out empty label string.
+	for i, labelName := range labelNames {
+		if labelName == "" {
+			labelNames = append(labelNames[:i], labelNames[i+1:]...)
+			break
+		}
+	}
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	var labelsNotFound []string
+	for _, labelName := range labelNames {
+		if _, ok := labels[labelName]; !ok {
+			labelsNotFound = append(labelsNotFound, "\""+labelName+"\"")
+		}
+	}
+
+	if len(labelsNotFound) > 0 {
+		sort.Slice(labelsNotFound, func(i, j int) bool {
+			// Ignore quotes to sort.
+			return labelsNotFound[i][1:len(labelsNotFound[i])-1] < labelsNotFound[j][1:len(labelsNotFound[j])-1]
+		})
+		return nil, &fleet.BadRequestError{
+			Message: fmt.Sprintf(
+				"Couldn't %s labels. Labels not found: %s. All labels must exist.",
+				action,
+				strings.Join(labelsNotFound, ", "),
+			),
+		}
+	}
+
+	var dynamicLabels []string
+	for labelName, labelID := range labels {
+		label, _, err := svc.ds.Label(ctx, labelID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load label from id")
+		}
+		if label.LabelMembershipType != fleet.LabelMembershipTypeManual {
+			dynamicLabels = append(dynamicLabels, "\""+labelName+"\"")
+		}
+	}
+
+	if len(dynamicLabels) > 0 {
+		sort.Slice(dynamicLabels, func(i, j int) bool {
+			// Ignore quotes to sort.
+			return dynamicLabels[i][1:len(dynamicLabels[i])-1] < dynamicLabels[j][1:len(dynamicLabels[j])-1]
+		})
+		return nil, &fleet.BadRequestError{
+			Message: fmt.Sprintf(
+				"Couldn't %s labels. Labels are dynamic: %s. Dynamic labels can not be assigned to hosts manually.",
+				action,
+				strings.Join(dynamicLabels, ", "),
+			),
+		}
+	}
+
+	labelIDs := make([]uint, 0, len(labels))
+	for _, labelID := range labels {
+		labelIDs = append(labelIDs, labelID)
+	}
+
+	return labelIDs, nil
 }

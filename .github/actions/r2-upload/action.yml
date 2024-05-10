@@ -1,0 +1,34 @@
+name: R2 upload
+description: Upload a file to R2
+# Schema: https://json.schemastore.org/github-action.json
+
+# This action expects the following env vars to be set:
+# - R2_ENDPOINT: The endpoint of the R2 instance to upload to
+# - R2_ACCESS_KEY_ID: The access key ID to use for R2
+# - R2_ACCESS_KEY_SECRET: The access key secret to use for R2
+# - R2_BUCKET: The bucket to upload to
+
+inputs:
+  filename:
+    # Future improvement: accept array of filenames as JSON string, and loop over it like in https://www.starkandwayne.com/blog/bash-for-loop-over-json-array-using-jq/index.html
+    description: 'Name of the file to upload'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Upload file to R2
+      shell: bash
+      run: |
+        sudo ./.github/scripts/rclone-install.sh
+        mkdir -p ~/.config/rclone
+        echo "[r2]
+        type = s3
+        provider = Cloudflare
+        region = auto
+        no_check_bucket = true
+        access_key_id = $R2_ACCESS_KEY_ID
+        secret_access_key = $R2_ACCESS_KEY_SECRET
+        endpoint = $R2_ENDPOINT
+        " > ~/.config/rclone/rclone.conf
+        rclone copy --verbose ${{ inputs.filename }} r2:${R2_BUCKET}/

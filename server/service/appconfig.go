@@ -150,11 +150,12 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	features := appConfig.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
-			OrgInfo:               appConfig.OrgInfo,
-			ServerSettings:        appConfig.ServerSettings,
-			Features:              features,
-			VulnerabilitySettings: appConfig.VulnerabilitySettings,
-			HostExpirySettings:    appConfig.HostExpirySettings,
+			OrgInfo:                appConfig.OrgInfo,
+			ServerSettings:         appConfig.ServerSettings,
+			Features:               features,
+			VulnerabilitySettings:  appConfig.VulnerabilitySettings,
+			HostExpirySettings:     appConfig.HostExpirySettings,
+			ActivityExpirySettings: appConfig.ActivityExpirySettings,
 
 			SMTPSettings: smtpSettings,
 			SSOSettings:  ssoSettings,
@@ -376,6 +377,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		invalid.Append("server_url", "Fleet server URL must be present")
 	}
 
+	if appConfig.ActivityExpirySettings.ActivityExpiryEnabled && appConfig.ActivityExpirySettings.ActivityExpiryWindow < 1 {
+		invalid.Append("activity_expiry_settings.activity_expiry_window", "must be greater than 0")
+	}
+
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
@@ -556,6 +561,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// activity
 	if oldAppConfig.MDM.MacOSUpdates.MinimumVersion.Value != appConfig.MDM.MacOSUpdates.MinimumVersion.Value ||
 		oldAppConfig.MDM.MacOSUpdates.Deadline.Value != appConfig.MDM.MacOSUpdates.Deadline.Value {
+		if license.IsPremium() {
+			// macOS updates are premium feature
+			if err := svc.EnterpriseOverrides.MDMAppleEditedMacOSUpdates(ctx, nil, appConfig.MDM.MacOSUpdates); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update DDM profile after macOS updates change")
+			}
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
@@ -821,7 +833,7 @@ func (svc *Service) validateMDM(
 		// TODO: Should we validate MDM configured on here too?
 
 		if mdm.MacOSMigration.Enable {
-			if license.Tier != fleet.TierPremium {
+			if !license.IsPremium() {
 				invalid.Append("macos_migration.enable", ErrMissingLicense.Error())
 				return nil
 			}

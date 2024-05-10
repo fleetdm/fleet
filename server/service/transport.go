@@ -186,7 +186,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		PerPage:        uint(perPage),
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
-		MatchQuery:     query,
+		MatchQuery:     strings.TrimSpace(query),
 		After:          afterString,
 	}, nil
 }

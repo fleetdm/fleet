@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
-import { Row, UseExpandedRowProps } from "react-table";
+import { Row } from "react-table";
 import ReactTooltip from "react-tooltip";
 import useDeepEffect from "hooks/useDeepEffect";
 
@@ -12,7 +12,7 @@ import Icon from "components/Icon/Icon";
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
-import TableContainerUtils from "./TableContainerUtils";
+import TableContainerUtils from "./utilities/TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
@@ -100,6 +100,7 @@ interface ITableContainerProps<T = any> {
   setExportRows?: (rows: Row[]) => void;
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
+  show0Count?: boolean;
 }
 
 const baseClass = "table-container";
@@ -156,6 +157,7 @@ const TableContainer = <T,>({
   setExportRows,
   resetPageIndex,
   disableTableHeader,
+  show0Count,
 }: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -193,7 +195,7 @@ const TableContainer = <T,>({
   );
 
   const onSearchQueryChange = (value: string) => {
-    setSearchQuery(value);
+    setSearchQuery(value.trim());
   };
 
   const hasPageIndexChangedRef = useRef(false);
@@ -321,7 +323,7 @@ const TableContainer = <T,>({
               )}
               {!renderCount &&
               !disableCount &&
-              (isMultiColumnFilter || displayCount()) ? (
+              (isMultiColumnFilter || displayCount() || show0Count) ? (
                 <div
                   className={`${baseClass}__results-count ${
                     stackControls ? "stack-table-controls" : ""
@@ -330,7 +332,8 @@ const TableContainer = <T,>({
                 >
                   {TableContainerUtils.generateResultsCountText(
                     resultsTitle,
-                    displayCount()
+                    displayCount(),
+                    show0Count
                   )}
                   {resultsHtml}
                 </div>

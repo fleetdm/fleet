@@ -12,6 +12,10 @@ import (
 const (
 	MDMPlatformApple     = "apple"
 	MDMPlatformMicrosoft = "microsoft"
+
+	MDMAppleDeclarationUUIDPrefix = "d"
+	MDMAppleProfileUUIDPrefix     = "a"
+	MDMWindowsProfileUUIDPrefix   = "w"
 )
 
 type AppleMDM struct {
