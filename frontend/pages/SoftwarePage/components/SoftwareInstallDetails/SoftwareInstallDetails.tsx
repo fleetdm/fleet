@@ -86,6 +86,7 @@ export const SoftwareInstallDetails = ({
     },
     {
       refetchOnWindowFocus: false,
+      staleTime: 3000,
       select: (data) => data.results,
     }
   );

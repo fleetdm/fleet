@@ -13,6 +13,8 @@ import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";
 
+import { SoftwareInstallDetails } from "pages/SoftwarePage/components/SoftwareInstallDetails";
+
 const baseClass = "software-details-modal";
 
 const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
@@ -40,7 +42,7 @@ const SoftwareDetailsInfo = ({
   source,
   bundleIdentifier,
 }: ISoftwareDetailsInfoProps) => {
-  const { vulnerabilities } = installedVersion;
+  const { vulnerabilities, installed_paths } = installedVersion;
 
   return (
     <div className={`${baseClass}__details-info`}>
@@ -57,19 +59,21 @@ const SoftwareDetailsInfo = ({
           />
         )}
       </div>
-      <div className={`${baseClass}__row`}>
-        <DataSet
-          className={`${baseClass}__file-path-data-set`}
-          title="File path"
-          value={
-            <div className={`${baseClass}__file-path-values`}>
-              {installedVersion.installed_paths.map((path) => (
-                <span key={path}>{path}</span>
-              ))}
-            </div>
-          }
-        />
-      </div>
+      {!!installed_paths?.length && (
+        <div className={`${baseClass}__row`}>
+          <DataSet
+            className={`${baseClass}__file-path-data-set`}
+            title="File path"
+            value={
+              <div className={`${baseClass}__file-path-values`}>
+                {installed_paths.map((path) => (
+                  <span key={path}>{path}</span>
+                ))}
+              </div>
+            }
+          />
+        </div>
+      )}
       {vulnerabilities && vulnerabilities.length !== 0 && (
         <div className={`${baseClass}__row`}>
           <DataSet
@@ -91,6 +95,8 @@ const SoftwareDetailsModal = ({
   software,
   onExit,
 }: ISoftwareDetailsModalProps) => {
+  const installUuid = software.last_install?.install_uuid || "";
+
   const renderSoftwareDetails = () => {
     const { installed_versions } = software;
 
@@ -98,16 +104,19 @@ const SoftwareDetailsModal = ({
     // software type atm.
     if (!installed_versions || installed_versions.length === 0) {
       return (
-        <DataSet
-          title="Type"
-          value={formatSoftwareType({ source: software.source })}
-        />
+        <div className={`${baseClass}__software-details`}>
+          <DataSet
+            title="Type"
+            value={formatSoftwareType({ source: software.source })}
+          />
+        </div>
       );
     }
 
     return (
       <div className={`${baseClass}__software-details`}>
-        {installed_versions.map((installedVersion) => {
+        {installed_versions?.map((installedVersion) => {
+          console.log("here");
           return (
             <SoftwareDetailsInfo
               key={installedVersion.version}
@@ -130,7 +139,9 @@ const SoftwareDetailsModal = ({
             <Tab>Install Details</Tab>
           </TabList>
           <TabPanel>{renderSoftwareDetails()}</TabPanel>
-          <TabPanel>test 2</TabPanel>
+          <TabPanel>
+            <SoftwareInstallDetails installUuid={installUuid} />
+          </TabPanel>
         </Tabs>
       </TabsWrapper>
     );

@@ -853,9 +853,7 @@ const HostDetailsPage = ({
                 router={router}
                 queryParams={queryParams}
                 pathname={location.pathname}
-                onShowSoftwareDetails={(software) =>
-                  setSelectedSoftwareDetails(software)
-                }
+                onShowSoftwareDetails={setSelectedSoftwareDetails}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
