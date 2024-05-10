@@ -116,7 +116,6 @@ const SoftwareDetailsModal = ({
     return (
       <div className={`${baseClass}__software-details`}>
         {installed_versions?.map((installedVersion) => {
-          console.log("here");
           return (
             <SoftwareDetailsInfo
               key={installedVersion.version}
