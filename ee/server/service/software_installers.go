@@ -109,6 +109,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
+	if teamID == nil || *teamID == 0 {
+		return fleet.NewInvalidArgumentError("team_id", "is required and can't be zero")
+	}
+
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -162,6 +166,10 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID ui
 }
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	if teamID == nil || *teamID == 0 {
+		return nil, fleet.NewInvalidArgumentError("team_id", "is required and can't be zero")
+	}
+
 	meta, err := svc.GetSoftwareInstallerMetadata(ctx, titleID, teamID)
 	if err != nil {
 		return nil, err

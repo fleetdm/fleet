@@ -116,7 +116,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 type deleteSoftwareInstallerRequest struct {
-	TeamID  *uint `query:"team_id,optional"`
+	TeamID  *uint `query:"team_id"`
 	TitleID uint  `url:"title_id"`
 }
 
@@ -146,7 +146,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 type getSoftwareInstallerRequest struct {
 	Alt     string `query:"alt,optional"`
-	TeamID  *uint  `query:"team_id,optional"`
+	TeamID  *uint  `query:"team_id"`
 	TitleID uint   `url:"title_id"`
 }
 
