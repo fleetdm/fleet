@@ -8722,7 +8722,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerNewInstallRequestPlatform
 				}
 
 				var resp installSoftwareResponse
-				s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", host.ID, softwareTitles[kind]), nil, wantStatus, &resp)
+				s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", host.ID, softwareTitles[kind]), nil, wantStatus, &resp)
 			}
 		}
 	}
@@ -8733,7 +8733,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerHostRequests() {
 
 	var resp installSoftwareResponse
 	// non-existent host
-	s.DoJSON("POST", "/api/v1/fleet/hosts/1/software/install/1", nil, http.StatusNotFound, &resp)
+	s.DoJSON("POST", "/api/latest/fleet/hosts/1/software/install/1", nil, http.StatusNotFound, &resp)
 
 	// create a host that doesn't have fleetd installed
 	h, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -8750,14 +8750,14 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerHostRequests() {
 
 	// request fails
 	resp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/1", h.ID), nil, http.StatusUnprocessableEntity, &resp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/1", h.ID), nil, http.StatusUnprocessableEntity, &resp)
 
 	// host installs fleetd
 	setOrbitEnrollment(t, h, s.ds)
 
 	// request fails because of non-existent title
 	resp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/1", h.ID), nil, http.StatusBadRequest, &resp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/1", h.ID), nil, http.StatusBadRequest, &resp)
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "another install script",
@@ -8771,17 +8771,17 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerHostRequests() {
 	// install script request succeeds
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
 	resp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
 	// Get the results, should be pending
 	getHostSoftwareResp := getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
 	require.NotNil(t, getHostSoftwareResp.Software[0].LastInstall)
 	installUUID := getHostSoftwareResp.Software[0].LastInstall.InstallUUID
 
 	gsirr := getSoftwareInstallResultsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
 	require.NoError(t, gsirr.Err)
 	require.NotNil(t, gsirr.Results)
 	results := gsirr.Results
@@ -8790,7 +8790,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerHostRequests() {
 
 	// status is reflected in software title response
 	titleResp := getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp)
 	// TODO: confirm expected behavior of the title response host counts (unspecified)
 	require.Zero(t, titleResp.SoftwareTitle.HostsCount)
 	require.Nil(t, titleResp.SoftwareTitle.CountsUpdatedAt)
