@@ -197,7 +197,7 @@ export interface ISoftwareInstallVersion {
 export interface IHostSoftware {
   id: number;
   name: string;
-  package_available_for_install: string | null;
+  package_available_for_install?: string | null;
   source: string;
   bundle_identifier: string;
   status: ISoftwareInstallStatus | null;

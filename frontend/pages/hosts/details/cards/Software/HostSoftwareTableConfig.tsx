@@ -3,11 +3,7 @@ import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 import { cloneDeep } from "lodash";
 
-import {
-  IHostSoftware,
-  SOURCE_TYPE_CONVERSION,
-  formatSoftwareType,
-} from "interfaces/software";
+import { IHostSoftware, formatSoftwareType } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
@@ -43,9 +39,9 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 // type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
 
 const generateActions = (
-  packageToInstall: string | null,
   softwareId: number,
-  installingSoftwareId: number | null
+  installingSoftwareId: number | null,
+  packageToInstall?: string | null
 ) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
@@ -108,13 +104,13 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: IInstalledStatusCellProps) => {
         const { original } = cellProps.row;
         const { value } = cellProps.cell;
-        return value ? (
+        return (
           <InstallStatusCell
             status={value}
             packageToInstall={original.package_available_for_install}
             installedAt={original.last_install?.installed_at}
           />
-        ) : null;
+        );
       },
     },
     {
@@ -158,9 +154,9 @@ export const generateSoftwareTableHeaders = ({
         <DropdownCell
           placeholder="Actions"
           options={generateActions(
-            cellProps.row.original.package_available_for_install,
             cellProps.row.original.id,
-            installingSoftwareId
+            installingSoftwareId,
+            cellProps.row.original.package_available_for_install
           )}
           onChange={(action) => onSelectAction(cellProps.row.original, action)}
         />

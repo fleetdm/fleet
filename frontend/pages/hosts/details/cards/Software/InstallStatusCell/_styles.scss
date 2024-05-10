@@ -4,4 +4,8 @@
     align-items: center;
     gap: $pad-small;
   }
+
+  &__status-tooltip {
+    text-align: center;
+  }
 }
