@@ -58,7 +58,8 @@ const AddSoftwareModal = ({
 
     const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      // Included for legacy support, e.g. Chrome/Edge < 119
+      // Next line with e.returnValue is included for legacy support
+      // e.g.Chrome / Edge < 119
       e.returnValue = true;
     };
 
@@ -84,7 +85,13 @@ const AddSoftwareModal = ({
 
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId);
-      renderFlash("success", "Software added successfully!");
+      renderFlash(
+        "success",
+        <>
+          {formData.software?.name} successfully added. Go to Host details page
+          to install software.
+        </>
+      );
       onExit();
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
