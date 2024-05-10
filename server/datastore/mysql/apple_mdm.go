@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -1771,7 +1772,12 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	}
 
 	for _, p := range currentProfiles {
+		slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "bulkSetPendingMDMAppleHostProfilesDB").Info("JVE_LOG: marking profile operation as 'remove' ", "profile_name", p.ProfileName, "profile_former_operation", p.OperationType, "profile_former_status", *p.Status)
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+			continue
+		}
+		if p.OperationType == fleet.MDMOperationTypeInstall && p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
+			slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "bulkSetPendingMDMAppleHostProfilesDB").Info("JVE_LOG: found a failed install. not marking as remove. ", "profile_name", p.ProfileName, "profile_former_operation", p.OperationType, "profile_former_status", *p.Status)
 			continue
 		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
@@ -1996,6 +2002,17 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
+	var ps []struct {
+		name      string
+		operation string
+	}
+	for _, p := range profiles {
+		ps = append(ps, struct {
+			name      string
+			operation string
+		}{p.ProfileName, string(p.OperationType)})
+	}
+	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "ListMDMAppleProfilesToRemove").Info("JVE_LOG: profiles in DS layer ", "profilesToRemove", ps)
 	return profiles, err
 }
 

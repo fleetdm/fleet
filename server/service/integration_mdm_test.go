@@ -8473,6 +8473,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	var createTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
+	team.ID = createTeamResp.Team.ID
 
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
@@ -8512,13 +8513,47 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	r, err := s.ds.GetMDMAppleCommandResults(ctx, cmdUUID)
 	require.NoError(t, err)
 	for _, result := range r {
-		fmt.Println("result: ", result.CommandUUID, result.Result, result.Status)
+		fmt.Println("result: ", result.CommandUUID, result.Status)
 	}
 
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I2": {Identifier: "I2", DisplayName: "I2", InstallDate: time.Now()},
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
 	}))
+
+	s.awaitTriggerProfileSchedule(t)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		if cmd.Command.RequestType == "InstallProfile" {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+			if strings.Contains(string(fullCmd.Command.InstallProfile.Payload), ident) {
+				fmt.Println("failing profile")
+				var errChain []mdm.ErrorChain
+				errChain = append(errChain, mdm.ErrorChain{ErrorCode: -102, ErrorDomain: "CPProfile", USEnglishDescription: "The profile is either missing some required information, or contains information in an invalid format."})
+				fmt.Println("failed command uuid: ", cmd.CommandUUID)
+				cmdUUID = cmd.CommandUUID
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
+				require.NoError(t, err)
+				continue
+			}
+		}
+		fmt.Println("regular profile")
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
+		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
+	}))
+
+	r, err = s.ds.GetMDMAppleCommandResults(ctx, cmdUUID)
+	require.NoError(t, err)
+	for _, result := range r {
+		fmt.Println("result: ", result.CommandUUID, result.Status)
+	}
 
 	// Check that the profile is marked as failed when fetching the host
 	getHostResp := getHostResponse{}
@@ -8527,12 +8562,29 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 2)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		if hm.Name == "N1" {
-			fmt.Printf("failed profile: %+v", hm)
+			fmt.Printf("failed profile: %+v, %s\n", hm, hm.OperationType)
 			assert.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
 			continue
 		}
 
 		fmt.Println("expect verified", hm.Name)
 		assert.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
+	}
+
+	// transfer host to a team without the failed profile
+
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host.ID}}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// confirm that we remove the failed profile
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// Check that the profile is marked as failed when fetching the host
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 3)
+	for _, hm := range *getHostResp.Host.MDM.Profiles {
+		require.NotEqual(t, "N1", hm.Name)
 	}
 }
