@@ -4,7 +4,11 @@ import { CellProps, Column } from "react-table";
 import { cloneDeep } from "lodash";
 
 import { IHostSoftware, formatSoftwareType } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import {
+  IHeaderProps,
+  INumberCellProps,
+  IStringCellProps,
+} from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 
@@ -26,6 +30,7 @@ const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
+type ITableNumberCellProps = INumberCellProps<IHostSoftware>;
 type ITableStringCellProps = IStringCellProps<IHostSoftware>;
 type IInstalledStatusCellProps = CellProps<
   IHostSoftware,
@@ -149,8 +154,8 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: true,
       // the accessor here is insignificant, we just need it as its required
       // but we don't use it.
-      accessor: "bundle_identifier",
-      Cell: (cellProps: ITableStringCellProps) => (
+      accessor: "id",
+      Cell: (cellProps: ITableNumberCellProps) => (
         <DropdownCell
           placeholder="Actions"
           options={generateActions(
