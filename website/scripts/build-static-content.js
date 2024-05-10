@@ -122,9 +122,8 @@ module.exports = {
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
               headers: baseHeadersForGithubRequests,
-            }).catch((err)=>{
-              // Note: since this only
-              throw new Error(`When validating users in standard-query-library.yml, an error when a request was sent to GitHub get the information about a user (username: ${username}). Error: ${err}`);
+            }).intercept((err)=>{
+              return new Error(`When validating users in standard-query-library.yml, an error when a request was sent to GitHub get the information about a user (username: ${username}). Error: ${err}`);
             });
           });//∞
           // Now expand queries with relevant profile data for the contributors.
