@@ -190,7 +190,7 @@ export interface ISoftwareLastInstall {
 export interface ISoftwareInstallVersion {
   version: string;
   last_opened_at: string | null;
-  vulnerabilities: string[];
+  vulnerabilities: string[] | null;
   installed_paths: string[];
 }
 
@@ -199,7 +199,7 @@ export interface IHostSoftware {
   name: string;
   package_available_for_install?: string | null;
   source: string;
-  bundle_identifier: string;
+  bundle_identifier?: string;
   status: ISoftwareInstallStatus | null;
   last_install: ISoftwareLastInstall | null;
   installed_versions: ISoftwareInstallVersion[] | null;

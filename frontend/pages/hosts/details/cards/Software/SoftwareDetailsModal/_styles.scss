@@ -9,4 +9,10 @@
     display: flex;
     gap: $pad-xxlarge;
   }
+
+  &__file-path-values {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
 }

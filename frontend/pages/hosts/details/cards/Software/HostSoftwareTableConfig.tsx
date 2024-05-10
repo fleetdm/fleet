@@ -3,7 +3,11 @@ import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 import { cloneDeep } from "lodash";
 
-import { IHostSoftware, formatSoftwareType } from "interfaces/software";
+import {
+  IHostSoftware,
+  ISoftwareInstallStatus,
+  formatSoftwareType,
+} from "interfaces/software";
 import {
   IHeaderProps,
   INumberCellProps,
@@ -45,17 +49,21 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
 const generateActions = (
   softwareId: number,
+  status: ISoftwareInstallStatus | null,
   installingSoftwareId: number | null,
   packageToInstall?: string | null
 ) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
-  const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
+  let actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
 
-  // TODO: when do we not show the options?
+  // remove install if there is no package to install
+  if (!packageToInstall) {
+    actions = actions.filter((action) => action.value !== "install");
+  }
 
   // disable install option if software is already installing
-  if (softwareId === installingSoftwareId) {
+  if (softwareId === installingSoftwareId || status === "pending") {
     const installAction = actions.find((action) => action.value === "install");
     if (installAction) {
       installAction.disabled = true;
@@ -160,6 +168,7 @@ export const generateSoftwareTableHeaders = ({
           placeholder="Actions"
           options={generateActions(
             cellProps.row.original.id,
+            cellProps.row.original.status,
             installingSoftwareId,
             cellProps.row.original.package_available_for_install
           )}

@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { QueryKey, useQuery } from "react-query";
+import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
 import hostAPI, {
@@ -19,7 +19,8 @@ import Card from "components/Card";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 
-import { generateSoftwareTableHeaders } from "./HostSoftwareTableConfig";
+import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
+import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
 
 const baseClass = "software-card";
@@ -164,13 +165,15 @@ const SoftwareCard = ({
     [installHostSoftwarePackage, onShowSoftwareDetails]
   );
 
-  const tableHeaders = useMemo(() => {
-    return generateSoftwareTableHeaders({
-      router,
-      installingSoftwareId,
-      onSelectAction,
-    });
-  }, [installingSoftwareId, router, onSelectAction]);
+  const tableConfig = useMemo(() => {
+    return isMyDevicePage
+      ? generateDeviceSoftwareTableConfig()
+      : generateHostSoftwareTableConfig({
+          router,
+          installingSoftwareId,
+          onSelectAction,
+        });
+  }, [isMyDevicePage, router, installingSoftwareId, onSelectAction]);
 
   const renderSoftwareTable = () => {
     if (hostSoftwareLoading || deviceSoftwareLoading) {
@@ -183,7 +186,7 @@ const SoftwareCard = ({
 
     const props = {
       router,
-      tableConfig: tableHeaders,
+      tableConfig,
       sortHeader,
       sortDirection,
       searchQuery,
