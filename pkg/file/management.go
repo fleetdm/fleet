@@ -48,13 +48,13 @@ var removeDebScript string
 // GetRemoveScript returns a script that can be used to remove the given file
 func GetRemoveScript(filename string) string {
 	switch ext := filepath.Ext(filename); ext {
-	case ".msi":
+	case "msi":
 		return removeMsiScript
-	case ".deb":
+	case "deb":
 		return removeDebScript
-	case ".pkg":
+	case "pkg":
 		return removePkgScript
-	case ".exe":
+	case "exe":
 		return removeExeScript
 	default:
 		return ""
