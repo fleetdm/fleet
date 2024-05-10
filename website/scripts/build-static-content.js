@@ -14,7 +14,6 @@ module.exports = {
 
 
   fn: async function ({ dry, githubAccessToken }) {
-
     let path = require('path');
     let YAML = require('yaml');
 
@@ -33,7 +32,7 @@ module.exports = {
         'Authorization': `token ${githubAccessToken}`,
       };
     } else {
-      sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag.');
+      sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag. \n Note: This script can take up to 30s to run.');
     }//ﬁ
 
     await sails.helpers.flow.simultaneously([
