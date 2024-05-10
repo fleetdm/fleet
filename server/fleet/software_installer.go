@@ -78,13 +78,13 @@ type SoftwareInstaller struct {
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
 	InstallerID uint `json:"installer_id" db:"id"`
 	// InstallScript is the script to run to install the software package.
-	InstallScript string `json:"install_script" db:"-"`
+	InstallScript string `json:"install_script" db:"install_script"`
 	// InstallScriptContentID is the ID of the install script content.
 	InstallScriptContentID uint `json:"-" db:"install_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
 	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
 	// PostInstallScript is the script to run after installing the software package.
-	PostInstallScript string `json:"post_install_script" db:"-"`
+	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
