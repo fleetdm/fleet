@@ -104,6 +104,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 							os.Unsetenv(k)
 						}
 					})
+				} else {
+					t.Parallel()
 				}
 
 				gitops, err := GitOpsFromFile(test.filePath, "./testdata")

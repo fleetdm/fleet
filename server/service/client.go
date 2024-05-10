@@ -352,7 +352,7 @@ func (c *Client) ApplyGroup(
 	specs *spec.Group,
 	baseDir string,
 	logf func(format string, args ...interface{}),
-	opts fleet.ApplySpecOptions,
+	opts fleet.ApplyClientSpecOptions,
 ) (map[string]uint, error) {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -446,7 +446,7 @@ func (c *Client) ApplyGroup(
 					assumeEnabled = ok && assumeEnabled
 				}
 			}
-			if err := c.ApplyNoTeamProfiles(fileContents, opts, assumeEnabled); err != nil {
+			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
 				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
@@ -488,11 +488,11 @@ func (c *Client) ApplyGroup(
 					Name:           filepath.Base(f),
 				}
 			}
-			if err := c.ApplyNoTeamScripts(scriptPayloads, opts); err != nil {
+			if err := c.ApplyNoTeamScripts(scriptPayloads, opts.ApplySpecOptions); err != nil {
 				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
-		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
+		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
 			return nil, fmt.Errorf("applying fleet config: %w", err)
 		}
 		if opts.DryRun {
@@ -570,7 +570,7 @@ func (c *Client) ApplyGroup(
 		// non-existing team gets created.
 		var err error
 		teamOpts := fleet.ApplyTeamSpecOptions{
-			ApplySpecOptions:  opts,
+			ApplySpecOptions:  opts.ApplySpecOptions,
 			DryRunAssumptions: specs.TeamsDryRunAssumptions,
 		}
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
@@ -607,7 +607,7 @@ func (c *Client) ApplyGroup(
 		}
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
-				if err := c.ApplyTeamScripts(tmName, scripts, opts); err != nil {
+				if err := c.ApplyTeamScripts(tmName, scripts, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
 				}
 			}
@@ -1101,8 +1101,10 @@ func (c *Client) DoGitOps(
 	}
 
 	// Apply org settings, scripts, enroll secrets, and controls
-	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{
-		DryRun:                  dryRun,
+	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplyClientSpecOptions{
+		ApplySpecOptions: fleet.ApplySpecOptions{
+			DryRun: dryRun,
+		},
 		ExpandEnvConfigProfiles: true,
 	})
 	if err != nil {

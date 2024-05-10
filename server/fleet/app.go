@@ -1037,14 +1037,21 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
-	// ExpandEnvConfigProfiles enables expansion of environment variables in
-	// configuration profiles.
-	ExpandEnvConfigProfiles bool
 }
 
 type ApplyTeamSpecOptions struct {
 	ApplySpecOptions
 	DryRunAssumptions *TeamSpecsDryRunAssumptions
+}
+
+// ApplyClientSpecOptions embeds a ApplySpecOptions and adds additional client
+// side configuration.
+type ApplyClientSpecOptions struct {
+	ApplySpecOptions
+
+	// ExpandEnvConfigProfiles enables expansion of environment variables in
+	// configuration profiles.
+	ExpandEnvConfigProfiles bool
 }
 
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
