@@ -1,19 +1,16 @@
 import React, { useState } from "react";
 
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import getInstallScript from "utilities/software_install_scripts";
+
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
 import Graphic from "components/Graphic";
+import Editor from "components/Editor";
 
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions";
 
-import {
-  generateFormValidation,
-  getFileDetails,
-  getInstallScript,
-} from "./helpers";
+import { generateFormValidation, getFileDetails } from "./helpers";
 
 const baseClass = "add-software-form";
 
@@ -93,7 +90,7 @@ const AddSoftwareForm = ({
       const newData = {
         ...formData,
         software: file,
-        installScript: getInstallScript(file),
+        installScript: getInstallScript(file.name),
       };
       setFormData(newData);
       setFormValidation(
@@ -180,13 +177,15 @@ const AddSoftwareForm = ({
             }
           />
           {formData.software && (
-            <InputField
-              value={formData.installScript}
+            <Editor
+              wrapEnabled
+              maxLines={10}
+              name="install-script"
               onChange={onChangeInstallScript}
-              name="install script"
-              label="Install script"
-              tooltip="For security agents, add the script provided by the vendor."
+              value={formData.installScript}
               helpText="Fleet will run this command on hosts to install software."
+              label="Install script"
+              labelTooltip="For security agents, add the script provided by the vendor."
             />
           )}
           <AddSoftwareAdvancedOptions

@@ -13,8 +13,6 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
-import IconCell from "pages/SoftwarePage/components/IconCell";
-
 import VersionCell from "../../components/VersionCell";
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 
@@ -23,10 +21,6 @@ import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 
 type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
-type ISoftwarePackageCellProps = CellProps<
-  ISoftwareTitle,
-  ISoftwareTitle["software_package"]
->;
 type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
 type IVulnerabilitiesCellProps = IVersionsCellProps;
 type IHostCountCellProps = CellProps<
@@ -69,7 +63,7 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
+        const { id, name, source, software_package } = cellProps.row.original;
 
         const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
         const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
@@ -82,6 +76,7 @@ const generateTableHeaders = (
             source={source}
             path={softwareTitleDetailsPath}
             router={router}
+            hasPackage={Boolean(software_package)}
           />
         );
       },

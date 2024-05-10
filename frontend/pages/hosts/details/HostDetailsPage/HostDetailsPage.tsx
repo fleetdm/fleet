@@ -97,12 +97,10 @@ import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
-  route: RouteProps;
   router: InjectedRouter; // v3
   location: {
     pathname: string;
     query: {
-      vulnerable?: string;
       page?: string;
       query?: string;
       order_key?: string;

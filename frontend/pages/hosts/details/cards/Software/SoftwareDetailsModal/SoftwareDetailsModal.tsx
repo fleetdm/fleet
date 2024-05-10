@@ -32,7 +32,7 @@ const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
 interface ISoftwareDetailsInfoProps {
   installedVersion: ISoftwareInstallVersion;
   source: string;
-  bundleIdentifier: string;
+  bundleIdentifier?: string;
 }
 
 const SoftwareDetailsInfo = ({
@@ -40,12 +40,16 @@ const SoftwareDetailsInfo = ({
   source,
   bundleIdentifier,
 }: ISoftwareDetailsInfoProps) => {
+  const { vulnerabilities } = installedVersion;
+
   return (
     <div className={`${baseClass}__details-info`}>
       <div className={`${baseClass}__row`}>
         <DataSet title="Version" value={installedVersion.version} />
         <DataSet title="Type" value={formatSoftwareType({ source })} />
-        <DataSet title="Bundle identifier" value={bundleIdentifier} />
+        {bundleIdentifier && (
+          <DataSet title="Bundle identifier" value={bundleIdentifier} />
+        )}
         {installedVersion.last_opened_at && (
           <DataSet
             title="Last used"
@@ -56,17 +60,23 @@ const SoftwareDetailsInfo = ({
       <div className={`${baseClass}__row`}>
         <DataSet
           title="File path"
-          value={installedVersion.installed_paths.map((path) => (
-            <>{path}</>
-          ))}
+          value={
+            <div className={`${baseClass}__file-path-values`}>
+              {installedVersion.installed_paths.map((path) => (
+                <span key={path}>{path}</span>
+              ))}
+            </div>
+          }
         />
       </div>
-      <div className={`${baseClass}__row`}>
-        <DataSet
-          title="Vulnerabilities"
-          value={generateVulnerabilitiesValue(installedVersion.vulnerabilities)}
-        />
-      </div>
+      {vulnerabilities && vulnerabilities.length !== 0 && (
+        <div className={`${baseClass}__row`}>
+          <DataSet
+            title="Vulnerabilities"
+            value={generateVulnerabilitiesValue(vulnerabilities)}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -81,38 +91,54 @@ const SoftwareDetailsModal = ({
   onExit,
 }: ISoftwareDetailsModalProps) => {
   const renderSoftwareDetails = () => {
-    if (
-      !software.installed_versions ||
-      software.installed_versions.length === 0
-    ) {
-      return null;
-    }
+    const { installed_versions } = software;
 
-    return software.installed_versions.map((installedVersion) => {
+    // special case when we dont have installed versions. We can only show the
+    // software type atm.
+    if (!installed_versions || installed_versions.length === 0) {
       return (
-        <SoftwareDetailsInfo
-          key={installedVersion.version}
-          installedVersion={installedVersion}
-          source={software.source}
-          bundleIdentifier={software.bundle_identifier}
+        <DataSet
+          title="Type"
+          value={formatSoftwareType({ source: software.source })}
         />
       );
-    });
+    }
+
+    return (
+      <div className={`${baseClass}__software-details`}>
+        {installed_versions.map((installedVersion) => {
+          return (
+            <SoftwareDetailsInfo
+              key={installedVersion.version}
+              installedVersion={installedVersion}
+              source={software.source}
+              bundleIdentifier={software.bundle_identifier}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderTabs = () => {
+    return (
+      <TabsWrapper>
+        <Tabs>
+          <TabList>
+            <Tab>Software details</Tab>
+            <Tab>Install Details</Tab>
+          </TabList>
+          <TabPanel>{renderSoftwareDetails()}</TabPanel>
+          <TabPanel>test 2</TabPanel>
+        </Tabs>
+      </TabsWrapper>
+    );
   };
 
   return (
     <Modal title={software.name} className={baseClass} onExit={onExit}>
       <>
-        <TabsWrapper>
-          <Tabs>
-            <TabList>
-              <Tab>Software details</Tab>
-              <Tab>Install Details</Tab>
-            </TabList>
-            <TabPanel>{renderSoftwareDetails()}</TabPanel>
-            <TabPanel>test 2</TabPanel>
-          </Tabs>
-        </TabsWrapper>
+        {software.last_install ? renderTabs() : renderSoftwareDetails()}
         <div className="modal-cta-wrap">
           <Button type="submit" variant="brand" onClick={onExit}>
             Done
