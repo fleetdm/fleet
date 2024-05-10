@@ -108,25 +108,14 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
-	// get the software installer to have its team id
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, id)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// couldn't get the metadata to have its team, authorize with a no-team
-			// as a fallback - the requested installer does not exist so there's
-			// no way to know what team it would be for, and returning a 404 without
-			// authorization would leak the existing/non existing ids.
-			if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{}, fleet.ActionWrite); err != nil {
-				return err
-			}
-			return ctxerr.Wrap(ctx, err, "getting software installer metadata")
-		}
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
 	}
 
-	// do the actual authorization with the software installer's team id
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: meta.TeamID}, fleet.ActionWrite); err != nil {
-		return err
+	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -134,7 +123,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.ds.DeleteSoftwareInstaller(ctx, id); err != nil {
+	if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting software installer")
 	}
 
@@ -159,28 +148,21 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	return nil
 }
 
-func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, installerID uint) (*fleet.SoftwareInstaller, error) {
-	// first do a basic authorization check, any logged in user can read teams
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	// get the installer's metadata
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
+	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
-	}
-
-	// authorize with the software installer's team id
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: meta.TeamID}, fleet.ActionRead); err != nil {
-		return nil, err
 	}
 
 	return meta, nil
 }
 
-func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
-	meta, err := svc.GetSoftwareInstallerMetadata(ctx, installerID)
+func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	meta, err := svc.GetSoftwareInstallerMetadata(ctx, titleID, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +173,6 @@ func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, installerID u
 func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
-
-	// TODO: confirm error handling
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
