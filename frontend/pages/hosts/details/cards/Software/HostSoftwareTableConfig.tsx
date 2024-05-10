@@ -5,7 +5,7 @@ import { cloneDeep } from "lodash";
 
 import {
   IHostSoftware,
-  ISoftwareInstallStatus,
+  SoftwareInstallStatus,
   formatSoftwareType,
 } from "interfaces/software";
 import {
@@ -49,7 +49,7 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
 const generateActions = (
   softwareId: number,
-  status: ISoftwareInstallStatus | null,
+  status: SoftwareInstallStatus | null,
   installingSoftwareId: number | null,
   canInstall: boolean,
   packageToInstall?: string | null

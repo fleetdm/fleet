@@ -1,6 +1,6 @@
 import React, { ReactNode } from "react";
 
-import { ISoftwareInstallStatus } from "interfaces/software";
+import { SoftwareInstallStatus } from "interfaces/software";
 import { dateAgo } from "utilities/date_format";
 
 import Icon from "components/Icon";
@@ -9,7 +9,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 
 const baseClass = "install-status-cell";
 
-type IStatusValue = ISoftwareInstallStatus | "avaiableForInstall";
+type IStatusValue = SoftwareInstallStatus | "avaiableForInstall";
 
 type IStatusDisplayConfig = {
   iconName: "success" | "pending-outline" | "error" | "install";
@@ -56,7 +56,7 @@ const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
 };
 
 interface IInstallStatusCellProps {
-  status: ISoftwareInstallStatus | null;
+  status: SoftwareInstallStatus | null;
   packageToInstall?: string | null;
   installedAt?: string;
 }
