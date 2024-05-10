@@ -92,7 +92,7 @@ const PackageStatusCount = ({
 interface ISoftwarePackageCardProps {
   softwarePackage: ISoftwarePackage;
   softwareId: number;
-  teamId?: number;
+  teamId: number;
 }
 
 const SoftwarePackageCard = ({
@@ -125,7 +125,7 @@ const SoftwarePackageCard = ({
 
   const downloadUrl = `/api${endpoints.SOFTWARE_PACKAGE(
     softwareId
-  )}?${buildQueryStringFromParams({ alt: "media" })}`;
+  )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
 
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
@@ -201,6 +201,7 @@ const SoftwarePackageCard = ({
       {showDeleteModal && (
         <DeleteSoftwareModal
           softwareId={softwareId}
+          teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
         />
       )}
