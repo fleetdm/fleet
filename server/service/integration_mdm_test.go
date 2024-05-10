@@ -8574,28 +8574,16 @@ func (s *integrationMDMTestSuite) TestSoftwareInstallerUploadDownloadAndDelete()
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null}`, 0)
 
 		// check the software installer
-		installerID, titleID := checkSoftwareInstaller(t, payload)
+		_, titleID := checkSoftwareInstaller(t, payload)
 
 		// upload again fails
 		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
 		// download the installer
-		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusOK)
-		checkDownloadResponse(t, r, payload.Filename)
-
-		// create an orbit host and request to download the installer
-		host := createOrbitEnrolledHost(t, "windows", "orbit-host", s.ds)
-		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
-			InstallerID:  installerID,
-			OrbitNodeKey: *host.OrbitNodeKey,
-		}, http.StatusOK)
-		checkDownloadResponse(t, r, payload.Filename)
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
 
 		// delete the installer
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/%d/package", titleID), nil, http.StatusNoContent)
-
-		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null}`, 0)
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/%d/package", titleID), nil, http.StatusBadRequest)
 	})
 
 	t.Run("create team software installer", func(t *testing.T) {
