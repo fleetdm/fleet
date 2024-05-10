@@ -63,7 +63,7 @@ const SoftwareDetailsInfo = ({
           value={
             <div className={`${baseClass}__file-path-values`}>
               {installedVersion.installed_paths.map((path) => (
-                <span>{path}</span>
+                <span key={path}>{path}</span>
               ))}
             </div>
           }
