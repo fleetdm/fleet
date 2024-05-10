@@ -106,7 +106,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareTitleIDFilter != nil {
 		var err error
 
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, nil)
+		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
