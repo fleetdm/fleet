@@ -8474,7 +8474,6 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 
-	// Create a host and a couple of profiles
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	ident := uuid.NewString()
@@ -8521,7 +8520,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
 	}))
 
-	// Check that the profile is marked as verified when fetching the host
+	// Check that the profile is marked as failed when fetching the host
 	getHostResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
