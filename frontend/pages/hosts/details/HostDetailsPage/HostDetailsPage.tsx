@@ -31,7 +31,7 @@ import {
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import { ISoftware } from "interfaces/software";
+import Software, { IHostSoftware, ISoftware } from "interfaces/software";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import {
@@ -92,6 +92,7 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
+import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 
 const baseClass = "host-details";
 
@@ -129,13 +130,11 @@ interface IHostDetailsSubNavItem {
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
 
 const HostDetailsPage = ({
-  route,
   router,
   location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
-  const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
 
   const {
@@ -178,14 +177,16 @@ const HostDetailsPage = ({
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [packsState, setPackState] = useState<IPackStats[]>();
-  const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
-  const [pathname, setPathname] = useState("");
   const [
     hostMdmDeviceStatus,
     setHostMdmDeviceState,
   ] = useState<HostMdmDeviceStatusUIState>("unlocked");
+  const [
+    selectedSoftwareDetails,
+    setSelectedSoftwareDetails,
+  ] = useState<IHostSoftware | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -334,7 +335,6 @@ const HostDetailsPage = ({
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
         setSchedule(schedule);
         if (returnedHost.pack_stats) {
@@ -461,11 +461,6 @@ const HostDetailsPage = ({
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
-
-  // Used for back to software pathname
-  useEffect(() => {
-    setPathname(location.pathname + location.search);
-  }, [location]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -855,15 +850,14 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <SoftwareCard
-                isLoading={isLoadingHost}
-                software={hostSoftware}
+                id={host.id}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
-                deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
                 queryParams={queryParams}
-                routeTemplate={routeTemplate}
-                pathname={pathname}
-                pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
+                pathname={location.pathname}
+                onShowSoftwareDetails={(software) =>
+                  setSelectedSoftwareDetails(software)
+                }
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -1008,6 +1002,12 @@ const HostDetailsPage = ({
             hostName={host.display_name}
             onSuccess={() => setHostMdmDeviceState("wiping")}
             onClose={() => setShowWipeModal(false)}
+          />
+        )}
+        {selectedSoftwareDetails && (
+          <SoftwareDetailsModal
+            software={selectedSoftwareDetails}
+            onExit={() => setSelectedSoftwareDetails(null)}
           />
         )}
       </>

@@ -4,7 +4,7 @@ import { useQuery } from "react-query";
 import {
   ISoftwareInstallResult,
   ISoftwareInstallResults,
-  SoftwareInstallStatus,
+  ISoftwareInstallStatus,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
@@ -18,13 +18,13 @@ import { IconNames } from "components/icons";
 
 const baseClass = "software-install-details";
 
-const STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
+const STATUS_ICONS: Record<ISoftwareInstallStatus, IconNames> = {
   pending: "pending-outline",
   installed: "success-outline",
   failed: "error-outline",
 } as const;
 
-const STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
+const STATUS_PREDICATES: Record<ISoftwareInstallStatus, string> = {
   pending: "will install",
   installed: "installed",
   failed: "failed to install",

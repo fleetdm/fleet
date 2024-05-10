@@ -138,7 +138,7 @@ export const formatSoftwareType = ({
   browser,
 }: {
   source: string;
-  browser: string;
+  browser?: string;
 }) => {
   let type = SOURCE_TYPE_CONVERSION[source] || "Unknown";
   if (browser) {
@@ -188,4 +188,31 @@ export interface ISoftwareInstallResult {
 
 export interface ISoftwareInstallResults {
   results: ISoftwareInstallResult;
+}
+
+// ISoftwareInstallerType defines the supported installer types for
+// software uploaded by the IT admin.
+export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "exe";
+
+export interface ISoftwareLastInstall {
+  install_uuid: string;
+  installed_at: string;
+}
+
+export interface ISoftwareInstallVersion {
+  version: string;
+  last_opened_at: string | null;
+  vulnerabilities: string[];
+  installed_paths: string[];
+}
+
+export interface IHostSoftware {
+  id: number;
+  name: string;
+  package_available_for_install: string | null;
+  source: string;
+  bundle_identifier: string;
+  status: SoftwareInstallStatus | null;
+  last_install: ISoftwareLastInstall | null;
+  installed_versions: ISoftwareInstallVersion[] | null;
 }

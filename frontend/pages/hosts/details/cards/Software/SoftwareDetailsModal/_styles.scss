@@ -1,0 +1,12 @@
+.software-details-modal {
+  &__details-info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__row {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+}

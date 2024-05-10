@@ -334,7 +334,7 @@ const DeviceUserPage = ({
 
     return (
       <div className="core-wrapper">
-        {isLoadingHost ? (
+        {!host || isLoadingHost ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>
@@ -406,15 +406,11 @@ const DeviceUserPage = ({
                 </TabPanel>
                 <TabPanel>
                   <SoftwareCard
+                    id={deviceAuthToken}
                     router={router}
-                    isLoading={isLoadingHost}
-                    software={host?.software ?? []}
-                    deviceUser
                     pathname={location.pathname}
-                    pathPrefix={PATHS.DEVICE_USER_DETAILS_SOFTWARE(
-                      deviceAuthToken
-                    )}
                     queryParams={queryParams}
+                    isMyDevicePage
                   />
                 </TabPanel>
                 {isPremiumTier && (
