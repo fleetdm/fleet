@@ -148,17 +148,29 @@ export const formatSoftwareType = ({
   }
   return type;
 };
-/*
- * SoftwareInstallStatus represents the possible states of software install operations.
- *
- */
-export type ISoftwareInstallStatus = "pending" | "installed" | "failed";
 
 /**
- *
+ * This list comprises all possible states of software install operations.
+ */
+export const SOFTWARE_INSTALL_STATUSES = [
+  "failed",
+  "installed",
+  "pending",
+] as const;
+
+/*
+ * SoftwareInstallStatus represents the possible states of software install operations.
+ */
+export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
+
+export const isValidSoftwareInstallStatus = (
+  s: string | undefined
+): s is SoftwareInstallStatus =>
+  !!s && SOFTWARE_INSTALL_STATUSES.includes(s as SoftwareInstallStatus);
+
+/**
  * ISoftwareInstallResult is the shape of a software install result object
  * returned by the Fleet API.
- *
  */
 export interface ISoftwareInstallResult {
   install_uuid: string;
@@ -167,7 +179,7 @@ export interface ISoftwareInstallResult {
   software_package: string;
   host_id: number;
   host_display_name: string;
-  status: ISoftwareInstallStatus;
+  status: SoftwareInstallStatus;
   detail: string;
   output: string;
   pre_install_query_output: string;
@@ -200,7 +212,7 @@ export interface IHostSoftware {
   package_available_for_install?: string | null;
   source: string;
   bundle_identifier?: string;
-  status: ISoftwareInstallStatus | null;
+  status: SoftwareInstallStatus | null;
   last_install: ISoftwareLastInstall | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
