@@ -123,7 +123,7 @@ module.exports = {
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
               headers: baseHeadersForGithubRequests,
             }).intercept((err)=>{
-              return new Error(`When validating users in standard-query-library.yml, an error when a request was sent to GitHub get the information about a user (username: ${username}). Error: ${err}`);
+              return new Error(`When validating users in standard-query-library.yml, an error when a request was sent to GitHub get the information about a user (username: ${username}). Error: ${err.stack}`);
             });
           });//∞
           // Now expand queries with relevant profile data for the contributors.
