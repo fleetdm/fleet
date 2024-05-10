@@ -7892,13 +7892,14 @@ _Available in Fleet Premium_
 
 Download software package.
 
-`GET /api/v1/fleet/software/package/:id?alt=media`
+`GET /api/v1/fleet/software/package/:software_title_id?alt=media`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | **Required**. The ID of the software title to download software package.|
+| software_title_id              | integer | path | **Required**. The ID of the software title to download software package.|
+| team_id | integer | form | The team ID. If specified, downloads software package uploaded to the specified team. If not specified, downloads the package added to "No team" (team_id: 0). |
 | alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software package. |
 
 #### Example
@@ -7929,7 +7930,8 @@ Delete software package.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | **Required**. The ID of the software title to delete software package. |
+| software_title_id              | integer | path | **Required**. The ID of the software title to delete the software package. |
+| team_id | integer | form | The team ID. If specified, deletes software package uploaded to the specified team. If not specified, deletes the package added to "No team" (team_id: 0). |
 
 #### Example
 
