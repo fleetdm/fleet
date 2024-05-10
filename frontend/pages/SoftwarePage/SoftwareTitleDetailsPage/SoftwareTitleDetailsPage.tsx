@@ -149,13 +149,15 @@ const SoftwareTitleDetailsPage = ({
               name={softwareTitle.name}
               source={softwareTitle.source}
             />
-            {showPackageCard && softwareTitle.software_package && (
-              <SoftwarePackageCard
-                softwarePackage={softwareTitle.software_package}
-                softwareId={softwareId}
-                teamId={currentTeamId}
-              />
-            )}
+            {showPackageCard &&
+              softwareTitle.software_package &&
+              currentTeamId && (
+                <SoftwarePackageCard
+                  softwarePackage={softwareTitle.software_package}
+                  softwareId={softwareId}
+                  teamId={currentTeamId}
+                />
+              )}
             <Card
               borderRadiusSize="large"
               includeShadow

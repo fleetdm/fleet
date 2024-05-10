@@ -10,18 +10,20 @@ const baseClass = "delete-software-modal";
 
 interface IDeleteSoftwareModalProps {
   softwareId: number;
+  teamId: number;
   onExit: () => void;
 }
 
 const DeleteSoftwareModal = ({
   softwareId,
+  teamId,
   onExit,
 }: IDeleteSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const onDeleteSoftware = async () => {
     try {
-      await softwareAPI.deleteSoftwarePackage(softwareId);
+      await softwareAPI.deleteSoftwarePackage(softwareId, teamId);
       renderFlash("success", "Software deleted successfully!");
     } catch {
       renderFlash("error", "Couldn't delete. Please try again.");

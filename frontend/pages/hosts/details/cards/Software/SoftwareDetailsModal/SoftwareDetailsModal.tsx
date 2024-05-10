@@ -59,6 +59,7 @@ const SoftwareDetailsInfo = ({
       </div>
       <div className={`${baseClass}__row`}>
         <DataSet
+          className={`${baseClass}__file-path-data-set`}
           title="File path"
           value={
             <div className={`${baseClass}__file-path-values`}>

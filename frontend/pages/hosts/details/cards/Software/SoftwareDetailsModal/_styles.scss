@@ -22,9 +22,25 @@
     gap: $pad-xxlarge;
   }
 
+  &__file-path-data-set {
+    // These following 100% widths are to make sure the text does not
+    // overflow from the modal. TODO: Need to look at DataSet component to see why
+    // it overflows.
+    width: 100%;
+    min-width: auto;
+  }
+
   &__file-path-values {
     display: flex;
     flex-direction: column;
     gap: $pad-small;
+    width: 100%;
+
+    > span {
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 }

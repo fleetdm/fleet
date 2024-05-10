@@ -205,17 +205,10 @@ export default {
     return sendRequest("POST", SOFTWARE_PACKAGE_ADD, formData);
   },
 
-  deleteSoftwarePackage: (softwareId: number) => {
+  deleteSoftwarePackage: (softwareId: number, teamId: number) => {
     const { SOFTWARE_PACKAGE } = endpoints;
-    return sendRequest("DELETE", SOFTWARE_PACKAGE(softwareId));
-  },
-
-  downloadSoftwarePackage: (softwareId: number) => {
-    const { SOFTWARE_PACKAGE } = endpoints;
-    const path = `${SOFTWARE_PACKAGE(softwareId)}?${buildQueryStringFromParams({
-      alt: "media",
-    })}`;
-    return sendRequest("GET", path);
+    const path = `${SOFTWARE_PACKAGE(softwareId)}?team_id=${teamId}`;
+    return sendRequest("DELETE", path);
   },
 
   getSoftwareInstallResult: (installUuid: string) => {

@@ -88,8 +88,8 @@ const AddSoftwareModal = ({
       renderFlash(
         "success",
         <>
-          {formData.software?.name} successfully added. Go to Host details page
-          to install software.
+          <b>{formData.software?.name}</b> successfully added. Go to Host
+          details page to install software.
         </>
       );
       onExit();

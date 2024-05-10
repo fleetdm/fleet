@@ -7168,7 +7168,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.Empty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch(nil, resp.SoftwareTitles)
+	softwareTitlesMatch([]fleet.SoftwareTitle{}, resp.SoftwareTitles)
 
 	// asking for vulnerable only software returns the expected values
 	resp = listSoftwareTitlesResponse{}
@@ -7202,7 +7202,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 0, resp.Count)
 	require.Empty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch(nil, resp.SoftwareTitles)
+	softwareTitlesMatch([]fleet.SoftwareTitle{}, resp.SoftwareTitles)
 
 	// add new software for tmHost
 	software = []fleet.Software{
