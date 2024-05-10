@@ -39,6 +39,10 @@ type Runner struct {
 	OsqueryClient QueryClient
 	OrbitClient   Client
 
+	// osquerySocketPaht is used to establish the osquery connection
+	// if it's ever lost or disconnected
+	osquerySocketPaht string
+
 	// tempDirFn is the function to call to get the temporary directory to use,
 	// inside of which the script-specific subdirectories will be created. If nil,
 	// the user's temp dir will be used (can be set to t.TempDir in tests).
@@ -52,21 +56,42 @@ type Runner struct {
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
 	removeAllFn func(string) error
+
+	connectOsquery func(*Runner) error
 }
 
-func NewRunner(client Client, socketPath string, timeout time.Duration) (*Runner, error) {
+func NewRunner(client Client, socketPath string, queryTimeout time.Duration) (*Runner, error) {
 	r := &Runner{
-		OrbitClient: client,
+		OrbitClient:       client,
+		osquerySocketPaht: socketPath,
 	}
-
-	osqueryClient, err := osquery.NewClient(socketPath, timeout)
-	if err != nil {
-		return nil, fmt.Errorf("creating new osquery client: %w", err)
-	}
-
-	r.OsqueryClient = osqueryClient.Client
 
 	return r, nil
+}
+
+func (r *Runner) Run(config *fleet.OrbitConfig) error {
+	if r.connectOsquery == nil {
+		r.connectOsquery = connectOsquery
+	}
+
+	if err := r.connectOsquery(r); err != nil {
+		return fmt.Errorf("software installer runner connecting to osquery: %w", err)
+	}
+	return r.run(context.Background(), config)
+}
+
+func connectOsquery(r *Runner) error {
+	if r.OsqueryClient == nil {
+		osqueryClient, err := osquery.NewClient(r.osquerySocketPaht, 2*time.Second)
+		if err != nil {
+			log.Err(err).Msg("establishing osquery connection for software install runner")
+			return err
+		}
+
+		r.OsqueryClient = osqueryClient.Client
+	}
+
+	return nil
 }
 
 func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
