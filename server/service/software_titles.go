@@ -24,7 +24,7 @@ type listSoftwareTitlesResponse struct {
 	Meta            *fleet.PaginationMetadata `json:"meta"`
 	Count           int                       `json:"count"`
 	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
-	SoftwareTitles  []fleet.SoftwareTitle     `json:"software_titles,omitempty"`
+	SoftwareTitles  []fleet.SoftwareTitle     `json:"software_titles"`
 	Err             error                     `json:"error,omitempty"`
 }
 
@@ -42,6 +42,9 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = *sw.CountsUpdatedAt
 		}
+	}
+	if len(titles) == 0 {
+		titles = []fleet.SoftwareTitle{}
 	}
 	listResp := listSoftwareTitlesResponse{
 		SoftwareTitles: titles,
