@@ -161,8 +161,3 @@ export const getFileDetails = (file: File) => {
     platform: getPlatformDisplayName(file),
   };
 };
-
-export const getInstallScript = (file: File) => {
-  // TODO: get this dynamically
-  return `sudo installer -pkg ${file.name} -target /`;
-};

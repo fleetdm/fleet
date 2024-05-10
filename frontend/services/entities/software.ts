@@ -9,11 +9,8 @@ import {
   ISoftwareTitle,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
 import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
-import {
-  createMockSoftwarePackage,
-  createMockSoftwareTitle,
-} from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -168,16 +165,7 @@ export default {
   }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
     const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
-    // return sendRequest("GET", path);
-
-    // TODO: remove when we have API ready
-    return new Promise((resolve) => {
-      resolve({
-        software_title: createMockSoftwareTitle({
-          software_package: createMockSoftwarePackage(),
-        }),
-      });
-    });
+    return sendRequest("GET", path);
   },
 
   getSoftwareVersions: (params: ISoftwareApiParams) => {

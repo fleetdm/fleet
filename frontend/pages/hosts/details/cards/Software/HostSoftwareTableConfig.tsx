@@ -5,10 +5,14 @@ import { cloneDeep } from "lodash";
 
 import {
   IHostSoftware,
-  SOURCE_TYPE_CONVERSION,
+  ISoftwareInstallStatus,
   formatSoftwareType,
 } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import {
+  IHeaderProps,
+  INumberCellProps,
+  IStringCellProps,
+} from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 
@@ -30,6 +34,7 @@ const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
+type ITableNumberCellProps = INumberCellProps<IHostSoftware>;
 type ITableStringCellProps = IStringCellProps<IHostSoftware>;
 type IInstalledStatusCellProps = CellProps<
   IHostSoftware,
@@ -43,18 +48,23 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 // type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
 
 const generateActions = (
-  packageToInstall: string | null,
   softwareId: number,
-  installingSoftwareId: number | null
+  status: ISoftwareInstallStatus | null,
+  installingSoftwareId: number | null,
+  canInstall: boolean,
+  packageToInstall?: string | null
 ) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
-  const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
+  let actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
 
-  // TODO: when do we not show the options?
+  // remove install if there is no package to install
+  if (!packageToInstall || !canInstall) {
+    actions = actions.filter((action) => action.value !== "install");
+  }
 
   // disable install option if software is already installing
-  if (softwareId === installingSoftwareId) {
+  if (softwareId === installingSoftwareId || status === "pending") {
     const installAction = actions.find((action) => action.value === "install");
     if (installAction) {
       installAction.disabled = true;
@@ -67,6 +77,7 @@ const generateActions = (
 interface ISoftwareTableHeadersProps {
   installingSoftwareId: number | null;
   onSelectAction: (software: IHostSoftware, action: string) => void;
+  canInstall: boolean;
   router: InjectedRouter;
 }
 
@@ -76,6 +87,7 @@ export const generateSoftwareTableHeaders = ({
   router,
   installingSoftwareId,
   onSelectAction,
+  canInstall,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -108,13 +120,13 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: IInstalledStatusCellProps) => {
         const { original } = cellProps.row;
         const { value } = cellProps.cell;
-        return value ? (
+        return (
           <InstallStatusCell
             status={value}
             packageToInstall={original.package_available_for_install}
             installedAt={original.last_install?.installed_at}
           />
-        ) : null;
+        );
       },
     },
     {
@@ -153,14 +165,16 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: true,
       // the accessor here is insignificant, we just need it as its required
       // but we don't use it.
-      accessor: "bundle_identifier",
-      Cell: (cellProps: ITableStringCellProps) => (
+      accessor: "id",
+      Cell: (cellProps: ITableNumberCellProps) => (
         <DropdownCell
           placeholder="Actions"
           options={generateActions(
-            cellProps.row.original.package_available_for_install,
             cellProps.row.original.id,
-            installingSoftwareId
+            cellProps.row.original.status,
+            installingSoftwareId,
+            canInstall,
+            cellProps.row.original.package_available_for_install
           )}
           onChange={(action) => onSelectAction(cellProps.row.original, action)}
         />
