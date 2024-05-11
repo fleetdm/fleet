@@ -58,7 +58,8 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID uint `query:"team_id,optional"`
+	TeamID         uint `query:"team_id,optional"`
+	MergeInherited bool `query:"merge_inherited,optional"`
 }
 
 type listQueriesResponse struct {
@@ -76,7 +77,7 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		teamID = &req.TeamID
 	}
 
-	queries, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil)
+	queries, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
@@ -90,7 +91,7 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}, nil
 }
 
-func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool) ([]*fleet.Query, error) {
+func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*fleet.Query, error) {
 	// Check the user is allowed to list queries on the given team.
 	if err := svc.authz.Authorize(ctx, &fleet.Query{
 		TeamID: teamID,
@@ -99,9 +100,10 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 	}
 
 	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
-		ListOptions: opt,
-		TeamID:      teamID,
-		IsScheduled: scheduled,
+		ListOptions:    opt,
+		TeamID:         teamID,
+		IsScheduled:    scheduled,
+		MergeInherited: mergeInherited,
 	})
 	if err != nil {
 		return nil, err
@@ -733,7 +735,7 @@ func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.QuerySpec, error) {
-	queries, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil)
+	queries, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting queries")
 	}

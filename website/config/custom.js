@@ -91,6 +91,7 @@ module.exports.custom = {
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
   // salesforceIntegrationUsername: undefined,
   // salesforceIntegrationPasskey: undefined,
+  RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.)*/,// For cleaning up LinkedIn URLs before creating CRM records.
 
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
@@ -145,11 +146,11 @@ module.exports.custom = {
     'ee/vulnerability-dashboard': 'eashaw',// (catch-all)
     'ee/vulnerability-dashboard/assets': 'eashaw',
     'ee/vulnerability-dashboard/views': 'eashaw',
-    'ee/vulnerability-dashboard/api': 'mikermcneil',//« Vulnerability dashboard backend, scripts, deps
-    'ee/vulnerability-dashboard/config': 'mikermcneil',
+    'ee/vulnerability-dashboard/api': 'eashaw',//« Vulnerability dashboard backend, scripts, deps
+    'ee/vulnerability-dashboard/config': 'eashaw',
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',//« Vulnerability dashboard redirects and URLs
-    'ee/vulnerability-dashboard/scripts': 'mikermcneil',
-    'ee/vulnerability-dashboard/package.json': 'mikermcneil',
+    'ee/vulnerability-dashboard/scripts': 'eashaw',
+    'ee/vulnerability-dashboard/package.json': 'eashaw',
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)

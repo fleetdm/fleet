@@ -14,7 +14,8 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 
 ## Responsibilities
-The Business Operations department is directly responsible for finance + invoicing, people operations, legal + deal desk, and corporate information technology (IT). 
+The Business Operations department is directly responsible for people operations, finance + invoicing, tax, compliance, and legal + deal desk.
+
 
 ### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
@@ -34,25 +35,10 @@ Recurring monthly or annual expenses, such as the tools we use throughout Fleet,
 
 > Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
 
-### Register a domain for Fleet
-Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 ### Access a background check
 Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
 
-### Secure company-issued equipment for a team member
-As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The BizOps engineer will work with the new team member to get their equipment requested and shipped to them on time.
-
-- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
-
-- Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The BizOps team can arrange for same-day pickup at a store local to the Fleetie if needed.
-  - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
-
-  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
-
-- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
-
- > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 ### Process an email from a state agency
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
@@ -107,22 +93,6 @@ For Fleet's US contractors, running payroll is a manual process:
 - Sync hours and run contractor payroll.
 
 
-### Grant role-specific license to a team member
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
-
-| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
-|:-----------------|:---|:---|:----|:---|:---|
-| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
-| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
-| ⚗️ PM             | ❌ | ❌ | ❌ | ✅ | ✅
-| ⚗️ PD             | ❌ | ❌ | ❌ | ✅ | ✅
-| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ✅
-
-> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
-
-
 ### Communicate the status of customer financial actions
 This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
 - Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
@@ -134,17 +104,6 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 - Number of customers awaiting invoices = `todo`
 - Number of past-due renewals = `todo`
 ```
-
-
-### Add a seat to Salesforce
-Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
-- Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
-- View contracts -> pick current contract.
-- Add the desired number of licenses.
-- Sign DocuSign sent to the email.
-- The order will be processed in ~30m.
-- Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
-- To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
 
 
 ### Run US commission payroll
@@ -169,7 +128,7 @@ Once notified, BizOps takes the following steps:
 - Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
 
 
-### Updating personnel details
+### Update personnel details
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
 - Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to update their personnel details (or BizOps team creates if the request comes via email or is sensitive and needs a classified issue).
   - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
@@ -303,18 +262,10 @@ Within 60 days of the end of the year, follow these steps:
   - Provide SVB with our board-approved annual operating budgets and projections (on a quarterly granularity) for the new year.
   - Deliver this as early as possible in case they have questions.
 
-### Process a tool upgrade request from a team member
-- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through ZenHub.
-- BizOps will upgrade or add the license seat as needed and let the requesting team member know they did it.
-
-### Downgrade an unused license seat
-- On the first Wednesday of every quarter, the CEO, head of BizOps and apprentice to the CEO will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
-- During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
-- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to BizOps to have their access restored.
-- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
 
 ### Process a new vendor invoice
 - After making sure that an invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
+
 
 ### Process a request to cancel a vendor
 - Make the cancellation notification in accordance with the contract terms between Fleet and the vendor, typically these notifications are made via email and may have a specific address that notice must be sent to. If the vendor has an autorenew contract with Fleet there will often be a window of time in which Fleet can cancel, if notification is made after this time period Fleet may be obligated to pay for the subsequent year even if we don't use the vendor during the next contract term.  
@@ -324,102 +275,6 @@ Within 60 days of the end of the year, follow these steps:
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
-### Fix a laptop that's not checking in
-
-It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything).  When this happens, Fleet's takes the following steps to remotely fix the laptop and get it checking in to Fleet again:
-
-1. TODO
-2. TODO
-
-### Enroll a macOS host in dogfood
-When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
-You can confirm that the device has been ordered correctly by following these steps:
-- Log into ABM
-- Use the device serial number to find the device.
-  - Note: if the device cannot be found, you will need to manually enroll the device.
-- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
-
-On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
-- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
-- If you do not have physical access to the device, the user will need to undertake the following steps:
-  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
-  - In Fleet desktop, follow the instructions to turn on MDM.
-  - Once complete, follow instructions to reset disk encryption key.
-- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
-
-### Enroll a Windows or Ubuntu Linux device in dogfood
-To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
-
-### Enroll a ChromeOS device in dogfood
-ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
-
-### Lock a macOS host in dogfood using fleetctl CLI tool
-- Download the lock command XML file from Google Drive [here](https://drive.google.com/file/d/1o6vJ1fHilRtBmyKAj0I5URiKn77qe4gS/view?usp=drive_link).
-- Customize any messaging that will appear on the locked device, and modify the pin for unlocking the device by editing the file in text editor.
-  - Note you will need to safely store the recovery pin for the device, suggest using 1Password or other secure storage method
-- Run this command with fleetctl CLI tool: `fleetctl mdm run-command --hosts=hostname --payload=Downloads/command-lock-macos-host.xml`
-  - Note that `hostname` must be replaced with **Hostname** in Fleet (not the display name)
-  - Note that the payload path may change based on where the file is stored once downloaded
-  - Note that if you haven't logged into fleetctl recently, will need to follow authentication steps (see [Logging in with SAML (SSO) authentication](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication) ).
-- Device will be locked
-- When device needs to be unlocked, enter the security pin (from XML file) in the input field of the device
-- The device will then open to the regular login screen, asking for password
-  -  If you do not have the password available, you can choose the option to enter recovery key/disk encryption key (this option might be behind `?` icon).
-  - Get disk encryption key from Fleet dogfood (using the action menu from the individual host page).
-  - Enter disk encryption key on laptop. This should prompt you to create a new password.
-- You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
-
-
-### Book an event
-The Business Operations department is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
-
-> Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
-
-<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to business-operations.rituals.yml
-
-### Create an article
-Article creation begins with creation of an issue using the "Article request" template.
-
-1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
-2. Move the issue into the "📃 Planned articles" column.
-
-
-### Review ongoing articles
-Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
--->
-
-### Order SWAG
-
-**To order T-shirts:**
-
-  - Check [Postal](https://app.postal.io/items/postals) first and see if the warehouse has enough shirts.
-  - Navigate to the [approved items page](https://app.postal.io/items/postals).
-      - Hover over the shirt design and click on the airplane.
-      - Click bulk send and choose one shirt size and the expected quantity of that particular shirt size.
-      - Make sure the address matches the expected receiving address.
-  - If the Postal warehouse can't fulfill the order or To order swag quickly: 
-      - Login to [https://www.rushordertees.com/my-account/login/) (saved in 1Password).
-      - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
-      - Order shirts based on the pre-determined number (~5% of total event attendees).
-      - Submit the order. Ensure the address matches the expected receiving address.
-
-**To order stickers:**
-
-  - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
-  - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
-  - Click on the "Fleet Device Management" brand kit and order preapproved stickers from the templates.
-  - Total sticker quantity should be ~10% of total event attendees.
-  - Complete the checkout process. Ensure the address matches the expected receiving address.
-
-**To order pens and sticky note pads**
-
-  - Pens and sticky note pads are ordered through Everything Branded.
-  - Email our sales representative Jake William (saved in 1Password) to order any of the following:
-    - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
-    - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
-    - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
 
 ## Rituals
 
@@ -453,8 +308,37 @@ Please see [hanbook/business-operations#grant-role-specific-license-to-a-team me
 ##### Tools we use
 Please see [hanbook/business-operations#grant-role-specific-license-to-a-team member](https://www.fleetdm.com/handbook/business-operations#reconcile-monthly-recurring-expenses).
 
-##### Namecheap
-Please see [handbook/register-a-domain-for-fleet](https://www.fleetdm.com/handbook/business-operations#register-a-domain-for-fleet).
+##### Secure company-issued equipment for a team member
+Please see [handbook/engineering#secure-company-issued-equipment-for-a-team-member](https://www.fleetdm.com/handbook/engineering#secure-company-issued-equipment-for-a-team-member).
+
+##### Register a domain for Fleet
+Please see [handbook/register-a-domain-for-fleet](https://www.fleetdm.com/handbook/engineering#register-a-domain-for-fleet).
+
+##### Updating personnel details
+Please see [handbook/engineering#update-personnel-details](https://www.fleetdm.com/handbook/engineering#update-personnel-details).
+
+##### Fix a laptop that's not checking in
+Please see [handbook/engineering#fix-a-laptop-thats-not-checking-in](https://www.fleetdm.com/handbook/engineering#fix-a-laptop-thats-not-checking-in)
+
+##### Enroll a macOS host in dogfood
+Please see [handbook/engineering#enroll-a-macos-host-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-macos-host-in-dogfood)
+
+##### Enroll a Windows or Ubuntu Linux device in dogfood
+Please see [handbook/engineering#enroll-a-windows-or-ubuntu-linux-device-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-windows-or-ubuntu-linux-device-in-dogfood)
+
+##### Enroll a ChromeOS device in dogfood
+Please see [handbook/engineering#enroll-a-chromeos-device-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-chromeos-device-in-dogfood)
+
+##### Lock a macOS host in dogfood using fleetctl CLI tool
+Please see [handbook/engineering#lock-a-macos-host-in-dogfood-using-fleetctl-cli-tool](https://www.fleetdm.com/handbook/engineering#lock-a-macos-host-in-dogfood-using-fleetctl-cli-tool)
+
+##### Book an event
+Please see [handbook/engineering#book-an-event](https://www.fleetdm.com/handbook/engineering#book-an-event)
+
+##### Order SWAG
+Please see [handbook/engineering#order-swag](https://www.fleetdm.com/handbook/engineering#order-swag)
+
+
 
 <meta name="maintainedBy" value="jostableford">
 <meta name="title" value="🔦 Business Operations">

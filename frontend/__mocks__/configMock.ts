@@ -14,6 +14,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     deferred_save_host: false,
     query_reports_disabled: false,
     scripts_disabled: false,
+    ai_features_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,

@@ -119,7 +119,7 @@ fleetctl generate mdm-apple --email <email> --org <org>
 ### Step 2: renew APNs certificate
 
 1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com) using the same Apple ID you used to get your original APNs certificate.
-2. Click **Renew** next to the expired certificate. 
+2. Click **Renew** next to your certificate (make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet). 
 3. Upload your CSR.
 4. Download the new APNs certificate.
 

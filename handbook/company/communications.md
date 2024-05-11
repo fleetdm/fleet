@@ -146,7 +146,7 @@ In an all-remote company, "face time" matters. Remember: even if someone's calen
 #### Schedule time with the CEO
 All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
 
-> **Note:** Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
+> Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
 
 To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=custom-request.md&title=%7BMeeting%20request%3A%20) at-mentioning the [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
@@ -750,9 +750,12 @@ When _receiving_ feedback:
 
 
 ## Equipment
-Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
+Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. 
 
-If you are in need of additional equipment for any reason, [contact the Business Operations department](https://fleetdm.com/handbook/business-operations#contact-us). When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+### Requesting new equipment
+As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
+
+If you are in need of additional equipment for any reason, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
 - **Tracking equipment:** When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
@@ -761,6 +764,9 @@ If you are in need of additional equipment for any reason, [contact the Business
 - **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
+
+### Requesting IT support
+If you are in need of IT support to assist with a software or hardware issue, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). A Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
 
 ## Writing
 Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more.
@@ -836,10 +842,10 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - ***Struggling with this?*** It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
 
 #### Capitalization and proper nouns
-- **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management."
-- **Fleet the product:** We say either “Fleet” or “Fleet for osquery.”
-- **Core team members:** Team members who've signed an NDA employment agreement, are “Fleeties.”
-- **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).  
+- **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
+- **Fleet the product:** We always say “Fleet” or “Fleet for osquery".  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
+- **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “fleeties".
+- **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.
 - **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
 

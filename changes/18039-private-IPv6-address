@@ -1,0 +1,1 @@
+Fixed ingestion of private IPv6 address from agent. Host details page can now display private IPv6 address if private IPv4 does not exist.

@@ -971,7 +971,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -988,6 +988,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
