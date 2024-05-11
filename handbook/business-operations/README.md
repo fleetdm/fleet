@@ -110,7 +110,7 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
   - If there are any quarterly accelerators due for the teammate receiving commission, ensure the individual total includes both the monthly and the quarterly amount.
 - After the amounts are approved in the meeting, process the commission payroll.
   - Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
-- Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid. 
+- Once commission payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid. 
 
 
 ### Run quarterly or annual employee bonus payroll
@@ -121,7 +121,7 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 - After the amounts are approved in the meeting, process the bonus payroll.
   - Use the off-cycle payroll option in Gusto and be sure to classify the payment as "Bonus".
   - For international teammates, you may need to use the "Help" function, or email support to notify Plane of the amount needing to be paid.
-- Once bonus payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the bonus as paid. 
+- Once bonus payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the bonus as paid. 
 
 
 ### Convert a Fleetie to a consultant
