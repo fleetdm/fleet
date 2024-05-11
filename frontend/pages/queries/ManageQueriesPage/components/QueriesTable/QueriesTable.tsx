@@ -94,17 +94,28 @@ const QueriesTable = ({
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
+  // const initialSearchQuery = queryParams?.query ?? "";
   const initialSortHeader = (() =>
     (queryParams?.order_key as "name" | "updated_at" | "author") ??
     DEFAULT_SORT_HEADER)();
+  // const initialSortHeader =
+  //   (queryParams?.order_key as "name" | "updated_at" | "author") ??
+  //   DEFAULT_SORT_HEADER;
+  // const initialSortDirection =
+  //   (queryParams?.order_direction as "asc" | "desc") ?? DEFAULT_SORT_DIRECTION;
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
   const initialPlatform = (() =>
     (queryParams?.platform as "all" | "windows" | "linux" | "darwin") ??
     DEFAULT_PLATFORM)();
+  // const initialPlatform =
+  //   (queryParams?.platform as "all" | "windows" | "linux" | "darwin") ??
+  //   DEFAULT_PLATFORM;
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
+  // const initialPage =
+  //   queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
 
   // Source of truth is state held within TableContainer. That state is initialized using URL
   // params, then subsquent updates to that state are pushed to the URL.

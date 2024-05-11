@@ -159,6 +159,7 @@ const TableContainer = <T,>({
   disableTableHeader,
   show0Count,
 }: ITableContainerProps<T>) => {
+  console.log("filters to TableContainer: ", filters);
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
@@ -215,10 +216,6 @@ const TableContainer = <T,>({
       onPaginationChange(0);
     }
   }, [resetPageIndex, pageIndex, isClientSidePagination]);
-
-  const onResultsCountChange = useCallback((resultsCount: number) => {
-    setClientFilterCount(resultsCount);
-  }, []);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -448,7 +445,7 @@ const TableContainer = <T,>({
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
                 onClickRow={onClickRow}
-                onResultsCountChange={onResultsCountChange}
+                onResultsCountChange={setClientFilterCount}
                 isClientSidePagination={isClientSidePagination}
                 onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter={isClientSideFilter}
