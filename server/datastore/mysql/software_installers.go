@@ -197,7 +197,7 @@ SELECT
   inst.contents AS install_script,
   COALESCE(pisnt.contents, '') AS post_install_script,
   COALESCE(st.name, '') AS software_title
-FROM 
+FROM
   software_installers si
   LEFT OUTER JOIN software_titles st ON st.id = si.title_id
   LEFT OUTER JOIN
@@ -206,7 +206,7 @@ FROM
   LEFT OUTER JOIN
     script_contents pisnt
     ON pisnt.id = si.post_install_script_content_id
-WHERE 
+WHERE
   si.title_id = ? AND si.global_or_team_id = ?`
 
 	var tmID uint
@@ -314,7 +314,7 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 }
 
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	query := `
+	query := fmt.Sprintf(`
 SELECT
 	hsi.execution_id AS execution_id,
 	COALESCE(hsi.pre_install_query_output, '') AS pre_install_query_output,
@@ -324,20 +324,7 @@ SELECT
 	h.computer_name AS host_display_name,
 	st.name AS software_title,
 	st.id AS software_title_id,
-	COALESCE(CASE
-		WHEN hsi.post_install_script_exit_code IS NOT NULL AND
-			hsi.post_install_script_exit_code = 0 THEN ? -- installed
-		WHEN hsi.post_install_script_exit_code IS NOT NULL AND
-			hsi.post_install_script_exit_code != 0 THEN ? -- failed
-		WHEN hsi.install_script_exit_code IS NOT NULL AND
-			hsi.install_script_exit_code = 0 THEN ? -- installed
-		WHEN hsi.install_script_exit_code IS NOT NULL AND
-			hsi.install_script_exit_code != 0 THEN ? -- failed
-		WHEN hsi.pre_install_query_output IS NOT NULL AND
-			hsi.pre_install_query_output = '' THEN ? -- failed
-		WHEN hsi.host_id IS NOT NULL THEN ? -- pending
-		ELSE NULL -- not installed from Fleet installer
-	END, '') AS status,
+	COALESCE(%s, '') AS status,
 	si.filename AS software_package,
 	h.team_id AS host_team_id,
 	hsi.user_id AS user_id
@@ -347,11 +334,21 @@ FROM
 	JOIN software_installers si ON si.id = hsi.software_installer_id
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	hsi.execution_id = ?
-	`
+	hsi.execution_id = :execution_id
+	`, softwareInstallerHostStatusNamedQuery("hsi", ""))
+
+	stmt, args, err := sqlx.Named(query, map[string]any{
+		"execution_id":              resultsUUID,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"software_status_installed": fleet.SoftwareInstallerInstalled,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for get software install results")
+	}
 
 	var dest fleet.HostSoftwareInstallerResult
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, fleet.SoftwareInstallerInstalled, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerInstalled, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerFailed, fleet.SoftwareInstallerPending, resultsUUID)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostSoftwareInstallerResult"), "get host software installer results")
@@ -362,42 +359,18 @@ WHERE
 	return &dest, nil
 }
 
-func tmplNamedSQLCaseHostSoftwareInstallStatus(alias string) string {
-	return fmt.Sprintf(`
-	CASE WHEN %[1]s.post_install_script_exit_code IS NOT NULL
-		AND %[1]s.post_install_script_exit_code = 0 THEN
-		:installed
-	WHEN %[1]s.post_install_script_exit_code IS NOT NULL
-		AND %[1]s.post_install_script_exit_code != 0 THEN
-		:failed
-	WHEN %[1]s.install_script_exit_code IS NOT NULL
-		AND %[1]s.install_script_exit_code = 0 THEN
-		:installed
-	WHEN %[1]s.install_script_exit_code IS NOT NULL
-		AND %[1]s.install_script_exit_code != 0 THEN
-		:failed
-	WHEN %[1]s.pre_install_query_output IS NOT NULL
-		AND %[1]s.pre_install_query_output = '' THEN
-		:failed
-	WHEN %[1]s.host_id IS NOT NULL THEN
-		:pending
-	ELSE
-		NULL -- not installed from Fleet installer
-	END`, alias)
-}
-
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
 
 	stmt := fmt.Sprintf(`
 SELECT
-	COALESCE(SUM( IF(status = :pending, 1, 0)), 0) AS pending,
-	COALESCE(SUM( IF(status = :failed, 1, 0)), 0) AS failed,
-	COALESCE(SUM( IF(status = :installed, 1, 0)), 0) AS installed
+	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
+	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
 SELECT
 	software_installer_id,
-	%s AS status
+	%s
 FROM
 	host_software_installs hsi
 WHERE
@@ -406,16 +379,16 @@ WHERE
 		SELECT
 			max(id) -- ensure we use only the most recently created install attempt for each host
 			FROM host_software_installs
-		WHERE 
+		WHERE
 			software_installer_id = :installer_id
 		GROUP BY
-			host_id)) s`, tmplNamedSQLCaseHostSoftwareInstallStatus("hsi"))
+			host_id)) s`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"installer_id": installerID,
-		"pending":      fleet.SoftwareInstallerPending,
-		"failed":       fleet.SoftwareInstallerFailed,
-		"installed":    fleet.SoftwareInstallerInstalled,
+		"installer_id":              installerID,
+		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_installed": fleet.SoftwareInstallerInstalled,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host software installs: named query")
@@ -446,14 +419,14 @@ WHERE
 		GROUP BY
 			host_id, software_installer_id)
 	AND (%s) = :status) hss ON hss.host_id = h.id
-`, tmplNamedSQLCaseHostSoftwareInstallStatus("hsi"))
+`, softwareInstallerHostStatusNamedQuery("hsi", ""))
 
 	return sqlx.Named(stmt, map[string]interface{}{
-		"status":       status,
-		"installer_id": installerID,
-		"installed":    fleet.SoftwareInstallerInstalled,
-		"failed":       fleet.SoftwareInstallerFailed,
-		"pending":      fleet.SoftwareInstallerPending,
+		"status":                    status,
+		"installer_id":              installerID,
+		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_pending":   fleet.SoftwareInstallerPending,
 	})
 }
 
