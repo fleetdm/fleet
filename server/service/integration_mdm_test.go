@@ -9050,7 +9050,8 @@ func (s *integrationMDMTestSuite) TestBatchSetSoftwareInstallers() {
 		require.NoError(t, err)
 		defer file.Close()
 		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
-		io.Copy(w, file)
+		_, err = io.Copy(w, file)
+		require.NoError(t, err)
 	})
 
 	srv := httptest.NewServer(handler)
