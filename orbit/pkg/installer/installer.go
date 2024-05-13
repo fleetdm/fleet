@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"github.com/osquery/osquery-go"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
 	"github.com/rs/zerolog/log"
@@ -103,7 +102,7 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 				errs = append(errs, err)
 			}
 			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
-				errs = append(errs, ctxerr.Wrap(ctx, err, "saving software install results"))
+				errs = append(errs, fmt.Errorf("saving software install results: %w", err))
 			}
 		}
 	}
@@ -117,7 +116,7 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, string, error) {
 	res, err := r.OsqueryClient.Query(ctx, query)
 	if err != nil {
-		return false, "", ctxerr.Wrap(ctx, err, "precondition check")
+		return false, "", fmt.Errorf("precondition check: %w", err)
 	}
 
 	if res.Status == nil {
@@ -126,11 +125,11 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 
 	response, err := json.Marshal(res.Response)
 	if err != nil {
-		return false, "", ctxerr.Wrap(ctx, err, "marshalling query response")
+		return false, "", fmt.Errorf("marshalling query response: %w", err)
 	}
 
 	if res.Status.Code != 0 {
-		return false, string(response), ctxerr.Wrap(ctx, fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message))
+		return false, string(response), fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message)
 	}
 
 	if len(res.Response) == 0 {
@@ -143,7 +142,7 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.HostSoftwareInstallResultPayload, error) {
 	installer, err := r.OrbitClient.GetInstallerDetails(installId)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetching software installer details")
+		return nil, fmt.Errorf("fetching software installer details: %w", err)
 	}
 
 	payload := &fleet.HostSoftwareInstallResultPayload{}
@@ -158,16 +157,6 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 
 	if !shouldInstall {
 		return payload, nil
-	}
-
-	installScript, err := r.OrbitClient.GetHostScript(installer.InstallScript)
-	if err != nil {
-		return payload, err
-	}
-
-	postInstallScript, err := r.OrbitClient.GetHostScript(installer.PostInstallScript)
-	if err != nil {
-		return payload, err
 	}
 
 	if r.tempDirFn == nil {
@@ -191,14 +180,14 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 		}
 	}()
 
-	installOutput, installExitCode, err := r.runInstallerScript(ctx, installScript, installerPath)
+	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath)
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
 		return payload, err
 	}
 
-	postOutput, postExitCode, err := r.runInstallerScript(ctx, postInstallScript, installerPath)
+	postOutput, postExitCode, err := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath)
 	payload.PostInstallScriptOutput = &postOutput
 	payload.PostInstallScriptExitCode = &postExitCode
 	if err != nil {
@@ -208,12 +197,12 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 	return payload, nil
 }
 
-func (r *Runner) runInstallerScript(ctx context.Context, script *fleet.HostScriptResult, installerPath string) (string, int, error) {
+func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string) (string, int, error) {
 	// run script in installer directory
 	installerDir := filepath.Dir(installerPath)
-	scriptPath := filepath.Join(installerDir, strconv.Itoa(int(script.ID)))
-	if err := os.WriteFile(scriptPath, []byte(script.ScriptContents), constant.DefaultFileMode); err != nil {
-		return "", -1, ctxerr.Wrap(ctx, err, "writing script")
+	scriptPath := filepath.Join(installerDir, uuid.NewString())
+	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
+		return "", -1, fmt.Errorf("writing script: %w", err)
 	}
 
 	if r.execCmdFn == nil {
