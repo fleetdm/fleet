@@ -221,7 +221,7 @@ module.exports.custom = {
     'website/api/controllers/imagine': ['eashaw', 'mike-j-thomas'],// landing pages
 
     // 🫧 Vulnerability dashboard
-    'ee/vulnerability-dashboard': ['easahw', 'mikermcneil'],// (catch-all)
+    'ee/vulnerability-dashboard': ['eashaw', 'mikermcneil'],// (catch-all)
     'ee/vulnerability-dashboard/assets': 'eashaw',
     'ee/vulnerability-dashboard/views': 'eashaw',
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
