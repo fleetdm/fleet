@@ -83,6 +83,10 @@ func (ds *Datastore) ListSoftwareTitles(
 		opt.ListOptions.OrderDirection = fleet.OrderDescending
 	}
 
+	if opt.AvailableForInstall && opt.VulnerableOnly {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "available_for_install and vulnerable can't be provided together")
+	}
+
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args := selectSoftwareTitlesSQL(opt)
 	// build the count statement before adding the pagination constraints to `getTitlesStmt`
@@ -204,10 +208,8 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 %s
 -- placeholder for optional extra WHERE filter
 WHERE %s
-AND (
-	sthc.hosts_count > 0 OR
-	EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?)
-)
+-- placeholder for filter based on software installed on hosts + software installers
+AND (%s)
 GROUP BY st.id`
 
 	cveJoinType := "LEFT"
@@ -242,9 +244,29 @@ GROUP BY st.id`
 		match = likePattern(match)
 		args = append(args, match, match)
 	}
+
+	defaultFilter := `
+	  EXISTS (
+	    SELECT 1
+	    FROM
+	      software_installers si
+	    WHERE
+	      si.title_id = st.id
+	      AND si.global_or_team_id = ?
+	  )
+	`
+
+	// add software installed for hosts if any of this is true:
+	//
+	// - we're not filtering for "available for install" only
+	// - we're filtering by vulnerable only
+	if !opt.AvailableForInstall || opt.VulnerableOnly {
+		defaultFilter += `OR sthc.hosts_count > 0`
+	}
+
 	args = append(args, globalOrTeamID)
 
-	stmt = fmt.Sprintf(stmt, softwareJoin, additionalWhere)
+	stmt = fmt.Sprintf(stmt, softwareJoin, additionalWhere, defaultFilter)
 	return stmt, args
 }
 

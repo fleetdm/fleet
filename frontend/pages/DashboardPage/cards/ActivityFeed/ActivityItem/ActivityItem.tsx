@@ -16,6 +16,7 @@ import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
+import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
 
 const baseClass = "activity-item";
 
@@ -854,6 +855,42 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  installedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+
+    console.log("onDetailsClick", onDetailsClick);
+
+    const {
+      host_display_name: hostName,
+      software_title: title,
+      status,
+      install_uuid,
+    } = details;
+
+    return (
+      <>
+        {" "}
+        {getSoftwareInstallStatusPredicate(status)} <b>{title}</b> software on{" "}
+        <b>{hostName}</b>.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.InstalledSoftware, { install_uuid })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -1032,6 +1069,9 @@ const getDetail = (
     }
     case ActivityType.DeletedSoftware: {
       return TAGGED_TEMPLATES.deletedSoftware(activity);
+    }
+    case ActivityType.InstalledSoftware: {
+      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
     }
 
     default: {

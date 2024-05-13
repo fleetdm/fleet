@@ -185,20 +185,30 @@ WHERE
 func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT
-	id,
-	team_id,
-	title_id,
-	storage_id,
-	filename,
-	version,
-	install_script_content_id,
-	pre_install_query,
-	post_install_script_content_id,
-	uploaded_at
+  si.id,
+  si.team_id,
+  si.title_id,
+  si.storage_id,
+  si.filename,
+  si.version,
+  si.install_script_content_id,
+  si.pre_install_query,
+  si.post_install_script_content_id,
+  si.uploaded_at,
+  inst.contents AS install_script,
+  COALESCE(pisnt.contents, '') AS post_install_script,
+  COALESCE(st.name, '') AS software_title
 FROM 
-	software_installers
+  software_installers si
+  LEFT OUTER JOIN software_titles st ON st.id = si.title_id
+  LEFT OUTER JOIN
+    script_contents inst
+    ON inst.id = si.install_script_content_id
+  LEFT OUTER JOIN
+    script_contents pisnt
+    ON pisnt.id = si.post_install_script_content_id
 WHERE 
-	title_id = ? AND global_or_team_id = ?`
+  si.title_id = ? AND si.global_or_team_id = ?`
 
 	var tmID uint
 	if teamID != nil {

@@ -116,7 +116,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 type deleteSoftwareInstallerRequest struct {
-	ID uint `url:"id"`
+	TeamID  *uint `query:"team_id"`
+	TitleID uint  `url:"title_id"`
 }
 
 type deleteSoftwareInstallerResponse struct {
@@ -128,14 +129,14 @@ func (r deleteSoftwareInstallerResponse) Status() int  { return http.StatusNoCon
 
 func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteSoftwareInstallerRequest)
-	err := svc.DeleteSoftwareInstaller(ctx, req.ID)
+	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID)
 	if err != nil {
 		return deleteSoftwareInstallerResponse{Err: err}, nil
 	}
 	return deleteSoftwareInstallerResponse{}, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -144,8 +145,9 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 }
 
 type getSoftwareInstallerRequest struct {
-	Alt         string `query:"alt,optional"`
-	InstallerID uint   `url:"id"`
+	Alt     string `query:"alt,optional"`
+	TeamID  *uint  `query:"team_id"`
+	TitleID uint   `url:"title_id"`
 }
 
 type getSoftwareInstallerResponse struct {
@@ -164,7 +166,7 @@ func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc 
 		return getSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
 	}
 
-	payload, err := svc.DownloadSoftwareInstaller(ctx, req.InstallerID)
+	payload, err := svc.DownloadSoftwareInstaller(ctx, req.TitleID, req.TeamID)
 	if err != nil {
 		return downloadSoftwareInstallerResponse{Err: err}, nil
 	}
@@ -172,7 +174,7 @@ func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc 
 	return downloadSoftwareInstallerResponse{payload: payload}, nil
 }
 
-func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -203,7 +205,7 @@ func (r downloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w h
 	r.payload.Installer.Close()
 }
 
-func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, id uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

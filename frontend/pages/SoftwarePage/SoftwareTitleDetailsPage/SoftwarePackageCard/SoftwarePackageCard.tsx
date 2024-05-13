@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 
 import endpoints from "utilities/endpoints";
-import software, { ISoftwarePackage } from "interfaces/software";
+import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -20,7 +20,6 @@ import AdvancedOptionsModal from "../AdvancedOptionsModal";
 
 const baseClass = "software-package-card";
 
-type IPackageInstallStatus = "installed" | "pending" | "failed";
 interface IStatusDisplayOption {
   displayName: string;
   iconName: "success" | "pending-outline" | "error";
@@ -28,7 +27,7 @@ interface IStatusDisplayOption {
 }
 
 const STATUS_DISPLAY_OPTIONS: Record<
-  IPackageInstallStatus,
+  SoftwareInstallStatus,
   IStatusDisplayOption
 > = {
   installed: {
@@ -50,7 +49,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
 
 interface IPackageStatusCountProps {
   softwareId: number;
-  status: IPackageInstallStatus;
+  status: SoftwareInstallStatus;
   count: number;
   teamId?: number;
 }
@@ -64,7 +63,7 @@ const PackageStatusCount = ({
   const displayData = STATUS_DISPLAY_OPTIONS[status];
   const linkUrl = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
     software_title_id: softwareId,
-    software_title_status: status,
+    software_status: status,
     team_id: teamId,
   })}`;
   return (
@@ -93,7 +92,7 @@ const PackageStatusCount = ({
 interface ISoftwarePackageCardProps {
   softwarePackage: ISoftwarePackage;
   softwareId: number;
-  teamId?: number;
+  teamId: number;
 }
 
 const SoftwarePackageCard = ({
@@ -117,10 +116,6 @@ const SoftwarePackageCard = ({
     setShowAdvancedOptionsModal(true);
   };
 
-  const onDownloadClick = () => {
-    console.log("Download clicked");
-  };
-
   const onDeleteClick = () => {
     setShowDeleteModal(true);
   };
@@ -130,7 +125,7 @@ const SoftwarePackageCard = ({
 
   const downloadUrl = `/api${endpoints.SOFTWARE_PACKAGE(
     softwareId
-  )}?${buildQueryStringFromParams({ alt: "media" })}`;
+  )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
 
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
@@ -206,6 +201,7 @@ const SoftwarePackageCard = ({
       {showDeleteModal && (
         <DeleteSoftwareModal
           softwareId={softwareId}
+          teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
         />
       )}

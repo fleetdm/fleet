@@ -5,17 +5,12 @@ import endpoints from "utilities/endpoints";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
-  IGetSoftwareByIdResponse,
   ISoftwareVersion,
   ISoftwareTitle,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
 import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
-import {
-  createMockSoftwarePackage,
-  createMockSoftwareTitle,
-  createMockSoftwareTitleResponse,
-} from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -170,16 +165,7 @@ export default {
   }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
     const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
-    // return sendRequest("GET", path);
-
-    // TODO: remove when we have API ready
-    return new Promise((resolve) => {
-      resolve({
-        software_title: createMockSoftwareTitle({
-          software_package: createMockSoftwarePackage(),
-        }),
-      });
-    });
+    return sendRequest("GET", path);
   },
 
   getSoftwareVersions: (params: ISoftwareApiParams) => {
@@ -219,16 +205,15 @@ export default {
     return sendRequest("POST", SOFTWARE_PACKAGE_ADD, formData);
   },
 
-  deleteSoftwarePackage: (softwareId: number) => {
+  deleteSoftwarePackage: (softwareId: number, teamId: number) => {
     const { SOFTWARE_PACKAGE } = endpoints;
-    return sendRequest("DELETE", SOFTWARE_PACKAGE(softwareId));
+    const path = `${SOFTWARE_PACKAGE(softwareId)}?team_id=${teamId}`;
+    return sendRequest("DELETE", path);
   },
 
-  downloadSoftwarePackage: (softwareId: number) => {
-    const { SOFTWARE_PACKAGE } = endpoints;
-    const path = `${SOFTWARE_PACKAGE(softwareId)}?${buildQueryStringFromParams({
-      alt: "media",
-    })}`;
+  getSoftwareInstallResult: (installUuid: string) => {
+    const { SOFTWARE_INSTALL_RESULTS } = endpoints;
+    const path = SOFTWARE_INSTALL_RESULTS(installUuid);
     return sendRequest("GET", path);
   },
 };
