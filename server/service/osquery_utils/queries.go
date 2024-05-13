@@ -282,6 +282,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"osquery_info": {
 		Query: "select * from osquery_info limit 1",
@@ -349,6 +350,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
 		Query: `
@@ -883,6 +885,7 @@ var scheduledQueryStats = DetailQuery{
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule`,
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
+	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 }
 
 var softwareLinux = DetailQuery{
