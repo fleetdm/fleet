@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/google/uuid"
 	"github.com/osquery/osquery-go"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
 	"github.com/rs/zerolog/log"
@@ -24,7 +23,6 @@ type QueryResponseStatus = osquery_gen.ExtensionStatus
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.
 type Client interface {
-	GetHostScript(execID string) (*fleet.HostScriptResult, error)
 	GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error)
 	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
@@ -59,13 +57,13 @@ type Runner struct {
 	connectOsquery func(*Runner) error
 }
 
-func NewRunner(client Client, socketPath string, queryTimeout time.Duration) (*Runner, error) {
+func NewRunner(client Client, socketPath string, queryTimeout time.Duration, scriptsEnabled func() bool) *Runner {
 	r := &Runner{
 		OrbitClient:       client,
 		osquerySocketPaht: socketPath,
 	}
 
-	return r, nil
+	return r
 }
 
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
@@ -180,14 +178,14 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 		}
 	}()
 
-	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath)
+	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script")
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
 		return payload, err
 	}
 
-	postOutput, postExitCode, err := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath)
+	postOutput, postExitCode, err := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script")
 	payload.PostInstallScriptOutput = &postOutput
 	payload.PostInstallScriptExitCode = &postExitCode
 	if err != nil {
@@ -197,10 +195,10 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 	return payload, nil
 }
 
-func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string) (string, int, error) {
+func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string, fileName string) (string, int, error) {
 	// run script in installer directory
 	installerDir := filepath.Dir(installerPath)
-	scriptPath := filepath.Join(installerDir, uuid.NewString())
+	scriptPath := filepath.Join(installerDir, fileName)
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
 		return "", -1, fmt.Errorf("writing script: %w", err)
 	}

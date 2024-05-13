@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,10 +19,6 @@ type TestOrbitClient struct {
 	downloadInstallerFn   func(uint, string) (string, error)
 	getInstallerDetailsFn func(string) (*fleet.SoftwareInstallDetails, error)
 	saveInstallerResultFn func(*fleet.HostSoftwareInstallResultPayload) error
-}
-
-func (oc *TestOrbitClient) GetHostScript(scriptID string) (*fleet.HostScriptResult, error) {
-	return oc.getHostScriptFn(scriptID)
 }
 
 func (oc *TestOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
@@ -64,13 +59,9 @@ func TestRunInstallScript(t *testing.T) {
 	installerDir := t.TempDir()
 	installerPath := filepath.Join(installerDir, "installer.pkg")
 
-	output, exitCode, err := r.runInstallerScript(context.Background(), &fleet.HostScriptResult{
-		ID:             12,
-		ExecutionID:    "55",
-		ScriptContents: "hello",
-	}, installerPath)
+	output, exitCode, err := r.runInstallerScript(context.Background(), "hello", installerPath, "foo")
 
-	require.Equal(t, executedScriptPath, filepath.Join(installerDir, "12"))
+	require.Equal(t, executedScriptPath, filepath.Join(installerDir, "foo"))
 	require.Contains(t, executedScriptPath, installerDir)
 	require.True(t, executed)
 
@@ -141,20 +132,6 @@ func TestPreconditionCheck(t *testing.T) {
 func TestInstallerRun(t *testing.T) {
 	oc := &TestOrbitClient{}
 
-	var getHostScriptFnCalled bool
-	var hostScriptsRequested []string
-	getHostScriptDefaultFn := func(scriptID string) (*fleet.HostScriptResult, error) {
-		getHostScriptFnCalled = true
-		hostScriptsRequested = append(hostScriptsRequested, scriptID)
-		id, err := strconv.Atoi(strings.ReplaceAll(scriptID, "script", ""))
-		require.NoError(t, err, "test internal scriptID (string) to script id (int)")
-		return &fleet.HostScriptResult{
-			ID:             uint(id),
-			ScriptContents: scriptID,
-		}, nil
-	}
-	oc.getHostScriptFn = getHostScriptDefaultFn
-
 	var getInstallerDetailsFnCalled bool
 	var installIdRequested string
 	installDetails := &fleet.SoftwareInstallDetails{
@@ -185,9 +162,6 @@ func TestInstallerRun(t *testing.T) {
 	}
 
 	resetTestOrbitClient := func() {
-		getHostScriptFnCalled = false
-		hostScriptsRequested = nil
-		oc.getHostScriptFn = getHostScriptDefaultFn
 		getInstallerDetailsFnCalled = false
 		installIdRequested = ""
 		oc.getInstallerDetailsFn = getInstallerDetailsDefaultFn
@@ -310,8 +284,8 @@ func TestInstallerRun(t *testing.T) {
 		require.True(t, tmpDirFnCalled)
 
 		require.True(t, execCalled)
-		require.Contains(t, executedScripts, filepath.Join(tmpDir, "1"))
-		require.Contains(t, executedScripts, filepath.Join(tmpDir, "2"))
+		require.Contains(t, executedScripts, filepath.Join(tmpDir, "install-script"))
+		require.Contains(t, executedScripts, filepath.Join(tmpDir, "post-install-script"))
 		require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, strconv.Itoa(int(installDetails.InstallerID))+".pkg"))
 
 		require.True(t, queryFnCalled)
@@ -328,10 +302,6 @@ func TestInstallerRun(t *testing.T) {
 
 		require.True(t, getInstallerDetailsFnCalled)
 		require.Equal(t, installDetails.ExecutionID, installIdRequested)
-
-		require.True(t, getHostScriptFnCalled)
-		require.Contains(t, hostScriptsRequested, installDetails.InstallScript)
-		require.Contains(t, hostScriptsRequested, installDetails.PostInstallScript)
 	})
 
 	t.Run("precondition negative", func(t *testing.T) {

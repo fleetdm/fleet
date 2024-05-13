@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
@@ -1147,6 +1148,9 @@ func main() {
 				}
 			}
 		}
+
+		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), 1*time.Minute, scriptsEnabledFn)
+		orbitClient.RegisterConfigReceiver(softwareRunner)
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
