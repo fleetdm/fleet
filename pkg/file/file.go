@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 )
@@ -83,4 +84,10 @@ func Exists(path string) (bool, error) {
 	}
 
 	return info.Mode().IsRegular(), nil
+}
+
+// Dos2UnixNewlines takes a string containing Windows-style newlines (\r\n) and
+// converts them to Unix-style newlines (\n). It returns the converted string.
+func Dos2UnixNewlines(s string) string {
+	return strings.ReplaceAll(s, "\r\n", "\n")
 }

@@ -137,3 +137,45 @@ func TestExtractInstallerMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestDos2UnixNewlines(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "No newlines",
+			input:    "Hello World",
+			expected: "Hello World",
+		},
+		{
+			name:     "Single Windows newline",
+			input:    "Hello\r\nWorld",
+			expected: "Hello\nWorld",
+		},
+		{
+			name:     "Multiple Windows newlines",
+			input:    "Hello\r\nWorld\r\nTest",
+			expected: "Hello\nWorld\nTest",
+		},
+		{
+			name:     "Mixed newlines",
+			input:    "Hello\r\nWorld\nTest",
+			expected: "Hello\nWorld\nTest",
+		},
+		{
+			name:     "All unix",
+			input:    "Hello\nWorld\nTest",
+			expected: "Hello\nWorld\nTest",
+		},
+	}
+
+	// Execute each test case
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := file.Dos2UnixNewlines(tc.input)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
