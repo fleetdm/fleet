@@ -212,8 +212,9 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 		case <-oc.ReceiverUpdateContext.Done():
 			return nil
 		case <-ticker.C:
-			err := oc.RunConfigReceivers()
-			log.Error().Err(err).Msg("running config receivers")
+			if err := oc.RunConfigReceivers(); err != nil {
+				log.Error().Err(err).Msg("running config receivers")
+			}
 		}
 	}
 }
