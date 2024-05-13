@@ -138,19 +138,32 @@ const SoftwarePackageCard = ({
 
   const onDownloadClick = useCallback(async () => {
     try {
-      const content = await softwareAPI.downloadSoftwarePackage(
+      const resp = await softwareAPI.downloadSoftwarePackage(
         softwareId,
         teamId
       );
-      console.log("content length", content.length);
+      const contentLength = parseInt(resp.headers["content-length"], 10);
+      if (contentLength !== resp.data.size) {
+        throw new Error(
+          `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
+        );
+      }
       const filename = softwarePackage.name;
-      const file = new File([content], filename, {
+      const file = new File([resp.data], filename, {
         type: "application/octet-stream",
       });
+      if (file.size === 0) {
+        throw new Error("Downloaded file is empty");
+      }
+      if (file.size !== resp.data.size) {
+        throw new Error(
+          `File size (${file.size}) does not match expected size (${resp.data.size})`
+        );
+      }
       FileSaver.saveAs(file);
     } catch (e) {
       console.log(e);
-      renderFlash("error", "Couldn’t Download. Please try again.");
+      renderFlash("error", "Couldn’t download. Please try again.");
     }
   }, [renderFlash, softwareId, softwarePackage.name, teamId]);
 
