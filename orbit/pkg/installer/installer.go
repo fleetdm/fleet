@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/osquery/osquery-go"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
 	"github.com/rs/zerolog/log"
@@ -55,12 +56,15 @@ type Runner struct {
 	removeAllFn func(string) error
 
 	connectOsquery func(*Runner) error
+
+	scriptsEnabled func() bool
 }
 
 func NewRunner(client Client, socketPath string, queryTimeout time.Duration, scriptsEnabled func() bool) *Runner {
 	r := &Runner{
 		OrbitClient:       client,
 		osquerySocketPaht: socketPath,
+		scriptsEnabled:    scriptsEnabled,
 	}
 
 	return r
@@ -144,8 +148,14 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 	}
 
 	payload := &fleet.HostSoftwareInstallResultPayload{}
-
 	payload.InstallUUID = installId
+
+	if !r.scriptsEnabled() {
+		// fleetctl knows that -2 means script was disabled on host
+		payload.InstallScriptExitCode = ptr.Int(-2)
+		payload.InstallScriptOutput = ptr.String("Scripts are disabled")
+		return payload, nil
+	}
 
 	shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
 	payload.PreInstallConditionOutput = &output

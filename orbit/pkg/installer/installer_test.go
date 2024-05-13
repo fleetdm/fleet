@@ -10,12 +10,12 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
 	"github.com/stretchr/testify/require"
 )
 
 type TestOrbitClient struct {
-	getHostScriptFn       func(string) (*fleet.HostScriptResult, error)
 	downloadInstallerFn   func(uint, string) (string, error)
 	getInstallerDetailsFn func(string) (*fleet.SoftwareInstallDetails, error)
 	saveInstallerResultFn func(*fleet.HostSoftwareInstallResultPayload) error
@@ -43,7 +43,7 @@ func (qc *TestQueryClient) Query(ctx context.Context, query string) (*QueryRespo
 
 func TestRunInstallScript(t *testing.T) {
 	oc := &TestOrbitClient{}
-	r := Runner{OrbitClient: oc}
+	r := Runner{OrbitClient: oc, scriptsEnabled: func() bool { return true }}
 
 	var executedScriptPath string
 	var executed bool
@@ -73,7 +73,7 @@ func TestRunInstallScript(t *testing.T) {
 
 func TestPreconditionCheck(t *testing.T) {
 	qc := &TestQueryClient{}
-	r := &Runner{OsqueryClient: qc}
+	r := &Runner{OsqueryClient: qc, scriptsEnabled: func() bool { return true }}
 
 	qc.queryFn = func(ctx context.Context, s string) (*QueryResponse, error) {
 		qr := &QueryResponse{
@@ -211,8 +211,9 @@ func TestInstallerRun(t *testing.T) {
 	}
 
 	r := &Runner{
-		OrbitClient:   oc,
-		OsqueryClient: q,
+		OrbitClient:    oc,
+		OsqueryClient:  q,
+		scriptsEnabled: func() bool { return true },
 	}
 
 	var execCalled bool
@@ -370,4 +371,40 @@ func TestInstallerRun(t *testing.T) {
 		require.Equal(t, 1, *savedInstallerResult.PostInstallScriptExitCode)
 		require.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
 	})
+}
+
+func TestScriptsDisabled(t *testing.T) {
+	oc := &TestOrbitClient{}
+	qc := &TestQueryClient{}
+	r := &Runner{
+		OrbitClient:    oc,
+		OsqueryClient:  qc,
+		scriptsEnabled: func() bool { return false },
+	}
+
+	var getInstallerDetailsFnCalled bool
+	var installIdRequested string
+	installDetails := &fleet.SoftwareInstallDetails{
+		ExecutionID:         "exec1",
+		InstallerID:         1337,
+		PreInstallCondition: "SELECT 1",
+		InstallScript:       "script1",
+		PostInstallScript:   "script2",
+	}
+	getInstallerDetailsDefaultFn := func(installID string) (*fleet.SoftwareInstallDetails, error) {
+		getInstallerDetailsFnCalled = true
+		installIdRequested = installID
+		return installDetails, nil
+	}
+	oc.getInstallerDetailsFn = getInstallerDetailsDefaultFn
+
+	out, err := r.installSoftware(context.Background(), "1")
+	require.NoError(t, err)
+	require.EqualValues(t, &fleet.HostSoftwareInstallResultPayload{
+		InstallUUID:           "1",
+		InstallScriptExitCode: ptr.Int(-2),
+		InstallScriptOutput:   ptr.String("Scripts are disabled"),
+	}, out)
+	require.True(t, getInstallerDetailsFnCalled)
+	require.Equal(t, "1", installIdRequested)
 }
