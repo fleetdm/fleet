@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/osquery/osquery-go"
@@ -201,11 +202,20 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 	}
 
 	if installer.PostInstallScript != "" {
-		postOutput, postExitCode, err := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script")
+		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script")
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
-		if err != nil {
-			return payload, err
+
+		if postErr != nil || postExitCode == -1 {
+			log.Info().Msgf("installation of %s failed, attempting rollback. Exit code: %d, error: %s", installerPath, postExitCode, postErr)
+			uninstallScript := file.GetRemoveScript(installerPath)
+			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath, "rollback-script")
+			log.Info().Msgf(
+				"rollback staus: exit code: %d, error: %s, output: %s",
+				uninstallExitCode, uninstallErr, uninstallOutput,
+			)
+
+			return payload, postErr
 		}
 	}
 
