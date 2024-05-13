@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useCallback, useContext } from "react";
 
 import softwareAPI from "services/entities/software";
 import { NotificationContext } from "context/notification";
@@ -12,24 +12,27 @@ interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
   onExit: () => void;
+  onSuccess: () => void;
 }
 
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
   onExit,
+  onSuccess,
 }: IDeleteSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const onDeleteSoftware = async () => {
+  const onDeleteSoftware = useCallback(async () => {
     try {
       await softwareAPI.deleteSoftwarePackage(softwareId, teamId);
       renderFlash("success", "Software deleted successfully!");
+      onSuccess();
     } catch {
       renderFlash("error", "Couldn't delete. Please try again.");
     }
     onExit();
-  };
+  }, [softwareId, teamId, renderFlash, onSuccess, onExit]);
 
   return (
     <Modal className={baseClass} title="Delete software" onExit={onExit}>

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 
 import endpoints from "utilities/endpoints";
 import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
@@ -93,12 +93,14 @@ interface ISoftwarePackageCardProps {
   softwarePackage: ISoftwarePackage;
   softwareId: number;
   teamId: number;
+  onDelete: () => void;
 }
 
 const SoftwarePackageCard = ({
   softwarePackage,
   softwareId,
   teamId,
+  onDelete,
 }: ISoftwarePackageCardProps) => {
   const {
     isGlobalAdmin,
@@ -119,6 +121,11 @@ const SoftwarePackageCard = ({
   const onDeleteClick = () => {
     setShowDeleteModal(true);
   };
+
+  const onSuccess = useCallback(() => {
+    setShowDeleteModal(false);
+    onDelete();
+  }, [onDelete]);
 
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -203,6 +210,7 @@ const SoftwarePackageCard = ({
           softwareId={softwareId}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
+          onSuccess={onSuccess}
         />
       )}
     </Card>
