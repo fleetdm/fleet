@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -2941,9 +2940,7 @@ func ReconcileAppleProfiles(
 		})
 	}
 
-	slog.With("filename", "server/service/apple_mdm.go", "func", "ReconcileAppleProfiles").Info("JVE_LOG: is this thing on???\n\n\n ", "profilesToRemove", toRemove, "profilesToInstall", toInstall)
 	for _, p := range toRemove {
-		slog.With("filename", "server/service/apple_mdm.go", "func", "ReconcileAppleProfiles").Info("JVE_LOG: profiles to remove \n\n\n ", "profile", p.CommandUUID, "name", p.ProfileName, "status", p.Status, "operation", p.OperationType)
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
@@ -2952,9 +2949,6 @@ func ReconcileAppleProfiles(
 		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed && p.OperationType == fleet.MDMOperationTypeInstall {
 			// then we shouldn't send an additional remove command since it failed to install on the
 			// host.
-
-			slog.With("filename", "server/service/apple_mdm.go", "func", "ReconcileAppleProfiles").Info("JVE_LOG: removing failed install profile \n\n\n ", "profile", p.CommandUUID, "name", p.ProfileName)
-
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
 		}
