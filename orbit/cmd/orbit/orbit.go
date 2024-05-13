@@ -1036,6 +1036,12 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
+		installerRunner, error := installer.NewRunner(orbitClient, r.ExtensionSocketPath())
+		if err != nil {
+			return fmt.Errorf("create installerRunner: %w", err)
+		}
+		orbitClient.RegisterConfigReceiver(installerRunner)
+
 		// rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string
 		checkerClient, err := service.NewOrbitClient(
 			c.String("root-dir"),

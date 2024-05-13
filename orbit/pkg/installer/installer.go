@@ -60,7 +60,7 @@ type Runner struct {
 	scriptsEnabled func() bool
 }
 
-func NewRunner(client Client, socketPath string, queryTimeout time.Duration, scriptsEnabled func() bool) *Runner {
+func NewRunner(client Client, socketPath string, scriptsEnabled func() bool) *Runner {
 	r := &Runner{
 		OrbitClient:       client,
 		osquerySocketPaht: socketPath,
