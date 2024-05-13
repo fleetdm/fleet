@@ -8683,7 +8683,19 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	t := s.T()
 
 	token := "good_token"
-	host := createHostAndDeviceToken(t, s.ds, token)
+	host := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	// no software yet
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 0)
+
+	var getDeviceSw getDeviceSoftwareResponse
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	err := json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 0)
 
 	// create some software for that host
 	software := []fleet.Software{
@@ -8691,20 +8703,20 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.1", Source: "apps"},
 	}
-	_, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	err = s.ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
-	var getHostSw getHostSoftwareResponse
+	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 2) // foo and bar
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 
-	var getDeviceSw getDeviceSoftwareResponse
-	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 2) // foo and bar
@@ -8712,19 +8724,84 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 
+	// create a software installer, not installed on the host
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+	// available installer is returned by user-authenticated endpoint
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
+	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Equal(t, getHostSw.Software[2].Name, "ruby")
+	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
+	require.NotNil(t, getHostSw.Software[2].PackageAvailableForInstall)
+	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
+	require.Nil(t, getHostSw.Software[2].Status)
+
+	// available installer is not returned by device-authenticated endpoint
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 2) // foo and bar
+	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
+	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
+	require.Nil(t, getDeviceSw.Software[1].PackageAvailableForInstall)
+
+	// request installation on the host
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d",
+		host.ID, titleID), nil, http.StatusAccepted, &installResp)
+
+	// still returned by user-authenticated endpoint, now pending
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
+	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Equal(t, getHostSw.Software[2].Name, "ruby")
+	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
+	require.NotNil(t, getHostSw.Software[2].PackageAvailableForInstall)
+	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
+	require.NotNil(t, getHostSw.Software[2].Status)
+	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
+
+	// now returned by device-authenticated endpoin
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 3) // foo, bar and ruby
+	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Equal(t, getDeviceSw.Software[2].Name, "ruby")
+	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
+	require.Nil(t, getDeviceSw.Software[2].PackageAvailableForInstall)
+	require.NotNil(t, getDeviceSw.Software[2].Status)
+	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
+
 	// test with a query
+	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "query", "foo")
 	require.Len(t, getHostSw.Software, 1) // foo only
 	require.Equal(t, getHostSw.Software[0].Name, "foo")
 	require.Len(t, getHostSw.Software[0].InstalledVersions, 2)
+
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?query=bar", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1) // bar only
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
-
-	// TODO(mna): more advanced integration tests with Software Installers once the APIs are in place.
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
