@@ -7,10 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -76,9 +76,14 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 		}
 	}
 
+	parsedURL, err := url.Parse(path)
+	if err != nil {
+		return fmt.Errorf("parsing URL: %w", err)
+	}
+
 	request, err := http.NewRequest(
 		verb,
-		oc.url(path, "").String(),
+		oc.url(parsedURL.Path, parsedURL.RawQuery).String(),
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
@@ -326,7 +331,7 @@ func (oc *OrbitClient) GetInstallerDetails(installId string) (*fleet.SoftwareIns
 }
 
 func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
-	verb, path := "POST", "/api/fleet/orbit/software_install/details"
+	verb, path := "POST", "/api/fleet/orbit/software_install/result"
 	var resp orbitPostSoftwareInstallResultResponse
 	if err := oc.authenticatedRequest(verb, path, &orbitPostSoftwareInstallResultRequest{
 		HostSoftwareInstallResultPayload: payload,
@@ -337,32 +342,14 @@ func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallRes
 }
 
 func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirectory string) (string, error) {
-	verb, path := "POST", "/api/fleet/orbit/software_install/package"
-	var resp orbitDownloadSoftwareInstallerResponse
+	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
+	resp := FileResponse{DestPath: downloadDirectory}
 	if err := oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
 		InstallerID: installerID,
-		Alt:         "media",
 	}, &resp); err != nil {
 		return "", err
 	}
-
-	defer resp.payload.Installer.Close()
-
-	installerPath := filepath.Join(downloadDirectory, resp.payload.Filename)
-	installerFile, err := os.Create(installerPath)
-	if err != nil {
-		return "", fmt.Errorf("creating installer file: %w", err)
-	}
-
-	defer installerFile.Close()
-
-	// TODO add the ability to cancel on context timeout?
-	_, err = io.Copy(installerFile, resp.payload.Installer)
-	if err != nil {
-		return "", fmt.Errorf("copying installer from http stream to file: %w", err)
-	}
-
-	return installerPath, nil
+	return resp.GetFilePath(), nil
 }
 
 // Ping sends a ping request to the orbit/ping endpoint.

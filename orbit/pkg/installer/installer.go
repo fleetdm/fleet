@@ -157,14 +157,16 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 		return payload, nil
 	}
 
-	shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
-	payload.PreInstallConditionOutput = &output
-	if err != nil {
-		return payload, err
-	}
+	if installer.PreInstallCondition != "" {
+		shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
+		payload.PreInstallConditionOutput = &output
+		if err != nil {
+			return payload, err
+		}
 
-	if !shouldInstall {
-		return payload, nil
+		if !shouldInstall {
+			return payload, nil
+		}
 	}
 
 	if r.tempDirFn == nil {
@@ -195,11 +197,13 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 		return payload, err
 	}
 
-	postOutput, postExitCode, err := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script")
-	payload.PostInstallScriptOutput = &postOutput
-	payload.PostInstallScriptExitCode = &postExitCode
-	if err != nil {
-		return payload, err
+	if installer.PostInstallScript != "" {
+		postOutput, postExitCode, err := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script")
+		payload.PostInstallScriptOutput = &postOutput
+		payload.PostInstallScriptExitCode = &postExitCode
+		if err != nil {
+			return payload, err
+		}
 	}
 
 	return payload, nil

@@ -769,21 +769,7 @@ func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-// Download Orbit software installer request
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitDownloadSoftwareInstallerRequest struct {
-	Alt          string `query:"alt"`
-	OrbitNodeKey string `json:"orbit_node_key"`
-	InstallerID  uint   `json:"installer_id"`
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitDownloadSoftwareInstallerRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-// interface implementation required by orbit authentication
 func (r *orbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
@@ -826,6 +812,21 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 	return details, nil
 }
 
+// Download Orbit software installer request
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitDownloadSoftwareInstallerRequest struct {
+	Alt          string `query:"alt"`
+	OrbitNodeKey string `json:"orbit_node_key"`
+	InstallerID  uint   `json:"installer_id"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitDownloadSoftwareInstallerRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
 func (r *orbitDownloadSoftwareInstallerRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
