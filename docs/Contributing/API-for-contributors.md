@@ -2430,6 +2430,7 @@ Lists the software installed on the current device.
 
 ```json
 {
+  "count": 2,
   "software": [
     {
       "id": 121,
