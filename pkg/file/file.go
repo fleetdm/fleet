@@ -148,7 +148,7 @@ func ExtractFilenameFromURLPath(p string, defaultExtension string) string {
 	}
 
 	if _, ok := invalid[path.Ext(b)]; ok {
-		return b + defaultExtension
+		return fmt.Sprintf("%s.%s", b, defaultExtension)
 	}
 
 	return b

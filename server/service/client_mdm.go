@@ -180,7 +180,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 
 	// if it fails, try to extract it from the URL
 	if filename == "" {
-		filename = file.ExtractFilenameFromURLPath(pkgURL, ".pkg")
+		filename = file.ExtractFilenameFromURLPath(pkgURL, "pkg")
 	}
 
 	// if all else fails, use a default name

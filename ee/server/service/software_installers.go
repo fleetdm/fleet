@@ -31,7 +31,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.addMetadataToSoftwarePayload(ctx, payload); err != nil {
+	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
@@ -310,24 +310,24 @@ func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoft
 	return nil
 }
 
-func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (extension string, err error) {
 	if payload == nil {
-		return ctxerr.New(ctx, "payload is required")
+		return "", ctxerr.New(ctx, "payload is required")
 	}
 
 	if payload.InstallerFile == nil {
-		return ctxerr.New(ctx, "installer file is required")
+		return "", ctxerr.New(ctx, "installer file is required")
 	}
 
 	title, vers, ext, hash, err := file.ExtractInstallerMetadata(payload.InstallerFile)
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
-			return &fleet.BadRequestError{
+			return "", &fleet.BadRequestError{
 				Message:     "The file should be .pkg, .msi, .exe or .deb.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
-		return ctxerr.Wrap(ctx, err, "extracting metadata from installer")
+		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 	payload.Title = title
 	payload.Version = vers
@@ -335,7 +335,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	// reset the reade (it was consumed to extract metadata)
 	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
-		return ctxerr.Wrap(ctx, err, "resetting installer file reader")
+		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
 	}
 
 	if payload.InstallScript == "" {
@@ -344,11 +344,11 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	source, err := fleet.SofwareInstallerSourceFromExtension(ext)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "determining source from extension")
+		return "", ctxerr.Wrap(ctx, err, "determining source from extension")
 	}
 	payload.Source = source
 
-	return nil
+	return ext, nil
 }
 
 const maxInstallerSizeBytes int64 = 1024 * 1024 * 500
@@ -375,8 +375,6 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 	g, workerCtx := errgroup.WithContext(ctx)
 	g.SetLimit(3)
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
-	// any duplicate name in the provided set results in an error
-	// byName := make(map[string]bool, len(payloads))
 
 	for i, p := range payloads {
 		i, p := i, p
@@ -386,7 +384,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 			client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
 			req, err := http.NewRequestWithContext(workerCtx, http.MethodGet, p.URL, nil)
 			if err != nil {
-				return err
+				return ctxerr.Wrapf(ctx, err, "creating request for URL %s", p.URL)
 			}
 
 			resp, err := client.Do(req)
@@ -398,7 +396,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 					)
 				}
 
-				return err
+				return ctxerr.Wrapf(ctx, err, "performing request for URL %s", p.URL)
 			}
 			defer resp.Body.Close()
 
@@ -429,6 +427,19 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				return ctxerr.Wrapf(ctx, err, "reading installer %q contents", p.URL)
 			}
 
+			installer := &fleet.UploadSoftwareInstallerPayload{
+				TeamID:            &tm.ID,
+				InstallScript:     p.InstallScript,
+				PreInstallQuery:   p.PreInstallQuery,
+				PostInstallScript: p.PostInstallScript,
+				InstallerFile:     bytes.NewReader(bodyBytes),
+			}
+
+			ext, err := svc.addMetadataToSoftwarePayload(ctx, installer)
+			if err != nil {
+				return err
+			}
+
 			var filename string
 			cdh, ok := resp.Header["Content-Disposition"]
 			if ok && len(cdh) > 0 {
@@ -437,25 +448,15 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 					filename = params["filename"]
 				}
 			}
-
-			// TODO: use payload fields to figure out the right extension
 			// if it fails, try to extract it from the URL
 			if filename == "" {
-				filename = file.ExtractFilenameFromURLPath(p.URL, ".pkg")
+				filename = file.ExtractFilenameFromURLPath(p.URL, ext)
 			}
-
-			installer := &fleet.UploadSoftwareInstallerPayload{
-				Filename:          filename,
-				TeamID:            &tm.ID,
-				InstallScript:     p.InstallScript,
-				PreInstallQuery:   p.PreInstallQuery,
-				PostInstallScript: p.PostInstallScript,
-				InstallerFile:     bytes.NewReader(bodyBytes),
+			// if empty, resort to a default name
+			if filename == "" {
+				filename = fmt.Sprintf("package.%s", ext)
 			}
-
-			if err := svc.addMetadataToSoftwarePayload(ctx, installer); err != nil {
-				return err
-			}
+			installer.Filename = filename
 
 			installers[i] = installer
 
@@ -475,7 +476,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 	for _, payload := range installers {
 		if err := svc.storeSoftware(ctx, payload); err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "storing software installer")
 		}
 	}
 

@@ -638,7 +638,8 @@ type Service interface {
 	// GetSoftwareInstallResults gets the results for a particular software install attempt.
 	GetSoftwareInstallResults(ctx context.Context, installUUID string) (*HostSoftwareInstallerResult, error)
 
-	// BatchSetSoftwareInstallers TODO
+	// BatchSetSoftwareInstallers replaces the software installers for a
+	// specified team
 	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) error
 
 	// /////////////////////////////////////////////////////////////////////////////

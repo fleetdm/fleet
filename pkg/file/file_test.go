@@ -158,7 +158,7 @@ func TestExtractFilenameFromURLPath(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		got := file.ExtractFilenameFromURLPath(c.in, ".pkg")
+		got := file.ExtractFilenameFromURLPath(c.in, "pkg")
 		require.Equalf(t, c.out, got, "for URL %s", c.in)
 	}
 }
