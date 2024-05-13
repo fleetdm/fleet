@@ -3689,6 +3689,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ```json
 {
+  "count": 3,
   "software": [
     {
       "id": 121,
