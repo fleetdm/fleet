@@ -17,6 +17,7 @@ import Word from "./Word";
 import Zoom from "./Zoom";
 import ChromeOS from "./ChromeOS";
 import LinuxOS from "./LinuxOS";
+// import Falcon from "./Falcon"; // TODO: Add Falcon icon svg
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
@@ -33,6 +34,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
   zoom: Zoom,
+  // falcon: Falcon,
   darwin: MacOS,
   windows: WindowsOS,
   chrome: ChromeOS,
