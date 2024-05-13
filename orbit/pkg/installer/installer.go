@@ -131,7 +131,7 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 	}
 
 	if res.Status.Code != 0 {
-		return false, string(response), fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message)
+		return false, fmt.Sprintf("osqueryd returned error (%d): %s", res.Status.Code, res.Status.Message), fmt.Errorf("non-zero query status: %d \"%s\"", res.Status.Code, res.Status.Message)
 	}
 
 	if len(res.Response) == 0 {
