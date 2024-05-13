@@ -243,4 +243,4 @@ const SoftwareCard = ({
     </Card>
   );
 };
-export default SoftwareCard;
+export default React.memo(SoftwareCard);
