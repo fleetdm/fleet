@@ -44,7 +44,7 @@ type Runner struct {
 	// tempDirFn is the function to call to get the temporary directory to use,
 	// inside of which the script-specific subdirectories will be created. If nil,
 	// the user's temp dir will be used (can be set to t.TempDir in tests).
-	tempDirFn func() string
+	tempDirFn func(dir, pattern string) (string, error)
 
 	// execCmdFn can be set for tests to mock actual execution of the script. If
 	// nil, execCmd will be used, which has a different implementation on Windows
@@ -170,9 +170,12 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 	}
 
 	if r.tempDirFn == nil {
-		r.tempDirFn = os.TempDir
+		r.tempDirFn = os.MkdirTemp
 	}
-	tmpDir := r.tempDirFn()
+	tmpDir, err := r.tempDirFn("", "")
+	if err != nil {
+		return payload, fmt.Errorf("creating temporary directory: %w", err)
+	}
 
 	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
 	if err != nil {

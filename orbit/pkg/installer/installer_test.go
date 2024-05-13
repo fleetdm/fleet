@@ -232,10 +232,10 @@ func TestInstallerRun(t *testing.T) {
 
 	var tmpDirFnCalled bool
 	var tmpDir string
-	r.tempDirFn = func() string {
+	r.tempDirFn = func(dir, pattern string) (string, error) {
 		tmpDirFnCalled = true
 		tmpDir = os.TempDir()
-		return tmpDir
+		return tmpDir, nil
 	}
 
 	var removeAllFnCalled bool
