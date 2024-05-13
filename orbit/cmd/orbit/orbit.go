@@ -1036,10 +1036,7 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		installerRunner, error := installer.NewRunner(orbitClient, r.ExtensionSocketPath())
-		if err != nil {
-			return fmt.Errorf("create installerRunner: %w", err)
-		}
+		installerRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
 		orbitClient.RegisterConfigReceiver(installerRunner)
 
 		// rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string
