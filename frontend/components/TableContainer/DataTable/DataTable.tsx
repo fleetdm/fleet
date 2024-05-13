@@ -446,7 +446,6 @@ const DataTable = ({
     "is-observer": isOnlyObserver,
   });
 
-  console.log("rows: ", rows);
   return (
     <div className={baseClass}>
       {isLoading && (

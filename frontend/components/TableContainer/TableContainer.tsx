@@ -159,7 +159,6 @@ const TableContainer = <T,>({
   disableTableHeader,
   show0Count,
 }: ITableContainerProps<T>) => {
-  console.log("filters to TableContainer: ", filters);
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
