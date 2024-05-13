@@ -357,14 +357,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	sw2Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw2)
 	require.NoError(t, err)
 
-	latestSoftwareInstallerUUID := func() string {
-		var id string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
-		})
-		return id
-	}
-
 	// create some script requests for h1
 	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
@@ -382,21 +374,18 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h1E := hsr.ExecutionID
 	// create some software installs requests for h1, make some complete
-	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID)
+	h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID)
 	require.NoError(t, err)
-	h1FooFailed := latestSoftwareInstallerUUID()
-	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID)
+	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID)
 	require.NoError(t, err)
-	h1Bar := latestSoftwareInstallerUUID()
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                    h1.ID,
 		InstallUUID:               h1FooFailed,
 		PreInstallConditionOutput: ptr.String(""), // pre-install failed
 	})
 	require.NoError(t, err)
-	err = ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID)
+	h1FooInstalled, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID)
 	require.NoError(t, err)
-	h1FooInstalled := latestSoftwareInstallerUUID()
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                    h1.ID,
 		InstallUUID:               h1FooInstalled,
@@ -404,9 +393,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		InstallScriptExitCode:     ptr.Int(0),
 	})
 	require.NoError(t, err)
-	err = ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID) // no user for this one
+	h1Foo, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID) // no user for this one
 	require.NoError(t, err)
-	h1Foo := latestSoftwareInstallerUUID()
 
 	// create a single pending request for h2, as well as a non-pending one
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
@@ -418,9 +406,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h2F := hsr.ExecutionID
 	// add a pending software install request for h2
-	err = ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID)
+	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID)
 	require.NoError(t, err)
-	h2Bar := latestSoftwareInstallerUUID()
 
 	// nothing for h3
 

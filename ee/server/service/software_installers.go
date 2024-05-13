@@ -292,7 +292,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		}
 	}
 
-	err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, installer.InstallerID)
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, installer.InstallerID)
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 

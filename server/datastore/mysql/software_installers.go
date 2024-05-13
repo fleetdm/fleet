@@ -242,7 +242,7 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	return nil
 }
 
-func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint) (string, error) {
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
@@ -259,24 +259,25 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostExists, hostExistsStmt, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return notFound("Host").WithID(hostID)
+			return "", notFound("Host").WithID(hostID)
 		}
 
-		return ctxerr.Wrap(ctx, err, "checking if host exists")
+		return "", ctxerr.Wrap(ctx, err, "checking if host exists")
 	}
 
 	var userID *uint
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
 	}
+	installID := uuid.NewString()
 	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
-		uuid.NewString(),
+		installID,
 		hostID,
 		softwareInstallerID,
 		userID,
 	)
 
-	return ctxerr.Wrap(ctx, err, "inserting new install software request")
+	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")
 }
 
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
