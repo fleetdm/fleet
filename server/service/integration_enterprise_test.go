@@ -8916,6 +8916,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// upload again fails
 		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
+		// orbit-downloading fails with invalid orbit node key
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  123,
+			OrbitNodeKey: uuid.NewString(),
+		}, http.StatusUnauthorized)
+
 		// download the installer
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
 
@@ -8942,7 +8948,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			Source:    "deb_packages",
 			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
 		}
-
 		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
 		// check the software installer
@@ -8958,12 +8963,30 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 		checkDownloadResponse(t, r, payload.Filename)
 
-		// create an orbit host, assign to team and request to download the installer
-		host := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
-		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &createTeamResp.Team.ID, []uint{host.ID}))
+		// create an orbit host that is not in the team
+		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
+		// downloading installer still works because we allow it explicitly
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+
+		// create an orbit host, assign to team
+		hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &createTeamResp.Team.ID, []uint{hostInTeam.ID}))
+
+		// requesting download with alt != media fails
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusBadRequest)
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, "only alt=media is supported")
+
+		// valid download
 		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
 			InstallerID:  installerID,
-			OrbitNodeKey: *host.OrbitNodeKey,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusOK)
 		checkDownloadResponse(t, r, payload.Filename)
 

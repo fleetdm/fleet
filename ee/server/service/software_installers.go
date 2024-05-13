@@ -182,7 +182,7 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
-	host, ok := hostctx.FromContext(ctx)
+	_, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
@@ -193,14 +193,10 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
 
-	// ensure it cannot get access to a different team's installer
-	var hTeamID uint
-	if host.TeamID != nil {
-		hTeamID = *host.TeamID
-	}
-	if (meta.TeamID != nil && *meta.TeamID != hTeamID) || (meta.TeamID == nil && hTeamID != 0) {
-		return nil, ctxerr.Wrap(ctx, fleet.OrbitError{}, "host team does not match installer team")
-	}
+	// Note that we do allow downloading an installer that is on a different team
+	// than the host's team, because the install request might have come while
+	// the host was on that team, and then the host got moved to a different team
+	// but the request is still pending execution.
 
 	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
 }
