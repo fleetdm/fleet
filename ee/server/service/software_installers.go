@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -359,6 +360,10 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "must not be empty"))
 	}
 
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
 	tm, err := svc.ds.TeamByName(ctx, tmName)
 	if err != nil {
 		// If this is a dry run, the team may not have been created yet
@@ -376,12 +381,21 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 	g.SetLimit(3)
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
 
+	client := fleethttp.NewClient()
+	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
 	for i, p := range payloads {
 		i, p := i, p
 
 		g.Go(func() error {
-			client := fleethttp.NewClient()
-			client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
+			// validate the URL before doing the request
+			_, err := url.ParseRequestURI(p.URL)
+			if err != nil {
+				return fleet.NewInvalidArgumentError(
+					"software.url",
+					fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", p.URL),
+				)
+			}
+
 			req, err := http.NewRequestWithContext(workerCtx, http.MethodGet, p.URL, nil)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "creating request for URL %s", p.URL)
@@ -392,7 +406,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				if errors.Is(err, fleethttp.ErrMaxSizeExceeded) {
 					return fleet.NewInvalidArgumentError(
 						"software.url",
-						fmt.Sprintf("Couldn't edit software. URL (%q) doesn't exist. The maximum file size is %d MB", p.URL, maxInstallerSizeBytes/(1024*1024)),
+						fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", p.URL, maxInstallerSizeBytes/(1024*1024)),
 					)
 				}
 
