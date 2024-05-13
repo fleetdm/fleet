@@ -79,6 +79,7 @@ interface ISoftwareTableHeadersProps {
   onSelectAction: (software: IHostSoftware, action: string) => void;
   canInstall: boolean;
   router: InjectedRouter;
+  teamId: number;
 }
 
 // NOTE: cellProps come from react-table
@@ -88,6 +89,7 @@ export const generateSoftwareTableHeaders = ({
   installingSoftwareId,
   onSelectAction,
   canInstall,
+  teamId,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -100,7 +102,7 @@ export const generateSoftwareTableHeaders = ({
         const { id, name, source } = cellProps.row.original;
 
         const softwareTitleDetailsPath = PATHS.SOFTWARE_TITLE_DETAILS(
-          id.toString()
+          id.toString().concat(`?team_id=${teamId}`)
         );
 
         return (

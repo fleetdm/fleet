@@ -116,6 +116,7 @@ const HostSoftwareTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable
+        manualSortBy
       />
     </div>
   );

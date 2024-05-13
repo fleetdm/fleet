@@ -849,11 +849,13 @@ const HostDetailsPage = ({
             <TabPanel>
               <SoftwareCard
                 id={host.id}
+                isFleetdHost={!!host.orbit_version}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={queryParams}
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
+                teamId={host.team_id || 0}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
