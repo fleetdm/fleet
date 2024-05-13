@@ -1,4 +1,5 @@
 import classnames from "classnames";
+import TooltipWrapper from "components/TooltipWrapper";
 import React, { ReactNode } from "react";
 import AceEditor from "react-ace";
 
@@ -7,6 +8,7 @@ const baseClass = "editor";
 interface IEditorProps {
   focus?: boolean;
   label?: string;
+  labelTooltip?: string;
   error?: string | null;
   readOnly?: boolean;
   /**
@@ -42,6 +44,7 @@ interface IEditorProps {
 const Editor = ({
   helpText,
   label,
+  labelTooltip,
   error,
   focus,
   value,
@@ -65,6 +68,18 @@ const Editor = ({
 
     if (!labelText) {
       return null;
+    }
+
+    if (labelTooltip) {
+      return (
+        <TooltipWrapper
+          className={labelClassName}
+          tipContent={labelTooltip}
+          position="top"
+        >
+          {labelText}
+        </TooltipWrapper>
+      );
     }
 
     return <div className={labelClassName}>{labelText}</div>;

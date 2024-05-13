@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSoftwareInstallersAuth(t *testing.T) {
@@ -59,7 +60,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			ds.GetSoftwareInstallerMetadataFunc = func(ctx context.Context, installerID uint) (*fleet.SoftwareInstaller, error) {
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
 
@@ -79,11 +80,19 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return nil, nil
 			}
 
-			_, err := svc.DownloadSoftwareInstaller(ctx, 1)
-			checkAuthErr(t, tt.shouldFailRead, err)
+			_, err := svc.DownloadSoftwareInstaller(ctx, 1, tt.teamID)
+			if tt.teamID == nil {
+				require.Error(t, err)
+			} else {
+				checkAuthErr(t, tt.shouldFailRead, err)
+			}
 
-			err = svc.DeleteSoftwareInstaller(ctx, 1)
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID)
+			if tt.teamID == nil {
+				require.Error(t, err)
+			} else {
+				checkAuthErr(t, tt.shouldFailWrite, err)
+			}
 
 			// TODO: configure test with mock software installer store and add tests to check upload auth
 		})

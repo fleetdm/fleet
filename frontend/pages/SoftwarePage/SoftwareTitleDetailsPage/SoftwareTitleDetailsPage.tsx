@@ -7,7 +7,6 @@ import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 
 import { AppContext } from "context/app";
 
@@ -102,9 +101,14 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
+  const hasPermission = Boolean(
+    isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
+  );
+  const hasSoftwarePackage = softwareTitle && softwareTitle.software_package;
   const showPackageCard =
     currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
-    (isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver);
+    hasPermission &&
+    hasSoftwarePackage;
 
   const renderContent = () => {
     if (isSoftwareTitleLoading) {
@@ -145,13 +149,15 @@ const SoftwareTitleDetailsPage = ({
               name={softwareTitle.name}
               source={softwareTitle.source}
             />
-            {showPackageCard && (
-              <SoftwarePackageCard
-                softwarePackage={createMockSoftwarePackage()}
-                softwareId={softwareId}
-                teamId={currentTeamId}
-              />
-            )}
+            {showPackageCard &&
+              softwareTitle.software_package &&
+              currentTeamId && (
+                <SoftwarePackageCard
+                  softwarePackage={softwareTitle.software_package}
+                  softwareId={softwareId}
+                  teamId={currentTeamId}
+                />
+              )}
             <Card
               borderRadiusSize="large"
               includeShadow

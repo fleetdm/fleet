@@ -422,6 +422,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         {showAddSoftwareModal && (
           <AddSoftwareModal
             teamId={currentTeamId ?? 0}
+            router={router}
             onExit={toggleAddSoftwareModal}
           />
         )}

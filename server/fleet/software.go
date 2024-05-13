@@ -166,8 +166,9 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID         *uint `query:"team_id,optional"`
-	VulnerableOnly bool  `query:"vulnerable,optional"`
+	TeamID              *uint `query:"team_id,optional"`
+	VulnerableOnly      bool  `query:"vulnerable,optional"`
+	AvailableForInstall bool  `query:"available_for_install,optional"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
