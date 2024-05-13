@@ -70,7 +70,6 @@ const AddSoftwareForm = ({
   onCancel,
   onSubmit,
 }: IAddSoftwareFormProps) => {
-  console.log("rerender");
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [formData, setFormData] = useState<IAddSoftwareFormData>({

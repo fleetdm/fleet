@@ -211,6 +211,14 @@ export default {
     return sendRequest("DELETE", path);
   },
 
+  downloadSoftwarePackage: (softwareTitleId: number, teamId: number) => {
+    const path = `${endpoints.SOFTWARE_PACKAGE(
+      softwareTitleId
+    )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
+
+    return sendRequest("GET", path);
+  },
+
   getSoftwareInstallResult: (installUuid: string) => {
     const { SOFTWARE_INSTALL_RESULTS } = endpoints;
     const path = SOFTWARE_INSTALL_RESULTS(installUuid);
