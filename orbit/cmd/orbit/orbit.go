@@ -1036,9 +1036,6 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		installerRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
-		orbitClient.RegisterConfigReceiver(installerRunner)
-
 		// rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string
 		checkerClient, err := service.NewOrbitClient(
 			c.String("root-dir"),
@@ -1152,7 +1149,7 @@ func main() {
 			}
 		}
 
-		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), 1*time.Minute, scriptsEnabledFn)
+		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
 		orbitClient.RegisterConfigReceiver(softwareRunner)
 
 		// Install a signal handler

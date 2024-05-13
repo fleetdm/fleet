@@ -83,7 +83,7 @@ func (r *Runner) Run(config *fleet.OrbitConfig) error {
 
 func connectOsquery(r *Runner) error {
 	if r.OsqueryClient == nil {
-		osqueryClient, err := osquery.NewClient(r.osquerySocketPaht, 2*time.Second)
+		osqueryClient, err := osquery.NewClient(r.osquerySocketPaht, 10*time.Second)
 		if err != nil {
 			log.Err(err).Msg("establishing osquery connection for software install runner")
 			return err
