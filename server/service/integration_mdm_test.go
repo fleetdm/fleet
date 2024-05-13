@@ -8538,7 +8538,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	getHostResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	require.Len(t, *getHostResp.Host.MDM.Profiles, 2)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 4)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		if hm.Name == "N1" {
 			assert.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
