@@ -493,9 +493,6 @@ type Datastore interface {
 	// InsertSoftwareInstallRequest tracks a new request to install the provided software installer in the host
 	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-	// GetSoftwareInstallerForTitle TODO
-	GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*SoftwareInstaller, error)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
@@ -1484,12 +1481,14 @@ type Datastore interface {
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
 
-	// GetSoftwareInstallerMetadata returns the software installer corresponding to the installer id.
-	GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*SoftwareInstaller, error)
+	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
+	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
 
-	// GetSoftwareInstallerMetadataByTitleID returns the software installer corresponding to the specified
-	// team and title ids.
-	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*SoftwareInstaller, error)
+	// GetSoftwareInstallerMetadataByTitleID returns the software installer
+	// corresponding to the specified team and title ids. If withScriptContents
+	// is true, also returns the contents of the install and (if set)
+	// post-install scripts, otherwise those fields are left empty.
+	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error

@@ -191,7 +191,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 	for tc, teamID := range cases {
 		t.Run(tc, func(t *testing.T) {
 			// non-existent installer
-			si, err := ds.GetSoftwareInstallerForTitle(ctx, 1, teamID)
+			si, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, 1, false)
 			var nfe fleet.NotFoundError
 			require.ErrorAs(t, err, &nfe)
 			require.Nil(t, si)
@@ -204,10 +204,10 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				Filename:      "foo.pkg",
 			})
 			require.NoError(t, err)
-			installerMeta, err := ds.GetSoftwareInstallerMetadata(ctx, installerID)
+			installerMeta, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
 			require.NoError(t, err)
 
-			si, err = ds.GetSoftwareInstallerForTitle(ctx, *installerMeta.TitleID, teamID)
+			si, err = ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, *installerMeta.TitleID, false)
 			require.NoError(t, err)
 			require.NotNil(t, si)
 			require.Equal(t, "foo.pkg", si.Name)
@@ -430,10 +430,10 @@ func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastor
 		Filename:          "foo.pkg",
 	})
 	require.NoError(t, err)
-	installerMeta, err := ds.GetSoftwareInstallerMetadata(ctx, installerID)
+	installerMeta, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
 	require.NoError(t, err)
 
-	metaByTeamAndTitle, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *installerMeta.TitleID)
+	metaByTeamAndTitle, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *installerMeta.TitleID, true)
 	require.NoError(t, err)
 	require.Equal(t, "echo install", metaByTeamAndTitle.InstallScript)
 	require.Equal(t, "echo post-install", metaByTeamAndTitle.PostInstallScript)
@@ -448,10 +448,10 @@ func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastor
 		Filename:      "foo.pkg",
 	})
 	require.NoError(t, err)
-	installerMeta, err = ds.GetSoftwareInstallerMetadata(ctx, installerID)
+	installerMeta, err = ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
 	require.NoError(t, err)
 
-	metaByTeamAndTitle, err = ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *installerMeta.TitleID)
+	metaByTeamAndTitle, err = ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *installerMeta.TitleID, true)
 	require.NoError(t, err)
 	require.Equal(t, "echo install", metaByTeamAndTitle.InstallScript)
 	require.Equal(t, "", metaByTeamAndTitle.PostInstallScript)

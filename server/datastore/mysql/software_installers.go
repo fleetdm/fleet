@@ -149,7 +149,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	return titleID, nil
 }
 
-func (ds *Datastore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+func (ds *Datastore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 	query := `
 SELECT
 	si.id,
@@ -181,8 +181,15 @@ WHERE
 	return &dest, nil
 }
 
-func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
-	query := `
+func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	var scriptContentsSelect, scriptContentsFrom string
+	if withScriptContents {
+		scriptContentsSelect = ` , inst.contents AS install_script, COALESCE(pisnt.contents, '') AS post_install_script `
+		scriptContentsFrom = ` LEFT OUTER JOIN script_contents inst ON inst.id = si.install_script_content_id
+		LEFT OUTER JOIN script_contents pisnt ON pisnt.id = si.post_install_script_content_id `
+	}
+
+	query := fmt.Sprintf(`
 SELECT
   si.id,
   si.team_id,
@@ -194,20 +201,15 @@ SELECT
   si.pre_install_query,
   si.post_install_script_content_id,
   si.uploaded_at,
-  inst.contents AS install_script,
-  COALESCE(pisnt.contents, '') AS post_install_script,
   COALESCE(st.name, '') AS software_title
+  %s
 FROM
   software_installers si
   LEFT OUTER JOIN software_titles st ON st.id = si.title_id
-  LEFT OUTER JOIN
-    script_contents inst
-    ON inst.id = si.install_script_content_id
-  LEFT OUTER JOIN
-    script_contents pisnt
-    ON pisnt.id = si.post_install_script_content_id
+  %s
 WHERE
-  si.title_id = ? AND si.global_or_team_id = ?`
+  si.title_id = ? AND si.global_or_team_id = ?`,
+		scriptContentsSelect, scriptContentsFrom)
 
 	var tmID uint
 	if teamID != nil {
@@ -238,42 +240,6 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	}
 
 	return nil
-}
-
-func (ds *Datastore) GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
-	const getInstallerIDStmt = `
-SELECT
-	id,
-	team_id,
-	title_id,
-	storage_id,
-	filename,
-	version,
-	install_script_content_id,
-	pre_install_query,
-	post_install_script_content_id,
-	uploaded_at
-FROM
-	software_installers
-WHERE
-	title_id = ? AND global_or_team_id = ?`
-
-	var installer fleet.SoftwareInstaller
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, getInstallerIDStmt, softwareTitleID, tmID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, notFound("SoftwareInstaller")
-		}
-
-		return nil, ctxerr.Wrap(ctx, err, "finding software installer by title")
-	}
-
-	return &installer, nil
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint) error {

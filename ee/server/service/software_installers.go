@@ -117,7 +117,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return err
 	}
 
-	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
@@ -157,7 +157,7 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID ui
 		return nil, err
 	}
 
-	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
@@ -188,7 +188,7 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	}
 
 	// get the installer's metadata
-	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
+	meta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
@@ -253,7 +253,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return err
 	}
 
-	installer, err := svc.ds.GetSoftwareInstallerForTitle(ctx, softwareTitleID, host.TeamID)
+	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{

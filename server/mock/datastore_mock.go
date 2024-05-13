@@ -367,8 +367,6 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFi
 
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-type GetSoftwareInstallerForTitleFunc func(ctx context.Context, softwareTitleID uint, teamID *uint) (*fleet.SoftwareInstaller, error)
-
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
 type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
@@ -939,9 +937,9 @@ type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]s
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error)
 
-type GetSoftwareInstallerMetadataFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
+type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
-type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error)
+type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
@@ -1473,9 +1471,6 @@ type DataStore struct {
 
 	InsertSoftwareInstallRequestFunc        InsertSoftwareInstallRequestFunc
 	InsertSoftwareInstallRequestFuncInvoked bool
-
-	GetSoftwareInstallerForTitleFunc        GetSoftwareInstallerForTitleFunc
-	GetSoftwareInstallerForTitleFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -2332,8 +2327,8 @@ type DataStore struct {
 	MatchOrCreateSoftwareInstallerFunc        MatchOrCreateSoftwareInstallerFunc
 	MatchOrCreateSoftwareInstallerFuncInvoked bool
 
-	GetSoftwareInstallerMetadataFunc        GetSoftwareInstallerMetadataFunc
-	GetSoftwareInstallerMetadataFuncInvoked bool
+	GetSoftwareInstallerMetadataByIDFunc        GetSoftwareInstallerMetadataByIDFunc
+	GetSoftwareInstallerMetadataByIDFuncInvoked bool
 
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
@@ -3569,13 +3564,6 @@ func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uin
 	s.InsertSoftwareInstallRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareTitleID)
-}
-
-func (s *DataStore) GetSoftwareInstallerForTitle(ctx context.Context, softwareTitleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
-	s.mu.Lock()
-	s.GetSoftwareInstallerForTitleFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetSoftwareInstallerForTitleFunc(ctx, softwareTitleID, teamID)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {
@@ -5573,18 +5561,18 @@ func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload 
 	return s.MatchOrCreateSoftwareInstallerFunc(ctx, payload)
 }
 
-func (s *DataStore) GetSoftwareInstallerMetadata(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+func (s *DataStore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
-	s.GetSoftwareInstallerMetadataFuncInvoked = true
+	s.GetSoftwareInstallerMetadataByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareInstallerMetadataFunc(ctx, id)
+	return s.GetSoftwareInstallerMetadataByIDFunc(ctx, id)
 }
 
-func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
+	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
