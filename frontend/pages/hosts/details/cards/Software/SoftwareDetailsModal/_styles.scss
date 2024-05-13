@@ -1,4 +1,7 @@
 .software-details-modal {
+  &__software-details {
+    margin-top: 24px;
+  }
 
   &__details-info {
     display: flex;
@@ -42,5 +45,13 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+  }
+
+  .modal__content {
+    margin-top: $pad-small;
+  }
+
+  .react-tabs__tab-panel {
+    margin-top: $pad-large;
   }
 }
