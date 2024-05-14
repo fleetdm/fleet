@@ -71,7 +71,7 @@ func TestExecCmdNonWindows(t *testing.T) {
 			err := os.WriteFile(scriptPath, []byte(tc.contents), os.ModePerm)
 			require.NoError(t, err)
 
-			output, exitCode, err := execCmd(context.Background(), scriptPath)
+			output, exitCode, err := ExecCmd(context.Background(), scriptPath, nil)
 			require.Equal(t, tc.output, strings.TrimSpace(string(output)))
 			require.Equal(t, tc.exitCode, exitCode)
 			require.ErrorIs(t, err, tc.error)

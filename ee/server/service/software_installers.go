@@ -32,6 +32,12 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return fleet.ErrNoContext
 	}
 
+	// make sure all scripts use unix-style newlines to prevent errors when
+	// running them, browsers use windows-style newlines, which breaks the
+	// shebang when the file is directly executed.
+	payload.InstallScript = file.Dos2UnixNewlines(payload.InstallScript)
+	payload.PostInstallScript = file.Dos2UnixNewlines(payload.PostInstallScript)
+
 	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}

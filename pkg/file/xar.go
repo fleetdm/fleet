@@ -20,6 +20,7 @@ package file
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"compress/zlib"
 	"crypto"
 	"crypto/sha256"
@@ -165,9 +166,10 @@ func ExtractXARMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 				}
 				defer zr.Close()
 				fileReader = zr
-
-				// TODO(mna): obviously, we may need to support more decompression methods here...
+			} else if strings.Contains(f.Data.Encoding.Style, "x-bzip2") {
+				fileReader = bzip2.NewReader(fileReader)
 			}
+			// TODO: what other compression methods are supported?
 
 			contents, err := io.ReadAll(fileReader)
 			if err != nil {

@@ -41,9 +41,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.host_id AS host_id,
     hsi.execution_id AS execution_id,
     hsi.software_installer_id AS installer_id,
-    si.pre_install_query AS pre_install_condition,
+    COALESCE(si.pre_install_query, '') AS pre_install_condition,
     inst.contents AS install_script,
-    pisnt.contents AS post_install_script
+    COALESCE(pisnt.contents, '') AS post_install_script
   FROM
     host_software_installs hsi
   INNER JOIN
@@ -63,7 +63,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstallerDetails").WithName(executionId), "get software installer details")
 		}
-		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
+		return nil, ctxerr.Wrap(ctx, err, "get software install details")
 	}
 	return result, nil
 }

@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -75,9 +76,14 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 		}
 	}
 
+	parsedURL, err := url.Parse(path)
+	if err != nil {
+		return fmt.Errorf("parsing URL: %w", err)
+	}
+
 	request, err := http.NewRequest(
 		verb,
-		oc.url(path, "").String(),
+		oc.url(parsedURL.Path, parsedURL.RawQuery).String(),
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
@@ -206,14 +212,15 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 		case <-oc.ReceiverUpdateContext.Done():
 			return nil
 		case <-ticker.C:
-			err := oc.RunConfigReceivers()
-			log.Error().Err(err)
+			if err := oc.RunConfigReceivers(); err != nil {
+				log.Error().Err(err).Msg("running config receivers")
+			}
 		}
 	}
 }
 
 func (oc *OrbitClient) InterruptConfigReceivers(err error) {
-	log.Error().Err(err)
+	log.Error().Err(err).Msg("interrupt config receivers")
 	oc.ReceiverUpdateCancelFunc()
 }
 
@@ -311,6 +318,39 @@ func (oc *OrbitClient) SaveHostScriptResult(result *fleet.HostScriptResultPayloa
 		return err
 	}
 	return nil
+}
+
+func (oc *OrbitClient) GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error) {
+	verb, path := "POST", "/api/fleet/orbit/software_install/details"
+	var resp orbitGetSoftwareInstallResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitGetSoftwareInstallRequest{
+		InstallUUID: installId,
+	}, &resp); err != nil {
+		return nil, err
+	}
+	return resp.SoftwareInstallDetails, nil
+}
+
+func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
+	verb, path := "POST", "/api/fleet/orbit/software_install/result"
+	var resp orbitPostSoftwareInstallResultResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostSoftwareInstallResultRequest{
+		HostSoftwareInstallResultPayload: payload,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirectory string) (string, error) {
+	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
+	resp := FileResponse{DestPath: downloadDirectory}
+	if err := oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
+		InstallerID: installerID,
+	}, &resp); err != nil {
+		return "", err
+	}
+	return resp.GetFilePath(), nil
 }
 
 // Ping sends a ping request to the orbit/ping endpoint.
