@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"crypto/md5" // nolint:gosec (only used for tests)
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -224,7 +223,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	tx, err := ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
+	_, err = ds.insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
@@ -247,7 +246,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	tx, err = ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
+	_, err = ds.insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
@@ -1116,8 +1115,9 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
 	require.NoError(t, err)
-	software1[0].ID = host1.HostSoftware.Software[0].ID
-	assert.Equal(t, software1[0], *soft1ByID)
+	soft2ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[1].ID, &team1.ID, false, nil)
+	require.NoError(t, err)
+	test.ElementsMatchSkipIDAndHostCount(t, software1, []fleet.Software{*soft1ByID, *soft2ByID})
 
 	team2Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team2.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	team2Counts := listSoftwareCheckCount(t, ds, 2, 2, team2Opts, false)
@@ -2933,15 +2933,6 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	computeChecksum := func(sw fleet.Software) string {
-		h := md5.New()
-		// compute the same way as the DB, see the softwareChecksumComputedColumn function
-		cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
-		fmt.Fprint(h, strings.Join(cols, "\x00"))
-		checksum := h.Sum(nil)
-		return hex.EncodeToString(checksum)
-	}
-
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "test"},
 		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
@@ -2954,7 +2945,9 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 
 	checksums := make([]string, len(software))
 	for i, sw := range software {
-		checksums[i] = computeChecksum(sw)
+		checksum, err := computeRawChecksum(sw)
+		require.NoError(t, err)
+		checksums[i] = hex.EncodeToString(checksum)
 	}
 	for i, cs := range checksums {
 		var got fleet.Software
