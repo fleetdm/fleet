@@ -21,7 +21,7 @@ The customer success department is directly responsible for ensuring that custom
 ### Assign a customer codename
 Occasionally, we will need to track public issues for customers and prospects who wish to remain anonymous on our public issue tracker. 
 
-To do this, we choose an appropriate minor planet name from this [Minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html_(alphabetical)) and create a label in the fleetdm/fleet and fleetdm/confidential repos which we attach to the issue and any future issues for the customer or prospect.
+To do this, we choose an appropriate minor planet name from this [Minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical) and create a label in the fleetdm/fleet and fleetdm/confidential repos which we attach to the issue and any future issues for the customer or prospect.
 
 As part of the label description in the fleetdm/confidential repo, add the customer or prospect name. This way, we maintain a confidential mapping of codename to customer or prospect.
 
