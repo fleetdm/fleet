@@ -316,5 +316,6 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 		return nil, err
 	}
 
+	res.EnhanceOutputDetails()
 	return res, nil
 }

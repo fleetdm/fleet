@@ -169,6 +169,62 @@ type HostSoftwareInstallerResult struct {
 	HostTeamID *uint `json:"-" db:"host_team_id"`
 	// UserID is the user ID that requested the software installation on that host.
 	UserID *uint `json:"-" db:"user_id"`
+	// InstallScriptExitCode is used internally to determine the output displayed to the user.
+	InstallScriptExitCode *int `json:"-" db:"install_script_exit_code"`
+	// PostInstallScriptExitCode is used internally to determine the output displayed to the user.
+	PostInstallScriptExitCode *int `json:"-" db:"post_install_script_exit_code"`
+}
+
+const (
+	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
+	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
+	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --scripts-enabled."
+	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
+	SoftwareInstallerInstallSuccessCopy     = "Installing software...\nSuccess\n%s"
+	SoftwareInstallerPostInstallSuccessCopy = "Running script...\nExit code: 0 (Success)\n%s"
+	// TODO(roberto): this is not true, how do we know that the rollback script was successful?
+	SoftwareInstallerPostInstallFailCopy = `Running script...
+Exit code: %d (Failed)
+%s
+Rolling back software install...
+Rolled back successfully
+`
+)
+
+// EnhanceOutputDetails is used to add extra boilerplate/information to the
+// output fields so they're easier to consume by users.
+func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
+	if h.Status == SoftwareInstallerPending {
+		return
+	}
+
+	if h.PreInstallQueryOutput == "" {
+		h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+		return
+	}
+	h.PreInstallQueryOutput = SoftwareInstallerQuerySuccessCopy
+
+	if h.InstallScriptExitCode == nil {
+		return
+	}
+	if *h.InstallScriptExitCode == -2 {
+		h.Output = SoftwareInstallerScriptsDisabledCopy
+		return
+	} else if *h.InstallScriptExitCode != 0 {
+		h.Output = fmt.Sprintf(SoftwareInstallerInstallFailCopy, h.Output)
+		return
+	}
+	h.Output = fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, h.Output)
+
+	if h.PostInstallScriptExitCode == nil {
+		return
+	}
+	if *h.PostInstallScriptExitCode != 0 {
+		h.PostInstallScriptOutput = fmt.Sprintf(SoftwareInstallerPostInstallFailCopy, *h.PostInstallScriptExitCode, h.PostInstallScriptOutput)
+		return
+	}
+
+	h.PostInstallScriptOutput = fmt.Sprintf(SoftwareInstallerPostInstallSuccessCopy, h.PostInstallScriptOutput)
 }
 
 type HostSoftwareInstallerResultAuthz struct {

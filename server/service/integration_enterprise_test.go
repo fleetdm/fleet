@@ -9276,9 +9276,12 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	}
 
 	type result struct {
-		HostID      uint
-		InstallUUID string
-		Status      fleet.SoftwareInstallerStatus
+		HostID                  uint
+		InstallUUID             string
+		Status                  fleet.SoftwareInstallerStatus
+		Output                  string
+		PostInstallScriptOutput string
+		PreInstallQueryOutput   string
 	}
 	checkResults := func(want result) {
 		var resp getSoftwareInstallResultsResponse
@@ -9287,6 +9290,9 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		assert.Equal(t, want.HostID, resp.Results.HostID)
 		assert.Equal(t, want.InstallUUID, resp.Results.InstallUUID)
 		assert.Equal(t, want.Status, resp.Results.Status)
+		assert.Equal(t, want.PreInstallQueryOutput, resp.Results.PreInstallQueryOutput)
+		assert.Equal(t, want.Output, resp.Results.Output)
+		assert.Equal(t, want.PostInstallScriptOutput, resp.Results.PostInstallScriptOutput)
 	}
 
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
@@ -9299,9 +9305,11 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[0])),
 		http.StatusNoContent)
 	checkResults(result{
-		HostID:      host.ID,
-		InstallUUID: installUUIDs[0],
-		Status:      fleet.SoftwareInstallerFailed,
+		HostID:                host.ID,
+		InstallUUID:           installUUIDs[0],
+		Status:                fleet.SoftwareInstallerFailed,
+		PreInstallQueryOutput: fleet.SoftwareInstallerQuerySuccessCopy,
+		Output:                fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed"),
 	})
 	wantAct := fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
@@ -9320,9 +9328,10 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[1])),
 		http.StatusNoContent)
 	checkResults(result{
-		HostID:      host.ID,
-		InstallUUID: installUUIDs[1],
-		Status:      fleet.SoftwareInstallerFailed,
+		HostID:                host.ID,
+		InstallUUID:           installUUIDs[1],
+		Status:                fleet.SoftwareInstallerFailed,
+		PreInstallQueryOutput: fleet.SoftwareInstallerQueryFailCopy,
 	})
 	wantAct.InstallUUID = installUUIDs[1]
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
@@ -9339,9 +9348,12 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[2])),
 		http.StatusNoContent)
 	checkResults(result{
-		HostID:      host.ID,
-		InstallUUID: installUUIDs[2],
-		Status:      fleet.SoftwareInstallerInstalled,
+		HostID:                  host.ID,
+		InstallUUID:             installUUIDs[2],
+		Status:                  fleet.SoftwareInstallerInstalled,
+		PreInstallQueryOutput:   fleet.SoftwareInstallerQuerySuccessCopy,
+		Output:                  fmt.Sprintf(fleet.SoftwareInstallSucceedCopy, "success"),
+		PostInstallScriptOutput: fmt.Sprintf(fleet.SoftwarePostInstallSucceedCopy, "ok"),
 	})
 	wantAct.InstallUUID = installUUIDs[2]
 	wantAct.Status = string(fleet.SoftwareInstallerInstalled)
