@@ -9042,12 +9042,12 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 		},
 	}
 
-	// retrieving the team returns the scripts
+	// retrieving the team returns the software
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
 
-	// apply without custom software specified, should not replace existing scripts
+	// apply without custom software specified, should not replace existing software
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
