@@ -1,9 +1,16 @@
 import React, { useCallback, useContext, useState } from "react";
 
-import endpoints from "utilities/endpoints";
-import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
+import FileSaver from "file-saver";
+
 import PATHS from "router/paths";
+
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+
+import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
+
+import softwareAPI from "services/entities/software";
+
 import { buildQueryStringFromParams } from "utilities/url";
 import { internationalTimeFormat } from "utilities/helpers";
 import { uploadedFromNow } from "utilities/date_format";
@@ -109,6 +116,8 @@ const SoftwarePackageCard = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
+  const { renderFlash } = useContext(NotificationContext);
+
   const [showAdvancedOptionsModal, setShowAdvancedOptionsModal] = useState(
     false
   );
@@ -122,17 +131,44 @@ const SoftwarePackageCard = ({
     setShowDeleteModal(true);
   };
 
-  const onSuccess = useCallback(() => {
+  const onDeleteSuccess = useCallback(() => {
     setShowDeleteModal(false);
     onDelete();
   }, [onDelete]);
 
+  const onDownloadClick = useCallback(async () => {
+    try {
+      const resp = await softwareAPI.downloadSoftwarePackage(
+        softwareId,
+        teamId
+      );
+      const contentLength = parseInt(resp.headers["content-length"], 10);
+      if (contentLength !== resp.data.size) {
+        throw new Error(
+          `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
+        );
+      }
+      const filename = softwarePackage.name;
+      const file = new File([resp.data], filename, {
+        type: "application/octet-stream",
+      });
+      if (file.size === 0) {
+        throw new Error("Downloaded file is empty");
+      }
+      if (file.size !== resp.data.size) {
+        throw new Error(
+          `File size (${file.size}) does not match expected size (${resp.data.size})`
+        );
+      }
+      FileSaver.saveAs(file);
+    } catch (e) {
+      console.log(e);
+      renderFlash("error", "Couldn’t download. Please try again.");
+    }
+  }, [renderFlash, softwareId, softwarePackage.name, teamId]);
+
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-
-  const downloadUrl = `/api${endpoints.SOFTWARE_PACKAGE(
-    softwareId
-  )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
 
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
@@ -185,13 +221,9 @@ const SoftwarePackageCard = ({
             <Icon name="settings" color={"ui-fleet-black-75"} />
           </Button>
           {/* TODO: make a component for download icons */}
-          <a
-            className={`${baseClass}__download-icon`}
-            href={downloadUrl}
-            download
-          >
-            <Icon name="download" />
-          </a>
+          <Button variant="icon" onClick={onDownloadClick}>
+            <Icon name="download" color={"ui-fleet-black-75"} />
+          </Button>
           <Button variant="icon" onClick={onDeleteClick}>
             <Icon name="trash" color={"ui-fleet-black-75"} />
           </Button>
@@ -210,7 +242,7 @@ const SoftwarePackageCard = ({
           softwareId={softwareId}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
-          onSuccess={onSuccess}
+          onSuccess={onDeleteSuccess}
         />
       )}
     </Card>
