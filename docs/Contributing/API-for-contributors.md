@@ -552,10 +552,8 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 ##### Default response
 
-```json
-```
+`Status: 204`
 
-Note that the `public_key` is base64 encoded and should be decoded before writing them to files.
 
 ### Request Certificate Signing Request (CSR)
 
