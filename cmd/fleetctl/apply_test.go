@@ -1001,6 +1001,18 @@ spec:
   platforms:
     - darwin
 `
+	builtinLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  description: All Ubuntu hosts
+  hosts: null
+  id: 8
+  label_membership_type: dynamic
+  label_type: builtin
+  name: Ubuntu Linux
+  query: select 1 from os_version where platform = 'ubuntu';
+`
 	packsSpec = `---
 apiVersion: v1
 kind: pack
@@ -1614,6 +1626,36 @@ func TestApplyLabels(t *testing.T) {
 	_, err := runAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "declared as manual but contains no `hosts key`")
+
+	// Apply built-in label (no changes)
+	// The label values below should match the spec.
+	ubuntuLabel := &fleet.Label{
+		ID:                  8,
+		Name:                fleet.BuiltinLabelNameUbuntuLinux,
+		Query:               "select 1 from os_version where platform = 'ubuntu';",
+		Description:         "All Ubuntu hosts",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameUbuntuLinux}, names)
+		return map[string]*fleet.Label{
+			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
+		}, nil
+	}
+
+	name = writeTmpYml(t, builtinLabelSpec)
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.False(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.LabelsByNameFuncInvoked)
+
+	// Apply built-in label (with changes)
+	ubuntuLabel.Description = "CHANGED"
+	name = writeTmpYml(t, builtinLabelSpec)
+	_, err = runAppNoChecks([]string{"apply", "-f", name})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "cannot modify or add built-in label")
+
 }
 
 func TestApplyPacks(t *testing.T) {

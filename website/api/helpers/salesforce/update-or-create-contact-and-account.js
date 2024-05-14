@@ -56,10 +56,16 @@ module.exports = {
     require('assert')(sails.config.custom.salesforceIntegrationUsername);
     require('assert')(sails.config.custom.salesforceIntegrationPasskey);
     require('assert')(sails.config.custom.iqSecret);
+    require('assert')(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
 
 
     if(!emailAddress && !linkedinUrl){
       throw new Error('UsageError: when updating or creating a contact and account in salesforce, either an email or linkedInUrl is required.');
+    }
+
+    if(linkedinUrl){
+      // If linkedinUrl was provided, strip the protocol and subdomain from the URL.
+      linkedinUrl = linkedinUrl.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS, '');
     }
     // Send the information we have to the enrichment helper.
     let enrichmentData = await sails.helpers.iq.getEnriched(emailAddress, linkedinUrl, firstName, lastName, organization);
@@ -80,7 +86,7 @@ module.exports = {
       // Special sacraficial meat cave where the contacts with no organization go.
       // https://fleetdm.lightning.force.com/lightning/r/Account/0014x000025JC8DAAW/view
       salesforceAccountId = '0014x000025JC8DAAW';
-      salesforceAccountOwnerId = '0054x00000735wDAAQ';
+      salesforceAccountOwnerId = '0054x00000735wDAAQ';// « "Integrations admin" user.
     } else {
       let existingAccountRecord = await salesforceConnection.sobject('Account')
       .findOne({
@@ -88,14 +94,13 @@ module.exports = {
         // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
       });
       // console.log(existingAccountRecord);
-      if(existingAccountRecord) {
+      if(existingAccountRecord && existingAccountRecord.OwnerId !== '0054x00000735wDAAQ') {
         // Store the ID of the Account record we found.
         salesforceAccountId = existingAccountRecord.Id;
         salesforceAccountOwnerId = existingAccountRecord.OwnerId;
         // console.log('exising account found!', salesforceAccountId);
       } else {
-
-
+        // If we didn't find an existing record, or found one onwned by the integrations admin, we'll round robin it between the AE's Salesforce users.
         let roundRobinUsers = await salesforceConnection.sobject('User')
         .find({
           AE_Round_robin__c: true,// eslint-disable-line camelcase
@@ -104,34 +109,45 @@ module.exports = {
 
         let today = new Date();
         let nowOn = today.toISOString().replace('Z', '+0000');
-
+        // Update the accountOwnerId value to be the ID of the next user in the round robin.
         salesforceAccountOwnerId = userWithEarliestAssignTimeStamp.Id;
-
-        // Update this user to putthem atthe bottom of the round robin list.
+        // Update this user to put them at the bottom of the round robin list.
         await salesforceConnection.sobject('User')
         .update({
           Id: salesforceAccountOwnerId,
           // eslint-disable-next-line camelcase
           AE_Account_Assignment_round_robin__c: nowOn
         });
-        // If no existing account record was found, create a new one.
-        let newAccountRecord = await salesforceConnection.sobject('Account')
-        .create({
-          OwnerId: salesforceAccountOwnerId,
-          Account_Assigned_date__c: nowOn,// eslint-disable-line camelcase
-          // eslint-disable-next-line camelcase
-          Current_Assignment_Reason__c: 'Inbound Lead',// TODO verify that this matters. if not, do not set it.
-          Prospect_Status__c: 'Assigned',// eslint-disable-line camelcase
 
-          Name: enrichmentData.employer.organization,// IFWMIH: We know organization exists
-          Website: enrichmentData.employer.emailDomain,
-          LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
-          NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
-        });
-        salesforceAccountId = newAccountRecord.id;
+
+        if(existingAccountRecord){
+          // If we found an existing Account record owned by the integrations admin user account, reassign it to the new owner.
+          salesforceAccountId = existingAccountRecord.Id;
+          await salesforceConnection.sobject('Account')
+          .update({
+            Id: salesforceAccountId,
+            OwnerId: salesforceAccountOwnerId
+          });
+        } else {
+          // If no existing account record was found, create a new one.
+          let newAccountRecord = await salesforceConnection.sobject('Account')
+          .create({
+            OwnerId: salesforceAccountOwnerId,
+            Account_Assigned_date__c: nowOn,// eslint-disable-line camelcase
+            // eslint-disable-next-line camelcase
+            Current_Assignment_Reason__c: 'Inbound Lead',// TODO verify that this matters. if not, do not set it.
+            Prospect_Status__c: 'Assigned',// eslint-disable-line camelcase
+
+            Name: enrichmentData.employer.organization,// IFWMIH: We know organization exists
+            Website: enrichmentData.employer.emailDomain,
+            LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
+            NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
+          });
+          salesforceAccountId = newAccountRecord.id;
+        }//ﬁ
         // console.log('New account created!', salesforceAccountId);
-      }
-    }
+      }//ﬁ
+    }//ﬁ
 
 
 
@@ -154,7 +170,7 @@ module.exports = {
       });
     } else {
       existingContactRecord = undefined;
-    }
+    }//ﬁ
 
     let salesforceContactId;
     let valuesToSet = {};
@@ -198,7 +214,7 @@ module.exports = {
       // console.log(newContactRecord);
       salesforceContactId = newContactRecord.id;
       // console.log(`New contact record created! ${salesforceContactId}`);
-    }
+    }//ﬁ
 
 
     return {

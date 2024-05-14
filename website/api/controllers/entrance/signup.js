@@ -138,34 +138,24 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
+    if(sails.config.environment === 'production') {
+      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: newEmailAddress,
+        firstName: firstName,
+        lastName: lastName,
+        organization: organization,
+      });
 
-    let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-      emailAddress: newEmailAddress,
-      firstName: firstName,
-      lastName: lastName,
-      organization: organization,
-    });
-
-    // Send a POST request to Zapier
-    await sails.helpers.http.post.with({
-      url: 'https://hooks.zapier.com/hooks/catch/3627242/30bq2ib/',
-      data: {
-        newEmailAddress,
-        firstName,
-        lastName,
-        organization,
-        signupReason,
+      await sails.helpers.salesforce.createLead.with({
         salesforceContactId: recordIds.salesforceContactId,
         salesforceAccountId: recordIds.salesforceAccountId,
-        webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
-      }
-    })
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
-      return;
-    });
+        leadSource: 'Website - Sign up',
+      })
+      .tolerate((err)=>{
+        sails.log.warn(`When a user signed up, a lead could not be created in the CRM for this email address: ${newEmailAddress}. Error from create-lead helper: ${err}`);
+        return;
+      });
+    }
 
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;

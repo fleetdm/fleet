@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
-	"strings"
 )
 
 const (
@@ -414,7 +415,6 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 			level.Error(ds.logger).Log("msg", "error deleting aggregated stats", "err", err)
 		}
 	}
-
 }
 
 // Query returns a single Query identified by id, if such exists.
@@ -504,10 +504,14 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	args := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery}
 	whereClauses := "WHERE saved = true"
 
-	if opt.TeamID != nil {
+	switch {
+	case opt.TeamID != nil && opt.MergeInherited:
+		args = append(args, *opt.TeamID)
+		whereClauses += " AND (team_id = ? OR team_id IS NULL)"
+	case opt.TeamID != nil:
 		args = append(args, *opt.TeamID)
 		whereClauses += " AND team_id = ?"
-	} else {
+	default:
 		whereClauses += " AND team_id IS NULL"
 	}
 

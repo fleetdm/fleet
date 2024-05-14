@@ -486,24 +486,63 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return err
 	}
 
+	regularSpecs := make([]*fleet.LabelSpec, 0, len(specs))
+	var builtInSpecs []*fleet.LabelSpec
+	var builtInSpecNames []string
 	for _, spec := range specs {
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
-			return ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name)
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name), http.StatusUnprocessableEntity,
+			)
 		}
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeManual && spec.Hosts == nil {
 			// Hosts list doesn't need to contain anything, but it should at least not be nil.
-			return ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name)
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name), http.StatusUnprocessableEntity,
+			)
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
-			return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", spec.Name), http.StatusUnprocessableEntity)
+			// We allow specs to contain built-in labels as long as they are not being modified.
+			// This allows the user to do the following workflow without manually removing built-in labels:
+			// 1. fleetctl get labels --yaml > labels.yml
+			// 2. (Optional) Edit labels.yml
+			// 3. fleetctl apply -f labels.yml
+			builtInSpecs = append(builtInSpecs, spec)
+			builtInSpecNames = append(builtInSpecNames, spec.Name)
+			continue
 		}
 		for name := range fleet.ReservedLabelNames() {
 			if spec.Name == name {
 				return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", name), http.StatusUnprocessableEntity)
 			}
 		}
+		regularSpecs = append(regularSpecs, spec)
 	}
-	return svc.ds.ApplyLabelSpecs(ctx, specs)
+
+	// If built-in labels have been provided, ensure that they are not attempted to be modified
+	if len(builtInSpecs) > 0 {
+		labelMap, err := svc.ds.LabelsByName(ctx, builtInSpecNames)
+		if err != nil {
+			return err
+		}
+		for _, spec := range builtInSpecs {
+			label, ok := labelMap[spec.Name]
+			if !ok ||
+				label.Description != spec.Description ||
+				label.Query != spec.Query ||
+				label.Platform != spec.Platform ||
+				label.LabelType != fleet.LabelTypeBuiltIn ||
+				label.LabelMembershipType != spec.LabelMembershipType {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+		}
+	}
+	if len(regularSpecs) == 0 {
+		return nil
+	}
+	return svc.ds.ApplyLabelSpecs(ctx, regularSpecs)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

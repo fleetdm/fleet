@@ -4,15 +4,16 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Head of Digital Experience      | <sup><sub>See [🌐 Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team)</sup></sub>
-| Head of Design                                            | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Software Engineer                                         | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Apprentice to the CEO                                     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ <br> [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
+| Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
+| Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
+| Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Apprentice to the CEO           | <sup><sub> See [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team) <sup><sub>
+| Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -33,7 +34,6 @@ Each PR to the website is manually checked for quality and tested before going l
 
 
 ### Update the host count of a premium subscription
-
 When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
 
 To update the host count on a user's subscription:
@@ -63,14 +63,12 @@ Once you have the above follow these steps:
 2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
   - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
   - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
-    
-    > You can use the `--skipGithubRequests` flag to skip requests made to GitHub if you get rate-limited by GitHub’s API while running this script. 
-    > 
-    > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
 
     > When this script runs, the website's configuration file ([`website/.sailsrc`](https://github.com/fleetdm/fleet/blob/main/website/.sailsrc)) will automatically be updated with information the website uses to display content built from Markdown and YAML. Changes to this file should never be committed to the GitHub repo. If you want to exclude changes to this file in any PRs you make, you can run this terminal command in your local copy of the Fleet repo: `git update-index --assume-unchanged ./website/.sailsrc`.
+    
+    > Note: You can run `npm run start-dev` in the `website/` folder to run the `build-static-content` script and start the website server with a single command.
 
-3. Once the script is complete, start the website server. From the `website/` folder:
+3. Once the script is complete, start the website server:
   - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
   - **With Sails.js installed globally:** start the server by running `sails lift`.
 
@@ -197,6 +195,49 @@ Fleet's public relations firm is directly responsible for the accuracy of event 
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
 
 
+### Grant role-specific license to a team member
+
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
+
+| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
+|:-----------------|:---|:---|:----|:---|:---|
+| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
+| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
+| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
+| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
+| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
+| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
+|   Other roles    | ❌ | ❌ | ❌ | ❌ | ✅
+
+> **Warning:** Do NOT buy LinkedIn Recruiter. AEs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
+
+
+### Process a tool upgrade request from a team member
+
+- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through ZenHub.
+- Digital Experience will upgrade or add the license seat as needed and let the requesting team member know they did it.
+
+
+### Downgrade an unused license seat
+
+- On the first Wednesday of every quarter, the CEO, head of BizOps and Head of Digital experience will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
+- During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
+- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to Digital Experience to have their access restored.
+- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
+
+
+### Add a seat to Salesforce
+
+Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
+- Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
+- View contracts -> pick current contract.
+- Add the desired number of licenses.
+- Sign DocuSign sent to the email.
+- The order will be processed in ~30m.
+- Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
+- To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
+
+
 ### Schedule press release
 Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. This process sUse the following steps to schedule a press release:  
 
@@ -281,8 +322,7 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
 
 
 ### Process the CEO's inbox
-- The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
-The Apprentice will reduce the scope of Mike's inbox to only include necessary and actionable communication.
+- The Apprentice is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review to reduce the scope of Mike's inbox to only include necessary and actionable communication.
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
@@ -354,7 +394,6 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
 ### Process incoming equipment
 Upon receiving any device, the Apprentice will process the incoming equipment by:
 1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-  - If the serial numbers do not match [create an issue](https://fleetdm.com/handbook/business-operations#contact-us) to get help from the Business Operations department. 
 3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
 4. Remove any stickers and clean devices and components.
 5. Using the device's charger plug in the device.
@@ -362,6 +401,7 @@ Upon receiving any device, the Apprentice will process the incoming equipment by
 7. Connect the device to WIFI.
 8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
 9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
+> If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
 
 
 ### Ship approved equipment
@@ -369,9 +409,11 @@ Once the Business Operations department approves inventory to be shipped from Fl
 1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user
-5. Ship via FedEx to the address listed in the equipment request.
-6. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
+4. Change the "Company equipment" spreadsheet to reflect the new user.
+  - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT to troubleshoot the device.
+6. Ship via FedEx to the address listed in the equipment request.
+7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
+
 
 
 ### Prepare for the All hands

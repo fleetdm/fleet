@@ -2,6 +2,9 @@
 
 This page covers the things managers and other leaders at Fleet need to know about running a great company.
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/06da9dde-c6f8-4f4d-952f-26d6ad7d3aa0">
+
+
 
 ## CEO flaws
 [Openness](https://fleetdm.com/handbook/company#values) is important, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. 
@@ -31,7 +34,6 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 
 > If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
-
 ## Contact the CEO
 **Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention our CEO in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
 
@@ -39,11 +41,9 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 ## CEO responsibilities
 Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
 
-
-
-
-
 > **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1301303a-cb80-4925-806b-aace10a47047">
 
 
 ## Outline of departmental page structure
@@ -91,6 +91,8 @@ Departmental page structure:
 
 
 - `## Rituals`
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/61d6503c-8ef7-4199-a946-8472f443f649">
 
 
 ## Key reviews
@@ -142,7 +144,7 @@ Core team members:
 - must be offboarded
 - get an email address
 - have a manager and a formal place in the company [org chart](https://fleetdm.com/handbook/company#org-chart)
-- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0)
+- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) (private Google Doc)
 - are paid as part of the standard payroll ritual for the place they work and their employment classification.
 
 Consultants aren't required to do any of those things.
@@ -165,6 +167,9 @@ If the consultant is international, you will also provide:
 
 
 > To update a consultant's fee, [submit an issue to BizOps](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/e9d36657-fab9-44c1-9162-7bc640e2f3a0">
+
 
 ### Adding an advisor
 
@@ -263,6 +268,9 @@ When review is requested on a proposal to open a new position, the 🐈‍⬛ CE
 Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant.
 
 This means that outbound recruiting, 3rd party recruiters, and references from team members are important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/ea3d3470-575d-4516-a19e-02abec3e1285">
+
 
 #### Receiving job applications
 Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
@@ -400,6 +408,9 @@ From time to time, someone's job title changes.  To do this, Business Operations
 1. Change "Fleeties" to reflect the new job title, manager, and/or department.
 2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1e59ac8f-26d8-4f2f-9ff4-2e303753c910">
+
 
 ## Delivering performance feedback
 When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
