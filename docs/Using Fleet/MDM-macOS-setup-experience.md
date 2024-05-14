@@ -12,7 +12,7 @@ In Fleet, you can customize the out-of-the-box macOS setup experience for your e
 
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
-MacOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-setup.md#apple-business-manager-abm).
+macOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-setup.md#apple-business-manager-abm).
 
 ## End user authentication and EULA
 
