@@ -153,7 +153,7 @@ type SizeLimitTransport struct {
 	maxSizeBytes int64
 }
 
-var ErrMaxSizeExceeded = errors.New("response body exeeds max size")
+var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
 
 func NewSizeLimitTransport(maxSizeBytes int64) *SizeLimitTransport {
 	return &SizeLimitTransport{

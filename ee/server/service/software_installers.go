@@ -322,7 +322,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.Version = vers
 	payload.StorageID = hex.EncodeToString(hash)
 
-	// reset the reade (it was consumed to extract metadata)
+	// reset the reader (it was consumed to extract metadata)
 	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
 	}
