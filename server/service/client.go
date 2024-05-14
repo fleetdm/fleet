@@ -575,15 +575,15 @@ func (c *Client) ApplyGroup(
 
 					group, err := spec.GroupFromBytes(rawSpec)
 					if err != nil {
-						return nil, fmt.Errorf("unable to parse query spec file %s: %w", queryFile, err)
+						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
 					}
 
 					if len(group.Queries) > 1 {
-						return nil, fmt.Errorf("pre_install_query file %s contains more than one query", queryFile)
+						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
 					}
 
 					if len(group.Queries) == 0 {
-						return nil, fmt.Errorf("pre_install_query file %s doesn't have a query defined", queryFile)
+						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
 					}
 
 					qc = group.Queries[0].Query
@@ -594,7 +594,7 @@ func (c *Client) ApplyGroup(
 					installScriptFile := resolveApplyRelativePath(baseDir, si.InstallScript.Path)
 					ic, err = os.ReadFile(installScriptFile)
 					if err != nil {
-						return nil, fmt.Errorf("applying fleet config: %w", err)
+						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read install script file %s: %w", si.URL, si.InstallScript.Path, err)
 					}
 				}
 
@@ -603,7 +603,7 @@ func (c *Client) ApplyGroup(
 					postInstallScriptFile := resolveApplyRelativePath(baseDir, si.PostInstallScript.Path)
 					pc, err = os.ReadFile(postInstallScriptFile)
 					if err != nil {
-						return nil, fmt.Errorf("applying fleet config: %w", err)
+						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read post-install script file %s: %w", si.URL, si.PostInstallScript.Path, err)
 					}
 				}
 
@@ -1075,6 +1075,7 @@ func (c *Client) DoGitOps(
 			team["features"] = features
 		}
 		team["scripts"] = scripts
+		team["software"] = config.Software
 		team["secrets"] = config.TeamSettings["secrets"]
 		team["webhook_settings"] = map[string]interface{}{}
 		clearHostStatusWebhook := true
