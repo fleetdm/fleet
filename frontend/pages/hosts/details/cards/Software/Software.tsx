@@ -152,11 +152,9 @@ const SoftwareCard = ({
     [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
 
-  const canInstallSoftware =
-    isFleetdHost &&
-    Boolean(
-      isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
-    );
+  const canInstallSoftware = Boolean(
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
+  );
 
   const installHostSoftwarePackage = useCallback(
     async (softwareId: number) => {
@@ -206,6 +204,7 @@ const SoftwareCard = ({
           canInstall: canInstallSoftware,
           onSelectAction,
           teamId,
+          isFleetdHost,
         });
   }, [
     isMyDevicePage,
@@ -214,6 +213,7 @@ const SoftwareCard = ({
     canInstallSoftware,
     onSelectAction,
     teamId,
+    isFleetdHost,
   ]);
 
   const renderSoftwareTable = () => {

@@ -1,32 +1,30 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"mime"
 	"net/http"
+	"net/url"
 	"path/filepath"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
+	"golang.org/x/sync/errgroup"
 )
 
 func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return err
-	}
-	if payload == nil {
-		return ctxerr.New(ctx, "payload is required")
-	}
-
-	if payload.InstallerFile == nil {
-		return ctxerr.New(ctx, "installer file is required")
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -34,49 +32,22 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return fleet.ErrNoContext
 	}
 
-	title, vers, hash, err := file.ExtractInstallerMetadata(payload.Filename, payload.InstallerFile)
-	if err != nil {
-		// TODO: confirm error handling
-		if strings.Contains(err.Error(), "unsupported file type") {
-			return &fleet.BadRequestError{
-				Message:     "The file should be .pkg, .msi, .exe or .deb.",
-				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
-			}
-		}
-		return ctxerr.Wrap(ctx, err, "extracting metadata from installer")
-	}
-	payload.Title = title
-	payload.Version = vers
-	payload.StorageID = hex.EncodeToString(hash)
+	// make sure all scripts use unix-style newlines to prevent errors when
+	// running them, browsers use windows-style newlines, which breaks the
+	// shebang when the file is directly executed.
+	payload.InstallScript = file.Dos2UnixNewlines(payload.InstallScript)
+	payload.PostInstallScript = file.Dos2UnixNewlines(payload.PostInstallScript)
 
-	// checck if exists in the installer store
-	exists, err := svc.softwareInstallStore.Exists(ctx, payload.StorageID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking if installer exists")
-	}
-	if !exists {
-		// reset the reader before storing (it was consumed to extract metadata)
-		if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
-			return ctxerr.Wrap(ctx, err, "resetting installer file reader")
-		}
-		if err := svc.softwareInstallStore.Put(ctx, payload.StorageID, payload.InstallerFile); err != nil {
-			return ctxerr.Wrap(ctx, err, "storing installer")
-		}
+	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload); err != nil {
+		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
-	if payload.InstallScript == "" {
-		payload.InstallScript = file.GetInstallScript(payload.Filename)
+	if err := svc.storeSoftware(ctx, payload); err != nil {
+		return ctxerr.Wrap(ctx, err, "storing software installer")
 	}
 
 	// TODO: basic validation of install and post-install script (e.g., supported interpreters)?
-
 	// TODO: any validation of pre-install query?
-
-	source, err := fleet.SofwareInstallerSourceFromFilename(payload.Filename)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "determining source from filename")
-	}
-	payload.Source = source
 
 	installerID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
@@ -97,7 +68,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// Create activity
 	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-		SoftwareTitle:   title,
+		SoftwareTitle:   payload.Title,
 		SoftwarePackage: payload.Filename,
 		TeamName:        teamName,
 		TeamID:          payload.TeamID,
@@ -312,5 +283,210 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 		return nil, err
 	}
 
+	res.EnhanceOutputDetails()
 	return res, nil
+}
+
+func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+	// check if exists in the installer store
+	exists, err := svc.softwareInstallStore.Exists(ctx, payload.StorageID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if installer exists")
+	}
+	if !exists {
+		if err := svc.softwareInstallStore.Put(ctx, payload.StorageID, payload.InstallerFile); err != nil {
+			return ctxerr.Wrap(ctx, err, "storing installer")
+		}
+	}
+
+	return nil
+}
+
+func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (extension string, err error) {
+	if payload == nil {
+		return "", ctxerr.New(ctx, "payload is required")
+	}
+
+	if payload.InstallerFile == nil {
+		return "", ctxerr.New(ctx, "installer file is required")
+	}
+
+	title, vers, ext, hash, err := file.ExtractInstallerMetadata(payload.InstallerFile)
+	if err != nil {
+		if errors.Is(err, file.ErrUnsupportedType) {
+			return "", &fleet.BadRequestError{
+				Message:     "The file should be .pkg, .msi, .exe or .deb.",
+				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
+			}
+		}
+		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
+	}
+	payload.Title = title
+	payload.Version = vers
+	payload.StorageID = hex.EncodeToString(hash)
+
+	// reset the reader (it was consumed to extract metadata)
+	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
+	}
+
+	if payload.InstallScript == "" {
+		payload.InstallScript = file.GetInstallScript(ext)
+	}
+
+	source, err := fleet.SofwareInstallerSourceFromExtension(ext)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "determining source from extension")
+	}
+	payload.Source = source
+
+	return ext, nil
+}
+
+const maxInstallerSizeBytes int64 = 1024 * 1024 * 500
+
+func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) error {
+	if tmName == "" {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "must not be empty"))
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	tm, err := svc.ds.TeamByName(ctx, tmName)
+	if err != nil {
+		// If this is a dry run, the team may not have been created yet
+		if dryRun && fleet.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &tm.ID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating authorization")
+	}
+
+	g, workerCtx := errgroup.WithContext(ctx)
+	g.SetLimit(3)
+	// critical to avoid data race, the slice is pre-allocated and each
+	// goroutine only writes to its index.
+	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
+
+	client := fleethttp.NewClient()
+	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSizeBytes)
+	for i, p := range payloads {
+		i, p := i, p
+
+		g.Go(func() error {
+			// validate the URL before doing the request
+			_, err := url.ParseRequestURI(p.URL)
+			if err != nil {
+				return fleet.NewInvalidArgumentError(
+					"software.url",
+					fmt.Sprintf("Couldn't edit software. URL (%q) is invalid", p.URL),
+				)
+			}
+
+			req, err := http.NewRequestWithContext(workerCtx, http.MethodGet, p.URL, nil)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "creating request for URL %s", p.URL)
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				var maxBytesErr *http.MaxBytesError
+				if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
+					return fleet.NewInvalidArgumentError(
+						"software.url",
+						fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", p.URL, maxInstallerSizeBytes/(1024*1024)),
+					)
+				}
+
+				return ctxerr.Wrapf(ctx, err, "performing request for URL %s", p.URL)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode == http.StatusNotFound {
+				return fleet.NewInvalidArgumentError(
+					"software.url",
+					fmt.Sprintf("Couldn't edit software. URL (%q) doesn't exist. Please make sure that URLs are publicy accessible to the internet.", p.URL),
+				)
+			}
+
+			// Allow all 2xx and 3xx status codes in this pass.
+			if resp.StatusCode > 400 {
+				return fleet.NewInvalidArgumentError(
+					"software.url",
+					fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", p.URL, resp.StatusCode),
+				)
+			}
+
+			bodyBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "reading installer %q contents", p.URL)
+			}
+
+			installer := &fleet.UploadSoftwareInstallerPayload{
+				TeamID:            &tm.ID,
+				InstallScript:     p.InstallScript,
+				PreInstallQuery:   p.PreInstallQuery,
+				PostInstallScript: p.PostInstallScript,
+				InstallerFile:     bytes.NewReader(bodyBytes),
+			}
+
+			ext, err := svc.addMetadataToSoftwarePayload(ctx, installer)
+			if err != nil {
+				return err
+			}
+
+			var filename string
+			cdh, ok := resp.Header["Content-Disposition"]
+			if ok && len(cdh) > 0 {
+				_, params, err := mime.ParseMediaType(cdh[0])
+				if err == nil {
+					filename = params["filename"]
+				}
+			}
+			// if it fails, try to extract it from the URL
+			if filename == "" {
+				filename = file.ExtractFilenameFromURLPath(p.URL, ext)
+			}
+			// if empty, resort to a default name
+			if filename == "" {
+				filename = fmt.Sprintf("package.%s", ext)
+			}
+			installer.Filename = filename
+
+			installers[i] = installer
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		// NOTE: intentionally not wrapping to avoid polluting user
+		// errors.
+		return err
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	for _, payload := range installers {
+		if err := svc.storeSoftware(ctx, payload); err != nil {
+			return ctxerr.Wrap(ctx, err, "storing software installer")
+		}
+	}
+
+	if err := svc.ds.BatchSetSoftwareInstallers(ctx, &tm.ID, installers); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch set software installers")
+	}
+
+	// Note: per @noahtalerman we don't want activity items for CLI actions
+	// anymore, so that's intentionally skipped.
+
+	return nil
 }

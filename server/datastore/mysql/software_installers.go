@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -40,9 +41,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.host_id AS host_id,
     hsi.execution_id AS execution_id,
     hsi.software_installer_id AS installer_id,
-    si.pre_install_query AS pre_install_condition,
+    COALESCE(si.pre_install_query, '') AS pre_install_condition,
     inst.contents AS install_script,
-    pisnt.contents AS post_install_script
+    COALESCE(pisnt.contents, '') AS post_install_script
   FROM
     host_software_installs hsi
   INNER JOIN
@@ -62,7 +63,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstallerDetails").WithName(executionId), "get software installer details")
 		}
-		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
+		return nil, ctxerr.Wrap(ctx, err, "get software install details")
 	}
 	return result, nil
 }
@@ -294,7 +295,9 @@ SELECT
 	COALESCE(%s, '') AS status,
 	si.filename AS software_package,
 	h.team_id AS host_team_id,
-	hsi.user_id AS user_id
+	hsi.user_id AS user_id,
+	hsi.post_install_script_exit_code,
+	hsi.install_script_exit_code
 FROM
 	host_software_installs hsi
 	JOIN hosts h ON h.id = hsi.host_id
@@ -411,4 +414,141 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 
 	_, err := softwareInstallStore.Cleanup(ctx, storageIDs)
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
+}
+
+func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	const upsertSoftwareTitles = `
+INSERT INTO software_titles
+  (name, source, browser)
+VALUES
+  %s
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  source = VALUES(source),
+  browser = VALUES(browser)
+`
+
+	const loadSoftwareTitles = `
+SELECT
+  id
+FROM
+  software_titles
+WHERE (name, source, browser) IN (%s)
+`
+	const deleteAllInstallersInTeam = `
+DELETE FROM
+  software_installers
+WHERE
+  global_or_team_id = ?
+`
+
+	const deleteInstallersNotInList = `
+DELETE FROM
+  software_installers
+WHERE
+  global_or_team_id = ? AND
+  title_id NOT IN (?)
+`
+
+	const insertNewOrEditedInstaller = `
+INSERT INTO software_installers (
+	team_id,
+	global_or_team_id,
+	storage_id,
+	filename,
+	version,
+	install_script_content_id,
+	pre_install_query,
+	post_install_script_content_id,
+	title_id
+) VALUES (
+  ?, ?, ?, ?, ?, ?, ?, ?,
+  (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
+)
+ON DUPLICATE KEY UPDATE
+  install_script_content_id = VALUES(install_script_content_id),
+  post_install_script_content_id = VALUES(post_install_script_content_id),
+  storage_id = VALUES(storage_id),
+  filename = VALUES(filename),
+  version = VALUES(version),
+  pre_install_query = VALUES(pre_install_query)
+`
+
+	// use a team id of 0 if no-team
+	var globalOrTeamID uint
+	if tmID != nil {
+		globalOrTeamID = *tmID
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// if no installers are provided, just delete whatever was in
+		// the table
+		if len(installers) == 0 {
+			_, err := tx.ExecContext(ctx, deleteAllInstallersInTeam, globalOrTeamID)
+			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+		}
+
+		var args []any
+		for _, installer := range installers {
+			args = append(args, installer.Title, installer.Source, "")
+		}
+
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?,?),", len(installers)),
+			",",
+		)
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert new/edited software title")
+		}
+
+		var titleIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &titleIDs, fmt.Sprintf(loadSoftwareTitles, values), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "load existing titles")
+		}
+
+		stmt, args, err := sqlx.In(deleteInstallersNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete installers")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete software installers")
+		}
+
+		for _, installer := range installers {
+			isRes, err := insertScriptContents(ctx, installer.InstallScript, tx)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
+			}
+			installScriptID, _ := isRes.LastInsertId()
+
+			var postInstallScriptID *int64
+			if installer.PostInstallScript != "" {
+				pisRes, err := insertScriptContents(ctx, installer.PostInstallScript, tx)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "inserting post-install script contents for software installer with name %q", installer.Filename)
+				}
+
+				insertID, _ := pisRes.LastInsertId()
+				postInstallScriptID = &insertID
+			}
+
+			args := []interface{}{
+				tmID,
+				globalOrTeamID,
+				installer.StorageID,
+				installer.Filename,
+				installer.Version,
+				installScriptID,
+				installer.PreInstallQuery,
+				postInstallScriptID,
+				installer.Title,
+				installer.Source,
+			}
+
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedInstaller, args...); err != nil {
+				return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
+			}
+		}
+		return nil
+	})
 }

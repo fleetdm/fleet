@@ -2,7 +2,6 @@ package file
 
 import (
 	_ "embed"
-	"path/filepath"
 )
 
 //go:embed scripts/install_pkg.sh
@@ -17,16 +16,17 @@ var installExeScript string
 //go:embed scripts/install_deb.sh
 var installDebScript string
 
-// GetInstallScript returns a script that can be used to install the given file
-func GetInstallScript(filename string) string {
-	switch ext := filepath.Ext(filename); ext {
-	case ".msi":
+// GetInstallScript returns a script that can be used to install the
+// the given extension
+func GetInstallScript(extension string) string {
+	switch extension {
+	case "msi":
 		return installMsiScript
-	case ".deb":
+	case "deb":
 		return installDebScript
-	case ".pkg":
+	case "pkg":
 		return installPkgScript
-	case ".exe":
+	case "exe":
 		return installExeScript
 	default:
 		return ""
@@ -45,16 +45,17 @@ var removeMsiScript string
 //go:embed scripts/remove_deb.sh
 var removeDebScript string
 
-// GetRemoveScript returns a script that can be used to remove the given file
-func GetRemoveScript(filename string) string {
-	switch ext := filepath.Ext(filename); ext {
-	case ".msi":
+// GetRemoveScript returns a script that can be used to remove an
+// installer with the given extension.
+func GetRemoveScript(extension string) string {
+	switch extension {
+	case "msi":
 		return removeMsiScript
-	case ".deb":
+	case "deb":
 		return removeDebScript
-	case ".pkg":
+	case "pkg":
 		return removePkgScript
-	case ".exe":
+	case "exe":
 		return removeExeScript
 	default:
 		return ""

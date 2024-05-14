@@ -168,10 +168,10 @@ func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc 
 
 	payload, err := svc.DownloadSoftwareInstaller(ctx, req.TitleID, req.TeamID)
 	if err != nil {
-		return downloadSoftwareInstallerResponse{Err: err}, nil
+		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
 
-	return downloadSoftwareInstallerResponse{payload: payload}, nil
+	return orbitDownloadSoftwareInstallerResponse{payload: payload}, nil
 }
 
 func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*fleet.SoftwareInstaller, error) {
@@ -182,15 +182,15 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID ui
 	return nil, fleet.ErrMissingLicense
 }
 
-type downloadSoftwareInstallerResponse struct {
+type orbitDownloadSoftwareInstallerResponse struct {
 	Err error `json:"error,omitempty"`
 	// fields used by hijackRender for the response.
 	payload *fleet.DownloadSoftwareInstallerPayload
 }
 
-func (r downloadSoftwareInstallerResponse) error() error { return r.Err }
+func (r orbitDownloadSoftwareInstallerResponse) error() error { return r.Err }
 
-func (r downloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))
@@ -277,4 +277,38 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Batch replace software installers
+////////////////////////////////////////////////////////////////////////////////
+
+type batchSetSoftwareInstallersRequest struct {
+	TeamName string                           `json:"-" query:"team_name"`
+	DryRun   bool                             `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Software []fleet.SoftwareInstallerPayload `json:"software"`
+}
+
+type batchSetSoftwareInstallersResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }
+
+func (r batchSetSoftwareInstallersResponse) Status() int { return http.StatusNoContent }
+
+func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*batchSetSoftwareInstallersRequest)
+	if err := svc.BatchSetSoftwareInstallers(ctx, req.TeamName, req.Software, req.DryRun); err != nil {
+		return batchSetSoftwareInstallersResponse{Err: err}, nil
+	}
+	return batchSetSoftwareInstallersResponse{}, nil
+}
+
+func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

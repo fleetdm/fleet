@@ -8998,6 +8998,200 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 	})
 }
 
+func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
+	t := s.T()
+
+	// create a team through the service so it initializes the agent ops
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// apply with software
+	// must not use applyTeamSpecsRequest and marshal it as JSON, as it will set
+	// all keys to their zerovalue, and some are only valid with mdm enabled.
+	teamSpecs := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": []map[string]any{
+					{
+						"url": "http://foo.com",
+						"install_script": map[string]string{
+							"path": "./foo/install-script.sh",
+						},
+						"post_install_script": map[string]string{
+							"path": "./foo/post-install-script.sh",
+						},
+						"pre_install_query": map[string]string{
+							"path": "./foo/query.yaml",
+						},
+					},
+					{
+						"url": "http://bar.com",
+						"install_script": map[string]string{
+							"path": "./bar/install-script.sh",
+						},
+						"post_install_script": map[string]string{
+							"path": "./bar/post-install-script.sh",
+						},
+						"pre_install_query": map[string]string{
+							"path": "./bar/query.yaml",
+						},
+					},
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	wantSoftware := []fleet.TeamSpecSoftware{
+		{
+			URL:               "http://foo.com",
+			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
+			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
+			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+		},
+		{
+			URL:               "http://bar.com",
+			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
+			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
+			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+		},
+	}
+
+	// retrieving the team returns the software
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+
+	// apply without custom software specified, should not replace existing software
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+
+	// apply with explicitly empty custom software would clear the existing
+	// software, but dry-run
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     teamName,
+				"software": nil,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+
+	// apply with explicitly empty software clears the existing software
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     teamName,
+				"software": nil,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Value)
+
+	// patch with an invalid array returns an error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     teamName,
+				"software": []any{"foo", 1},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Value)
+}
+
+func (s *integrationMDMTestSuite) TestBatchSetSoftwareInstallers() {
+	t := s.T()
+
+	// a team name is required (we don't allow installers for "no team")
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusBadRequest)
+
+	// non-existent team
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
+
+	// create a team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// software with a bad URL
+	softwareToInstall := []fleet.SoftwareInstallerPayload{
+		{URL: "."},
+	}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+
+	// create an HTTP server to host the software installer
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		require.NoError(t, err)
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+		_, err = io.Copy(w, file)
+		require.NoError(t, err)
+	})
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// do a request with a valid URL
+	softwareToInstall = []fleet.SoftwareInstallerPayload{
+		{URL: srv.URL},
+	}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
+
+	// TODO(roberto): test with a variety of response codes
+
+	// check the application status
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, 1, titlesResp.Count)
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+
+	// same payload doesn't modify anything
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
+	newTitlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, titlesResp, newTitlesResp)
+
+	// empty payload cleans the software items
+	softwareToInstall = []fleet.SoftwareInstallerPayload{}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
+	titlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, 0, titlesResp.Count)
+	require.Len(t, titlesResp.SoftwareTitles, 0)
+
+}
+
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {
 	t := s.T()
 
@@ -9322,9 +9516,12 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	}
 
 	type result struct {
-		HostID      uint
-		InstallUUID string
-		Status      fleet.SoftwareInstallerStatus
+		HostID                  uint
+		InstallUUID             string
+		Status                  fleet.SoftwareInstallerStatus
+		Output                  string
+		PostInstallScriptOutput string
+		PreInstallQueryOutput   string
 	}
 	checkResults := func(want result) {
 		var resp getSoftwareInstallResultsResponse
@@ -9333,6 +9530,9 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		assert.Equal(t, want.HostID, resp.Results.HostID)
 		assert.Equal(t, want.InstallUUID, resp.Results.InstallUUID)
 		assert.Equal(t, want.Status, resp.Results.Status)
+		assert.Equal(t, want.PreInstallQueryOutput, resp.Results.PreInstallQueryOutput)
+		assert.Equal(t, want.Output, resp.Results.Output)
+		assert.Equal(t, want.PostInstallScriptOutput, resp.Results.PostInstallScriptOutput)
 	}
 
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
@@ -9345,9 +9545,11 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[0])),
 		http.StatusNoContent)
 	checkResults(result{
-		HostID:      host.ID,
-		InstallUUID: installUUIDs[0],
-		Status:      fleet.SoftwareInstallerFailed,
+		HostID:                host.ID,
+		InstallUUID:           installUUIDs[0],
+		Status:                fleet.SoftwareInstallerFailed,
+		PreInstallQueryOutput: fleet.SoftwareInstallerQuerySuccessCopy,
+		Output:                fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed"),
 	})
 	wantAct := fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
@@ -9366,9 +9568,10 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[1])),
 		http.StatusNoContent)
 	checkResults(result{
-		HostID:      host.ID,
-		InstallUUID: installUUIDs[1],
-		Status:      fleet.SoftwareInstallerFailed,
+		HostID:                host.ID,
+		InstallUUID:           installUUIDs[1],
+		Status:                fleet.SoftwareInstallerFailed,
+		PreInstallQueryOutput: fleet.SoftwareInstallerQueryFailCopy,
 	})
 	wantAct.InstallUUID = installUUIDs[1]
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
@@ -9385,9 +9588,12 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[2])),
 		http.StatusNoContent)
 	checkResults(result{
-		HostID:      host.ID,
-		InstallUUID: installUUIDs[2],
-		Status:      fleet.SoftwareInstallerInstalled,
+		HostID:                  host.ID,
+		InstallUUID:             installUUIDs[2],
+		Status:                  fleet.SoftwareInstallerInstalled,
+		PreInstallQueryOutput:   fleet.SoftwareInstallerQuerySuccessCopy,
+		Output:                  fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success"),
+		PostInstallScriptOutput: fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok"),
 	})
 	wantAct.InstallUUID = installUUIDs[2]
 	wantAct.Status = string(fleet.SoftwareInstallerInstalled)

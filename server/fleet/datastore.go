@@ -1504,6 +1504,9 @@ type Datastore interface {
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore) error
+
+	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

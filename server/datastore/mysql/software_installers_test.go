@@ -24,9 +24,10 @@ func TestSoftwareInstallers(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"SoftwareInstallRequests", testSoftwareInstallRequests},
-		{"SoftwareInstallerDetails", testListSoftwareInstallerDetails},
+		{"ListPendingSoftwareInstalls", testListPendingSoftwareInstalls},
 		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
 		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
+		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
 	}
 
@@ -38,7 +39,7 @@ func TestSoftwareInstallers(t *testing.T) {
 	}
 }
 
-func testListSoftwareInstallerDetails(t *testing.T, ds *Datastore) {
+func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
@@ -363,6 +364,115 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
 	require.NoError(t, err)
 	assertExisting(nil)
+}
+
+func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// TODO(roberto): perform better assertions, we should have evertything
+	// to check that the actual values of everything match.
+	assertSoftware := func(wantTitles []fleet.SoftwareTitle) {
+		tmFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+		titles, _, _, err := ds.ListSoftwareTitles(
+			ctx,
+			fleet.SoftwareTitleListOptions{TeamID: &team.ID},
+			tmFilter,
+		)
+		require.NoError(t, err)
+		require.Len(t, titles, len(wantTitles))
+
+		for _, title := range titles {
+			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, title.ID)
+			require.NoError(t, err)
+			require.NotNil(t, meta.TitleID)
+		}
+	}
+
+	// batch set with everything empty
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, nil)
+	require.NoError(t, err)
+	assertSoftware(nil)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	assertSoftware(nil)
+
+	// add a single installer
+	ins0 := "installer0"
+	ins0File := bytes.NewReader([]byte("installer0"))
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+		InstallScript:   "install",
+		InstallerFile:   ins0File,
+		StorageID:       ins0,
+		Filename:        "installer0",
+		Title:           "ins0",
+		Source:          "apps",
+		Version:         "1",
+		PreInstallQuery: "foo",
+	}})
+	require.NoError(t, err)
+	assertSoftware([]fleet.SoftwareTitle{
+		{Name: ins0, Source: "apps", Browser: ""},
+	})
+
+	// add a new installer + ins0 installer
+	ins1 := "installer1"
+	ins1File := bytes.NewReader([]byte("installer1"))
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   "install",
+			InstallerFile:   ins0File,
+			StorageID:       ins0,
+			Filename:        ins0,
+			Title:           ins0,
+			Source:          "apps",
+			Version:         "1",
+			PreInstallQuery: "select 0 from foo;",
+		},
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     ins1File,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+		},
+	})
+	require.NoError(t, err)
+	assertSoftware([]fleet.SoftwareTitle{
+		{Name: ins0, Source: "apps", Browser: ""},
+		{Name: ins1, Source: "apps", Browser: ""},
+	})
+
+	// remove ins0
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     ins1File,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+		},
+	})
+	require.NoError(t, err)
+	assertSoftware([]fleet.SoftwareTitle{
+		{Name: ins1, Source: "apps", Browser: ""},
+	})
+
+	// remove everything
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	assertSoftware([]fleet.SoftwareTitle{})
 }
 
 func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastore) {
