@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -102,8 +101,6 @@ func (ds *Datastore) ListSoftwareTitles(
 	if err := sqlx.SelectContext(ctx, dbReader, &titles, getTitlesStmt, args...); err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "select software titles")
 	}
-
-	slog.With("filename", "server/datastore/mysql/software_titles.go", "func", "ListSoftwareTitles").Info("JVE_LOG: final get titles stmt ", "sql", getTitlesStmt)
 
 	// perform a second query to grab the counts
 	var counts int
@@ -209,7 +206,7 @@ SELECT
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
 	si.filename as software_package
 FROM software_titles st
-JOIN software_installers si ON si.title_id = st.id
+LEFT JOIN software_installers si ON si.title_id = st.id
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s
