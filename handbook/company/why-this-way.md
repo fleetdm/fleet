@@ -8,6 +8,9 @@ Any past decision is open to questioning in a future iteration, as long as you a
 
 Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/234d3072-96eb-43b7-8b9e-b97af17ef72e">
+
+
 ## Why open source?
 Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
 
