@@ -169,7 +169,7 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.getByText("Hosts")).toBeInTheDocument();
   });
 
-  it("Renders free columns", async () => {
+  it("Does not render premium only columns and disables exploited vulnerabilities dropdown", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -180,7 +180,7 @@ describe("Software Vulnerabilities table", () => {
       },
     });
 
-    render(
+    const { user } = render(
       <SoftwareVulnerabilitiesTable
         router={mockRouter}
         isSoftwareEnabled
@@ -203,5 +203,22 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.queryByText("Published")).not.toBeInTheDocument();
     expect(screen.getByText("Detected")).toBeInTheDocument();
     expect(screen.getByText("Hosts")).toBeInTheDocument();
+
+    await user.click(screen.getByText("All vulnerabilities"));
+
+    expect(
+      screen.getByText("Exploited vulnerabilities").parentElement?.parentElement
+        ?.parentElement
+    ).toHaveClass("is-disabled");
+
+    await waitFor(() => {
+      waitFor(() => {
+        user.hover(screen.getByText("Exploited vulnerabilities"));
+      });
+
+      expect(
+        screen.getByText(/Available in Fleet Premium./i)
+      ).toBeInTheDocument();
+    });
   });
 });
