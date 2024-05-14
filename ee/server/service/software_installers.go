@@ -367,6 +367,8 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 	g, workerCtx := errgroup.WithContext(ctx)
 	g.SetLimit(3)
+	// critical to avoid data race, the slice is pre-allocated and each
+	// goroutine only writes to its index.
 	installers := make([]*fleet.UploadSoftwareInstallerPayload, len(payloads))
 
 	client := fleethttp.NewClient()
@@ -391,7 +393,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 			resp, err := client.Do(req)
 			if err != nil {
-				if errors.Is(err, fleethttp.ErrMaxSizeExceeded) {
+				if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.Is(err, &http.MaxBytesError{}) {
 					return fleet.NewInvalidArgumentError(
 						"software.url",
 						fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", p.URL, maxInstallerSizeBytes/(1024*1024)),
@@ -417,13 +419,6 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				)
 			}
 
-			// TODO(roberto): this reads the entire body, it's not
-			// that bad since it's limited to
-			// maxInstallerSizeBytes, but this could be changed so
-			// `fleet.UploadSoftwarePayload` takes an io.Reader (vs
-			// an io.ReadSeeker.) That requires changes in other
-			// downstream methods that we use to extract metadata,
-			// store the installer, etc.
 			bodyBytes, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "reading installer %q contents", p.URL)
