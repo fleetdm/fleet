@@ -536,22 +536,23 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
 
-### Generate Apple Business Manager Public key (AED)
+### Generate Apple Business Manager public key (AED)
+
+`POST /api/v1/fleet/mdm/apple/dep/public_key`
 
 #### Parameters
 
-None.
+| Name | Type    | In   | Description                             |
+| ---- | ------- | ---- | --------------------------------------- |
+| alt   | string | query | **Required.** Set to "media" to download the public key for ABM. |
 
-#### Example
+#### Example (download public key)
 
-`POST /api/v1/fleet/mdm/apple/dep/key_pair`
+`POST /api/v1/fleet/mdm/apple/dep/public_key?alt=media`
 
 ##### Default response
 
 ```json
-{
-  "public_key": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNzVENDQVptZ0F3SUJBZ0lCQVRBTkJna3Foa2lHOXcwQkFRc0ZBREFTTVJBd0RnWURWUVFERXdkR2JHVmwKZEVSTk1CNFhEVEl5TVRJeE16RTFNREl6TmxvWERUSXpNREV4TWpFMU1USXpObG93RWpFUU1BNEdBMVVFQXhNSApSbXhsWlhSRVRUQ0NBU0l3RFFZSktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCQU1jbXIxOVNiQUhaCnVZNnJBa254dVBCV0tkSFlrSXpJY2JGMHErZ0ZKZVU3cUlwU0FQWFhmeUpFTXpyQXhpZStPSi9QSXhkTHZTZVoKdXA2Qzg5VHM1VEwrWjhKZmR3T2ZLQVFIUWpyQVpGZkxkdUh0SjNRZnk3di9rbmZ3VzNNSU9XZ00zcDQ3a0xzOAowZnJzNmVuTlpXZElsNUMyV1NpOXVGVVVQcFJTbm1Ha1AvK2QydmNCaWdIOHQ0K3RuV3NYdjhpekxqcHhhanV6CjN0Vlp3SFA0cjBQZTdIM0I0eDZINmlKZmxRZzI4Z3owbDZWa0c2NjVKT2NMLzlDSmNtOWpWRmpxb0RmZTVjUFAKMVFNbFpyb1FCaFhOUHN3bEhRWTkzekJFK3VSRUVNL1N1d0dZcGZLYjQwSDM0S1B1U3Y5SXZHTjIzTXdNM01FMwppNEFBWGJQOGZNTUNBd0VBQWFNU01CQXdEZ1lEVlIwUEFRSC9CQVFEQWdXZ01BMEdDU3FHU0liM0RRRUJDd1VBCkE0SUJBUUM5ZFcyRXBxemp1VWhhbk1CSXJpK09VWVhrekR2eVB6bGxTMXd0UVdQQ0s4cFJ5Rk5TM3RkakVXT2kKSTcyOVh2UmtpNjhNZStqRlpxSkxFWHpWUlkwb29aSWhhcG5lNUZoNzlCbkIrWGl6TFQ0TStDNHJ5RVQwOXg4SQpaWHJuY1BKME9ueUdVemlFK0szWEI2dVNLeWN1a3pZci9sRVBBMGlQRTZpM0dNYjljenJFL2NOQURrRXZwcjU2CjN1SFdMU3hwK1U5QmJyaTNDSXBoR1NvSWxnTVBEaUE1RkpiOXc0SnlMK0crZ3Q4c1BlcUZkZDYyRDRpV3U5a0wKMVZBUjRSU2xPcWt1cTVXREZVcUxsVGJFMS9oY1lqcVVUczRrSWhENmN6MkcxQlBnMUU2WVpRZWp6U0ZpeGR1MApYUy9UTTByUFBKNithUC82V1BNRWpJcGVRcmNvCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
-}
 ```
 
 Note that the `public_key` is base64 encoded and should be decoded before writing them to files.
