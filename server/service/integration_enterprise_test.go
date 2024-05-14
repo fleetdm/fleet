@@ -9352,8 +9352,8 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		InstallUUID:             installUUIDs[2],
 		Status:                  fleet.SoftwareInstallerInstalled,
 		PreInstallQueryOutput:   fleet.SoftwareInstallerQuerySuccessCopy,
-		Output:                  fmt.Sprintf(fleet.SoftwareInstallSucceedCopy, "success"),
-		PostInstallScriptOutput: fmt.Sprintf(fleet.SoftwarePostInstallSucceedCopy, "ok"),
+		Output:                  fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success"),
+		PostInstallScriptOutput: fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok"),
 	})
 	wantAct.InstallUUID = installUUIDs[2]
 	wantAct.Status = string(fleet.SoftwareInstallerInstalled)
