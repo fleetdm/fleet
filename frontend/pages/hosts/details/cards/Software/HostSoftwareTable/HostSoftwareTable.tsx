@@ -99,6 +99,7 @@ const HostSoftwareTable = ({
   return (
     <div className={baseClass}>
       <TableContainer
+        filteredCount={data.count}
         resultsTitle="software items"
         columnConfigs={tableConfig}
         data={data.software}

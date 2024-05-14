@@ -3040,7 +3040,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// it now returns the software with vulnerabilities and installed paths
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 5}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"],
 	}, sw)
@@ -3200,7 +3200,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// request without available software
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"],
 	}, sw)
@@ -3208,7 +3208,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// request with available software
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 8}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"], expected["i2"],
 	}, sw)
@@ -3218,7 +3218,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	opts.TestSecondaryOrderDirection = fleet.OrderDescending
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["i1"], expected["i0"], expected["d"], expected["c"], expected["b"], expected["a2"], expected["a1"],
 	}, sw)
@@ -3267,7 +3267,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// request without available software
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, false, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"],
 	}, sw)
@@ -3275,7 +3275,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// request with available software
 	sw, meta, err = ds.ListHostSoftware(ctx, host.ID, true, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 8}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{
 		expected["a1"], expected["a2"], expected["b"], expected["c"], expected["d"], expected["i0"], expected["i1"], expected["i2"],
 	}, sw)
@@ -3292,8 +3292,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 
 	// sees the available installer in its team
-	sw, _, err = ds.ListHostSoftware(ctx, tmHost.ID, true, opts)
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost.ID, true, opts)
 	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 1}, meta)
 	compareResults([]*fleet.HostSoftwareWithInstaller{expected["i3"]}, sw)
 
 	// test with a search query (searches on name), with and without available software
@@ -3324,43 +3325,43 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			opts:          fleet.ListOptions{PerPage: 3},
 			withAvailable: false,
 			wantNames:     []string{expected["a1"].Name, expected["a2"].Name, expected["b"].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
 		},
 		{
 			opts:          fleet.ListOptions{Page: 1, PerPage: 3},
 			withAvailable: false,
 			wantNames:     []string{expected["c"].Name, expected["d"].Name, expected["i0"].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
 			opts:          fleet.ListOptions{Page: 2, PerPage: 3},
 			withAvailable: false,
 			wantNames:     []string{expected["i1"].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
 			opts:          fleet.ListOptions{Page: 3, PerPage: 3},
 			withAvailable: false,
 			wantNames:     []string{},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
 			opts:          fleet.ListOptions{PerPage: 4},
 			withAvailable: true,
 			wantNames:     []string{expected["a1"].Name, expected["a2"].Name, expected["b"].Name, expected["c"].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
 		},
 		{
 			opts:          fleet.ListOptions{Page: 1, PerPage: 4},
 			withAvailable: true,
 			wantNames:     []string{expected["d"].Name, expected["i0"].Name, expected["i1"].Name, expected["i2"].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			opts:          fleet.ListOptions{Page: 2, PerPage: 4},
 			withAvailable: true,
 			wantNames:     []string{},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 	}
 	for _, c := range cases {
