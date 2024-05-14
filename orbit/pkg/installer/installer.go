@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -59,6 +60,8 @@ type Runner struct {
 	connectOsquery func(*Runner) error
 
 	scriptsEnabled func() bool
+
+	osqueryConnectionMutex sync.Mutex
 }
 
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool) *Runner {
@@ -83,6 +86,9 @@ func (r *Runner) Run(config *fleet.OrbitConfig) error {
 }
 
 func connectOsquery(r *Runner) error {
+	r.osqueryConnectionMutex.Lock()
+	defer r.osqueryConnectionMutex.Unlock()
+
 	if r.OsqueryClient == nil {
 		osqueryClient, err := osquery.NewClient(r.osquerySocketPath, 10*time.Second)
 		if err != nil {
