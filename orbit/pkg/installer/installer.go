@@ -112,6 +112,9 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 		payload, err := r.installSoftware(ctx, installerID)
 		if err != nil {
 			errs = append(errs, err)
+			if payload == nil {
+				continue
+			}
 		}
 		if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
 			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
