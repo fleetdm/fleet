@@ -2,29 +2,15 @@
 
 ![Windows MDM setup](../website/assets/images/articles/windows-mdm-fleet-1600x900@2x.png)
 
-## Overview
+To control OS settings, updates, and more on Windows hosts follow the manual enrollment instructions.
 
-Turning on Windows MDM features requires configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM.
+To use automatic enrollment (aka zero-touch) features on Windows, follow instructions to connect Fleet to Microsoft Azure Active Directory (aka Microsoft Entra). You can further customize zero-touch with Windows Autopilot.
 
-Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Azure Active Directory (aka Microsoft Entra). This guide will walk you through how to connect Azure AD to Fleet. 
-
-With Fleet connected to Azure AD, the end user will see Microsoft's default setup experience. You can further customize the initial setup with Windows Autopilot, which is similar to Apple's Automated Device Enrollment (DEP).
-
-## Requirements
-To use Fleet's Windows MDM features you need to have:
-- A [deployed Fleet instance](https://fleetdm.com/docs/deploy/introduction).
-- A Fleet user with the admin role.
-
-## Turning on Windows MDM
-
-Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
-
-This section will show you how to:
-1. Generate your certificate and key
-2. Configure Fleet with your certificate and key
-3. Turn on Windows MDM in Fleet
+## Manual enrollment
 
 ### Step 1: generate your certificate and key
+
+Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
 
 > If you're already using Fleet's macOS MDM features, you already have a SCEP certificate and key. Skip to step 2 and reuse the SCEP certificate and key as your WSTEP certificate and key.
 
@@ -47,9 +33,7 @@ In your Fleet server configuration, set the contents of the certificate and key 
 
 Restart the Fleet server.
 
-### Step 3: Turn on Windows MDM in Fleet
-
-Fleet UI:
+### Step 3: turn on Windows MDM
 
 1. Head to the **Settings > Integrations > Mobile device management (MDM) enrollment** page.
 
@@ -57,38 +41,23 @@ Fleet UI:
 
 3. Select **Turn on**.
 
-fleetctl CLI:
+### Step 4: test manual enrollment
 
-1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
+With Windows MDM turned on, enroll a Windows host to Fleet by installing the [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    windows_enabled_and_configured: true
-  ...
-```
+## Automatic enrollment
 
-2. Run the fleetctl `apply -f fleet-config.yml` command to turn on Windows MDM.
+> Available in Fleet Premium
 
-3. Confirm that Windows MDM is turned on by running `fleetctl get config`.
+To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Azure Active Directory (Azure AD).
 
-## Microsoft Azure Active Directory (AD)
+After you connect Fleet to Azure AD, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-> Available in Fleet Premium or Ultimate
+In order to connect Fleet to Azure AD, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
 
-By connecting Fleet to Azure AD, Windows workstations can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
+Each end user who automatically enrolls, needs a Microsoft Intune license.
 
-This section will guide you through how to:
-
-1. Buy a Microsoft license.
-
-2. Connect Fleet to Azure AD
-
-3. Test automatic enrollment
-
-### Step 1: buy a Microsoft license
+### Step 1: buy Microsoft licenses
 
 1. Sign in to [Microsoft 365 admin center](https://admin.microsoft.com/).
 
@@ -100,13 +69,15 @@ This section will guide you through how to:
 
 5. On the **Enterprise Mobility + Security E3** page, select **Buy** and follow instructions to purchase the license. 
 
+6. Find and buy an Intune license.
+
 6. Sign in to [Azure portal](https://portal.azure.com).
 
 7. At the top of the page search "Users" and select **Users**.
 
-8. Select or create your user and select **Licenses**.
+8. Select or create a test user and select **Licenses**.
 
-9. Select **+ Assignments** and assign the **Enterprise Mobility + Security E3** to this user.
+9. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
 
 ### Step 2: connect Fleet to Azure AD
 
@@ -132,21 +103,7 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 8. On the **My device** page, below **My device** confirm that your workstation has a **Status** of "Online."
 
-## Window Autopilot
-
-> Available in Fleet Premium or Ultimate
-
-After you connect Fleet to Azure AD, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
-
-This section will guide you through how to:
-
-1. Create an Autopilot profile in Intune
-
-2. Register a test workstation with Autopilot
-
-3. Upload your organization's logo that end users will see during setup
-
-4. Test Autopilot
+## Windows Autopilot
 
 ### Step 1: create an Autopilot profile
 
