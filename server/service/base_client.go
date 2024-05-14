@@ -207,8 +207,8 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 		return fmt.Errorf("parsing media type from response header: %w", err)
 	}
 
-	filename, ok := params["filename"]
-	if !ok {
+	filename := params["filename"]
+	if filename == "" {
 		filename = uuid.NewString()
 	}
 
@@ -222,6 +222,10 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	_, err = io.Copy(destFile, resp.Body)
 	if err != nil {
 		return fmt.Errorf("copying from http stream to file: %w", err)
+	}
+
+	if err := destFile.Close(); err != nil {
+		return fmt.Errorf("closing file after copy: %w", err)
 	}
 
 	return nil
