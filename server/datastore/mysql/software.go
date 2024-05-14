@@ -511,6 +511,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		}
 	}
 
+	// First, we check if host's new software already exists in the software table.
 	if len(softwareChecksums) > 0 {
 		keys := make([]string, 0, len(softwareChecksums))
 		for checksum := range softwareChecksums {
@@ -534,6 +535,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		}
 	}
 
+	// For software items that don't already exist in the software table, we insert them.
 	if len(softwareChecksums) > 0 {
 		keys := make([]string, 0, len(softwareChecksums))
 		for checksum := range softwareChecksums {
@@ -546,14 +548,15 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				end = len(keys)
 			}
 			totalToProcess := end - start
+			const numberOfArgsPerSoftware = 10 // number of ? in each VALUES clause
 			values := strings.TrimSuffix(
 				strings.Repeat("(?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
 			)
+			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 			stmt := fmt.Sprintf(
 				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) VALUES %s",
 				values,
 			)
-			const numberOfArgsPerSoftware = 10
 			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
 			for j := start; j < end; j++ {
 				checksum := keys[j]
@@ -567,7 +570,8 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				return nil, ctxerr.Wrap(ctx, err, "insert software")
 			}
 		}
-		// Here, we use the master DB for retrieval because we retrieve the software IDs that we just inserted.
+
+		// Here, we use the transaction (tx) for retrieval because we must retrieve the software IDs that we just inserted.
 		existingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
 		if err != nil {
 			return nil, err
@@ -585,9 +589,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	}
 
 	if len(softwareChecksums) > 0 {
-		// We log and continue
+		// We log and continue. We should almost never see this error. If we see it regularly, we need to investigate.
 		level.Error(ds.logger).Log(
-			"msg", "could not find or create software items. This error may be caused by master and replica DBs out of sync.", "number",
+			"msg", "could not find or create software items. This error may be caused by master and replica DBs out of sync.", "host_id",
+			hostID, "number",
 			len(softwareChecksums),
 		)
 		for checksum, software := range softwareChecksums {
