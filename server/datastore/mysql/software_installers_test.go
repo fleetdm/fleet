@@ -212,40 +212,35 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 
 	for _, tc := range []struct {
 		name                    string
-		uuid                    string
 		expectedStatus          fleet.SoftwareInstallerStatus
-		postInstallScriptEC     *uint
+		postInstallScriptEC     *int
 		preInstallQueryOutput   *string
-		installScriptEC         *uint
+		installScriptEC         *int
 		postInstallScriptOutput *string
 		installScriptOutput     *string
 	}{
 		{
 			name:                    "pending install",
-			uuid:                    "pending",
 			expectedStatus:          fleet.SoftwareInstallerPending,
 			postInstallScriptOutput: ptr.String("post install output"),
 			installScriptOutput:     ptr.String("install output"),
 		},
 		{
 			name:                    "failing install post install script",
-			uuid:                    "fail_post_install_script",
 			expectedStatus:          fleet.SoftwareInstallerFailed,
-			postInstallScriptEC:     ptr.Uint(1),
+			postInstallScriptEC:     ptr.Int(1),
 			postInstallScriptOutput: ptr.String("post install output"),
 			installScriptOutput:     ptr.String("install output"),
 		},
 		{
 			name:                    "failing install install script",
-			uuid:                    "fail_install_script",
 			expectedStatus:          fleet.SoftwareInstallerFailed,
-			installScriptEC:         ptr.Uint(1),
+			installScriptEC:         ptr.Int(1),
 			postInstallScriptOutput: ptr.String("post install output"),
 			installScriptOutput:     ptr.String("install output"),
 		},
 		{
 			name:                    "failing install pre install query",
-			uuid:                    "fail_pre_install_query",
 			expectedStatus:          fleet.SoftwareInstallerFailed,
 			preInstallQueryOutput:   ptr.String(""),
 			postInstallScriptOutput: ptr.String("post install output"),
@@ -274,15 +269,23 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			// Need to insert manually so we have access to the UUID (it's generated in the DS method)
-			query := `INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, post_install_script_exit_code, install_script_exit_code, pre_install_query_output, install_script_output, post_install_script_output) VALUES (?,?,?,?,?,?,?,?)`
-			_, err = ds.writer(ctx).ExecContext(ctx, query, tc.uuid, host.ID, installerID, tc.postInstallScriptEC, tc.installScriptEC, tc.preInstallQueryOutput, tc.installScriptOutput, tc.postInstallScriptOutput)
+			installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID)
+			require.NoError(t, err)
+			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+				HostID:                    host.ID,
+				InstallUUID:               installUUID,
+				PreInstallConditionOutput: tc.preInstallQueryOutput,
+				InstallScriptExitCode:     tc.installScriptEC,
+				InstallScriptOutput:       tc.installScriptOutput,
+				PostInstallScriptExitCode: tc.postInstallScriptEC,
+				PostInstallScriptOutput:   tc.postInstallScriptOutput,
+			})
 			require.NoError(t, err)
 
-			res, err := ds.GetSoftwareInstallResults(ctx, tc.uuid)
+			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
 
-			require.Equal(t, tc.uuid, res.InstallUUID)
+			require.Equal(t, installUUID, res.InstallUUID)
 			require.Equal(t, tc.expectedStatus, res.Status)
 			require.Equal(t, swFilename, res.SoftwarePackage)
 			require.Equal(t, host.ID, res.HostID)
