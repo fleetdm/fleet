@@ -155,13 +155,6 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 	payload := &fleet.HostSoftwareInstallResultPayload{}
 	payload.InstallUUID = installId
 
-	if !r.scriptsEnabled() {
-		// fleetctl knows that -2 means script was disabled on host
-		payload.InstallScriptExitCode = ptr.Int(-2)
-		payload.InstallScriptOutput = ptr.String("Scripts are disabled")
-		return payload, nil
-	}
-
 	if installer.PreInstallCondition != "" {
 		shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
 		payload.PreInstallConditionOutput = &output
@@ -172,6 +165,13 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 		if !shouldInstall {
 			return payload, nil
 		}
+	}
+
+	if !r.scriptsEnabled() {
+		// fleetctl knows that -2 means script was disabled on host
+		payload.InstallScriptExitCode = ptr.Int(-2)
+		payload.InstallScriptOutput = ptr.String("Scripts are disabled")
+		return payload, nil
 	}
 
 	if r.tempDirFn == nil {
