@@ -8,7 +8,7 @@ const baseClass = "editor";
 interface IEditorProps {
   focus?: boolean;
   label?: string;
-  labelTooltip?: string;
+  labelTooltip?: string | JSX.Element;
   error?: string | null;
   readOnly?: boolean;
   /**
