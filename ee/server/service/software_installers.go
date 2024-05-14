@@ -319,7 +319,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return "", &fleet.BadRequestError{
-				Message:     "The file should be .pkg, .msi, .exe or .deb.",
+				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe or .deb.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
@@ -429,6 +429,15 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 			bodyBytes, err := io.ReadAll(resp.Body)
 			if err != nil {
+				// the max size error can be received either at client.Do or here when
+				// reading the body if it's caught via a limited body reader.
+				var maxBytesErr *http.MaxBytesError
+				if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
+					return fleet.NewInvalidArgumentError(
+						"software.url",
+						fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", p.URL, maxInstallerSizeBytes/(1024*1024)),
+					)
+				}
 				return ctxerr.Wrapf(ctx, err, "reading installer %q contents", p.URL)
 			}
 
