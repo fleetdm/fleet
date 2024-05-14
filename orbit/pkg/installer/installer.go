@@ -25,7 +25,7 @@ type QueryResponseStatus = osquery_gen.ExtensionStatus
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.
 type Client interface {
-	GetInstallerDetails(installId string) (*fleet.SoftwareInstallDetails, error)
+	GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error)
 	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
 }
@@ -38,9 +38,9 @@ type Runner struct {
 	OsqueryClient QueryClient
 	OrbitClient   Client
 
-	// osquerySocketPaht is used to establish the osquery connection
+	// osquerySocketPath is used to establish the osquery connection
 	// if it's ever lost or disconnected
-	osquerySocketPaht string
+	osquerySocketPath string
 
 	// tempDirFn is the function to call to get the temporary directory to use,
 	// inside of which the script-specific subdirectories will be created. If nil,
@@ -64,7 +64,7 @@ type Runner struct {
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool) *Runner {
 	r := &Runner{
 		OrbitClient:       client,
-		osquerySocketPaht: socketPath,
+		osquerySocketPath: socketPath,
 		scriptsEnabled:    scriptsEnabled,
 	}
 
@@ -84,7 +84,7 @@ func (r *Runner) Run(config *fleet.OrbitConfig) error {
 
 func connectOsquery(r *Runner) error {
 	if r.OsqueryClient == nil {
-		osqueryClient, err := osquery.NewClient(r.osquerySocketPaht, 10*time.Second)
+		osqueryClient, err := osquery.NewClient(r.osquerySocketPath, 10*time.Second)
 		if err != nil {
 			log.Err(err).Msg("establishing osquery connection for software install runner")
 			return err
@@ -146,14 +146,14 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 	return true, string(response), nil
 }
 
-func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.HostSoftwareInstallResultPayload, error) {
-	installer, err := r.OrbitClient.GetInstallerDetails(installId)
+func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.HostSoftwareInstallResultPayload, error) {
+	installer, err := r.OrbitClient.GetInstallerDetails(installID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching software installer details: %w", err)
 	}
 
 	payload := &fleet.HostSoftwareInstallResultPayload{}
-	payload.InstallUUID = installId
+	payload.InstallUUID = installID
 
 	if installer.PreInstallCondition != "" {
 		shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
