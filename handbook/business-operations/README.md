@@ -136,6 +136,19 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 - Number of past-due renewals = `todo`
 ```
 
+- Send payment reminders via email to all outstanding accounts by responding to the invoice email initially sent to the customer.
+
+```
+Hello,
+This is a reminder that you have an outstanding balance due for your Fleet Device Management premium subscription.
+We have included the invoice here for your convenience.
+For payment instructions please refer to your invoice, and reach out to [Fleet's billing contact] with any questions.
+
+Thanks,
+[name]
+```
+
+- If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
 
 ### Run US commission payroll
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have a **Close date** within the previous month.
@@ -368,7 +381,6 @@ Please see [handbook/engineering#book-an-event](https://www.fleetdm.com/handbook
 
 ##### Order SWAG
 Please see [handbook/engineering#order-swag](https://www.fleetdm.com/handbook/engineering#order-swag)
-
 
 
 <meta name="maintainedBy" value="jostableford">
