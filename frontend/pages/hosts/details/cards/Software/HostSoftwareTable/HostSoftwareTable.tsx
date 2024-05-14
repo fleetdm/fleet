@@ -96,10 +96,29 @@ const HostSoftwareTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
+  const getItemsCountText = () => {
+    const count = data?.count;
+    if (!data?.software?.length || !count) return "";
+
+    return count === 1 ? `${count} software item` : `${count} software items`;
+  };
+
+  const renderSoftwareCount = () => {
+    const itemText = getItemsCountText();
+
+    if (!itemText) return null;
+
+    return (
+      <div className={`${baseClass}__count`}>
+        <span>{itemText}</span>
+      </div>
+    );
+  };
+
   return (
     <div className={baseClass}>
       <TableContainer
-        filteredCount={data.count}
+        renderCount={renderSoftwareCount}
         resultsTitle="software items"
         columnConfigs={tableConfig}
         data={data.software}
