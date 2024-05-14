@@ -137,11 +137,6 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 		return false, "", errors.New("no query status")
 	}
 
-	response, err := json.Marshal(res.Response)
-	if err != nil {
-		return false, "", fmt.Errorf("marshalling query response: %w", err)
-	}
-
 	if res.Status.Code != 0 {
 		// TODO(roberto): we can't return the error as the
 		// result because the back-end considers any non-empty
@@ -152,6 +147,11 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 
 	if len(res.Response) == 0 {
 		return false, "", nil
+	}
+
+	response, err := json.Marshal(res.Response)
+	if err != nil {
+		return false, "", fmt.Errorf("marshalling query response: %w", err)
 	}
 
 	return true, string(response), nil
