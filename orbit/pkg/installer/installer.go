@@ -75,11 +75,12 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool) *Ru
 }
 
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
-	if r.connectOsquery == nil {
-		r.connectOsquery = connectOsquery
+	connectOsqueryFn := r.connectOsquery
+	if connectOsqueryFn == nil {
+		connectOsqueryFn = connectOsquery
 	}
 
-	if err := r.connectOsquery(r); err != nil {
+	if err := connectOsqueryFn(r); err != nil {
 		return fmt.Errorf("software installer runner connecting to osquery: %w", err)
 	}
 	return r.run(context.Background(), config)
@@ -185,10 +186,11 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		return payload, nil
 	}
 
-	if r.tempDirFn == nil {
-		r.tempDirFn = os.MkdirTemp
+	tmpDirFn := r.tempDirFn
+	if tmpDirFn == nil {
+		tmpDirFn = os.MkdirTemp
 	}
-	tmpDir, err := r.tempDirFn("", "")
+	tmpDir, err := tmpDirFn("", "")
 	if err != nil {
 		return payload, fmt.Errorf("creating temporary directory: %w", err)
 	}
@@ -200,10 +202,11 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 
 	// remove tmp directory and installer
 	defer func() {
-		if r.removeAllFn == nil {
-			r.removeAllFn = os.RemoveAll
+		removeAllFn := r.removeAllFn
+		if removeAllFn == nil {
+			removeAllFn = os.RemoveAll
 		}
-		err := r.removeAllFn(tmpDir)
+		err := removeAllFn(tmpDir)
 		if err != nil {
 			log.Err(err)
 		}
