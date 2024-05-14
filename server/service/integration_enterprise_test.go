@@ -8975,6 +8975,135 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 	})
 }
 
+func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
+	t := s.T()
+
+	// create a team through the service so it initializes the agent ops
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// apply with software
+	// must not use applyTeamSpecsRequest and marshal it as JSON, as it will set
+	// all keys to their zerovalue, and some are only valid with mdm enabled.
+	teamSpecs := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": []map[string]any{
+					{
+						"url": "http://foo.com",
+						"install_script": map[string]string{
+							"path": "./foo/install-script.sh",
+						},
+						"post_install_script": map[string]string{
+							"path": "./foo/post-install-script.sh",
+						},
+						"pre_install_query": map[string]string{
+							"path": "./foo/query.yaml",
+						},
+					},
+					{
+						"url": "http://bar.com",
+						"install_script": map[string]string{
+							"path": "./bar/install-script.sh",
+						},
+						"post_install_script": map[string]string{
+							"path": "./bar/post-install-script.sh",
+						},
+						"pre_install_query": map[string]string{
+							"path": "./bar/query.yaml",
+						},
+					},
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	wantSoftware := []fleet.TeamSpecSoftware{
+		{
+			URL:               "http://foo.com",
+			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
+			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
+			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+		},
+		{
+			URL:               "http://bar.com",
+			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
+			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
+			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+		},
+	}
+
+	// retrieving the team returns the scripts
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+
+	// apply without custom software specified, should not replace existing scripts
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+
+	// apply with explicitly empty custom software would clear the existing
+	// software, but dry-run
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     teamName,
+				"software": nil,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+
+	// apply with explicitly empty software clears the existing software
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     teamName,
+				"software": nil,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Value)
+
+	// patch with an invalid array returns an error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":     teamName,
+				"software": []any{"foo", 1},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Value)
+}
+
 func (s *integrationMDMTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
 

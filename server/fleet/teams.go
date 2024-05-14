@@ -141,13 +141,14 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 
 type TeamConfig struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions       *json.RawMessage      `json:"agent_options,omitempty"`
-	HostExpirySettings HostExpirySettings    `json:"host_expiry_settings"`
-	WebhookSettings    TeamWebhookSettings   `json:"webhook_settings"`
-	Integrations       TeamIntegrations      `json:"integrations"`
-	Features           Features              `json:"features"`
-	MDM                TeamMDM               `json:"mdm"`
-	Scripts            optjson.Slice[string] `json:"scripts,omitempty"`
+	AgentOptions       *json.RawMessage                `json:"agent_options,omitempty"`
+	HostExpirySettings HostExpirySettings              `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings             `json:"webhook_settings"`
+	Integrations       TeamIntegrations                `json:"integrations"`
+	Features           Features                        `json:"features"`
+	MDM                TeamMDM                         `json:"mdm"`
+	Scripts            optjson.Slice[string]           `json:"scripts,omitempty"`
+	Software           optjson.Slice[TeamSpecSoftware] `json:"software,omitempty"`
 }
 
 type TeamWebhookSettings struct {
