@@ -393,7 +393,8 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 			resp, err := client.Do(req)
 			if err != nil {
-				if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.Is(err, &http.MaxBytesError{}) {
+				var maxBytesErr *http.MaxBytesError
+				if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 					return fleet.NewInvalidArgumentError(
 						"software.url",
 						fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d MB", p.URL, maxInstallerSizeBytes/(1024*1024)),
