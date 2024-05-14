@@ -52,6 +52,21 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "10.0.1.2", host.PrimaryIP)
 	assert.Equal(t, "bc:d0:74:4b:10:6d", host.PrimaryMac)
+
+	rows = make([]map[string]string, 1)
+	require.NoError(
+		t, json.Unmarshal(
+			[]byte(`
+[
+  {"address":"fd7a:115c:a1e0::d401:6637","mac":"b2:a2:e4:62:0f:1e"}
+]`),
+			&rows,
+		),
+	)
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "fd7a:115c:a1e0::d401:6637", host.PrimaryIP)
+	assert.Equal(t, "b2:a2:e4:62:0f:1e", host.PrimaryMac)
+
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {

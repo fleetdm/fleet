@@ -85,8 +85,8 @@ FROM
 	-- whereas on Windows ia.interface is the IP of the interface.
     JOIN routes r ON %s
 WHERE
-	-- Destination 0.0.0.0/0 is the default route on route tables.
-    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+    (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
 	-- Type of route is "gateway" for Unix, "remote" for Windows.
     AND r.type = '%s'
 	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
@@ -282,6 +282,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"osquery_info": {
 		Query: "select * from osquery_info limit 1",
@@ -349,6 +350,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
 		Query: `
@@ -883,6 +885,7 @@ var scheduledQueryStats = DetailQuery{
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule`,
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
+	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 }
 
 var softwareLinux = DetailQuery{

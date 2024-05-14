@@ -192,7 +192,7 @@ module.exports = {
       } else if(currentStep === 'how-many-hosts') {
         if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
           psychologicalStage = '6 - Has team buy-in';
-        } else if(valueFromFormData === 'yes-recently-deployed'){
+        } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
           psychologicalStage = '5 - Personally confident';
         } else {
           // IWMIH then we want Fleet to host for us (either because we wanted that from the get-go, or we backtracked because deploying looked too time-consuming)
@@ -201,23 +201,29 @@ module.exports = {
       } else if(currentStep === 'will-you-be-self-hosting') {
         if(['yes-deployed'].includes(hasUsedFleetAnswer)) {
           psychologicalStage = '6 - Has team buy-in';
-        } else if(valueFromFormData === 'yes-recently-deployed'){
+        } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
           psychologicalStage = '5 - Personally confident';
         } else { require('assert')(false, 'This should never happen.'); }
       }//ﬁ
     }//ﬁ
 
     // Only update CRM records if the user's psychological stage changes.
-    if(psychologicalStage !== userRecord.psychologicalStage){
-      await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-        emailAddress: this.req.me.emailAddress,
-        firstName: this.req.me.firstName,
-        lastName: this.req.me.lastName,
-        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        organization: this.req.me.organization,
-        psychologicalStage,
-      });
-    }
+    if(psychologicalStage !== userRecord.psychologicalStage) {
+      // Use setImmediate to queue CRM updates.
+      // [?]: https://nodejs.org/api/timers.html#setimmediatecallback-args
+      require('timers').setImmediate(async ()=>{
+        await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+          emailAddress: this.req.me.emailAddress,
+          firstName: this.req.me.firstName,
+          lastName: this.req.me.lastName,
+          primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+          organization: this.req.me.organization,
+          psychologicalStage,
+        }).tolerate((err)=>{
+          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM. Full error:`, err);
+        });
+      });//_∏_  (Meanwhile...)
+    }//ﬁ
     // TODO: send all other answers to Salesforce (when there are fields for them)
 
     // await sails.helpers.http.post.with({

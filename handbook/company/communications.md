@@ -12,6 +12,8 @@ You can read about the company's positioning and product strategy in ["🎐 Why 
 ### Competition
 We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private Google doc).
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/680adba6-f5b7-4726-b2ea-73d0549a45eb">
+
 ## Directly responsible individuals (DRIs)
 
 | Area of responsibility | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) |
@@ -107,6 +109,9 @@ Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/
 ### Video
 Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/29167232-652c-4c64-a37c-910cc781f2c1">
+
+
 ## Meetings
 - **Plan to join meetings on time.** At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
 - **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
@@ -137,16 +142,19 @@ To schedule a meeting within Fleet:
 - Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view.
 - Select a meeting time, the participants will automatically be invited and a video conference will be attached to the invite (this can save a lot of communication overhead when scheduling with multiple participants).
 
-It is important to [set your workinghours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. 
+It is important to [set your working hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. 
 - Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 It is also common practice to block out time for focused work.
 
 In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings can enable longer, uninterrupted stretches of deep work.
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/0f453745-9ddc-4ae7-853a-2a73e3d2aa1a">
+
+
 #### Schedule time with the CEO
 All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
 
-> **Note:** Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
+> Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
 
 To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=custom-request.md&title=%7BMeeting%20request%3A%20) at-mentioning the [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
@@ -179,6 +187,9 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
 Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/f67a88e3-ab0a-4eda-a44d-b0e68de523a9">
+
 
 ### Recording meetings
 
@@ -251,6 +262,9 @@ We use these prefixes to organize the Fleet Slack:
 
 ### Create a GitHub issue from a Slack thread
 If you need to track content from a Slack channel (ie. #g-sales), you can automatically generate a github issue by selecting the `create-github-issue` emoji on the thread. This will automatically create an issue tagged with the #g-business-operations label. If you need the issue logged against a specific board, ensure that you have updated the label during issue creation.
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/97ce6caa-4b21-4cc2-8fcb-91aa03dfc6d6">
+
 
 ### Customer support service level agreements (SLAs)
 
@@ -443,7 +457,9 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
 - If there are more ideal options to pay for the purchase (i.e. bill.com, the Fleet AP Brex card, etc.) that method will be used instead.  
 - In general, recurring purchases such as subscription services that will continually stretch the spend limit on a cardholder's Brex card should be paid through other means. 
-- For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
+- For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1890e56b-7b03-4340-97d4-a6590c7715a9">
 
 #### Reimbursements
 Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#contact-us).
@@ -537,8 +553,10 @@ After the plan for the offsite is approved at the e-group meeting (including par
 ### Attending conferences
 When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
 
-### SOC 2
+
+## SOC 2
 You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
 
 You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
@@ -601,6 +619,8 @@ In this section, you can find information about Fleet's benefit strategies and d
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
 For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/dc417031-82fd-4348-b811-6a2e73a654a2">
+
 #### Holidays
 At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when to take time off.
 When a team member joins Fleet, they pick one of the following holiday schedules:
@@ -612,6 +632,9 @@ Either way, it's up to you to make sure that your responsibilities are covered, 
 
 #### New parent leave
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/80808c80-8e39-4413-b87b-988014aa4348">
+
 
 #### Taking time off
 When you need to take time off, follow this process:
@@ -664,6 +687,9 @@ Welcome to Fleet!
 4. Immerse yourself in the world of device management and cybersecurity.
 
 > Please see Fleet's ["🥽 Recommendations for new teammates"](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#).
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/6b14f6ea-2e66-4369-9b71-d4babc0d00d5">
+
 
 ### Training expectations
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -750,9 +776,12 @@ When _receiving_ feedback:
 
 
 ## Equipment
-Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
+Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. 
 
-If you are in need of additional equipment for any reason, [contact the Business Operations department](https://fleetdm.com/handbook/business-operations#contact-us). When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+### Requesting new equipment
+As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
+
+If you are in need of additional equipment for any reason, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
 - **Tracking equipment:** When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
@@ -761,6 +790,9 @@ If you are in need of additional equipment for any reason, [contact the Business
 - **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
+
+### Requesting IT support
+If you are in need of IT support to assist with a software or hardware issue, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). A Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
 
 ## Writing
 Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more.
@@ -834,6 +866,8 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
   - "Does it work with MySQL?"
 
 - ***Struggling with this?*** It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/cca980db-24e1-4303-a120-ecdb7419aac4">
+
 
 #### Capitalization and proper nouns
 - **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
@@ -916,6 +950,9 @@ Then use the short version for all other references.
 - A command-line interface (CLI) is a text-based user interface (UI) used to run programs, manage computer files, and interact with the computer.
 - The Fleet CLI is called fleetctl.
 If the abbreviation or acronym is well known, like API or HTML, use it instead (and don’t worry about spelling it out).
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/195a1406-dc03-43ec-ae81-0a98e40b1d84">
+
 
 ### Numbers and times
 

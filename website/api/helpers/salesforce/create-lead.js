@@ -62,7 +62,7 @@ module.exports = {
       return await salesforceConnection.sobject('Contact')
       .retrieve(salesforceContactId);
     }).intercept((err)=>{
-      return new Error(`When attempting to create a new Lead record using an existing Contact record (ID: ${salesforceContactId}), an error occurred when retreiving the specified record. Full error: ${err}`);
+      return new Error(`When attempting to create a new Lead record using an existing Contact record (ID: ${salesforceContactId}), an error occurred when retreiving the specified record. Error: ${err}`);
     });
 
     // Get the Account record.
@@ -70,7 +70,7 @@ module.exports = {
       return await salesforceConnection.sobject('Account')
       .retrieve(salesforceAccountId);
     }).intercept((err)=>{
-      return new Error(`When attempting to create a Lead record using an exisitng Account record (ID: ${salesforceAccountId}), An error occured when retreiving the specified record. Full error: ${err}`);
+      return new Error(`When attempting to create a Lead record using an exisitng Account record (ID: ${salesforceAccountId}), An error occured when retreiving the specified record. Error: ${err}`);
     });
 
     let primaryBuyingSituationValuesByCodename = {
@@ -106,7 +106,7 @@ module.exports = {
         OwnerId: accountRecord.OwnerId
       });
     }).intercept((err)=>{
-      return new Error(`Could not create new Lead record. Full error: ${err}`);
+      return new Error(`Could not create new Lead record. Error: ${err}`);
     });
   }
 

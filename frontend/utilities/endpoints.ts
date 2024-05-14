@@ -129,6 +129,9 @@ export default {
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
 
+  // AI endpoints
+  AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
+
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
   STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,

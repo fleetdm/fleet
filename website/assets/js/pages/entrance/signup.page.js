@@ -34,9 +34,10 @@ parasails.registerPage('signup', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     // If we're redirecting this user to the license dispenser after they sign up, modify the link to the login page and the pageToRedirectToAfterRegistration
-    if(this.redirectToLicenseDispenser){
-      this.loginSlug = '/login?purchaseLicense';
+    if(window.location.hash && window.location.hash === '#purchaseLicense'){
+      this.loginSlug = '/login#purchaseLicense';
       this.pageToRedirectToAfterRegistration = '/new-license';
+      window.location.hash = '';
     }
   },
   mounted: async function() {

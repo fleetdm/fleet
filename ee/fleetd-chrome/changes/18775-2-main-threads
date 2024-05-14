@@ -1,0 +1,1 @@
+Fixed bug where fleetd-chrome sent multiple read requests to Fleet server at the same time.
