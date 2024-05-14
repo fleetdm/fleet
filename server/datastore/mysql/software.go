@@ -1721,33 +1721,38 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
+// tblAlias is the table alias to use as prefix for the host_script_installs
+// column names, no prefix used if empty.
 // colAlias is the name to be assigned to the computed status column, pass
 // empty to have the value only, no column alias set.
-func softwareInstallerHostStatusNamedQuery(colAlias string) string {
+func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
+	if tblAlias != "" {
+		tblAlias += "."
+	}
 	if colAlias != "" {
 		colAlias = " AS " + colAlias
 	}
 	return fmt.Sprintf(`
 			CASE
-				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
-					hsi.post_install_script_exit_code = 0 THEN :software_status_installed
+				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
+					%[1]spost_install_script_exit_code = 0 THEN :software_status_installed
 
-				WHEN hsi.post_install_script_exit_code IS NOT NULL AND
-					hsi.post_install_script_exit_code != 0 THEN :software_status_failed
+				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
+					%[1]spost_install_script_exit_code != 0 THEN :software_status_failed
 
-				WHEN hsi.install_script_exit_code IS NOT NULL AND
-					hsi.install_script_exit_code = 0 THEN :software_status_installed
+				WHEN %[1]sinstall_script_exit_code IS NOT NULL AND
+					%[1]sinstall_script_exit_code = 0 THEN :software_status_installed
 
-				WHEN hsi.install_script_exit_code IS NOT NULL AND
-					hsi.install_script_exit_code != 0 THEN :software_status_failed
+				WHEN %[1]sinstall_script_exit_code IS NOT NULL AND
+					%[1]sinstall_script_exit_code != 0 THEN :software_status_failed
 
-				WHEN hsi.pre_install_query_output IS NOT NULL AND
-					hsi.pre_install_query_output = '' THEN :software_status_failed
+				WHEN %[1]spre_install_query_output IS NOT NULL AND
+					%[1]spre_install_query_output = '' THEN :software_status_failed
 
-				WHEN hsi.host_id IS NOT NULL THEN :software_status_pending
+				WHEN %[1]shost_id IS NOT NULL THEN :software_status_pending
 
 				ELSE NULL -- not installed from Fleet installer
-			END %s `, colAlias)
+			END %[2]s `, tblAlias, colAlias)
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
@@ -1792,7 +1797,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 			) OR
 			-- or software install has been attempted on host
 			hsi.host_id IS NOT NULL )
-`, softwareInstallerHostStatusNamedQuery("status"))
+`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
 
 	const stmtAvailable = `
 		SELECT
