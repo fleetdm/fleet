@@ -106,7 +106,7 @@ func TestPreconditionCheck(t *testing.T) {
 	success, output, err := r.preConditionCheck(ctx, "empty")
 	require.False(t, success)
 	require.Nil(t, err)
-	require.Equal(t, "null", output)
+	require.Equal(t, "", output)
 
 	success, output, err = r.preConditionCheck(ctx, "response")
 	require.True(t, success)
@@ -121,7 +121,7 @@ func TestPreconditionCheck(t *testing.T) {
 	success, output, err = r.preConditionCheck(ctx, "badstatus")
 	require.False(t, success)
 	require.Error(t, err)
-	require.Equal(t, "null", output)
+	require.Equal(t, "", output)
 
 	success, output, err = r.preConditionCheck(ctx, "nostatus")
 	require.False(t, success)
