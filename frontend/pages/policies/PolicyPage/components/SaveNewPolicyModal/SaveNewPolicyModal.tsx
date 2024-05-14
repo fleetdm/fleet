@@ -164,8 +164,9 @@ const SaveNewPolicyModal = ({
               "AI features are disabled in organization settings"
             ) : (
               <>
-                Policy queries (SQL) will be sent to the LLM. Fleet doesn&apos;t
-                use this data to train models.
+                Policy queries (SQL) will be sent to a <br />
+                large language model (LLM). Fleet <br />
+                doesn&apos;t use this data to train models.
               </>
             )}
           </ReactTooltip>
@@ -209,7 +210,6 @@ const SaveNewPolicyModal = ({
             error={errors.name}
             inputClassName={`${baseClass}__policy-save-modal-name`}
             label="Name"
-            helpText="What yes or no question does your policy ask about your hosts?"
             autofocus
             ignore1password
             disabled={disableForm}
@@ -220,6 +220,7 @@ const SaveNewPolicyModal = ({
             value={lastEditedQueryDescription}
             inputClassName={`${baseClass}__policy-save-modal-description`}
             label={renderAutofillLabel("Description")}
+            helpText="How does this policy's failure put the organization at risk?"
             type="textarea"
             disabled={disableForm}
           />
@@ -230,7 +231,7 @@ const SaveNewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
             label={renderAutofillLabel("Resolution")}
             type="textarea"
-            helpText="What steps should an end user take to resolve a host that fails this policy? (optional)"
+            helpText="If this policy fails, what should the end user expect?"
             disabled={disableForm}
           />
           {platformSelector.render()}

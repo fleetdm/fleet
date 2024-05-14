@@ -69,8 +69,9 @@ interface IHeaderGroup extends HeaderGroup {
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
-// This data table uses react-table for implementation. The relevant documentation of the library
-// can be found here https://react-table.tanstack.com/docs/api/useTable
+// This data table uses react-table for implementation. The relevant v7 documentation of the library
+// can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
+
 const DataTable = ({
   columns: tableColumns,
   data: tableData,

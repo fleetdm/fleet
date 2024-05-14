@@ -157,6 +157,8 @@ type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query s
 
 type LabelIDsByNameFunc func(ctx context.Context, labels []string) (map[string]uint, error)
 
+type LabelsByNameFunc func(ctx context.Context, names []string) (map[string]*fleet.Label, error)
+
 type AsyncBatchInsertLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
 
 type AsyncBatchDeleteLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
@@ -447,6 +449,8 @@ type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, err
 
 type CountPoliciesFunc func(ctx context.Context, teamID *uint, matchQuery string) (int, error)
 
+type CountMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string) (int, error)
+
 type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
@@ -494,6 +498,8 @@ type ListOutOfDateCalendarEventsFunc func(ctx context.Context, t time.Time) ([]*
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+
+type ListMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -1129,6 +1135,9 @@ type DataStore struct {
 	LabelIDsByNameFunc        LabelIDsByNameFunc
 	LabelIDsByNameFuncInvoked bool
 
+	LabelsByNameFunc        LabelsByNameFunc
+	LabelsByNameFuncInvoked bool
+
 	AsyncBatchInsertLabelMembershipFunc        AsyncBatchInsertLabelMembershipFunc
 	AsyncBatchInsertLabelMembershipFuncInvoked bool
 
@@ -1564,6 +1573,9 @@ type DataStore struct {
 	CountPoliciesFunc        CountPoliciesFunc
 	CountPoliciesFuncInvoked bool
 
+	CountMergedTeamPoliciesFunc        CountMergedTeamPoliciesFunc
+	CountMergedTeamPoliciesFuncInvoked bool
+
 	UpdateHostPolicyCountsFunc        UpdateHostPolicyCountsFunc
 	UpdateHostPolicyCountsFuncInvoked bool
 
@@ -1635,6 +1647,9 @@ type DataStore struct {
 
 	ListTeamPoliciesFunc        ListTeamPoliciesFunc
 	ListTeamPoliciesFuncInvoked bool
+
+	ListMergedTeamPoliciesFunc        ListMergedTeamPoliciesFunc
+	ListMergedTeamPoliciesFuncInvoked bool
 
 	DeleteTeamPoliciesFunc        DeleteTeamPoliciesFunc
 	DeleteTeamPoliciesFuncInvoked bool
@@ -2761,6 +2776,13 @@ func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) (map[st
 	return s.LabelIDsByNameFunc(ctx, labels)
 }
 
+func (s *DataStore) LabelsByName(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	s.mu.Lock()
+	s.LabelsByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.LabelsByNameFunc(ctx, names)
+}
+
 func (s *DataStore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
 	s.mu.Lock()
 	s.AsyncBatchInsertLabelMembershipFuncInvoked = true
@@ -3776,6 +3798,13 @@ func (s *DataStore) CountPolicies(ctx context.Context, teamID *uint, matchQuery 
 	return s.CountPoliciesFunc(ctx, teamID, matchQuery)
 }
 
+func (s *DataStore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
+	s.mu.Lock()
+	s.CountMergedTeamPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountMergedTeamPoliciesFunc(ctx, teamID, matchQuery)
+}
+
 func (s *DataStore) UpdateHostPolicyCounts(ctx context.Context) error {
 	s.mu.Lock()
 	s.UpdateHostPolicyCountsFuncInvoked = true
@@ -3942,6 +3971,13 @@ func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts)
+}
+
+func (s *DataStore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ListMergedTeamPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMergedTeamPoliciesFunc(ctx, teamID, opts)
 }
 
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {

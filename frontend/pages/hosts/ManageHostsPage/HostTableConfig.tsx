@@ -114,7 +114,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
   },
   {
     Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Hosts" isSortedDesc={cellProps.column.isSortedDesc} />
+      <HeaderCell value="Host" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "display_name",
     id: "display_name",

@@ -1,0 +1,1 @@
+Added `--async` and `--quiet` to `fleetctl run-script` as well as allowing the contents of the script to be inline.

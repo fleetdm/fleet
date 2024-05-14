@@ -211,6 +211,8 @@ type Datastore interface {
 
 	// LabelIDsByName retrieves the IDs associated with the given label names
 	LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error)
+	// LabelsByName retrieves the labels associated with the given label names
+	LabelsByName(ctx context.Context, names []string) (map[string]*Label, error)
 
 	// Methods used for async processing of host label query results.
 	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
@@ -612,6 +614,7 @@ type Datastore interface {
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -661,6 +664,8 @@ type Datastore interface {
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions) ([]*Policy, error)
+
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 

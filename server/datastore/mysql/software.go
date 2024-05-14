@@ -18,6 +18,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Since DB may have millions of software items, we need to batch the aggregation counts to avoid long SQL query times.
+// This is a variable so it can be adjusted during unit testing.
+var countHostSoftwareBatchSize = uint64(100000)
+
 func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software)
 	for _, s := range softwares {
@@ -1252,7 +1256,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		globalCountsStmt = `
       SELECT count(*), 0 as team_id, software_id
       FROM host_software
-      WHERE software_id > 0
+      WHERE software_id > ? AND software_id <= ?
       GROUP BY software_id`
 
 		teamCountsStmt = `
@@ -1260,7 +1264,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
       FROM host_software hs
       INNER JOIN hosts h
       ON hs.host_id = h.id
-      WHERE h.team_id IS NOT NULL AND hs.software_id > 0
+      WHERE h.team_id IS NOT NULL AND hs.software_id > ? AND hs.software_id <= ?
       GROUP BY hs.software_id, h.team_id`
 
 		insertStmt = `
@@ -1307,55 +1311,74 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
 	}
 
-	// next get a cursor for the global and team counts for each software
-	stmtLabel := []string{"global", "team"}
-	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
-		rows, err := ds.reader(ctx).QueryContext(ctx, countStmt)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
-		}
-		defer rows.Close()
+	db := ds.reader(ctx)
 
-		// use a loop to iterate to prevent loading all in one go in memory, as it
-		// could get pretty big at >100K hosts with 1000+ software each. Use a write
-		// batch to prevent making too many single-row inserts.
-		const batchSize = 100
-		var batchCount int
-		args := make([]interface{}, 0, batchSize*4)
-		for rows.Next() {
-			var (
-				count  int
-				teamID uint
-				sid    uint
-			)
+	// Figure out how many software items we need to count.
+	type minMaxIDs struct {
+		Min uint64 `db:"min"`
+		Max uint64 `db:"max"`
+	}
+	minMax := minMaxIDs{}
+	err := sqlx.GetContext(
+		ctx, db, &minMax, "SELECT COALESCE(MIN(software_id),1) as min, COALESCE(MAX(software_id),0) as max FROM host_software",
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get min/max software_id")
+	}
 
-			if err := rows.Scan(&count, &teamID, &sid); err != nil {
-				return ctxerr.Wrapf(ctx, err, "scan %s row into variables", stmtLabel[i])
+	for minSoftwareID, maxSoftwareID := minMax.Min-1, minMax.Min-1+countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
+
+		// next get a cursor for the global and team counts for each software
+		stmtLabel := []string{"global", "team"}
+		for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
+			rows, err := db.QueryContext(ctx, countStmt, minSoftwareID, maxSoftwareID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
 			}
+			defer rows.Close()
 
-			args = append(args, sid, count, teamID, updatedAt)
-			batchCount++
+			// use a loop to iterate to prevent loading all in one go in memory, as it
+			// could get pretty big at >100K hosts with 1000+ software each. Use a write
+			// batch to prevent making too many single-row inserts.
+			const batchSize = 100
+			var batchCount int
+			args := make([]interface{}, 0, batchSize*4)
+			for rows.Next() {
+				var (
+					count  int
+					teamID uint
+					sid    uint
+				)
 
-			if batchCount == batchSize {
-				values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-				if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
-					return ctxerr.Wrapf(ctx, err, "insert %s batch into software_host_counts", stmtLabel[i])
+				if err := rows.Scan(&count, &teamID, &sid); err != nil {
+					return ctxerr.Wrapf(ctx, err, "scan %s row into variables", stmtLabel[i])
 				}
 
-				args = args[:0]
-				batchCount = 0
+				args = append(args, sid, count, teamID, updatedAt)
+				batchCount++
+
+				if batchCount == batchSize {
+					values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+					if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+						return ctxerr.Wrapf(ctx, err, "insert %s batch into software_host_counts", stmtLabel[i])
+					}
+
+					args = args[:0]
+					batchCount = 0
+				}
 			}
-		}
-		if batchCount > 0 {
-			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
-			if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
-				return ctxerr.Wrapf(ctx, err, "insert last %s batch into software_host_counts", stmtLabel[i])
+			if batchCount > 0 {
+				values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
+				if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
+					return ctxerr.Wrapf(ctx, err, "insert last %s batch into software_host_counts", stmtLabel[i])
+				}
 			}
+			if err := rows.Err(); err != nil {
+				return ctxerr.Wrapf(ctx, err, "iterate over %s host_software counts", stmtLabel[i])
+			}
+			rows.Close()
 		}
-		if err := rows.Err(); err != nil {
-			return ctxerr.Wrapf(ctx, err, "iterate over %s host_software counts", stmtLabel[i])
-		}
-		rows.Close()
+
 	}
 
 	// remove any unused software (global counts = 0)

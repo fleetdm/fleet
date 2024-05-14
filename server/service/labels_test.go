@@ -172,3 +172,84 @@ func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 	require.NoError(t, err)
 	require.Len(t, labelsSummary, 8)
 }
+
+func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	user := &fleet.User{
+		ID:         3,
+		Email:      "foo@bar.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	name := "foo"
+	description := "bar"
+	query := "select * from foo;"
+	platform := ""
+	labelType := fleet.LabelTypeBuiltIn
+	labelMembershipType := fleet.LabelMembershipTypeDynamic
+	spec := &fleet.LabelSpec{
+		Name:                name,
+		Description:         description,
+		Query:               query,
+		LabelType:           labelType,
+		LabelMembershipType: labelMembershipType,
+	}
+
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			name: {
+				Name:                name,
+				Description:         description,
+				Query:               query,
+				Platform:            platform,
+				LabelType:           labelType,
+				LabelMembershipType: labelMembershipType,
+			},
+		}, nil
+	}
+
+	// all good
+	err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	require.NoError(t, err)
+
+	const errorMessage = "cannot modify or add built-in label"
+	// not ok -- built-in label name doesn't exist
+	name = "not-foo"
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	assert.ErrorContains(t, err, errorMessage)
+	name = "foo"
+
+	// not ok -- description does not match
+	description = "not-bar"
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	assert.ErrorContains(t, err, errorMessage)
+	description = "bar"
+
+	// not ok -- query does not match
+	query = "select * from not-foo;"
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	assert.ErrorContains(t, err, errorMessage)
+	query = "select * from foo;"
+
+	// not ok -- label type does not match
+	labelType = fleet.LabelTypeRegular
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	assert.ErrorContains(t, err, errorMessage)
+	labelType = fleet.LabelTypeBuiltIn
+
+	// not ok -- label membership type does not match
+	labelMembershipType = fleet.LabelMembershipTypeManual
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	assert.ErrorContains(t, err, errorMessage)
+	labelMembershipType = fleet.LabelMembershipTypeDynamic
+
+	// not ok -- DB error
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return nil, assert.AnError
+	}
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec})
+	assert.ErrorIs(t, err, assert.AnError)
+
+}
