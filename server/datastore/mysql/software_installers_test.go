@@ -386,7 +386,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		require.Len(t, titles, len(wantTitles))
 
 		for _, title := range titles {
-			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, title.ID)
+			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, title.ID, false)
 			require.NoError(t, err)
 			require.NotNil(t, meta.TitleID)
 		}
