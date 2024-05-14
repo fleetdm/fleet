@@ -94,20 +94,20 @@ For Fleet's US contractors, running payroll is a manual process:
 
 ### Create an invoice
 To create a new invoice for a Fleet customer, follow these steps:
-- Go to the [invoice folder in google drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link)
-- Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`
-  - Invoice number follows the formate of `YYMMDD[daily issued invoice number]` where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
--  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
+1. Go to the [invoice folder in google drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
+2. Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`.
+    - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
+3.  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
     - Enter the invoice number (and PO number if required) into the top right section of the invoice.
     - Update the date of the invoice to reflect the current date.
-    - Make sure the payment terms match the signed subscription agreement
+    - Make sure the payment terms match the signed subscription agreement.
     - Copy the customer address from the signed subscription agreement and input it in the "Bill to" section of the invoice.
     - Copy the "Billing contact" email from the signed subscription agreement and add it to the last line of the "Bill to" address.
     - Make sure the start and end dates of the contract and amount match the subscription agreement.
     - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
     - Ensure the "Notes" section has wiring instructions for payment via SVB.
--  Download the completed invoice as a PDF
--  Send the PDF to the billing contact from the "Bill to" section of the invoice and cc [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays). Use the following template for the email:
+4.  Download the completed invoice as a PDF.
+5.  Send the PDF to the billing contact from the "Bill to" section of the invoice and cc [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays). Use the following template for the email:
 ```
 Subject: Invoice for Fleet Device Management [invoice number]
 Hello,
@@ -118,10 +118,10 @@ For payment instructions please refer to your invoice, and reach out to [insert 
 Thanks,
 [name]
 ```
-- Update the opportunity in Salesforce to include the "Invoice date" as the day the invoice was sent.
-- Notify the AE/CSM that the invoice has been sent.
+6. Update the opportunity in Salesforce to include the "Invoice date" as the day the invoice was sent.
+7. Notify the AE/CSM that the invoice has been sent.
 
-> Note: some vendors will require invoices be submitted via a payment portal (such as Coupa). You will still follow the steps listed to generate the invoice, but rather than emailing the billing contact with the invoice you will upload it to the relevant portal. Recommend you still follow up via email with the billing contact once you submit via the payment portal to notify then you have submitted the invoice.
+> Certain vendors require invoices submitted via a payment portal (such as Coupa). Once you've generated the invoice using the steps above, upload it to the relevant payment portal and email the billing contact to let them know you've submitted the invoice.
 
 
 ### Communicate the status of customer financial actions
