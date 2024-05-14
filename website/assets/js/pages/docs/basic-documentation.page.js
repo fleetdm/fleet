@@ -248,7 +248,6 @@ parasails.registerPage('basic-documentation', {
     findAndSortNavSectionsByUrl: function (url='') {
       let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
         'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
-        'deploy':['Uncategorized','TBD','Deployment guides'],
       };
       let slug = _.last(url.split(/\//));
       //
