@@ -8532,6 +8532,8 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
+		mobileconfig.FleetdConfigPayloadIdentifier:      {Identifier: mobileconfig.FleetdConfigPayloadIdentifier, DisplayName: "dn1", InstallDate: time.Now()},
+		mobileconfig.FleetCARootConfigPayloadIdentifier: {Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, DisplayName: "dn2", InstallDate: time.Now()},
 	}))
 
 	// Check that the profile is marked as failed when fetching the host
@@ -8541,11 +8543,11 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 4)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		if hm.Name == "N1" {
-			assert.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
+			require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
 			continue
 		}
 
-		assert.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
+		require.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
 	}
 
 	// transfer host to a team without the failed profile
