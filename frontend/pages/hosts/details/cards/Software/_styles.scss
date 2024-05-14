@@ -1,10 +1,72 @@
 .software-card {
-
   .table-container__search-input {
     width: 325px; // Custom to fit placeholder text
   }
 
-  .data-table-block .data-table__wrapper {
-    overflow-x: scroll;
+  .host-software-table {
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .status__header {
+            display: table-cell;
+          }
+          .source__header {
+            display: table-cell;
+          }
+          .Vulnerabilities__header {
+            display: table-cell;
+          }
+          @media (max-width: $break-xl) {
+            .source__header {
+              display: none;
+              width: 0;
+            }
+          }
+          @media (max-width: $break-lg) {
+            .Vulnerabilities__header {
+              display: none;
+              width: 0;
+            }
+          }
+          @media (max-width: $break-sm) {
+            .status__header {
+              display: none;
+              width: 0;
+            }
+          }
+        }
+        tbody {
+          tr {
+            .status__cell {
+              display: table-cell;
+            }
+            .source__cell {
+              display: table-cell;
+            }
+            .Vulnerabilities__cell {
+              display: table-cell;
+            }
+            @media (max-width: $break-xl) {
+              .source__cell {
+                display: none;
+                width: 0;
+              }
+            }
+            @media (max-width: $break-lg) {
+              .Vulnerabilities__cell {
+                display: none;
+                width: 0;
+              }
+            }
+            @media (max-width: $break-sm) {
+              .status__cell {
+                display: none;
+                width: 0;
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

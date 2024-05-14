@@ -5,6 +5,7 @@ package fleethttp
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -146,4 +147,35 @@ func HostnamesMatch(a, b string) (bool, error) {
 	}
 
 	return ap.Hostname() == bp.Hostname(), nil
+}
+
+type SizeLimitTransport struct {
+	maxSizeBytes int64
+}
+
+var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
+
+func NewSizeLimitTransport(maxSizeBytes int64) *SizeLimitTransport {
+	return &SizeLimitTransport{
+		maxSizeBytes: maxSizeBytes,
+	}
+}
+
+func (t *SizeLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if contentLen := resp.ContentLength; contentLen > t.maxSizeBytes {
+		resp.Body.Close()
+		return nil, ErrMaxSizeExceeded
+	}
+
+	// if no Content-Length header, limit reading the body
+	if resp.ContentLength < 0 {
+		resp.Body = http.MaxBytesReader(nil, resp.Body, t.maxSizeBytes)
+	}
+
+	return resp, nil
 }

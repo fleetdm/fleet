@@ -17,6 +17,7 @@ import Word from "./Word";
 import Zoom from "./Zoom";
 import ChromeOS from "./ChromeOS";
 import LinuxOS from "./LinuxOS";
+import Falcon from "./Falcon";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
@@ -25,6 +26,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
   "google chrome": ChromeApp,
   "microsoft excel": Excel,
+  falcon: Falcon,
   firefox: Firefox,
   package: Package,
   safari: Safari,

@@ -1,3 +1,5 @@
+import { AxiosResponse } from "axios";
+
 import { snakeCase, reduce } from "lodash";
 
 import sendRequest from "services";
@@ -209,6 +211,25 @@ export default {
     const { SOFTWARE_PACKAGE } = endpoints;
     const path = `${SOFTWARE_PACKAGE(softwareId)}?team_id=${teamId}`;
     return sendRequest("DELETE", path);
+  },
+
+  downloadSoftwarePackage: (
+    softwareTitleId: number,
+    teamId: number
+  ): Promise<AxiosResponse> => {
+    const path = `${endpoints.SOFTWARE_PACKAGE(
+      softwareTitleId
+    )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
+
+    return sendRequest(
+      "GET",
+      path,
+      undefined,
+      "blob",
+      undefined,
+      undefined,
+      true // return raw response
+    );
   },
 
   getSoftwareInstallResult: (installUuid: string) => {

@@ -70,7 +70,6 @@ const AddSoftwareForm = ({
   onCancel,
   onSubmit,
 }: IAddSoftwareFormProps) => {
-  console.log("rerender");
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [formData, setFormData] = useState<IAddSoftwareFormData>({
@@ -185,7 +184,14 @@ const AddSoftwareForm = ({
               value={formData.installScript}
               helpText="Fleet will run this command on hosts to install software."
               label="Install script"
-              labelTooltip="For security agents, add the script provided by the vendor."
+              labelTooltip={
+                <>
+                  For security agents, add the script provided by the vendor.
+                  <br />
+                  In custom scripts, you can use the $INSTALLER_PATH variable to
+                  point to the installer.
+                </>
+              }
             />
           )}
           <AddSoftwareAdvancedOptions

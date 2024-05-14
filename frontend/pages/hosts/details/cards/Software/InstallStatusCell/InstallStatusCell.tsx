@@ -68,10 +68,10 @@ const InstallStatusCell = ({
 }: IInstallStatusCellProps) => {
   let displayStatus: IStatusValue;
 
-  if (packageToInstall) {
-    displayStatus = "avaiableForInstall";
-  } else if (status !== null) {
+  if (status !== null) {
     displayStatus = status;
+  } else if (packageToInstall) {
+    displayStatus = "avaiableForInstall";
   } else {
     return <TextCell value="---" greyed />;
   }

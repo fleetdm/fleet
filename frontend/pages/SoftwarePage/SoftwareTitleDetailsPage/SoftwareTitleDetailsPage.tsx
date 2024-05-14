@@ -6,6 +6,8 @@ import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
+import paths from "router/paths";
+
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
@@ -74,6 +76,7 @@ const SoftwareTitleDetailsPage = ({
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
     isError: isSoftwareTitleError,
+    refetch: refetchSoftwareTitle,
   } = useQuery<
     ISoftwareTitleResponse,
     AxiosError,
@@ -93,6 +96,19 @@ const SoftwareTitleDetailsPage = ({
       },
     }
   );
+
+  const onDeleteInstaller = useCallback(() => {
+    if (softwareTitle?.versions?.length) {
+      refetchSoftwareTitle();
+      return;
+    }
+    // redirect to software titles page if no versions are available
+    if (teamIdForApi && teamIdForApi > 0) {
+      router.push(paths.SOFTWARE_TITLES.concat(`?team_id=${teamIdForApi}`));
+    } else {
+      router.push(paths.SOFTWARE_TITLES);
+    }
+  }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -156,6 +172,7 @@ const SoftwareTitleDetailsPage = ({
                   softwarePackage={softwareTitle.software_package}
                   softwareId={softwareId}
                   teamId={currentTeamId}
+                  onDelete={onDeleteInstaller}
                 />
               )}
             <Card
