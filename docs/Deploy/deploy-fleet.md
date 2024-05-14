@@ -87,9 +87,9 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     osquery_status_bucket_name  = "fleet-osquery-status"
     ```
 
-    > Terraform modules for Fleet features can be enabled and disabled by commenting or uncommenting sections of the code as needed. To learn more about the modules, check out our [AWS with Terraform advanced guide](TODO).
+    > Terraform modules for Fleet features can be enabled and disabled by commenting or uncommenting sections of the code as needed. To learn more about the modules, check out our [AWS with Terraform advanced guide](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform).
 
-3. Log in to [your AWS account](TODO) using your IAM identity.
+3. Log in to [your AWS account](https://aws.amazon.com/iam/) using your IAM identity.
 
 4. Run a command like the following in Terminal:
     
