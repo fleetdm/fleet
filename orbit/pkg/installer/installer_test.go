@@ -382,6 +382,18 @@ func TestScriptsDisabled(t *testing.T) {
 		scriptsEnabled: func() bool { return false },
 	}
 
+	qc.queryFn = func(ctx context.Context, s string) (*QueryResponse, error) {
+
+		queryFnResMap := make(map[string]string, 0)
+		queryFnResMap["col"] = "true"
+		queryFnResArr := []map[string]string{queryFnResMap}
+		queryFnResStatus := &QueryResponseStatus{}
+		return &QueryResponse{
+			Response: queryFnResArr,
+			Status:   queryFnResStatus,
+		}, nil
+	}
+
 	var getInstallerDetailsFnCalled bool
 	var installIdRequested string
 	installDetails := &fleet.SoftwareInstallDetails{
@@ -401,9 +413,10 @@ func TestScriptsDisabled(t *testing.T) {
 	out, err := r.installSoftware(context.Background(), "1")
 	require.NoError(t, err)
 	require.EqualValues(t, &fleet.HostSoftwareInstallResultPayload{
-		InstallUUID:           "1",
-		InstallScriptExitCode: ptr.Int(-2),
-		InstallScriptOutput:   ptr.String("Scripts are disabled"),
+		InstallUUID:               "1",
+		InstallScriptExitCode:     ptr.Int(-2),
+		InstallScriptOutput:       ptr.String("Scripts are disabled"),
+		PreInstallConditionOutput: ptr.String(`[{"col":"true"}]`),
 	}, out)
 	require.True(t, getInstallerDetailsFnCalled)
 	require.Equal(t, "1", installIdRequested)
