@@ -74,7 +74,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 <h2>Instructions</h2>
 
-1. [Download](TODO) the Fleet `main.tf` Terraform file.
+1. [Download](https://github.com/fleetdm/fleet/blob/main/terraform/example/main.tf) the Fleet `main.tf` Terraform file.
 
 2. Edit the following variables in the `main.tf` Terraform file you just downloaded to match your environment:
     
