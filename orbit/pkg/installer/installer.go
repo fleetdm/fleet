@@ -240,15 +240,16 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 		return "", -1, fmt.Errorf("writing script: %w", err)
 	}
 
-	if r.execCmdFn == nil {
-		r.execCmdFn = scripts.ExecCmd
+	execFn := r.execCmdFn
+	if execFn == nil {
+		execFn = scripts.ExecCmd
 	}
 
 	env := os.Environ()
 	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", installerPath)
 	env = append(env, installerPathEnv)
 
-	output, exitCode, err := r.execCmdFn(ctx, scriptPath, env)
+	output, exitCode, err := execFn(ctx, scriptPath, env)
 	if err != nil {
 		return string(output), exitCode, err
 	}
