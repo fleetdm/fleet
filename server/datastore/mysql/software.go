@@ -592,8 +592,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		// We log and continue. We should almost never see this error. If we see it regularly, we need to investigate.
 		level.Error(ds.logger).Log(
 			"msg", "could not find or create software items. This error may be caused by master and replica DBs out of sync.", "host_id",
-			hostID, "number",
-			len(softwareChecksums),
+			hostID, "number", len(softwareChecksums),
 		)
 		for checksum, software := range softwareChecksums {
 			uuidString := ""
