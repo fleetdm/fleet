@@ -11,6 +11,7 @@ import deviceAPI, {
   IDeviceSoftwareQueryParams,
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
+import { getErrorReason } from "interfaces/errors";
 import { IHostSoftware, ISoftware } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
@@ -33,6 +34,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface ISoftwareCardProps {
   /** This is the host id or the device token */
   id: number | string;
+  isFleetdHost: boolean;
   router: InjectedRouter;
   queryParams?: {
     page?: string;
@@ -41,22 +43,26 @@ interface ISoftwareCardProps {
     order_direction?: "asc" | "desc";
   };
   pathname: string;
+  /** Team id for the host */
+  teamId: number;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
-const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE = 0;
 const DEFAULT_PAGE_SIZE = 20;
 
 const SoftwareCard = ({
   id,
+  isFleetdHost,
   router,
   queryParams,
   pathname,
+  teamId = 0,
   onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
@@ -86,6 +92,7 @@ const SoftwareCard = ({
     isLoading: hostSoftwareLoading,
     isError: hostSoftwareError,
     isFetching: hostSoftwareFetching,
+    refetch: refetchHostSoftware,
   } = useQuery<
     IGetHostSoftwareResponse,
     AxiosError,
@@ -116,6 +123,7 @@ const SoftwareCard = ({
     isLoading: deviceSoftwareLoading,
     isError: deviceSoftwareError,
     isFetching: deviceSoftwareFetching,
+    refetch: refetchDeviceSoftware,
   } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
@@ -139,9 +147,16 @@ const SoftwareCard = ({
     }
   );
 
-  const canInstallSoftware = Boolean(
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
+  const refetchSoftware = useMemo(
+    () => (isMyDevicePage ? refetchDeviceSoftware : refetchHostSoftware),
+    [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
+
+  const canInstallSoftware =
+    isFleetdHost &&
+    Boolean(
+      isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
+    );
 
   const installHostSoftwarePackage = useCallback(
     async (softwareId: number) => {
@@ -152,12 +167,18 @@ const SoftwareCard = ({
           "success",
           "Software is installing or will install when the host comes online."
         );
-      } catch {
-        renderFlash("error", "Couldn't install. Please try again.");
+      } catch (e) {
+        const reason = getErrorReason(e);
+        if (reason.includes("fleetd installed")) {
+          renderFlash("error", reason);
+        } else {
+          renderFlash("error", "Couldn't install. Please try again.");
+        }
       }
       setInstallingSoftwareId(null);
+      refetchSoftware();
     },
-    [id, renderFlash]
+    [id, renderFlash, refetchSoftware]
   );
 
   const onSelectAction = useCallback(
@@ -184,6 +205,7 @@ const SoftwareCard = ({
           installingSoftwareId,
           canInstall: canInstallSoftware,
           onSelectAction,
+          teamId,
         });
   }, [
     isMyDevicePage,
@@ -191,6 +213,7 @@ const SoftwareCard = ({
     installingSoftwareId,
     canInstallSoftware,
     onSelectAction,
+    teamId,
   ]);
 
   const renderSoftwareTable = () => {
@@ -243,4 +266,4 @@ const SoftwareCard = ({
     </Card>
   );
 };
-export default SoftwareCard;
+export default React.memo(SoftwareCard);

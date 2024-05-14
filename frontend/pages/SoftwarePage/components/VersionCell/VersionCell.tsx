@@ -48,7 +48,7 @@ const VersionCell = <T extends { version: string }>({
 
   // only one version, no need for tooltip
   const cellText = generateText(versions);
-  if (!versions) {
+  if (!versions || versions.length <= 1) {
     return <>{cellText}</>;
   }
 

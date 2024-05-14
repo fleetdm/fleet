@@ -407,10 +407,12 @@ const DeviceUserPage = ({
                 <TabPanel>
                   <SoftwareCard
                     id={deviceAuthToken}
+                    isFleetdHost={!!host.orbit_version}
                     router={router}
                     pathname={location.pathname}
                     queryParams={queryParams}
                     isMyDevicePage
+                    teamId={host.team_id || 0}
                   />
                 </TabPanel>
                 {isPremiumTier && (

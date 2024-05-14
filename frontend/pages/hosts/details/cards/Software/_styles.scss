@@ -1,10 +1,12 @@
 .software-card {
-
   .table-container__search-input {
     width: 325px; // Custom to fit placeholder text
   }
 
-  .data-table-block .data-table__wrapper {
-    overflow-x: scroll;
-  }
+  // // TODO: Addingoverflow-x: scroll to the table clips the actions dropdown at the bottom of the
+  // // table. Find a solution that allows dropdown menu to be displayed over the bottom of the table
+  // // in the y-axis when the table is scrollable in the x-axis.
+  // .data-table-block .data-table__wrapper {
+  //   overflow-x: scroll;
+  // }
 }
