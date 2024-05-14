@@ -6,14 +6,7 @@ module.exports = {
 
   description: 'Display "Signup" page.',
 
-  inputs: {
-    purchaseLicense: {
-      type: 'boolean',
-      description: 'If this query string is provided, this user will be taken directly to the /new-license page after they signup.',
-      extendedDescription: 'This value will only be present if the user is redirected to this page from the customers/view-new-license',
-      defaultsTo: false,
-    }
-  },
+  inputs: {},
 
   exits: {
 
@@ -29,15 +22,13 @@ module.exports = {
   },
 
 
-  fn: async function ({purchaseLicense}) {
+  fn: async function () {
 
     if (this.req.me) {
       throw {redirect: '/start'};
     }
 
-    return {
-      redirectToLicenseDispenser: purchaseLicense,
-    };
+    return;
 
   }
 

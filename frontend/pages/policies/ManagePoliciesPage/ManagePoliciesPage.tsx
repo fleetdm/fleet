@@ -311,38 +311,9 @@ const ManagePolicyPage = ({
     }
   );
 
-  const {
-    data: teamPoliciesCount,
-    isFetching: isFetchingTeamCount,
-    refetch: refetchTeamPoliciesCount,
-  } = useQuery<
-    IPoliciesCountResponse,
-    Error,
-    number,
-    ITeamPoliciesCountQueryKey[]
-  >(
-    [
-      {
-        scope: "teamPoliciesCount",
-        query: searchQuery,
-        teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
-        mergeInherited: false,
-      },
-    ],
-    ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
-    {
-      enabled: isRouteOk && !!teamIdForApi,
-      keepPreviousData: true,
-      refetchOnWindowFocus: false,
-      retry: 1,
-      select: (data) => data.count,
-    }
-  );
-
   const canAddOrDeletePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
-  const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
 
   const {
     data: config,
@@ -379,7 +350,6 @@ const ManagePolicyPage = ({
     if (teamId) {
       refetchTeamPolicies();
       refetchTeamPoliciesCountMergeInherited();
-      refetchTeamPoliciesCount();
     } else {
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
       refetchGlobalPoliciesCount();
@@ -601,13 +571,18 @@ const ManagePolicyPage = ({
     ? teamPoliciesError
     : globalPoliciesError;
 
-  const policyResults = isAnyTeamSelected ? !!teamPolicies : !!globalPolicies;
+  const policyResults = isAnyTeamSelected
+    ? teamPolicies && teamPolicies.length > 0
+    : globalPolicies && globalPolicies.length > 0;
 
   // Show CTA buttons if there is no errors AND there are policy results or a search filter
   const showCtaButtons =
     !policiesErrors && (policyResults || searchQuery !== "");
 
   const automationsConfig = isAnyTeamSelected ? teamConfig : config;
+  const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
+  const showAutomationsDropdown =
+    canManageAutomations && automationsConfig && hasPoliciesToAutomateOrDelete;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
   let currentAutomatedPolicies: number[] = [];
@@ -768,19 +743,17 @@ const ManagePolicyPage = ({
           </div>
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
-              {canManageAutomations &&
-                automationsConfig &&
-                hasPoliciesToAutomateOrDelete && (
-                  <div className={`${baseClass}__manage-automations-wrapper`}>
-                    <Dropdown
-                      className={`${baseClass}__manage-automations-dropdown`}
-                      onChange={onSelectAutomationOption}
-                      placeholder="Manage automations"
-                      searchable={false}
-                      options={getAutomationsDropdownOptions()}
-                    />
-                  </div>
-                )}
+              {showAutomationsDropdown && (
+                <div className={`${baseClass}__manage-automations-wrapper`}>
+                  <Dropdown
+                    className={`${baseClass}__manage-automations-dropdown`}
+                    onChange={onSelectAutomationOption}
+                    placeholder="Manage automations"
+                    searchable={false}
+                    options={getAutomationsDropdownOptions()}
+                  />
+                </div>
+              )}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button

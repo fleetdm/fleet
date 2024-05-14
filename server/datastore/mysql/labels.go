@@ -910,6 +910,34 @@ func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string) (map[st
 	return result, nil
 }
 
+func (ds *Datastore) LabelsByName(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	if len(names) == 0 {
+		return map[string]*fleet.Label{}, nil
+	}
+
+	sqlStatement := `
+		SELECT * FROM labels
+		WHERE name IN (?)
+	`
+
+	sqlStatement, args, err := sqlx.In(sqlStatement, names)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
+	}
+
+	var labels []*fleet.Label
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, sqlStatement, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get label ids by name")
+	}
+
+	result := make(map[string]*fleet.Label, len(labels))
+	for _, label := range labels {
+		result[label.Name] = label
+	}
+
+	return result, nil
+}
+
 // AsyncBatchInsertLabelMembership inserts into the label_membership table the
 // batch of label_id + host_id tuples represented by the [2]uint array.
 func (ds *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {

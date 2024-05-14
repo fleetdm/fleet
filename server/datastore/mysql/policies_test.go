@@ -3058,6 +3058,19 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
 	require.NoError(t, err)
 	assert.Equal(t, 15, mergedCount)
+
+	// test filter
+	globalCount, err = ds.CountPolicies(ctx, nil, "global policy 1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, globalCount)
+
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "team policy 1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, teamCount)
+
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "policy 1")
+	require.NoError(t, err)
+	assert.Equal(t, 2, mergedCount)
 }
 
 func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
