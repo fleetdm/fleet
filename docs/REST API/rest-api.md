@@ -2512,7 +2512,7 @@ Returns the information of the specified host.
       }
     },
     "maintenance_window": {
-      "scheduled_at": "2024-08-19T02:02:17Z",
+      "starts_at": "2024-08-19T02:02:17Z",
       "timezone": "America/New_York"
     },
     "mdm": {
