@@ -74,7 +74,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 <h2>Instructions</h2>
 
-1. Download the Fleet `main.tf` Terraform file.
+1. [Download](TODO) the Fleet `main.tf` Terraform file.
 
 2. Edit the following variables in the `main.tf` Terraform file you just downloaded to match your environment:
     
@@ -136,4 +136,5 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 12. That’s it! You should now be able to log in to Fleet and [enroll a host](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
-<meta name="pageOrderInSection" value="1">
+<meta name="pageOrderInSection" value="100">
+<meta name="description" value="Learn how to easily deploy Fleet on Render or AWS with Terraform.">
