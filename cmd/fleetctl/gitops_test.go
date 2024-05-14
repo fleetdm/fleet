@@ -959,7 +959,7 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 	}{
 		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are publicy accessible to the internet."},
 		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
-		{"testdata/gitops/team_software_installer_too_large.yml", "request body too large"},
+		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 500 MB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
 		{"testdata/gitops/team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
