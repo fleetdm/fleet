@@ -1774,7 +1774,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			continue
 		}
-		if p.OperationType == fleet.MDMOperationTypeInstall && p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
+		// If the installation failed, then we do not want to change the operation to "Remove".
+		// Doing so will result in Fleet attempting to remove a profile that doesn't exist on the
+		// host (since the installation failed). Skipping it here will lead to it being removed from
+		// the host in Fleet during profile reconciliation, which is what we want.
+		if p.FailedToInstallOnHost() {
 			continue
 		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
@@ -1999,16 +2003,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
-	var ps []struct {
-		name      string
-		operation string
-	}
-	for _, p := range profiles {
-		ps = append(ps, struct {
-			name      string
-			operation string
-		}{p.ProfileName, string(p.OperationType)})
-	}
+
 	return profiles, err
 }
 

@@ -2946,7 +2946,7 @@ func ReconcileAppleProfiles(
 			continue
 		}
 
-		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed && p.OperationType == fleet.MDMOperationTypeInstall {
+		if p.FailedToInstallOnHost() {
 			// then we shouldn't send an additional remove command since it failed to install on the
 			// host.
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
