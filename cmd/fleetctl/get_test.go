@@ -623,9 +623,9 @@ func TestGetSoftwareTitles(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
-		return []fleet.SoftwareTitle{
+		return []fleet.SoftwareTitleListResult{
 			{
 				Name:          "foo",
 				Source:        "chrome_extensions",
