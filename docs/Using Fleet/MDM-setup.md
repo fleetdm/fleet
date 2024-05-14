@@ -283,6 +283,6 @@ To renew the token:
 5. Restart the Fleet server
 
 <meta name="pageOrderInSection" value="1500">
-<meta name="title" value="macOS setup">
-<meta name="description" value="Learn how to configure Fleet to use Apple's Push Notification service and connect to Apple Business Manager.">
+<meta name="title" value="Setup">
+<meta name="description" value="Learn how to turn on MDM features in Fleet.">
 <meta name="navSection" value="Device management">
