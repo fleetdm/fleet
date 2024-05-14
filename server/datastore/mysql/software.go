@@ -28,6 +28,12 @@ type softwareIDChecksum struct {
 // This is a variable so it can be adjusted during unit testing.
 var countHostSoftwareBatchSize = uint64(100000)
 
+// Since a host may have a lot of software items, we need to batch the inserts.
+// The maximum number of software items we can insert at one time is governed by max_allowed_packet, which already be set to a high value for MDM installers,
+// and by the maximum number of placeholders in a prepared statement, which is 65,536. These are already fairly large limits.
+// This is a variable, so it can be adjusted during unit testing.
+var softwareInsertBatchSize = 1000
+
 func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software)
 	for _, s := range softwares {
@@ -528,30 +534,41 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		}
 	}
 
-	// TODO: [getvictor] Batch this insert -- maybe 100 at a time?
 	if len(softwareChecksums) > 0 {
-		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?,?,?,?,?,?,?,?),", len(softwareChecksums)), ",",
-		)
-		stmt := fmt.Sprintf(
-			"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) VALUES %s",
-			values,
-		)
-		const numberOfArgsPerSoftware = 10
-		args := make([]interface{}, 0, len(softwareChecksums)*numberOfArgsPerSoftware)
-		checksums := make([]string, 0, len(softwareChecksums))
-		for checksum, sw := range softwareChecksums {
-			args = append(
-				args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
-				checksum,
-			)
-			checksums = append(checksums, checksum)
+		keys := make([]string, 0, len(softwareChecksums))
+		for checksum := range softwareChecksums {
+			keys = append(keys, checksum)
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "insert software")
+		for i := 0; i < len(keys); i += softwareInsertBatchSize {
+			start := i
+			end := i + softwareInsertBatchSize
+			if end > len(keys) {
+				end = len(keys)
+			}
+			totalToProcess := end - start
+			values := strings.TrimSuffix(
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
+			)
+			stmt := fmt.Sprintf(
+				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) VALUES %s",
+				values,
+			)
+			const numberOfArgsPerSoftware = 10
+			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+			for j := start; j < end; j++ {
+				checksum := keys[j]
+				sw := softwareChecksums[checksum]
+				args = append(
+					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
+					checksum,
+				)
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "insert software")
+			}
 		}
 		// Here, we use the master DB for retrieval because we retrieve the software IDs that we just inserted.
-		existingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, checksums)
+		existingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
 		if err != nil {
 			return nil, err
 		}

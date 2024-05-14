@@ -511,8 +511,8 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
 	software2 := []fleet.Software{
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
@@ -927,12 +927,15 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 
 func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	countHostSoftwareBatchSizeOrig := countHostSoftwareBatchSize
+	softwareInsertBatchSizeOrig := softwareInsertBatchSize
 	t.Cleanup(
 		func() {
 			countHostSoftwareBatchSize = countHostSoftwareBatchSizeOrig
+			softwareInsertBatchSize = softwareInsertBatchSizeOrig
 		},
 	)
 	countHostSoftwareBatchSize = 2
+	softwareInsertBatchSize = 2
 
 	ctx := context.Background()
 
