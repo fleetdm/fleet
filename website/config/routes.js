@@ -388,6 +388,7 @@ module.exports.routes = {
   'GET /docs/deploying': '/docs/deploy',
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
+  'GET /docs/deploy/introduction': '/docs/deploy/deploy-fleet',
   'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures ',
   'GET /docs/deploying/upgrading-fleet': '/docs/deploy/upgrading-fleet',
   'GET /docs/deploying/server-installation': '/docs/deploy/server-installation',
