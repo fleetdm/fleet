@@ -136,7 +136,7 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 	}
 
 	if len(res.Response) == 0 {
-		return false, string(response), nil
+		return false, "", nil
 	}
 
 	return true, string(response), nil
@@ -206,7 +206,7 @@ func (r *Runner) installSoftware(ctx context.Context, installId string) (*fleet.
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
 
-		if postErr != nil || postExitCode == -1 {
+		if postErr != nil || postExitCode != 0 {
 			log.Info().Msgf("installation of %s failed, attempting rollback. Exit code: %d, error: %s", installerPath, postExitCode, postErr)
 			uninstallScript := file.GetRemoveScript(installerPath)
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath, "rollback-script")
