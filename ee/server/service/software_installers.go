@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
@@ -186,10 +187,24 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+
 	// get the installer's metadata
 	meta, err := svc.ds.GetSoftwareInstallerMetadata(ctx, installerID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
+	}
+
+	// ensure it cannot get access to a different team's installer
+	var hTeamID uint
+	if host.TeamID != nil {
+		hTeamID = *host.TeamID
+	}
+	if (meta.TeamID != nil && *meta.TeamID != hTeamID) || (meta.TeamID == nil && hTeamID != 0) {
+		return nil, ctxerr.Wrap(ctx, fleet.OrbitError{}, "host team does not match installer team")
 	}
 
 	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
