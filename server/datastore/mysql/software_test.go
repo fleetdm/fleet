@@ -697,27 +697,25 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		software := listSoftwareCheckCount(t, ds, 2, 2, opts, true)
 		expected := []fleet.Software{foo001, foo003}
 		test.ElementsMatchSkipID(t, software, expected)
-	})
 
-	t.Run("filters by team and paginates", func(t *testing.T) {
-		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1-" + t.Name()})
-		require.NoError(t, err)
-		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
-
-		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
-
-		opts := fleet.SoftwareListOptions{
+		// Now that we have the software, we can test pagination.
+		// Figure out which software has the highest ID.
+		lowestIDSoftware := software[0]
+		if lowestIDSoftware.ID < software[1].ID {
+			lowestIDSoftware = software[1]
+		}
+		opts = fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
 				PerPage:         1,
-				Page:            1,
+				Page:            1, // 2nd item, since 1st item is on page 0
 				OrderKey:        "id",
 				IncludeMetadata: true,
 			},
 			TeamID: &team1.ID,
 		}
-		software := listSoftwareCheckCount(t, ds, 1, 2, opts, true)
-		expected := []fleet.Software{foo003}
-		test.ElementsMatchSkipID(t, software, expected)
+		software = listSoftwareCheckCount(t, ds, 1, 2, opts, true)
+		expected = []fleet.Software{lowestIDSoftware}
+		test.ElementsMatchSkipIDAndHostCount(t, software, expected)
 	})
 
 	t.Run("filters vulnerable software", func(t *testing.T) {
