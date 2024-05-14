@@ -105,14 +105,16 @@ func connectOsquery(r *Runner) error {
 func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 	var errs []error
 	for _, installerID := range config.Notifications.PendingSoftwareInstallerIDs {
-		if ctx.Err() == nil {
-			payload, err := r.installSoftware(ctx, installerID)
-			if err != nil {
-				errs = append(errs, err)
-			}
-			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
-				errs = append(errs, fmt.Errorf("saving software install results: %w", err))
-			}
+		if ctx.Err() != nil {
+			errs = append(errs, ctx.Err())
+			break
+		}
+		payload, err := r.installSoftware(ctx, installerID)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
 		}
 	}
 	if len(errs) != 0 {
