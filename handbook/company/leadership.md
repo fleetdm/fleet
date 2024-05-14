@@ -95,6 +95,8 @@ Departmental page structure:
 
 - `## Rituals`
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/61d6503c-8ef7-4199-a946-8472f443f649">
+
 
 ## Key reviews
 Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by time-bound goals.
@@ -168,6 +170,9 @@ If the consultant is international, you will also provide:
 
 
 > To update a consultant's fee, [submit an issue to BizOps](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/e9d36657-fab9-44c1-9162-7bc640e2f3a0">
+
 
 ### Adding an advisor
 
@@ -266,6 +271,9 @@ When review is requested on a proposal to open a new position, the 🐈‍⬛ CE
 Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant.
 
 This means that outbound recruiting, 3rd party recruiters, and references from team members are important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
+
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/ea3d3470-575d-4516-a19e-02abec3e1285">
+
 
 #### Receiving job applications
 Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
