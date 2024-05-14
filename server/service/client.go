@@ -566,8 +566,8 @@ func (c *Client) ApplyGroup(
 			for i, si := range software {
 				var qc string
 				var err error
-				if si.PreInstallQuery != "" {
-					queryFile := resolveApplyRelativePath(baseDir, si.PreInstallQuery)
+				if si.PreInstallQuery.Path != "" {
+					queryFile := resolveApplyRelativePath(baseDir, si.PreInstallQuery.Path)
 					rawSpec, err := os.ReadFile(queryFile)
 					if err != nil {
 						return nil, fmt.Errorf("reading pre-install query: %w", err)
@@ -590,8 +590,8 @@ func (c *Client) ApplyGroup(
 				}
 
 				var ic []byte
-				if si.InstallScript != "" {
-					installScriptFile := resolveApplyRelativePath(baseDir, si.InstallScript)
+				if si.InstallScript.Path != "" {
+					installScriptFile := resolveApplyRelativePath(baseDir, si.InstallScript.Path)
 					ic, err = os.ReadFile(installScriptFile)
 					if err != nil {
 						return nil, fmt.Errorf("applying fleet config: %w", err)
@@ -599,8 +599,8 @@ func (c *Client) ApplyGroup(
 				}
 
 				var pc []byte
-				if si.PostInstallScript != "" {
-					postInstallScriptFile := resolveApplyRelativePath(baseDir, si.PostInstallScript)
+				if si.PostInstallScript.Path != "" {
+					postInstallScriptFile := resolveApplyRelativePath(baseDir, si.PostInstallScript.Path)
 					pc, err = os.ReadFile(postInstallScriptFile)
 					if err != nil {
 						return nil, fmt.Errorf("applying fleet config: %w", err)

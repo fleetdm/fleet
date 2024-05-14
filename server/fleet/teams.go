@@ -156,11 +156,15 @@ type TeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
+type TeamSpecSoftwareAsset struct {
+	Path string `json:"path"`
+}
+
 type TeamSpecSoftware struct {
-	URL               string `json:"url"`
-	PreInstallQuery   string `json:"pre_install_query"`
-	InstallScript     string `json:"install_script"`
-	PostInstallScript string `json:"post_install_script"`
+	URL               string                `json:"url"`
+	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
 }
 
 type TeamMDM struct {
