@@ -604,7 +604,7 @@ Status: 201
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| certificate | file | body | *Required* The file containing the token |
+| certificate | file | body | *Required* The file containing the certificate |
 
 #### Example
 
