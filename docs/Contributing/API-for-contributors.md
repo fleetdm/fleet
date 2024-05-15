@@ -538,7 +538,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 ### Generate Apple Business Manager public key (AED)
 
-`POST /api/v1/fleet/mdm/apple/dep/public_key`
+`GET /api/v1/fleet/mdm/apple/dep/public_key`
 
 #### Parameters
 
@@ -548,7 +548,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 #### Example (download public key)
 
-`POST /api/v1/fleet/mdm/apple/dep/public_key?alt=media`
+`GET /api/v1/fleet/mdm/apple/dep/public_key?alt=media`
 
 ##### Default response
 
