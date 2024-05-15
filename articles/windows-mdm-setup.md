@@ -43,7 +43,7 @@ Restart the Fleet server.
 
 ### Step 4: Test manual enrollment
 
-With Windows MDM turned on, enroll a Windows host to Fleet by installing the [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
 ## Automatic enrollment
 
