@@ -145,7 +145,7 @@
   description: "Provide updated metrics for CRV in Chronograph." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#report-quarterly-numbers-in-chronograph"
   dri: "hollidayn"
-    autoIssue:   
+  autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
@@ -155,7 +155,7 @@
   description: "Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up with accounting providers for any quirks found." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#check-finances-for-quirks"
   dri: "jostableford"
-    autoIssue:   
+  autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
@@ -165,7 +165,7 @@
   description: "Create the equity grants GitHub issue and walk through the steps." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#grant-equity"
   dri: "hollidayn" 
-    autoIssue:   
+  autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
@@ -175,7 +175,7 @@
   description: "Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line"
   dri: "jostableford"
-    autoIssue:   
+  autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "classified"
 -
@@ -185,7 +185,7 @@
   description: "Provide information to tax team with Deloitte and assist with filing and paying state and federal returns" 
   moreInfoUrl: 
   dri: "hollidayn"
-    autoIssue:   
+  autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 
