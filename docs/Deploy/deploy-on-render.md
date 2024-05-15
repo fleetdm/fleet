@@ -2,7 +2,7 @@
 
 [Render](https://render.com/) is a cloud hosting service that makes it easy to get up and running fast, without the typical configuration headaches of larger enterprise hosting providers. Our Render blueprint offers a one-click deploy of Fleet in under five minutes, and provides a scalable cloud environment with a lower barrier to entry, making it a great place to get some experience with [Fleet](https://fleetdm.com/) and [osquery](https://osquery.io/).
 
-With one click, our Render blueprint will provision a Fleet web service, a MySQL database, and a Redis in-memory data store. Each service requires Render's `standard` plan at a cost of $7/mo each, totaling $21/mo to host your Fleet instance. If you prefer to follow a video, you can [watch us demonstrating the Render deployment process](https://www.loom.com/share/9373fb6bab2c43aa91949490ceb2678c?sid=081d70de-d736-4681-8107-2d80ec525235).
+With one click, our Render blueprint will provision a Fleet web service, a MySQL database, and a Redis in-memory data store. Each service requires Render's `standard` plan at a cost of $7/mo each, totaling $21/mo to host your Fleet instance. If you prefer to follow a video, you can [watch us demonstrating the Render deployment process](https://www.youtube.com/watch?v=hly0tAOqveA).
 
 ## Deployment steps
 
