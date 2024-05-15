@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // SoftwareInstallerStore is the interface to store and retrieve software
@@ -154,11 +156,11 @@ type HostSoftwareInstallerResult struct {
 	// have specific values that should be used? If so, how are they calculated?
 	Detail string `json:"detail" db:"detail"`
 	// Output is the output of the software installer package on the host.
-	Output string `json:"output" db:"install_script_output"`
+	Output *string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
-	PreInstallQueryOutput string `json:"pre_install_query_output" db:"pre_install_query_output"`
+	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"`
 	// PostInstallScriptOutput is the output of the post-install script on the host.
-	PostInstallScriptOutput string `json:"post_install_script_output" db:"post_install_script_output"`
+	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
 	// CreatedAt is the time the software installer request was triggered.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt is the time the software installer request was last updated.
@@ -197,33 +199,35 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	}
 
-	if h.PreInstallQueryOutput == "" {
-		h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
-		return
+	if h.PreInstallQueryOutput != nil {
+		if *h.PreInstallQueryOutput == "" {
+			*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			return
+		}
+		*h.PreInstallQueryOutput = SoftwareInstallerQuerySuccessCopy
 	}
-	h.PreInstallQueryOutput = SoftwareInstallerQuerySuccessCopy
 
-	if h.InstallScriptExitCode == nil {
+	if h.Output == nil || h.InstallScriptExitCode == nil {
 		return
 	}
 	if *h.InstallScriptExitCode == -2 {
-		h.Output = SoftwareInstallerScriptsDisabledCopy
+		*h.Output = SoftwareInstallerScriptsDisabledCopy
 		return
 	} else if *h.InstallScriptExitCode != 0 {
-		h.Output = fmt.Sprintf(SoftwareInstallerInstallFailCopy, h.Output)
+		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
 		return
 	}
-	h.Output = fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, h.Output)
+	h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, *h.Output))
 
-	if h.PostInstallScriptExitCode == nil {
+	if h.PostInstallScriptExitCode == nil || h.PostInstallScriptOutput == nil {
 		return
 	}
 	if *h.PostInstallScriptExitCode != 0 {
-		h.PostInstallScriptOutput = fmt.Sprintf(SoftwareInstallerPostInstallFailCopy, *h.PostInstallScriptExitCode, h.PostInstallScriptOutput)
+		h.PostInstallScriptOutput = ptr.String(fmt.Sprintf(SoftwareInstallerPostInstallFailCopy, *h.PostInstallScriptExitCode, *h.PostInstallScriptOutput))
 		return
 	}
 
-	h.PostInstallScriptOutput = fmt.Sprintf(SoftwareInstallerPostInstallSuccessCopy, h.PostInstallScriptOutput)
+	h.PostInstallScriptOutput = ptr.String(fmt.Sprintf(SoftwareInstallerPostInstallSuccessCopy, *h.PostInstallScriptOutput))
 }
 
 type HostSoftwareInstallerResultAuthz struct {

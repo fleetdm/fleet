@@ -1,3 +1,3 @@
 #!/bin/sh
 
-apt-get install -f "$INSTALLER_PATH"
+apt-get install --assume-yes -f "$INSTALLER_PATH"

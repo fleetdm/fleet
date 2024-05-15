@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -80,79 +81,116 @@ func TestParseSoftwareLastOpenedAtRowValue(t *testing.T) {
 func TestEnhanceOutputDetails(t *testing.T) {
 	tests := []struct {
 		name                            string
-		hsr                             HostSoftwareInstallerResult
-		expectedPreInstallQueryOutput   string
-		expectedOutput                  string
-		expectedPostInstallScriptOutput string
+		initial                         HostSoftwareInstallerResult
+		expectedPreInstallQueryOutput   *string
+		expectedOutput                  *string
+		expectedPostInstallScriptOutput *string
 	}{
 		{
 			name: "pending status",
-			hsr: HostSoftwareInstallerResult{
+			initial: HostSoftwareInstallerResult{
 				Status: SoftwareInstallerPending,
 			},
-			expectedPreInstallQueryOutput:   "",
-			expectedOutput:                  "",
-			expectedPostInstallScriptOutput: "",
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
 		},
 		{
-			name: "non-pending status with empty PreInstallQueryOutput and successful install",
-			hsr: HostSoftwareInstallerResult{
+			name: "non-pending status with empty PreInstallQueryOutput",
+			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallerInstalled,
-				InstallScriptExitCode: ptr.Int(0),
-				PreInstallQueryOutput: "1",
+				PreInstallQueryOutput: ptr.String(""),
 			},
-			expectedPreInstallQueryOutput:   "Query returned result\nProceeding to install...",
-			expectedOutput:                  "Installing software...\nSuccess\n",
-			expectedPostInstallScriptOutput: "",
+			expectedPreInstallQueryOutput:   ptr.String(SoftwareInstallerQueryFailCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
 		},
 		{
-			name: "non-pending status with empty PreInstallQueryOutput and failed install",
-			hsr: HostSoftwareInstallerResult{
+			name: "non-pending status with non-empty PreInstallQueryOutput",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallerInstalled,
+				PreInstallQueryOutput: ptr.String("Some output"),
+			},
+			expectedPreInstallQueryOutput:   ptr.String(SoftwareInstallerQuerySuccessCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-pending status with nil PreInstallQueryOutput",
+			initial: HostSoftwareInstallerResult{
+				Status: SoftwareInstallerInstalled,
+			},
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-pending status with install scripts disabled",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallerInstalled,
+				InstallScriptExitCode: ptr.Int(-2),
+				Output:                ptr.String(""),
+			},
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  ptr.String(SoftwareInstallerScriptsDisabledCopy),
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-pending status with failed install script",
+			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallerFailed,
 				InstallScriptExitCode: ptr.Int(1),
-				PreInstallQueryOutput: "1",
+				Output:                ptr.String("Some install output"),
 			},
-			expectedPreInstallQueryOutput:   "Query returned result\nProceeding to install...",
-			expectedOutput:                  "Installing software...\nFailed\n",
-			expectedPostInstallScriptOutput: "",
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, "Some install output")),
+			expectedPostInstallScriptOutput: nil,
 		},
 		{
-			name: "non-pending status with non-empty PreInstallQueryOutput and disabled scripts",
-			hsr: HostSoftwareInstallerResult{
-				Status:                SoftwareInstallerFailed,
-				InstallScriptExitCode: ptr.Int(-2),
-				PreInstallQueryOutput: "1",
+			name: "non-pending status with successful install script",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallerInstalled,
+				InstallScriptExitCode: ptr.Int(0),
+				Output:                ptr.String("Some install output"),
 			},
-			expectedPreInstallQueryOutput:   "Query returned result\nProceeding to install...",
-			expectedOutput:                  "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --scripts-enabled.",
-			expectedPostInstallScriptOutput: "",
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  ptr.String(fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, "Some install output")),
+			expectedPostInstallScriptOutput: nil,
 		},
 		{
-			name: "non-pending status with non-empty PreInstallQueryOutput and failed post install script",
-			hsr: HostSoftwareInstallerResult{
+			name: "non-pending status with successful post install script",
+			initial: HostSoftwareInstallerResult{
 				Status:                    SoftwareInstallerInstalled,
 				InstallScriptExitCode:     ptr.Int(0),
-				PostInstallScriptExitCode: ptr.Int(1),
-				PreInstallQueryOutput:     "1",
-				PostInstallScriptOutput:   "output!",
+				Output:                    ptr.String("Some install output"),
+				PostInstallScriptExitCode: ptr.Int(0),
+				PostInstallScriptOutput:   ptr.String("Some post install output"),
 			},
-			expectedPreInstallQueryOutput: "Query returned result\nProceeding to install...",
-			expectedOutput:                "Installing software...\nSuccess\n",
-			expectedPostInstallScriptOutput: `Running script...
-Exit code: 1 (Failed)
-output!
-Rolling back software install...
-Rolled back successfully
-`,
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  ptr.String(fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, "Some install output")),
+			expectedPostInstallScriptOutput: ptr.String(fmt.Sprintf(SoftwareInstallerPostInstallSuccessCopy, "Some post install output")),
+		},
+		{
+			name: "non-pending status with failed post install script",
+			initial: HostSoftwareInstallerResult{
+				Status:                    SoftwareInstallerInstalled,
+				InstallScriptExitCode:     ptr.Int(0),
+				Output:                    ptr.String("Some install output"),
+				PostInstallScriptExitCode: ptr.Int(1),
+				PostInstallScriptOutput:   ptr.String("Some post install output"),
+			},
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  ptr.String(fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, "Some install output")),
+			expectedPostInstallScriptOutput: ptr.String(fmt.Sprintf(SoftwareInstallerPostInstallFailCopy, 1, "Some post install output")),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.hsr.EnhanceOutputDetails()
-			require.Equal(t, tt.expectedPreInstallQueryOutput, tt.hsr.PreInstallQueryOutput)
-			require.Equal(t, tt.expectedOutput, tt.hsr.Output)
-			require.Equal(t, tt.expectedPostInstallScriptOutput, tt.hsr.PostInstallScriptOutput)
+			tt.initial.EnhanceOutputDetails()
+			require.Equal(t, tt.expectedPreInstallQueryOutput, tt.initial.PreInstallQueryOutput)
+			require.Equal(t, tt.expectedOutput, tt.initial.Output)
+			require.Equal(t, tt.expectedPostInstallScriptOutput, tt.initial.PostInstallScriptOutput)
 		})
 	}
 }

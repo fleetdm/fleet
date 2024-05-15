@@ -9562,9 +9562,9 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID                  uint
 		InstallUUID             string
 		Status                  fleet.SoftwareInstallerStatus
-		Output                  string
-		PostInstallScriptOutput string
-		PreInstallQueryOutput   string
+		Output                  *string
+		PostInstallScriptOutput *string
+		PreInstallQueryOutput   *string
 	}
 	checkResults := func(want result) {
 		var resp getSoftwareInstallResultsResponse
@@ -9591,8 +9591,8 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[0],
 		Status:                fleet.SoftwareInstallerFailed,
-		PreInstallQueryOutput: fleet.SoftwareInstallerQuerySuccessCopy,
-		Output:                fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed"),
+		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQuerySuccessCopy),
+		Output:                ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed")),
 	})
 	wantAct := fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
@@ -9614,7 +9614,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[1],
 		Status:                fleet.SoftwareInstallerFailed,
-		PreInstallQueryOutput: fleet.SoftwareInstallerQueryFailCopy,
+		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQueryFailCopy),
 	})
 	wantAct.InstallUUID = installUUIDs[1]
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
@@ -9634,9 +9634,9 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:                  host.ID,
 		InstallUUID:             installUUIDs[2],
 		Status:                  fleet.SoftwareInstallerInstalled,
-		PreInstallQueryOutput:   fleet.SoftwareInstallerQuerySuccessCopy,
-		Output:                  fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success"),
-		PostInstallScriptOutput: fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok"),
+		PreInstallQueryOutput:   ptr.String(fleet.SoftwareInstallerQuerySuccessCopy),
+		Output:                  ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success")),
+		PostInstallScriptOutput: ptr.String(fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok")),
 	})
 	wantAct.InstallUUID = installUUIDs[2]
 	wantAct.Status = string(fleet.SoftwareInstallerInstalled)
