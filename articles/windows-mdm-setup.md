@@ -57,7 +57,7 @@ In order to connect Fleet to Azure AD, the IT admin (you) needs a Microsoft Ente
 
 Each end user who automatically enrolls needs a Microsoft Intune license.
 
-### Step 1: buy Microsoft licenses
+### Step 1: Buy Microsoft licenses
 
 1. Sign in to [Microsoft 365 admin center](https://admin.microsoft.com/).
 
