@@ -191,6 +191,5 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in tea
 Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
 
 <meta name="title" value="Single sign-on (SSO)">
-<meta name="pageOrderInSection" value="800">
+<meta name="pageOrderInSection" value="200">
 <meta name="description" value="Learn how to configure single sign-on (SSO)">
-<meta name="navSection" value="TBD">
