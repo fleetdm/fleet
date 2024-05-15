@@ -321,6 +321,10 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
+	if title == "" {
+		// use the filename if no title from metadata
+		title = payload.Filename
+	}
 	payload.Title = title
 	payload.Version = vers
 	payload.StorageID = hex.EncodeToString(hash)
@@ -445,11 +449,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				InstallerFile:     bytes.NewReader(bodyBytes),
 			}
 
-			ext, err := svc.addMetadataToSoftwarePayload(ctx, installer)
-			if err != nil {
-				return err
-			}
-
+			// set the filename before adding metadata, as it is used as fallback
 			var filename string
 			cdh, ok := resp.Header["Content-Disposition"]
 			if ok && len(cdh) > 0 {
@@ -458,7 +458,15 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 					filename = params["filename"]
 				}
 			}
-			// if it fails, try to extract it from the URL
+			installer.Filename = filename
+
+			ext, err := svc.addMetadataToSoftwarePayload(ctx, installer)
+			if err != nil {
+				return err
+			}
+
+			// if filename was empty, try to extract it from the URL with the
+			// now-known extension
 			if filename == "" {
 				filename = file.ExtractFilenameFromURLPath(p.URL, ext)
 			}
@@ -467,6 +475,9 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				filename = fmt.Sprintf("package.%s", ext)
 			}
 			installer.Filename = filename
+			if installer.Title == "" {
+				installer.Title = filename
+			}
 
 			installers[i] = installer
 
