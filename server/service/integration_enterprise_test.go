@@ -3603,7 +3603,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	}{
 		"CVE-2021-1234": {
 			HostCount:   1,
-			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
 			CVE: fleet.CVE{
 				CVE:              "CVE-2021-1234",
 				CVSSScore:        ptr.Float64Ptr(7.5),
@@ -3672,7 +3672,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Empty(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
-	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
 	require.Equal(t, ptr.StringPtr("Test CVE 2021-1234"), gResp.Vulnerability.Description)
 	require.Equal(t, ptr.Float64Ptr(7.5), gResp.Vulnerability.CVSSScore)
 	require.Equal(t, ptr.BoolPtr(true), gResp.Vulnerability.CISAKnownExploit)
@@ -3754,7 +3754,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, testOS.Platform, osVersionsResp.OSVersions[0].Platform)
 	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 1)
 	require.Equal(t, "CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].CVE)
-	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].DetailsLink)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].DetailsLink)
 	require.Equal(t, *vulnMeta[0].CVSSScore, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVSSScore)
 	require.Equal(t, *vulnMeta[0].EPSSProbability, **osVersionsResp.OSVersions[0].Vulnerabilities[0].EPSSProbability)
 	require.Equal(t, *vulnMeta[0].CISAKnownExploit, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CISAKnownExploit)
@@ -7018,6 +7018,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				require.NotZero(t, got[i].Versions[j].ID)
 				got[i].Versions[j].ID = 0
 			}
+			// Sort versions by version
+			sort.Slice(
+				got[i].Versions, func(a, b int) bool {
+					return got[i].Versions[a].Version < got[i].Versions[b].Version
+				},
+			)
 		}
 
 		// sort and use EqualValues instead of ElementsMatch in order
@@ -9770,4 +9776,127 @@ func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *sc
 func (s *integrationEnterpriseTestSuite) cleanupQuery(queryID uint) {
 	var delResp deleteQueryByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
+	t := s.T()
+	startMockServer := func(t *testing.T) string {
+		// create a test http server
+		srv := httptest.NewServer(
+			http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					if r.Method != "POST" {
+						w.WriteHeader(http.StatusMethodNotAllowed)
+						return
+					}
+					switch r.URL.Path {
+					case "/ok":
+						var body map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&body)
+						if err != nil {
+							t.Log(err)
+							w.WriteHeader(http.StatusBadRequest)
+							return
+						}
+						_, _ = w.Write([]byte(`{"risks":"description", "whatWillProbablyHappenDuringMaintenance":"resolution"}`))
+					default:
+						w.WriteHeader(http.StatusNotFound)
+					}
+				},
+			),
+		)
+		t.Cleanup(srv.Close)
+		return srv.URL
+	}
+	mockUrl := startMockServer(t)
+	originalUrl := getHumanInterpretationFromOsquerySqlUrl
+	originalTimeout := getHumanInterpretationFromOsquerySqlTimeout
+	t.Cleanup(
+		func() {
+			getHumanInterpretationFromOsquerySqlUrl = originalUrl
+			getHumanInterpretationFromOsquerySqlTimeout = originalTimeout
+		},
+	)
+
+	// Create teams
+	team1, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			ID:          42,
+			Name:        "team1" + t.Name(),
+			Description: "desc team1",
+		},
+	)
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			ID:          43,
+			Name:        "team2" + t.Name(),
+			Description: "desc team2",
+		},
+	)
+	require.NoError(t, err)
+
+	oldToken := s.token
+	t.Cleanup(
+		func() {
+			s.token = oldToken
+		},
+	)
+
+	switchUser := func(t *testing.T, role string) {
+		password := test.GoodPassword
+		email := role + "-testteam@user.com"
+		u := &fleet.User{
+			Name:       "test team user",
+			Email:      email,
+			GlobalRole: nil,
+			Teams: []fleet.UserTeam{
+				{
+					Team: *team2,
+					Role: fleet.RoleObserver,
+				},
+				{
+					Team: *team1,
+					Role: role,
+				},
+			},
+		}
+		require.NoError(t, u.SetPassword(password, 10, 10))
+		_, err = s.ds.NewUser(context.Background(), u)
+		require.NoError(t, err)
+
+		s.token = s.getTestToken(email, password)
+	}
+
+	req := autofillPoliciesRequest{
+		SQL: "select 1",
+	}
+	getHumanInterpretationFromOsquerySqlUrl = mockUrl + "/ok"
+
+	tests := []struct {
+		role string
+		pass bool
+	}{
+		{role: fleet.RoleAdmin, pass: true},
+		{role: fleet.RoleMaintainer, pass: true},
+		{role: fleet.RoleGitOps, pass: true},
+		{role: fleet.RoleObserver, pass: false},
+		{role: fleet.RoleObserverPlus, pass: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(
+			tt.role, func(t *testing.T) {
+				switchUser(t, tt.role)
+				if tt.pass {
+					var res autofillPoliciesResponse
+					s.DoJSON("POST", "/api/latest/fleet/autofill/policy", req, http.StatusOK, &res)
+					assert.Equal(t, "description", res.Description)
+					assert.Equal(t, "resolution", res.Resolution)
+				} else {
+					_ = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusForbidden)
+				}
+			},
+		)
+	}
 }

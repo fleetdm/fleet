@@ -42,7 +42,10 @@ module.exports = {
 
 
   fn: async function (inputs) {
-
+    // If organization was reported as an empty string, set it to the default value.
+    if(inputs.organization === '') {
+      inputs.organization = 'unknown';
+    }
     // Create a database record for these usage statistics.
     await HistoricalUsageSnapshot.create(Object.assign({}, inputs));
 

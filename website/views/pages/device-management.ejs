@@ -25,11 +25,11 @@
         </div>
       </div>
       <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
-        <div purpose="testimonial-quote" @click="window.location='<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>'">
+        <div purpose="testimonial-quote" @click="goto('<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>')">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
             <p>
-              <% if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>One of the big reasons why I always support open source products with a commercial-backed company is the limitless capabilities and freedom to fully take advantage of the product.  With vmware ONE being acquired by Broadcom, it makes more sense to migrate to an open platform that gives you product freedom to manage your device fleet and rely on the community for new ideas.
+              <% if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>I always support open-source products with a commercially-backed company. <!--It makes more sense to migrate to an open platform that gives you the freedom to fully take advantage of the product to manage your device fleet and rely on the community for new ideas.-->
               <% } else if (['eo-it'].includes(primaryBuyingSituation)) { %>This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
               <% } else { %>We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.
               <% } %>

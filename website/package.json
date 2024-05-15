@@ -33,6 +33,7 @@
     "build": "echo '\"npm run build\" deliberately left unimplemented to prevent its use, since different platforms like Heroku and GitHub Actions all like to try and run it by default, which can lead to inadvertent duplication and unnecessary lock-in, since one has to find the config to turn that off.'",
     "lint": "./node_modules/eslint/bin/eslint.js . --max-warnings=0 --report-unused-disable-directives && echo '✔  Your .js files look so good.' && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/**/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/pages/**/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/pages/**/**/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/pages/**/**/**/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/pages/**/**/**/**/**/*.ejs && echo '✔  So do your .ejs files.' && ./node_modules/lesshint/bin/lesshint assets/styles/ --max-warnings=0 && echo '✔  Your .less files look good, too.'",
     "start": "NODE_ENV=production node app.js",
+    "start-dev": "./node_modules/sails/bin/sails.js run build-static-content && ./node_modules/sails/bin/sails.js console",
     "test": "npm run lint && npm run custom-tests && echo 'Done.'",
     "wipe": "sails_datastores__default__adapter=sails-postgresql sails_datastores__default__ssl='{ \"rejectUnauthorized\": false }' sails lift --drop"
   },

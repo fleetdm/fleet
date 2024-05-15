@@ -4278,7 +4278,8 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 				Hosts:               []string{"abc"},
 			},
 		},
-	}, http.StatusInternalServerError, &applyResp)
+	}, http.StatusUnprocessableEntity, &applyResp,
+	)
 
 	// apply an invalid label spec - manual membership without a host specified
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
@@ -4290,7 +4291,8 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 			},
 		},
-	}, http.StatusInternalServerError, &applyResp)
+	}, http.StatusUnprocessableEntity, &applyResp,
+	)
 
 	// apply an invalid label spec - builtin label type
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
@@ -8411,7 +8413,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	}{
 		"CVE-2021-1234": {
 			HostCount:   1,
-			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
 		},
 		"CVE-2021-1235": {
 			HostCount:   1,
@@ -8448,7 +8450,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	}{
 		"CVE-2021-1234": {
 			HostCount:   1,
-			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
 		},
 		"CVE-2021-1235": {
 			HostCount:   1,
@@ -8515,7 +8517,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Empty(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
-	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)
 	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
@@ -8642,11 +8644,11 @@ func (s *integrationTestSuite) TestOSVersions() {
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:         "CVE-2021-1234",
-				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+				DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
 			},
 			{
 				CVE:         "CVE-2021-5678", // vulns are aggregated by OS name and version
-				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-5678",
+				DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-5678",
 			},
 		},
 	}

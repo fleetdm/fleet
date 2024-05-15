@@ -192,9 +192,9 @@ Domain name registrations are handled through Namecheap. Access is managed via 1
 ### Fix a laptop that's not checking in
 It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
 
-If the host is still enrolled in MDM, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/mdm-commands/apple/send-fleetd.xml to the device, which will reinstall fleetd.
+If the host has MDM turned on, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos-send-fleetd.xml to the device, which will reinstall fleetd.
 
-If the host is no longer enrolled in MDM or dogfood, it is beyond our ability to control remotely.
+If the host doesn't have MDM turned on or isn't enrolled to dogfood, it is beyond our ability to control remotely.
 
 ### Enroll a macOS host in dogfood
 When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.

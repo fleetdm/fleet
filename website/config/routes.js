@@ -388,7 +388,8 @@ module.exports.routes = {
   'GET /docs/deploying': '/docs/deploy',
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
-  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures ',
+  'GET /docs/deploy/introduction': '/docs/deploy/deploy-fleet',
+  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures',
   'GET /docs/deploying/upgrading-fleet': '/docs/deploy/upgrading-fleet',
   'GET /docs/deploying/server-installation': '/docs/deploy/server-installation',
   'GET /docs/deploying/cloudgov': '/docs/deploy/cloudgov',
@@ -429,6 +430,18 @@ module.exports.routes = {
   'GET /customers/new-license': '/new-license',
   'GET /try-fleet/fleetctl-preview': '/try-fleet',
   'GET /upgrade': '/pricing',
+  'GET /docs/deploy/system-d': '/docs/deploy/reference-architectures#systemd',
+  'GET /docs/deploy/proxies': '/docs/deploy/reference-architectures#using-a-proxy',
+  'GET /docs/deploy/public-ip': '/docs/deploy/reference-architectures#public-ips-of-devices',
+  'GET /docs/deploy/monitoring-fleet': '/docs/deploy/reference-architectures#monitoring-fleet',
+  'GET /docs/deploy/deploy-fleet-on-aws-ecs': '/guides/deploy-fleet-on-aws-ecs',
+  'GET /docs/deploy/deploy-fleet-on-centos': '/guides/deploy-fleet-on-centos',
+  'GET /docs/deploy/cloudgov': '/guides/deploy-fleet-on-cloudgov',
+  'GET /docs/deploy/deploy-on-aws-with-terraform': '/guides/deploy-fleet-on-aws-with-terraform',
+  'GET /docs/deploy/deploy-on-hetzner-cloud': '/guides/deploy-fleet-on-hetzner-cloud',
+  'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
+  'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -494,6 +507,7 @@ module.exports.routes = {
   'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
   'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
   'GET /learn-more-about/rotating-enroll-secrets': '/docs/configuration/configuration-files#rotating-enroll-secrets',
+  'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
 
   // Sitemap

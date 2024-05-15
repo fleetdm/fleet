@@ -164,8 +164,9 @@ const SaveNewPolicyModal = ({
               "AI features are disabled in organization settings"
             ) : (
               <>
-                Policy queries (SQL) will be sent to the LLM. Fleet doesn&apos;t
-                use this data to train models.
+                Policy queries (SQL) will be sent to a <br />
+                large language model (LLM). Fleet <br />
+                doesn&apos;t use this data to train models.
               </>
             )}
           </ReactTooltip>

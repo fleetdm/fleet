@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"crypto/md5" // nolint:gosec (only used for tests)
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -227,7 +226,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	tx, err := ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
+	_, err = ds.insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
@@ -250,7 +249,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	tx, err = ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
+	_, err = ds.insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
@@ -515,8 +514,8 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
 	software2 := []fleet.Software{
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
@@ -701,26 +700,29 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		software := listSoftwareCheckCount(t, ds, 2, 2, opts, true)
 		expected := []fleet.Software{foo001, foo003}
 		test.ElementsMatchSkipID(t, software, expected)
-	})
 
-	t.Run("filters by team and paginates", func(t *testing.T) {
-		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1-" + t.Name()})
-		require.NoError(t, err)
-		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+		// Now that we have the software, we can test pagination.
+		// Figure out which software has the highest ID.
+		targetSoftware := software[0]
+		if targetSoftware.ID < software[1].ID {
+			targetSoftware = software[1]
+		}
+		expected = []fleet.Software{foo001}
+		if targetSoftware.Name == "foo" && targetSoftware.Version == "0.0.3" {
+			expected = []fleet.Software{foo003}
+		}
 
-		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
-
-		opts := fleet.SoftwareListOptions{
+		opts = fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
 				PerPage:         1,
-				Page:            1,
+				Page:            1, // 2nd item, since 1st item is on page 0
 				OrderKey:        "id",
 				IncludeMetadata: true,
 			},
-			TeamID: &team1.ID,
+			TeamID:           &team1.ID,
+			IncludeCVEScores: true,
 		}
-		software := listSoftwareCheckCount(t, ds, 1, 2, opts, true)
-		expected := []fleet.Software{foo003}
+		software = listSoftwareCheckCount(t, ds, 1, 2, opts, true)
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -930,6 +932,17 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 }
 
 func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
+	countHostSoftwareBatchSizeOrig := countHostSoftwareBatchSize
+	softwareInsertBatchSizeOrig := softwareInsertBatchSize
+	t.Cleanup(
+		func() {
+			countHostSoftwareBatchSize = countHostSoftwareBatchSizeOrig
+			softwareInsertBatchSize = softwareInsertBatchSizeOrig
+		},
+	)
+	countHostSoftwareBatchSize = 2
+	softwareInsertBatchSize = 2
+
 	ctx := context.Background()
 
 	cmpNameVersionCount := func(want, got []fleet.Software) {
@@ -950,9 +963,21 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		require.Equal(t, want, tableCount)
 	}
 
+	host0 := test.NewHost(t, ds, "host0", "", "host0key", "host0uuid", time.Now())
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	hostTemp := test.NewHost(t, ds, "hostTemp", "", "hostTempKey", "hostTempUuid", time.Now())
 
+	// Get counts without any software.
+	globalOpts := fleet.SoftwareListOptions{
+		WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending},
+	}
+	_ = listSoftwareCheckCount(t, ds, 0, 0, globalOpts, false)
+
+	software0 := []fleet.Software{
+		{Name: "abc", Version: "0.0.1", Source: "apps"},
+		{Name: "def", Version: "0.0.1", Source: "apps"},
+	}
 	software1 := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
@@ -962,17 +987,33 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
+	softwareTemp := make([]fleet.Software, 0, 10)
+	for i := 0; i < 10; i++ {
+		softwareTemp = append(
+			softwareTemp, fleet.Software{Name: fmt.Sprintf("foo%d", i), Version: fmt.Sprintf("%d.0.1", i), Source: "deb_packages"},
+		)
+	}
 
-	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	_, err := ds.UpdateHostSoftware(ctx, host0.ID, software0)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, hostTemp.ID, softwareTemp)
 	require.NoError(t, err)
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
-	globalOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
-	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
+	_ = listSoftwareCheckCount(t, ds, 16, 16, globalOpts, false)
+	checkTableTotalCount(16)
 
+	// Now, delete 2 hosts. Software with the lowest ID is removed, and there should be a chunk with missing software IDs from the deleted hostTemp software.
+	require.NoError(t, ds.DeleteHost(ctx, host0.ID))
+	require.NoError(t, ds.DeleteHost(ctx, hostTemp.ID))
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 	want := []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 2},
 		{Name: "foo", Version: "0.0.1", HostsCount: 1},
@@ -1083,8 +1124,9 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
 	require.NoError(t, err)
-	software1[0].ID = host1.HostSoftware.Software[0].ID
-	assert.Equal(t, software1[0], *soft1ByID)
+	soft2ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[1].ID, &team1.ID, false, nil)
+	require.NoError(t, err)
+	test.ElementsMatchSkipIDAndHostCount(t, software1, []fleet.Software{*soft1ByID, *soft2ByID})
 
 	team2Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team2.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	team2Counts := listSoftwareCheckCount(t, ds, 2, 2, team2Opts, false)
@@ -1152,6 +1194,33 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	listSoftwareCheckCount(t, ds, 0, 0, team2Opts, false)
 	checkTableTotalCount(5)
+}
+
+// softwareChecksumComputedColumn computes the checksum for a software entry
+// The calculation must match the one in computeRawChecksum
+func softwareChecksumComputedColumn(tableAlias string) string {
+	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
+		tableAlias += "."
+	}
+
+	// concatenate with separator \x00
+	return fmt.Sprintf(
+		` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				%sname,
+				%[1]sversion,
+				%[1]ssource,
+				COALESCE(%[1]sbundle_identifier, ''),
+				`+"%[1]s`release`"+`,
+				%[1]sarch,
+				%[1]svendor,
+				%[1]sbrowser,
+				%[1]sextension_id
+			)
+		)
+	) `, tableAlias,
+	)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
@@ -2900,15 +2969,6 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	computeChecksum := func(sw fleet.Software) string {
-		h := md5.New()
-		// compute the same way as the DB, see the softwareChecksumComputedColumn function
-		cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
-		fmt.Fprint(h, strings.Join(cols, "\x00"))
-		checksum := h.Sum(nil)
-		return hex.EncodeToString(checksum)
-	}
-
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "test"},
 		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
@@ -2921,7 +2981,9 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 
 	checksums := make([]string, len(software))
 	for i, sw := range software {
-		checksums[i] = computeChecksum(sw)
+		checksum, err := computeRawChecksum(sw)
+		require.NoError(t, err)
+		checksums[i] = hex.EncodeToString(checksum)
 	}
 	for i, cs := range checksums {
 		var got fleet.Software

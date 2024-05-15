@@ -2053,12 +2053,7 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
 	for _, vuln := range vulns {
-		switch osVersion.Platform {
-		case "darwin":
-			vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
-		case "windows":
-			vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
-		}
+		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
 	}
 	return nil

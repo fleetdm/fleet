@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -41,6 +42,9 @@ type OrbitClient struct {
 	configCache                 configCache
 	onGetConfigErrFns           *OnGetConfigErrFuncs
 	lastNetErrOnGetConfigLogged time.Time
+
+	lastIdleConnectionsCleanupMu sync.Mutex
+	lastIdleConnectionsCleanup   time.Time
 
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
@@ -81,7 +85,15 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 		return fmt.Errorf("parsing URL: %w", err)
 	}
 
-	request, err := http.NewRequest(
+	oc.closeIdleConnections()
+
+	ctx := context.Background()
+	if os.Getenv("FLEETD_TEST_HTTPTRACE") == "1" {
+		ctx = httptrace.WithClientTrace(ctx, testStdoutHTTPTracer)
+	}
+
+	request, err := http.NewRequestWithContext(
+		ctx,
 		verb,
 		oc.url(parsedURL.Path, parsedURL.RawQuery).String(),
 		bytes.NewBuffer(bodyBytes),
@@ -142,20 +154,51 @@ func NewOrbitClient(
 	}
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	return &OrbitClient{
-		nodeKeyFilePath:          nodeKeyFilePath,
-		baseClient:               bc,
-		enrollSecret:             enrollSecret,
-		hostInfo:                 orbitHostInfo,
-		enrolled:                 false,
-		onGetConfigErrFns:        onGetConfigErrFns,
-		ReceiverUpdateInterval:   defaultOrbitConfigReceiverInterval,
-		ReceiverUpdateContext:    ctx,
-		ReceiverUpdateCancelFunc: cancelFunc,
+		nodeKeyFilePath:            nodeKeyFilePath,
+		baseClient:                 bc,
+		enrollSecret:               enrollSecret,
+		hostInfo:                   orbitHostInfo,
+		enrolled:                   false,
+		onGetConfigErrFns:          onGetConfigErrFns,
+		lastIdleConnectionsCleanup: time.Now(),
+		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
+		ReceiverUpdateContext:      ctx,
+		ReceiverUpdateCancelFunc:   cancelFunc,
 	}, nil
+}
+
+// closeIdleConnections attempts to close idle connections from the pool
+// every 55 minutes.
+//
+// Some load balancers (e.g. AWS ELB) have a maximum lifetime for a connection
+// (no matter if the connection is active or not) and will forcefully close the
+// connection causing errors in the client (e.g. https://github.com/fleetdm/fleet/issues/18783).
+// To prevent these errors, we will attempt to cleanup idle connections every 55
+// minutes to not let these connection grow too old. (AWS ELB's default value for maximum
+// lifetime of a connection is 3600 seconds.)
+func (oc *OrbitClient) closeIdleConnections() {
+	oc.lastIdleConnectionsCleanupMu.Lock()
+	defer oc.lastIdleConnectionsCleanupMu.Unlock()
+
+	if time.Since(oc.lastIdleConnectionsCleanup) < 55*time.Minute {
+		return
+	}
+
+	oc.lastIdleConnectionsCleanup = time.Now()
+
+	c, ok := oc.baseClient.http.(*http.Client)
+	if !ok {
+		return
+	}
+	t, ok := c.Transport.(*http.Transport)
+	if !ok {
+		return
+	}
+
+	t.CloseIdleConnections()
 }
 
 func (oc *OrbitClient) RunConfigReceivers() error {
@@ -553,4 +596,21 @@ func (oc *OrbitClient) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.O
 		return err
 	}
 	return nil
+}
+
+const httpTraceTimeFormat = "2006-01-02T15:04:05Z"
+
+var testStdoutHTTPTracer = &httptrace.ClientTrace{
+	ConnectStart: func(network, addr string) {
+		fmt.Printf(
+			"httptrace: %s: ConnectStart: %s, %s\n",
+			time.Now().UTC().Format(httpTraceTimeFormat), network, addr,
+		)
+	},
+	ConnectDone: func(network, addr string, err error) {
+		fmt.Printf(
+			"httptrace: %s: ConnectDone: %s, %s, err='%s'\n",
+			time.Now().UTC().Format(httpTraceTimeFormat), network, addr, err,
+		)
+	},
 }

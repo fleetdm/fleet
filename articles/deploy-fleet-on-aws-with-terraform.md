@@ -1,5 +1,7 @@
 # Deploy Fleet on AWS with Terraform
 
+![Deploy Fleet on AWS ECS](../website/assets/images/articles/deploy-fleet-on-aws-with-terraform-800x450@2x.png)
+
 Learn how to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
 Deploying on AWS with Fleet’s reference architecture is an easy way to get a fully functional Fleet instance that can scale to your needs.
@@ -347,7 +349,10 @@ This particular issue would only be encountered for the largest of Fleet deploym
 
 More troubleshooting tips can be found here https://fleetdm.com/docs/get-started/faq#deployment
 
-<meta name="title" value="AWS with Terraform">
-<meta name="pageOrderInSection" value="700">
-<meta name="description" value="Learn how to deploy Fleet on AWS">
-<meta name="navSection" value="Deployment guides">
+<meta name="articleTitle" value="Deploy Fleet on AWS with Terraform">
+<meta name="authorGitHubUsername" value="edwardsb">
+<meta name="authorFullName" value="Ben Edwards">
+<meta name="publishedOn" value="2021-11-30">
+<meta name="category" value="guides">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-aws-with-terraform-800x450@2x.png">
+<meta name="description" value="Learn how to deploy Fleet on AWS.">

@@ -7,10 +7,7 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import {
-  GITHUB_NEW_ISSUE_LINK,
-  EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS,
-} from "utilities/constants";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -227,12 +224,34 @@ const SoftwareVulnerabilitiesTable = ({
     );
   };
 
+  const getExploitedVulnerabiltiesDropdownOptions = () => {
+    const disabledTooltipContent = "Available in Fleet Premium.";
+
+    return [
+      {
+        disabled: false,
+        label: "All vulnerabilities",
+        value: false,
+        helpText: "All vulnerabilities detected on your hosts.",
+      },
+      {
+        disabled: !isPremiumTier,
+        label: "Exploited vulnerabilities",
+        value: true,
+        helpText:
+          "Vulnerabilities that have been actively exploited in the wild.",
+        tooltipContent: !isPremiumTier && disabledTooltipContent,
+      },
+    ];
+  };
+
+  // Exploited vulnerabilities is a premium feature
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <Dropdown
         value={showExploitedVulnerabilitiesOnly}
         className={`${baseClass}__exploited-vulnerabilities-dropdown`}
-        options={EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS}
+        options={getExploitedVulnerabiltiesDropdownOptions()}
         searchable={false}
         onChange={handleExploitedVulnFilterDropdownChange}
         tableFilterDropdown

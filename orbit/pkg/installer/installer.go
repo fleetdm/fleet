@@ -34,7 +34,7 @@ type Client interface {
 }
 
 type QueryClient interface {
-	Query(context.Context, string) (*QueryResponse, error)
+	QueryContext(context.Context, string) (*QueryResponse, error)
 }
 
 type Runner struct {
@@ -99,7 +99,7 @@ func connectOsquery(r *Runner) error {
 			return err
 		}
 
-		r.OsqueryClient = osqueryClient.Client
+		r.OsqueryClient = osqueryClient
 	}
 
 	return nil
@@ -132,7 +132,7 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 }
 
 func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, string, error) {
-	res, err := r.OsqueryClient.Query(ctx, query)
+	res, err := r.OsqueryClient.QueryContext(ctx, query)
 	if err != nil {
 		return false, "", fmt.Errorf("precondition check: %w", err)
 	}

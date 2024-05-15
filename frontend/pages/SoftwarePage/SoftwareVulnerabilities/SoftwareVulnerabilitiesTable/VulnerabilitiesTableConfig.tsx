@@ -284,7 +284,8 @@ const generateTableHeaders = (
     return tableHeaders.filter(
       (header) =>
         header.accessor !== "epss_probability" &&
-        header.accessor !== "cve_published"
+        header.accessor !== "cve_published" &&
+        header.accessor !== "cvss_score"
     );
   }
 

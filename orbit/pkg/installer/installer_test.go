@@ -38,7 +38,7 @@ type TestQueryClient struct {
 	queryFn func(context.Context, string) (*QueryResponse, error)
 }
 
-func (qc *TestQueryClient) Query(ctx context.Context, query string) (*QueryResponse, error) {
+func (qc *TestQueryClient) QueryContext(ctx context.Context, query string) (*QueryResponse, error) {
 	return qc.queryFn(ctx, query)
 }
 

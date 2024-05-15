@@ -1,8 +1,10 @@
-## Deploy Fleet on CentOS
+# Deploy Fleet on CentOS
+
+![Deploy Fleet on CentOS](../website/assets/images/articles/deploy-fleet-on-centos-800x450@2x.png)
 
 In this guide, we're going to install Fleet and all of its application dependencies on a CentOS 7.1 server. Once we have Fleet up and running, we're going to install osquery on that same CentOS 7.1 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
 
-### Setting up a host
+## Setting up a host
 
 If you don't have a CentOS host readily available, Fleet recommends using [Vagrant](https://www.vagrantup.com/) for this guide. You can find installation instructions on Vagrant's [downloads page](https://developer.hashicorp.com/vagrant/downloads).
 
@@ -17,7 +19,7 @@ vagrant up
 vagrant ssh
 ```
 
-### Installing Fleet
+## Installing Fleet
 
 To install Fleet, [download](https://github.com/fleetdm/fleet/releases) the latest release from GitHub. The binary is in an archive that uses this naming convention, including the current version: `fleet_<version>_linux.tar.gz`.
 
@@ -31,9 +33,9 @@ For example:
 fleet version <version>
 ```
 
-### Installing and configuring dependencies
+## Installing and configuring dependencies
 
-#### MySQL
+### MySQL
 
 To install the MySQL server files, run the following:
 
@@ -100,7 +102,7 @@ It's also worth creating a MySQL database for us to use at this point. Run the f
 echo 'CREATE DATABASE fleet;' | mysql -u root -p
 ```
 
-#### Redis
+### Redis
 
 To install the Redis server files, run the following:
 
@@ -115,7 +117,7 @@ To start the Redis server in the background, you can run the following:
 sudo service redis start
 ```
 
-### Running the Fleet server
+## Running the Fleet server
 
 Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet! First, we must "prepare" the database. We do this via `fleet prepare db`:
 
@@ -162,11 +164,11 @@ Now we are ready to run the server! We do this via `fleet serve`:
 
 Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
 
-### Running Fleet with systemd
+## Running Fleet with systemd
 
 See [Running with systemd](https://fleetdm.com/docs/deploying/configuration#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
 
-### Installing and running osquery
+## Installing and running osquery
 
 > Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](https://fleetdm.com/docs/using-fleet/adding-hosts) document. The steps are repeated here for the sake of a continuous tutorial.
 
@@ -214,7 +216,10 @@ sudo /usr/bin/osqueryd \
 
 If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet!
 
-<meta name="title" value="CentOS">
-<meta name="pageOrderInSection" value="600">
+<meta name="articleTitle" value="Deploy Fleet on CentOS">
+<meta name="authorGitHubUsername" value="marpaia">
+<meta name="authorFullName" value="Mike Arpaia">
+<meta name="publishedOn" value="2022-06-27">
+<meta name="category" value="guides">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-centos-800x450@2x.png">
 <meta name="description" value="A guide to deploy Fleet on CentOS.">
-<meta name="navSection" value="Deployment guides">
