@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { trimEnd, upperFirst } from "lodash";
 
 import hostAPI, {
   IGetHostSoftwareResponse,
@@ -166,9 +167,14 @@ const SoftwareCard = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        const reason = getErrorReason(e);
+        const reason = upperFirst(trimEnd(getErrorReason(e), "."));
         if (reason.includes("fleetd installed")) {
-          renderFlash("error", reason);
+          renderFlash("error", `Couldn't install. ${reason}.`);
+        } else if (reason.includes("can be installed only on")) {
+          renderFlash(
+            "error",
+            `Couldn't install. ${reason.replace("darwin", "macOS")}.`
+          );
         } else {
           renderFlash("error", "Couldn't install. Please try again.");
         }

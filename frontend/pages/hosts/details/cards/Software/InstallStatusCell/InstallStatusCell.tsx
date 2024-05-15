@@ -1,10 +1,12 @@
 import React, { ReactNode } from "react";
 
+import ReactTooltip from "react-tooltip";
+import { uniqueId } from "lodash";
+
 import { SoftwareInstallStatus } from "interfaces/software";
 import { dateAgo } from "utilities/date_format";
 
 import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
 const baseClass = "install-status-cell";
@@ -77,20 +79,30 @@ const InstallStatusCell = ({
   }
 
   const displayConfig = CELL_DISPLAY_OPTIONS[displayStatus];
+  const tooltipId = uniqueId();
 
   return (
-    <TooltipWrapper
-      tipContent={displayConfig.tooltip(packageToInstall, installedAt)}
-      underline={false}
-      className={baseClass}
-      tooltipClass={`${baseClass}__status-tooltip`}
-      position="top"
-    >
-      <div className={`${baseClass}__status-content`}>
+    <div className={`${baseClass}__status-content`}>
+      <div
+        className={`${baseClass}__status-with-tooltip`}
+        data-tip
+        data-for={tooltipId}
+      >
         <Icon name={displayConfig.iconName} />
-        <span>{displayConfig.displayText}</span>
       </div>
-    </TooltipWrapper>
+      <ReactTooltip
+        className={`${baseClass}__status-tooltip`}
+        effect="solid"
+        backgroundColor="#3e4771"
+        id={tooltipId}
+        data-html
+      >
+        <span className={`${baseClass}__status-tooltip-text`}>
+          {displayConfig.tooltip(packageToInstall, installedAt)}
+        </span>
+      </ReactTooltip>
+      <span>{displayConfig.displayText}</span>
+    </div>
   );
 };
 
