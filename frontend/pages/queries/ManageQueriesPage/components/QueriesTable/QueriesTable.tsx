@@ -306,6 +306,7 @@ const QueriesTable = ({
         onClientSidePaginationChange={onClientSidePaginationChange}
         isClientSideFilter
         primarySelectAction={deleteQueryTableActionButtonProps}
+        // TODO - consolidate this functionality within `filters`
         selectedDropdownFilter={platform}
         show0Count
       />

@@ -66,7 +66,9 @@ interface ITableContainerProps<T = any> {
   secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
   filteredCount?: number;
   searchToolTipText?: string;
+  // TODO - consolidate this functionality within `filters`
   searchQueryColumn?: string;
+  // TODO - consolidate this functionality within `filters`
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
   /** Used to set URL to correct path and include page query param */
