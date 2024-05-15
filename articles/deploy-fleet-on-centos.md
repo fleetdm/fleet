@@ -217,8 +217,8 @@ sudo /usr/bin/osqueryd \
 If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet!
 
 <meta name="articleTitle" value="Deploy Fleet on CentOS">
-<meta name="authorGitHubUsername" value="mike-j-thomas">
-<meta name="authorFullName" value="Mike Thomas">
+<meta name="authorGitHubUsername" value="marpaia">
+<meta name="authorFullName" value="Mike Arpaia">
 <meta name="publishedOn" value="2022-06-27">
 <meta name="category" value="guides">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-centos-800x450@2x.png">
