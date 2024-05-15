@@ -128,6 +128,8 @@ jobs:
         c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
         c1grep 'test timed out after' /tmp/gotest.log >> /tmp/summary.txt
         c1grep 'fatal error:' /tmp/gotest.log >> /tmp/summary.txt
+        c1grep 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
+        c1grep ' FAIL\t' /tmp/gotest.log >> /tmp/summary.txt
         GO_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
         echo "GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY"
         if [[ -z "$GO_FAIL_SUMMARY" ]]; then
