@@ -8968,7 +8968,7 @@ func setOrbitEnrollment(t *testing.T, h *fleet.Host, ds fleet.Datastore) string 
 	_, err := ds.EnrollOrbit(context.Background(), false, fleet.OrbitHostInfo{
 		HardwareUUID:   *h.OsqueryHostID,
 		HardwareSerial: h.HardwareSerial,
-	}, orbitKey, nil)
+	}, orbitKey, h.TeamID)
 	require.NoError(t, err)
 	err = ds.SetOrUpdateHostOrbitInfo(
 		context.Background(), h.ID, "1.22.0", sql.NullString{String: "42", Valid: true}, sql.NullBool{Bool: true, Valid: true},
@@ -11105,14 +11105,6 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	// verifying that the service layer passes the proper options and the
 	// rendering of the response.
 
-	latestSoftwareInstallerUUID := func() string {
-		var id string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
-		})
-		return id
-	}
-
 	host1, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -11154,11 +11146,10 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		Version:       "0.0.1",
 	})
 	require.NoError(t, err)
-	s1Meta, err := s.ds.GetSoftwareInstallerMetadata(ctx, sw1)
+	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
-	err = s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID)
+	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID)
 	require.NoError(t, err)
-	h1Foo := latestSoftwareInstallerUUID()
 
 	// force an order to the activities
 	endTime := mysql.SetOrderedCreatedAtTimestamps(t, s.ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)

@@ -16,6 +16,7 @@ export type IDeviceSoftwareQueryParams = {
 
 export interface IGetDeviceSoftwareResponse {
   software: IHostSoftware[];
+  count: number;
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;

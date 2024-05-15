@@ -68,6 +68,9 @@ interface ITableContainerProps<T = any> {
   primarySelectAction?: IActionButtonProps;
   /** Secondary button/s after selecting a row */
   secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
+  /**
+   * @deprecated please use renderCount instead
+   * */
   filteredCount?: number;
   searchToolTipText?: string;
   searchQueryColumn?: string;

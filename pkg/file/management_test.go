@@ -43,12 +43,10 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 	}
 
 	for itype, scripts := range scriptsByType {
-		installerPath := "./foo/bar baz." + itype
-
-		gotScript := GetInstallScript(installerPath)
+		gotScript := GetInstallScript(itype)
 		assertGoldenMatches(t, scripts[0], gotScript, *update)
 
-		gotScript = GetRemoveScript(installerPath)
+		gotScript = GetRemoveScript(itype)
 		assertGoldenMatches(t, scripts[1], gotScript, *update)
 	}
 }

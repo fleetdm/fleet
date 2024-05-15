@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -20,7 +23,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const teamName = "Team Test"
+const (
+	teamName       = "Team Test"
+	fleetServerURL = "https://fleet.example.com"
+	orgName        = "GitOps Test"
+)
 
 func TestBasicGlobalGitOps(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
@@ -194,6 +201,9 @@ func TestBasicTeamGitOps(t *testing.T) {
 		return declaration, nil
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 
@@ -549,6 +559,9 @@ func TestFullTeamGitOps(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 
 	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -736,6 +749,9 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -850,6 +866,123 @@ team_settings:
 func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	// mdm test configuration must be set so that activating windows MDM works.
+	ds, savedAppConfigPtr, savedTeamPtr := setupFullGitOpsPremiumServer(t)
+
+	var enrolledSecrets []*fleet.EnrollSecret
+	var enrolledTeamSecrets []*fleet.EnrollSecret
+	var appliedPolicySpecs []*fleet.PolicySpec
+	var appliedQueries []*fleet.Query
+
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		if teamID == nil {
+			enrolledSecrets = secrets
+		} else {
+			enrolledTeamSecrets = secrets
+		}
+		return nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedPolicySpecs = specs
+		return nil
+	}
+	ds.ApplyQueriesFunc = func(
+		ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{},
+	) error {
+		appliedQueries = queries
+		return nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		team.ID = 1
+		*savedTeamPtr = team
+		enrolledTeamSecrets = team.Secrets
+		return *savedTeamPtr, nil
+	}
+
+	globalFile := "./testdata/gitops/global_config_no_paths.yml"
+	teamFile := "./testdata/gitops/team_config_no_paths.yml"
+
+	// Dry run on global file should fail because Apple BM Default Team does not exist (and has not been provided)
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "--dry-run"})
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "team name not found"))
+
+	// Dry run
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
+	assert.False(t, ds.SaveAppConfigFuncInvoked)
+	assert.Len(t, enrolledSecrets, 0)
+	assert.Len(t, enrolledTeamSecrets, 0)
+	assert.Len(t, appliedPolicySpecs, 0)
+	assert.Len(t, appliedQueries, 0)
+
+	// Real run
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--delete-other-teams"})
+	assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
+	assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
+	assert.Len(t, enrolledSecrets, 2)
+	require.NotNil(t, *savedTeamPtr)
+	assert.Equal(t, teamName, (*savedTeamPtr).Name)
+	require.Len(t, enrolledTeamSecrets, 2)
+}
+
+func TestTeamSofwareInstallersGitOps(t *testing.T) {
+	// start the web server that will serve the installer
+	b, err := os.ReadFile(filepath.Join("..", "..", "server", "service", "testdata", "software-installers", "ruby.deb"))
+	require.NoError(t, err)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "notfound"):
+			w.WriteHeader(http.StatusNotFound)
+			return
+		case strings.HasSuffix(r.URL.Path, ".txt"):
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte(`a simple text file`))
+			return
+		case strings.Contains(r.URL.Path, "toolarge"):
+			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+			var sz int
+			for sz < 500*1024*1024 {
+				n, _ := w.Write(b)
+				sz += n
+			}
+		default:
+			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+			_, _ = w.Write(b)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("SOFTWARE_INSTALLER_URL", srv.URL)
+
+	cases := []struct {
+		file    string
+		wantErr string
+	}{
+		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are publicy accessible to the internet."},
+		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
+		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 500 MB"},
+		{"testdata/gitops/team_software_installer_valid.yml", ""},
+		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
+		{"testdata/gitops/team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
+		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
+		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
+		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.file), func(t *testing.T) {
+			setupFullGitOpsPremiumServer(t)
+
+			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+
+}
+
+func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig, **fleet.Team) {
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -884,32 +1017,17 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 		return nil
 	}
 
-	const (
-		fleetServerURL = "https://fleet.example.com"
-		orgName        = "GitOps Test"
-	)
-	var enrolledSecrets []*fleet.EnrollSecret
-	var enrolledTeamSecrets []*fleet.EnrollSecret
-	var appliedPolicySpecs []*fleet.PolicySpec
-	var appliedQueries []*fleet.Query
 	var savedTeam *fleet.Team
 
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-		if teamID == nil {
-			enrolledSecrets = secrets
-		} else {
-			enrolledTeamSecrets = secrets
-		}
 		return nil
 	}
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
-		appliedPolicySpecs = specs
 		return nil
 	}
 	ds.ApplyQueriesFunc = func(
 		ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{},
 	) error {
-		appliedQueries = queries
 		return nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
@@ -957,7 +1075,6 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		team.ID = 1
 		savedTeam = team
-		enrolledTeamSecrets = team.Secrets
 		return savedTeam, nil
 	}
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
@@ -985,35 +1102,14 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
 	t.Setenv("TEST_TEAM_NAME", teamName)
 	t.Setenv("APPLE_BM_DEFAULT_TEAM", teamName)
 
-	globalFile := "./testdata/gitops/global_config_no_paths.yml"
-	teamFile := "./testdata/gitops/team_config_no_paths.yml"
-
-	// Dry run on global file should fail because Apple BM Default Team does not exist (and has not been provided)
-	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "--dry-run"})
-	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "team name not found"))
-
-	// Dry run
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
-	assert.False(t, ds.SaveAppConfigFuncInvoked)
-	assert.Len(t, enrolledSecrets, 0)
-	assert.Len(t, enrolledTeamSecrets, 0)
-	assert.Len(t, appliedPolicySpecs, 0)
-	assert.Len(t, appliedQueries, 0)
-
-	// Real run
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--delete-other-teams"})
-	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
-	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
-	assert.Len(t, enrolledSecrets, 2)
-	require.NotNil(t, savedTeam)
-	assert.Equal(t, teamName, savedTeam.Name)
-	require.Len(t, enrolledTeamSecrets, 2)
-
+	return ds, &savedAppConfig, &savedTeam
 }

@@ -2235,6 +2235,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)

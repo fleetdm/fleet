@@ -3,10 +3,70 @@
     width: 325px; // Custom to fit placeholder text
   }
 
-  // // TODO: Addingoverflow-x: scroll to the table clips the actions dropdown at the bottom of the
-  // // table. Find a solution that allows dropdown menu to be displayed over the bottom of the table
-  // // in the y-axis when the table is scrollable in the x-axis.
-  // .data-table-block .data-table__wrapper {
-  //   overflow-x: scroll;
-  // }
+  .host-software-table {
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .status__header {
+            display: table-cell;
+          }
+          .source__header {
+            display: table-cell;
+          }
+          .Vulnerabilities__header {
+            display: table-cell;
+          }
+          @media (max-width: $break-xl) {
+            .source__header {
+              display: none;
+              width: 0;
+            }
+          }
+          @media (max-width: $break-lg) {
+            .Vulnerabilities__header {
+              display: none;
+              width: 0;
+            }
+          }
+          @media (max-width: $break-sm) {
+            .status__header {
+              display: none;
+              width: 0;
+            }
+          }
+        }
+        tbody {
+          tr {
+            .status__cell {
+              display: table-cell;
+            }
+            .source__cell {
+              display: table-cell;
+            }
+            .Vulnerabilities__cell {
+              display: table-cell;
+            }
+            @media (max-width: $break-xl) {
+              .source__cell {
+                display: none;
+                width: 0;
+              }
+            }
+            @media (max-width: $break-lg) {
+              .Vulnerabilities__cell {
+                display: none;
+                width: 0;
+              }
+            }
+            @media (max-width: $break-sm) {
+              .status__cell {
+                display: none;
+                width: 0;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

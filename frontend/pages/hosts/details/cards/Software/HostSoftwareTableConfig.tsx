@@ -47,49 +47,73 @@ type IInstalledVersionsCellProps = CellProps<
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 // type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
 
-const generateActions = (
-  softwareId: number,
-  status: SoftwareInstallStatus | null,
-  installingSoftwareId: number | null,
-  canInstall: boolean,
-  packageToInstall?: string | null
-) => {
+const generateActions = ({
+  canInstall,
+  installingSoftwareId,
+  isFleetdHost,
+  softwareId,
+  status,
+  packageToInstall,
+}: {
+  canInstall: boolean;
+  installingSoftwareId: number | null;
+  isFleetdHost: boolean;
+  softwareId: number;
+  status: SoftwareInstallStatus | null;
+  packageToInstall?: string | null;
+}) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
-  let actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
+  const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
+
+  const indexInstallAction = actions.findIndex((a) => a.value === "install");
+  if (indexInstallAction === -1) {
+    // this should never happen unless the default actions change, but if it does we'll throw an
+    // error to fail loudly so that we know to update this function
+    throw new Error("Install action not found in default actions");
+  }
 
   // remove install if there is no package to install
   if (!packageToInstall || !canInstall) {
-    actions = actions.filter((action) => action.value !== "install");
+    actions.splice(indexInstallAction, 1);
+    return actions;
+  }
+
+  // disable install option if not a fleetd host
+  if (!isFleetdHost) {
+    actions[indexInstallAction].disabled = true;
+    actions[indexInstallAction].tooltipContent =
+      "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
+    return actions;
   }
 
   // disable install option if software is already installing
   if (softwareId === installingSoftwareId || status === "pending") {
-    const installAction = actions.find((action) => action.value === "install");
-    if (installAction) {
-      installAction.disabled = true;
-    }
+    actions[indexInstallAction].disabled = true;
+    return actions;
   }
 
   return actions;
 };
 
 interface ISoftwareTableHeadersProps {
-  installingSoftwareId: number | null;
-  onSelectAction: (software: IHostSoftware, action: string) => void;
   canInstall: boolean;
+  installingSoftwareId: number | null;
+  isFleetdHost: boolean;
   router: InjectedRouter;
   teamId: number;
+  onSelectAction: (software: IHostSoftware, action: string) => void;
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = ({
-  router,
-  installingSoftwareId,
-  onSelectAction,
   canInstall,
+  installingSoftwareId,
+  isFleetdHost,
+  router,
   teamId,
+  onSelectAction,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -168,19 +192,27 @@ export const generateSoftwareTableHeaders = ({
       // the accessor here is insignificant, we just need it as its required
       // but we don't use it.
       accessor: "id",
-      Cell: (cellProps: ITableNumberCellProps) => (
-        <DropdownCell
-          placeholder="Actions"
-          options={generateActions(
-            cellProps.row.original.id,
-            cellProps.row.original.status,
-            installingSoftwareId,
-            canInstall,
-            cellProps.row.original.package_available_for_install
-          )}
-          onChange={(action) => onSelectAction(cellProps.row.original, action)}
-        />
-      ),
+      Cell: ({ row: { original } }: ITableNumberCellProps) => {
+        const {
+          id: softwareId,
+          status,
+          package_available_for_install: packageToInstall,
+        } = original;
+        return (
+          <DropdownCell
+            placeholder="Actions"
+            options={generateActions({
+              canInstall,
+              isFleetdHost,
+              installingSoftwareId,
+              softwareId,
+              status,
+              packageToInstall,
+            })}
+            onChange={(action) => onSelectAction(original, action)}
+          />
+        );
+      },
     },
   ];
 

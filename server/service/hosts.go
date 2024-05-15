@@ -2479,6 +2479,7 @@ type getHostSoftwareRequest struct {
 
 type getHostSoftwareResponse struct {
 	Software []*fleet.HostSoftwareWithInstaller `json:"software"`
+	Count    int                                `json:"count"`
 	Meta     *fleet.PaginationMetadata          `json:"meta,omitempty"`
 	Err      error                              `json:"error,omitempty"`
 }
@@ -2494,7 +2495,7 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return getHostSoftwareResponse{Software: res, Meta: meta}, nil
+	return getHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {

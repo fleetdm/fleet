@@ -606,6 +606,7 @@ func (r *getDeviceSoftwareRequest) deviceAuthToken() string {
 
 type getDeviceSoftwareResponse struct {
 	Software []*fleet.HostSoftwareWithInstaller `json:"software"`
+	Count    int                                `json:"count"`
 	Meta     *fleet.PaginationMetadata          `json:"meta,omitempty"`
 	Err      error                              `json:"error,omitempty"`
 }
@@ -627,5 +628,5 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return getDeviceSoftwareResponse{Software: res, Meta: meta}, nil
+	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
 }

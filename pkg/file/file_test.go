@@ -124,16 +124,83 @@ func TestExtractInstallerMetadata(t *testing.T) {
 				t.Fatalf("invalid filename, expected at least 3 sections, got %d: %s", len(parts), dent.Name())
 			}
 			wantName, wantVersion, wantHash := parts[0], parts[1], parts[2]
+			wantExtension := filepath.Ext(wantName)
 
 			f, err := os.Open(filepath.Join("testdata", "installers", dent.Name()))
 			require.NoError(t, err)
 			defer f.Close()
 
-			name, version, hash, err := file.ExtractInstallerMetadata(dent.Name(), f)
+			name, version, ext, hash, err := file.ExtractInstallerMetadata(f)
 			require.NoError(t, err)
 			assert.Equal(t, wantName, name)
 			assert.Equal(t, wantVersion, version)
 			assert.Equal(t, wantHash, hex.EncodeToString(hash))
+			assert.Equal(t, wantExtension, ext)
 		})
+	}
+}
+
+func TestDos2UnixNewlines(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "No newlines",
+			input:    "Hello World",
+			expected: "Hello World",
+		},
+		{
+			name:     "Single Windows newline",
+			input:    "Hello\r\nWorld",
+			expected: "Hello\nWorld",
+		},
+		{
+			name:     "Multiple Windows newlines",
+			input:    "Hello\r\nWorld\r\nTest",
+			expected: "Hello\nWorld\nTest",
+		},
+		{
+			name:     "Mixed newlines",
+			input:    "Hello\r\nWorld\nTest",
+			expected: "Hello\nWorld\nTest",
+		},
+		{
+			name:     "All unix",
+			input:    "Hello\nWorld\nTest",
+			expected: "Hello\nWorld\nTest",
+		},
+	}
+
+	// Execute each test case
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := file.Dos2UnixNewlines(tc.input)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestExtractFilenameFromURLPath(t *testing.T) {
+	cases := []struct {
+		in  string
+		out string
+	}{
+		{"http://example.com", ""},
+		{"http://example.com/", ""},
+		{"http://example.com?foo=bar", ""},
+		{"http://example.com/foo.pkg", "foo.pkg"},
+		{"http://example.com/foo.exe", "foo.exe"},
+		{"http://example.com/foo.pkg?bar=baz", "foo.pkg"},
+		{"http://example.com/foo.bar.pkg", "foo.bar.pkg"},
+		{"http://example.com/foo", "foo.pkg"},
+		{"http://example.com/foo/bar/baz", "baz.pkg"},
+		{"http://example.com/foo?bar=baz", "foo.pkg"},
+	}
+
+	for _, c := range cases {
+		got := file.ExtractFilenameFromURLPath(c.in, "pkg")
+		require.Equalf(t, c.out, got, "for URL %s", c.in)
 	}
 }

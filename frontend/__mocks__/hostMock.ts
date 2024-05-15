@@ -149,6 +149,7 @@ export const createMockHostSoftware = (
 };
 
 const DEFAULT_GET_HOST_SOFTWARE_RESPONSE_MOCK: IGetHostSoftwareResponse = {
+  count: 1,
   software: [createMockHostSoftware()],
   meta: {
     has_next_results: false,
