@@ -29,7 +29,7 @@ type softwareIDChecksum struct {
 var countHostSoftwareBatchSize = uint64(100000)
 
 // Since a host may have a lot of software items, we need to batch the inserts.
-// The maximum number of software items we can insert at one time is governed by max_allowed_packet, which already be set to a high value for MDM installers,
+// The maximum number of software items we can insert at one time is governed by max_allowed_packet, which already be set to a high value for MDM bootstrap packages,
 // and by the maximum number of placeholders in a prepared statement, which is 65,536. These are already fairly large limits.
 // This is a variable, so it can be adjusted during unit testing.
 var softwareInsertBatchSize = 1000
@@ -372,7 +372,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
-
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
 			if err != nil {
 				return err
@@ -1130,7 +1129,6 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 
 	stmt := `SELECT id, software_id, cpe FROM software_cpe`
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, args...)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 	}
