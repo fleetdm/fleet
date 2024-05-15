@@ -4698,7 +4698,7 @@ Deletes the label specified by ID.
 
 ---
 
-## OS settings
+## OS settings (MDM)
 
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
