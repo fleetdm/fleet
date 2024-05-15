@@ -71,13 +71,13 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 6. Find and buy an Intune license.
 
-6. Sign in to [Azure portal](https://portal.azure.com).
+7. Sign in to [Azure portal](https://portal.azure.com).
 
-7. At the top of the page search "Users" and select **Users**.
+8. At the top of the page search "Users" and select **Users**.
 
-8. Select or create a test user and select **Licenses**.
+9. Select or create a test user and select **Licenses**.
 
-9. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
+10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
 
 ### Step 2: connect Fleet to Azure AD
 
