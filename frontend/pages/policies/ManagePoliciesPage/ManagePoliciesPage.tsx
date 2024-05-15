@@ -138,6 +138,7 @@ const ManagePolicyPage = ({
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
@@ -356,10 +357,32 @@ const ManagePolicyPage = ({
     }
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  // NOTE: Solution reused from ManageHostPage.tsx
+  useEffect(() => {
+    setResetPageIndex(false);
+    if (queryParams.page === page.toString()) {
+      setPage(page);
+    }
+  }, [queryParams, page]);
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    setResetPageIndex(true);
+  };
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
+      handleResetPageIndex();
     },
     [handleTeamChange]
   );
@@ -408,7 +431,7 @@ const ManagePolicyPage = ({
 
       router?.replace(locationPath);
     },
-    [isRouteOk, teamIdForApi, searchQuery, sortDirection] // Other dependencies can cause infinite re-renders as URL is source of truth
+    [isRouteOk, teamIdForApi, searchQuery, sortDirection, page, sortHeader] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
   const toggleOtherWorkflowsModal = () =>
@@ -650,6 +673,7 @@ const ManagePolicyPage = ({
             sortDirection={sortDirection}
             page={page}
             onQueryChange={onQueryChange}
+            resetPageIndex={resetPageIndex}
           />
         )}
         {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
@@ -674,6 +698,7 @@ const ManagePolicyPage = ({
             sortDirection={sortDirection}
             page={page}
             onQueryChange={onQueryChange}
+            resetPageIndex={resetPageIndex}
           />
         )}
       </div>
