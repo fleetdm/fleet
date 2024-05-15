@@ -21,11 +21,11 @@ type listSoftwareTitlesRequest struct {
 }
 
 type listSoftwareTitlesResponse struct {
-	Meta            *fleet.PaginationMetadata `json:"meta"`
-	Count           int                       `json:"count"`
-	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
-	SoftwareTitles  []fleet.SoftwareTitle     `json:"software_titles"`
-	Err             error                     `json:"error,omitempty"`
+	Meta            *fleet.PaginationMetadata       `json:"meta"`
+	Count           int                             `json:"count"`
+	CountsUpdatedAt *time.Time                      `json:"counts_updated_at"`
+	SoftwareTitles  []fleet.SoftwareTitleListResult `json:"software_titles"`
+	Err             error                           `json:"error,omitempty"`
 }
 
 func (r listSoftwareTitlesResponse) error() error { return r.Err }
@@ -44,7 +44,7 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		}
 	}
 	if len(titles) == 0 {
-		titles = []fleet.SoftwareTitle{}
+		titles = []fleet.SoftwareTitleListResult{}
 	}
 	listResp := listSoftwareTitlesResponse{
 		SoftwareTitles: titles,
@@ -61,7 +61,7 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 func (svc *Service) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
-) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
 		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {

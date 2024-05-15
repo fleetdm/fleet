@@ -69,7 +69,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
 	tmFilter fleet.TeamFilter,
-) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	if opt.ListOptions.After != "" {
 		return nil, 0, nil, fleet.NewInvalidArgumentError("after", "not supported for software titles")
 	}
@@ -93,7 +93,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
 	// grab titles that match the list options
-	var titles []fleet.SoftwareTitle
+	var titles []fleet.SoftwareTitleListResult
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
 	// appendListOptionsWithCursorToSQL doesn't support multicolumn sort, so
 	// we need to add it here
@@ -201,8 +201,10 @@ SELECT
 	st.source,
 	st.browser,
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
-	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at
+	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
+	si.filename as software_package
 FROM software_titles st
+LEFT JOIN software_installers si ON si.title_id = st.id
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s
@@ -210,7 +212,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id`
+GROUP BY st.id, software_package`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {

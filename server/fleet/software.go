@@ -162,6 +162,30 @@ type SoftwareTitle struct {
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 }
 
+// This type is essentially the same as the above SoftwareTitle type. The only difference is that
+// SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
+// the above type is used when fetching them individually.
+type SoftwareTitleListResult struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
+	Browser string `json:"browser,omitempty" db:"browser"`
+	// HostsCount is the number of hosts that use this software title.
+	HostsCount uint `json:"hosts_count" db:"hosts_count"`
+	// VesionsCount is the number of versions that have the same title.
+	VersionsCount uint `json:"versions_count" db:"versions_count"`
+	// Versions countains information about the versions that use this title.
+	Versions []SoftwareVersion `json:"versions" db:"-"`
+	// CountsUpdatedAt is the timestamp when the hosts count
+	// was last updated for that software title
+	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	// SoftwarePackage is the filename of the installer for this software title.
+	SoftwarePackage *string `json:"software_package" db:"software_package"`
+}
+
 type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`

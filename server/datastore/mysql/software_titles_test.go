@@ -39,10 +39,10 @@ func TestSoftwareTitles(t *testing.T) {
 func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	cmpNameVersionCount := func(want, got []fleet.SoftwareTitle) {
-		cmp := make([]fleet.SoftwareTitle, len(got))
+	cmpNameVersionCount := func(want, got []fleet.SoftwareTitleListResult) {
+		cmp := make([]fleet.SoftwareTitleListResult, len(got))
 		for i, sw := range got {
-			cmp[i] = fleet.SoftwareTitle{Name: sw.Name, HostsCount: sw.HostsCount}
+			cmp[i] = fleet.SoftwareTitleListResult{Name: sw.Name, HostsCount: sw.HostsCount}
 		}
 		require.ElementsMatch(t, want, cmp)
 	}
@@ -80,7 +80,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	globalOpts := fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	globalCounts := listSoftwareTitlesCheckCount(t, ds, 2, 2, globalOpts)
 
-	want := []fleet.SoftwareTitle{
+	want := []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 2},
 		{Name: "bar", HostsCount: 1},
 	}
@@ -99,7 +99,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, globalCounts)
@@ -111,7 +111,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	// listing does not return the new software title entry
 	allSw := listSoftwareTitlesCheckCount(t, ds, 1, 1, fleet.SoftwareTitleListOptions{})
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, allSw)
@@ -144,7 +144,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	// at this point, there's no counts per team, only global counts
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, globalCounts)
@@ -155,7 +155,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 		ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending},
 	}
 	team1Counts := listSoftwareTitlesCheckCount(t, ds, 0, 0, team1Opts)
-	want = []fleet.SoftwareTitle{}
+	want = []fleet.SoftwareTitleListResult{}
 	cmpNameVersionCount(want, team1Counts)
 	checkTableTotalCount(1)
 
@@ -165,14 +165,14 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 2, 2, globalOpts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 4},
 		{Name: "bar", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
 
 	team1Counts = listSoftwareTitlesCheckCount(t, ds, 1, 1, team1Opts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, team1Counts)
@@ -185,7 +185,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 		ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending},
 	}
 	team2Counts := listSoftwareTitlesCheckCount(t, ds, 2, 2, team2Opts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 1},
 		{Name: "bar", HostsCount: 1},
 	}
@@ -203,19 +203,19 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 4},
 	}
 	cmpNameVersionCount(want, globalCounts)
 
 	team1Counts = listSoftwareTitlesCheckCount(t, ds, 1, 1, team1Opts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, team1Counts)
 
 	team2Counts = listSoftwareTitlesCheckCount(t, ds, 1, 1, team2Opts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, team2Counts)
@@ -240,13 +240,13 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	globalCounts = listSoftwareTitlesCheckCount(t, ds, 1, 1, globalOpts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 3},
 	}
 	cmpNameVersionCount(want, globalCounts)
 
 	team1Counts = listSoftwareTitlesCheckCount(t, ds, 1, 1, team1Opts)
-	want = []fleet.SoftwareTitle{
+	want = []fleet.SoftwareTitleListResult{
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, team1Counts)
@@ -457,7 +457,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[1].Source)
 }
 
-func listSoftwareTitlesCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareTitleListOptions) []fleet.SoftwareTitle {
+func listSoftwareTitlesCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareTitleListOptions) []fleet.SoftwareTitleListResult {
 	titles, count, _, err := ds.ListSoftwareTitles(context.Background(), opts, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, expectedListCount)
@@ -549,7 +549,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
-	assert.Equal(t, titles[0], *title)
+	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, Browser: title.Browser, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
 
 	// Testing with team filter -- this team does not contain this software title
 	_, err = ds.SoftwareTitleByID(context.Background(), titles[0].ID, &team1.ID, globalTeamFilter)
@@ -585,7 +585,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
-	assert.Equal(t, titles[0], *title)
+	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, Browser: title.Browser, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
 
 	// Testing the team 2 user
 	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team2.ID}, fleet.TeamFilter{
@@ -607,7 +607,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), titles[2].VersionsCount)
 }
 
-func sortTitlesByName(titles []fleet.SoftwareTitle) {
+func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
 	sort.Slice(titles, func(i, j int) bool { return titles[i].Name < titles[j].Name })
 }
 
@@ -645,6 +645,10 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[1].Source)
 	require.True(t, titles[0].CountsUpdatedAt.IsZero())
 	require.True(t, titles[1].CountsUpdatedAt.IsZero())
+	require.NotNil(t, titles[0].SoftwarePackage)
+	require.Equal(t, "installer1.pkg", *titles[0].SoftwarePackage)
+	require.NotNil(t, titles[1].SoftwarePackage)
+	require.Equal(t, "installer2.pkg", *titles[1].SoftwarePackage)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -688,7 +692,6 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 2, counts)
 	require.Len(t, titles, 2)
 	require.True(t, titles[0].CountsUpdatedAt.IsZero())
-
 }
 
 func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore) {

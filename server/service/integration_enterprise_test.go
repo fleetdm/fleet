@@ -6984,6 +6984,30 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	ctx := context.Background()
 	t := s.T()
 
+	softwareTitleListResultsMatch := func(want, got []fleet.SoftwareTitleListResult) {
+		// compare only the fields we care about
+		for i := range got {
+			require.NotZero(t, got[i].ID)
+			got[i].ID = 0
+
+			for j := range got[i].Versions {
+				require.NotZero(t, got[i].Versions[j].ID)
+				got[i].Versions[j].ID = 0
+			}
+		}
+
+		// sort and use EqualValues instead of ElementsMatch in order
+		// to do a deep comparison of nested structures
+		sort.Slice(got, func(i, j int) bool {
+			return got[i].Name < got[j].Name
+		})
+		sort.Slice(want, func(i, j int) bool {
+			return want[i].Name < want[j].Name
+		})
+
+		require.EqualValues(t, want, got)
+	}
+
 	softwareTitlesMatch := func(want, got []fleet.SoftwareTitle) {
 		// compare only the fields we care about
 		for i := range got {
@@ -7085,7 +7109,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "foo",
 			Source:        "homebrew",
@@ -7120,7 +7144,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "foo",
 			Source:        "homebrew",
@@ -7146,7 +7170,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7171,7 +7195,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.Empty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{}, resp.SoftwareTitles)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
 
 	// asking for vulnerable only software returns the expected values
 	resp = listSoftwareTitlesResponse{}
@@ -7183,7 +7207,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 1, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7205,7 +7229,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 0, resp.Count)
 	require.Empty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{}, resp.SoftwareTitles)
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{}, resp.SoftwareTitles)
 
 	// add new software for tmHost
 	software = []fleet.Software{
@@ -7233,7 +7257,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "baz",
 			Source:        "deb_packages",
@@ -7266,7 +7290,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 3, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "baz",
 			Source:        "deb_packages",
@@ -7306,7 +7330,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"query", "123",
 	)
 	require.Equal(t, 1, resp.Count)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7328,7 +7352,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7359,7 +7383,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7390,7 +7414,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7421,7 +7445,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -7582,6 +7606,25 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", "99999",
 	)
+
+	// verify that software installers contain SoftwarePackage field
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ruby",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
@@ -7865,7 +7908,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 	var listSoftwareTitlesResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResp)
 
-	var softwareFoo, softwareBar *fleet.SoftwareTitle
+	var softwareFoo, softwareBar *fleet.SoftwareTitleListResult
 	for _, s := range listSoftwareTitlesResp.SoftwareTitles {
 		s := s
 		switch s.Name {
