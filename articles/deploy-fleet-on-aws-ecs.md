@@ -28,8 +28,8 @@ Alternatively you can bake the prepare command into the same task definition see
 
 
 <meta name="articleTitle" value="Deploy Fleet on AWS ECS">
-<meta name="authorGitHubUsername" value="mike-j-thomas">
-<meta name="authorFullName" value="Mike Thomas">
+<meta name="authorGitHubUsername" value="edwardsb">
+<meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2022-02-14">
 <meta name="category" value="guides">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-aws-ecs-800x450@2x.png">
