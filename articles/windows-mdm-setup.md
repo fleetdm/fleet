@@ -8,7 +8,7 @@ To use automatic enrollment (aka zero-touch) features on Windows, follow instruc
 
 ## Manual enrollment
 
-### Step 1: generate your certificate and key
+### Step 1: Generate your certificate and key
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
 
@@ -33,7 +33,7 @@ In your Fleet server configuration, set the contents of the certificate and key 
 
 Restart the Fleet server.
 
-### Step 3: turn on Windows MDM
+### Step 3: Turn on Windows MDM
 
 1. Head to the **Settings > Integrations > Mobile device management (MDM) enrollment** page.
 
@@ -41,9 +41,9 @@ Restart the Fleet server.
 
 3. Select **Turn on**.
 
-### Step 4: test manual enrollment
+### Step 4: Test manual enrollment
 
-With Windows MDM turned on, enroll a Windows host to Fleet by installing the [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
 ## Automatic enrollment
 
@@ -55,9 +55,9 @@ After you connect Fleet to Azure AD, you can customize the Windows setup experie
 
 In order to connect Fleet to Azure AD, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
 
-Each end user who automatically enrolls, needs a Microsoft Intune license.
+Each end user who automatically enrolls needs a Microsoft Intune license.
 
-### Step 1: buy Microsoft licenses
+### Step 1: Buy Microsoft licenses
 
 1. Sign in to [Microsoft 365 admin center](https://admin.microsoft.com/).
 
@@ -71,13 +71,13 @@ Each end user who automatically enrolls, needs a Microsoft Intune license.
 
 6. Find and buy an Intune license.
 
-6. Sign in to [Azure portal](https://portal.azure.com).
+7. Sign in to [Azure portal](https://portal.azure.com).
 
-7. At the top of the page search "Users" and select **Users**.
+8. At the top of the page search "Users" and select **Users**.
 
-8. Select or create a test user and select **Licenses**.
+9. Select or create a test user and select **Licenses**.
 
-9. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
+10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
 
 ### Step 2: connect Fleet to Azure AD
 
