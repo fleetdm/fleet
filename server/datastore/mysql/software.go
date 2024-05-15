@@ -14,6 +14,7 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -2049,12 +2050,20 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			execution_id = ? AND
 			host_id = ?
 `
+
+	truncateOutput := func(output *string) *string {
+		if output != nil {
+			output = ptr.String(truncateScriptResult(*output))
+		}
+		return output
+	}
+
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		result.PreInstallConditionOutput,
+		truncateOutput(result.PreInstallConditionOutput),
 		result.InstallScriptExitCode,
-		result.InstallScriptOutput,
+		truncateOutput(result.InstallScriptOutput),
 		result.PostInstallScriptExitCode,
-		result.PostInstallScriptOutput,
+		truncateOutput(result.PostInstallScriptOutput),
 		result.InstallUUID,
 		result.HostID,
 	)
