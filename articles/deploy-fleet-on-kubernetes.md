@@ -191,7 +191,7 @@ In this output, you should see an "EXTERNAL-IP" column. If this column says `<pe
 
 Once you have the public IP address for the load balancer, create an A record in your DNS server of choice. You should now be able to browse to your Fleet server from the internet!
 
-<meta name="articleTitle" value="Deploy Fleet on Render">
+<meta name="articleTitle" value="Deploy Fleet on Kubernetes">
 <meta name="authorGitHubUsername" value="marpaia">
 <meta name="authorFullName" value="Mike Arpaia">
 <meta name="publishedOn" value="2022-05-10">
