@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -212,7 +213,11 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		}
 	}()
 
-	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script")
+	scriptExtension := ".sh"
+	if runtime.GOOS == "windows" {
+		scriptExtension = ".ps1"
+	}
+	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptExtension)
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
@@ -220,7 +225,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	}
 
 	if installer.PostInstallScript != "" {
-		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script")
+		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptExtension)
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
 
