@@ -39,6 +39,109 @@ html, body {
   transition-duration: 500ms;
 }
 
+[purpose='continue-banner'] {
+  z-index: 199;
+  position: fixed;
+  bottom: 174px;
+  height: 0px;
+  right: 32px;
+  [purpose='banner-body'].invisible {
+    transform: translateY(200px);
+  }
+  [purpose='banner-body'] {
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    [purpose='banner-close-button'] {
+      position: absolute;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      right: -12px;
+      top: -12px;
+      width: 24px;
+      height: 24px;
+      padding-bottom: 3px;
+      font-size: 24px;
+      line-height: 24px;
+      cursor: pointer;
+      background-color: @core-fleet-black-75;
+      color: #FFF;
+      border-radius: 50%;
+    }
+    min-height: 142px;
+    width: 320px;
+    position: relative;
+    border-radius: 16px;
+    border: 1px solid #E2E4EA;
+    box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    background: #FFFFFF;
+    [purpose='banner-text'] {
+      width: 100%;
+      padding: 8px 8px 8px 16px;
+      p {
+        color: #192147;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 18px; /* 150% */
+      }
+      [purpose='form-progress-bar'] {
+        height: 6px;
+        margin-bottom: 16px;
+        width: 100%;
+        background: #E2E4EA;
+        border-radius: 3px;
+        [purpose='current-progress'] {
+          background-color: #3DB67B;
+          height: 6px;
+          border-radius: 3px;
+        }
+      }
+      [purpose='continue-button'] {
+        display: flex;
+        height: 32px;
+        padding: 16px 32px;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        align-self: stretch;
+        text-align: center;
+        color: #FFF;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 18px; /* 150% */
+      }
+    }
+    [purpose='continue-chevron'] {
+      display: none;
+    }
+    [purpose='banner-image'] {
+      height: 100px;
+      min-width: 100px;
+      background-image: url('/images/continue-thumbnail.png');
+      background-size: cover;
+    }
+  }
+  [purpose='banner-body'].collapsed {
+    [purpose='banner-text'] {
+      display: none;
+    }
+    cursor: pointer;
+    min-height: unset;
+    overflow: hidden;
+    border-radius: 40px;
+    border: 4px solid #FFF;
+    padding: 0;
+    background: #EEF9FE;
+    box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
+    width: 80px;
+    height: 80px;
+    transform: translateY(70px);
+  }
+}
+
+
 [purpose='header-ribbon-cta'] {
   background-color: #7487C2;
   p {
@@ -529,13 +632,86 @@ body.detected-mobile {
   [purpose='license-information'] {
     margin-bottom: 32px;
   }
-  // For hiding the hubspot chat widget on mobile devices.
-  #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
-    display: none !important;//lesshint-disable-line importantRule
-  }
-  html.hs-messages-widget-open, html.hs-messages-mobile.hs-messages-widget-open {// Shows the hubspot chat widget when the widget is opened from a "Talk to an expert" button.
-    #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
-      display: initial !important;//lesshint-disable-line importantRule
+  [purpose='continue-banner'] {
+    position: fixed;
+    bottom: 70px;
+    height: 0px;
+    left: 0;
+    right: unset;
+    width: 100%;
+    [purpose='banner-body'].invisible {
+      transform: translateY(200px);
+    }
+    [purpose='banner-body'] {
+      transition: transform 1s ease-in-out;
+      [purpose='banner-close-button'] {
+        display: none;
+      }
+      height: 70px;
+      min-height: unset;
+      width: 100%;
+      margin-right: 0px;
+      position: relative;
+      border-radius: 0px;
+      border: 1px solid #E2E4EA;
+      box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
+      padding: 8px;
+      background: #FFFFFF;
+      [purpose='banner-text'] {
+        width: 100%;
+        margin-right: 24px;
+        padding: 8px 8px 8px 16px;
+        p {
+          font-size: 12px;
+          line-height: 18px;
+          margin-bottom: 8px;
+        }
+        [purpose='form-progress-bar'] {
+          height: 6px;
+          margin-bottom: 16px;
+          width: 100%;
+          background: #E2E4EA;
+          border-radius: 3px;
+          [purpose='current-progress'] {
+            background-color: #3DB67B;
+            height: 6px;
+            border-radius: 3px;
+          }
+        }
+        [purpose='continue-button'] {
+          display: none;
+        }
+      }
+      [purpose='continue-chevron'] {
+        display: block;
+        img {
+          width: 5px;
+          height: 10px;
+          margin-right: 8px;
+        }
+      }
+      [purpose='banner-image'] {
+        height: 54px;
+        min-width: 54px;
+        background-image: url('/images/continue-thumbnail.png');
+        background-size: cover;
+      }
+    }
+    [purpose='banner-body'].collapsed {
+      [purpose='banner-text'] {
+        display: none;
+      }
+      cursor: pointer;
+      min-height: unset;
+      overflow: hidden;
+      border-radius: 40px;
+      border: 4px solid #FFF;
+      padding: 0;
+      background: #EEF9FE;
+      box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
+      width: 80px;
+      height: 80px;
+      transform: translateY(70px);
     }
   }
 }

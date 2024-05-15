@@ -1,0 +1,130 @@
+
+<%if(me && !['whats-left-to-get-you-set-up', 'start'].includes(me.lastSubmittedGetStartedQuestionnaireStep)){%>
+
+  <div purpose="continue-banner" class="d-flex justify-content-end">
+    <div purpose="banner-body" class="d-flex flex-row align-items-center invisible">
+      <div purpose="banner-close-button">&times;</div>
+      <div purpose="banner-image">
+      </div>
+      <div purpose="banner-text" class="d-flex flex-column justify-content-center">
+        <%if(me.lastSubmittedGetStartedQuestionnaireStep === 'what-are-you-using-fleet-for') {%>
+            <p>Have you ever used Fleet?</p>
+          <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 10%"></div></div>
+        <% } else if (me.lastSubmittedGetStartedQuestionnaireStep === 'have-you-ever-used-fleet') {%>
+            <%if(['yes-deployed', 'yes-recently-deployed'].includes(fleetUseStatus)) {%>
+              <p>About how many hosts do you have?</p>
+              <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 70%"></div></div>
+            <%} else {%>
+              <%if(me.primaryBuyingSituation === 'mdm') {%>
+                  <p>What do you manage?</p>
+              <%} else if(me.primaryBuyingSituation === 'eo-it') {%>
+                  <p>What does your team manage?</p>
+              <%} else if(me.primaryBuyingSituation === 'eo-security') {%>
+                  <p>What are you working on, mainly?</p>
+              <%} else if(me.primaryBuyingSituation === 'vm') {%>
+                  <p>What does your team manage?</p>
+              <%}%>
+              <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 40%"></div></div>
+            <% } %>
+
+        <% } else if (me.lastSubmittedGetStartedQuestionnaireStep === 'how-many-hosts') {%>
+            <%if(['yes-deployed', 'yes-recently-deployed'].includes(fleetUseStatus) && numHosts && ['1-100', '100-700'].includes(numHosts)) {%>
+              <p>Will you be hosting Fleet yourself?</p>
+            <% } else if(numHosts && ['1-100', '100-700'].includes(numHosts)) { %>
+              <p>Managed cloud for growing deployments</p>
+            <% } else { %>
+              <p>Let’s talk to your team</p>
+            <% } %>
+            <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 90%"></div></div>
+        <% } else if (me.lastSubmittedGetStartedQuestionnaireStep === 'will-you-be-self-hosting') {%>
+            <% if(numHosts && ['1-100', '100-700'].includes(numHosts)) { %>
+              <p>Managed cloud for growing deployments</p>
+            <% } else { %>
+              <p>Let’s talk to your team<</p>
+            <% } %>
+            <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 90%"></div></div>
+
+        <% } else if (['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(me.lastSubmittedGetStartedQuestionnaireStep)) {%>
+            <p>Is it any good?</p>
+            <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+        <% } else if(me.lastSubmittedGetStartedQuestionnaireStep === 'is-it-any-good') { %>
+          <p>What did you think?</p>
+          <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
+        <% } else if(me.lastSubmittedGetStartedQuestionnaireStep === 'what-did-you-think') { %>
+          <% if(triedFleetAndWantTo === 'deploy-fleet-in-environment') {%>
+            <p>Deploy Fleet in your environment</p>
+            <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 70%"></div></div>
+          <% } else if(triedFleetAndWantTo === 'host-fleet-for-me'){%>
+            <p>About how many hosts do you have?</p>
+            <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 90%"></div></div>
+          <% } else { %>
+            <p>Is it any good?</p>
+            <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 60%"></div></div>
+          <% }%>
+        <% } else if(me.lastSubmittedGetStartedQuestionnaireStep === 'deploy-fleet-in-your-environment') { %>
+          <p>How was your deployment?</p>
+          <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 90%"></div></div>
+        <% } else if(me.lastSubmittedGetStartedQuestionnaireStep === 'how-was-your-deployment') { %>
+            <%if(triedDeployingAndWantTo === 'havent-gotten-to-it'){%>
+              <p>Deploy Fleet in your environment</p>
+              <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 70%"></div></div>
+            <%} else if(triedDeployingAndWantTo === 'changed-mind-want-managed-deployment') {%>
+              <p>About how many hosts do you have?</p>
+              <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
+            <%} else if(triedDeployingAndWantTo === 'decided-to-not-use-fleet') {%>
+              <p>TODO: We shouldn't be showing this CTA</p>
+              <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 100%"></div></div>
+            <%} else {%>
+              <p>Whats left to get you set up?</p>
+              <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
+            <%}%>
+        <% } %>
+        <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>
+      </div>
+      <div>
+      <a purpose="continue-chevron" href="/start"> <img src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Toggle 'collapsed' on banner body when close button is clicked
+      $('[purpose="banner-close-button"]').click(function(event) {
+          event.stopPropagation(); // Prevent the event from bubbling up to the banner body
+          $('[purpose="banner-body"]').toggleClass('collapsed');
+      });
+
+      // Toggle 'collapsed' on banner body when it is clicked, only if it has the class
+      $('[purpose="banner-body"]').click(function() {
+          if ($(this).hasClass('collapsed')) {
+              $(this).toggleClass('collapsed');
+          }
+      });
+
+      if(SAILS_LOCALS.isHomepage){
+        var lastScrollTop = 0;
+        var banner = document.querySelector('[purpose="banner-body"]');
+        window.addEventListener('scroll', windowScrolled);
+        function windowScrolled() {
+          let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          if(scrollTop > lastScrollTop && scrollTop > window.innerHeight) {
+            // If the user scrolls 1.5x the height of their browser window, hide the page banner.
+            banner.classList.remove('invisible');
+            lastScrollTop = scrollTop;
+          }
+        }
+      } else {
+        // Toggle 'invisible' class on elements with purpose="continue" 1 second after page loads
+        setTimeout(() => {
+          $('[purpose="banner-body"]').toggleClass('invisible');
+        }, 1000);
+      }
+    });
+    $(document).ready(function() {
+
+    });
+  </script>
+<% } %>
+

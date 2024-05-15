@@ -284,6 +284,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       hideGetStartedButton: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Start | Fleet',
       pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
     }
