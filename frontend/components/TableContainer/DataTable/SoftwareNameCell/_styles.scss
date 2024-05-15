@@ -19,4 +19,9 @@
     // the same issue as the .software-name-cell class display value.
     display: inline-flex !important;
   }
+
+  &__install-tooltip-text {
+    font-weight: $regular;
+    font-size: $xx-small;
+  }
 }
