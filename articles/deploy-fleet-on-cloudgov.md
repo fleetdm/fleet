@@ -1,5 +1,7 @@
 # Deploy Fleet on Cloud.gov (Cloud Foundry)
 
+![Deploy Fleet on Cloud.gov](../website/assets/images/articles/deploy-fleet-on-cloudgov-800x450@2x.png)
+
 Cloud.gov is a [FEDRAMP moderate Platform-as-a-Service
 (PaaS)](https://marketplace.fedramp.gov/#!/product/18f-cloudgov?sort=productName). This repository
 includes a sample [manifest.yml.example](https://github.com/fleetdm/fleet/blob/main/manifest.yml.cloudgov.example) file ready to be pushed and run the
@@ -110,7 +112,10 @@ variables](https://fleetdm.com/docs/deploying/configuration#using-only-environme
 }
 ```
 
-<meta name="title" value="Cloud.gov">
-<meta name="pageOrderInSection" value="700">
-<meta name="description" value="A guide for deploying Fleet on Cloud.gov.">
-<meta name="navSection" value="Deployment guides">
+<meta name="articleTitle" value="Deploy Fleet on Cloud.gov">
+<meta name="authorGitHubUsername" value="JJediny">
+<meta name="authorFullName" value="John Jediny">
+<meta name="publishedOn" value="2022-04-24">
+<meta name="category" value="guides">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-cloudgov-800x450@2x.png">
+<meta name="description" value="Information for deploying Fleet on Cloud.gov.">

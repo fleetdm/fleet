@@ -434,6 +434,13 @@ module.exports.routes = {
   'GET /docs/deploy/proxies': '/docs/deploy/reference-architectures#using-a-proxy',
   'GET /docs/deploy/public-ip': '/docs/deploy/reference-architectures#public-ips-of-devices',
   'GET /docs/deploy/monitoring-fleet': '/docs/deploy/reference-architectures#monitoring-fleet',
+  'GET /docs/deploy/deploy-fleet-on-aws-ecs': '/guides/deploy-fleet-on-aws-ecs',
+  'GET /docs/deploy/deploy-fleet-on-centos': '/guides/deploy-fleet-on-centos',
+  'GET /docs/deploy/cloudgov': '/guides/deploy-fleet-on-cloudgov',
+  'GET /docs/deploy/deploy-on-aws-with-terraform': '/guides/deploy-fleet-on-aws-with-terraform',
+  'GET /docs/deploy/deploy-on-hetzner-cloud': '/guides/deploy-fleet-on-hetzner-cloud',
+  'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
+  'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
