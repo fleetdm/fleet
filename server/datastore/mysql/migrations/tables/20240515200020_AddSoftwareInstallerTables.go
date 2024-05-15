@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240424124712, Down_20240424124712)
+	MigrationClient.AddMigration(Up_20240515200020, Down_20240515200020)
 }
 
-func Up_20240424124712(tx *sql.Tx) error {
+func Up_20240515200020(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS software_installers (
   id int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -142,6 +142,6 @@ CREATE TABLE IF NOT EXISTS host_software_installs (
 	return nil
 }
 
-func Down_20240424124712(tx *sql.Tx) error {
+func Down_20240515200020(tx *sql.Tx) error {
 	return nil
 }
