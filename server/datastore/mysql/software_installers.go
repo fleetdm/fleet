@@ -285,9 +285,9 @@ func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID 
 	query := fmt.Sprintf(`
 SELECT
 	hsi.execution_id AS execution_id,
-	COALESCE(hsi.pre_install_query_output, '') AS pre_install_query_output,
-	COALESCE(hsi.post_install_script_output, '') AS post_install_script_output,
-	COALESCE(hsi.install_script_output, '') AS install_script_output,
+	hsi.pre_install_query_output,
+	hsi.post_install_script_output,
+	hsi.install_script_output,
 	hsi.host_id AS host_id,
 	h.computer_name AS host_display_name,
 	st.name AS software_title,

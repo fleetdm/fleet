@@ -291,22 +291,9 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, swFilename, res.SoftwarePackage)
 			require.Equal(t, host.ID, res.HostID)
 			require.Equal(t, host.DisplayName(), res.HostDisplayName)
-			expectedPreInstallQueryOutput := ""
-			if tc.preInstallQueryOutput != nil {
-				expectedPreInstallQueryOutput = *tc.preInstallQueryOutput
-			}
-			require.Equal(t, expectedPreInstallQueryOutput, res.PreInstallQueryOutput)
-
-			expectedPostInstallScriptOutput := ""
-			if tc.postInstallScriptOutput != nil {
-				expectedPostInstallScriptOutput = *tc.postInstallScriptOutput
-			}
-			require.Equal(t, expectedPostInstallScriptOutput, res.PostInstallScriptOutput)
-			expectedInstallScriptOutput := ""
-			if tc.installScriptOutput != nil {
-				expectedInstallScriptOutput = *tc.installScriptOutput
-			}
-			require.Equal(t, expectedInstallScriptOutput, res.Output)
+			require.Equal(t, tc.preInstallQueryOutput, res.PreInstallQueryOutput)
+			require.Equal(t, tc.postInstallScriptOutput, res.PostInstallScriptOutput)
+			require.Equal(t, tc.installScriptOutput, res.Output)
 		})
 	}
 }
