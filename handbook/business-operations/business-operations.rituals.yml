@@ -138,7 +138,6 @@
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
-
 -
   task: "Investor reporting" 
   startedOn: "2024-03-31" 
