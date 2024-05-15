@@ -92,8 +92,7 @@ interface ITableContainerProps<T = any> {
    * if we want to keep this
    */
   onClickRow?: (row: T) => void;
-  /** Use for clientside filtering: Use key global for filtering on any column, or use column id as
-   * key */
+  /** Use for clientside filtering: Use key global for filtering on any column, or use column accessor as * key */
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
