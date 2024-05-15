@@ -66,6 +66,20 @@ func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScrip
 	return &script, nil
 }
 
+func truncateScriptResult(output string) string {
+	const maxOutputRuneLen = 10000
+	if len(output) > utf8.UTFMax*maxOutputRuneLen {
+		// truncate the bytes as we know the output is too long, no point
+		// converting more bytes than needed to runes.
+		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
+	}
+	if utf8.RuneCountInString(output) > maxOutputRuneLen {
+		outputRunes := []rune(output)
+		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
+	}
+	return output
+}
+
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
 	const resultExistsStmt = `
 	SELECT
@@ -101,17 +115,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_id = ?
 `
 
-	const maxOutputRuneLen = 10000
-	output := result.Output
-	if len(output) > utf8.UTFMax*maxOutputRuneLen {
-		// truncate the bytes as we know the output is too long, no point
-		// converting more bytes than needed to runes.
-		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
-	}
-	if utf8.RuneCountInString(output) > maxOutputRuneLen {
-		outputRunes := []rune(output)
-		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
-	}
+	output := truncateScriptResult(result.Output)
 
 	var hsr *fleet.HostScriptResult
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
