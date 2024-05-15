@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -285,8 +286,12 @@ func TestInstallerRun(t *testing.T) {
 		require.True(t, tmpDirFnCalled)
 
 		require.True(t, execCalled)
-		require.Contains(t, executedScripts, filepath.Join(tmpDir, "install-script"))
-		require.Contains(t, executedScripts, filepath.Join(tmpDir, "post-install-script"))
+		scriptExtension := ".sh"
+		if runtime.GOOS == "windows" {
+			scriptExtension = ".ps1"
+		}
+		require.Contains(t, executedScripts, filepath.Join(tmpDir, "install-script"+scriptExtension))
+		require.Contains(t, executedScripts, filepath.Join(tmpDir, "post-install-script"+scriptExtension))
 		require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, strconv.Itoa(int(installDetails.InstallerID))+".pkg"))
 
 		require.True(t, queryFnCalled)
