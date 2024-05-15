@@ -22,7 +22,7 @@ fleetctl generate mdm-apple --email <email> --org <org>
 
 Save the SCEP certificate and SCEP key. These are your certificate and key. You can ignore the downloaded APNs key and the APNs CSR that was sent to your email.
 
-### Step 2: configure Fleet with your certificate and key
+### Step 2: Configure Fleet with your certificate and key
 
 In your Fleet server configuration, set the contents of the certificate and key in the following environment variables:
 
@@ -79,11 +79,11 @@ Each end user who automatically enrolls needs a Microsoft Intune license.
 
 10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
 
-### Step 2: connect Fleet to Azure AD
+### Step 2: Connect Fleet to Azure AD
 
 For instructions on how to connect Fleet to Azure AD, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
 
-### Step 3: test automatic enrollment
+### Step 3: Test automatic enrollment
 
 Testing automatic enrollment requires creating a test user in Azure AD and a freshly wiped or new Windows workstation.
 
@@ -105,7 +105,7 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 ## Windows Autopilot
 
-### Step 1: create an Autopilot profile
+### Step 1: Create an Autopilot profile
 
 1. Sign in to [Microsoft Intune](https://endpoint.microsoft.com/) using the Intune admin user from step 1.
 
@@ -113,7 +113,7 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Assignments** step, select **+ Add all devices**.
 
-### Step 2: register a test workstation
+### Step 2: Register a test workstation
 
 1. Open your test workstation and follow these [Microsoft instructions](https://learn.microsoft.com/en-us/autopilot/add-devices#desktop-hash-export) to export your workstations's device hash as a CSV. The CSV should look something like `DeviceHash_DESKTOP-2V08FUI.csv`
 
@@ -123,7 +123,7 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 4. After Intune finishes the import, refresh the **Windows Autopilot devices** page several times to confirm that your workstation is registered with Autopilot.
 
-### Step 3: upload your organization's logo
+### Step 3: Upload your organization's logo
 
 1. Navigate to [Azure portal](https://portal.azure.com).
 
@@ -135,7 +135,7 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 5. In the bottom bar, select **Review + Save** and then **Save**.
 
-### Step 4: test Autopilot
+### Step 4: Test Autopilot
 
 1. Wipe your test workstation.
 
