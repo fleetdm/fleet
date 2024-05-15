@@ -33,7 +33,7 @@ In your Fleet server configuration, set the contents of the certificate and key 
 
 Restart the Fleet server.
 
-### Step 3: turn on Windows MDM
+### Step 3: Turn on Windows MDM
 
 1. Head to the **Settings > Integrations > Mobile device management (MDM) enrollment** page.
 
