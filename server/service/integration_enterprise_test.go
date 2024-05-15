@@ -6991,6 +6991,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				require.NotZero(t, got[i].Versions[j].ID)
 				got[i].Versions[j].ID = 0
 			}
+			// Sort versions by version
+			sort.Slice(
+				got[i].Versions, func(a, b int) bool {
+					return got[i].Versions[a].Version < got[i].Versions[b].Version
+				},
+			)
 		}
 
 		// sort and use EqualValues instead of ElementsMatch in order
