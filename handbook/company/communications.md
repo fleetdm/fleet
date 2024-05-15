@@ -1082,9 +1082,9 @@ line one
 
 line two
 
-## Lists
+### Lists
 
-### Ordered lists
+#### Ordered lists
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
@@ -1130,7 +1130,7 @@ To make sure that ordered lists increment correctly, you can indent the content 
 
 2. Item two
 
-### Unordered lists
+#### Unordered lists
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>- Line one<br>- Line two  <br>- Line three<br>- Line four</pre> | - Line one<br>- Line two<br>- Line three<br>- Line four |
