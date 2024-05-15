@@ -113,8 +113,8 @@ variables](https://fleetdm.com/docs/deploying/configuration#using-only-environme
 ```
 
 <meta name="articleTitle" value="Deploy Fleet on Cloud.gov">
-<meta name="authorGitHubUsername" value="mike-j-thomas">
-<meta name="authorFullName" value="Mike Thomas">
+<meta name="authorGitHubUsername" value="JJediny">
+<meta name="authorFullName" value="John Jediny">
 <meta name="publishedOn" value="2022-04-24">
 <meta name="category" value="guides">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-cloudgov-800x450@2x.png">
