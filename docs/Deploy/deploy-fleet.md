@@ -6,8 +6,8 @@ Deploy on Render for an easy one-click POC. Or, choose AWS with Terraform to dep
     <a href="#render">
         <div>
             <img src="/images/docs/render-logo-147x80@2x.png">
-            <p>One click deploy</p>
-            <span>Deploy on render in 5 minutes</span>
+            <p>One-click deploy</p>
+            <span>Deploy on Render in 5 minutes</span>
         </div>
     </a>
     <a href="#aws">
@@ -31,14 +31,14 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 </div>
 
 
-<h2>Prerequisites</h2>
+### Prerequisites
 
 - A Render account with payment information.
 
 >The Fleet Render Blueprint will provision a web service, a MySQL database, and a Redis in-memory data store. Each service requires Render's standard plan at a cost of **$7/month** each, totaling **$21/month**.
 
 
-<h2>Instructions</h2>
+### Instructions
 
 1. [Click here](https://render.com/deploy?repo=https://github.com/fleetdm/fleet) to open the Fleet Blueprint on Render. You will be prompted to create or log in to your Render account with associated payment information.
 
@@ -60,7 +60,7 @@ The simplest way to get started with Fleet at scale is to use AWS with Terraform
 
 This workflow takes about 30 minutes to complete and supports between 10 and 350,000 hosts.
 
-<h2>Prerequisites</h2>
+### Prerequisites
 
 - A new or existing Amazon Web Services (AWS) account
 
@@ -72,7 +72,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 - A Fully-Qualified Domain Name (FQDN) for hosting Fleet
 
-<h2>Instructions</h2>
+### Instructions
 
 1. [Download](https://github.com/fleetdm/fleet/blob/main/terraform/example/main.tf) the Fleet `main.tf` Terraform file.
 
