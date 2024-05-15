@@ -364,6 +364,34 @@ func TestInstallerRun(t *testing.T) {
 		}
 
 		err := r.run(context.Background(), &config)
+		require.NoError(t, err)
+
+		require.True(t, downloadInstallerFnCalled)
+		require.True(t, execCalled)
+		require.True(t, removeAllFnCalled)
+		require.NotNil(t, savedInstallerResult)
+		require.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
+		require.Equal(t, 0, *savedInstallerResult.InstallScriptExitCode)
+		require.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
+		require.Equal(t, 1, *savedInstallerResult.PostInstallScriptExitCode)
+		require.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
+	})
+
+	t.Run("failed rollback script", func(t *testing.T) {
+		resetAll()
+
+		r.execCmdFn = func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
+			execCalled = true
+			execEnv = env
+			executedScripts = append(executedScripts, scriptPath)
+			// bad exit on the post-install and rollback script
+			if len(executedScripts) >= 2 {
+				return execOutput, 1, &exec.ExitError{}
+			}
+			return execOutput, execExitCode, execErr
+		}
+
+		err := r.run(context.Background(), &config)
 		require.Error(t, err)
 
 		require.True(t, downloadInstallerFnCalled)
