@@ -1,109 +1,33 @@
 # Deploy Fleet on Render
 
-[Render](https://render.com/) is a cloud hosting service that makes it dead simple to get things up and running fast, without the typical headache of larger enterprise hosting providers. Hosting Fleet on Render is a cost effective and scalable cloud environment with a lower barrier to entry, making it a great place to get some experience with [Fleet](https://fleetdm.com/) and [osquery](https://osquery.io/).
+[Render](https://render.com/) is a cloud hosting service that makes it easy to get up and running fast, without the typical configuration headaches of larger enterprise hosting providers. Our Render blueprint offers a one-click deploy of Fleet in under five minutes, and provides a scalable cloud environment with a lower barrier to entry, making it a great place to get some experience with [Fleet](https://fleetdm.com/) and [osquery](https://osquery.io/).
 
----
+With one click, our Render blueprint will provision a Fleet web service, a MySQL database, and a Redis in-memory data store. Each service requires Render's `standard` plan at a cost of $7/mo each, totaling $21/mo to host your Fleet instance. If you prefer to follow a video, you can [watch us demonstrating the Render deployment process](https://www.loom.com/share/9373fb6bab2c43aa91949490ceb2678c?sid=081d70de-d736-4681-8107-2d80ec525235).
 
-Below we’ll look at how to deploy Fleet on Render using Render WebService & Private Service components. To complete this you’ll need an account on Render, and about 30 minutes.
+## Deployment steps
 
-Fleet only has 2 external dependencies:
+1. Open our [Render blueprint on GitHub](https://github.com/fleetdm/fleet/tree/main/infrastructure/render) and click the "Deploy to Render" button.
+2. Create or log in to your Render account with associated payment information. 
+3. Give your version of the blueprint a unique name like `yourcompany-fleet`. 
+4. Click "Apply" for Render to provisions your services, which should take less than five minutes. 
+5. When the services are done provisioning, click "Dashboard" in the Render navigation, where you will see your three new services. 
+6. Click on the "Fleet" service to reveal your Fleet URL. Click on the URL to open your Fleet instance, then proceed to [setup Fleet and enroll hosts](#setup-fleet-and-enroll-hosts).
 
-- MySQL 5.7
-- Redis 6
+### MySQL
 
-First let’s get these dependencies up and running on Render.
+Fleet uses MySQL as the relational database to organize host enrollment and other metadata that powers Fleet.
 
----
+### Redis
 
-## MySQL
+Fleet uses Redis to ingest and queue the results of distributed queries, cache data, and perform other data operations.
 
-Fleet uses MySQL as the datastore to organize host enrollment and other metadata around serving Fleet. Start by forking [https://github.com/edwardsb/render-mysql](https://github.com/edwardsb/render-mysql), then create a new private service within Render. When prompted for the repository — enter your fork’s URL here.
+### Fleet
 
-![Private Service component in Render](https://fleetdm.com/images/docs/deploy-on-render-1-216x165@2x.png)
-*Private Service component in Render*
-
-Your private service should look like this:
-![Private Service settings in Render](https://fleetdm.com/images/docs/deploy-on-render-5-450x286@2x.png)
-*Private Service settings in Render*
-
-This private service will run MySQL, our database, so let’s give it a fitting name, something like “fleet-mysql”.
-
-We’re also going to need to set up some environment variables and a disk to mount. Expand “Advanced” and enter the following:
-
-### Environment Variables
-
-- `MYSQL_DATABASE=fleet`
-- `MYSQL_PASSWORD=supersecurepw`
-- `MYSQL_ROOT_PASSWORD=supersecurerootpw`
-- `MYSQL_USER=fleet`
-
-### Disks
-
-- Name: `mysql`
-- Mount Path: `/var/lib/mysql`
-- Size: `50GB`
-
-Once you've setup your mysql service on Render we will need to copy the address. You can find that here:
-![mysql address on render](https://fleetdm.com/images/docs/deploy-on-render-6-666x416@2x.png)
-*mysql address on Render*
-
----
-
-## Redis
-
-The next dependency we’ll configure is Redis. Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Luckily for us the folks over at Render have a ready-to-deploy Redis template that makes deploying Redis as a private service a single mouse click. Check out [https://render.com/docs/deploy-redis](https://render.com/docs/deploy-redis).
-
-After it’s deployed, you should see a unique Redis host/port combination, we’ll need that for Fleet so make sure to copy it for later.
-
----
-
-## Fleet
-
-Now that we have the dependencies up and running, on to Fleet!
-
-Start by forking or use [https://github.com/edwardsb/fleet-on-render](https://github.com/edwardsb/fleet-on-render) directly. This Dockerfile is based on Fleet, but overrides the default command to include the migration step, which prepares the database by running all required migrations. Normally it’s best to do this as a separate task, or job that runs before a new deployment, but for simplicity we can have it run every time the task starts.
-
-Back in Render, create a new web service and give it a unique name, since this will be resolvable on the internet, it actually has to be unique on Render’s platform.
-
-![Web Service component in Render](https://fleetdm.com/images/docs/deploy-on-render-2-216x163@2x.png)
-*Web Service component in Render*
-
-Next we will supply the environment variables Fleet needs to connect to the database and redis. We are also going to disable TLS on the Fleet server, since Render is going to handle SSL termination for us.
-
-Give it the following environment variables:
-
-- `FLEET_MYSQL_ADDRESS=fleet-mysql:3306`(your unique service address)
-- `FLEET_MYSQL_DATABASE=fleet`
-- `FLEET_MYSQL_PASSWORD=supersecurepw`
-- `FLEET_MYSQL_USERNAME=fleet`
-- `FLEET_REDIS_ADDRESS=fleet-redis:10000` (your unique Redis host:port from earlier)
-- `FLEET_SERVER_TLS=false` (Render takes care of SSL termination)
-
-Additionally we’ll configure the following so Render knows how to build our app and make sure its healthy:
-
-![Additional component details](https://fleetdm.com/images/docs/deploy-on-render-7-627x416@2x.png)
-
-- Health Check Path: `/healthz`
-- Docker Build Context Directory: `.`
-- Dockerfile Path: `./Dockerfile`
-
-Click Create and watch Render deploy Fleet! You should see something like this in the event logs:
-
-```
-Migrations completed.
-ts=2021–09–15T02:09:07.06528012Z transport=http address=0.0.0.0:8080 msg=listening
-```
-
-Fleet is up and running, head to your public URL.
-
-![Fleet deployed on Render](https://fleetdm.com/images/docs/deploy-on-render-4-216x163@2x.png)
-*Fleet deployed on Render*
-
----
+The Fleet server and user interface are packaged into a Docker image and hosted on Docker hub. Each time you run your blueprint, the Fleet image your web service is running will be updated with the [latest stable release](https://hub.docker.com/r/fleetdm/fleet/tags?page=&page_size=&ordering=&name=latest).
 
 ## Setup Fleet and enroll hosts
 
-You should be prompted with a setup page, where you can enter your name, email, and password. Run through those steps and you should have an empty hosts page waiting for you.
+The first time you access your Fleet instance you will be prompted with a setup page where you can enter your name, email, and password. Run through those steps to reach the Fleet dashboard. 
 
 You’ll find the enroll-secret after clicking “Add hosts”. This is a special secret the host will need to register to your Fleet instance. Once you have the enroll-secret you can use `fleetctl` to generate Fleet's agent (fleetd), which makes installing and updating osquery super simple.
 

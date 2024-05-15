@@ -372,8 +372,8 @@ const OtherWorkflowsModal = ({
             setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled);
             setErrors({});
           }}
-          inactiveText="Policy automations disabled"
-          activeText="Policy automations enabled"
+          inactiveText="Disabled"
+          activeText="Enabled"
         />
         <div
           className={`form ${baseClass}__policy-automations__${
