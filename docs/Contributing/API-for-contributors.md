@@ -576,6 +576,47 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 Status: 204
 ```
 
+### Upload ABM Token
+
+`POST /api/v1/fleet/mdm/apple/abm_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | body | *Required* The file containing the token |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/abm_token`
+
+#### Default response
+
+```
+Status: 201
+```
+
+### Upload APNS certificate
+
+`POST /api/v1/fleet/mdm/apple/apns_certificate`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| certificate | file | body | *Required* The file containing the token |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/apns_certificate`
+
+#### Default response
+
+```
+Status: 201
+```
+
+
 ### Batch-apply MDM custom settings
 
 `POST /api/v1/fleet/mdm/profiles/batch`
