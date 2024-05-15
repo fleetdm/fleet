@@ -1871,7 +1871,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		stmt, args = searchLike(stmt, args, opts.MatchQuery, "name")
 	}
 
+	// build the count statement before adding pagination constraints
+	countStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
 	stmt, _ = appendListOptionsToSQL(stmt, &opts)
+
+	// perform a second query to grab the titleCount
+	var titleCount uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleCount, countStmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host software count")
+	}
 
 	type hostSoftware struct {
 		fleet.HostSoftwareWithInstaller
@@ -2009,7 +2017,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		if perPage <= 0 {
 			perPage = defaultSelectLimit
 		}
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
+		metaData = &fleet.PaginationMetadata{
+			HasPreviousResults: opts.Page > 0,
+			TotalResults:       titleCount,
+		}
 		if len(hostSoftwareList) > int(perPage) {
 			metaData.HasNextResults = true
 			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
