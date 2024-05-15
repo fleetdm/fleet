@@ -568,7 +568,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 #### Example (download CSR)
 
-`POST /api/v1/fleet/mdm/apple/request_csr?alt=media`
+`GET /api/v1/fleet/mdm/apple/request_csr?alt=media`
 
 ##### Default response
 
