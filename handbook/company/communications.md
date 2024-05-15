@@ -227,8 +227,8 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - Founders and BizOps)_
-- **"¶¶¶":** _(Founders and board members)_
+- **"¶¶":** _(Classified - CEO, CEO support team, and BizOps)_
+- **"¶¶¶":** _(CEO, Apprentice to the CEO, and board members)_
 
 ## Email relays
 There are [several special email addresses](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#) that automatically relay messages to the appropriate people in Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.
