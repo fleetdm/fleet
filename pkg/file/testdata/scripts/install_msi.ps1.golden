@@ -6,4 +6,4 @@ $installProcess = Start-Process msiexec.exe `
 
 Get-Content $logFile -Tail 500
 
-exit $instalProcess.ExitCode
+exit $installProcess.ExitCode
