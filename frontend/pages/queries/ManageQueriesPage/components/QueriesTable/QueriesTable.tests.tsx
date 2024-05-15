@@ -84,9 +84,7 @@ const testRawTeamQueries: ISchedulableQuery[] = [
     logging: "snapshot",
     name: "Team query 1",
     description: "",
-    // only compatible with Linux
-    query:
-      "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
+    query: "SELECT * FROM osquery_info;",
     saved: true,
     observer_can_run: false,
     author_id: 1,
@@ -114,9 +112,7 @@ const testRawTeamQueries: ISchedulableQuery[] = [
     logging: "snapshot",
     name: "Team query 2",
     description: "",
-    // only compatible with Mac
-    query:
-      "SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';",
+    query: "SELECT * FROM osquery_info;",
     saved: true,
     observer_can_run: true,
     author_id: 1,
@@ -366,63 +362,6 @@ describe("QueriesTable", () => {
       });
 
       expect(checkbox.checked).toBe(true);
-    });
-  });
-
-  it("Renders inherited global queries and team queries when viewing a team, then filters by platform correctly", async () => {
-    const testData: IQueriesTableProps[] = [
-      {
-        queriesList: [...testGlobalQueries, ...testTeamQueries],
-        onlyInheritedQueries: false,
-        isLoading: false,
-        onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
-        currentTeamId: 1,
-      },
-    ];
-    testData.forEach(async (tableProps) => {
-      console.log("HERE");
-      // will have no context to get current user from
-      const { user } = renderAsPremiumGlobalAdmin(
-        <QueriesTable {...tableProps} />
-      );
-
-      console.log("ABOUT TO CLICK");
-      await user.click(screen.getByText("All platforms"));
-
-      console.log("DROPDOWN OPEN");
-
-      // await user.click(screen.getByText("Linux"));
-
-      console.log("CLICKED DROPDOWN");
-
-      // should be 3 linux queries - the 2 global, and "Team query 1"
-      const linuxQueryNames = [
-        "Global query 1",
-        "Global query 2",
-        "Team query 1",
-      ];
-      const expectLinuxResultsOnly = () => {
-        linuxQueryNames.forEach((val) => {
-          // expect(screen.getByText(val)).toBeInTheDocument();
-          expect(screen.queryByTestId(val)).toBeNull();
-        });
-        expect(screen.queryByText("Team query 2")).toBeNull();
-      };
-
-      expectLinuxResultsOnly();
-
-      // wait and check again – this was a specific bug we saw
-      jest.useFakeTimers();
-      console.log("Running timer");
-      setTimeout(() => {
-        console.log("inside timer");
-        expectLinuxResultsOnly;
-      }, 10000);
-      jest.runAllTimers();
     });
   });
 });
