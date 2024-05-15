@@ -16,6 +16,8 @@ import { IAddSoftwareFormData } from "../AddSoftwareForm/AddSoftwareForm";
 
 // 2 minutes
 const UPLOAD_TIMEOUT = 120000;
+const MAX_FILE_SIZE_MB = 500;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const baseClass = "add-software-modal";
 
@@ -82,6 +84,16 @@ const AddSoftwareModal = ({
 
   const onAddSoftware = async (formData: IAddSoftwareFormData) => {
     setIsUploading(true);
+
+    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
+      renderFlash(
+        "error",
+        `Couldn’t add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
+      );
+      onExit();
+      setIsUploading(false);
+      return;
+    }
 
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId);
