@@ -1,5 +1,5 @@
 
-<%if(me && !['whats-left-to-get-you-set-up', 'start'].includes(me.lastSubmittedGetStartedQuestionnaireStep)){%>
+<%if(me && !['whats-left-to-get-you-set-up'].includes(me.lastSubmittedGetStartedQuestionnaireStep)){%>
 
   <div purpose="continue-banner" class="d-flex justify-content-end">
     <div purpose="banner-body" class="d-flex flex-row align-items-center invisible">
@@ -7,7 +7,11 @@
       <div purpose="banner-image">
       </div>
       <div purpose="banner-text" class="d-flex flex-column justify-content-center">
-        <%if(me.lastSubmittedGetStartedQuestionnaireStep === 'what-are-you-using-fleet-for') {%>
+          <% if(me.lastSubmittedGetStartedQuestionnaireStep === 'start') { %>
+            <p>What will you use Fleet for?</p>
+            <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 10%"></div></div>
+
+          <% } else if(me.lastSubmittedGetStartedQuestionnaireStep === 'what-are-you-using-fleet-for') {%>
             <p>Have you ever used Fleet?</p>
           <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 10%"></div></div>
         <% } else if (me.lastSubmittedGetStartedQuestionnaireStep === 'have-you-ever-used-fleet') {%>
