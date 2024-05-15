@@ -2,8 +2,8 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
-	"errors"
+	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	"encoding/hex"
 	"fmt"
 	"slices"
 	"sort"
@@ -15,12 +15,24 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
+
+type softwareIDChecksum struct {
+	ID       uint   `db:"id"`
+	Checksum string `db:"checksum"`
+}
 
 // Since DB may have millions of software items, we need to batch the aggregation counts to avoid long SQL query times.
 // This is a variable so it can be adjusted during unit testing.
 var countHostSoftwareBatchSize = uint64(100000)
+
+// Since a host may have a lot of software items, we need to batch the inserts.
+// The maximum number of software items we can insert at one time is governed by max_allowed_packet, which already be set to a high value for MDM installers,
+// and by the maximum number of placeholders in a prepared statement, which is 65,536. These are already fairly large limits.
+// This is a variable, so it can be adjusted during unit testing.
+var softwareInsertBatchSize = 1000
 
 func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software)
@@ -31,12 +43,7 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
-	var result *fleet.UpdateHostSoftwareDBResult
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		r, err := applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
-		result = r
-		return err
-	})
+	result, err := ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
 	if err != nil {
 		return result, err
 	}
@@ -338,49 +345,60 @@ WHERE
 
 // applyChangesForNewSoftwareDB returns the current host software and the applied mutations: what
 // was inserted and what was deleted
-func applyChangesForNewSoftwareDB(
+func (ds *Datastore) applyChangesForNewSoftwareDB(
 	ctx context.Context,
-	tx sqlx.ExtContext,
 	hostID uint,
 	software []fleet.Software,
-	minLastOpenedAtDiff time.Duration,
 ) (*fleet.UpdateHostSoftwareDBResult, error) {
 	r := &fleet.UpdateHostSoftwareDBResult{}
 
-	currentSoftware, err := listSoftwareByHostIDShort(ctx, tx, hostID)
+	// This code executes once an hour for each host, so we should optimize for MySQL master (writer) DB performance.
+	// We use a slave (reader) DB to avoid accessing the master. If nothing has changed, we avoid all access to the master.
+	// It is possible that the software list is out of sync between the slave and the master. This is unlikely because
+	// it is updated once an hour under normal circumstances. If this does occur, the software list will be updated
+	// once again in an hour.
+	currentSoftware, err := listSoftwareByHostIDShort(ctx, ds.reader(ctx), hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 	r.WasCurrInstalled = currentSoftware
 
-	if nothingChanged(currentSoftware, software, minLastOpenedAtDiff) {
+	if nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff) {
 		return r, nil
 	}
 
 	current := softwareSliceToMap(currentSoftware)
 	incoming := softwareSliceToMap(software)
 
-	deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+	err = ds.withRetryTxx(
+		ctx, func(tx sqlx.ExtContext) error {
+
+			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+			if err != nil {
+				return err
+			}
+			r.Deleted = deleted
+
+			inserted, err := ds.insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+			if err != nil {
+				return err
+			}
+			r.Inserted = inserted
+
+			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff); err != nil {
+				return err
+			}
+
+			if err = updateSoftwareUpdatedAt(ctx, tx, hostID); err != nil {
+				return err
+			}
+			return nil
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	r.Deleted = deleted
-
-	inserted, err := insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
-	if err != nil {
-		return nil, err
-	}
-	r.Inserted = inserted
-
-	if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, minLastOpenedAtDiff); err != nil {
-		return nil, err
-	}
-
-	if err = updateSoftwareUpdatedAt(ctx, tx, hostID); err != nil {
-		return nil, err
-	}
-
-	return r, nil
+	return r, err
 }
 
 // delete host_software that is in current map, but not in incoming map.
@@ -417,82 +435,23 @@ func deleteUninstalledHostSoftwareDB(
 	return deletedSoftware, nil
 }
 
-func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
-	getExistingID := func() (int64, error) {
-		var existingID int64
-		if err := sqlx.GetContext(ctx, tx, &existingID,
-			"SELECT id FROM software "+
-				"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
-				"vendor = ? AND arch = ? AND bundle_identifier = ? AND extension_id = ? AND browser = ? LIMIT 1",
-			s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
-		); err != nil {
-			return 0, err
-		}
-		return existingID, nil
-	}
-
-	switch id, err := getExistingID(); {
-	case err == nil:
-		return uint(id), nil
-	case errors.Is(err, sql.ErrNoRows):
-		// OK
-	default:
-		return 0, ctxerr.Wrap(ctx, err, "get software")
-	}
-
-	_, err := tx.ExecContext(ctx,
-		fmt.Sprintf("INSERT INTO software "+
-			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) "+
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)", softwareChecksumComputedColumn("")),
-		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
-	)
+// computeRawChecksum computes the checksum for a software entry
+// The calculation must match the one in softwareChecksumComputedColumn
+func computeRawChecksum(sw fleet.Software) ([]byte, error) {
+	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
+	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
 	if err != nil {
-		if !isDuplicate(err) {
-			return 0, ctxerr.Wrap(ctx, err, "insert software")
-		}
-		// if the error is a duplicate software entry, there was a race and another
-		// process inserted that software, so continue and try to get its id as it
-		// now exists.
+		return nil, err
 	}
-
-	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is
-	// configured.
-	switch id, err := getExistingID(); {
-	case err == nil:
-		return uint(id), nil
-	case errors.Is(err, sql.ErrNoRows):
-		return 0, doRetryErr
-	default:
-		return 0, ctxerr.Wrap(ctx, err, "get software")
-	}
-}
-
-func softwareChecksumComputedColumn(tableAlias string) string {
-	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
-		tableAlias += "."
-	}
-
-	// concatenate with separator \x00
-	return fmt.Sprintf(` UNHEX(
-		MD5(
-			CONCAT_WS(CHAR(0),
-				%sname,
-				%[1]sversion,
-				%[1]ssource,
-				COALESCE(%[1]sbundle_identifier, ''),
-				`+"%[1]s`release`"+`,
-				%[1]sarch,
-				%[1]svendor,
-				%[1]sbrowser,
-				%[1]sextension_id
-			)
-		)
-	) `, tableAlias)
+	return h.Sum(nil), nil
 }
 
 // insert host_software that is in incoming map, but not in current map.
 // returns the inserted software on the host
-func insertNewInstalledHostSoftwareDB(
+//
+//nolint:gocritic // This function uses a read from DB replica inside a transaction. This is an intentional optimization to reduce master DB load.
+func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
@@ -517,16 +476,112 @@ func insertNewInstalledHostSoftwareDB(
 		return incomingOrdered[i].uniqueName < incomingOrdered[j].uniqueName
 	})
 
-	for _, s := range incomingOrdered {
+	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
+	softwareChecksums := make(map[string]*fleet.Software, 0)
+	for i, s := range incomingOrdered {
 		if _, ok := currentMap[s.uniqueName]; !ok {
-			id, err := getOrGenerateSoftwareIdDB(ctx, tx, s.software)
+			checksum, err := computeRawChecksum(s.software)
 			if err != nil {
 				return nil, err
 			}
-			insertsHostSoftware = append(insertsHostSoftware, hostID, id, s.software.LastOpenedAt)
+			softwareChecksums[string(checksum)] = &incomingOrdered[i].software // we can't use `s` here because it is a pointer to a loop variable
+		}
+	}
 
-			s.software.ID = id
-			insertedSoftware = append(insertedSoftware, s.software)
+	// First, we check if host's new software already exists in the software table.
+	if len(softwareChecksums) > 0 {
+		keys := make([]string, 0, len(softwareChecksums))
+		for checksum := range softwareChecksums {
+			keys = append(keys, checksum)
+		}
+		// We use the replica DB for retrieval to minimize the traffic to the master DB.
+		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
+		existingSoftware, err := getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range existingSoftware {
+			software, ok := softwareChecksums[s.Checksum]
+			if !ok {
+				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
+			}
+			software.ID = s.ID
+			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
+			insertedSoftware = append(insertedSoftware, *software)
+			delete(softwareChecksums, s.Checksum)
+		}
+	}
+
+	// For software items that don't already exist in the software table, we insert them.
+	if len(softwareChecksums) > 0 {
+		keys := make([]string, 0, len(softwareChecksums))
+		for checksum := range softwareChecksums {
+			keys = append(keys, checksum)
+		}
+		for i := 0; i < len(keys); i += softwareInsertBatchSize {
+			start := i
+			end := i + softwareInsertBatchSize
+			if end > len(keys) {
+				end = len(keys)
+			}
+			totalToProcess := end - start
+			const numberOfArgsPerSoftware = 10 // number of ? in each VALUES clause
+			values := strings.TrimSuffix(
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
+			)
+			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
+			stmt := fmt.Sprintf(
+				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) VALUES %s",
+				values,
+			)
+			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+			for j := start; j < end; j++ {
+				checksum := keys[j]
+				sw := softwareChecksums[checksum]
+				args = append(
+					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
+					checksum,
+				)
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "insert software")
+			}
+		}
+
+		// Here, we use the transaction (tx) for retrieval because we must retrieve the software IDs that we just inserted.
+		existingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range existingSoftware {
+			software, ok := softwareChecksums[s.Checksum]
+			if !ok {
+				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
+			}
+			software.ID = s.ID
+			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
+			insertedSoftware = append(insertedSoftware, *software)
+			delete(softwareChecksums, s.Checksum)
+		}
+	}
+
+	if len(softwareChecksums) > 0 {
+		// We log and continue. We should almost never see this error. If we see it regularly, we need to investigate.
+		level.Error(ds.logger).Log(
+			"msg", "could not find or create software items. This error may be caused by master and replica DBs out of sync.", "host_id",
+			hostID, "number", len(softwareChecksums),
+		)
+		for checksum, software := range softwareChecksums {
+			uuidString := ""
+			checksumAsUUID, err := uuid.FromBytes([]byte(checksum))
+			if err == nil {
+				// We ignore error
+				uuidString = checksumAsUUID.String()
+			}
+			level.Debug(ds.logger).Log(
+				"msg", "software item not found or created", "name", software.Name, "version", software.Version, "source", software.Source,
+				"bundle_identifier", software.BundleIdentifier, "checksum", uuidString,
+			)
 		}
 	}
 
@@ -539,6 +594,19 @@ func insertNewInstalledHostSoftwareDB(
 	}
 
 	return insertedSoftware, nil
+}
+
+func getSoftwareIDsByChecksums(ctx context.Context, tx sqlx.QueryerContext, checksums []string) ([]softwareIDChecksum, error) {
+	// get existing software ids for checksums
+	stmt, args, err := sqlx.In("SELECT id, checksum FROM software WHERE checksum IN (?)", checksums)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build select software query")
+	}
+	var existingSoftware []softwareIDChecksum
+	if err = sqlx.SelectContext(ctx, tx, &existingSoftware, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get existing software")
+	}
+	return existingSoftware, nil
 }
 
 // update host_software when incoming software has a significantly more recent

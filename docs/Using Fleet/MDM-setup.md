@@ -1,19 +1,13 @@
-# macOS setup
+# Setup
 
-## Overview
+To turn on macOS MDM features, follow the instructions on this page to connect Fleet to Apple Push Notification service (APNs).
 
-MDM features require Apple's Push Notification service (APNs) to control and secure Apple devices. This guide will walk you through how to generate and upload a valid APNs certificate to Fleet in order to use Fleet's MDM features.
+To use automatic enrollment (aka zero-touch) features on macOS, follow instructions to connect Fleet with Apple Business Manager (ABM).
 
-[Automated Device Enrollment](https://support.apple.com/en-us/HT204142) allows Macs to automatically enroll to Fleet when they are first set up. This guide will also walk you through how to connect Apple Business Manager (ABM) to Fleet. 
-
-> **Note:** you are only required to connect Apple Business Manager (ABM) to Fleet if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."
-
-## Requirements
-To use Fleet's MDM features you need to have:
-- A [deployed Fleet instance](../Deploying/Introduction.md).
-- A Fleet user with the admin role.
+To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup). 
 
 ## Apple Push Notification service (APNs)
+
 Apple uses APNs to authenticate and manage interactions between Fleet and the host.
 
 This section will show you how to:
@@ -22,6 +16,7 @@ This section will show you how to:
 3. Configure Fleet with the required files.
 
 ### Step 1: generate the required files
+
 For the MDM protocol to function, we need to generate the four following files:
 - APNs certificate 
 - APNs private key 
@@ -56,6 +51,7 @@ fleetctl generate mdm-apple --email <email> --org <org>
 > **Important:** Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
 
 ### Step 3: configure Fleet with the generated files
+
 Restart the Fleet server with the contents of the APNs certificate, APNs private key, SCEP certificate, and SCEP private key in the following environment variables:
 
 > Note: Any environment variable that ends in `_BYTES` expects the file's actual content to be passed in, not a path to the file. If you want to pass in a file path, remove the `_BYTES` suffix from the environment variable.
@@ -107,6 +103,7 @@ fleetctl get mdm-apple
 ``` 
 
 ### Step 1: generate the required files
+
 - A new APNs certificate. 
 - A new APNs private key.
 
@@ -124,6 +121,7 @@ fleetctl generate mdm-apple --email <email> --org <org>
 4. Download the new APNs certificate.
 
 ### Step 3: configure Fleet with the generated files
+
 Restart the Fleet server with the contents of the APNs certificate and APNs private key in following environment variables:
 * [FLEET_MDM_APPLE_APNS_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes)
 * [FLEET_MDM_APPLE_APNS_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes)
@@ -195,9 +193,11 @@ Create an MDM server record in ABM which represents Fleet:
 7. Upload the certificate generated in Step 1
 
 ### Step 3: download the server token 
+
 In the details page of the newly created server, click **Download Token** at the top. You should receive a `.p7m` file.
 
 ### Step 4: upload server token, certificate, and private key to Fleet
+
 With the three generated files, we now give them to the Fleet server so that it can authenticate itself to ABM. 
 
 Restart the Fleet server with the contents of the server token, certificate, and private key in following environment variables:
@@ -222,6 +222,7 @@ fleetctl get mdm-apple
 ```
 
 ### Step 5: set Fleet to be the MDM server for Macs in ABM
+
 Set Fleet to be the MDM for all future Macs purchased via Apple or an authorized reseller: 
 
 1. Log in to [Apple Business Manager](https://business.apple.com)
@@ -282,6 +283,6 @@ To renew the token:
 5. Restart the Fleet server
 
 <meta name="pageOrderInSection" value="1500">
-<meta name="title" value="macOS setup">
-<meta name="description" value="Learn how to configure Fleet to use Apple's Push Notification service and connect to Apple Business Manager.">
+<meta name="title" value="Setup">
+<meta name="description" value="Learn how to turn on MDM features in Fleet.">
 <meta name="navSection" value="Device management">
