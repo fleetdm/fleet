@@ -435,29 +435,6 @@ func deleteUninstalledHostSoftwareDB(
 	return deletedSoftware, nil
 }
 
-func softwareChecksumComputedColumn(tableAlias string) string {
-	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
-		tableAlias += "."
-	}
-
-	// concatenate with separator \x00
-	return fmt.Sprintf(` UNHEX(
-		MD5(
-			CONCAT_WS(CHAR(0),
-				%sname,
-				%[1]sversion,
-				%[1]ssource,
-				COALESCE(%[1]sbundle_identifier, ''),
-				`+"%[1]s`release`"+`,
-				%[1]sarch,
-				%[1]svendor,
-				%[1]sbrowser,
-				%[1]sextension_id
-			)
-		)
-	) `, tableAlias)
-}
-
 // computeRawChecksum computes the checksum for a software entry
 // The calculation must match the one in softwareChecksumComputedColumn
 func computeRawChecksum(sw fleet.Software) ([]byte, error) {

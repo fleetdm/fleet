@@ -1188,6 +1188,33 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(5)
 }
 
+// softwareChecksumComputedColumn computes the checksum for a software entry
+// The calculation must match the one in computeRawChecksum
+func softwareChecksumComputedColumn(tableAlias string) string {
+	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
+		tableAlias += "."
+	}
+
+	// concatenate with separator \x00
+	return fmt.Sprintf(
+		` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				%sname,
+				%[1]sversion,
+				%[1]ssource,
+				COALESCE(%[1]sbundle_identifier, ''),
+				`+"%[1]s`release`"+`,
+				%[1]sarch,
+				%[1]svendor,
+				%[1]sbrowser,
+				%[1]sextension_id
+			)
+		)
+	) `, tableAlias,
+	)
+}
+
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithComputerName("computer1"))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
