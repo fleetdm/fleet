@@ -312,7 +312,6 @@ module.exports.routes = {
   'GET /handbook/customer-experience': '/handbook/customers',
   'GET /handbook/brand': '/handbook/digital-experience',
   'GET /guides/deploying-fleet-on-aws-with-terraform': '/deploy/deploying-fleet-on-aws-with-terraform',
-  'GET /guides/deploy-fleet-on-hetzner-cloud':'/deploy/deploy-fleet-on-hetzner-cloud',
   'GET /guides/deploying-fleet-on-render': '/deploy/deploying-fleet-on-render',
   'GET /use-cases/correlate-network-connections-with-community-id-in-osquery': '/guides/correlate-network-connections-with-community-id-in-osquery',
   'GET /use-cases/converting-unix-timestamps-with-osquery': '/guides/converting-unix-timestamps-with-osquery',
