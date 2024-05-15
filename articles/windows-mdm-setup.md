@@ -8,7 +8,7 @@ To use automatic enrollment (aka zero-touch) features on Windows, follow instruc
 
 ## Manual enrollment
 
-### Step 1: generate your certificate and key
+### Step 1: Generate your certificate and key
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
 
