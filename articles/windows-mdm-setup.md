@@ -55,7 +55,7 @@ After you connect Fleet to Azure AD, you can customize the Windows setup experie
 
 In order to connect Fleet to Azure AD, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
 
-Each end user who automatically enrolls, needs a Microsoft Intune license.
+Each end user who automatically enrolls needs a Microsoft Intune license.
 
 ### Step 1: buy Microsoft licenses
 
