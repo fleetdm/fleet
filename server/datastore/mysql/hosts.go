@@ -1018,7 +1018,7 @@ func (ds *Datastore) applyHostFilters(
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
 			// get the installer id
-			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
+			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
 			if err != nil {
 				return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
 			}
