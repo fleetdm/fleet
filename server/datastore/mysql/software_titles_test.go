@@ -645,6 +645,10 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[1].Source)
 	require.True(t, titles[0].CountsUpdatedAt.IsZero())
 	require.True(t, titles[1].CountsUpdatedAt.IsZero())
+	require.NotNil(t, titles[0].SoftwarePackage)
+	require.Equal(t, "installer1.pkg", *titles[0].SoftwarePackage)
+	require.NotNil(t, titles[1].SoftwarePackage)
+	require.Equal(t, "installer2.pkg", *titles[1].SoftwarePackage)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
