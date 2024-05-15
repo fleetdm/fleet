@@ -389,7 +389,7 @@ module.exports.routes = {
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
   'GET /docs/deploy/introduction': '/docs/deploy/deploy-fleet',
-  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures ',
+  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures',
   'GET /docs/deploying/upgrading-fleet': '/docs/deploy/upgrading-fleet',
   'GET /docs/deploying/server-installation': '/docs/deploy/server-installation',
   'GET /docs/deploying/cloudgov': '/docs/deploy/cloudgov',
@@ -430,6 +430,11 @@ module.exports.routes = {
   'GET /customers/new-license': '/new-license',
   'GET /try-fleet/fleetctl-preview': '/try-fleet',
   'GET /upgrade': '/pricing',
+  'GET /docs/deploy/system-d': '/docs/deploy/reference-architectures#systemd',
+  'GET /docs/deploy/proxies': '/docs/deploy/reference-architectures#using-a-proxy',
+  'GET /docs/deploy/public-ip': '/docs/deploy/reference-architectures#public-ips-of-devices',
+  'GET /docs/deploy/monitoring-fleet': '/docs/deploy/reference-architectures#monitoring-fleet',
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
