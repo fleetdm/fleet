@@ -36,7 +36,7 @@ Create a new SAML app in Google Workspace:
 
   ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
-5. Configure the **Service provider details**:
+4. Configure the **Service provider details**:
 
   - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
   - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
@@ -48,19 +48,19 @@ Create a new SAML app in Google Workspace:
 
   ![Configuring the service provider details in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-5.png)
 
-6. Click **Finish**.
+5. Click **Finish**.
 
   ![Finish configuring the new SAML app in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-6.png)
 
-7. Click the down arrow on the **User access** section of the app details page.
+6. Click the down arrow on the **User access** section of the app details page.
 
   ![The new SAML app's details page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-7.png)
 
-8. Check **ON for everyone**. Click **Save**.
+7. Check **ON for everyone**. Click **Save**.
 
   ![The new SAML app's service status page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-8.png)
 
-9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
+8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
 ## Other IdPs
 
