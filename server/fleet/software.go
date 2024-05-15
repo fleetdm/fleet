@@ -162,6 +162,9 @@ type SoftwareTitle struct {
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 }
 
+// This type is essentially the same as the above SoftwareTitle type. The only difference is that
+// SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
+// the above type is used when fetching them individually.
 type SoftwareTitleListResult struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
