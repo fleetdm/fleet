@@ -616,6 +616,35 @@ Status: 201
 Status: 201
 ```
 
+### Disable ABM
+
+`DELETE /api/v1/fleet/mdm/apple/abm_token`
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/abm_token`
+
+#### Default response
+
+```
+Status: 204
+```
+
+### Disable Apple MDM
+
+`DELETE /api/v1/fleet/mdm/apple/apns_certificate`
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/apns_certificate`
+
+#### Default response
+
+```
+Status: 204
+```
+
+
 
 ### Batch-apply MDM custom settings
 
