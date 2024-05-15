@@ -700,10 +700,15 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 
 		// Now that we have the software, we can test pagination.
 		// Figure out which software has the highest ID.
-		lowestIDSoftware := software[0]
-		if lowestIDSoftware.ID < software[1].ID {
-			lowestIDSoftware = software[1]
+		targetSoftware := software[0]
+		if targetSoftware.ID < software[1].ID {
+			targetSoftware = software[1]
 		}
+		expected = []fleet.Software{foo001}
+		if targetSoftware.Name == "foo" && targetSoftware.Version == "0.0.3" {
+			expected = []fleet.Software{foo003}
+		}
+
 		opts = fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
 				PerPage:         1,
@@ -711,11 +716,11 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				OrderKey:        "id",
 				IncludeMetadata: true,
 			},
-			TeamID: &team1.ID,
+			TeamID:           &team1.ID,
+			IncludeCVEScores: true,
 		}
 		software = listSoftwareCheckCount(t, ds, 1, 2, opts, true)
-		expected = []fleet.Software{lowestIDSoftware}
-		test.ElementsMatchSkipIDAndHostCount(t, software, expected)
+		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("filters vulnerable software", func(t *testing.T) {
