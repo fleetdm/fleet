@@ -7763,7 +7763,7 @@ Deletes an existing script.
       "id": 1,
       "team_id": null,
       "name": "script_1.sh",
-      "platforms" [macOS],
+      "platforms" ["macOS"],
       "created_at": "2023-07-30T13:41:07Z",
       "updated_at": "2023-07-30T13:41:07Z"
     },
@@ -7771,7 +7771,7 @@ Deletes an existing script.
       "id": 2,
       "team_id": null,
       "name": "script_2.sh",
-      "platforms" [macOS, Linux],
+      "platforms" ["macOS", "Linux"],
       "created_at": "2023-08-30T13:41:07Z",
       "updated_at": "2023-08-30T13:41:07Z"
     }
@@ -7779,7 +7779,7 @@ Deletes an existing script.
       "id": 3,
       "team_id": null,
       "name": "script_2.ps1",
-      "platforms" [Windows],
+      "platforms" ["Windows"],
       "created_at": "2023-08-30T13:41:07Z",
       "updated_at": "2023-08-30T13:41:07Z"
     }
