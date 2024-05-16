@@ -7672,7 +7672,7 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | form | **Required**. The file containing the script.    |
 | team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
-| platform        | array   | form | A list of platforms that the script will be available to run. For `.sh` you can specify `macOS`, `Linux`, or both. For `.ps1` file, the default platform is `Windows`. |
+| platforms       | array   | form | A list of platforms that the script will be available to run. For `.sh` you can specify `macOS`, `Linux`, or both. For `.ps1` file, the default platform is `Windows`. |
 
 
 #### Example
