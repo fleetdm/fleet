@@ -103,8 +103,9 @@ INSERT INTO software_installers (
 	version,
 	install_script_content_id,
 	pre_install_query,
-	post_install_script_content_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	post_install_script_content_id,
+	platform
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	args := []interface{}{
 		payload.TeamID,
@@ -116,6 +117,7 @@ INSERT INTO software_installers (
 		installScriptID,
 		payload.PreInstallQuery,
 		postInstallScriptID,
+		payload.Platform,
 	}
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
@@ -460,9 +462,10 @@ INSERT INTO software_installers (
 	install_script_content_id,
 	pre_install_query,
 	post_install_script_content_id,
+	platform,
 	title_id
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
 )
 ON DUPLICATE KEY UPDATE
@@ -471,7 +474,8 @@ ON DUPLICATE KEY UPDATE
   storage_id = VALUES(storage_id),
   filename = VALUES(filename),
   version = VALUES(version),
-  pre_install_query = VALUES(pre_install_query)
+  pre_install_query = VALUES(pre_install_query),
+  platform = VALUES(platform)
 `
 
 	// use a team id of 0 if no-team
@@ -541,6 +545,7 @@ ON DUPLICATE KEY UPDATE
 				installScriptID,
 				installer.PreInstallQuery,
 				postInstallScriptID,
+				installer.Platform,
 				installer.Title,
 				installer.Source,
 			}

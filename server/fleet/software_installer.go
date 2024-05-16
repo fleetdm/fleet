@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -250,6 +251,7 @@ type UploadSoftwareInstallerPayload struct {
 	Title             string
 	Version           string
 	Source            string
+	Platform          string
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -260,6 +262,7 @@ type DownloadSoftwareInstallerPayload struct {
 }
 
 func SofwareInstallerSourceFromExtension(ext string) (string, error) {
+	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
 	case "deb":
 		return "deb_packages", nil
@@ -267,6 +270,20 @@ func SofwareInstallerSourceFromExtension(ext string) (string, error) {
 		return "programs", nil
 	case "pkg":
 		return "pkg_packages", nil
+	default:
+		return "", fmt.Errorf("unsupported file type: %s", ext)
+	}
+}
+
+func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
+	ext = strings.TrimPrefix(ext, ".")
+	switch ext {
+	case "deb":
+		return "linux", nil
+	case "exe", "msi":
+		return "windows", nil
+	case "pkg":
+		return "darwin", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}

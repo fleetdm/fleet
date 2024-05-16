@@ -374,7 +374,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
-
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
 			if err != nil {
 				return err
@@ -1848,7 +1847,7 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 			END %[2]s `, tblAlias, colAlias)
 }
 
-func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	// `status` computed column assumes that all results (pre, install and post)
 	// are stored at once, so that if there is an exit code for the install
 	// script and none for the post-install, it is because there is no
@@ -1905,7 +1904,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		FROM
 			software_titles st
 		INNER JOIN
-			software_installers si ON st.id = si.title_id
+			-- filter out software that is not available for install on the host's platform
+			software_installers si ON st.id = si.title_id AND si.platform IN(%s)
 		WHERE
 			-- software is not installed on host, but is available in host's team
 			NOT EXISTS (
@@ -1915,7 +1915,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 				INNER JOIN
 					software s ON hs.software_id = s.id
 				WHERE
-					hs.host_id = :host_id AND
+					hs.host_id = ? AND
 					s.title_id = st.id
 			) AND
 			-- sofware install has not been attempted on host
@@ -1924,10 +1924,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 				FROM
 					host_software_installs hsi
 				WHERE
-					hsi.host_id = :host_id AND
+					hsi.host_id = ? AND
 					hsi.software_installer_id = si.id
 			) AND
-			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = :host_id)
+			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
 `
 
 	const selectColNames = `
@@ -1941,16 +1941,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 		status
 `
 
-	stmt := stmtInstalled
-	if includeAvailableForInstall {
-		stmt += ` UNION ` + stmtAvailable
-	}
-
-	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
-	// must resolve the named bindings here, before adding the searchLike which
+	// must resolve the named bindings here, before adding the stmtAvailable and searchLike which
 	// uses standard placeholders.
-	stmt, args, err := sqlx.Named(stmt, map[string]any{
-		"host_id":                   hostID,
+	stmt, args, err := sqlx.Named(stmtInstalled, map[string]any{
+		"host_id":                   host.ID,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
 		"software_status_installed": fleet.SoftwareInstallerInstalled,
@@ -1958,6 +1952,24 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
 	}
+
+	if includeAvailableForInstall {
+		var platformArgs []string
+		if !fleet.IsLinux(host.Platform) {
+			platformArgs = []string{host.Platform}
+		} else {
+			platformArgs = fleet.HostLinuxOSs
+		}
+		placeholders := ""
+		for _, p := range platformArgs {
+			placeholders += "?,"
+			args = append(args, p)
+		}
+		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","))
+		args = append(args, host.ID, host.ID, host.ID)
+	}
+
+	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
 
 	if opts.MatchQuery != "" {
 		stmt += " WHERE TRUE " // searchLike adds a "AND <condition>"
@@ -2021,7 +2033,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 			st.id IN (?)
 `
 		var installedVersions []*fleet.HostSoftwareInstalledVersion
-		stmt, args, err := sqlx.In(versionStmt, hostID, titleIDs)
+		stmt, args, err := sqlx.In(versionStmt, host.ID, titleIDs)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list versions")
 		}
@@ -2088,7 +2100,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, hostID uint, includeA
 				InstalledPath string `db:"installed_path"`
 			}
 			var installedPaths []installedPath
-			stmt, args, err = sqlx.In(pathsStmt, hostID, softwareIDs)
+			stmt, args, err = sqlx.In(pathsStmt, host.ID, softwareIDs)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list installed paths")
 			}
