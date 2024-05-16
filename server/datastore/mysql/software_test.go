@@ -1619,14 +1619,16 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	require.NotZero(t, baz2SoftwareID)
 
 	// "new" is not returned until ds.SyncHostsSoftware is executed.
-	// "baz2" is gone from the software list.
+	// "bar" and "baz2" are gone from host_software, but will not be deleted until ds.SyncHostsSoftware is executed.
 	// "baz" still has the wrong count because ds.SyncHostsSoftware hasn't run yet.
 	//
 	// So... counts are "off" until ds.SyncHostsSoftware is run.
-	software = listSoftwareCheckCount(t, ds, 2, 2, opts, false)
+	software = listSoftwareCheckCount(t, ds, 4, 4, opts, false)
 	expectedSoftware = []fleet.Software{
 		{Name: "foo", Version: "0.0.1", HostsCount: 2},
 		{Name: "baz", Version: "0.0.3", HostsCount: 2},
+		{Name: "bar", Version: "0.0.2", HostsCount: 2},
+		{Name: "baz2", Version: "0.0.3", HostsCount: 1},
 	}
 	cmpNameVersionCount(expectedSoftware, software)
 
