@@ -205,10 +205,15 @@
 
           <div purpose="docs-start-cta" class="d-flex flex-column flex-sm-row justify-content-between">
             <div purpose="docs-start-cta-image" class="col-sm-6 col-md-5 col-lg-6"></div>
-            <div purpose="docs-start-cta-content" class="d-flex flex-column justify-content-center my-4 mx-auto text-center">
+            <div purpose="docs-start-cta-content" class="d-flex flex-column justify-content-center my-4 mx-auto text-center" v-if="!this.me || ['2 - Aware','3 - Intrigued'].includes(this.me.psychologicalStage)">
               <h2>Try it out</h2>
               <p>See what Fleet can do</p>
               <a purpose="continue-button" class="btn btn-primary" href="/register">Start now</a>
+            </div>
+            <div purpose="docs-start-cta-content" class="d-flex flex-column justify-content-center my-4 mx-auto text-center" v-else>
+              <h2>Feeling confident?</h2>
+              <p>Get set up with Fleet</p>
+              <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>
             </div>
           </div>
 
