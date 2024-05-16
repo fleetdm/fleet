@@ -1,4 +1,10 @@
-import React, { useContext, useState, useEffect, useRef } from "react";
+import React, {
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
@@ -23,7 +29,8 @@ import {
 } from "interfaces/mdm";
 import { SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
-import { ITeam } from "interfaces/team";
+import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
+import { IConfig } from "interfaces/config";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
@@ -33,9 +40,11 @@ import softwareAPI, {
   ISoftwareCountQueryKey,
 } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import configAPI from "services/entities/config";
 import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_USE_QUERY_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "utilities/constants";
@@ -48,7 +57,6 @@ import CustomLink from "components/CustomLink";
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
-import SandboxGate from "components/Sandbox/SandboxGate";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
@@ -62,6 +70,7 @@ import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
+import { on } from "events";
 
 const baseClass = "dashboard-page";
 
@@ -83,11 +92,9 @@ interface IDashboardProps {
 const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const { pathname } = location;
   const {
-    config,
     isGlobalAdmin,
     isGlobalMaintainer,
     isPremiumTier,
-    isSandboxMode,
     isOnGlobalTeam,
   } = useContext(AppContext);
 
@@ -134,6 +141,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showMdmSolutionModal, setShowMdmSolutionModal] = useState(false);
+  const [
+    showActivityFeedAutomationsModal,
+    setShowActivityFeedAutomationsModal,
+  ] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
@@ -167,6 +178,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+  const canEditActivityFeedAutomations =
+    (isGlobalAdmin || isGlobalMaintainer) && teamIdForApi === API_ALL_TEAMS_ID;
+
+  const { data: config, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ILoadTeamsResponse,
@@ -397,6 +416,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
   });
 
+  const onSubmitActivityFeedAutomationsModal = useCallback(async () => {
+    // TODO
+  }, []);
   useEffect(() => {
     softwareCount && softwareCount > 0
       ? setShowSoftwareCard(true)
@@ -426,6 +448,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const toggleAddHostsModal = () => {
     setShowAddHostsModal(!showAddHostsModal);
+  };
+
+  const toggleActivityFeedAutomationsModal = () => {
+    setShowActivityFeedAutomationsModal(!showActivityFeedAutomationsModal);
   };
 
   const { MANAGE_HOSTS } = paths;
@@ -497,7 +523,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi}
-        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -512,7 +537,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi}
-        isSandboxMode={isSandboxMode}
         notSupported={selectedPlatform === "chrome"}
       />
     ),
@@ -544,7 +568,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
-        isSandboxMode={isSandboxMode}
+        showAutomationsToggle={canEditActivityFeedAutomations}
+        toggleAutomations={toggleActivityFeedAutomationsModal}
       />
     ),
   });
@@ -601,34 +626,28 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ),
   });
 
-  const MDMCard = (
-    <SandboxGate>
-      {useInfoCard({
-        title: "Mobile device management (MDM)",
-        titleDetail: mdmTitleDetail,
-        showTitle: !isMdmFetching,
-        description: (
-          <p>
-            MDM is used to change settings and install software on your hosts.
-          </p>
-        ),
-        children: (
-          <Mdm
-            isFetching={isMdmFetching}
-            error={errorMdm}
-            mdmStatusData={mdmStatusData}
-            mdmSolutions={mdmSolutions}
-            selectedPlatformLabelId={selectedPlatformLabelId}
-            selectedTeamId={currentTeamId}
-            onClickMdmSolution={(mdmSolution) => {
-              selectedMdmSolutionName.current = mdmSolution.name;
-              setShowMdmSolutionModal(true);
-            }}
-          />
-        ),
-      })}
-    </SandboxGate>
-  );
+  const MDMCard = useInfoCard({
+    title: "Mobile device management (MDM)",
+    titleDetail: mdmTitleDetail,
+    showTitle: !isMdmFetching,
+    description: (
+      <p>MDM is used to change settings and install software on your hosts.</p>
+    ),
+    children: (
+      <Mdm
+        isFetching={isMdmFetching}
+        error={errorMdm}
+        mdmStatusData={mdmStatusData}
+        mdmSolutions={mdmSolutions}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+        selectedTeamId={currentTeamId}
+        onClickMdmSolution={(mdmSolution) => {
+          selectedMdmSolutionName.current = mdmSolution.name;
+          setShowMdmSolutionModal(true);
+        }}
+      />
+    ),
+  });
 
   const OperatingSystemsCard = useInfoCard({
     title: "Operating systems",
@@ -702,14 +721,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const renderAddHostsModal = () => {
-    const enrollSecret =
-      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
-      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
-      // additional precaution/reminder to revisit this in connection with future changes.
-      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-      isAnyTeamSelected && !isSandboxMode
-        ? teamSecrets?.[0].secret
-        : globalSecrets?.[0].secret;
+    const enrollSecret = isAnyTeamSelected
+      ? teamSecrets?.[0].secret
+      : globalSecrets?.[0].secret;
 
     return (
       <AddHostsModal
@@ -717,7 +731,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
-        isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
       />
     );
@@ -754,7 +767,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               selectedTeamId={currentTeamId}
               currentUserTeams={userTeams}
               onChange={handleTeamChange}
-              isSandboxMode={isSandboxMode}
             />
           );
         }
@@ -818,6 +830,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
         {showMdmSolutionModal && renderMdmSolutionModal()}
+        {/* {showActivityFeedAutomationsModal && (
+          <ActivityFeedAutomationsModal
+            automationsSettings={config?.webhook_settings.activities_webhook}
+            refetchConfig={refetchConfig}
+            onSubmit={onSubmitActivityFeedAutomationsModal}
+            onExit={toggleActivityFeedAutomationsModal}
+          />
+        )} */}
       </div>
     </MainContent>
   );
