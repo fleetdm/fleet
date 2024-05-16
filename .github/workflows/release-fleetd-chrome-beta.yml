@@ -37,6 +37,11 @@ jobs:
         run: |
           npm install && npm run test
 
+      - name: Set the version
+        working-directory: ./ee/fleetd-chrome
+        run: |
+          echo "FLEETD_CHROME_VERSION=$(npm pkg get version --workspaces=false | tr -d \")" >> $GITHUB_ENV
+
       - name: Build & sign extension
         working-directory: ./ee/fleetd-chrome
         env:
@@ -44,7 +49,6 @@ jobs:
         run: |
           echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
           npm install && npm run build
-          echo "FLEETD_CHROME_VERSION=$(npm pkg get version --workspaces=false | tr -d \")"
           echo "FLEETD_CHROME_VERSION=$(npm pkg get version --workspaces=false | tr -d \")" >> $GITHUB_ENV
           echo "env var: $FLEETD_CHROME_VERSION"
           sed -i "s/FLEETD_CHROME_VERSION/${{ env.FLEETD_CHROME_VERSION }}/g" updates-beta.xml
