@@ -145,6 +145,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showActivityFeedAutomationsModal,
     setShowActivityFeedAutomationsModal,
   ] = useState(false);
+  const [
+    updatingActivityFeedAutomations,
+    setUpdatingActivityFeedAutomations,
+  ] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
@@ -417,7 +421,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   });
 
   const onSubmitActivityFeedAutomationsModal = useCallback(async () => {
+    setUpdatingActivityFeedAutomations(true);
     // TODO
+    setUpdatingActivityFeedAutomations(false);
   }, []);
   useEffect(() => {
     softwareCount && softwareCount > 0
@@ -835,11 +841,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
         {showMdmSolutionModal && renderMdmSolutionModal()}
-        {showActivityFeedAutomationsModal && (
+        {showActivityFeedAutomationsModal && config && (
           <ActivityFeedAutomationsModal
-            automationSettings={config?.webhook_settings.activities_webhook}
+            automationSettings={config.webhook_settings.activities_webhook}
             onSubmit={onSubmitActivityFeedAutomationsModal}
             onExit={toggleActivityFeedAutomationsModal}
+            isUpdating={updatingActivityFeedAutomations}
           />
         )}
       </div>

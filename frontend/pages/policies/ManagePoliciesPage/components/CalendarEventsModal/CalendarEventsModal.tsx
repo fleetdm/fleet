@@ -155,15 +155,15 @@ const CalendarEventsModal = ({
           dangerouslySetInnerHTML={{
             __html: syntaxHighlight({
               timestamp: "0000-00-00T00:00:00Z",
-              host_id: 1,
-              host_display_name: "Anna's MacBook Pro",
-              host_serial_number: "ABCD1234567890",
-              failing_policies: [
-                {
-                  id: 123,
-                  name: "macOS - Disable guest account",
-                },
-              ],
+              activity_id: 123,
+              actor_full_name: "Anna Chao",
+              actor_id: 321,
+              actor_email: "anna.chao@example.com",
+              type: "live_query",
+              details: {
+                query_sql: "SELECT * FROM os_version",
+                targets_count: 1,
+              },
             }),
           }}
         />
