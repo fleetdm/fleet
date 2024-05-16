@@ -130,7 +130,7 @@ const AppleBusinessManagerSection = ({
           <span className={`${baseClass}__400-error-info`}>
             See our{" "}
             <CustomLink
-              url="https://fleetdm.com/learn-more-about/abm-setup"
+              url="https://fleetdm.com/learn-more-about/setup-abm"
               text="ABM documentation"
               newTab
             />{" "}

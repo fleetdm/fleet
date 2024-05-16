@@ -439,6 +439,7 @@ module.exports.routes = {
   'GET /docs/deploy/deploy-on-hetzner-cloud': '/guides/deploy-fleet-on-hetzner-cloud',
   'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
   'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
+  'GET /docs/using-fleet/mdm-macos-setup': 'GET /docs/using-fleet/mdm-setup',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -507,8 +508,10 @@ module.exports.routes = {
   'GET /learn-more-about/rotating-enroll-secrets': '/docs/configuration/configuration-files#rotating-enroll-secrets',
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
-  'GET /learn-more-about/windows-mdm-setup': '/using-fleet/mdm-setup',
-  'GET /learn-more-about/abm-setup': '/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/setup-windows-mdm': '/using-fleet/mdm-setup',
+  'GET /learn-more-about/setup-abm': '/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/setup-apns': '/using-fleet/mdm-setup#apple-push-notification-service-apns',
+  'GET /learn-more-about/renew-apns': '/using-fleet/mdm-setup#renewing-apns',
 
   // Sitemap
   // =============================================================================================================
