@@ -1,6 +1,6 @@
 # Deploy Fleet on AWS ECS
 
-> **This article was archived on May 15, 2024** and may be out of date. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
 
 ![Deploy Fleet on AWS ECS](../website/assets/images/articles/deploy-fleet-on-aws-ecs-800x450@2x.png)
 
@@ -30,7 +30,7 @@ Alternatively you can bake the prepare command into the same task definition see
 <meta name="articleTitle" value="Deploy Fleet on AWS ECS">
 <meta name="authorGitHubUsername" value="edwardsb">
 <meta name="authorFullName" value="Ben Edwards">
-<meta name="publishedOn" value="2022-02-14">
+<meta name="publishedOn" value="2021-10-06">
 <meta name="category" value="guides">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-aws-ecs-800x450@2x.png">
 <meta name="description" value="Information for deploying Fleet on AWS ECS.">
