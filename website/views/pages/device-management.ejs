@@ -25,7 +25,8 @@
         </div>
       </div>
       <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
-        <div purpose="testimonial-quote" @click="goto('<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>')">
+        <div purpose="testimonial-quote">
+          <a href="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>" target="_blank">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
             <p>
@@ -42,6 +43,7 @@
               <p purpose="title"><%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'CISO of Lyft' : ['eo-it'].includes(primaryBuyingSituation) ? 'CIO & Chief Security Officer at Flock Safety' : 'Client Platform Engineer at gaming company'%></p>
             </div>
           </div>
+          </a>
         </div>
       </div>
       <logo-carousel></logo-carousel>
