@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS software_installers (
   -- Version extracted from the uploaded installer
   version varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 
+  -- Platform extracted from the uploaded installer
+  platform varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+
   -- Raw osquery SQL statment to be run as a pre-install condition
   pre_install_query text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 
@@ -71,7 +74,9 @@ CREATE TABLE IF NOT EXISTS software_installers (
     ON DELETE CASCADE
     ON UPDATE CASCADE,
 
-  UNIQUE KEY idx_software_installers_team_id_title_id (global_or_team_id, title_id)
+  UNIQUE KEY idx_software_installers_team_id_title_id (global_or_team_id, title_id),
+
+  INDEX idx_software_installers_platform_title_id (platform, title_id)
 
 )
   `)

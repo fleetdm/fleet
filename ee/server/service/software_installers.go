@@ -344,6 +344,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 	payload.Source = source
 
+	platform, err := fleet.SofwareInstallerPlatformFromExtension(ext)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "determining platform from extension")
+	}
+	payload.Platform = platform
+
 	return ext, nil
 }
 

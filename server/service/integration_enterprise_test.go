@@ -8909,15 +8909,21 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 	}
 
 	checkSoftwareInstaller := func(t *testing.T, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint) {
+		var tid uint
+		if payload.TeamID != nil {
+			tid = *payload.TeamID
+		}
 		var id uint
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			var tid uint
-			if payload.TeamID != nil {
-				tid = *payload.TeamID
-			}
 			return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, tid, payload.Filename)
 		})
 		require.NotZero(t, id)
+
+		var platform string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE id = ?`, id)
+		})
+		require.Equal(t, payload.Platform, "linux")
 
 		meta, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), id)
 		require.NoError(t, err)
@@ -8958,6 +8964,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			Version:   "1:2.5.1",
 			Source:    "deb_packages",
 			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:  "linux",
 		}
 
 		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
@@ -9002,6 +9009,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			Version:   "1:2.5.1",
 			Source:    "deb_packages",
 			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:  "linux",
 		}
 		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
@@ -9231,6 +9239,16 @@ func (s *integrationMDMTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, 1, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 
+	// check that platform is set when the installer is created
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var platform string
+		if err := sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE title_id= ? AND team_id = ?`, titlesResp.SoftwareTitles[0].ID, tm.ID); err != nil {
+			return err
+		}
+		require.Equal(t, "linux", platform)
+		return nil
+	})
+
 	// same payload doesn't modify anything
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
 	newTitlesResp := listSoftwareTitlesResponse{}
@@ -9244,7 +9262,6 @@ func (s *integrationMDMTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
 	require.Equal(t, 0, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 0)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {

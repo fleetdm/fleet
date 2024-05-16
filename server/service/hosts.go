@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -2498,6 +2499,7 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	// that is not installed but for which there's an installer available for that host.
 	var includeAvailableForInstall bool
 
+	var host *fleet.Host
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		includeAvailableForInstall = true
 
@@ -2505,15 +2507,22 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 			return nil, nil, err
 		}
 
-		host, err := svc.ds.HostLite(ctx, hostID)
+		h, err := svc.ds.HostLite(ctx, hostID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get host lite")
 		}
+		host = h
 
 		// Authorize again with team loaded now that we have team_id
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return nil, nil, err
 		}
+	} else {
+		h, ok := hostctx.FromContext(ctx)
+		if !ok {
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		}
+		host = h
 	}
 
 	// cursor-based pagination is not supported
@@ -2523,7 +2532,7 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	// always include metadata
 	opts.IncludeMetadata = true
 
-	software, meta, err := svc.ds.ListHostSoftware(ctx, hostID, includeAvailableForInstall, opts)
+	software, meta, err := svc.ds.ListHostSoftware(ctx, host, includeAvailableForInstall, opts)
 	if !includeAvailableForInstall {
 		// for the device page, we don't want to return the package name
 		for _, s := range software {

@@ -403,7 +403,7 @@ type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
 type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error)
 
-type ListHostSoftwareFunc func(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
+type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
 
@@ -3702,11 +3702,11 @@ func (s *DataStore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet
 	return s.ListCVEsFunc(ctx, maxAge)
 }
 
-func (s *DataStore) ListHostSoftware(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListHostSoftware(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostSoftwareFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostSoftwareFunc(ctx, hostID, includeAvailableForInstall, opts)
+	return s.ListHostSoftwareFunc(ctx, host, includeAvailableForInstall, opts)
 }
 
 func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {

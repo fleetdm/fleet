@@ -618,7 +618,7 @@ func TestHostAuth(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
-	ds.ListHostSoftwareFunc = func(ctx context.Context, hostID uint, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	ds.ListHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
 
