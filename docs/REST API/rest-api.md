@@ -7694,7 +7694,7 @@ Content-Disposition: form-data; name="team_id"
 
 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="platform"
+Content-Disposition: form-data; name="platforms"
 
 macOS
 --------------------------f02md47480und42y
