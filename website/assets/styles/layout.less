@@ -128,7 +128,7 @@ html, body {
       display: none;
     }
     &:hover {
-      transform: scale(1.1);
+      transform: scale(105%);
     }
     transform: scale(0.8);
     cursor: pointer;
@@ -632,18 +632,23 @@ body.detected-mobile {
     }
     [purpose='banner-body'].collapsed {
       [purpose='banner-text'] {
-        display: none;
+        display: flex;
       }
-      cursor: pointer;
+      transform: none;
+      transition: none;
+      &:hover {
+        transform: none;
+      }
+      height: 70px;
       min-height: unset;
-      overflow: hidden;
-      border-radius: 40px;
-      border: 4px solid #FFF;
-      padding: 0;
-      background: #EEF9FE;
+      width: 100%;
+      margin-right: 0px;
+      position: relative;
+      border-radius: 0px;
+      border: 1px solid #E2E4EA;
       box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
-      width: 80px;
-      height: 80px;
+      padding: 8px;
+      background: #FFFFFF;
     }
   }
 }
