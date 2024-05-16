@@ -86,7 +86,7 @@ module.exports = {
         leadSource: 'Website - Contact forms',
         leadDescription: `Submitted the "Talk to us" form.`,
       }).tolerate((err)=>{
-        sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}. Error:`, err);
+        sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}. Error:`, err.raw);
       });
     });//_∏_  (Meanwhile...)
 

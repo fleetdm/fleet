@@ -147,7 +147,7 @@ the account verification message.)`,
         organization: organization,
         leadSource: 'Website - Sign up',
       }).tolerate((err)=>{
-        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} sign up for a fleetdm.com account, a Contact, Account, and Lead record could not be created/updated in the CRM. Error:`, err);
+        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} sign up for a fleetdm.com account, a Contact, Account, and Lead record could not be created/updated in the CRM. Error:`, err.raw);
       });
     });//_∏_  (Meanwhile...)
 
