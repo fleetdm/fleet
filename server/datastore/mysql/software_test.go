@@ -2852,7 +2852,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// remove the bar software title from host 2
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:2])
 	require.NoError(t, err)
-	// SyncHostsSoftware should not remove the above software item from the software table
+	// SyncHostsSoftware will remove the above software item from the software table
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]}, nil)
 
