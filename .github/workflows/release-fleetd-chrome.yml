@@ -46,7 +46,7 @@ jobs:
           echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
           npm install && npm run build
           echo "FLEETD_CHROME_VERSION=$(npm pkg get version --workspaces=false | tr -d \")" >> $GITHUB_ENV
-          sed -i "s/FLEETD_CHROME_VERSION/$FLEETD_CHROME_VERSION/g" updates.xml
+          sed -i "s/FLEETD_CHROME_VERSION/${{ FLEETD_CHROME_VERSION }}/g" updates.xml
           echo "$CHROME_SIGNING_KEY" > chrome.pem
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
 
