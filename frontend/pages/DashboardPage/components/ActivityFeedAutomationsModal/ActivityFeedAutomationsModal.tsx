@@ -12,13 +12,13 @@ import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "activity-feed-automations-modal";
 
-interface IAFAMFormData {
+export interface IAFAMFormData {
   enabled: boolean;
   url: string;
 }
 interface IActivityFeedAutomationsModal {
   automationSettings: IWebhookActivities;
-  onSubmit: () => void;
+  onSubmit: (formData: IAFAMFormData) => void;
   onExit: () => void;
   isUpdating: boolean;
 }
@@ -117,7 +117,7 @@ const ActivityFeedAutomationsModal = ({
       title="Manage automations"
       width="large"
       onExit={onExit}
-      onEnter={onSubmit}
+      onEnter={() => onSubmit(formData)}
     >
       <div className={`${baseClass} form`}>
         <Slider

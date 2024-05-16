@@ -9,6 +9,7 @@ import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import paths from "router/paths";
 
 import {
@@ -71,6 +72,7 @@ import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
+import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 
 const baseClass = "dashboard-page";
 
@@ -97,6 +99,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isPremiumTier,
     isOnGlobalTeam,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const {
     currentTeamId,
@@ -420,11 +423,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
   });
 
-  const onSubmitActivityFeedAutomationsModal = useCallback(async () => {
-    setUpdatingActivityFeedAutomations(true);
-    // TODO
-    setUpdatingActivityFeedAutomations(false);
-  }, []);
   useEffect(() => {
     softwareCount && softwareCount > 0
       ? setShowSoftwareCard(true)
@@ -456,11 +454,67 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
-  const toggleActivityFeedAutomationsModal = () => {
-    setShowActivityFeedAutomationsModal(!showActivityFeedAutomationsModal);
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component will call this handler.
+  const onSoftwareQueryChange = async ({
+    pageIndex: newPageIndex,
+  }: ITableQueryData) => {
+    if (softwarePageIndex !== newPageIndex) {
+      setSoftwarePageIndex(newPageIndex);
+    }
   };
 
-  const { MANAGE_HOSTS } = paths;
+  const onSoftwareTabChange = (index: number) => {
+    const { SOFTWARE_TITLES } = paths;
+    setSoftwareNavTabIndex(index);
+    setSoftwareActionUrl &&
+      setSoftwareActionUrl(
+        index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
+      );
+  };
+
+  const onSubmitActivityFeedAutomationsModal = useCallback(
+    async (formData: IAFAMFormData) => {
+      setUpdatingActivityFeedAutomations(true);
+      try {
+        if (
+          formData.enabled !==
+            config?.webhook_settings.activities_webhook
+              .enable_activities_webhook ||
+          formData.url !==
+            config?.webhook_settings.activities_webhook.destination_url
+        ) {
+          configAPI.update({});
+        }
+        renderFlash(
+          "success",
+          "Successfully updated activity feed automations."
+        );
+        setShowActivityFeedAutomationsModal(false);
+      } catch {
+        renderFlash(
+          "error",
+          "Couldn't update activity feed automations. Please try again."
+        );
+      } finally {
+        setUpdatingActivityFeedAutomations(false);
+        refetchConfig();
+      }
+    },
+    [
+      config?.webhook_settings.activities_webhook.destination_url,
+      config?.webhook_settings.activities_webhook.enable_activities_webhook,
+      refetchConfig,
+      renderFlash,
+    ]
+  );
+  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
+  // collecting inventory
+  const isCollectingInventory =
+    !isAnyTeamSelected &&
+    !softwarePageIndex &&
+    !software?.software &&
+    software?.counts_updated_at === null;
 
   const HostsSummaryCard = useInfoCard({
     title: "Hosts",
@@ -471,7 +525,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             text: "View all hosts",
           }
         : undefined,
-    actionUrl: selectedPlatform === "all" ? MANAGE_HOSTS : undefined,
+    actionUrl: selectedPlatform === "all" ? paths.MANAGE_HOSTS : undefined,
     total_host_count:
       !isHostSummaryFetching && !errorHosts
         ? hostSummaryData?.totals_hosts_count
@@ -492,33 +546,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       />
     ),
   });
-
-  // NOTE: this is called once on the initial rendering. The initial render of
-  // the TableContainer child component will call this handler.
-  const onSoftwareQueryChange = async ({
-    pageIndex: newPageIndex,
-  }: ITableQueryData) => {
-    if (softwarePageIndex !== newPageIndex) {
-      setSoftwarePageIndex(newPageIndex);
-    }
-  };
-
-  const onSoftwareTabChange = (index: number) => {
-    const { SOFTWARE_TITLES } = paths;
-    setSoftwareNavTabIndex(index);
-    setSoftwareActionUrl &&
-      setSoftwareActionUrl(
-        index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
-      );
-  };
-
-  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
-  // collecting inventory
-  const isCollectingInventory =
-    !isAnyTeamSelected &&
-    !softwarePageIndex &&
-    !software?.software &&
-    software?.counts_updated_at === null;
 
   const MissingHostsCard = useInfoCard({
     title: "",
@@ -574,7 +601,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       ? {
           type: "button",
           text: "Manage automations",
-          onClick: toggleActivityFeedAutomationsModal,
+          onClick: () => setShowActivityFeedAutomationsModal(true),
         }
       : undefined,
     children: (
@@ -845,7 +872,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           <ActivityFeedAutomationsModal
             automationSettings={config.webhook_settings.activities_webhook}
             onSubmit={onSubmitActivityFeedAutomationsModal}
-            onExit={toggleActivityFeedAutomationsModal}
+            onExit={() => setShowActivityFeedAutomationsModal(false)}
             isUpdating={updatingActivityFeedAutomations}
           />
         )}
