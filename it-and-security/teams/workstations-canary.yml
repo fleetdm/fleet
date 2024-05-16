@@ -91,8 +91,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-04-28"
-    minimum_version: "14.4"
+    deadline: "2024-05-31"
+    minimum_version: "14.5"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -112,7 +112,7 @@ policies:
   - name: macOS - Check if latest version
     query: |
       SELECT 1 FROM os_version
-        WHERE (major > 14 OR (major = 14 AND minor > 4) OR (major = 14 AND minor = 4 AND patch >= 2)) --Sonoma
+        WHERE (major > 14 OR (major = 14 AND minor > 5) OR (major = 14 AND minor = 5 AND patch >= 0)); --Sonoma
     critical: false
     description: This policy check if macOS version is most recent version available.
     resolution: From the Apple menu, select System Settings. Navigate to General > Software Update.

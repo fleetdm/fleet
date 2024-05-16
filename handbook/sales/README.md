@@ -170,7 +170,7 @@ Please see [handbook/company/communications#customer-support-service-level-agree
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
 ##### Customer codenames
-Please see [Handbook/sales#assign-a-customer-codename](https://www.fleetdm.com/handbook/sales#assign-a-customer-codename)
+Please see [Handbook/customer-success#assign-a-customer-codename](https://www.fleetdm.com/handbook/customer-success#assign-a-customer-codename)
 
 ##### Document customer requests
 Please see [handbook/customer-success#document-customer-requests](https://fleetdm.com/handbook/customer-success#document-customer-requests)
