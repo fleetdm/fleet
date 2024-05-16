@@ -80,11 +80,9 @@ module.exports = {
       leadDescription,
       leadSource,
       numberOfHosts,
-    })
-    .tolerate((err)=>{
-      sails.log.warn(`When a user signed up, a lead could not be created in the CRM for this email address: ${emailAddress}. Error from create-lead helper: ${err}`);
-      return;
     });
+
+    return;
   }
 
 
