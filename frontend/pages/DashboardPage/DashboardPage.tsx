@@ -10,6 +10,7 @@ import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+
 import paths from "router/paths";
 
 import {
@@ -32,7 +33,9 @@ import { SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IConfig } from "interfaces/config";
+
 import { useTeamIdParam } from "hooks/useTeamIdParam";
+
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
@@ -43,12 +46,14 @@ import softwareAPI, {
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";
 import hosts from "services/entities/hosts";
+
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "utilities/constants";
+
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import TeamsDropdown from "components/TeamsDropdown";
@@ -58,6 +63,7 @@ import CustomLink from "components/CustomLink";
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";

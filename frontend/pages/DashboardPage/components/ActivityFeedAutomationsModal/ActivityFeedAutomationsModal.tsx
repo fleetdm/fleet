@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 
+import { IWebhookActivities } from "interfaces/webhook";
+
 import Modal from "components/Modal";
 import validURL from "components/forms/validators/valid_url";
-import { IWebhookActivities } from "interfaces/webhook";
 import Slider from "components/forms/fields/Slider";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+
 import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "activity-feed-automations-modal";
@@ -42,7 +44,6 @@ const ActivityFeedAutomationsModal = ({
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
 
-  // Used on URL change only when URL error exists and always on attempting to save
   const validateForm = (newFormData: IAFAMFormData) => {
     const errors: Record<string, string> = {};
     const { url: newUrl } = newFormData;
@@ -62,7 +63,6 @@ const ActivityFeedAutomationsModal = ({
 
     const isDisabling = newFormData.enabled === false;
 
-    // On disabling feature, validate URL and if an error clear input and error
     if (isDisabling) {
       const errors = validateForm(newFormData);
 
@@ -79,7 +79,6 @@ const ActivityFeedAutomationsModal = ({
 
   const onUrlChange = (value: string) => {
     const newFormData = { ...formData, url: value };
-    // On URL change with erroneous URL, validate form
     if (formErrors.url) {
       setFormErrors(validateForm(newFormData));
     }
@@ -95,15 +94,15 @@ const ActivityFeedAutomationsModal = ({
           dangerouslySetInnerHTML={{
             __html: syntaxHighlight({
               timestamp: "0000-00-00T00:00:00Z",
-              host_id: 1,
-              host_display_name: "Anna's MacBook Pro",
-              host_serial_number: "ABCD1234567890",
-              failing_policies: [
-                {
-                  id: 123,
-                  name: "macOS - Disable guest account",
-                },
-              ],
+              activity_id: 123,
+              actor_full_name: "Anna Chao",
+              actor_id: 321,
+              actor_email: "anna.chao@example.com",
+              type: "live_query",
+              details: {
+                query_sql: "SELECT * FROM os_version",
+                targets_count: 1,
+              },
             }),
           }}
         />
