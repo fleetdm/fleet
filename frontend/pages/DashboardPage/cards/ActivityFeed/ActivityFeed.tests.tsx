@@ -17,13 +17,7 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(
-      <ActivityFeed
-        toggleAutomations={noop}
-        setShowActivityFeedTitle={noop}
-        isPremiumTier
-      />
-    );
+    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findByText("Test User");
@@ -38,13 +32,7 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(
-      <ActivityFeed
-        toggleAutomations={noop}
-        setShowActivityFeedTitle={noop}
-        isPremiumTier
-      />
-    );
+    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findByText("Test User");
@@ -59,13 +47,7 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(
-      <ActivityFeed
-        toggleAutomations={noop}
-        setShowActivityFeedTitle={noop}
-        isPremiumTier
-      />
-    );
+    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findAllByText("Test User");
@@ -78,13 +60,7 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(
-      <ActivityFeed
-        toggleAutomations={noop}
-        setShowActivityFeedTitle={noop}
-        isPremiumTier
-      />
-    );
+    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findAllByText("Test User");
@@ -100,11 +76,7 @@ describe("Activity Feed", () => {
     });
 
     const { user } = render(
-      <ActivityFeed
-        toggleAutomations={noop}
-        setShowActivityFeedTitle={noop}
-        isPremiumTier
-      />
+      <ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />
     );
 
     // waiting for the activity data to render
