@@ -1657,6 +1657,13 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	softwareInsertBatchSizeOrig := softwareInsertBatchSize
+	t.Cleanup(
+		func() {
+			softwareInsertBatchSize = softwareInsertBatchSizeOrig
+		},
+	)
+	softwareInsertBatchSize = 2
 
 	now := time.Now()
 	lastYear := now.Add(-365 * 24 * time.Hour)
@@ -1736,6 +1743,17 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
+
+	// more changes: all software receives a date further in the future, so all should be updated
+	farFuture := now.Add(4 * 24 * time.Hour)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &farFuture},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &farFuture},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux", LastOpenedAt: &farFuture},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{"bar", farFuture}, tup{"baz", farFuture}, tup{"qux", farFuture})
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {

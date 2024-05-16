@@ -622,8 +622,6 @@ func updateModifiedHostSoftwareDB(
 	incomingMap map[string]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
 ) error {
-	const stmt = `UPDATE host_software SET last_opened_at = ? WHERE host_id = ? AND software_id = ?`
-
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
 		curSw, ok := currentMap[key]
@@ -639,9 +637,31 @@ func updateModifiedHostSoftwareDB(
 	}
 	sort.Strings(keysToUpdate)
 
-	for _, key := range keysToUpdate {
-		curSw, newSw := currentMap[key], incomingMap[key]
-		if _, err := tx.ExecContext(ctx, stmt, newSw.LastOpenedAt, hostID, curSw.ID); err != nil {
+	for i := 0; i < len(keysToUpdate); i += softwareInsertBatchSize {
+		start := i
+		end := i + softwareInsertBatchSize
+		if end > len(keysToUpdate) {
+			end = len(keysToUpdate)
+		}
+		totalToProcess := end - start
+
+		const numberOfArgsPerSoftware = 3 // number of ? in each UPDATE
+		// Using UNION ALL (instead of UNION) because it is faster since it does not check for duplicates.
+		values := strings.TrimSuffix(
+			strings.Repeat(" SELECT ? as host_id, ? as software_id, ? as last_opened_at UNION ALL", totalToProcess), "UNION ALL",
+		)
+		stmt := fmt.Sprintf(
+			`UPDATE host_software hs JOIN (%s) a ON hs.host_id = a.host_id AND hs.software_id = a.software_id SET hs.last_opened_at = a.last_opened_at`,
+			values,
+		)
+
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+		for j := start; j < end; j++ {
+			key := keysToUpdate[j]
+			curSw, newSw := currentMap[key], incomingMap[key]
+			args = append(args, hostID, curSw.ID, newSw.LastOpenedAt)
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host software")
 		}
 	}
