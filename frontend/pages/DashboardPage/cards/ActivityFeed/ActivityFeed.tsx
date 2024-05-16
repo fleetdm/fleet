@@ -25,8 +25,6 @@ const baseClass = "activity-feed";
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
   isPremiumTier: boolean;
-  showAutomationsToggle?: boolean;
-  toggleAutomations: () => void;
 }
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -34,8 +32,6 @@ const DEFAULT_PAGE_SIZE = 8;
 const ActivityFeed = ({
   setShowActivityFeedTitle,
   isPremiumTier,
-  showAutomationsToggle = false,
-  toggleAutomations,
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);

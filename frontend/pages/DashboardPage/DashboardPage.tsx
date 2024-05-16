@@ -564,17 +564,17 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const ActivityFeedCard = useInfoCard({
     title: "Activity",
     showTitle: showActivityFeedTitle,
-    action: {
-      type: "button",
-      text: "Manage automations",
-      onClick: toggleActivityFeedAutomationsModal,
-    },
+    action: canEditActivityFeedAutomations
+      ? {
+          type: "button",
+          text: "Manage automations",
+          onClick: toggleActivityFeedAutomationsModal,
+        }
+      : undefined,
     children: (
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
-        showAutomationsToggle={canEditActivityFeedAutomations}
-        toggleAutomations={toggleActivityFeedAutomationsModal}
       />
     ),
   });
