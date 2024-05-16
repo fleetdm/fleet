@@ -439,7 +439,7 @@ module.exports.routes = {
   'GET /docs/deploy/deploy-on-hetzner-cloud': '/guides/deploy-fleet-on-hetzner-cloud',
   'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
   'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
-  'GET /docs/using-fleet/mdm-macos-setup': 'GET /docs/using-fleet/mdm-setup',
+  'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
