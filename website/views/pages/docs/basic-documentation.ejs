@@ -203,20 +203,13 @@
             )
           ) %>
 
-          <div class="d-block" purpose="slack-cta">
-            <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
-            <div class="d-sm-flex">
-              <a href="/support" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
-                <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-                Ask the community on Slack
-              </a>
+          <div purpose="docs-start-cta" class="d-flex flex-column flex-sm-row justify-content-between">
+            <div purpose="docs-start-cta-image" class="col-sm-6 col-md-5 col-lg-6"></div>
+            <div purpose="docs-start-cta-content" class="d-flex flex-column justify-content-center my-4 mx-auto text-center">
+              <h2>Try it out</h2>
+              <p>See what Fleet can do</p>
+              <a purpose="continue-button" class="btn btn-primary" href="/register">Start now</a>
             </div>
-          </div>
-          <div class="d-block" purpose="improve-docs">
-            <h3 class="pt-0 pb-4 m-0" style="font-size: 24px; line-height: 28px;">Did we miss anything?</h3>
-            <p>
-              If you notice something we've missed or could be improved on, please follow <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">this link</a> and submit a pull request to the Fleet repo.
-            </p>
           </div>
 
         </div>
