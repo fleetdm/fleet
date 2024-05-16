@@ -48,11 +48,8 @@ jobs:
           CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY_BETA }}
         run: |
           echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
-          npm install && npm run build
-          echo "FLEETD_CHROME_VERSION=$(npm pkg get version --workspaces=false | tr -d \")" >> $GITHUB_ENV
-          echo "env var: $FLEETD_CHROME_VERSION"
+          npm run build
           sed -i "s/FLEETD_CHROME_VERSION/${{ env.FLEETD_CHROME_VERSION }}/g" updates-beta.xml
-          cat updates-beta.xml
           echo "$CHROME_SIGNING_KEY" > chrome.pem
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
 
