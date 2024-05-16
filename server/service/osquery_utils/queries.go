@@ -750,6 +750,32 @@ func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
 }
 
+func macOSBundleIDExistsQuery(appName string) string {
+	return fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' LIMIT 1", appName)
+}
+
+// multiCondition generates a SQL query that returns 1 if all subqueries return 1, otherwise 0.
+// subqueries should be a list of SQL queries that return 1 if a condition is met, otherwise 0.
+func generateSQLForAllExists(subqueries ...string) string {
+	if len(subqueries) == 0 {
+		return "SELECT 0;" // Return 0 if no subqueries provided
+	}
+
+	// Generate EXISTS clause for each subquery
+	var conditions []string
+	for _, query := range subqueries {
+		condition := fmt.Sprintf("EXISTS (%s)", query)
+		conditions = append(conditions, condition)
+	}
+
+	// Join all conditions with AND
+	fullCondition := strings.Join(conditions, " AND ")
+
+	// Build the final SQL with CASE statement
+	sql := fmt.Sprintf("SELECT CASE WHEN %s THEN 1 ELSE 0 END;", fullCondition)
+	return sql
+}
+
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
@@ -1071,6 +1097,37 @@ var softwareChrome = DetailQuery{
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
+}
+
+var conditionalSoftwareQueries = map[string]DetailQuery{
+	"macos_firefox": {
+		Query: `
+			WITH remoting_name AS (
+				SELECT value 
+				FROM parse_ini 
+				WHERE path = '/Applications/Firefox.app/Contents/Resources/application.ini' 
+				AND key = 'RemotingName'
+			)
+			SELECT
+			CASE
+				WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+				ELSE 'Firefox.app'
+			END AS name,
+			COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
+			'Application (macOS)' AS type,
+			bundle_identifier AS bundle_identifier,
+			'' AS extension_id,
+			'' AS browser,
+			'apps' AS source,
+			'' AS vendor,
+			last_opened_time AS last_opened_at,
+			path AS installed_path
+			FROM apps, remoting_name
+			WHERE bundle_identifier = 'org.mozilla.firefox'`,
+		Platforms:        []string{"darwin"},
+		Discovery:        macOSBundleIDExistsQuery("org.mozilla.firefox"),
+		DirectIngestFunc: directIngestSoftware,
+	},
 }
 
 var usersQuery = DetailQuery{
@@ -1520,11 +1577,20 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this
 // host's software list.
 func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
+	switch {
 	// Parallels is a common VM software for MacOS. Parallels makes the VM's applications
 	// visible in the host as MacOS applications, which leads to confusing output (e.g. a MacOS
 	// host reporting that it has Notepad installed when this is just an app from the Windows VM
 	// under Parallels). We want to filter out those "applications" to avoid confusion.
-	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
+	case h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp"):
+		return true
+	// Firefox is always reported as the community edition and is thus reported separately with
+	// a conditional query
+	case strings.Contains(s.Name, "Firefox"):
+		return true
+	}
+
+	return false
 }
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1928,6 +1994,10 @@ func GetDetailQueries(
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
+
+		for key, query := range conditionalSoftwareQueries {
+			generatedMap["software_"+key] = query
+		}
 	}
 
 	if features != nil && features.EnableHostUsers {
