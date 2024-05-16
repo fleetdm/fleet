@@ -1954,10 +1954,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 	}
 
 	if includeAvailableForInstall {
-		var platformArgs []string
-		if !fleet.IsLinux(host.Platform) {
-			platformArgs = []string{host.Platform}
-		} else {
+		platformArgs := []string{host.Platform}
+		if fleet.IsLinux(host.Platform) {
 			platformArgs = fleet.HostLinuxOSs
 		}
 		placeholders := ""
