@@ -290,7 +290,7 @@ Agenda:
 
 
 ### Prepare for CEO office minutes 
-Before the start of the meeting, the Apprentice to the CEO will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
+Before the start of the meeting, the Apprentice will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
 1. All agenda items are prefixed with a date of when the item will be covered and name of the person requesting to discuss the issue.
 2. All team members with an agenda item have added themselves **and their manager** to the correct calendar event. If the team member or manager hasn't been added to the calendar event before the meeting begins, the agenda item is de-prioritized in favor of others with representatives in attendance. 
 3. If there are more that two team members attending, the Apprentice will work with the team members to schedule additional time to cover the agenda.  
@@ -482,7 +482,7 @@ Once a day the Apprentice will confirm check LinkedIn for unread messages.
 
 
 ### Unroll a Slack thread
-From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+From time to time the CEO will ask the Apprentice to unroll a Slack thread into a well-named whiteboard Google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.

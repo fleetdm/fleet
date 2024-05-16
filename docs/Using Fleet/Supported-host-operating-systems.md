@@ -22,10 +22,11 @@ If a table is not available for your host, Fleet will generally handle things be
 Fleet's agent (fleetd) generated for MacOS by `fleetctl package` does not include native support for M1 Macs. Some values returned may reflect the information returned by Rosetta rather than the system. For example, a CPU will show up as `i486`. 
 
 ### Linux
-Fleet's agent (fleetd) will run on Linux distributions where `glibc` is >= 2.2 (there is ongoing work to make osquery work with `glibc` 2.12+).
-If you aren't sure what version of `glibc` your distribution is using, [DistroWatch](https://distrowatch.com/) is a great resource. 
 
-> On Linux, Fleet Desktop only supports $DISPLAY `:0`.
+> Ubuntu Linux:
+> Fleet Desktop currently supports Xorg as X11 server, Wayland is currently not supported.
+> Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set
+> `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
 
 > Fedora, CentOS 8 and 9 require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome set to the default browser for Fleet Desktop.
 

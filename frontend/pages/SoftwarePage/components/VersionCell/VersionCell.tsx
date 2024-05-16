@@ -44,13 +44,13 @@ interface IVersionCellProps<T extends { version: string }> {
 const VersionCell = <T extends { version: string }>({
   versions,
 }: IVersionCellProps<T>) => {
-  const tooltipId = uniqueId();
-
   // only one version, no need for tooltip
   const cellText = generateText(versions);
   if (!versions || versions.length <= 1) {
     return <>{cellText}</>;
   }
+
+  const tooltipId = uniqueId();
 
   const versionTooltip = generateTooltip(versions, tooltipId);
   return (

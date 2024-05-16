@@ -573,6 +573,7 @@
             font-style: normal;
             font-weight: 800;
             line-height: 19.2px;
+            margin-bottom: 8px;
           }
           span {
             font-size: 12px;
@@ -580,6 +581,7 @@
             font-weight: 400;
             line-height: 18px;
             display: block;
+            margin-bottom: 16px;
           }
           img {
             padding: 0;
@@ -785,22 +787,30 @@
           margin: 0px;
         }
       }
-      [purpose='slack-cta'] {
-        padding-top: 40px;
-        padding-bottom: 40px;
-        margin-bottom: 40px;
-        border-top: 1px solid @core-fleet-black-25;
-        border-bottom: 1px solid @core-fleet-black-25;
-        h3 {
-          margin-top: 0;
-          margin-bottom: 24px;
-          padding-bottom: 0;
-          border-bottom: 0;
+
+      [purpose='docs-start-cta'] {
+        margin-top: 40px;
+        border: 1px solid @core-fleet-black-10;
+        border-radius: 16px;
+        overflow: hidden;
+        [purpose='docs-start-cta-image'] {
+          height: 180px;
+          background-image: url('/images/docs-cta-stage-1-314x180@2x.png');
+          background-size: cover;
+          background-position-y: center;
         }
-      }
-      [purpose='improve-docs'] {
-        h3 {
-          border-bottom: 0;
+        [purpose='docs-start-cta-content'] {
+          h2 {
+            padding: 0;
+            margin-bottom: 4px;
+          }
+          p {
+            margin-bottom: 12px;
+          }
+        }
+        [purpose='continue-button'] {
+          font-size: 14px;
+          padding: 6px 12px;
         }
       }
       [purpose='checklist-item'] {

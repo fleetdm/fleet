@@ -7081,8 +7081,11 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	soft1 := host.Software[0]
-	if soft1.Name != "bar" {
-		soft1 = host.Software[1]
+	for _, item := range host.Software {
+		if item.Name == "bar" {
+			soft1 = item
+			break
+		}
 	}
 
 	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
@@ -7092,8 +7095,11 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// Reload software so that 'GeneratedCPEID is set.
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 	soft1 = host.Software[0]
-	if soft1.Name != "bar" {
-		soft1 = host.Software[1]
+	for _, item := range host.Software {
+		if item.Name == "bar" {
+			soft1 = item
+			break
+		}
 	}
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
