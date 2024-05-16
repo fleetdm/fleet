@@ -564,6 +564,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const ActivityFeedCard = useInfoCard({
     title: "Activity",
     showTitle: showActivityFeedTitle,
+    action: {
+      type: "button",
+      text: "Manage automations",
+      onClick: toggleActivityFeedAutomationsModal,
+    },
     children: (
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
