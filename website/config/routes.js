@@ -510,7 +510,6 @@ module.exports.routes = {
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/using-fleet/mdm-setup',
   'GET /learn-more-about/setup-abm': '/using-fleet/mdm-setup#apple-business-manager-abm',
-  'GET /learn-more-about/setup-apns': '/using-fleet/mdm-setup#apple-push-notification-service-apns',
   'GET /learn-more-about/renew-apns': '/using-fleet/mdm-setup#renewing-apns',
 
   // Sitemap
