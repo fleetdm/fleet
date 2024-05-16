@@ -70,7 +70,7 @@ import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
-import { on } from "events";
+import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
 
 const baseClass = "dashboard-page";
 
@@ -835,14 +835,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
         {showMdmSolutionModal && renderMdmSolutionModal()}
-        {/* {showActivityFeedAutomationsModal && (
+        {showActivityFeedAutomationsModal && (
           <ActivityFeedAutomationsModal
-            automationsSettings={config?.webhook_settings.activities_webhook}
-            refetchConfig={refetchConfig}
+            automationSettings={config?.webhook_settings.activities_webhook}
             onSubmit={onSubmitActivityFeedAutomationsModal}
             onExit={toggleActivityFeedAutomationsModal}
           />
-        )} */}
+        )}
       </div>
     </MainContent>
   );
