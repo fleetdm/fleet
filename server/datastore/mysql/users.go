@@ -285,6 +285,60 @@ func amountUsersDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	return amount, nil
 }
 
+func amountSoftwaresDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM software`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
+func amountHostSoftwaresDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM host_software`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
+func amountSoftwareTitlesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM software_titles`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
+func amountHostSoftwareInstalledPathsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM host_software_installed_paths`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
+func amountSoftwareCpesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM software_cpe`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
+func amountSoftwareCvesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM software_cve`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
 func amountActiveUsersSinceDB(ctx context.Context, db sqlx.QueryerContext, since time.Time) (int, error) {
 	var amount int
 	err := sqlx.GetContext(ctx, db, &amount, `
