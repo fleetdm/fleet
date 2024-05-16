@@ -59,7 +59,7 @@ module.exports = {
 
 
   fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, leadSource, leadDescription, numberOfHosts}) {
-    if(sails.config.environment === 'production') {
+    if(sails.config.environment !== 'production') {
       sails.log('Skipping Salesforce integration...');
       return;
     }
