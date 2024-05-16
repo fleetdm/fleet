@@ -9,7 +9,7 @@ module.exports = {
 
   inputs: {
     anonymousIdentifier: { required: true, type: 'string', example: '9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=', description: 'An anonymous identifier telling us which Fleet deployment this is.', },
-    fleetVersion: { required: true, type: 'string', example: 'x.x.x' },
+    fleetVersion: { required: true, type: 'string', example: 'x.x.x', custom: (version)=> _.startsWith(version, '4.') },
     licenseTier: { type: 'string', isIn: ['free', 'premium', 'unknown'], defaultsTo: 'unknown' },
     numHostsEnrolled: { required: true, type: 'number', min: 0, custom: (num) => Math.floor(num) === num },
     numUsers: { type: 'number', defaultsTo: 0 },
