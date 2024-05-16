@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
+import { FileUploader as FileUploaderDragDrop } from "react-drag-drop-files";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
@@ -7,6 +8,8 @@ import { GraphicNames } from "components/graphics";
 import Graphic from "components/Graphic";
 
 const baseClass = "file-uploader";
+
+const fileTypes = ["SH", "PS1"];
 
 type ISupportedGraphicNames = Extract<
   GraphicNames,
@@ -46,7 +49,6 @@ const FileUploader = ({
   message,
   additionalInfo,
   isLoading = false,
-  accept,
   buttonMessage = "Upload",
   className,
   onFileUpload,
@@ -64,6 +66,25 @@ const FileUploader = ({
       />
     ));
   };
+
+  function RenderDragDrop() {
+    const handleChange = (files: FileList) => {
+      console.log("files: ", files);
+      onFileUpload(files);
+    };
+    return (
+      <FileUploaderDragDrop
+        handleChange={handleChange}
+        types={fileTypes}
+        name="file"
+        type={fileTypes}
+        classes="file-uploader__drag-drop"
+        label=" "
+        multiple
+      />
+    );
+  }
+
   return (
     <Card color="gray" className={classes}>
       <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
@@ -78,15 +99,7 @@ const FileUploader = ({
       >
         <label htmlFor="upload-file">{buttonMessage}</label>
       </Button>
-      <input
-        accept={accept}
-        id="upload-file"
-        type="file"
-        onChange={(e) => {
-          onFileUpload(e.target.files);
-          e.target.value = "";
-        }}
-      />
+      <RenderDragDrop />
     </Card>
   );
 };
