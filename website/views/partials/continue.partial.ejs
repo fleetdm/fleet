@@ -76,7 +76,7 @@
               <p>About how many hosts do you have?</p>
               <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
             <%} else if(triedDeployingAndWantTo === 'decided-to-not-use-fleet') {%>
-              <p>TODO: We shouldn't be showing this CTA</p>
+              <p>TODO: You shouldn't be seeing this. We'll get it fixed ASAP!</p>
               <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 100%"></div></div>
             <%} else {%>
               <p>Whats left to get you set up?</p>
@@ -86,7 +86,7 @@
         <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>
       </div>
       <div>
-      <a purpose="continue-chevron" href="/start"> <img src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
+      <a purpose="continue-chevron" href="/start"> <img alt="continue" src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
       </div>
     </div>
 
@@ -125,9 +125,6 @@
           $('[purpose="banner-body"]').toggleClass('invisible');
         }, 1000);
       }
-    });
-    $(document).ready(function() {
-
     });
   </script>
 <% } %>
