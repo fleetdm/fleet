@@ -955,7 +955,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, svc.logger)
+	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1230,13 +1230,14 @@ func preProcessSoftwareResults(
 	results *fleet.OsqueryDistributedQueryResults,
 	statuses *map[string]fleet.OsqueryStatus,
 	messages *map[string]string,
+	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
-	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, logger)
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
-	for query := range osquery_utils.SoftwareOverrideQueries {
-		preProcessSoftwareExtraResults(hostDetailQueryPrefix+"software_"+query, hostID, results, statuses, messages, logger)
+	for name, query := range overrides {
+		preProcessSoftwareExtraResults(hostDetailQueryPrefix+"software_"+name, hostID, results, statuses, messages, query, logger)
 	}
 }
 
@@ -1246,6 +1247,7 @@ func preProcessSoftwareExtraResults(
 	results *fleet.OsqueryDistributedQueryResults,
 	statuses *map[string]fleet.OsqueryStatus,
 	messages *map[string]string,
+	override osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
 	// We always remove the extra query and its results
@@ -1287,7 +1289,7 @@ func preProcessSoftwareExtraResults(
 			// Do not append results if the main query failed to run.
 			continue
 		}
-		removeOverriden((*results)[query])
+		(*results)[query] = removeOverrides((*results)[query], override)
 
 		(*results)[query] = append((*results)[query], softwareExtraRows...)
 		return
@@ -1303,20 +1305,22 @@ var softwareResultOverrides = []softwareResultOverride{
 	{
 		Name: "software_macos_firefox",
 		Matches: func(row map[string]string) bool {
-			return row["bundle_identifier"] == "org.mozilla.firefox"
+			return row["name"] == "OverrideMe.app"
 		},
 	},
 }
 
-func removeOverriden(rows []map[string]string) {
-	rows = slices.DeleteFunc(rows, func(row map[string]string) bool {
-		for _, override := range softwareResultOverrides {
-			if override.Matches(row) {
+func removeOverrides(rows []map[string]string, override osquery_utils.DetailQuery) []map[string]string {
+	if override.SoftwareOverrideMatch != nil {
+		rows = slices.DeleteFunc(rows, func(row map[string]string) bool {
+			if override.SoftwareOverrideMatch(row) {
 				return true
 			}
-		}
-		return false
-	})
+			return false
+		})
+	}
+
+	return rows
 }
 
 // globalPolicyAutomationsEnabled returns true if any of the global policy automations are enabled.

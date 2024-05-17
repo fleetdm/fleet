@@ -40,6 +40,10 @@ type DetailQuery struct {
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
 	Platforms []string
+	// SoftwareOverrideMatch is a function that can be used to override a software
+	// result.  If the function returns true, the software will be overridden with
+	// the results of the Query.
+	SoftwareOverrideMatch func(row map[string]string) bool
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
@@ -1133,6 +1137,9 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			WHERE apps.bundle_identifier = 'org.mozilla.firefox'`,
 		Platforms:        []string{"darwin"},
 		Discovery:        macOSBundleIDExistsQuery("org.mozilla.firefox"),
+		SoftwareOverrideMatch: func(row map[string]string) bool {
+			return row["bundle_identifier"] == "org.mozilla.firefox"
+		},
 	},
 }
 
