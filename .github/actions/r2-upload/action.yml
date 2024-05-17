@@ -31,6 +31,10 @@ runs:
         endpoint = ${{ env.R2_ENDPOINT }}
         " > ~/.config/rclone/rclone.conf
         : # Loop over each filename in the array of filenames and upload each one.
+        echo "filenames: ${{ inputs.filenames }}"
+        echo $(echo "${{ inputs.filenames }}" | jq --raw-output '.[]')
+        ; # Validate that the parsing command works
+        echo "${{ inputs.filenames }}" | jq --raw-output '.[] | @base64'
         for row in $(echo "${{ inputs.filenames }}" | jq --raw-output '.[] | @base64'); do
           _filename() {
             echo ${row} | base64 --decode
