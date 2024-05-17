@@ -797,6 +797,10 @@
           background-position-y: center;
         }
         [purpose='docs-start-cta-content'] {
+          flex-direction: column;
+          align-items: center;
+          padding: 20px 24px;
+          flex-grow: 1;
           h2 {
             padding: 0;
             margin-bottom: 4px;
@@ -808,8 +812,10 @@
         [purpose='continue-button'] {
           font-size: 14px;
           padding: 6px 12px;
+          width: 131px;
         }
       }
+
       [purpose='checklist-item'] {
         display: flex;
         input[type='checkbox'] {
