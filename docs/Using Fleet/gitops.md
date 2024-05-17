@@ -1,8 +1,8 @@
 # GitOps
 
-Fleet can be managed using configuration files (YAML) with GitOps workflow. To learn how to setup GitOps workflow see [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
+Fleet can be managed using configuration files (YAML) with GitOps workflow. To learn how to set up GitOps workflow see [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-> Old workflow with YAML configuration files is documented [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-files.md).  `fleetctl apply` can be still used for imports and backwards compatibility.
+> The workflow with YAML configuration files is documented [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-files.md).  `fleetctl apply` can be still used for imports and backwards compatibility.
 
 This page lists the options available in configuration files.
 
@@ -189,3 +189,11 @@ Enables disk encryption on macOS and Windows hosts.
       enable_disk_encryption: true
   ```
   
+## Organization settings
+
+The `org_settings` section defines organization-wide settings (Fleet features, organization
+information, server settings, SSO settings, webhook settings, and integrations). This is the top-level key, and all options referenced below are under this one.
+
+
+See "[Organization settings](https://fleetdm.com/docs/configuration/configuration-files#organization-settings)" to find all possible options.
+
