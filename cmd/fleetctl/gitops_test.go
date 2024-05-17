@@ -396,6 +396,8 @@ func TestFullGlobalGitOps(t *testing.T) {
 	assert.True(t, savedAppConfig.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Equal(t, 60, savedAppConfig.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
+	assert.True(t, savedAppConfig.WebhookSettings.ActivitiesWebhook.Enable)
+	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
 }
 
 func TestFullTeamGitOps(t *testing.T) {
