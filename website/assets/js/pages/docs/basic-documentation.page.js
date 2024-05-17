@@ -223,7 +223,7 @@ parasails.registerPage('basic-documentation', {
   methods: {
 
     clickCTA: function (slug) {
-      window.location = slug;
+      this.goto(slug);
     },
 
     isCurrentSection: function (section) {
