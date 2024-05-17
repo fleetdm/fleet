@@ -26,6 +26,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
+	"golang.org/x/exp/slices"
 )
 
 // osqueryError is the error returned to osquery agents.
@@ -1233,6 +1234,10 @@ func preProcessSoftwareResults(
 ) {
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
 	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, logger)
+
+	for query := range osquery_utils.SoftwareOverrideQueries {
+		preProcessSoftwareExtraResults(hostDetailQueryPrefix+"software_"+query, hostID, results, statuses, messages, logger)
+	}
 }
 
 func preProcessSoftwareExtraResults(
@@ -1282,9 +1287,36 @@ func preProcessSoftwareExtraResults(
 			// Do not append results if the main query failed to run.
 			continue
 		}
+		removeOverriden((*results)[query])
+
 		(*results)[query] = append((*results)[query], softwareExtraRows...)
 		return
 	}
+}
+
+type softwareResultOverride struct {
+	Name    string
+	Matches func(map[string]string) bool
+}
+
+var softwareResultOverrides = []softwareResultOverride{
+	{
+		Name: "software_macos_firefox",
+		Matches: func(row map[string]string) bool {
+			return row["bundle_identifier"] == "org.mozilla.firefox"
+		},
+	},
+}
+
+func removeOverriden(rows []map[string]string) {
+	rows = slices.DeleteFunc(rows, func(row map[string]string) bool {
+		for _, override := range softwareResultOverrides {
+			if override.Matches(row) {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 // globalPolicyAutomationsEnabled returns true if any of the global policy automations are enabled.

@@ -1099,34 +1099,40 @@ FROM chrome_extensions`,
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var conditionalSoftwareQueries = map[string]DetailQuery{
+var SoftwareOverrideQueries = map[string]DetailQuery{
+	// Differentiates between Firefox and Firefox ESR
 	"macos_firefox": {
 		Query: `
-			WITH remoting_name AS (
-				SELECT value 
+			WITH app_paths AS (
+				SELECT path 
+				FROM apps 
+				WHERE bundle_identifier = 'org.mozilla.firefox'
+			),	
+			remoting_name AS (
+				SELECT value, path 
 				FROM parse_ini 
-				WHERE path = '/Applications/Firefox.app/Contents/Resources/application.ini' 
-				AND key = 'RemotingName'
+				WHERE key = 'RemotingName' 
+				AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
 			)
 			SELECT
-			CASE
-				WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
-				ELSE 'Firefox.app'
-			END AS name,
-			COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
-			'Application (macOS)' AS type,
-			bundle_identifier AS bundle_identifier,
-			'' AS extension_id,
-			'' AS browser,
-			'apps' AS source,
-			'' AS vendor,
-			last_opened_time AS last_opened_at,
-			path AS installed_path
-			FROM apps, remoting_name
-			WHERE bundle_identifier = 'org.mozilla.firefox'`,
+				CASE
+					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+					ELSE 'Firefox.app'
+				END AS name,
+				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
+				'Application (macOS)' AS type,
+				apps.bundle_identifier AS bundle_identifier,
+				'' AS extension_id,
+				'' AS browser,
+				'apps' AS source,
+				'' AS vendor,
+				apps.last_opened_time AS last_opened_at,
+				apps.path AS installed_path
+			FROM apps
+			LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
+			WHERE apps.bundle_identifier = 'org.mozilla.firefox'`,
 		Platforms:        []string{"darwin"},
 		Discovery:        macOSBundleIDExistsQuery("org.mozilla.firefox"),
-		DirectIngestFunc: directIngestSoftware,
 	},
 }
 
@@ -1577,20 +1583,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this
 // host's software list.
 func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
-	switch {
-	// Parallels is a common VM software for MacOS. Parallels makes the VM's applications
-	// visible in the host as MacOS applications, which leads to confusing output (e.g. a MacOS
-	// host reporting that it has Notepad installed when this is just an app from the Windows VM
-	// under Parallels). We want to filter out those "applications" to avoid confusion.
-	case h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp"):
-		return true
-	// Firefox is always reported as the community edition and is thus reported separately with
-	// a conditional query
-	case strings.Contains(s.Name, "Firefox"):
-		return true
-	}
-
-	return false
+	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
 }
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1995,7 +1988,7 @@ func GetDetailQueries(
 		generatedMap["software_chrome"] = softwareChrome
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 
-		for key, query := range conditionalSoftwareQueries {
+		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
 		}
 	}
