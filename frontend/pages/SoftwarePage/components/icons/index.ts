@@ -18,6 +18,7 @@ import Word from "./Word";
 import Zoom from "./Zoom";
 import ChromeOS from "./ChromeOS";
 import LinuxOS from "./LinuxOS";
+import Falcon from "./Falcon";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -32,6 +33,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
   "google chrome": ChromeApp,
   "microsoft excel": Excel,
+  falcon: Falcon,
   firefox: Firefox,
   package: Package,
   safari: Safari,

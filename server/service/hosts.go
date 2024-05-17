@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -106,7 +107,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareTitleIDFilter != nil {
 		var err error
 
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, nil)
+		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -2461,4 +2462,82 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 	}
 
 	return labelIDs, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Software
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostSoftwareRequest struct {
+	ID          uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type getHostSoftwareResponse struct {
+	Software []*fleet.HostSoftwareWithInstaller `json:"software"`
+	Count    int                                `json:"count"`
+	Meta     *fleet.PaginationMetadata          `json:"meta,omitempty"`
+	Err      error                              `json:"error,omitempty"`
+}
+
+func (r getHostSoftwareResponse) error() error { return r.Err }
+
+func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostSoftwareRequest)
+	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.ListOptions)
+	if err != nil {
+		return getHostSoftwareResponse{Err: err}, nil
+	}
+	if res == nil {
+		res = []*fleet.HostSoftwareWithInstaller{}
+	}
+	return getHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
+}
+
+func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	// if the request is token-authenticated ("My device" page), we don't include software
+	// that is not installed but for which there's an installer available for that host.
+	var includeAvailableForInstall bool
+
+	var host *fleet.Host
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
+		includeAvailableForInstall = true
+
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, nil, err
+		}
+
+		h, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get host lite")
+		}
+		host = h
+
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		h, ok := hostctx.FromContext(ctx)
+		if !ok {
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		}
+		host = h
+	}
+
+	// cursor-based pagination is not supported
+	opts.After = ""
+	// custom ordering is not supported, always by name (but asc/desc is configurable)
+	opts.OrderKey = "name"
+	// always include metadata
+	opts.IncludeMetadata = true
+
+	software, meta, err := svc.ds.ListHostSoftware(ctx, host, includeAvailableForInstall, opts)
+	if !includeAvailableForInstall {
+		// for the device page, we don't want to return the package name
+		for _, s := range software {
+			s.PackageAvailableForInstall = nil
+		}
+	}
+	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
 }

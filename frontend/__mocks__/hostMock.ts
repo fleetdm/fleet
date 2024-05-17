@@ -4,6 +4,8 @@ import { pick } from "lodash";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import { HOST_SUMMARY_DATA } from "utilities/constants";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { IHostSoftware } from "interfaces/software";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",
@@ -114,6 +116,54 @@ export const createMockHostSummary = (overrides?: Partial<IHost>) => {
   return normalizeEmptyValues(
     pick(createMockHost(overrides), HOST_SUMMARY_DATA)
   );
+};
+
+const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
+  id: 1,
+  name: "mock software.app",
+  package_available_for_install: "mockSoftware.app",
+  source: "apps",
+  bundle_identifier: "com.test.mock",
+  status: "installed",
+  last_install: {
+    install_uuid: "123-abc",
+    installed_at: "2022-01-01T12:00:00Z",
+  },
+  installed_versions: [
+    {
+      version: "1.0.0",
+      last_opened_at: "2022-01-01T12:00:00Z",
+      vulnerabilities: ["CVE-2020-0001"],
+      installed_paths: ["/Applications/mock.app"],
+    },
+  ],
+};
+
+export const createMockHostSoftware = (
+  overrides?: Partial<IHostSoftware>
+): IHostSoftware => {
+  return {
+    ...DEFAULT_HOST_SOFTWARE_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_GET_HOST_SOFTWARE_RESPONSE_MOCK: IGetHostSoftwareResponse = {
+  count: 1,
+  software: [createMockHostSoftware()],
+  meta: {
+    has_next_results: false,
+    has_previous_results: false,
+  },
+};
+
+export const createMockGetHostSoftwareResponse = (
+  overrides?: Partial<IGetHostSoftwareResponse>
+): IGetHostSoftwareResponse => {
+  return {
+    ...DEFAULT_GET_HOST_SOFTWARE_RESPONSE_MOCK,
+    ...overrides,
+  };
 };
 
 export default createMockHost;

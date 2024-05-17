@@ -217,10 +217,25 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 	return nil
 }
 
+// ListHostUpcomingActivities returns the list of activities pending execution
+// or processing for the specific host. It is the "unified queue" of work to be
+// done on the host. That queue is "virtual" in the sense that it pulls from a
+// number of distinct tables that are task-specific (such as scripts to run,
+// software to install, etc.) and provides a unified view of those upcoming
+// tasks.
 func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	const countStmt = `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND exit_code IS NULL`
+	countStmts := []string{
+		`SELECT COUNT(*) c FROM host_script_results WHERE host_id = :host_id AND exit_code IS NULL`,
+		`SELECT COUNT(*) c FROM host_software_installs WHERE host_id = :host_id AND pre_install_query_output IS NULL AND install_script_exit_code IS NULL`,
+	}
+
 	var count uint
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, hostID); err != nil {
+	countStmt := `SELECT SUM(c) FROM ( ` + strings.Join(countStmts, " UNION ALL ") + ` ) AS counts`
+	countStmt, args, err := sqlx.Named(countStmt, map[string]any{"host_id": hostID})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build count query from named args")
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
 	}
 	if count == 0 {
@@ -228,14 +243,15 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	}
 
 	// NOTE: Be sure to update both the count and list statements if the list query is modified
-	const listStmt = `
-		SELECT
+	listStmts := []string{
+		// list pending scripts
+		`SELECT
 			hsr.execution_id as uuid,
 			u.name as name,
 			u.id as user_id,
 			u.gravatar_url as gravatar_url,
 			u.email as user_email,
-			? as activity_type,
+			:ran_script_type as activity_type,
 			hsr.created_at as created_at,
 			JSON_OBJECT(
 				'host_id', hsr.host_id,
@@ -253,16 +269,70 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		LEFT OUTER JOIN
 			scripts scr ON scr.id = hsr.script_id
 		WHERE
-			hsr.host_id = ? AND
-			hsr.exit_code IS NULL
-                        AND (
-                            hsr.sync_request = 0
-                            OR hsr.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-                        )
-`
+			hsr.host_id = :host_id AND
+			hsr.exit_code IS NULL AND
+			(
+				hsr.sync_request = 0 OR
+				hsr.created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND)
+			)
+`,
+		// list pending software installs
+		fmt.Sprintf(`SELECT
+			hsi.execution_id as uuid,
+			u.name as name,
+			u.id as user_id,
+			u.gravatar_url as gravatar_url,
+			u.email as user_email,
+			:installed_software_type as activity_type,
+			hsi.created_at as created_at,
+			JSON_OBJECT(
+				'host_id', hsi.host_id,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'software_title', COALESCE(st.name, ''),
+				'install_uuid', hsi.execution_id,
+				'status', %s
+			) as details
+		FROM
+			host_software_installs hsi
+		INNER JOIN
+			software_installers si ON si.id = hsi.software_installer_id
+		LEFT OUTER JOIN
+			software_titles st ON st.id = si.title_id
+		LEFT OUTER JOIN
+			users u ON u.id = hsi.user_id
+		LEFT OUTER JOIN
+			host_display_names hdn ON hdn.host_id = hsi.host_id
+		WHERE
+			hsi.host_id = :host_id AND
+			hsi.pre_install_query_output IS NULL AND
+			hsi.install_script_exit_code IS NULL
+		`, softwareInstallerHostStatusNamedQuery("hsi", "")),
+	}
 
 	seconds := int(scripts.MaxServerWaitTime.Seconds())
-	args := []any{fleet.ActivityTypeRanScript{}.ActivityName(), hostID, seconds}
+	listStmt := `
+		SELECT
+			uuid,
+			name,
+			user_id,
+			gravatar_url,
+			user_email,
+			activity_type,
+			created_at,
+			details
+		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming `
+	listStmt, args, err = sqlx.Named(listStmt, map[string]any{
+		"host_id":                   hostID,
+		"ran_script_type":           fleet.ActivityTypeRanScript{}.ActivityName(),
+		"installed_software_type":   fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
+		"max_wait_time":             seconds,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_pending":   fleet.SoftwareInstallerPending,
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
+	}
 	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
 
 	var activities []*fleet.Activity
@@ -287,7 +357,7 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 		a.user_email as user_email,
 		a.user_name as name,
 		a.activity_type as activity_type,
-		a.details as details,	
+		a.details as details,
 		u.gravatar_url as gravatar_url,
 		a.created_at as created_at,
 		u.id as user_id

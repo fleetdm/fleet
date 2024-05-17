@@ -618,6 +618,9 @@ func TestHostAuth(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
+	ds.ListHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -759,6 +762,12 @@ func TestHostAuth(t *testing.T) {
 
 			_, err = svc.SetCustomHostDeviceMapping(ctx, 2, "a@b.c")
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			_, _, err = svc.ListHostSoftware(ctx, 1, fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, _, err = svc.ListHostSoftware(ctx, 2, fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 		})
 	}
 
@@ -1658,6 +1667,9 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		return []*fleet.Host{}, nil
 	}
 
+	// TODO(sarah): Future improvement to auto-generate a list of all possible filter values
+	// from `fleet.HostListOptions` and iterate to test that only a limited subset of filter (i.e.
+	// label_id, team_id, status, query) are allowed for bulk operations.
 	tc := []struct {
 		name      string
 		filters   *map[string]interface{}

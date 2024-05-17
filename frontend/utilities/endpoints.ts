@@ -1,3 +1,5 @@
+import software from "interfaces/software";
+
 const API_VERSION = "latest";
 
 export default {
@@ -15,13 +17,7 @@ export default {
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
     return `/${API_VERSION}/fleet/email/change/${token}`;
   },
-  DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
-  DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
-  },
-  DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
-  },
+
   DOWNLOAD_INSTALLER: `/${API_VERSION}/fleet/download_installer`,
   ENABLE_USER: (id: number): string => {
     return `/${API_VERSION}/fleet/users/${id}/enable`;
@@ -30,6 +26,17 @@ export default {
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
+
+  // Device endpoints
+  DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
+  DEVICE_SOFTWARE: (token: string) =>
+    `/${API_VERSION}/fleet/devices/${token}/software`,
+  DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
+  },
+  DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
+  },
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
@@ -46,6 +53,9 @@ export default {
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
+  HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
+  HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/install/${softwareId}`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
 
@@ -128,6 +138,13 @@ export default {
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
+  SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
+  SOFTWARE_PACKAGE: (id: number) =>
+    `/${API_VERSION}/fleet/software/${id}/package`,
+  SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
+    `/${API_VERSION}/fleet/software/install/results/${uuid}`,
+  SOFTWARE_PACKAGE_INSTALL: (id: number) =>
+    `/${API_VERSION}/fleet/software/packages/${id}`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
