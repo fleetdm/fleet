@@ -183,7 +183,7 @@ Current Fleet continuity leadership team members include the CEO and CTO.
 Our Recovery Time Objective (RTO) is the goal we set for the maximum length of time it should take to restore normal operations following an outage or data loss. Our Recovery Point Objective (RPO) is the goal we set for the maximum amount of time we can tolerate losing data.
 
 - RTO: 1 hour
-- RPO 24 hours
+- RPO: 24 hours
 
 #### Notification and Activation Phase
 
