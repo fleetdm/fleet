@@ -31,12 +31,7 @@ runs:
         endpoint = ${{ env.R2_ENDPOINT }}
         " > ~/.config/rclone/rclone.conf
         : # Loop over each filename in the array of filenames and upload each one.
-        echo "filenames: '${{ inputs.filenames }}'"
-        : # Validate that the parsing command works before using it in the loop.
-        echo "${{ inputs.filenames }}" | tr "," "\n" | base64
-        for row in $(echo "${{ inputs.filenames }}" | tr "," "\n" | base64); do
-          _filename() {
-            echo ${row} | base64 --decode
-          }
-          rclone copy --verbose "$(_filename)" r2:${{ env.R2_BUCKET }}/
+        IFS=$'\n'
+        for row in $(echo "${{ inputs.filenames }}" | tr "," "\n"); do
+          rclone copy --verbose "$row" r2:${{ env.R2_BUCKET }}/
         done
