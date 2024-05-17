@@ -45,7 +45,7 @@ const MainContent = ({
       ? "..."
       : formatDistanceToNow(new Date(sandboxExpiry));
 
-  const renderWarningBanner = () => {
+  const renderAppWideBanner = () => {
     const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
     const isApplePnsExpired = hasLicenseExpired(apnsExpiry || "");
     const willApplePnsExpireIn30Days = willExpireWithinXDays(
@@ -84,7 +84,7 @@ const MainContent = ({
   return (
     <div className={classes}>
       <div className={`${baseClass}--animation-disabled`}>
-        {renderWarningBanner()}
+        {renderAppWideBanner()}
         <SandboxGate
           fallbackComponent={() => (
             <SandboxExpiryMessage
