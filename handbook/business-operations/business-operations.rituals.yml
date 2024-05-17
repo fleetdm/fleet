@@ -135,9 +135,6 @@
   description: "Verify completion of any objective or outcome based bonus plans, and process payroll." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" # TODO update linked process and add a new process that captures MBO payment
   dri: "jostableford" 
-  autoIssue:   
-    labels: [ "#g-business-operations" ] 
-    repo: "confidential"
 -
   task: "Investor reporting" 
   startedOn: "2024-03-31" 
@@ -145,9 +142,6 @@
   description: "Provide updated metrics for CRV in Chronograph." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#report-quarterly-numbers-in-chronograph"
   dri: "hollidayn"
-  autoIssue:   
-    labels: [ "#g-business-operations" ] 
-    repo: "confidential"
 -
   task: "Quartlery finance check" 
   startedOn: "2024-03-31" 
@@ -155,9 +149,6 @@
   description: "Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up with accounting providers for any quirks found." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#check-finances-for-quirks"
   dri: "jostableford"
-  autoIssue:   
-    labels: [ "#g-business-operations" ] 
-    repo: "confidential"
 -
   task: "Quarterly grants" 
   startedOn: "2024-02-01" 
@@ -165,9 +156,6 @@
   description: "Create the equity grants GitHub issue and walk through the steps." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#grant-equity"
   dri: "hollidayn" 
-  autoIssue:   
-    labels: [ "#g-business-operations" ] 
-    repo: "confidential"
 -
   task: "Deliver annual report for venture line" 
   startedOn: "2024-12-01" 
@@ -175,9 +163,6 @@
   description: "Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line"
   dri: "jostableford"
-  autoIssue:   
-    labels: [ "#g-business-operations" ] 
-    repo: "classified"
 -
   task: "Tax preparation" # TODO tie this to a responsibility
   startedOn: "2024-02-01" 
@@ -185,7 +170,3 @@
   description: "Provide information to tax team with Deloitte and assist with filing and paying state and federal returns" 
   moreInfoUrl: 
   dri: "hollidayn"
-  autoIssue:   
-    labels: [ "#g-business-operations" ] 
-    repo: "confidential"
-
