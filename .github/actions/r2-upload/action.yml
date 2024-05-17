@@ -9,9 +9,8 @@ description: Upload a file to R2
 # - R2_BUCKET: The bucket to upload to
 
 inputs:
-  filename:
-    # Future improvement: accept array of filenames as JSON string, and loop over it like in https://www.starkandwayne.com/blog/bash-for-loop-over-json-array-using-jq/index.html
-    description: 'Name of the file to upload'
+  filenames:
+    description: 'Comma-delimited names of the file(s) to upload. For example: file1,manifest.json,file with spaces.txt'
     required: true
 
 runs:
@@ -27,8 +26,12 @@ runs:
         provider = Cloudflare
         region = auto
         no_check_bucket = true
-        access_key_id = $R2_ACCESS_KEY_ID
-        secret_access_key = $R2_ACCESS_KEY_SECRET
-        endpoint = $R2_ENDPOINT
+        access_key_id = ${{ env.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ env.R2_ACCESS_KEY_SECRET }}
+        endpoint = ${{ env.R2_ENDPOINT }}
         " > ~/.config/rclone/rclone.conf
-        rclone copy --verbose ${{ inputs.filename }} r2:${R2_BUCKET}/
+        : # Loop over each filename in the array of filenames and upload each one.
+        IFS=$'\n'
+        for row in $(echo "${{ inputs.filenames }}" | tr "," "\n"); do
+          rclone copy --verbose "$row" r2:${{ env.R2_BUCKET }}/
+        done
