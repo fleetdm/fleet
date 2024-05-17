@@ -1082,7 +1082,7 @@ FROM chrome_extensions`,
 }
 
 // SoftwareOverrideQueries are used to override software detail query results.  These DetailQueries
-// must include a `SoftwareOverrideMatch` function that returns true if the software row should be 
+// must include a `SoftwareOverrideMatch` function that returns true if the software row should be
 // overridden with the results of `Query`.
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
