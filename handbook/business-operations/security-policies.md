@@ -178,6 +178,13 @@ Current Fleet continuity leadership team members include the CEO and CTO.
 
 ### General Disaster Recovery Procedures
 
+#### Recovery objectives
+
+Our Recovery Time Objective (RTO) is the goal we set for the maximum length of time it should take to restore normal operations following an outage or data loss. Our Recovery Point Objective (RPO) is the goal we set for the maximum amount of time we can tolerate losing data.
+
+- RTO: 1 hour
+- RPO: 24 hours
+
 #### Notification and Activation Phase
 
 This phase addresses the initial actions taken to detect and assess the damage inflicted by a disruption to Fleet Device Management. Based on the assessment of the Event, sometimes, according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be triggered by the Head of Security in the event of a cyber disaster.

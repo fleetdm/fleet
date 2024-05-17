@@ -114,8 +114,8 @@ policies:
       SELECT 1 FROM os_version
         WHERE (major > 14 OR (major = 14 AND minor > 5) OR (major = 14 AND minor = 5 AND patch >= 0)); --Sonoma
     critical: false
-    description: This policy check if macOS version is most recent version available.
-    resolution: From the Apple menu, select System Settings. Navigate to General > Software Update.
+    description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
+    resolution: We will update your macOS to version 14.4.1 to enhance security and stability.
     platform: darwin
     calendar_events_enabled: true
 queries:

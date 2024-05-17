@@ -1,24 +1,22 @@
 import React from "react";
 import { uniqueId } from "lodash";
 
-import { ISoftwareTitleVersion } from "interfaces/software";
-
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ReactTooltip from "react-tooltip";
 
 const baseClass = "version-cell";
 
-const generateText = (versions: ISoftwareTitleVersion[] | null) => {
+const generateText = <T extends { version: string }>(versions: T[] | null) => {
   if (!versions) {
-    return <TextCell value="Unavailable" greyed />;
+    return <TextCell value="---" greyed />;
   }
   const text =
     versions.length !== 1 ? `${versions.length} versions` : versions[0].version;
   return <TextCell value={text} greyed={versions.length !== 1} />;
 };
 
-const generateTooltip = (
-  versions: ISoftwareTitleVersion[],
+const generateTooltip = <T extends { version: string }>(
+  versions: T[],
   tooltipId: string
 ) => {
   if (!versions) {
@@ -39,11 +37,13 @@ const generateTooltip = (
   );
 };
 
-interface IVersionCellProps {
-  versions: ISoftwareTitleVersion[] | null;
+interface IVersionCellProps<T extends { version: string }> {
+  versions: T[] | null;
 }
 
-const VersionCell = ({ versions }: IVersionCellProps) => {
+const VersionCell = <T extends { version: string }>({
+  versions,
+}: IVersionCellProps<T>) => {
   // only one version, no need for tooltip
   const cellText = generateText(versions);
   if (!versions || versions.length <= 1) {

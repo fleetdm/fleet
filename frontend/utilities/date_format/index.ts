@@ -4,3 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 export const uploadedFromNow = (date: string) => {
   return `Uploaded ${formatDistanceToNow(new Date(date))} ago`;
 };
+
+export const dateAgo = (date: string) => {
+  return `${formatDistanceToNow(new Date(date))} ago`;
+};

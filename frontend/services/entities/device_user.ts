@@ -1,9 +1,25 @@
-/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import { IDeviceUserResponse } from "interfaces/host";
+import { IHostSoftware } from "interfaces/software";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
+import { IHostSoftwareQueryParams } from "./hosts";
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+
+export interface IDeviceSoftwareQueryKey extends IHostSoftwareQueryParams {
+  scope: "device_software";
+  id: string;
+}
+
+export interface IGetDeviceSoftwareResponse {
+  software: IHostSoftware[];
+  count: number;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
 
 export default {
   loadHostDetails: (deviceAuthToken: string): Promise<IDeviceUserResponse> => {
@@ -26,5 +42,15 @@ export default {
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/refetch`;
 
     return sendRequest("POST", path);
+  },
+
+  getDeviceSoftware: (
+    params: IDeviceSoftwareQueryKey
+  ): Promise<IGetDeviceSoftwareResponse> => {
+    const { DEVICE_SOFTWARE } = endpoints;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, scope, ...rest } = params;
+    const queryString = buildQueryStringFromParams(rest);
+    return sendRequest("GET", `${DEVICE_SOFTWARE(id)}?${queryString}`);
   },
 };

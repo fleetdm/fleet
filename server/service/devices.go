@@ -590,3 +590,43 @@ func migrateMDMDeviceEndpoint(ctx context.Context, request interface{}, svc flee
 func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
 	return fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Current Device's Software
+////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceSoftwareRequest struct {
+	Token       string            `url:"token"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+func (r *getDeviceSoftwareRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type getDeviceSoftwareResponse struct {
+	Software []*fleet.HostSoftwareWithInstaller `json:"software"`
+	Count    int                                `json:"count"`
+	Meta     *fleet.PaginationMetadata          `json:"meta,omitempty"`
+	Err      error                              `json:"error,omitempty"`
+}
+
+func (r getDeviceSoftwareResponse) error() error { return r.Err }
+
+func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getDeviceSoftwareResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceSoftwareRequest)
+	res, meta, err := svc.ListHostSoftware(ctx, host.ID, req.ListOptions)
+	if err != nil {
+		return getDeviceSoftwareResponse{Err: err}, nil
+	}
+	if res == nil {
+		res = []*fleet.HostSoftwareWithInstaller{}
+	}
+	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
+}

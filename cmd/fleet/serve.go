@@ -30,6 +30,7 @@ import (
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -626,10 +627,32 @@ the way that the Fleet server works.
 				initFatal(err, "initializing service")
 			}
 
+			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
 				var profileMatcher fleet.ProfileMatcher
 				if appCfg.MDM.EnabledAndConfigured {
 					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
+				}
+				if config.S3.Bucket != "" {
+					store, err := s3.NewSoftwareInstallerStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 software installer store")
+					}
+					softwareInstallStore = store
+					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.Bucket)
+				} else {
+					installerDir := os.TempDir()
+					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
+						installerDir = dir
+					}
+					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
+					if err != nil {
+						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
+						softwareInstallStore = fleet.FailingSoftwareInstallerStore{}
+					} else {
+						softwareInstallStore = store
+						level.Info(logger).Log("msg", "using local filesystem software installer store, this is not suitable for production use", "directory", installerDir)
+					}
 				}
 
 				svc, err = eeservice.NewService(
@@ -644,6 +667,7 @@ the way that the Fleet server works.
 					mdmPushCertTopic,
 					ssoSessionStore,
 					profileMatcher,
+					softwareInstallStore,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -700,7 +724,7 @@ the way that the Fleet server works.
 						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 					}
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore,
 					)
 				},
 			); err != nil {
