@@ -142,8 +142,7 @@ jobs:
       - name: Upload package
         uses: ./.github/actions/r2-upload
         with:
-          filenames: >
-            ["fleetd-base.pkg", "fleetd-base-manifest.plist"]
+          filenames: fleetd-base.pkg,fleetd-base-manifest.plist
 
   update-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
@@ -174,8 +173,7 @@ jobs:
       - name: Upload package
         uses: ./.github/actions/r2-upload
         with:
-          filenames: >
-            ["fleetd-base.msi"]
+          filenames: fleetd-base.msi
 
   update-meta-json:
     needs: [update-fleetd-base-pkg, update-fleetd-base-msi]
@@ -205,5 +203,4 @@ jobs:
       - name: Upload meta.json
         uses: ./.github/actions/r2-upload
         with:
-          filenames: >
-            ["meta.json"]
+          filenames: meta.json

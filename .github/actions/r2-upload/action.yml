@@ -10,7 +10,7 @@ description: Upload a file to R2
 
 inputs:
   filenames:
-    description: 'Names of the file to upload as a JSON string. For example: ["file1", "manifest.json", "file with spaces.txt"]'
+    description: 'Comma-delimited names of the file(s) to upload. For example: file1,manifest.json,file with spaces.txt'
     required: true
 
 runs:
@@ -31,11 +31,10 @@ runs:
         endpoint = ${{ env.R2_ENDPOINT }}
         " > ~/.config/rclone/rclone.conf
         : # Loop over each filename in the array of filenames and upload each one.
-        echo "filenames: ${{ inputs.filenames }}"
-        echo $(echo "${{ inputs.filenames }}" | jq --raw-output '.[]')
-        ; # Validate that the parsing command works
-        echo "${{ inputs.filenames }}" | jq --raw-output '.[] | @base64'
-        for row in $(echo "${{ inputs.filenames }}" | jq --raw-output '.[] | @base64'); do
+        echo "filenames: '${{ inputs.filenames }}'"
+        ; # Validate that the parsing command works before using it in the loop.
+        echo "${{ inputs.filenames }}" | tr "," "\n" | base64
+        for row in $(echo "${{ inputs.filenames }}" | tr "," "\n" | base64); do
           _filename() {
             echo ${row} | base64 --decode
           }
