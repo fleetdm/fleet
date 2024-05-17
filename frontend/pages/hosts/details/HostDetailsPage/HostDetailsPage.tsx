@@ -3,7 +3,6 @@ import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { RouteProps } from "react-router";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
@@ -93,6 +92,7 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
+import { parseHostSoftwareQueryParams } from "../cards/Software/Software";
 
 const baseClass = "host-details";
 
@@ -133,7 +133,6 @@ const HostDetailsPage = ({
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
-  const queryParams = location.query;
 
   const {
     config,
@@ -387,8 +386,12 @@ const HostDetailsPage = ({
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
-      return activitiesAPI.getHostPastActivities(hostIdFromURL, page, perPage);
+    ({ queryKey: [{ pageIndex, perPage }] }) => {
+      return activitiesAPI.getHostPastActivities(
+        hostIdFromURL,
+        pageIndex,
+        perPage
+      );
     },
     {
       keepPreviousData: true,
@@ -421,10 +424,10 @@ const HostDetailsPage = ({
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+    ({ queryKey: [{ pageIndex, perPage }] }) => {
       return activitiesAPI.getHostUpcomingActivities(
         hostIdFromURL,
-        page,
+        pageIndex,
         perPage
       );
     },
@@ -852,7 +855,7 @@ const HostDetailsPage = ({
                 isFleetdHost={!!host.orbit_version}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
-                queryParams={queryParams}
+                queryParams={parseHostSoftwareQueryParams(location.query)}
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 teamId={host.team_id || 0}

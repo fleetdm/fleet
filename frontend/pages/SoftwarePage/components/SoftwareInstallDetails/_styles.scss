@@ -12,6 +12,7 @@
     padding-top: $pad-xlarge;
     .textarea {
       margin-top: $pad-medium;
+      overflow-wrap: break-word;
     }
   }
 }
