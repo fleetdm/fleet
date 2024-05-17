@@ -1073,13 +1073,39 @@ FROM chrome_extensions`,
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var usersQuery = DetailQuery{
+//
+// We define `usersQueryMacOS`, `usersQueryWindows` and `usersQueryLinux` separately
+// even if they have the same query `usersQueryStr` to allow overriding the query
+// for one platform via `features.detail_query_overrides`.
+//
+
+var usersQueryMacOS = DetailQuery{
 	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
 	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
 	Query:            usersQueryStr,
-	Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Platforms:        []string{"darwin"},
+	DirectIngestFunc: directIngestUsers,
+}
+
+var usersQueryWindows = DetailQuery{
+	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
+	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
+	// with many user accounts and groups, this query could be very expensive as the `groups` table
+	// was generated once for each user.
+	Query:            usersQueryStr,
+	Platforms:        []string{"windows"},
+	DirectIngestFunc: directIngestUsers,
+}
+
+var usersQueryLinux = DetailQuery{
+	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
+	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
+	// with many user accounts and groups, this query could be very expensive as the `groups` table
+	// was generated once for each user.
+	Query:            usersQueryStr,
+	Platforms:        fleet.HostLinuxOSs,
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -1931,7 +1957,9 @@ func GetDetailQueries(
 	}
 
 	if features != nil && features.EnableHostUsers {
-		generatedMap["users"] = usersQuery
+		generatedMap["users_macos"] = usersQueryMacOS
+		generatedMap["users_windows"] = usersQueryWindows
+		generatedMap["users_linux"] = usersQueryLinux
 		generatedMap["users_chrome"] = usersQueryChrome
 	}
 
