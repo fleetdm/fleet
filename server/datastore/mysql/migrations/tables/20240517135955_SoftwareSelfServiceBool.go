@@ -14,6 +14,12 @@ func Up_20240517135955(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("failed to add self_service to software_installers: %w", err)
 	}
+
+	_, err = tx.Exec(`ALTER TABLE host_software_installs ADD COLUMN self_service bool NOT NULL DEFAULT false`)
+	if err != nil {
+		return fmt.Errorf("failed to add self_service bool to host_software_installs: %w", err)
+	}
+
 	return nil
 }
 

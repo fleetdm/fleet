@@ -499,6 +499,7 @@ CREATE TABLE `host_software_installs` (
   `user_id` int(10) unsigned DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_software_installs_execution_id` (`execution_id`),
   KEY `fk_host_software_installs_installer_id` (`software_installer_id`),

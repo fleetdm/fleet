@@ -32,8 +32,16 @@ INSERT INTO software_installers (
   ?,
   ?,
   'a'
-)
-`, script1, script2)
+)`, script1, script2)
+
+	host := insertHost(t, db, nil)
+
+	install := execNoErrLastID(t, db, `
+INSERT INTO host_software_installs (
+  host_id,
+  execution_id,
+  software_installer_id
+) VALUES (?, ?, ?)`, host, "e", software)
 
 	// Apply current migration.
 	applyNext(t, db)
@@ -47,4 +55,9 @@ INSERT INTO software_installers (
 	err := db.Get(&self_service, "SELECT self_service FROM software_installers WHERE id = ?", software)
 	require.NoError(t, err)
 	require.False(t, self_service)
+
+	var host_self_service bool
+	err = db.Get(&host_self_service, "SELECT self_service FROM host_software_installs WHERE id = ?", install)
+	require.NoError(t, err)
+	require.False(t, host_self_service)
 }
