@@ -358,6 +358,13 @@ type ScriptPayload struct {
 	ScriptContents []byte `json:"script_contents"`
 }
 
+type SoftwareInstallerPayload struct {
+	URL               string `json:"url"`
+	PreInstallQuery   string `json:"pre_install_query"`
+	InstallScript     string `json:"install_script"`
+	PostInstallScript string `json:"post_install_script"`
+}
+
 type HostLockWipeStatus struct {
 	// HostFleetPlatform is the fleet-normalized platform of the host, i.e. the
 	// result of host.FleetPlatform().

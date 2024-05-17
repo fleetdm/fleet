@@ -500,9 +500,6 @@
     }
 
     [purpose='content'] {
-      .markdown-heading {
-        scroll-margin-top: 140px;
-      }
       hr {
         margin: 0px;
         padding: 0px;
@@ -514,6 +511,7 @@
       }
       h1 {
         padding-bottom: 16px;
+        scroll-margin-top: 104px;
       }
 
       h2 {
@@ -521,10 +519,11 @@
         margin-top: 32px;
         padding-top: 52px;
         padding-bottom: 24px;
-
+        scroll-margin-top: 80px;
         &:first-of-type {
           border-top: none;
           padding-top: 24px;
+          scroll-margin-top: 108px;
           margin-top: 0px;
         }
       }
@@ -534,11 +533,13 @@
         margin-top: 24px;
         margin-bottom: 40px;
         border-bottom: 1px dashed @core-fleet-black-25;
+        scroll-margin-top: 104px;
       }
 
       h4 {
         padding-bottom: 24px;
         margin-bottom: 0px;
+        scroll-margin-top: 104px;
       }
 
       h5 {
@@ -546,6 +547,7 @@
         font-weight: 700;
         font-family: @main-font;
         margin-bottom: 16px;
+        scroll-margin-top: 104px;
       }
       pre + hr + h3 {
         padding-top: 0px;
@@ -787,22 +789,30 @@
           margin: 0px;
         }
       }
-      [purpose='slack-cta'] {
-        padding-top: 40px;
-        padding-bottom: 40px;
-        margin-bottom: 40px;
-        border-top: 1px solid @core-fleet-black-25;
-        border-bottom: 1px solid @core-fleet-black-25;
-        h3 {
-          margin-top: 0;
-          margin-bottom: 24px;
-          padding-bottom: 0;
-          border-bottom: 0;
+
+      [purpose='docs-start-cta'] {
+        margin-top: 40px;
+        border: 1px solid @core-fleet-black-10;
+        border-radius: 16px;
+        overflow: hidden;
+        [purpose='docs-start-cta-image'] {
+          height: 180px;
+          background-image: url('/images/docs-cta-stage-1-314x180@2x.png');
+          background-size: cover;
+          background-position-y: center;
         }
-      }
-      [purpose='improve-docs'] {
-        h3 {
-          border-bottom: 0;
+        [purpose='docs-start-cta-content'] {
+          h2 {
+            padding: 0;
+            margin-bottom: 4px;
+          }
+          p {
+            margin-bottom: 12px;
+          }
+        }
+        [purpose='continue-button'] {
+          font-size: 14px;
+          padding: 6px 12px;
         }
       }
       [purpose='checklist-item'] {
