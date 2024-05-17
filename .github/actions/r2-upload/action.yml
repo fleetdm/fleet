@@ -32,7 +32,7 @@ runs:
         " > ~/.config/rclone/rclone.conf
         : # Loop over each filename in the array of filenames and upload each one.
         echo "filenames: '${{ inputs.filenames }}'"
-        ; # Validate that the parsing command works before using it in the loop.
+        : # Validate that the parsing command works before using it in the loop.
         echo "${{ inputs.filenames }}" | tr "," "\n" | base64
         for row in $(echo "${{ inputs.filenames }}" | tr "," "\n" | base64); do
           _filename() {
