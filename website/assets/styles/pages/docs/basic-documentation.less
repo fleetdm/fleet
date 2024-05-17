@@ -569,18 +569,9 @@
           text-align: center;
           flex-grow: 1;
           p {
-            font-size: 16px;
-            font-style: normal;
-            font-weight: 800;
-            line-height: 19.2px;
-            margin-bottom: 8px;
-          }
-          span {
-            font-size: 12px;
+            font-size: 14px;
             font-style: normal;
             font-weight: 400;
-            line-height: 18px;
-            display: block;
             margin-bottom: 16px;
           }
           img {
@@ -603,7 +594,11 @@
             border: 1px solid @core-vibrant-blue;
           }
         }
-
+      }
+      [purpose='deploy-to-render-button'] {
+        img {
+          margin: 0;
+        }
       }
       [purpose='quote'] {
         font-style: italic;
