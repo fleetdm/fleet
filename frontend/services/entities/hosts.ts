@@ -3,6 +3,7 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IHost, HostStatus } from "interfaces/host";
 import {
+  QueryParams,
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
@@ -158,12 +159,17 @@ export interface IGetHostSoftwareResponse {
   };
 }
 
-export interface IHostSoftwareQueryParams {
+export interface IHostSoftwareQueryParams extends QueryParams {
   page: number;
   per_page: number;
   query: string;
   order_key: string;
   order_direction: "asc" | "desc";
+}
+
+export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
+  scope: "host_software";
+  id: number;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -568,13 +574,14 @@ export default {
   },
 
   getHostSoftware: (
-    hostId: number,
-    params: IHostSoftwareQueryParams
+    params: IHostSoftwareQueryKey
   ): Promise<IGetHostSoftwareResponse> => {
     const { HOST_SOFTWARE } = endpoints;
-    const queryString = buildQueryStringFromParams(params as any); // TODO: fix with generics
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, scope, ...rest } = params;
+    const queryString = buildQueryStringFromParams(rest);
 
-    return sendRequest("GET", `${HOST_SOFTWARE(hostId)}?${queryString}`);
+    return sendRequest("GET", `${HOST_SOFTWARE(id)}?${queryString}`);
   },
 
   installHostSoftwarePackage: (hostId: number, softwareId: number) => {

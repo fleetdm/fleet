@@ -70,13 +70,15 @@ const generateTableHeaders = (
           id.toString()
         )}?${teamQueryParam}`;
 
+        const hasPackage = Boolean(software_package) && !!teamId; // teamId is required for package installation
+
         return (
           <SoftwareNameCell
             name={name}
             source={source}
             path={softwareTitleDetailsPath}
             router={router}
-            hasPackage={Boolean(software_package)}
+            hasPackage={hasPackage}
           />
         );
       },

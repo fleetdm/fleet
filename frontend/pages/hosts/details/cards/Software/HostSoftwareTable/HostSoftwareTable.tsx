@@ -26,6 +26,16 @@ interface IHostSoftwareTableProps {
   pagePath: string;
 }
 
+const SoftwareCount = (count: number) => {
+  return (
+    <div className={`${baseClass}__count`}>
+      <span>
+        {count === 1 ? `${count} software item` : `${count} software items`}
+      </span>
+    </div>
+  );
+};
+
 const HostSoftwareTable = ({
   tableConfig,
   data,
@@ -96,29 +106,18 @@ const HostSoftwareTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!data?.software?.length || !count) return "";
+  const memoizedSoftwareCount = useCallback(() => {
+    return SoftwareCount(data.count || data.software.length || 0);
+  }, [data.count, data.software.length]);
 
-    return count === 1 ? `${count} software item` : `${count} software items`;
-  };
-
-  const renderSoftwareCount = () => {
-    const itemText = getItemsCountText();
-
-    if (!itemText) return null;
-
-    return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-      </div>
-    );
-  };
+  const memoizedEmptyComponent = useCallback(() => {
+    return <EmptySoftwareTable isSearching={searchQuery !== ""} />;
+  }, [searchQuery]);
 
   return (
     <div className={baseClass}>
       <TableContainer
-        renderCount={renderSoftwareCount}
+        renderCount={memoizedSoftwareCount}
         resultsTitle="software items"
         columnConfigs={tableConfig}
         data={data.software}
@@ -130,9 +129,7 @@ const HostSoftwareTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        emptyComponent={() => (
-          <EmptySoftwareTable isSearching={searchQuery !== ""} />
-        )}
+        emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable

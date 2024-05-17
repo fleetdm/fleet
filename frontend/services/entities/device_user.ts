@@ -3,16 +3,14 @@ import { IHostSoftware } from "interfaces/software";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+import { IHostSoftwareQueryParams } from "./hosts";
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
 
-export type IDeviceSoftwareQueryParams = {
-  page: number;
-  per_page: number;
-  query: string;
-  order_key: string;
-  order_direction: "asc" | "desc";
-};
+export interface IDeviceSoftwareQueryKey extends IHostSoftwareQueryParams {
+  scope: "device_software";
+  id: string;
+}
 
 export interface IGetDeviceSoftwareResponse {
   software: IHostSoftware[];
@@ -47,14 +45,12 @@ export default {
   },
 
   getDeviceSoftware: (
-    deviceAuthToken: string,
-    params: IDeviceSoftwareQueryParams
+    params: IDeviceSoftwareQueryKey
   ): Promise<IGetDeviceSoftwareResponse> => {
     const { DEVICE_SOFTWARE } = endpoints;
-    const queryString = buildQueryStringFromParams(params as any); // TODO: fix with generics
-    return sendRequest(
-      "GET",
-      `${DEVICE_SOFTWARE(deviceAuthToken)}?${queryString}`
-    );
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, scope, ...rest } = params;
+    const queryString = buildQueryStringFromParams(rest);
+    return sendRequest("GET", `${DEVICE_SOFTWARE(id)}?${queryString}`);
   },
 };

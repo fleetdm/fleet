@@ -6,10 +6,10 @@ import { trimEnd, upperFirst } from "lodash";
 
 import hostAPI, {
   IGetHostSoftwareResponse,
-  IHostSoftwareQueryParams,
+  IHostSoftwareQueryKey,
 } from "services/entities/hosts";
 import deviceAPI, {
-  IDeviceSoftwareQueryParams,
+  IDeviceSoftwareQueryKey,
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { getErrorReason } from "interfaces/errors";
@@ -18,9 +18,9 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
-import Card from "components/Card";
-import Spinner from "components/Spinner";
+import Card from "components/Card/Card";
 import DataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
@@ -37,12 +37,7 @@ interface ISoftwareCardProps {
   id: number | string;
   isFleetdHost: boolean;
   router: InjectedRouter;
-  queryParams?: {
-    page?: string;
-    query?: string;
-    order_key?: string;
-    order_direction?: "asc" | "desc";
-  };
+  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   /** Team id for the host */
   teamId: number;
@@ -56,6 +51,29 @@ const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE = 0;
 const DEFAULT_PAGE_SIZE = 20;
+
+export const parseHostSoftwareQueryParams = (queryParams: {
+  page?: string;
+  query?: string;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+}) => {
+  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
+  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
+  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
+  const page = queryParams?.page
+    ? parseInt(queryParams.page, 10)
+    : DEFAULT_PAGE;
+  const pageSize = DEFAULT_PAGE_SIZE;
+
+  return {
+    page,
+    query: searchQuery,
+    order_key: sortHeader,
+    order_direction: sortDirection,
+    per_page: pageSize,
+  };
+};
 
 const SoftwareCard = ({
   id,
@@ -80,14 +98,6 @@ const SoftwareCard = ({
     number | null
   >(null);
 
-  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
-  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
-  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
-  const page = queryParams?.page
-    ? parseInt(queryParams.page, 10)
-    : DEFAULT_PAGE;
-  const pageSize = DEFAULT_PAGE_SIZE;
-
   const {
     data: hostSoftwareRes,
     isLoading: hostSoftwareLoading,
@@ -98,24 +108,23 @@ const SoftwareCard = ({
     IGetHostSoftwareResponse,
     AxiosError,
     IGetHostSoftwareResponse,
-    [string, IHostSoftwareQueryParams]
+    IHostSoftwareQueryKey[]
   >(
     [
-      "host-software",
       {
-        page,
-        per_page: pageSize,
-        query: searchQuery,
-        order_key: sortHeader,
-        order_direction: sortDirection,
+        scope: "host_software",
+        id: id as number,
+        ...queryParams,
       },
     ],
     ({ queryKey }) => {
-      return hostAPI.getHostSoftware(id as number, queryKey[1]);
+      return hostAPI.getHostSoftware(queryKey[0]);
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isSoftwareEnabled && !isMyDevicePage,
+      keepPreviousData: true,
+      staleTime: 7000,
     }
   );
 
@@ -129,22 +138,21 @@ const SoftwareCard = ({
     IGetDeviceSoftwareResponse,
     AxiosError,
     IGetDeviceSoftwareResponse,
-    [string, IDeviceSoftwareQueryParams]
+    IDeviceSoftwareQueryKey[]
   >(
     [
-      "device-software",
       {
-        page,
-        per_page: pageSize,
-        query: searchQuery,
-        order_key: sortHeader,
-        order_direction: sortDirection,
+        scope: "device_software",
+        id: id as string,
+        ...queryParams,
       },
     ],
-    ({ queryKey }) => deviceAPI.getDeviceSoftware(id as string, queryKey[1]),
+    ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isSoftwareEnabled && isMyDevicePage,
+      keepPreviousData: true,
+      staleTime: 7000,
     }
   );
 
@@ -222,43 +230,13 @@ const SoftwareCard = ({
     isFleetdHost,
   ]);
 
-  const renderSoftwareTable = () => {
-    if (hostSoftwareLoading || deviceSoftwareLoading) {
-      return <Spinner />;
-    }
+  const isLoading = isMyDevicePage
+    ? deviceSoftwareLoading
+    : hostSoftwareLoading;
 
-    if (hostSoftwareError || deviceSoftwareError) {
-      return <DataError />;
-    }
+  const isError = isMyDevicePage ? deviceSoftwareError : hostSoftwareError;
 
-    const props = {
-      router,
-      tableConfig,
-      sortHeader,
-      sortDirection,
-      searchQuery,
-      page,
-      pagePath: pathname,
-    };
-
-    if (!isMyDevicePage) {
-      return hostSoftwareRes ? (
-        <HostSoftwareTable
-          isLoading={hostSoftwareLoading}
-          data={hostSoftwareRes}
-          {...props}
-        />
-      ) : null;
-    }
-
-    return deviceSoftwareRes ? (
-      <HostSoftwareTable
-        isLoading={deviceSoftwareLoading}
-        data={deviceSoftwareRes}
-        {...props}
-      />
-    ) : null;
-  };
+  const data = isMyDevicePage ? deviceSoftwareRes : hostSoftwareRes;
 
   return (
     <Card
@@ -268,8 +246,30 @@ const SoftwareCard = ({
       className={baseClass}
     >
       <p className="card__header">Software</p>
-      {renderSoftwareTable()}
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <>
+          {(isError || !data) && <DataError />}
+          {!isError && data && (
+            <HostSoftwareTable
+              isLoading={
+                isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
+              }
+              data={data}
+              router={router}
+              tableConfig={tableConfig}
+              sortHeader={queryParams.order_key}
+              sortDirection={queryParams.order_direction}
+              searchQuery={queryParams.query}
+              page={queryParams.page}
+              pagePath={pathname}
+            />
+          )}
+        </>
+      )}
     </Card>
   );
 };
+
 export default React.memo(SoftwareCard);
