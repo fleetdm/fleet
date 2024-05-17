@@ -1081,8 +1081,14 @@ FROM chrome_extensions`,
 	DirectIngestFunc: directIngestSoftware,
 }
 
+// SoftwareOverrideQueries are used to override software detail query results.  These DetailQueries
+// must include a `SoftwareOverrideMatch` function that returns true if the software row should be 
+// overridden with the results of `Query`.
+// Software queries expect specific columns to be present.  Reference the
+// software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
-	// Differentiates between Firefox and Firefox ESR
+	// macos_firefox Differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
+	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
 	"macos_firefox": {
 		Query: `
 			WITH app_paths AS (

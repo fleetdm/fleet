@@ -1222,7 +1222,8 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 
 // preProcessSoftwareResults will run pre-processing on the responses of the software queries.
 // It will move the results from the software extra queries (e.g. software_vscode_extensions)
-// into the main software query results (software_{macos|linux|windows}).
+// into the main software query results (software_{macos|linux|windows}) as well as process
+// any overrides that are set.
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
@@ -1237,7 +1238,8 @@ func preProcessSoftwareResults(
 	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
-		preProcessSoftwareExtraResults(hostDetailQueryPrefix+"software_"+name, hostID, results, statuses, messages, query, logger)
+		fullQueryName := hostDetailQueryPrefix + "software_" + name
+		preProcessSoftwareExtraResults(fullQueryName, hostID, results, statuses, messages, query, logger)
 	}
 }
 
