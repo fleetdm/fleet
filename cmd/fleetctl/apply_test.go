@@ -3647,6 +3647,58 @@ spec:
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
 		},
+		{
+			desc: "activities_webhook empty destination_url",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: ""
+`,
+			wantErr: `422 Validation Failed: destination_url is required`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 1",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: ftp://host
+`,
+			wantErr: `422 Validation Failed: webhook_url must be http`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 2",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: /foo
+`,
+			wantErr: `422 Validation Failed: webhook_url must be http`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 3",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: foo
+`,
+			wantErr: `422 Validation Failed: parse "foo": invalid URI`,
+		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
 	// they require a complex setup to mock the client that would communicate

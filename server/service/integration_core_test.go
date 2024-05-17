@@ -4582,6 +4582,27 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
+func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
+	t := s.T()
+
+	s.DoRaw(
+		"PATCH", "/api/latest/fleet/config", []byte(
+			`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "http://some/url"
+    		}
+  		}
+	}`,
+		), http.StatusOK,
+	)
+
+	appConfig := s.getConfig()
+	require.True(t, appConfig.WebhookSettings.ActivitiesWebhook.Enable)
+	require.Equal(t, "http://some/url", appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
+}
+
 func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
 	t := s.T()
 
