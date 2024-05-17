@@ -1618,6 +1618,12 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	require.NotZero(t, barSoftwareID)
 	require.NotZero(t, baz2SoftwareID)
 
+	// "baz2" is still present in the database, even though no hosts are using it, until ds.SyncHostsSoftware is executed.
+	soft, err := ds.SoftwareByID(ctx, baz2SoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "baz2", soft.Name)
+	assert.Zero(t, soft.HostsCount)
+
 	// "new" is not returned until ds.SyncHostsSoftware is executed.
 	// "bar" and "baz2" are gone from host_software, but will not be deleted until ds.SyncHostsSoftware is executed.
 	// "baz" still has the wrong count because ds.SyncHostsSoftware hasn't run yet.
