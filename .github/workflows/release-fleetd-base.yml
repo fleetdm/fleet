@@ -66,7 +66,7 @@ jobs:
 
   update-fleetd-base-pkg:
     needs: [check-for-fleetd-component-updates]
-    # if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
+    if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: macos-latest
     steps:
       - name: Harden Runner
@@ -146,7 +146,7 @@ jobs:
 
   update-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
-    # if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
+    if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
