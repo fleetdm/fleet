@@ -2,7 +2,8 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -12,7 +13,7 @@ func init() {
 func Up_20240517135955(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE software_installers ADD COLUMN self_service bool NOT NULL DEFAULT false`)
 	if err != nil {
-		return fmt.Errorf("failed to add self_service to software_installers")
+		return errors.New("failed to add self_service to software_installers")
 	}
 	return nil
 }
