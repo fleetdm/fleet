@@ -1296,20 +1296,6 @@ func preProcessSoftwareExtraResults(
 	}
 }
 
-type softwareResultOverride struct {
-	Name    string
-	Matches func(map[string]string) bool
-}
-
-var softwareResultOverrides = []softwareResultOverride{
-	{
-		Name: "software_macos_firefox",
-		Matches: func(row map[string]string) bool {
-			return row["name"] == "OverrideMe.app"
-		},
-	},
-}
-
 func removeOverrides(rows []map[string]string, override osquery_utils.DetailQuery) []map[string]string {
 	if override.SoftwareOverrideMatch != nil {
 		rows = slices.DeleteFunc(rows, func(row map[string]string) bool {

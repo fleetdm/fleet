@@ -758,28 +758,6 @@ func macOSBundleIDExistsQuery(appName string) string {
 	return fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' LIMIT 1", appName)
 }
 
-// multiCondition generates a SQL query that returns 1 if all subqueries return 1, otherwise 0.
-// subqueries should be a list of SQL queries that return 1 if a condition is met, otherwise 0.
-func generateSQLForAllExists(subqueries ...string) string {
-	if len(subqueries) == 0 {
-		return "SELECT 0;" // Return 0 if no subqueries provided
-	}
-
-	// Generate EXISTS clause for each subquery
-	var conditions []string
-	for _, query := range subqueries {
-		condition := fmt.Sprintf("EXISTS (%s)", query)
-		conditions = append(conditions, condition)
-	}
-
-	// Join all conditions with AND
-	fullCondition := strings.Join(conditions, " AND ")
-
-	// Build the final SQL with CASE statement
-	sql := fmt.Sprintf("SELECT CASE WHEN %s THEN 1 ELSE 0 END;", fullCondition)
-	return sql
-}
-
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
@@ -1135,8 +1113,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			FROM apps
 			LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
 			WHERE apps.bundle_identifier = 'org.mozilla.firefox'`,
-		Platforms:        []string{"darwin"},
-		Discovery:        macOSBundleIDExistsQuery("org.mozilla.firefox"),
+		Platforms: []string{"darwin"},
+		Discovery: macOSBundleIDExistsQuery("org.mozilla.firefox"),
 		SoftwareOverrideMatch: func(row map[string]string) bool {
 			return row["bundle_identifier"] == "org.mozilla.firefox"
 		},
