@@ -20,7 +20,7 @@ permissions:
 
 env:
   R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-  R2_ACCESS_KEY_ID: ${{ secrets.R2_TESTING_DOWNLOAD_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
   R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
   R2_BUCKET: download-testing # Production: download | Testing: download-testing
   BASE_URL: https://download-testing.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
@@ -142,12 +142,7 @@ jobs:
       - name: Upload package
         uses: ./.github/actions/r2-upload
         with:
-          filename: fleetd-base.pkg
-
-      - name: Upload manifest
-        uses: ./.github/actions/r2-upload
-        with:
-          filename: fleetd-base-manifest.plist
+          filenames: '["fleetd-base.pkg", "fleetd-base-manifest.plist"]'
 
   update-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
@@ -178,7 +173,7 @@ jobs:
       - name: Upload package
         uses: ./.github/actions/r2-upload
         with:
-          filename: fleetd-base.msi
+          filenames: '["fleetd-base.msi"]'
 
   update-meta-json:
     needs: [update-fleetd-base-pkg, update-fleetd-base-msi]
@@ -208,4 +203,4 @@ jobs:
       - name: Upload meta.json
         uses: ./.github/actions/r2-upload
         with:
-          filename: meta.json
+          filenames: '["meta.json"]'
