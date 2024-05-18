@@ -2494,6 +2494,12 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		return nil
 	}
 
+	// iPhones and iPads send ProductName but not Model/ModelName,
+	// thus we use this field as the device's Model (which is required on lifecycle stages).
+	if strings.HasPrefix(m.ProductName, "iPhone") || strings.HasPrefix(m.ProductName, "iPad") {
+		m.Model = m.ProductName
+	}
+
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:         mdmlifecycle.HostActionReset,
 		Platform:       "darwin",
@@ -2852,6 +2858,15 @@ func ReconcileAppleProfiles(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
+
+	// Exclude the "Fleetd configuration" profiles from iPhones/iPads.
+	for i, profilePayload := range toInstall {
+		if (profilePayload.HostPlatform == "iphone" || profilePayload.HostPlatform == "ipad") &&
+			profilePayload.ProfileName == mdm_types.FleetdConfigProfileName {
+			toInstall = append(toInstall[:i], toInstall[i+1:]...)
+		}
+	}
+
 	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
@@ -2989,7 +3004,7 @@ func ReconcileAppleProfiles(
 	// response from the device before we set its status as 'pending'
 	//
 	// We'll do another pass at the end to revert any changes for failed
-	// delivieries.
+	// deliveries.
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}

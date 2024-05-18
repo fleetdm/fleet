@@ -71,7 +71,7 @@ INSERT INTO
 		for i := range cp.Labels {
 			cp.Labels[i].ProfileUUID = profUUID
 		}
-		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "darwin"); err != nil {
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "apple"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
 
@@ -896,7 +896,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			SELECT
 				us.hardware_serial,
 				COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), ''),
-				'darwin' AS platform,
+				us.platform,
 				'2000-01-01 00:00:00' AS last_enrolled_at,
 				'2000-01-01 00:00:00' AS detail_updated_at,
 				NULL AS osquery_host_id,
@@ -1201,11 +1201,19 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
 	for i, d := range devices {
 		if i == 0 {
-			stmt = "SELECT ? hardware_serial, ? hardware_model"
+			stmt = "SELECT ? hardware_serial, ? hardware_model, ? platform"
 		} else {
-			stmt += " UNION SELECT ?, ?"
+			stmt += " UNION SELECT ?, ?, ?"
 		}
-		args = append(args, d.SerialNumber, d.Model)
+		// Map Apple's device family to Fleet's hosts.platform field.
+		platform := "darwin"
+		switch d.DeviceFamily {
+		case "iPhone":
+			platform = "iphone"
+		case "iPad":
+			platform = "ipad"
+		}
+		args = append(args, d.SerialNumber, d.Model, platform)
 	}
 
 	return stmt, args
@@ -1487,7 +1495,7 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	// insert label associations
-	if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "darwin"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
+	if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "apple"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
@@ -1817,6 +1825,7 @@ func generateDesiredStateQuery(entityType string) string {
 	SELECT
 		mae.%[1]s_uuid,
 		h.uuid as host_uuid,
+		h.platform as host_platform,
 		mae.identifier as %[1]s_identifier,
 		mae.name as %[1]s_name,
 		mae.checksum as checksum,
@@ -1829,7 +1838,7 @@ func generateDesiredStateQuery(entityType string) string {
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
 	WHERE
-		h.platform = 'darwin' AND
+		(h.platform = 'darwin' OR h.platform = 'iphone' OR h.platform = 'ipad') AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
 		NOT EXISTS (
@@ -1845,6 +1854,7 @@ func generateDesiredStateQuery(entityType string) string {
 	SELECT
 		mae.%[1]s_uuid,
 		h.uuid as host_uuid,
+		h.platform as host_platform,
 		mae.identifier as %[1]s_identifier,
 		mae.name as %[1]s_name,
 		mae.checksum as checksum,
@@ -1861,12 +1871,12 @@ func generateDesiredStateQuery(entityType string) string {
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mel.label_id AND lm.host_id = h.id
 	WHERE
-		h.platform = 'darwin' AND
+		(h.platform = 'darwin' OR h.platform = 'iphone' OR h.platform = 'ipad') AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
 		( %[3]s )
 	GROUP BY
-		mae.%[1]s_uuid, h.uuid, mae.identifier, mae.name, mae.checksum
+		mae.%[1]s_uuid, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
 	HAVING
 		count_%[1]s_labels > 0 AND count_host_labels = count_%[1]s_labels
 
@@ -1978,6 +1988,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	SELECT
 		ds.profile_uuid,
 		ds.host_uuid,
+		ds.host_platform,
 		ds.profile_identifier,
 		ds.profile_name,
 		ds.checksum

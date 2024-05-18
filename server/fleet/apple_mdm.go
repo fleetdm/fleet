@@ -292,6 +292,7 @@ type MDMAppleProfilePayload struct {
 	ProfileIdentifier string             `db:"profile_identifier"`
 	ProfileName       string             `db:"profile_name"`
 	HostUUID          string             `db:"host_uuid"`
+	HostPlatform      string             `db:"host_platform"`
 	Checksum          []byte             `db:"checksum"`
 	Status            *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType     MDMOperationType   `db:"operation_type"`
