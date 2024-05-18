@@ -383,12 +383,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
-		TeamID:            actTeamID,
-		TeamName:          actTeamName,
-		ProfileName:       newCP.Name,
-		ProfileIdentifier: newCP.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
+			TeamID:            actTeamID,
+			TeamName:          actTeamName,
+			ProfileName:       newCP.Name,
+			ProfileIdentifier: newCP.Identifier,
+		}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple config profile")
 	}
 
@@ -469,12 +470,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: decl.Name,
-		Identifier:  decl.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: decl.Name,
+			Identifier:  decl.Identifier,
+		}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple declaration")
 	}
 
@@ -771,12 +773,13 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:            actTeamID,
-		TeamName:          actTeamName,
-		ProfileName:       cp.Name,
-		ProfileIdentifier: cp.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
+			TeamID:            actTeamID,
+			TeamName:          actTeamName,
+			ProfileName:       cp.Name,
+			ProfileIdentifier: cp.Identifier,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
 	}
 
@@ -850,12 +853,13 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: decl.Name,
-		Identifier:  decl.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: decl.Name,
+			Identifier:  decl.Identifier,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple declaration")
 	}
 
@@ -1404,11 +1408,12 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
-		HostSerial:       h.HardwareSerial,
-		HostDisplayName:  h.DisplayName(),
-		InstalledFromDEP: info.InstalledFromDEP,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+			HostSerial:       h.HardwareSerial,
+			HostDisplayName:  h.DisplayName(),
+			InstalledFromDEP: info.InstalledFromDEP,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
@@ -1820,10 +1825,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 	}
 	return nil
@@ -1955,7 +1961,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
 		}
@@ -2511,12 +2517,14 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 	}
 
-	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
-		HostSerial:       updatedInfo.HardwareSerial,
-		HostDisplayName:  updatedInfo.DisplayName,
-		InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
-		MDMPlatform:      fleet.MDMPlatformApple,
-	})
+	return newActivity(
+		r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
+			HostSerial:       updatedInfo.HardwareSerial,
+			HostDisplayName:  updatedInfo.DisplayName,
+			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
+			MDMPlatform:      fleet.MDMPlatformApple,
+		}, svc.ds, svc.logger,
+	)
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.
@@ -2566,11 +2574,13 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 		return err
 	}
 
-	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
-		HostSerial:       info.HardwareSerial,
-		HostDisplayName:  info.DisplayName,
-		InstalledFromDEP: info.InstalledFromDEP,
-	})
+	return newActivity(
+		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
+			HostSerial:       info.HardwareSerial,
+			HostDisplayName:  info.DisplayName,
+			InstalledFromDEP: info.InstalledFromDEP,
+		}, svc.ds, svc.logger,
+	)
 }
 
 // SetBootstrapToken handles MDM [SetBootstrapToken][1] requests.

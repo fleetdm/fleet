@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -15,10 +16,15 @@ import (
 )
 
 // NewActivity stores an activity item that the user performed
-func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-	detailsBytes, err := json.Marshal(activity)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshaling activity details")
+func (ds *Datastore) NewActivity(
+	ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+) error {
+	// Sanity check to ensure we processed activity webhook before storing the activity
+	processed, _ := ctx.Value(fleet.ActivityWebhookContextKey).(bool)
+	if !processed {
+		return ctxerr.New(
+			ctx, "activity webhook not processed. Please use svc.NewActivity instead of ds.NewActivity. This is a Fleet server bug.",
+		)
 	}
 
 	var userID *uint
@@ -30,12 +36,13 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 		userEmail = &user.Email
 	}
 
-	cols := []string{"user_id", "user_name", "activity_type", "details"}
+	cols := []string{"user_id", "user_name", "activity_type", "details", "created_at"}
 	args := []any{
 		userID,
 		userName,
 		activity.ActivityName(),
-		detailsBytes,
+		details,
+		createdAt,
 	}
 	if userEmail != nil {
 		args = append(args, userEmail)
