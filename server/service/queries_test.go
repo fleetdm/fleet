@@ -19,7 +19,9 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		act, ok := activity.(fleet.ActivityTypeCreatedSavedQuery)
 		assert.True(t, ok)
 		assert.NotEmpty(t, act.Name)
@@ -144,7 +146,9 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		act, ok := activity.(fleet.ActivityTypeEditedSavedQuery)
 		assert.True(t, ok)
 		assert.NotEmpty(t, act.Name)
@@ -358,7 +362,9 @@ func TestQueryAuth(t *testing.T) {
 		}
 		return nil, newNotFoundError()
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {

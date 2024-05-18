@@ -6593,13 +6593,19 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}
+	detailsBytes, err := json.Marshal(activity)
+	require.NoError(t, err)
+
 	err = ds.NewActivity( // automatically creates the host_activities entry
 		context.Background(),
 		user1,
-		fleet.ActivityTypeRanScript{
-			HostID:          host.ID,
-			HostDisplayName: host.DisplayName(),
-		},
+		activity,
+		detailsBytes,
+		time.Now(),
 	)
 	require.NoError(t, err)
 

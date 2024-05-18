@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -106,8 +107,11 @@ func Test_logRoleChangeActivities(t *testing.T) {
 	}
 	ctx := context.Background()
 	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
 	var activities []string
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		activities = append(activities, activity.ActivityName())
 		return nil
 	}
@@ -132,7 +136,7 @@ func Test_logRoleChangeActivities(t *testing.T) {
 				GlobalRole: tt.newRole,
 				Teams:      newTeams,
 			}
-			require.NoError(t, fleet.LogRoleChangeActivities(ctx, ds, &fleet.User{}, tt.oldRole, oldTeams, newUser))
+			require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, &fleet.User{}, tt.oldRole, oldTeams, newUser))
 			require.Equal(t, tt.expectActivities, activities)
 		})
 	}
