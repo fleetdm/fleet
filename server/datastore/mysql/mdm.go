@@ -890,19 +890,10 @@ func batchSetProfileLabelAssociationsDB(
 	}
 
 	var platformPrefix string
-	switch platform {
-	case "darwin":
-		// map "darwin" to "apple" to be consistent with other
-		// "platform-agnostic" datastore methods. We initially used "darwin"
-		// because that's what hosts use (as the data is reported by osquery)
-		// and sometimes we want to dynamically select a table based on host
-		// data.
-		platformPrefix = "apple"
-	case "windows":
-		platformPrefix = "windows"
-	default:
+	if platform != "apple" && platform != "windows" {
 		return fmt.Errorf("unsupported platform %s", platform)
 	}
+	platformPrefix = platform
 
 	// delete any profile+label tuple that is NOT in the list of provided tuples
 	// but are associated with the provided profiles (so we don't delete
