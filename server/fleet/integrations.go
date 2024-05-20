@@ -369,7 +369,9 @@ func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid
 			if u, err := url.ParseRequestURI(webhook.DestinationURL); err != nil {
 				invalid.Append("webhook_settings.activities_webhook.destination_url", err.Error())
 			} else if (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-				invalid.Append("webhook_settings.activities_webhook.destination_url", "webhook_url must be https or http, and have a host")
+				invalid.Append(
+					"webhook_settings.activities_webhook.destination_url", "destination_url must be https or http, and have a host",
+				)
 			}
 		}
 	}

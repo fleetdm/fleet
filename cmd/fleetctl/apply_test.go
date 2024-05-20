@@ -3689,7 +3689,7 @@ spec:
       enable_activities_webhook: true
       destination_url: ftp://host
 `,
-			wantErr: `422 Validation Failed: webhook_url must be http`,
+			wantErr: `422 Validation Failed: destination_url must be http`,
 		},
 		{
 			desc: "activities_webhook bad destination_url 2",
@@ -3702,7 +3702,7 @@ spec:
       enable_activities_webhook: true
       destination_url: /foo
 `,
-			wantErr: `422 Validation Failed: webhook_url must be http`,
+			wantErr: `422 Validation Failed: destination_url must be http`,
 		},
 		{
 			desc: "activities_webhook bad destination_url 3",
