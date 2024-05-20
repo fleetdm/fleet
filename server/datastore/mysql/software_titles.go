@@ -204,7 +204,7 @@ SELECT
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
 	si.filename as software_package
 FROM software_titles st
-LEFT JOIN software_installers si ON si.title_id = st.id AND si.team_id = ?
+LEFT JOIN software_installers si ON si.title_id = st.id AND COALESCE(si.team_id, 0) = ?
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s
