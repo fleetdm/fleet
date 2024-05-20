@@ -1,4 +1,5 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
+import classNames from "classnames";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -760,6 +761,13 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  const isIosOrIpadosHost =
+    host.platform === "ios" || host.platform === "ipados";
+
+  const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
+    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+  });
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -802,52 +810,58 @@ const HostDetailsPage = ({
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
               })}
             </TabList>
-            <TabPanel className={`${baseClass}__details-panel`}>
+            <TabPanel className={detailsPanelClass}>
               <AboutCard
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              <ActivityCard
-                activeTab={activeActivityTab}
-                activities={
-                  activeActivityTab === "past"
-                    ? pastActivities
-                    : upcomingActivities
-                }
-                isLoading={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsFetching
-                    : upcomingActivitiesIsFetching
-                }
-                isError={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsError
-                    : upcomingActivitiesIsError
-                }
-                upcomingCount={upcomingActivities?.count || 0}
-                onChangeTab={onChangeActivityTab}
-                onNextPage={() => setActivityPage(activityPage + 1)}
-                onPreviousPage={() => setActivityPage(activityPage - 1)}
-                onShowDetails={onShowActivityDetails}
-              />
-              <AgentOptionsCard
-                osqueryData={osqueryData}
-                wrapFleetHelper={wrapFleetHelper}
-                isChromeOS={host?.platform === "chrome"}
-              />
+              {!isIosOrIpadosHost && (
+                <ActivityCard
+                  activeTab={activeActivityTab}
+                  activities={
+                    activeActivityTab === "past"
+                      ? pastActivities
+                      : upcomingActivities
+                  }
+                  isLoading={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsFetching
+                      : upcomingActivitiesIsFetching
+                  }
+                  isError={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsError
+                      : upcomingActivitiesIsError
+                  }
+                  upcomingCount={upcomingActivities?.count || 0}
+                  onChangeTab={onChangeActivityTab}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onShowDetails={onShowActivityDetails}
+                />
+              )}
+              {!isIosOrIpadosHost && (
+                <AgentOptionsCard
+                  osqueryData={osqueryData}
+                  wrapFleetHelper={wrapFleetHelper}
+                  isChromeOS={host?.platform === "chrome"}
+                />
+              )}
               <LabelsCard
                 labels={host?.labels || []}
                 onLabelClick={onLabelClick}
               />
-              <UsersCard
-                users={host?.users || []}
-                usersState={usersState}
-                isLoading={isLoadingHost}
-                onUsersTableSearchChange={onUsersTableSearchChange}
-                hostUsersEnabled={featuresConfig?.enable_host_users}
-              />
+              {!isIosOrIpadosHost && (
+                <UsersCard
+                  users={host?.users || []}
+                  usersState={usersState}
+                  isLoading={isLoadingHost}
+                  onUsersTableSearchChange={onUsersTableSearchChange}
+                  hostUsersEnabled={featuresConfig?.enable_host_users}
+                />
+              )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard

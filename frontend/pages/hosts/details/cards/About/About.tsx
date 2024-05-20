@@ -49,7 +49,7 @@ const About = ({
   const isIosOrIpadosHost =
     aboutData.platform === "ios" || aboutData.platform === "ipados";
 
-  const renderSerialAndIPs = () => {
+  const renderHardwareSerialAndIPs = () => {
     if (isIosOrIpadosHost) {
       return (
         <DataSet title="Serial number" value={aboutData.hardware_serial} />
@@ -58,6 +58,7 @@ const About = ({
 
     return (
       <>
+        <DataSet title="Hardware model" value={aboutData.hardware_model} />
         <DataSet title="Serial number" value={aboutData.hardware_serial} />
         <DataSet title="Private IP address" value={aboutData.primary_ip} />
         <DataSet
@@ -206,8 +207,7 @@ const About = ({
             />
           }
         />
-        <DataSet title="Hardware model" value={aboutData.hardware_model} />
-        {renderSerialAndIPs()}
+        {renderHardwareSerialAndIPs()}
         {renderMunkiData()}
         {renderMdmData()}
         {renderDeviceUser()}

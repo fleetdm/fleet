@@ -411,7 +411,6 @@ const HostSummary = ({
           !isIosOrIpadosHost &&
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
-        abc
         {/* Rendering of OS Settings data */}
         {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
