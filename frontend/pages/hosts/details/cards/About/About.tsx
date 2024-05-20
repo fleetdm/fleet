@@ -46,11 +46,11 @@ const About = ({
   munki,
   mdm,
 }: IAboutProps): JSX.Element => {
-  const isiOSoriPadOSHost =
+  const isIosOrIpadosHost =
     aboutData.platform === "ios" || aboutData.platform === "ipados";
 
   const renderSerialAndIPs = () => {
-    if (isiOSoriPadOSHost) {
+    if (isIosOrIpadosHost) {
       return (
         <DataSet title="Serial number" value={aboutData.hardware_serial} />
       );

@@ -186,7 +186,7 @@ const HostSummary = ({
   } = summaryData;
 
   const isChromeHost = platform === "chrome";
-  const isiOSoriPadOSHost = platform === "ios" || platform === "ipados";
+  const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
   const renderRefetch = () => {
     const isOnline = summaryData.status === "online";
@@ -211,7 +211,7 @@ const HostSummary = ({
         : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
     }
 
-    if (isiOSoriPadOSHost) {
+    if (isIosOrIpadosHost) {
       return null;
     }
 
@@ -312,7 +312,7 @@ const HostSummary = ({
         statusText = diskEncryptionEnabled || "Unknown";
     }
 
-    if (isiOSoriPadOSHost) {
+    if (isIosOrIpadosHost) {
       return null;
     }
 
@@ -333,7 +333,7 @@ const HostSummary = ({
       return <DataSet title="Agent" value={summaryData.osquery_version} />;
     }
 
-    if (isiOSoriPadOSHost) {
+    if (isIosOrIpadosHost) {
       return null;
     }
 
@@ -392,7 +392,7 @@ const HostSummary = ({
         largePadding
         className={`${baseClass}-card`}
       >
-        {!isiOSoriPadOSHost && (
+        {!isIosOrIpadosHost && (
           <DataSet
             title="Status"
             value={
@@ -408,7 +408,7 @@ const HostSummary = ({
         )}
         {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
           isPremiumTier &&
-          !isiOSoriPadOSHost &&
+          !isIosOrIpadosHost &&
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
         abc
@@ -430,7 +430,7 @@ const HostSummary = ({
               }
             />
           )}
-        {bootstrapPackageData?.status && !isiOSoriPadOSHost && (
+        {bootstrapPackageData?.status && !isIosOrIpadosHost && (
           <DataSet
             title="Bootstrap package"
             value={
@@ -443,17 +443,17 @@ const HostSummary = ({
         )}
         {!isChromeHost && renderDiskSpaceSummary()}
         {renderDiskEncryptionSummary()}
-        {!isiOSoriPadOSHost && (
+        {!isIosOrIpadosHost && (
           <DataSet
             title="Memory"
             value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
           />
         )}
-        {!isiOSoriPadOSHost && (
+        {!isIosOrIpadosHost && (
           <DataSet title="Processor type" value={summaryData.cpu_type} />
         )}
         <DataSet title="Operating system" value={summaryData.os_version} />
-        {!isiOSoriPadOSHost && renderAgentSummary()}
+        {!isIosOrIpadosHost && renderAgentSummary()}
       </Card>
     );
   };
