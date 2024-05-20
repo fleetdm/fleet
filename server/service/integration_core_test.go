@@ -3046,7 +3046,6 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.Equal(t, tm1.ID, *hostsResp.Hosts[0].TeamID)
 	require.Equal(t, tm1.ID, *hostsResp.Hosts[1].TeamID)
 	require.Equal(t, tm2.ID, *hostsResp.Hosts[2].TeamID)
-	
 
 	// assign host0 to team 2 with filter
 	req = addHostsToTeamByFilterRequest{
