@@ -1,3 +1,10 @@
+- name: macOS - Check if latest version
+  query: SELECT 1 FROM os_version WHERE major = '14' AND minor = '5';
+  critical: false
+  description: This policy check if macOS version is most recent version available.
+  resolution: From the Apple menu, select System Settings. Navigate to General > Software Update.
+  platform: darwin
+  calendar_events_enabled: true
 - name: macOS - Enable FileVault
   query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
   critical: false
