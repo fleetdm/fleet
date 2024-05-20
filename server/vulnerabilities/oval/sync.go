@@ -42,7 +42,7 @@ func downloadDecompressed(client *http.Client) func(string, string) error {
 		if err != nil {
 			return fmt.Errorf("url parse: %w", err)
 		}
-		
+
 		err = download.DownloadAndExtract(client, parsedUrl, dstPath)
 		if err != nil {
 			return fmt.Errorf("download and extract url %s: %w", parsedUrl, err)
