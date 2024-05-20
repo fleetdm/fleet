@@ -4,6 +4,7 @@ import {
   ISoftwareTitle,
   ISoftwareVulnerability,
   ISoftwareTitleVersion,
+  ISoftwarePackage,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -45,6 +46,7 @@ export const createMockSoftwareTitleVersion = (
 const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   id: 1,
   name: "mock software 1.app",
+  software_package: null,
   versions_count: 1,
   source: "apps",
   hosts_count: 1,
@@ -146,4 +148,25 @@ export const createMockSoftwareVersionResponse = (
   overrides?: Partial<ISoftwareVersionResponse>
 ): ISoftwareVersionResponse => {
   return { ...DEFAULT_SOFTWARE_VERSION_RESPONSE, ...overrides };
+};
+
+const DEFAULT_SOFTWAREPACKAGE_MOCK: ISoftwarePackage = {
+  name: "TestPackage-1.2.3.pkg",
+  version: "1.2.3",
+  uploaded_at: "2020-01-01T00:00:00.000Z",
+  install_script: "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+  pre_install_query: "SELECT 1 FROM macos_profiles WHERE uuid='abc123';",
+  post_install_script:
+    "sudo /Applications/Falcon.app/Contents/Resources/falconctl license abc123",
+  status: {
+    installed: 1,
+    pending: 2,
+    failed: 3,
+  },
+};
+
+export const createMockSoftwarePackage = (
+  overrides?: Partial<ISoftwarePackage>
+) => {
+  return { ...DEFAULT_SOFTWAREPACKAGE_MOCK, ...overrides };
 };

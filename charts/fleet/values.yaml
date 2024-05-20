@@ -204,7 +204,7 @@ environments:
   # The following environment variables are used to configure Fleet to work with
   # Apple's MDM service. These are optional and only required if you are using
   # Fleet to manage Apple devices.
-  # To more information: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-3-configure-fleet-with-the-required-files
+  # To more information: https://fleetdm.com/docs/using-fleet/mdm-setup#step-3-configure-fleet-with-the-required-files
   FLEET_MDM_APPLE_APNS_CERT_BYTES: ""
   FLEET_MDM_APPLE_APNS_KEY_BYTES: ""
   FLEET_MDM_APPLE_SCEP_CERT_BYTES: ""

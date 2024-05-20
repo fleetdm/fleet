@@ -589,43 +589,69 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 
 // NOTE: the hosts table must be aliased to `h` in the query passed to this function.
 func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}, error) {
-	params := []interface{}{lid}
+	// prior to returning, params will be appended in the following order: joinParams, whereParams
+	var whereParams, joinParams []interface{}
 
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
 
+	softwareStatusJoin := ""
+	// if opt.SoftwareVersionIDFilter != nil {
+	// 	// TODO: Do we currently support filtering by software version ID and label?
+	// } else if opt.SoftwareIDFilter != nil {
+	// 	// TODO: Do we currently support filtering by software version ID and label?
+	// }
+	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
+		// get the installer id
+		meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+		}
+		installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+		}
+		softwareStatusJoin = installerJoin
+		joinParams = append(joinParams, installerParams...)
+	}
+	if softwareStatusJoin != "" {
+		query += softwareStatusJoin
+	}
+
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
+	whereParams = append(whereParams, lid)
+
 	if opt.LowDiskSpaceFilter != nil {
 		query += ` AND hd.gigs_disk_space_available < ? `
-		params = append(params, *opt.LowDiskSpaceFilter)
+		whereParams = append(whereParams, *opt.LowDiskSpaceFilter)
 	}
 
 	var err error
-	query, params = filterHostsByStatus(ds.clock.Now(), query, opt, params)
-	query, params = filterHostsByTeam(query, opt, params)
-	query, params = filterHostsByMDM(query, opt, params)
-	query, params, err = filterHostsByMacOSSettingsStatus(query, opt, params)
+	query, whereParams = filterHostsByStatus(ds.clock.Now(), query, opt, whereParams)
+	query, whereParams = filterHostsByTeam(query, opt, whereParams)
+	query, whereParams = filterHostsByMDM(query, opt, whereParams)
+	query, whereParams, err = filterHostsByMacOSSettingsStatus(query, opt, whereParams)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
 	}
-	query, params = filterHostsByMacOSDiskEncryptionStatus(query, opt, params)
-	query, params = filterHostsByMDMBootstrapPackageStatus(query, opt, params)
+	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams)
+	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		query, params, err = ds.filterHostsByOSSettingsStatus(query, opt, params, enableDiskEncryption)
+		query, whereParams, err = ds.filterHostsByOSSettingsStatus(query, opt, whereParams, enableDiskEncryption)
 		if err != nil {
 			return "", nil, err
 		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		query, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, params, enableDiskEncryption)
+		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, whereParams, enableDiskEncryption)
 	}
 	// TODO: should search columns include display_name (requires join to host_display_names)?
-	query, params, _ = hostSearchLike(query, params, opt.MatchQuery, hostSearchColumns...)
+	query, whereParams, _ = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
 
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opt.ListOptions)
-	return query, params, nil
+	query, whereParams = appendListOptionsWithCursorToSQL(query, whereParams, &opt.ListOptions)
+	return query, append(joinParams, whereParams...), nil
 }
 
 func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
