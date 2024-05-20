@@ -15,7 +15,7 @@
             <span purpose="quote-input" style="position: relative; cursor: text; padding: 6px 16px 8px 16px;" class="form-control" @click="clickResetForm()" v-if="numberOfHostsQuoted">{{formData.numberOfHosts}}<span style="position: absolute; cursor: pointer; bottom: 10px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
           </div>
 
-          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4">
+          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4" v-if="showQuotedPrice && numberOfHostsQuoted < 700">
             <p class="small">
               <strong class="pr-1" style="font-size: 18px; color: #192147">$7.00</strong>/ host / month<br>(Billed annually)
             </p>
