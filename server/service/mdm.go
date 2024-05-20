@@ -2033,7 +2033,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
 		}
-		if host.Platform != "darwin" && host.Platform != "iphone" && host.Platform != "ipad" {
+		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
@@ -2047,7 +2047,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
 		}
-		if host.Platform != "darwin" && host.Platform != "iphone" && host.Platform != "ipad" {
+		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)

@@ -1102,7 +1102,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				profiles = append(profiles, p.ToHostMDMProfile())
 			}
 
-		case "darwin", "iphone", "ipad":
+		case "darwin", "ios", "ipados":
 			if ac.MDM.EnabledAndConfigured {
 				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 				if err != nil {

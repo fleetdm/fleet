@@ -751,7 +751,7 @@ func updateMDMAppleHostDB(
 	appCfg *fleet.AppConfig,
 ) error {
 	refetchRequested := 1
-	if mdmHost.Platform == "iphone" || mdmHost.Platform == "ipad" {
+	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
 		refetchRequested = 0
 	}
 	updateStmt := `
@@ -799,7 +799,7 @@ func insertMDMAppleHostDB(
 	appCfg *fleet.AppConfig,
 ) error {
 	refetchRequested := 1
-	if mdmHost.Platform == "iphone" || mdmHost.Platform == "ipad" {
+	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
 		refetchRequested = 0
 	}
 	insertStmt := `
@@ -1133,7 +1133,7 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	parts := []string{}
 	args := []interface{}{}
 	for _, h := range hosts {
-		if h.Platform == "iphone" || h.Platform == "ipad" {
+		if h.Platform == "ios" || h.Platform == "ipados" {
 			parts = append(parts, "(?,?)")
 			args = append(args, h.ID, labelIDs[0])
 		} else {
@@ -1156,8 +1156,8 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
 	tableMap := map[string][]string{
 		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
-		"iphone":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
-		"ipad":    {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"ios":     {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"ipados":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
 		"windows": {"host_mdm_windows_profiles"},
 	}
 
@@ -1220,7 +1220,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 		// package information.
 
 		// iPhones and iPads have no osquery thus we don't need to refetch.
-		if host.Platform == "iphone" || host.Platform == "ipad" {
+		if host.Platform == "ios" || host.Platform == "ipados" {
 			return nil
 		}
 
@@ -1241,9 +1241,9 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 		platform := "darwin"
 		switch d.DeviceFamily {
 		case "iPhone":
-			platform = "iphone"
+			platform = "ios"
 		case "iPad":
-			platform = "ipad"
+			platform = "ipados"
 		}
 		args = append(args, d.SerialNumber, d.Model, platform)
 	}
@@ -1870,7 +1870,7 @@ func generateDesiredStateQuery(entityType string) string {
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
 	WHERE
-		(h.platform = 'darwin' OR h.platform = 'iphone' OR h.platform = 'ipad') AND
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
 		NOT EXISTS (
@@ -1903,7 +1903,7 @@ func generateDesiredStateQuery(entityType string) string {
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mel.label_id AND lm.host_id = h.id
 	WHERE
-		(h.platform = 'darwin' OR h.platform = 'iphone' OR h.platform = 'ipad') AND
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
 		( %[3]s )
@@ -2509,7 +2509,7 @@ SELECT
   COUNT(id) as count
 FROM
   hosts h
-GROUP BY status, platform, team_id HAVING (platform = 'darwin' OR platform = 'iphone' OR platform = 'ipad') AND status IN (?, ?, ?, ?) AND %s`
+GROUP BY status, platform, team_id HAVING (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') AND status IN (?, ?, ?, ?) AND %s`
 
 	args = append(args, fleet.MDMDeliveryFailed, fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified)
 
@@ -3458,7 +3458,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if host.Platform != "darwin" && host.Platform != "iphone" && host.Platform != "ipad" && host.Platform != "windows" {
+		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" && host.Platform != "windows" {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %s", host.Platform)
 		}
 

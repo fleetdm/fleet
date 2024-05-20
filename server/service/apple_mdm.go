@@ -2502,9 +2502,9 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	if iPhone || iPad {
 		m.Model = m.ProductName
 		if iPhone {
-			platform = "iphone"
+			platform = "ios"
 		} else {
-			platform = "ipad"
+			platform = "ipados"
 		}
 	}
 
@@ -2869,7 +2869,7 @@ func ReconcileAppleProfiles(
 
 	// Exclude the "Fleetd configuration" profiles from iPhones/iPads.
 	for i, profilePayload := range toInstall {
-		if (profilePayload.HostPlatform == "iphone" || profilePayload.HostPlatform == "ipad") &&
+		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
 			profilePayload.ProfileName == mdm_types.FleetdConfigProfileName {
 			toInstall = append(toInstall[:i], toInstall[i+1:]...)
 		}
