@@ -1741,8 +1741,8 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, enrol
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE hardware_serial = ? AND platform = ? ORDER BY id LIMIT 1)`)
-		args = append(args, serial, "darwin")
+		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'iphone' OR platform = 'ipad') ORDER BY id LIMIT 1)`)
+		args = append(args, serial)
 	}
 
 	if err := sqlx.SelectContext(ctx, q, &rows, query.String(), args...); err != nil {

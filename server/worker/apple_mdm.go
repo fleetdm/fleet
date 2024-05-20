@@ -177,7 +177,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		// be final and same for MDM profiles of that host; it means the DEP
 		// enrollment process is done and the device can be released.
 		if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, AppleMDMPostDEPReleaseDeviceTask,
-			args.HostUUID, args.TeamID, args.EnrollReference, awaitCmdUUIDs...); err != nil {
+			args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, awaitCmdUUIDs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
 		}
 	}
@@ -334,6 +334,7 @@ func QueueAppleMDMJob(
 	logger kitlog.Logger,
 	task AppleMDMTask,
 	hostUUID string,
+	platform string,
 	teamID *uint,
 	enrollReference string,
 	enrollmentCommandUUIDs ...string,
@@ -342,6 +343,7 @@ func QueueAppleMDMJob(
 		"enabled", "true",
 		appleMDMJobName, task,
 		"host_uuid", hostUUID,
+		"platform", platform,
 		"with_enroll_reference", enrollReference != "",
 	}
 	if teamID != nil {
@@ -358,6 +360,7 @@ func QueueAppleMDMJob(
 		TeamID:             teamID,
 		EnrollReference:    enrollReference,
 		EnrollmentCommands: enrollmentCommandUUIDs,
+		Platform:           platform,
 	}
 
 	// the release device task is always added with a delay
