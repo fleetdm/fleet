@@ -30,7 +30,7 @@ describe("Host Actions Dropdown", () => {
           summaryData={summaryData}
           showRefetchSpinner={false}
           onRefetchHost={noop}
-          renderActionButtons={() => null}
+          renderActionDropdown={() => null}
         />
       );
 
@@ -70,7 +70,7 @@ describe("Host Actions Dropdown", () => {
           summaryData={summaryData}
           showRefetchSpinner={false}
           onRefetchHost={noop}
-          renderActionButtons={() => null}
+          renderActionDropdown={() => null}
         />
       );
 
@@ -105,7 +105,7 @@ describe("Host Actions Dropdown", () => {
           summaryData={summaryData}
           showRefetchSpinner={false}
           onRefetchHost={noop}
-          renderActionButtons={() => null}
+          renderActionDropdown={() => null}
         />
       );
 
@@ -134,7 +134,7 @@ describe("Host Actions Dropdown", () => {
           summaryData={summaryData}
           showRefetchSpinner={false}
           onRefetchHost={noop}
-          renderActionButtons={() => null}
+          renderActionDropdown={() => null}
         />
       );
 

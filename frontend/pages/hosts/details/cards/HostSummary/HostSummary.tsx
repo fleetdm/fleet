@@ -115,7 +115,7 @@ interface IHostSummaryProps {
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
   ) => void;
-  renderActionButtons: () => JSX.Element | null;
+  renderActionDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
   osSettings?: IOSSettings;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
@@ -174,7 +174,7 @@ const HostSummary = ({
   mdmName,
   showRefetchSpinner,
   onRefetchHost,
-  renderActionButtons,
+  renderActionDropdown,
   deviceUser,
   osSettings,
   hostMdmDeviceStatus,
@@ -206,6 +206,10 @@ const HostSummary = ({
       tooltip = !isOnline
         ? REFETCH_TOOLTIP_MESSAGES.offline
         : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+    }
+
+    if (platform === "ios" || platform === "ipados") {
+      return null;
     }
 
     return (
@@ -498,7 +502,7 @@ const HostSummary = ({
             {renderRefetch()}
           </div>
         </div>
-        {renderActionButtons()}
+        {renderActionDropdown()}
       </div>
       {renderSummary()}
     </div>

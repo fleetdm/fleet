@@ -30,7 +30,7 @@ import {
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import Software, { IHostSoftware, ISoftware } from "interfaces/software";
+import { IHostSoftware } from "interfaces/software";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import {
@@ -665,7 +665,7 @@ const HostDetailsPage = ({
   //   host.mdm.pending_action
   // );
 
-  const renderActionButtons = () => {
+  const renderActionDropdown = () => {
     if (!host) {
       return null;
     }
@@ -786,7 +786,7 @@ const HostDetailsPage = ({
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
-          renderActionButtons={renderActionButtons}
+          renderActionDropdown={renderActionDropdown}
           osSettings={host?.mdm.os_settings}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
@@ -858,7 +858,8 @@ const HostDetailsPage = ({
                 queryParams={parseHostSoftwareQueryParams(location.query)}
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
-                teamId={host.team_id || 0}
+                hostTeamId={host.team_id || 0}
+                hostPlatform={host.platform}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -872,7 +873,7 @@ const HostDetailsPage = ({
               <QueriesCard
                 hostId={host.id}
                 router={router}
-                isChromeOSHost={host.platform === "chrome"}
+                hostPlatform={host.platform}
                 schedule={schedule}
                 queryReportsDisabled={
                   config?.server_settings?.query_reports_disabled
@@ -887,6 +888,7 @@ const HostDetailsPage = ({
                 policies={host?.policies || []}
                 isLoading={isLoadingHost}
                 togglePolicyDetailsModal={togglePolicyDetailsModal}
+                hostPlatform={host.platform}
               />
             </TabPanel>
           </Tabs>
