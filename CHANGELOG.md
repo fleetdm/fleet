@@ -10,7 +10,7 @@
 
 * Improved Windows OS version reporting.
 * Fixed a bug where when updating a policy's 'platform' field, the aggregated policy stats were not cleared.
-* UI: Improved URL and email validation.
+* Improved URL and email validation in the UI.
 
 ## Fleet 4.49.2 (Apr 30, 2024)
 
@@ -46,8 +46,6 @@
 - Updated `fleetctl run-script` to include new `--team` and `--script-name` flags.
 - Displayed disk encryption status in macOS as "verifying" while verifying the escrowed key.
 - Added the `enable_release_device_manually` configuration setting for teams and no team, which controls the automatic release of a macOS DEP-enrolled device.
-- Updated the `POST /api/v1/fleet/hosts/:id/wipe` Fleet Premium API endpoint to support remote wiping a host.
-- Added the `enable_release_device_manually` configuration, which affects macOS automatic enrollment profile settings.
 
 ### Vulnerability management
 
