@@ -72,7 +72,7 @@ INSERT INTO
 			cp.Labels[i].ProfileUUID = profUUID
 		}
 		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "apple"); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
+			return ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
 		}
 
 		return nil
@@ -707,7 +707,7 @@ WHERE
 func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+		return ctxerr.Wrap(ctx, err, "mdm apple upsert host get app config")
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger, appCfg)
@@ -766,7 +766,7 @@ func updateMDMAppleHostDB(
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
-		"darwin",
+		mdmHost.Platform,
 		1,
 		// Set osquery_host_id to the device UUID only if it is not already set.
 		mdmHost.UUID,
@@ -794,6 +794,10 @@ func insertMDMAppleHostDB(
 	logger log.Logger,
 	appCfg *fleet.AppConfig,
 ) error {
+	refetchRequested := 1
+	if mdmHost.Platform == "iphone" || mdmHost.Platform == "ipad" {
+		refetchRequested = 0
+	}
 	insertStmt := `
 		INSERT INTO hosts (
 			hardware_serial,
@@ -812,11 +816,11 @@ func insertMDMAppleHostDB(
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
-		"darwin",
+		mdmHost.Platform,
 		"2000-01-01 00:00:00",
 		"2000-01-01 00:00:00",
 		mdmHost.UUID,
-		1,
+		refetchRequested,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert mdm apple host")
@@ -907,7 +911,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		WHERE
 			h.id IS NULL
 		GROUP BY
-			us.hardware_serial)`,
+			us.hardware_serial, us.platform)`,
 			us,
 		)
 
@@ -933,6 +937,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		err = sqlx.SelectContext(ctx, tx, &hostsWithMDMInfo, fmt.Sprintf(`
 			SELECT
 				h.id,
+				h.platform,
 				h.hardware_model,
 				h.hardware_serial,
 				COALESCE(hmdm.enrolled, 0) as enrolled
@@ -1096,25 +1101,41 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	// now because it may still be some time before osquery is running on these
 	// devices. Because these are Apple devices, we're adding them to the "All
 	// Hosts" and "macOS" labels.
-	labelIDs := []uint{}
-	err := sqlx.SelectContext(ctx, tx, &labelIDs, `SELECT id FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS')`)
+	labels := []struct {
+		ID   uint   `db:"id"`
+		Name string `db:"name"`
+	}{}
+	err := sqlx.SelectContext(ctx, tx, &labels, `SELECT id, name FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS')`)
 	switch {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get builtin labels")
-	case len(labelIDs) != 2:
+	case len(labels) != 2:
 		// Builtin labels can get deleted so it is important that we check that
 		// they still exist before we continue.
-		level.Error(logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labelIDs)))
+		level.Error(logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labels)))
 		return nil
 	default:
 		// continue
 	}
 
+	// Put "All Hosts" label first (we don't want to make assumptions around ids of builtin labels).
+	labelIDs := make([]uint, 0, 2)
+	if labels[0].Name == "All Hosts" {
+		labelIDs = append(labelIDs, labels[0].ID, labels[1].ID)
+	} else {
+		labelIDs = append(labelIDs, labels[1].ID, labels[0].ID)
+	}
+
 	parts := []string{}
 	args := []interface{}{}
 	for _, h := range hosts {
-		parts = append(parts, "(?,?),(?,?)")
-		args = append(args, h.ID, labelIDs[0], h.ID, labelIDs[1])
+		if h.Platform == "iphone" || h.Platform == "ipad" {
+			parts = append(parts, "(?,?)")
+			args = append(args, h.ID, labelIDs[0])
+		} else {
+			parts = append(parts, "(?,?),(?,?)")
+			args = append(args, h.ID, labelIDs[0], h.ID, labelIDs[1])
+		}
 	}
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 			INSERT INTO label_membership (host_id, label_id) VALUES %s
@@ -1131,6 +1152,8 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
 	tableMap := map[string][]string{
 		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"iphone":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"ipad":    {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
 		"windows": {"host_mdm_windows_profiles"},
 	}
 
@@ -1162,8 +1185,8 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if host.Platform != "darwin" && host.Platform != "windows" {
-			return ctxerr.Errorf(ctx, "unsupported host platform: %s", host.Platform)
+		if host.Platform != "darwin" && host.Platform != "iphone" && host.Platform != "ipad" && host.Platform != "windows" {
+			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
 		// NOTE: set installed_from_dep = 0 so DEP host will not be
@@ -1191,6 +1214,11 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
+
+		// iPhones and iPads have no osquery thus we don't need to refetch.
+		if host.Platform == "iphone" || host.Platform == "ipad" {
+			return nil
+		}
 
 		// request a refetch to update any eventually consistent stale information.
 		err = updateHostRefetchRequestedDB(ctx, tx, host.ID, true)
@@ -2477,7 +2505,7 @@ SELECT
   COUNT(id) as count
 FROM
   hosts h
-GROUP BY status, platform, team_id HAVING platform = 'darwin' AND status IN (?, ?, ?, ?) AND %s`
+GROUP BY status, platform, team_id HAVING (platform = 'darwin' OR platform = 'iphone' OR platform = 'ipad') AND status IN (?, ?, ?, ?) AND %s`
 
 	args = append(args, fleet.MDMDeliveryFailed, fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified)
 
@@ -3426,7 +3454,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if host.Platform != "darwin" && host.Platform != "windows" {
+		if host.Platform != "darwin" && host.Platform != "iphone" && host.Platform != "ipad" && host.Platform != "windows" {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %s", host.Platform)
 		}
 

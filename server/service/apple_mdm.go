@@ -2496,13 +2496,21 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 
 	// iPhones and iPads send ProductName but not Model/ModelName,
 	// thus we use this field as the device's Model (which is required on lifecycle stages).
-	if strings.HasPrefix(m.ProductName, "iPhone") || strings.HasPrefix(m.ProductName, "iPad") {
+	platform := "darwin"
+	iPhone := strings.HasPrefix(m.ProductName, "iPhone")
+	iPad := strings.HasPrefix(m.ProductName, "iPad")
+	if iPhone || iPad {
 		m.Model = m.ProductName
+		if iPhone {
+			platform = "iphone"
+		} else {
+			platform = "ipad"
+		}
 	}
 
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:         mdmlifecycle.HostActionReset,
-		Platform:       "darwin",
+		Platform:       platform,
 		UUID:           m.UDID,
 		HardwareSerial: m.SerialNumber,
 		HardwareModel:  m.Model,
