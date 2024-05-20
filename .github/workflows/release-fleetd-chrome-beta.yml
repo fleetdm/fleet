@@ -62,9 +62,9 @@ jobs:
       - name: Upload extension
         uses: ./.github/actions/r2-upload
         env:
-            R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-            R2_ACCESS_KEY_ID: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_ID }}
-            R2_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_SECRET }}
-            R2_BUCKET: chrome-beta
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_ID }}
+          R2_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_SECRET }}
+          R2_BUCKET: chrome-beta
         with:
           filenames: ./ee/fleetd-chrome/fleetd.crx,./ee/fleetd-chrome/updates.xml
