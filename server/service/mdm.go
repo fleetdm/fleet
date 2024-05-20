@@ -1702,7 +1702,7 @@ func getAppleProfiles(
 	// "declaration" to differentiate between the two types of profiles
 	byName, byIdent := make(map[string]string, len(profiles)), make(map[string]string, len(profiles))
 	for _, prof := range profiles {
-		if mdm.GetRawProfilePlatform(prof.Contents) != "darwin" {
+		if mdm.GetRawProfilePlatform(prof.Contents) != "apple" {
 			continue
 		}
 
@@ -1863,7 +1863,7 @@ func getWindowsProfiles(
 func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
-		if platform != "darwin" && platform != "windows" {
+		if platform != "apple" && platform != "windows" {
 			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
 			return fleet.NewInvalidArgumentError("mdm", "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 		}
@@ -2033,7 +2033,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
 		}
-		if host.Platform != "darwin" {
+		if host.Platform != "darwin" && host.Platform != "iphone" && host.Platform != "ipad" {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
@@ -2047,7 +2047,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
 		}
-		if host.Platform != "darwin" {
+		if host.Platform != "darwin" && host.Platform != "iphone" && host.Platform != "ipad" {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
