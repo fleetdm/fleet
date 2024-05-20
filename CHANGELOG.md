@@ -1,10 +1,16 @@
+## Fleet 4.49.4 (May 20, 2024)
+
+### Bug fixes
+
+* Fixed an issue with SCEP renewals that could prevent commands to renew from being enqueued.
+
 ## Fleet 4.49.3 (May 06, 2024)
 
 ### Bug fixes
 
 * Improved Windows OS version reporting.
 * Fixed a bug where when updating a policy's 'platform' field, the aggregated policy stats were not cleared.
-* Improved URL and email validation in the UI.
+* UI: Improved URL and email validation.
 
 ## Fleet 4.49.2 (Apr 30, 2024)
 
@@ -40,6 +46,8 @@
 - Updated `fleetctl run-script` to include new `--team` and `--script-name` flags.
 - Displayed disk encryption status in macOS as "verifying" while verifying the escrowed key.
 - Added the `enable_release_device_manually` configuration setting for teams and no team, which controls the automatic release of a macOS DEP-enrolled device.
+- Updated the `POST /api/v1/fleet/hosts/:id/wipe` Fleet Premium API endpoint to support remote wiping a host.
+- Added the `enable_release_device_manually` configuration, which affects macOS automatic enrollment profile settings.
 
 ### Vulnerability management
 
