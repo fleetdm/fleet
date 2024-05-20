@@ -1185,7 +1185,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if host.Platform != "darwin" && host.Platform != "iphone" && host.Platform != "ipad" && host.Platform != "windows" {
+		if !fleet.MDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 

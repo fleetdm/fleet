@@ -18,7 +18,7 @@ import (
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
-	WHEN EXISTS (SELECT 1 FROM nano_commands WHERE command_uuid = ?) THEN 'darwin'
+	WHEN EXISTS (SELECT 1 FROM nano_commands WHERE command_uuid = ?) THEN 'apple'
 	WHEN EXISTS (SELECT 1 FROM windows_mdm_commands WHERE command_uuid = ?) THEN 'windows'
 	ELSE ''
 END AS platform
@@ -141,7 +141,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
-		'darwin' as platform,
+		'apple' as platform,
 		identifier,
 		checksum,
 		created_at,
@@ -175,7 +175,7 @@ FROM (
 		declaration_uuid AS profile_uuid,
 		team_id,
 		name,
-		'darwin' AS platform,
+		'apple' AS platform,
 		identifier,
 		checksum AS checksum,
 		created_at,
@@ -425,7 +425,7 @@ FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
 	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 WHERE
-	macp.profile_uuid IN (?) AND h.platform = 'darwin'`
+	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'iphone' OR h.platform = 'ipad')`
 		args = append(args, macProfUUIDs)
 
 	case len(winProfUUIDs) > 0:
@@ -458,7 +458,7 @@ WHERE
 	var winHosts []string
 	for _, h := range hosts {
 		switch h.Platform {
-		case "darwin":
+		case "darwin", "iphone", "ipad":
 			macHosts = append(macHosts, h.UUID)
 		case "windows":
 			winHosts = append(winHosts, h.UUID)
@@ -537,7 +537,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "iphone", "ipad":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -577,7 +577,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "iphone", "ipad":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -630,7 +630,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "iphone", "ipad":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -667,7 +667,7 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 	}
 
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "iphone", "ipad":
 		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID)
 	case "windows":
 		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
@@ -803,7 +803,7 @@ WHERE
 }
 
 func (ds *Datastore) GetHostMDMProfilesRetryCounts(ctx context.Context, host *fleet.Host) ([]fleet.HostMDMProfileRetryCount, error) {
-	const darwinStmt = `
+	const appleStmt = `
 SELECT
 	profile_identifier,
 	retries
@@ -823,8 +823,8 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
-		stmt = darwinStmt
+	case "darwin", "iphone", "ipad":
+		stmt = appleStmt
 	case "windows":
 		stmt = windowsStmt
 	default:
@@ -840,7 +840,7 @@ WHERE
 }
 
 func (ds *Datastore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
-	const darwinStmt = `
+	const appleStmt = `
 SELECT
 	profile_identifier, retries
 FROM
@@ -860,8 +860,8 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
-		stmt = darwinStmt
+	case "darwin", "iphone", "ipad":
+		stmt = appleStmt
 	case "windows":
 		stmt = windowsStmt
 	default:

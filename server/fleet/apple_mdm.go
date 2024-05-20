@@ -255,7 +255,7 @@ type HostMDMAppleProfile struct {
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
-func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
+func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 	return HostMDMProfile{
 		HostUUID:      p.HostUUID,
 		ProfileUUID:   p.ProfileUUID,
@@ -264,7 +264,7 @@ func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 		Status:        p.Status,
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
-		Platform:      "darwin",
+		Platform:      platform,
 	}
 }
 

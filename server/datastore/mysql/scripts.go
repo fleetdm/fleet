@@ -706,7 +706,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	}
 
 	switch fleetPlatform {
-	case "darwin":
+	case "darwin", "iphone", "ipad":
 		if mdmActions.UnlockPIN != nil {
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}

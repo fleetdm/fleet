@@ -109,9 +109,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N1", resp.Profiles[0].Name)
-	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "apple", resp.Profiles[0].Platform)
 	require.Equal(t, "N2", resp.Profiles[1].Name)
-	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+	require.Equal(t, "apple", resp.Profiles[1].Platform)
 
 	// Create 2 new declarations. These should take the place of the first two.
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -123,9 +123,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
-	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "apple", resp.Profiles[0].Platform)
 	require.Equal(t, "N4", resp.Profiles[1].Name)
-	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+	require.Equal(t, "apple", resp.Profiles[1].Platform)
 
 	// replace only 1 declaration, the other one should be the same
 
@@ -138,9 +138,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
-	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "apple", resp.Profiles[0].Platform)
 	require.Equal(t, "N5", resp.Profiles[1].Name)
-	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+	require.Equal(t, "apple", resp.Profiles[1].Platform)
 
 	// update the declarations
 
@@ -153,9 +153,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
-	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "apple", resp.Profiles[0].Platform)
 	require.Equal(t, "N5", resp.Profiles[1].Name)
-	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+	require.Equal(t, "apple", resp.Profiles[1].Platform)
 
 	var createResp createLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label_1", Query: "select 1"}, http.StatusOK, &createResp)
@@ -178,9 +178,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N5", resp.Profiles[0].Name)
-	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "apple", resp.Profiles[0].Platform)
 	require.Equal(t, "N6", resp.Profiles[1].Name)
-	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+	require.Equal(t, "apple", resp.Profiles[1].Platform)
 	require.Len(t, resp.Profiles[0].Labels, 2)
 	require.Equal(t, lbl1.Name, resp.Profiles[0].Labels[0].LabelName)
 	require.Equal(t, lbl2.Name, resp.Profiles[0].Labels[1].LabelName)
