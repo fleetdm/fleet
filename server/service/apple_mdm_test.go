@@ -1102,6 +1102,9 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		}, nil
 	}
 
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -1284,6 +1287,9 @@ func TestMDMCheckout(t *testing.T) {
 		}, nil
 	}
 
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
