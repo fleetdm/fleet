@@ -44,7 +44,7 @@ import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import OSSettingsModal from "../OSSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/Software";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 
 const baseClass = "device-user";
 
