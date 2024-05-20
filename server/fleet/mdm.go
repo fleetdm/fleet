@@ -540,7 +540,7 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 
 func MDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
-	case "darwin", "iphone", "ipad":
+	case "darwin", "ios", "ipados":
 		return "apple"
 	case "windows":
 		return "windows"

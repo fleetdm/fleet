@@ -425,7 +425,7 @@ FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
 	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 WHERE
-	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'iphone' OR h.platform = 'ipad')`
+	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')`
 		args = append(args, macProfUUIDs)
 
 	case len(winProfUUIDs) > 0:
@@ -458,7 +458,7 @@ WHERE
 	var winHosts []string
 	for _, h := range hosts {
 		switch h.Platform {
-		case "darwin", "iphone", "ipad":
+		case "darwin", "ios", "ipados":
 			macHosts = append(macHosts, h.UUID)
 		case "windows":
 			winHosts = append(winHosts, h.UUID)
@@ -537,7 +537,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "iphone", "ipad":
+	case "darwin", "ios", "ipad":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -577,7 +577,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "iphone", "ipad":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -630,7 +630,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "iphone", "ipad":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -667,7 +667,7 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 	}
 
 	switch host.Platform {
-	case "darwin", "iphone", "ipad":
+	case "darwin", "ios", "ipados":
 		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID)
 	case "windows":
 		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
@@ -823,7 +823,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "iphone", "ipad":
+	case "darwin", "ios", "ipados":
 		stmt = appleStmt
 	case "windows":
 		stmt = windowsStmt
@@ -860,7 +860,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "iphone", "ipad":
+	case "darwin", "ios", "ipados":
 		stmt = appleStmt
 	case "windows":
 		stmt = windowsStmt

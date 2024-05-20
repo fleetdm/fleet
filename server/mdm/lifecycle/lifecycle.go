@@ -58,7 +58,7 @@ func New(ds fleet.Datastore, logger kitlog.Logger) *HostLifecycle {
 // Do executes the provided HostAction based on the platform requested
 func (t *HostLifecycle) Do(ctx context.Context, opts HostOptions) error {
 	switch opts.Platform {
-	case "darwin", "iphone", "ipad":
+	case "darwin", "ios", "ipados":
 		err := t.doApple(ctx, opts)
 		return ctxerr.Wrapf(ctx, err, "running apple lifecycle action %s", opts.Action)
 	case "windows":

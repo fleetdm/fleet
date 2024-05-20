@@ -124,8 +124,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         cellProps.row.original.mdm.enrollment_status === "Pending" &&
         // pending status is only supported for Apple devices
         (cellProps.row.original.platform === "darwin" ||
-          cellProps.row.original.platform === "iphone" ||
-          cellProps.row.original.platform === "ipad") &&
+          cellProps.row.original.platform === "ios" ||
+          cellProps.row.original.platform === "ipados") &&
         // osquery version is populated along with the rest of host details so use it
         // here to check if we already have host details and don't need to disable the link
         !cellProps.row.original.osquery_version
