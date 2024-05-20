@@ -750,6 +750,10 @@ func updateMDMAppleHostDB(
 	mdmHost *fleet.Host,
 	appCfg *fleet.AppConfig,
 ) error {
+	refetchRequested := 1
+	if mdmHost.Platform == "iphone" || mdmHost.Platform == "ipad" {
+		refetchRequested = 0
+	}
 	updateStmt := `
 		UPDATE hosts SET
 			hardware_serial = ?,
@@ -767,7 +771,7 @@ func updateMDMAppleHostDB(
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
 		mdmHost.Platform,
-		1,
+		refetchRequested,
 		// Set osquery_host_id to the device UUID only if it is not already set.
 		mdmHost.UUID,
 		hostID,
