@@ -2836,13 +2836,13 @@ func (s *integrationTestSuite) TestListActivities() {
 
 	timestamp := time.Now()
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, []byte{}, timestamp)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, []byte{}, timestamp)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{}, []byte{}, timestamp)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{}, nil, timestamp)
 	require.NoError(t, err)
 
 	lenPage := len(prevActivities) + 2
