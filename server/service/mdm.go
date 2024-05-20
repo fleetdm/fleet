@@ -496,8 +496,8 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	for platform := range platforms {
 		commandPlatform = platform
 	}
-	if commandPlatform != "windows" && commandPlatform != "darwin" {
-		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows or macOS hosts.")
+	if !fleet.MDMSupported(commandPlatform) {
+		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows or Apple hosts.")
 		return nil, ctxerr.Wrap(ctx, err, "check host platform")
 	}
 
@@ -592,7 +592,7 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 	return &fleet.CommandEnqueueResult{
 		CommandUUID: cmd.CommandUUID,
 		RequestType: cmd.Command.RequestType,
-		Platform:    "darwin",
+		Platform:    "apple",
 	}, nil
 }
 
@@ -680,7 +680,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 
 	var results []*fleet.MDMCommandResult
 	switch p {
-	case "darwin":
+	case "apple":
 		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
 	case "windows":
 		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)

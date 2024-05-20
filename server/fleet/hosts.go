@@ -879,7 +879,9 @@ func PlatformFromHost(hostPlatform string) string {
 		// TODO remove this once that customer migrates to Fleetd for Chrome
 		hostPlatform == "CrOS",
 		// Fleet now supports Chrome via fleetd
-		hostPlatform == "chrome":
+		hostPlatform == "chrome",
+		hostPlatform == "iphone",
+		hostPlatform == "ipad":
 		return hostPlatform
 	default:
 		return ""

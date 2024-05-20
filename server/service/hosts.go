@@ -1102,7 +1102,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				profiles = append(profiles, p.ToHostMDMProfile())
 			}
 
-		case "darwin":
+		case "darwin", "iphone", "ipad":
 			if ac.MDM.EnabledAndConfigured {
 				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 				if err != nil {
@@ -1118,7 +1118,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-					profiles = append(profiles, p.ToHostMDMProfile())
+					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
 				}
 			}
 		}

@@ -397,7 +397,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	}
 
 	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
-		return "darwin", nil
+		return "apple", nil
 	}
 
 	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {
@@ -862,7 +862,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 					ep = []fleet.HostMDMProfile{}
 				default:
 					for _, p := range *c.expected {
-						ep = append(ep, p.ToHostMDMProfile())
+						ep = append(ep, p.ToHostMDMProfile(gotHost.Platform))
 					}
 				}
 				require.Equal(t, gotHost.MDM.Profiles, &ep)
@@ -873,7 +873,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			require.NotNil(t, gotHost.MDM.Profiles)
 			ep := make([]fleet.HostMDMProfile, 0, len(*gotHost.MDM.Profiles))
 			for _, p := range *c.expected {
-				ep = append(ep, p.ToHostMDMProfile())
+				ep = append(ep, p.ToHostMDMProfile(gotHost.Platform))
 			}
 			require.ElementsMatch(t, ep, *gotHost.MDM.Profiles)
 		})

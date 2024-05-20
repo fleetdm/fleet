@@ -282,12 +282,12 @@ func (c *Client) MDMGetCommandResults(commandUUID string) ([]*fleet.MDMCommandRe
 func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform string) (*fleet.CommandEnqueueResult, error) {
 	var prepareFn func([]byte) ([]byte, error)
 	switch forPlatform {
-	case "darwin":
+	case "apple":
 		prepareFn = c.prepareAppleMDMCommand
 	case "windows":
 		prepareFn = c.prepareWindowsMDMCommand
 	default:
-		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or macOS hosts.", forPlatform)
+		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or Apple hosts.", forPlatform)
 	}
 
 	rawCmd, err := prepareFn(rawCmd)

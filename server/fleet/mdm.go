@@ -169,6 +169,7 @@ type CommandEnqueueResult struct {
 	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 	// Platform is the platform of the hosts targeted by the command.
+	// Current possible values are "apple" or "windows".
 	Platform string `json:"platform"`
 }
 
@@ -367,7 +368,7 @@ type MDMConfigProfilePayload struct {
 	ProfileUUID string                      `json:"profile_uuid" db:"profile_uuid"`
 	TeamID      *uint                       `json:"team_id" db:"team_id"` // null for no-team
 	Name        string                      `json:"name" db:"name"`
-	Platform    string                      `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Platform    string                      `json:"platform" db:"platform"`               // "windows" or "apple"
 	Identifier  string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Checksum    []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
 	CreatedAt   time.Time                   `json:"created_at" db:"created_at"`
@@ -535,4 +536,18 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	}
 
 	return len(pathLabelCounts) == 0
+}
+
+func MDMPlatform(hostPlatform string) string {
+	switch hostPlatform {
+	case "darwin", "iphone", "ipad":
+		return "apple"
+	case "windows":
+		return "windows"
+	}
+	return ""
+}
+
+func MDMSupported(hostPlatform string) bool {
+	return MDMPlatform(hostPlatform) != ""
 }
