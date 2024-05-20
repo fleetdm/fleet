@@ -104,24 +104,23 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 ```
 
 ### Run US commission payroll
-- Update individual teammates commission calculators (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with new revenue from any deals that are closed-won (have a subscription agreement signed by both parties) and have a **close date** within the previous month.
-  - Verify closed-won deal numbers with CRO to ensure any agreed upon exceptions are captured (eg: CRO approves an AE to receive commission on a renewal deal due to cross-sell).
-- In the "Monthly commission payroll party" meeting, present the commission calculations for Fleeties receiving commission for approval.
-  - If there are any quarterly accelerators due for the teammate receiving commission, ensure the individual total includes both the monthly and the quarterly amount.
-- After the amounts are approved in the meeting, process the commission payroll.
-  - Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
-- Once commission payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid. 
+1. Update individual teammates commission calculators (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with new revenue from any deals that are closed-won (have a subscription agreement signed by both parties) and have a **close date** within the previous month.
+    - Verify closed-won deal numbers with CRO to ensure any agreed upon exceptions are captured (eg: CRO approves an AE to receive commission on a renewal deal due to cross-sell).
+2. In the "Monthly commission payroll party" meeting, present the commission calculations for Fleeties receiving commission for approval.
+    - If there are any quarterly accelerators due for the teammate receiving commission, ensure the individual total includes both the monthly and the quarterly amount.
+3. After the amounts are approved in the meeting, process the commission payroll.
+    - Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
+4. Once commission payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid. 
 
 
 ### Run quarterly or annual employee bonus payroll
-- Update individual teammate bonus calculator (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with relevant metrics.
-  - Bonus plans will have details specified on how to measure success, with most drawing from the [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing) or from linked SFDC reports.
-  - If unsure where to pull achievement metrics from, contact teammate's manager to clarify.
-- In the "Monthly commission payroll party" meeting, present the bonus calculations for Fleeties receiving bonus for approval.
-- After the amounts are approved in the meeting, process the bonus payroll.
-  - Use the off-cycle payroll option in Gusto and be sure to classify the payment as "Bonus".
-  - For international teammates, you may need to use the "Help" function, or email support to notify Plane of the amount needing to be paid.
-- Once bonus payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the bonus as paid. 
+1. Update individual teammate bonus calculator (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with relevant metrics.
+    - Bonus plans will have details specified on how to measure success, with most drawing from the [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing) or from linked SFDC reports. If unsure where to pull achievement metrics from, contact teammate's manager to clarify.
+2. In the "Monthly commission payroll party" meeting, present the bonus calculations for Fleeties receiving bonus for approval.
+3. After the amounts are approved in the meeting, process the bonus payroll.
+    - Use the off-cycle payroll option in Gusto and be sure to classify the payment as "Bonus".
+    - For international teammates, you may need to use the "Help" function, or email support to notify Plane of the amount needing to be paid.
+4. Once bonus payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the bonus as paid. 
 
 
 ### Convert a Fleetie to a consultant
