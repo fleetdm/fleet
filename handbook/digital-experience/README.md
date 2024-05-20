@@ -63,14 +63,12 @@ Once you have the above follow these steps:
 2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
   - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
   - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
-    
-    > You can use the `--skipGithubRequests` flag to skip requests made to GitHub if you get rate-limited by GitHub’s API while running this script. 
-    > 
-    > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
 
     > When this script runs, the website's configuration file ([`website/.sailsrc`](https://github.com/fleetdm/fleet/blob/main/website/.sailsrc)) will automatically be updated with information the website uses to display content built from Markdown and YAML. Changes to this file should never be committed to the GitHub repo. If you want to exclude changes to this file in any PRs you make, you can run this terminal command in your local copy of the Fleet repo: `git update-index --assume-unchanged ./website/.sailsrc`.
+    
+    > Note: You can run `npm run start-dev` in the `website/` folder to run the `build-static-content` script and start the website server with a single command.
 
-3. Once the script is complete, start the website server. From the `website/` folder:
+3. Once the script is complete, start the website server:
   - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
   - **With Sails.js installed globally:** start the server by running `sails lift`.
 
@@ -292,7 +290,7 @@ Agenda:
 
 
 ### Prepare for CEO office minutes 
-Before the start of the meeting, the Apprentice to the CEO will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
+Before the start of the meeting, the Apprentice will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
 1. All agenda items are prefixed with a date of when the item will be covered and name of the person requesting to discuss the issue.
 2. All team members with an agenda item have added themselves **and their manager** to the correct calendar event. If the team member or manager hasn't been added to the calendar event before the meeting begins, the agenda item is de-prioritized in favor of others with representatives in attendance. 
 3. If there are more that two team members attending, the Apprentice will work with the team members to schedule additional time to cover the agenda.  
@@ -393,31 +391,6 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
 
-### Process incoming equipment
-Upon receiving any device, the Apprentice will process the incoming equipment by:
-1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
-4. Remove any stickers and clean devices and components.
-5. Using the device's charger plug in the device.
-6. Turn on the device and enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
-7. Connect the device to WIFI.
-8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
-9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
-> If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
-
-
-### Ship approved equipment
-Once the Business Operations department approves inventory to be shipped from Fleet IT, the Apprentice will ship the equipment by:
-1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
-2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
-3. package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user.
-  - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT to troubleshoot the device.
-6. Ship via FedEx to the address listed in the equipment request.
-7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
-
-
-
 ### Prepare for the All hands
 - **Every month** the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands".
@@ -484,7 +457,7 @@ Once a day the Apprentice will confirm check LinkedIn for unread messages.
 
 
 ### Unroll a Slack thread
-From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+From time to time the CEO will ask the Apprentice to unroll a Slack thread into a well-named whiteboard Google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.

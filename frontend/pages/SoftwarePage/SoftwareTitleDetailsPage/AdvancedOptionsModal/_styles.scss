@@ -1,0 +1,13 @@
+.advanced-options-modal {
+  &__form-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__input-field {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium
+  }
+}

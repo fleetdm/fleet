@@ -1,0 +1,1 @@
+* Added `software` team setting to add software installers in YAML files for `fleetctl apply` and `fleetctl gitops`.

@@ -1,0 +1,1 @@
+* Added code to detect value of `DISPLAY` variable of user instead of defaulting to `:0` (to support Ubuntu 24.04 with Xorg).
