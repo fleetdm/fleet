@@ -1050,6 +1050,7 @@ func TestGetMostRecentResults(t *testing.T) {
 }
 
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
+	t.Helper()
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
@@ -1060,6 +1061,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "kubequery_info":             {},
 		hostDetailQueryPrefix + "orbit_info":                 {},
 		hostDetailQueryPrefix + "software_vscode_extensions": {},
+		hostDetailQueryPrefix + "software_macos_firefox":     {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
