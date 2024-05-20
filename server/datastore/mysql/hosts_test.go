@@ -6600,8 +6600,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	detailsBytes, err := json.Marshal(activity)
 	require.NoError(t, err)
 
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity( // automatically creates the host_activities entry
-		context.Background(),
+		ctx,
 		user1,
 		activity,
 		detailsBytes,

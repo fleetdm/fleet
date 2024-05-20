@@ -105,7 +105,6 @@ func Test_logRoleChangeActivities(t *testing.T) {
 			expectActivities: []string{"changed_user_team_role", "deleted_user_team_role"},
 		},
 	}
-	ctx := context.Background()
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 	var activities []string
@@ -114,6 +113,9 @@ func Test_logRoleChangeActivities(t *testing.T) {
 	) error {
 		activities = append(activities, activity.ActivityName())
 		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
