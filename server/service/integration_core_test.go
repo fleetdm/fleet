@@ -6610,6 +6610,17 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		sws[i] = sw
 	}
 
+	sortByNameAlphanumeric := func(sw []fleet.Software, a, b int) bool {
+		aNum, _ := strconv.Atoi(strings.TrimPrefix(sw[a].Name, "sw"))
+		bNum, _ := strconv.Atoi(strings.TrimPrefix(sw[b].Name, "sw"))
+		return aNum < bNum
+	}
+	sortEntryByNameAlphanumeric := func(sw []fleet.HostSoftwareEntry, a, b int) bool {
+		aNum, _ := strconv.Atoi(strings.TrimPrefix(sw[a].Name, "sw"))
+		bNum, _ := strconv.Atoi(strings.TrimPrefix(sw[b].Name, "sw"))
+		return aNum < bNum
+	}
+
 	// mark them as installed on the hosts, with host at index 0 having all 20,
 	// at index 1 having 19, index 2 = 18, etc. until index 19 = 1. So software
 	// sws[0] is only used by 1 host, while sws[19] is used by all.
@@ -6624,6 +6635,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			for _, s := range h.Software {
 				sws = append(sws, s.Software)
 			}
+			// Sort software by Name (alphanumeric)
+			sort.Slice(
+				sws, func(a, b int) bool {
+					return sortByNameAlphanumeric(sws, a, b)
+				},
+			)
 		}
 	}
 
@@ -6639,6 +6656,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+	// Sort software by Name (alphanumeric)
+	sort.Slice(
+		hosts[0].Software, func(a, b int) bool {
+			return sortEntryByNameAlphanumeric(hosts[0].Software, a, b)
+		},
+	)
 	testCvePrefix := "cve-123-123"
 	for i, sw := range hosts[0].Software[:10] {
 		inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
@@ -6685,9 +6708,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
 			wantID, gotID := want[i].ID, resp.Software[i].ID
-			assert.Equal(t, wantID, gotID)
-			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
-			assert.Equal(t, wantCount, gotCount)
+			assert.Equal(t, wantID, gotID, "want.Name: %s got.Name: %s", want[i].Name, resp.Software[i].Name)
 			wantName, gotName := want[i].Name, resp.Software[i].Name
 			assert.Equal(t, wantName, gotName)
 			wantVersion, gotVersion := want[i].Version, resp.Software[i].Version
@@ -6696,6 +6717,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, wantSource, gotSource)
 			wantBrowser, gotBrowser := want[i].Browser, resp.Software[i].Browser
 			assert.Equal(t, wantBrowser, gotBrowser)
+			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
+			assert.Equal(t, wantCount, gotCount)
 		}
 		if ts.IsZero() {
 			assert.Nil(t, resp.CountsUpdatedAt)
