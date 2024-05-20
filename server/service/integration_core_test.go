@@ -3032,7 +3032,8 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	labelID := lblIDs["All Hosts"]
 
 	// Add label to host0
-	s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{labelID: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{labelID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
 
 	// offline status filter request should not move hosts
 	req = addHostsToTeamByFilterRequest{
