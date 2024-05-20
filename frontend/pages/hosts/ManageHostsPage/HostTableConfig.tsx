@@ -57,13 +57,13 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   const condensed =
     users.length === 4
       ? users
-          .slice(-4)
-          .map((u) => u.email)
-          .reverse()
+        .slice(-4)
+        .map((u) => u.email)
+        .reverse()
       : users
-          .slice(-3)
-          .map((u) => u.email)
-          .reverse() || [];
+        .slice(-3)
+        .map((u) => u.email)
+        .reverse() || [];
   return users.length > 4
     ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
     : condensed;
@@ -122,8 +122,10 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       if (
         // if the host is pending, we want to disable the link to host details
         cellProps.row.original.mdm.enrollment_status === "Pending" &&
-        // pending status is only supported for macos devices
-        cellProps.row.original.platform === "darwin" &&
+        // pending status is only supported for Apple devices
+        (cellProps.row.original.platform === "darwin" ||
+          cellProps.row.original.platform === "iphone" ||
+          cellProps.row.original.platform === "ipad") &&
         // osquery version is populated along with the rest of host details so use it
         // here to check if we already have host details and don't need to disable the link
         !cellProps.row.original.osquery_version
@@ -326,9 +328,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         return (
           <>
             <span
-              className={`text-cell ${
-                users.length > 1 ? "text-muted tooltip" : ""
-              }`}
+              className={`text-cell ${users.length > 1 ? "text-muted tooltip" : ""
+                }`}
               data-tip
               data-for={`device_mapping__${cellProps.row.original.id}`}
               data-tip-disable={users.length <= 1}
