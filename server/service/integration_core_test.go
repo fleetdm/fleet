@@ -3032,16 +3032,21 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	labelID := lblIDs["All Hosts"]
 
 	// Add label to host0
-	mysql.ExecAdhocSQL(
-		t, s.ds, func(db sqlx.ExtContext) error {
-			_, err := db.ExecContext(
-				context.Background(),
-				"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
-				hosts[0].ID, labelID,
-			)
-			return err
-		},
-	)
+	s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{labelID: ptr.Bool(true)}, time.Now(), false)
+
+	// offline status filter request should not move hosts
+	req = addHostsToTeamByFilterRequest{
+		TeamID:  &tm2.ID,
+		Filters: &map[string]interface{}{"status": "offline", "label_id": float64(labelID)},
+	}
+	var hostsResp listHostsResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp)
+	require.Len(t, hostsResp.Hosts, 3)
+	require.Equal(t, tm1.ID, *hostsResp.Hosts[0].TeamID)
+	require.Equal(t, tm1.ID, *hostsResp.Hosts[1].TeamID)
+	require.Equal(t, tm2.ID, *hostsResp.Hosts[2].TeamID)
+	
 
 	// assign host0 to team 2 with filter
 	req = addHostsToTeamByFilterRequest{
@@ -3054,8 +3059,16 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm2.ID, *getResp.Host.TeamID)
 
-	// delete host 0 with filter
+	// status filter request should not delete hosts
 	dreq := deleteHostsRequest{
+		Filters: &map[string]interface{}{"status": "offline", "label_id": float64(labelID)},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &dreq)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp)
+	require.Len(t, hostsResp.Hosts, 3)
+
+	// delete host 0 with filter
+	dreq = deleteHostsRequest{
 		Filters: &map[string]interface{}{"status": "online", "label_id": float64(labelID)},
 	}
 	var delHostsResp deleteHostsResponse
@@ -11665,5 +11678,4 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 	resp = s.Do("POST", "/api/latest/fleet/autofill/policy", req, http.StatusBadRequest)
 	assertBodyContains(t, resp, "AI features are disabled")
-
 }
