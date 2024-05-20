@@ -183,7 +183,6 @@ const HostSummary = ({
     status,
     platform,
     disk_encryption_enabled: diskEncryptionEnabled,
-    team_name: teamName,
   } = summaryData;
 
   const isChromeHost = platform === "chrome";
@@ -260,8 +259,8 @@ const HostSummary = ({
     <DataSet
       title="Team"
       value={
-        teamName !== "---" ? (
-          `${teamName}`
+        summaryData.team_name !== "---" ? (
+          `${summaryData.team_name}`
         ) : (
           <span className="no-team">No team</span>
         )
