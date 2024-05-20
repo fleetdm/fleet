@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.21.7
+go 1.22.3
 
 require (
 	cloud.google.com/go/pubsub v1.36.1
@@ -24,7 +24,7 @@ require (
 	github.com/clbanning/mxj v1.8.4
 	github.com/danieljoos/wincred v1.2.1
 	github.com/davecgh/go-spew v1.1.1
-	github.com/dgraph-io/badger/v2 v2.2007.2
+	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/docker/docker v24.0.9+incompatible
 	github.com/docker/go-units v0.4.0
@@ -52,7 +52,7 @@ require (
 	github.com/goreleaser/goreleaser v1.1.0
 	github.com/goreleaser/nfpm/v2 v2.10.0
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2
+	github.com/gorilla/websocket v1.5.1
 	github.com/gosuri/uilive v0.0.4
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
 	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5
@@ -91,8 +91,8 @@ require (
 	github.com/saferwall/pe v1.5.2
 	github.com/sassoftware/relic/v7 v7.6.2
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
-	github.com/sethvargo/go-password v0.2.0
-	github.com/shirou/gopsutil/v3 v3.23.3
+	github.com/sethvargo/go-password v0.3.0
+	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/cobra v1.8.0
@@ -108,7 +108,7 @@ require (
 	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
 	go.elastic.co/apm/module/apmsql/v2 v2.4.3
 	go.elastic.co/apm/v2 v2.4.3
-	go.etcd.io/bbolt v1.3.6
+	go.etcd.io/bbolt v1.3.9
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.44.0
 	go.opentelemetry.io/otel v1.22.0
@@ -116,15 +116,15 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.19.0
 	go.opentelemetry.io/otel/sdk v1.22.0
 	golang.org/x/crypto v0.22.0
-	golang.org/x/exp v0.0.0-20230105202349-8879d0199aa3
+	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0
 	golang.org/x/image v0.10.0
-	golang.org/x/mod v0.12.0
+	golang.org/x/mod v0.17.0
 	golang.org/x/net v0.24.0
 	golang.org/x/oauth2 v0.16.0
-	golang.org/x/sync v0.6.0
+	golang.org/x/sync v0.7.0
 	golang.org/x/sys v0.19.0
 	golang.org/x/text v0.14.0
-	golang.org/x/tools v0.13.0
+	golang.org/x/tools v0.20.0
 	google.golang.org/api v0.161.0
 	google.golang.org/grpc v1.61.0
 	gopkg.in/guregu/null.v3 v3.5.0
@@ -158,7 +158,7 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.3.1 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
-	github.com/DataDog/zstd v1.5.5 // indirect
+	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/DisgoOrg/disgohook v1.4.3 // indirect
 	github.com/DisgoOrg/log v1.1.0 // indirect
 	github.com/DisgoOrg/restclient v1.2.7 // indirect
@@ -216,7 +216,7 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
@@ -257,6 +257,7 @@ require (
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
+	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
@@ -293,8 +294,8 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
-	github.com/tklauser/go-sysconf v0.3.11 // indirect
-	github.com/tklauser/numcpus v0.6.0 // indirect
+	github.com/tklauser/go-sysconf v0.3.12 // indirect
+	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/trivago/tgo v1.0.7 // indirect
 	github.com/vartanbeno/go-reddit/v2 v2.0.0 // indirect
 	github.com/xanzy/go-gitlab v0.50.3 // indirect
@@ -303,7 +304,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
-	github.com/yusufpapurcu/wmi v1.2.2 // indirect
+	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.elastic.co/apm/module/apmhttp/v2 v2.3.0 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
