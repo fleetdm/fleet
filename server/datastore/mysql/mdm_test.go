@@ -6213,7 +6213,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 
 	// delete the host and verify that things work as expected
 	// see https://github.com/fleetdm/fleet/issues/19149
-	ds.DeleteHost(ctx, h5.ID)
+	require.NoError(t, ds.DeleteHost(ctx, h5.ID))
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.NoError(t, err)
 	require.Len(t, assocs, 4)
