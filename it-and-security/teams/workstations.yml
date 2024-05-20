@@ -63,6 +63,7 @@ policies:
   - path: ../lib/linux-device-health.policies.yml
   - name: macOS - Check if latest version
     query: SELECT 1 FROM os_version WHERE major = '14' AND minor = '5';
+    # patch query: SELECT 1 FROM os_version WHERE major = "14" AND minor = "5" AND patch >= "1";
     critical: false
     description: This policy check if macOS version is most recent version available.
     resolution: From the Apple menu, select System Settings. Navigate to General > Software Update.
