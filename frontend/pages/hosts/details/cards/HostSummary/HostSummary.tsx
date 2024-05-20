@@ -183,7 +183,11 @@ const HostSummary = ({
     status,
     platform,
     disk_encryption_enabled: diskEncryptionEnabled,
+    team_name: teamName,
   } = summaryData;
+
+  const isChromeHost = platform === "chrome";
+  const isiOSoriPadOSHost = platform === "ios" || platform === "ipados";
 
   const renderRefetch = () => {
     const isOnline = summaryData.status === "online";
@@ -208,7 +212,7 @@ const HostSummary = ({
         : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
     }
 
-    if (platform === "ios" || platform === "ipados") {
+    if (isiOSoriPadOSHost) {
       return null;
     }
 
@@ -256,8 +260,8 @@ const HostSummary = ({
     <DataSet
       title="Team"
       value={
-        summaryData.team_name !== "---" ? (
-          `${summaryData.team_name}`
+        teamName !== "---" ? (
+          `${teamName}`
         ) : (
           <span className="no-team">No team</span>
         )
@@ -294,7 +298,7 @@ const HostSummary = ({
 
     let statusText;
     switch (true) {
-      case platform === "chrome":
+      case isChromeHost:
         statusText = "Always on";
         break;
       case diskEncryptionEnabled === true:
@@ -307,6 +311,10 @@ const HostSummary = ({
         // something unexpected happened on the way to this component, display whatever we got or
         // "Unknown" to draw attention to the issue.
         statusText = diskEncryptionEnabled || "Unknown";
+    }
+
+    if (isiOSoriPadOSHost) {
+      return null;
     }
 
     return (
@@ -322,9 +330,14 @@ const HostSummary = ({
   };
 
   const renderAgentSummary = () => {
-    if (platform === "chrome") {
+    if (isChromeHost) {
       return <DataSet title="Agent" value={summaryData.osquery_version} />;
     }
+
+    if (isiOSoriPadOSHost) {
+      return null;
+    }
+
     if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
       return (
         <DataSet
@@ -380,24 +393,26 @@ const HostSummary = ({
         largePadding
         className={`${baseClass}-card`}
       >
-        <DataSet
-          title="Status"
-          value={
-            <StatusIndicator
-              value={status || ""} // temporary work around of integration test bug
-              tooltip={{
-                tooltipText: getHostStatusTooltipText(status),
-                position: "bottom",
-              }}
-            />
-          }
-        />
+        {!isiOSoriPadOSHost && (
+          <DataSet
+            title="Status"
+            value={
+              <StatusIndicator
+                value={status || ""} // temporary work around of integration test bug
+                tooltip={{
+                  tooltipText: getHostStatusTooltipText(status),
+                  position: "bottom",
+                }}
+              />
+            }
+          />
+        )}
         {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
           isPremiumTier &&
+          !isiOSoriPadOSHost &&
           renderIssues()}
-
         {isPremiumTier && renderHostTeam()}
-
+        abc
         {/* Rendering of OS Settings data */}
         {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
@@ -416,8 +431,7 @@ const HostSummary = ({
               }
             />
           )}
-
-        {bootstrapPackageData?.status && (
+        {bootstrapPackageData?.status && !isiOSoriPadOSHost && (
           <DataSet
             title="Bootstrap package"
             value={
@@ -428,19 +442,19 @@ const HostSummary = ({
             }
           />
         )}
-
-        {platform !== "chrome" && renderDiskSpaceSummary()}
-
+        {!isChromeHost && renderDiskSpaceSummary()}
         {renderDiskEncryptionSummary()}
-
-        <DataSet
-          title="Memory"
-          value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
-        />
-        <DataSet title="Processor type" value={summaryData.cpu_type} />
+        {!isiOSoriPadOSHost && (
+          <DataSet
+            title="Memory"
+            value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
+          />
+        )}
+        {!isiOSoriPadOSHost && (
+          <DataSet title="Processor type" value={summaryData.cpu_type} />
+        )}
         <DataSet title="Operating system" value={summaryData.os_version} />
-
-        {renderAgentSummary()}
+        {!isiOSoriPadOSHost && renderAgentSummary()}
       </Card>
     );
   };

@@ -92,7 +92,7 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/Software";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 
 const baseClass = "host-details";
 

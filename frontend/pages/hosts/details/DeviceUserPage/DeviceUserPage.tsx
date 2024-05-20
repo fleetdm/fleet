@@ -414,6 +414,7 @@ const DeviceUserPage = ({
                     queryParams={parseHostSoftwareQueryParams(location.query)}
                     isMyDevicePage
                     hostTeamId={host.team_id || 0}
+                    hostPlatform={host?.platform || ""}
                   />
                 </TabPanel>
                 {isPremiumTier && (
@@ -423,6 +424,7 @@ const DeviceUserPage = ({
                       isLoading={isLoadingHost}
                       deviceUser
                       togglePolicyDetailsModal={togglePolicyDetailsModal}
+                      hostPlatform={host?.platform || ""}
                     />
                   </TabPanel>
                 )}
