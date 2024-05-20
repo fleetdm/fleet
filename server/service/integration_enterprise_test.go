@@ -7623,6 +7623,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "ruby.deb",
+		TeamID:        &team1.ID,
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
@@ -7632,6 +7633,30 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+
+	// Upload an installer for the same software but different arch to a different team
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby_arm64.deb",
+		TeamID:        &team2.ID,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	// We should only see the one we uploaded to team 1
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ruby",
+		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
