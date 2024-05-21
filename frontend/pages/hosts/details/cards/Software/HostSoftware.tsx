@@ -14,13 +14,15 @@ import deviceAPI, {
 } from "services/entities/device_user";
 import { getErrorReason } from "interfaces/errors";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
 
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
@@ -32,15 +34,15 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
 }
 
-interface ISoftwareCardProps {
+interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
   isFleetdHost: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
-  /** Team id for the host */
-  teamId: number;
+  hostTeamId: number;
+  hostPlatform: string;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
@@ -75,17 +77,18 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   };
 };
 
-const SoftwareCard = ({
+const HostSoftware = ({
   id,
   isFleetdHost,
   router,
   queryParams,
   pathname,
-  teamId = 0,
+  hostTeamId = 0,
+  hostPlatform,
   onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
-}: ISoftwareCardProps) => {
+}: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
     isGlobalAdmin,
@@ -217,7 +220,7 @@ const SoftwareCard = ({
           installingSoftwareId,
           canInstall: canInstallSoftware,
           onSelectAction,
-          teamId,
+          teamId: hostTeamId,
           isFleetdHost,
         });
   }, [
@@ -226,7 +229,7 @@ const SoftwareCard = ({
     installingSoftwareId,
     canInstallSoftware,
     onSelectAction,
-    teamId,
+    hostTeamId,
     isFleetdHost,
   ]);
 
@@ -238,6 +241,28 @@ const SoftwareCard = ({
 
   const data = isMyDevicePage ? deviceSoftwareRes : hostSoftwareRes;
 
+  if (hostPlatform === "ios" || hostPlatform === "ipados") {
+    return (
+      <Card
+        borderRadiusSize="large"
+        includeShadow
+        largePadding
+        className={baseClass}
+      >
+        <p className="card__header">Software</p>
+        <EmptyTable
+          header="Software is not supported for this host"
+          info={
+            <>
+              Interested in viewing software for{" "}
+              {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      </Card>
+    );
+  }
   return (
     <Card
       borderRadiusSize="large"
@@ -272,4 +297,4 @@ const SoftwareCard = ({
   );
 };
 
-export default React.memo(SoftwareCard);
+export default React.memo(HostSoftware);

@@ -1,9 +1,11 @@
 import React from "react";
 
 import { IHostPolicy } from "interfaces/policy";
+import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
+import CustomLink from "components/CustomLink";
 
 import {
   generatePolicyTableHeaders,
@@ -18,6 +20,7 @@ interface IPoliciesProps {
   isLoading: boolean;
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
+  hostPlatform: string;
 }
 
 const Policies = ({
@@ -25,6 +28,7 @@ const Policies = ({
   isLoading,
   deviceUser,
   togglePolicyDetailsModal,
+  hostPlatform,
 }: IPoliciesProps): JSX.Element => {
   if (policies.length === 0) {
     return (
@@ -35,21 +39,34 @@ const Policies = ({
         className={baseClass}
       >
         <p className="card__header">Policies</p>
-        <EmptyTable
-          header={
-            <>
-              No policies are checked{" "}
-              {deviceUser ? `on your device` : `for this host`}
-            </>
-          }
-          info={
-            <>
-              Expecting to see policies? Try selecting “Refetch” to ask{" "}
-              {deviceUser ? `your device ` : `this host `}
-              to report new vitals.
-            </>
-          }
-        />
+        {hostPlatform === "ios" || hostPlatform === "ipados" ? (
+          <EmptyTable
+            header={<>Policies are not supported for this host</>}
+            info={
+              <>
+                Interested in detecting device health issues on{" "}
+                {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+                <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+              </>
+            }
+          />
+        ) : (
+          <EmptyTable
+            header={
+              <>
+                No policies are checked{" "}
+                {deviceUser ? `on your device` : `for this host`}
+              </>
+            }
+            info={
+              <>
+                Expecting to see policies? Try selecting “Refetch” to ask{" "}
+                {deviceUser ? `your device ` : `this host `}
+                to report new vitals.
+              </>
+            }
+          />
+        )}
       </Card>
     );
   }

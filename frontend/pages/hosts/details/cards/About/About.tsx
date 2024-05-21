@@ -46,9 +46,19 @@ const About = ({
   munki,
   mdm,
 }: IAboutProps): JSX.Element => {
-  const renderSerialAndIPs = () => {
+  const isIosOrIpadosHost =
+    aboutData.platform === "ios" || aboutData.platform === "ipados";
+
+  const renderHardwareSerialAndIPs = () => {
+    if (isIosOrIpadosHost) {
+      return (
+        <DataSet title="Serial number" value={aboutData.hardware_serial} />
+      );
+    }
+
     return (
       <>
+        <DataSet title="Hardware model" value={aboutData.hardware_model} />
         <DataSet title="Serial number" value={aboutData.hardware_serial} />
         <DataSet title="Private IP address" value={aboutData.primary_ip} />
         <DataSet
@@ -197,8 +207,7 @@ const About = ({
             />
           }
         />
-        <DataSet title="Hardware model" value={aboutData.hardware_model} />
-        {renderSerialAndIPs()}
+        {renderHardwareSerialAndIPs()}
         {renderMunkiData()}
         {renderMdmData()}
         {renderDeviceUser()}

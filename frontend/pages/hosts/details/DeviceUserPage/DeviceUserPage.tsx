@@ -44,7 +44,7 @@ import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import OSSettingsModal from "../OSSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/Software";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 
 const baseClass = "device-user";
 
@@ -383,7 +383,7 @@ const DeviceUserPage = ({
               mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
-              renderActionButtons={renderActionButtons}
+              renderActionDropdown={renderActionButtons}
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
@@ -422,7 +422,8 @@ const DeviceUserPage = ({
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       isMyDevicePage
-                      teamId={host.team_id || 0}
+                      hostTeamId={host.team_id || 0}
+                      hostPlatform={host?.platform || ""}
                       isSoftwareEnabled={isSoftwareEnabled}
                     />
                   </TabPanel>
@@ -434,6 +435,7 @@ const DeviceUserPage = ({
                       isLoading={isLoadingHost}
                       deviceUser
                       togglePolicyDetailsModal={togglePolicyDetailsModal}
+                      hostPlatform={host?.platform || ""}
                     />
                   </TabPanel>
                 )}
