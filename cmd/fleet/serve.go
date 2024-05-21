@@ -798,6 +798,15 @@ the way that the Fleet server works.
 				}
 			}
 
+			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
+					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+				}
+			}
+
 			if license.IsPremium() && config.Activity.EnableAuditLog {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)

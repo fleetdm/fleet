@@ -297,6 +297,13 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 	return nil
 }
 
+func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
+	if err := svc.sendNotifications(ctx, hostUUIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications")
+	}
+	return nil
+}
+
 func (svc *MDMAppleCommander) sendNotifications(ctx context.Context, hostUUIDs []string) error {
 	apnsResponses, err := svc.pusher.Push(ctx, hostUUIDs)
 	if err != nil {

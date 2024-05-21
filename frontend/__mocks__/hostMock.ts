@@ -11,7 +11,7 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",
   name: "Test Profile",
   operation_type: "install",
-  platform: "darwin",
+  platform: "apple",
   status: "verified",
   detail: "This is verified",
 };
