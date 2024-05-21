@@ -13,17 +13,23 @@ const baseClass = "install-status-cell";
 
 type IStatusValue = SoftwareInstallStatus | "avaiableForInstall";
 
-type IStatusDisplayConfig = {
+export type IStatusDisplayConfig = {
   iconName: "success" | "pending-outline" | "error" | "install";
   displayText: string;
-  tooltip: (softwareName?: string | null, lastInstall?: string) => ReactNode;
+  tooltip: (args: {
+    softwareName?: string | null;
+    lastInstalledAt?: string;
+  }) => ReactNode;
 };
 
-const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
+export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
+  IStatusValue,
+  IStatusDisplayConfig
+> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: (_, lastInstall) => (
+    tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
         Fleet installed software on these hosts. (
         {dateAgo(lastInstall as string)})
@@ -38,7 +44,7 @@ const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
   failed: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: (_, lastInstall) => (
+    tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
         Fleet failed to install software ({dateAgo(lastInstall as string)} ago).
         Select <b>Actions &gt; Software details</b> to see more.
@@ -48,7 +54,7 @@ const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
   avaiableForInstall: {
     iconName: "install",
     displayText: "Available for install",
-    tooltip: (softwareName) => (
+    tooltip: ({ softwareName }) => (
       <>
         <b>{softwareName}</b> can be installed on the host. Select{" "}
         <b>Actions &gt; Install</b> to install.
@@ -78,7 +84,7 @@ const InstallStatusCell = ({
     return <TextCell value="---" greyed />;
   }
 
-  const displayConfig = CELL_DISPLAY_OPTIONS[displayStatus];
+  const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
   const tooltipId = uniqueId();
 
   return (
@@ -98,7 +104,10 @@ const InstallStatusCell = ({
         data-html
       >
         <span className={`${baseClass}__status-tooltip-text`}>
-          {displayConfig.tooltip(packageToInstall, installedAt)}
+          {displayConfig.tooltip({
+            softwareName: packageToInstall,
+            lastInstalledAt: installedAt,
+          })}
         </span>
       </ReactTooltip>
       <span>{displayConfig.displayText}</span>

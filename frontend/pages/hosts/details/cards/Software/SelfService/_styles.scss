@@ -1,0 +1,135 @@
+.software-self-service {
+  &__card-header {
+    margin: 0 0 8px 0;
+  }
+
+  &__card-subheader {
+    margin: 0 0 24px 0;
+    color: $ui-fleet-black-75;
+    font-size: $x-small;
+  }
+
+  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
+  .empty-table__container {
+    margin: 64px 0;
+  }
+
+  &__items-count {
+    margin: 0 0 24px 0;
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  // TODO: fix styling for cards so the all shrink and grow together subject to min/max widths at
+  // breakpoints; needs to also align with pagination
+  &__items {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    width: 400px;
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-black-10;
+  }
+
+  &__item-content {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 8px;
+  }
+
+  &__item-topline {
+    display: flex;
+    flex-direction: row;
+    height: 64px;
+    align-items: center;
+    gap: 16px;
+    overflow: hidden;
+  }
+
+  &__item-icon {
+    display: flex;
+    height: 64px;
+    min-width: 64px;
+  }
+
+  &__item-name-version {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 64px;
+    overflow: hidden;
+  }
+
+  &__item-name {
+    font-size: $x-small;
+    font-weight: $bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__item-version {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__item-status-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid $ui-fleet-black-10;
+  }
+
+  &__item-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__item-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__status-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__status-with-tooltip {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: $pad-small;
+    span {
+      font-size: $x-small;
+    }
+  }
+
+  &__item-action-button {
+    height: auto;
+
+    &--installing {
+      display: none;
+    }
+  }
+
+  &__pagination {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+}

@@ -53,4 +53,11 @@ export default {
     const queryString = buildQueryStringFromParams(rest);
     return sendRequest("GET", `${DEVICE_SOFTWARE(id)}?${queryString}`);
   },
+
+  installSelfServiceSoftware: (deviceToken: string, softwareId: number) => {
+    // TODO: integrate with new endpoint
+    console.log("installSelfServiceSoftware", deviceToken, softwareId);
+
+    return Promise.resolve({ status: 200 });
+  },
 };
