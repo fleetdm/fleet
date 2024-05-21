@@ -2644,6 +2644,47 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, nil
 	}
 
+	// Check if this is a result of a "refetch" command sent to iPhones/iPads to fetch their device information periodically.
+	if strings.HasPrefix(cmdResult.CommandUUID, "REFETCH-") {
+		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.UDID)
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err)
+		}
+		var deviceInformationResponse struct {
+			QueryResponses map[string]interface{} `plist:"QueryResponses"`
+		}
+		if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to unmarshal device information command result")
+		}
+		deviceName := deviceInformationResponse.QueryResponses["DeviceName"].(string)
+		deviceCapacity := deviceInformationResponse.QueryResponses["DeviceCapacity"].(float64)
+		availableDeviceCapacity := deviceInformationResponse.QueryResponses["AvailableDeviceCapacity"].(float64)
+		osVersion := deviceInformationResponse.QueryResponses["OSVersion"].(string)
+		wifiMac := deviceInformationResponse.QueryResponses["WiFiMAC"].(string)
+		productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
+		host.ComputerName = deviceName
+		host.Hostname = deviceName
+		host.GigsDiskSpaceAvailable = availableDeviceCapacity
+		host.GigsTotalDiskSpace = deviceCapacity
+		var osVersionPrefix string
+		if strings.HasPrefix(productName, "iPhone") {
+			osVersionPrefix = "iOS "
+		} else { // iPad
+			osVersionPrefix = "iPadOS "
+		}
+		host.OSVersion = osVersionPrefix + osVersion
+		host.PrimaryMac = wifiMac
+		host.HardwareModel = productName
+		host.DetailUpdatedAt = time.Now()
+		if err := svc.ds.UpdateHost(r.Context, host); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host")
+		}
+		if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity, deviceCapacity); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+		}
+		return nil, nil
+	}
+
 	// We explicitly get the request type because it comes empty. There's a
 	// RequestType field in the struct, but it's used when a mdm.Command is
 	// issued.

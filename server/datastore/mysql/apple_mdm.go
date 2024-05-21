@@ -890,6 +890,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		us, unionArgs := unionSelectDevices(devices)
 		args = append(args, unionArgs...)
 
+		// TODO(lucas): Not set refetch_requested for ios and ipados.
 		stmt := fmt.Sprintf(`
 		INSERT INTO hosts (
 			hardware_serial,
@@ -2509,7 +2510,8 @@ SELECT
   COUNT(id) as count
 FROM
   hosts h
-GROUP BY status, platform, team_id HAVING (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') AND status IN (?, ?, ?, ?) AND %s`
+WHERE platform = 'darwin' OR platform = 'ios' OR platform = 'ipados'
+GROUP BY status, team_id HAVING status IN (?, ?, ?, ?) AND %s`
 
 	args = append(args, fleet.MDMDeliveryFailed, fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified)
 
@@ -4158,4 +4160,15 @@ VALUES
 	}
 
 	return nil
+}
+
+func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
+	stmt := `
+SELECT uuid FROM hosts
+WHERE (platform = 'ios' OR platform = 'ipados')
+AND TIMESTAMPDIFF(SECOND, detail_updated_at, NOW()) > ?;`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, stmt, interval.Seconds()); err != nil {
+		return nil, err
+	}
+	return uuids, nil
 }
