@@ -8764,6 +8764,170 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	require.True(t, fleet.IsNotFound(err))
 }
 
+func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
+	// ensure that on exit, the admin token is used
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := s.createHosts(t, "debian", "linux", "fedora", "darwin", "darwin")
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// move a couple hosts to tm1, one to tm2
+	err = s.ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[0].ID, hosts[1].ID})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[2].ID})
+	require.NoError(t, err)
+
+	// create new users for tm1, tm2 and one with both tm1 and tm2
+	users := []fleet.UserPayload{
+		{
+			Name:                     ptr.String("team1 user"),
+			Email:                    ptr.String("tm1user@example.com"),
+			Password:                 ptr.String(test.GoodPassword),
+			AdminForcedPasswordReset: ptr.Bool(false),
+			Teams: &[]fleet.UserTeam{
+				{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleMaintainer},
+			},
+		},
+		{
+			Name:                     ptr.String("team2 user"),
+			Email:                    ptr.String("tm2user@example.com"),
+			Password:                 ptr.String(test.GoodPassword),
+			AdminForcedPasswordReset: ptr.Bool(false),
+			Teams: &[]fleet.UserTeam{
+				{Team: fleet.Team{ID: tm2.ID}, Role: fleet.RoleAdmin},
+			},
+		},
+		{
+			Name:                     ptr.String("team1and2 user"),
+			Email:                    ptr.String("tm1and2user@example.com"),
+			Password:                 ptr.String(test.GoodPassword),
+			AdminForcedPasswordReset: ptr.Bool(false),
+			Teams: &[]fleet.UserTeam{
+				{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleObserver},
+				{Team: fleet.Team{ID: tm2.ID}, Role: fleet.RoleObserverPlus},
+			},
+		},
+	}
+	for _, u := range users {
+		var createResp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users/admin", u, http.StatusOK, &createResp)
+	}
+
+	// create a manual label with hosts across no team, team1 and team2
+	var createLbl createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  "manual1",
+			Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID, hosts[3].UUID},
+		},
+	}, http.StatusOK, &createLbl)
+	// user is admin, count contains all hosts
+	require.Equal(t, 4, createLbl.Label.Count)
+	lblM1 := createLbl.Label.ID
+	require.NotZero(t, lblM1)
+
+	// create a dynamic label always returns a count of 0 (no members yet)
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  "dynamic1",
+			Query: "select 1",
+		},
+	}, http.StatusOK, &createLbl)
+	require.Equal(t, 0, createLbl.Label.Count)
+	lblD1 := createLbl.Label.ID
+	require.NotZero(t, lblD1)
+
+	// record membership for hosts across no team, team1 and team2
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[4], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[2], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[1], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[0], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// create another dynamic label which will stay empty
+	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  "dynamic2",
+			Query: "select 2",
+		},
+	}, http.StatusOK, &createLbl)
+	require.Equal(t, 0, createLbl.Label.Count)
+	lblD2 := createLbl.Label.ID
+	require.NotZero(t, lblD2)
+
+	// test access with each team user
+	adminUserPayload := fleet.UserPayload{
+		Name:     ptr.String("admin1"),
+		Email:    ptr.String(testUsers["admin1"].Email),
+		Password: ptr.String(testUsers["admin1"].PlaintextPassword),
+	}
+	cases := []struct {
+		desc  string
+		u     fleet.UserPayload
+		lblID uint
+		want  int
+	}{
+		{"team1 user, manual1", users[0], lblM1, 2},
+		{"team1 user, dynamic1", users[0], lblD1, 2},
+		{"team1 user, dynamic2", users[0], lblD2, 0},
+		{"team2 user, manual1", users[1], lblM1, 1},
+		{"team2 user, dynamic1", users[1], lblD1, 1},
+		{"team2 user, dynamic2", users[1], lblD2, 0},
+		{"team1 and 2 user, manual1", users[2], lblM1, 3},
+		{"team1 and 2 user, dynamic1", users[2], lblD1, 3},
+		{"team1 and 2 user, dynamic2", users[2], lblD2, 0},
+		{"admin user, manual1", adminUserPayload, lblM1, 4},
+		{"admin user, dynamic1", adminUserPayload, lblD1, 4},
+		{"admin user, dynamic2", adminUserPayload, lblD2, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			s.setTokenForTest(t, *c.u.Email, *c.u.Password)
+
+			var getLbl getLabelResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), nil, http.StatusOK, &getLbl)
+			require.Equal(t, c.want, getLbl.Label.Count)
+
+			var listLbls listLabelsResponse
+			s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listLbls)
+			var found bool
+			for _, lbl := range listLbls.Labels {
+				if lbl.ID == c.lblID {
+					found = true
+					require.Equal(t, c.want, lbl.Count)
+					break
+				}
+			}
+			require.True(t, found)
+
+			// create and update label and just not possible for non-global users
+			if c.u != adminUserPayload {
+				s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+					LabelPayload: fleet.LabelPayload{
+						Name:  "will fail",
+						Query: "select 3",
+					},
+				}, http.StatusForbidden, &createLbl)
+
+				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), modifyLabelRequest{
+					ModifyLabelPayload: fleet.ModifyLabelPayload{
+						Name: ptr.String("will fail"),
+					},
+				}, http.StatusForbidden, &modifyLabelResponse{})
+			}
+		})
+	}
+}
+
 func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	ctx := context.Background()
 	t := s.T()

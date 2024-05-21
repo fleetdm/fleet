@@ -45,6 +45,11 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return nil, nil, err
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	label := &fleet.Label{
 		LabelType:           fleet.LabelTypeRegular,
@@ -74,7 +79,8 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	}
 
 	// first create the new label, which will fail if the name is not unique
-	newLbl, err := svc.ds.NewLabel(ctx, label)
+	var err error
+	label, err = svc.ds.NewLabel(ctx, label)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -101,8 +107,8 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 			return nil, nil, err
 		}
 
-		// must reload it to get the host IDs
-		label, hostIDs, err = svc.ds.Label(ctx, newLbl.ID)
+		// must reload it to get the host IDs, refresh its count
+		label, hostIDs, err = svc.ds.Label(ctx, label.ID, filter)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -145,8 +151,13 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return nil, nil, err
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	label, _, err := svc.ds.Label(ctx, id)
+	label, _, err := svc.ds.Label(ctx, id, filter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -193,9 +204,9 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		}
 
 		// must reload it to get the host counts information
-		return svc.ds.Label(ctx, id)
+		return svc.ds.Label(ctx, id, filter)
 	}
-	return svc.ds.SaveLabel(ctx, label)
+	return svc.ds.SaveLabel(ctx, label, filter)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -237,8 +248,13 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, []uint
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.Label(ctx, id)
+	return svc.ds.Label(ctx, id, filter)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -441,8 +457,13 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return err
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	label, _, err := svc.ds.Label(ctx, id)
+	label, _, err := svc.ds.Label(ctx, id, filter)
 	if err != nil {
 		return err
 	}

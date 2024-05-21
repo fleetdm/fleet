@@ -135,11 +135,11 @@ type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []
 
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type DeleteLabelFunc func(ctx context.Context, name string) error
 
-type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, []uint, error)
+type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
@@ -2764,11 +2764,11 @@ func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fl
 	return s.NewLabelFunc(ctx, Label, opts...)
 }
 
-func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.SaveLabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveLabelFunc(ctx, label)
+	return s.SaveLabelFunc(ctx, label, teamFilter)
 }
 
 func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
@@ -2778,11 +2778,11 @@ func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
 	return s.DeleteLabelFunc(ctx, name)
 }
 
-func (s *DataStore) Label(ctx context.Context, lid uint) (*fleet.Label, []uint, error) {
+func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.LabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.LabelFunc(ctx, lid)
+	return s.LabelFunc(ctx, lid, teamFilter)
 }
 
 func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {

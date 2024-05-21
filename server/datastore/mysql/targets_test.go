@@ -381,19 +381,19 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	h6 := initHost(nil, "darwin")
 
 	// Load and record results for builtin labels.
-	allHosts, _, err := ds.Label(context.Background(), 6)
+	allHosts, _, err := ds.Label(context.Background(), 6, filter)
 	require.NoError(t, err)
-	macOS, _, err := ds.Label(context.Background(), 7)
+	macOS, _, err := ds.Label(context.Background(), 7, filter)
 	require.NoError(t, err)
-	ubuntuLinux, _, err := ds.Label(context.Background(), 8)
+	ubuntuLinux, _, err := ds.Label(context.Background(), 8, filter)
 	require.NoError(t, err)
-	centOSLinux, _, err := ds.Label(context.Background(), 9)
+	centOSLinux, _, err := ds.Label(context.Background(), 9, filter)
 	require.NoError(t, err)
-	msWindows, _, err := ds.Label(context.Background(), 10)
+	msWindows, _, err := ds.Label(context.Background(), 10, filter)
 	require.NoError(t, err)
-	redHatLinux, _, err := ds.Label(context.Background(), 11)
+	redHatLinux, _, err := ds.Label(context.Background(), 11, filter)
 	require.NoError(t, err)
-	allLinux, _, err := ds.Label(context.Background(), 12)
+	allLinux, _, err := ds.Label(context.Background(), 12, filter)
 	require.NoError(t, err)
 
 	allBuiltIn := []*fleet.Label{
