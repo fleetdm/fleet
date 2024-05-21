@@ -111,9 +111,10 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
  - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
 
 ### Hand off a technical evaluation to a temporary DRI
-At Fleet, we value vacation time. Fleeties should be able to disconnect completely without having to check email or slack while away from work. In advance of vacation time (target one week in advance), refer to the following examples and review with each individual that will act as the temporary DRI for the technical evaluation while you are away. This can be documented as a google doc or can be added to the relevant tech eval epic issue in github.
+Tech evals will have a DRI at all times; should the DRI be unavailable (ie: vacation), a hand off process to a temporary DRI will be required. In advance of vacation time (target one week in advance), refer to the following examples and review with each individual that will act as the temporary DRI for the technical evaluation while you are away. This can be documented as a google doc or can be added to the relevant tech eval epic issue in github.
 
 Ensure that our valued customers know that you will be away and that the temporary DRI has been debriefed on their setup and can handle any technical questions that come up. 
+
 ```
 Active Technical Evaluations (TechEvals), workshops that need monitoring:
 
@@ -139,6 +140,7 @@ Documentation: gong links, meeting minutes links, summary
 Slack Channel (external): n/a
 Slack Channel (internal): #op-
 Temp Transfer to: Temp technical DRI
+
 ```
 
 - **Documenting a prospect call:** When we do prospect calls, add the prospect's name in both the google doc title and the heading, ex. "Alex + Natalie (Fleet + Acme Co)."  This makes it easier when searching for the document later. 
