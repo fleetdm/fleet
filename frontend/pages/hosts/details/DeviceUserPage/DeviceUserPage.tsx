@@ -44,6 +44,7 @@ import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import OSSettingsModal from "../OSSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
+import { parseHostSoftwareQueryParams } from "../cards/Software/Software";
 
 const baseClass = "device-user";
 
@@ -69,7 +70,7 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
-  const queryParams = location.query;
+
   const { renderFlash } = useContext(NotificationContext);
 
   const [isPremiumTier, setIsPremiumTier] = useState(false);
@@ -334,7 +335,7 @@ const DeviceUserPage = ({
 
     return (
       <div className="core-wrapper">
-        {isLoadingHost ? (
+        {!host || isLoadingHost ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>
@@ -406,15 +407,13 @@ const DeviceUserPage = ({
                 </TabPanel>
                 <TabPanel>
                   <SoftwareCard
+                    id={deviceAuthToken}
+                    isFleetdHost={!!host.orbit_version}
                     router={router}
-                    isLoading={isLoadingHost}
-                    software={host?.software ?? []}
-                    deviceUser
                     pathname={location.pathname}
-                    pathPrefix={PATHS.DEVICE_USER_DETAILS_SOFTWARE(
-                      deviceAuthToken
-                    )}
-                    queryParams={queryParams}
+                    queryParams={parseHostSoftwareQueryParams(location.query)}
+                    isMyDevicePage
+                    teamId={host.team_id || 0}
                   />
                 </TabPanel>
                 {isPremiumTier && (

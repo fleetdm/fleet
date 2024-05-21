@@ -94,13 +94,14 @@ module.exports = {
         // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
       });
       // console.log(existingAccountRecord);
-      if(existingAccountRecord && existingAccountRecord.OwnerId !== '0054x00000735wDAAQ') {
+      // If we found an exisitng account and it is not owned by the integrations admin or a disabled user, we'll use assign the new contact to the account owner.
+      if(existingAccountRecord && !['0054x00000735wDAAQ', '0054x0000086wsQAAQ'].includes(existingAccountRecord.OwnerId)) {
         // Store the ID of the Account record we found.
         salesforceAccountId = existingAccountRecord.Id;
         salesforceAccountOwnerId = existingAccountRecord.OwnerId;
         // console.log('exising account found!', salesforceAccountId);
       } else {
-        // If we didn't find an existing record, or found one onwned by the integrations admin, we'll round robin it between the AE's Salesforce users.
+        // If we didn't find an existing record, or found one onwned by the integrations admin or a disabled user, we'll round robin it between the AE's Salesforce users.
         let roundRobinUsers = await salesforceConnection.sobject('User')
         .find({
           AE_Round_robin__c: true,// eslint-disable-line camelcase

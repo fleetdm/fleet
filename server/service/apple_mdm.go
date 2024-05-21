@@ -2946,6 +2946,13 @@ func ReconcileAppleProfiles(
 			continue
 		}
 
+		if p.FailedToInstallOnHost() {
+			// then we shouldn't send an additional remove command since it failed to install on the
+			// host.
+			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			continue
+		}
+
 		target := removeTargets[p.ProfileUUID]
 		if target == nil {
 			target = &cmdTarget{

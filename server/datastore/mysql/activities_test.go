@@ -10,9 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -305,9 +307,11 @@ func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	noUserCtx := context.Background()
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	u2 := test.NewUser(t, ds, "user2", "user2@example.com", false)
+	ctx := viewer.NewContext(noUserCtx, viewer.Viewer{User: u2})
 
 	// create three hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
@@ -326,6 +330,33 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// create a couple of software installers
+	installer := strings.NewReader("echo")
+	sw1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install foo",
+		InstallerFile: installer,
+		StorageID:     uuid.NewString(),
+		Filename:      "foo.pkg",
+		Title:         "foo",
+		Source:        "apps",
+		Version:       "0.0.1",
+	})
+	require.NoError(t, err)
+	sw2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install bar",
+		InstallerFile: installer,
+		StorageID:     uuid.NewString(),
+		Filename:      "bar.pkg",
+		Title:         "bar",
+		Source:        "apps",
+		Version:       "0.0.2",
+	})
+	require.NoError(t, err)
+	sw1Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
+	require.NoError(t, err)
+	sw2Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw2)
+	require.NoError(t, err)
+
 	// create some script requests for h1
 	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
@@ -342,6 +373,28 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "E"})
 	require.NoError(t, err)
 	h1E := hsr.ExecutionID
+	// create some software installs requests for h1, make some complete
+	h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID)
+	require.NoError(t, err)
+	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID)
+	require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    h1.ID,
+		InstallUUID:               h1FooFailed,
+		PreInstallConditionOutput: ptr.String(""), // pre-install failed
+	})
+	require.NoError(t, err)
+	h1FooInstalled, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID)
+	require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    h1.ID,
+		InstallUUID:               h1FooInstalled,
+		PreInstallConditionOutput: ptr.String("ok"),
+		InstallScriptExitCode:     ptr.Int(0),
+	})
+	require.NoError(t, err)
+	h1Foo, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID) // no user for this one
+	require.NoError(t, err)
 
 	// create a single pending request for h2, as well as a non-pending one
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
@@ -352,22 +405,41 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
 	require.NoError(t, err)
 	h2F := hsr.ExecutionID
+	// add a pending software install request for h2
+	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID)
+	require.NoError(t, err)
 
-	// no script request for h3
+	// nothing for h3
+
+	// force-set the order of the created_at timestamps
+	endTime := SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooFailed, h1Bar)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooInstalled, h1Foo)
+	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
+	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
 
 	execIDsWithUser := map[string]bool{
-		h1A: true,
-		h1B: true,
-		h1C: true,
-		h1D: false,
-		h1E: false,
-		h2A: true,
-		h2F: true,
+		h1A:   true,
+		h1B:   true,
+		h1C:   true,
+		h1D:   false,
+		h1E:   false,
+		h2A:   true,
+		h2F:   true,
+		h1Foo: false,
+		h1Bar: true,
+		h2Bar: true,
 	}
 	execIDsScriptName := map[string]string{
 		h1A: scr1.Name,
 		h1B: scr2.Name,
 		h2A: scr1.Name,
+	}
+	execIDsSoftwareTitle := map[string]string{
+		h1Foo: "foo",
+		h1Bar: "bar",
+		h2Bar: "bar",
 	}
 
 	cases := []struct {
@@ -380,43 +452,49 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			opts:      fleet.ListOptions{PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1A, h1B},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 5},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1C, h1D},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 5},
+			wantExecs: []string{h1Bar, h1C},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1E},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 5},
-		},
-		{
-			opts:      fleet.ListOptions{PerPage: 3},
-			hostID:    h1.ID,
-			wantExecs: []string{h1A, h1B, h1C},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 5},
-		},
-		{
-			opts:      fleet.ListOptions{Page: 1, PerPage: 3},
-			hostID:    h1.ID,
 			wantExecs: []string{h1D, h1E},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 5},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
-			opts:      fleet.ListOptions{Page: 2, PerPage: 3},
+			opts:      fleet.ListOptions{Page: 3, PerPage: 2},
+			hostID:    h1.ID,
+			wantExecs: []string{h1Foo},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+		},
+		{
+			opts:      fleet.ListOptions{PerPage: 4},
+			hostID:    h1.ID,
+			wantExecs: []string{h1A, h1B, h1Bar, h1C},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 1, PerPage: 4},
+			hostID:    h1.ID,
+			wantExecs: []string{h1D, h1E, h1Foo},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 2, PerPage: 4},
 			hostID:    h1.ID,
 			wantExecs: []string{},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 5},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 3},
 			hostID:    h2.ID,
-			wantExecs: []string{h2A},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 1},
+			wantExecs: []string{h2Bar, h2A},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 2},
 		},
 		{
 			opts:      fleet.ListOptions{},
@@ -445,21 +523,37 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 				require.NotNil(t, a.Details, "result %d", i)
 				require.NoError(t, json.Unmarshal([]byte(*a.Details), &details), "result %d", i)
 
-				require.Equal(t, wantExec, details["script_execution_id"], "result %d", i)
 				require.Equal(t, c.hostID, uint(details["host_id"].(float64)), "result %d", i)
-				require.Equal(t, execIDsScriptName[wantExec], details["script_name"], "result %d", i)
+
+				var wantUser *fleet.User
+				switch a.Type {
+				case fleet.ActivityTypeRanScript{}.ActivityName():
+					require.Equal(t, wantExec, details["script_execution_id"], "result %d", i)
+					require.Equal(t, execIDsScriptName[wantExec], details["script_name"], "result %d", i)
+					wantUser = u
+
+				case fleet.ActivityTypeInstalledSoftware{}.ActivityName():
+					require.Equal(t, wantExec, details["install_uuid"], "result %d", i)
+					require.Equal(t, execIDsSoftwareTitle[wantExec], details["software_title"], "result %d", i)
+					wantUser = u2
+
+				default:
+					t.Fatalf("unknown activity type %s", a.Type)
+				}
+
 				if execIDsWithUser[wantExec] {
 					require.NotNil(t, a.ActorID, "result %d", i)
-					require.Equal(t, u.ID, *a.ActorID, "result %d", i)
+					require.Equal(t, wantUser.ID, *a.ActorID, "result %d", i)
 					require.NotNil(t, a.ActorFullName, "result %d", i)
-					require.Equal(t, u.Name, *a.ActorFullName, "result %d", i)
+					require.Equal(t, wantUser.Name, *a.ActorFullName, "result %d", i)
 					require.NotNil(t, a.ActorEmail, "result %d", i)
-					require.Equal(t, u.Email, *a.ActorEmail, "result %d", i)
+					require.Equal(t, wantUser.Email, *a.ActorEmail, "result %d", i)
 				} else {
 					require.Nil(t, a.ActorID, "result %d", i)
 					require.Nil(t, a.ActorFullName, "result %d", i)
 					require.Nil(t, a.ActorEmail, "result %d", i)
 				}
+
 			}
 		})
 	}

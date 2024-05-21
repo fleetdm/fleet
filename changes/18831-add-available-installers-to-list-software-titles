@@ -1,0 +1,1 @@
+* Added the uninstalled but available software installers to the response payload of the "List software titles" endpoint (`GET /software/titles`).

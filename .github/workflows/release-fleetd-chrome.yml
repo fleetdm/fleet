@@ -38,13 +38,19 @@ jobs:
         run: |
           npm install && npm run test
 
+      - name: Set the version
+        working-directory: ./ee/fleetd-chrome
+        run: |
+          echo "FLEETD_CHROME_VERSION=$(npm pkg get version --workspaces=false | tr -d \")" >> $GITHUB_ENV
+
       - name: Build & sign extension
         working-directory: ./ee/fleetd-chrome
         env:
           CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY }}
         run: |
           echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
-          npm install && npm run build
+          npm run build
+          sed -i "s/FLEETD_CHROME_VERSION/${{ env.FLEETD_CHROME_VERSION }}/g" updates.xml
           echo "$CHROME_SIGNING_KEY" > chrome.pem
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
 

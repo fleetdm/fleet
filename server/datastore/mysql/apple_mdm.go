@@ -1129,7 +1129,6 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 // deleteMDMOSCustomSettingsForHost deletes configuration profiles and
 // declarations for a host based on its platform.
 func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
-
 	tableMap := map[string][]string{
 		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
 		"windows": {"host_mdm_windows_profiles"},
@@ -1775,6 +1774,13 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			continue
 		}
+		// If the installation failed, then we do not want to change the operation to "Remove".
+		// Doing so will result in Fleet attempting to remove a profile that doesn't exist on the
+		// host (since the installation failed). Skipping it here will lead to it being removed from
+		// the host in Fleet during profile reconciliation, which is what we want.
+		if p.FailedToInstallOnHost() {
+			continue
+		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
 			fleet.MDMOperationTypeRemove, nil, "", "")
 		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
@@ -1997,6 +2003,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
+
 	return profiles, err
 }
 

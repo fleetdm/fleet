@@ -3,16 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+	"slices"
+	"strings"
+
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/text/unicode/norm"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
 )
 
 func gitopsCommand() *cli.Command {
@@ -82,12 +82,8 @@ func gitopsCommand() *cli.Command {
 				firstFileMustBeGlobal = ptr.Bool(true)
 			}
 			for _, flFilename := range flFilenames.Value() {
-				b, err := os.ReadFile(flFilename)
-				if err != nil {
-					return err
-				}
 				baseDir := filepath.Dir(flFilename)
-				config, err := spec.GitOpsFromBytes(b, baseDir)
+				config, err := spec.GitOpsFromFile(flFilename, baseDir)
 				if err != nil {
 					return err
 				}

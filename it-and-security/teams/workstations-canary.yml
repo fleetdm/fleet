@@ -91,8 +91,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-04-28"
-    minimum_version: "14.4"
+    deadline: "2024-05-31"
+    minimum_version: "14.5"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -109,15 +109,6 @@ policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
-  - name: macOS - Check if latest version
-    query: |
-      SELECT 1 FROM os_version
-        WHERE (major > 14 OR (major = 14 AND minor > 4) OR (major = 14 AND minor = 4 AND patch >= 2)) --Sonoma
-    critical: false
-    description: This policy check if macOS version is most recent version available.
-    resolution: From the Apple menu, select System Settings. Navigate to General > Software Update.
-    platform: darwin
-    calendar_events_enabled: true
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-fleetd-information.yml
