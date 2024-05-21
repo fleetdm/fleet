@@ -57,8 +57,13 @@ export interface IMdmConfig {
   };
 }
 
+// TODO: confirm this contact_url added to the device API response. And what about enable software
+// inventory (team/global)?
 export interface IDeviceGlobalConfig {
   mdm: Pick<IMdmConfig, "enabled_and_configured">;
+  org_info: {
+    contact_url: IConfig["org_info"]["contact_url"];
+  };
 }
 
 export interface IFleetDesktopSettings {
