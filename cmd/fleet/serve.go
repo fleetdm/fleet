@@ -352,6 +352,7 @@ the way that the Fleet server works.
 					AccessKeyID:      config.Firehose.AccessKeyID,
 					SecretAccessKey:  config.Firehose.SecretAccessKey,
 					StsAssumeRoleArn: config.Firehose.StsAssumeRoleArn,
+					StsExternalID:    config.Firehose.StsExternalID,
 				},
 				Kinesis: logging.KinesisConfig{
 					Region:           config.Kinesis.Region,
@@ -359,12 +360,14 @@ the way that the Fleet server works.
 					AccessKeyID:      config.Kinesis.AccessKeyID,
 					SecretAccessKey:  config.Kinesis.SecretAccessKey,
 					StsAssumeRoleArn: config.Kinesis.StsAssumeRoleArn,
+					StsExternalID:    config.Kinesis.StsExternalID,
 				},
 				Lambda: logging.LambdaConfig{
 					Region:           config.Lambda.Region,
 					AccessKeyID:      config.Lambda.AccessKeyID,
 					SecretAccessKey:  config.Lambda.SecretAccessKey,
 					StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
+					StsExternalID:    config.Lambda.StsExternalID,
 				},
 				PubSub: logging.PubSubConfig{
 					Project: config.PubSub.Project,
