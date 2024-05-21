@@ -221,7 +221,7 @@ type labelResponse struct {
 	fleet.Label
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
-	HostIDs     []uint `json:"host_ids"`
+	HostIDs     []uint `json:"host_ids,omitempty"`
 }
 
 type getLabelResponse struct {
