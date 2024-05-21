@@ -26,8 +26,6 @@ const formatSoftwareType = (source: string) => {
   return DICT[source] || "Unknown";
 };
 
-// interface ISoftwareTableHeadersProps {}
-
 export const generateSoftwareTableData = (
   software: IHostSoftware[]
 ): IHostSoftware[] => {
