@@ -146,7 +146,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
 	// If we set the context value to the wrong thing, the activity will not be created
 	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, "bozo")
-	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
+	assert.Error(t, ds.NewActivity(ctx, u, activity, nil, timestamp))
 
 	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	require.NoError(
