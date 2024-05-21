@@ -1455,6 +1455,7 @@ type ActivityTypeAddedSoftware struct {
 	SoftwarePackage string  `json:"software_package"`
 	TeamName        *string `json:"team_name"`
 	TeamID          *uint   `json:"team_id"`
+	SelfService     bool    `json:"self_service"`
 }
 
 func (a ActivityTypeAddedSoftware) ActivityName() string {

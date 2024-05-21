@@ -72,6 +72,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		SoftwarePackage: payload.Filename,
 		TeamName:        teamName,
 		TeamID:          payload.TeamID,
+		SelfService:     payload.SelfService,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
