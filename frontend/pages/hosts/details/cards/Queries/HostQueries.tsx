@@ -1,5 +1,4 @@
 import React, { useCallback, useMemo } from "react";
-import { noop } from "lodash";
 
 import { IQueryStats } from "interfaces/query_stats";
 import TableContainer from "components/TableContainer";
