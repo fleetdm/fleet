@@ -301,7 +301,8 @@ SELECT
 	h.team_id AS host_team_id,
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
-	hsi.install_script_exit_code
+	hsi.install_script_exit_code,
+    hsi.self_service
 FROM
 	host_software_installs hsi
 	JOIN hosts h ON h.id = hsi.host_id

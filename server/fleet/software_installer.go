@@ -175,6 +175,9 @@ type HostSoftwareInstallerResult struct {
 	InstallScriptExitCode *int `json:"-" db:"install_script_exit_code"`
 	// PostInstallScriptExitCode is used internally to determine the output displayed to the user.
 	PostInstallScriptExitCode *int `json:"-" db:"post_install_script_exit_code"`
+	// SelfService indicates that the installation was queued by the
+	// end user and not an administrator
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 const (
