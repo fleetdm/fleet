@@ -7,8 +7,10 @@ import (
 
 //go:generate go run gen_activity_doc.go "../../docs/Using Fleet/Audit-logs.md"
 
+type ContextKey string
+
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
-const ActivityWebhookContextKey = "ActivityWebhook"
+const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
