@@ -1851,6 +1851,10 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	var onlySelfServiceClause string
+	if opts.SelfServiceOnly {
+		onlySelfServiceClause = ` AND si.self_service = 1 `
+	}
 	stmtInstalled := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -1888,7 +1892,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			) OR
 			-- or software install has been attempted on host
 			hsi.host_id IS NOT NULL )
-`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
+			%s 
+`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause)
 
 	const stmtAvailable = `
 		SELECT
@@ -1927,6 +1932,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					hsi.software_installer_id = si.id
 			) AND
 			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
+			%s
 `
 
 	const selectColNames = `
@@ -1962,7 +1968,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			placeholders += "?,"
 			args = append(args, p)
 		}
-		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","))
+		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","), onlySelfServiceClause)
 		args = append(args, host.ID, host.ID, host.ID)
 	}
 

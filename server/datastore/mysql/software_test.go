@@ -3018,6 +3018,20 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Empty(t, sw)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 
+	// self-service only works too
+	opts.SelfServiceOnly = true
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
 	// add software to the host
 	software := []fleet.Software{
 		{Name: "a", Version: "0.0.1", Source: "chrome_extensions"},
@@ -3156,6 +3170,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	}
 
 	// it now returns the software with vulnerabilities and installed paths
+	opts.SelfServiceOnly = false
 	opts.IncludeAvailableForInstall = false
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
@@ -3214,16 +3229,17 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			}
 			res, err := q.ExecContext(ctx, `
 				INSERT INTO software_installers
-					(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform)
+					(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform, self_service)
 				VALUES
-					(?, ?, ?, ?, ?, ?, unhex(?), ?)`,
-				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")), "linux")
+					(?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")), "linux", i < 2)
 			if err != nil {
 				return err
 			}
 			id, _ := res.LastInsertId()
 			swiIDs = append(swiIDs, uint(id))
 		}
+		// sw1Pending and swi2Installed are self-service installers
 		swi1Pending, swi2Installed, swi3Failed, swi4Available, swi5Tm = swiIDs[0], swiIDs[1], swiIDs[2], swiIDs[3], swiIDs[4]
 
 		// create the results for the host
@@ -3465,63 +3481,64 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// test the pagination
 	cases := []struct {
-		opts          fleet.ListOptions
-		withAvailable bool
-		wantNames     []string
-		wantMeta      *fleet.PaginationMetadata
+		opts      fleet.HostSoftwareTitleListOptions
+		wantNames []string
+		wantMeta  *fleet.PaginationMetadata
 	}{
 		{
-			opts:          fleet.ListOptions{PerPage: 3},
-			withAvailable: false,
-			wantNames:     []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 1, PerPage: 3},
-			withAvailable: false,
-			wantNames:     []string{byNSV[c1].Name, byNSV[d].Name, i0.Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{byNSV[c1].Name, byNSV[d].Name, i0.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 2, PerPage: 3},
-			withAvailable: false,
-			wantNames:     []string{i1.Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 2, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{i1.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 3, PerPage: 3},
-			withAvailable: false,
-			wantNames:     []string{},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 3, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
-			opts:          fleet.ListOptions{PerPage: 4},
-			withAvailable: true,
-			wantNames:     []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name, byNSV[c1].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name, byNSV[c1].Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 1, PerPage: 4},
-			withAvailable: true,
-			wantNames:     []string{byNSV[d].Name, i0.Name, i1.Name, i2.Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{byNSV[d].Name, i0.Name, i1.Name, i2.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 2, PerPage: 4},
-			withAvailable: true,
-			wantNames:     []string{},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 2, PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{byNSV[b].Name, i0.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 2},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 2},
 		},
 	}
 	for _, c := range cases {
-		t.Run(fmt.Sprintf("%t: %#v", c.withAvailable, c.opts), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%#v", c.opts), func(t *testing.T) {
 			// always include metadata
-			c.opts.IncludeMetadata = true
-			c.opts.OrderKey = "name"
-			c.opts.TestSecondaryOrderKey = "source"
-			opts := fleet.HostSoftwareTitleListOptions{ListOptions: c.opts, IncludeAvailableForInstall: c.withAvailable}
+			c.opts.ListOptions.IncludeMetadata = true
+			c.opts.ListOptions.OrderKey = "name"
+			c.opts.ListOptions.TestSecondaryOrderKey = "source"
 
-			sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+			sw, meta, err := ds.ListHostSoftware(ctx, host, c.opts)
 			require.NoError(t, err)
 
 			require.Equal(t, len(c.wantNames), len(sw))
