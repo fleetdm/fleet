@@ -5,7 +5,7 @@ variable "osquery_logging_destination_bucket_name" {
 
 variable "fleet_iam_role_arn" {
   type        = string
-  description = "the arn of the fleet role that firehose will assume to write data to your bucket"
+  description = "The ARN of the IAM role that will be assumed to gain permissions required to write to the Kinesis Firehose delivery stream."
 }
 
 variable "log_destinations" {
