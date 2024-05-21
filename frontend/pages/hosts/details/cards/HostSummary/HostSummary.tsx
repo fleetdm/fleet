@@ -60,7 +60,8 @@ const RefetchButton = ({
     : "Refetch";
 
   // add additonal props when we need to display a tooltip for the button
-  const conditionalProps: any = {};
+  const conditionalProps: { "data-tip"?: boolean; "data-for"?: string } = {};
+
   if (tooltip) {
     conditionalProps["data-tip"] = true;
     conditionalProps["data-for"] = "refetch-tooltip";
@@ -189,6 +190,10 @@ const HostSummary = ({
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
   const renderRefetch = () => {
+    if (isIosOrIpadosHost) {
+      return null;
+    }
+
     const isOnline = summaryData.status === "online";
     let isDisabled = false;
     let tooltip: React.ReactNode = <></>;
@@ -209,10 +214,6 @@ const HostSummary = ({
       tooltip = !isOnline
         ? REFETCH_TOOLTIP_MESSAGES.offline
         : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
-    }
-
-    if (isIosOrIpadosHost) {
-      return null;
     }
 
     return (
@@ -287,7 +288,7 @@ const HostSummary = ({
   };
   const renderDiskEncryptionSummary = () => {
     // TODO: improve this typing, platforms!
-    if (!["darwin", "windows", "chrome"].includes(platform)) {
+    if (!["darwin", "windows", "chrome", "ios", "ipados"].includes(platform)) {
       return <></>;
     }
     const tooltipMessage = getHostDiskEncryptionTooltipMessage(
@@ -310,10 +311,6 @@ const HostSummary = ({
         // something unexpected happened on the way to this component, display whatever we got or
         // "Unknown" to draw attention to the issue.
         statusText = diskEncryptionEnabled || "Unknown";
-    }
-
-    if (isIosOrIpadosHost) {
-      return null;
     }
 
     return (

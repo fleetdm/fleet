@@ -30,47 +30,6 @@ const Policies = ({
   togglePolicyDetailsModal,
   hostPlatform,
 }: IPoliciesProps): JSX.Element => {
-  if (policies.length === 0) {
-    return (
-      <Card
-        borderRadiusSize="large"
-        includeShadow
-        largePadding
-        className={baseClass}
-      >
-        <p className="card__header">Policies</p>
-        {hostPlatform === "ios" || hostPlatform === "ipados" ? (
-          <EmptyTable
-            header={<>Policies are not supported for this host</>}
-            info={
-              <>
-                Interested in detecting device health issues on{" "}
-                {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
-                <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-              </>
-            }
-          />
-        ) : (
-          <EmptyTable
-            header={
-              <>
-                No policies are checked{" "}
-                {deviceUser ? `on your device` : `for this host`}
-              </>
-            }
-            info={
-              <>
-                Expecting to see policies? Try selecting “Refetch” to ask{" "}
-                {deviceUser ? `your device ` : `this host `}
-                to report new vitals.
-              </>
-            }
-          />
-        )}
-      </Card>
-    );
-  }
-
   const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
   if (deviceUser) {
     // Remove view all hosts link
@@ -78,6 +37,64 @@ const Policies = ({
   }
   const failingResponses: IHostPolicy[] =
     policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
+
+  const renderHostPolicies = () => {
+    if (hostPlatform === "ios" || hostPlatform === "ipados") {
+      return (
+        <EmptyTable
+          header={<>Policies are not supported for this host</>}
+          info={
+            <>
+              Interested in detecting device health issues on{" "}
+              {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
+    if (policies.length === 0) {
+      return (
+        <EmptyTable
+          header={
+            <>
+              No policies are checked{" "}
+              {deviceUser ? `on your device` : `for this host`}
+            </>
+          }
+          info={
+            <>
+              Expecting to see policies? Try selecting “Refetch” to ask{" "}
+              {deviceUser ? `your device ` : `this host `}
+              to report new vitals.
+            </>
+          }
+        />
+      );
+    }
+
+    return (
+      <>
+        {failingResponses?.length > 0 && (
+          <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
+        )}
+        <TableContainer
+          columnConfigs={tableHeaders}
+          data={generatePolicyDataSet(policies)}
+          isLoading={isLoading}
+          manualSortBy
+          resultsTitle="policy items"
+          emptyComponent={() => <></>}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          disablePagination
+          disableCount
+          disableMultiRowSelect
+        />
+      </>
+    );
+  };
 
   return (
     <Card
@@ -87,27 +104,7 @@ const Policies = ({
       className={baseClass}
     >
       <p className="card__header">Policies</p>
-
-      {policies.length > 0 && (
-        <>
-          {failingResponses?.length > 0 && (
-            <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
-          )}
-          <TableContainer
-            columnConfigs={tableHeaders}
-            data={generatePolicyDataSet(policies)}
-            isLoading={isLoading}
-            manualSortBy
-            resultsTitle="policy items"
-            emptyComponent={() => <></>}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disablePagination
-            disableCount
-            disableMultiRowSelect
-          />
-        </>
-      )}
+      {renderHostPolicies()}
     </Card>
   );
 };
