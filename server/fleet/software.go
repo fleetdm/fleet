@@ -196,6 +196,21 @@ type SoftwareTitleListOptions struct {
 	SelfServiceOnly     bool  `query:"self_service,optional"`
 }
 
+type HostSoftwareTitleListOptions struct {
+	// ListOptions cannot be embedded in order to unmarshal with validation.
+	ListOptions ListOptions `url:"list_options"`
+
+	// SelfServiceOnly limits the returned software titles to those that are
+	// available to install by the end user via the self-service. Implies
+	// AvailableForInstall.
+	SelfServiceOnly bool `query:"self_service,optional"`
+
+	// IncludeAvailableForInstall is not a query argument, it is set in the
+	// service layer to indicate to the datastore if software available for
+	// install (but not currently installed on the host) should be returned.
+	IncludeAvailableForInstall bool
+}
+
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.

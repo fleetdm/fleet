@@ -596,9 +596,8 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 ////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceSoftwareRequest struct {
-	Token       string            `url:"token"`
-	ListOptions fleet.ListOptions `url:"list_options"`
-	SelfService *bool             `query:"self_service,optional"`
+	Token string `url:"token"`
+	fleet.HostSoftwareTitleListOptions
 }
 
 func (r *getDeviceSoftwareRequest) deviceAuthToken() string {
@@ -622,7 +621,7 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	}
 
 	req := request.(*getDeviceSoftwareRequest)
-	res, meta, err := svc.ListHostSoftware(ctx, host.ID, req.ListOptions)
+	res, meta, err := svc.ListHostSoftware(ctx, host.ID, req.HostSoftwareTitleListOptions)
 	if err != nil {
 		return getDeviceSoftwareResponse{Err: err}, nil
 	}

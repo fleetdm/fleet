@@ -415,7 +415,7 @@ type Service interface {
 
 	// ListHostSoftware lists the software installed or available for install on
 	// the specified host.
-	ListHostSoftware(ctx context.Context, hostID uint, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
+	ListHostSoftware(ctx context.Context, hostID uint, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application

@@ -551,7 +551,7 @@ type Datastore interface {
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
-	ListHostSoftware(ctx context.Context, host *Host, includeAvailableForInstall bool, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
+	ListHostSoftware(ctx context.Context, host *Host, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
