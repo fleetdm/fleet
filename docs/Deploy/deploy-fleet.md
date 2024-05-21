@@ -1,27 +1,25 @@
 # Deploy Fleet
 
-Deploy on Render for an easy one-click POC. Or, choose AWS with Terraform to deploy at scale. Just need to kick the tires? [Try Fleet locally](https://fleetdm.com/try-fleet) on your device.
+Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale. Just need to kick the tires? [Try Fleet locally](https://fleetdm.com/try-fleet) on your device.
 
 <div purpose="deploying-guide-buttons" class="d-flex flex-md-row flex-column">
     <a href="#render">
         <div>
             <img src="/images/docs/render-logo-147x80@2x.png">
-            <p>One-click deploy</p>
-            <span>Deploy on Render in 5 minutes</span>
+            <p>Deploy to Render in 5 minutes</p>
         </div>
     </a>
     <a href="#aws">
         <div>
         <img src="/images/docs/aws-logo-133x80@2x.png">
-        <p>Deploy at scale</p>
-        <span>Scale on AWS with Terraform</span>
+        <p>Scale on AWS with Terraform</p>
         </div>
     </a>
 </div>
 
 
 <h2 class="d-none markdown-heading">Render</h2>
-<h2 id="render">One-click deploy with Render</h2>
+<h2 id="render">Deploy to Render in 5 minutes</h2>
 
 
 Render is a cloud hosting service that makes it easy to get up and running fast, without the typical configuration headaches of larger enterprise hosting providers.
@@ -40,7 +38,13 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 ### Instructions
 
-1. [Click here](https://render.com/deploy?repo=https://github.com/fleetdm/fleet) to open the Fleet Blueprint on Render. You will be prompted to create or log in to your Render account with associated payment information.
+<div purpose="deploy-to-render-button">
+    <a href="https://render.com/deploy?repo=https://github.com/fleetdm/fleet">
+        <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
+    </a>
+</div>
+
+1. Click "Deploy to Render" to open the Fleet Blueprint on Render. You will be prompted to create or log in to your Render account with associated payment information.
 
 2. Give the Blueprint a unique name like `yourcompany-fleet`.
 

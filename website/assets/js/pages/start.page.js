@@ -104,7 +104,7 @@ parasails.registerPage('start', {
       });
       this.previouslyAnsweredQuestions[this.currentStep] = getStartedProgress[this.currentStep];
       if(_.startsWith(nextStep, '/')){
-        window.location = nextStep;
+        this.goto(nextStep);
       } else {
         this.syncing = false;
         this.currentStep = nextStep;
@@ -282,10 +282,10 @@ parasails.registerPage('start', {
       return nextStepInForm;
     },
     clickGoToCalendly: function() {
-      window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`;
+      this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`);
     },
     clickGoToContactPage: function() {
-      window.location = `/contact?prefillFormDataFromUserRecord`;
+      this.goto(`/contact`);
     },
     clickClearOneFormError: function(field) {
       if(this.formErrors[field]){

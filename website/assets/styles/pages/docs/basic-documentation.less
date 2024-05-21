@@ -500,9 +500,6 @@
     }
 
     [purpose='content'] {
-      .markdown-heading {
-        scroll-margin-top: 140px;
-      }
       hr {
         margin: 0px;
         padding: 0px;
@@ -514,6 +511,7 @@
       }
       h1 {
         padding-bottom: 16px;
+        scroll-margin-top: 104px;
       }
 
       h2 {
@@ -521,10 +519,11 @@
         margin-top: 32px;
         padding-top: 52px;
         padding-bottom: 24px;
-
+        scroll-margin-top: 80px;
         &:first-of-type {
           border-top: none;
           padding-top: 24px;
+          scroll-margin-top: 108px;
           margin-top: 0px;
         }
       }
@@ -534,11 +533,13 @@
         margin-top: 24px;
         margin-bottom: 40px;
         border-bottom: 1px dashed @core-fleet-black-25;
+        scroll-margin-top: 104px;
       }
 
       h4 {
         padding-bottom: 24px;
         margin-bottom: 0px;
+        scroll-margin-top: 104px;
       }
 
       h5 {
@@ -546,6 +547,7 @@
         font-weight: 700;
         font-family: @main-font;
         margin-bottom: 16px;
+        scroll-margin-top: 104px;
       }
       pre + hr + h3 {
         padding-top: 0px;
@@ -569,18 +571,9 @@
           text-align: center;
           flex-grow: 1;
           p {
-            font-size: 16px;
-            font-style: normal;
-            font-weight: 800;
-            line-height: 19.2px;
-            margin-bottom: 8px;
-          }
-          span {
-            font-size: 12px;
+            font-size: 14px;
             font-style: normal;
             font-weight: 400;
-            line-height: 18px;
-            display: block;
             margin-bottom: 16px;
           }
           img {
@@ -603,7 +596,11 @@
             border: 1px solid @core-vibrant-blue;
           }
         }
-
+      }
+      [purpose='deploy-to-render-button'] {
+        img {
+          margin: 0;
+        }
       }
       [purpose='quote'] {
         font-style: italic;
@@ -800,6 +797,10 @@
           background-position-y: center;
         }
         [purpose='docs-start-cta-content'] {
+          flex-direction: column;
+          align-items: center;
+          padding: 20px 24px;
+          flex-grow: 1;
           h2 {
             padding: 0;
             margin-bottom: 4px;
@@ -811,8 +812,10 @@
         [purpose='continue-button'] {
           font-size: 14px;
           padding: 6px 12px;
+          width: 131px;
         }
       }
+
       [purpose='checklist-item'] {
         display: flex;
         input[type='checkbox'] {
@@ -994,6 +997,7 @@
         // Note: we're specifying a minimum height for this element to be the height of the edit page button.
         // Even if there are no subtopics on a documentation page, we can be sure that the edit page button will not overlap the pages content.
         min-height: 30px;
+        margin-bottom: 32px;
 
         [purpose='subtopics'] {
           color: @core-fleet-black;
