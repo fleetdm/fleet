@@ -258,7 +258,7 @@ The Apprentice will perform the following steps to process all communication fro
 3. Prefix the bullet with the date and time of the message matching the formatting with what is reflected in Slack (e.g. 2024-05-20 01:41). 
 4. Make your prefix a link by copying the message link from Slack and linking it in the Google doc using the date and time text.
 5. Copy the entire message verbatim from Slack including all images and replies making sure to not lose any context and mimic all formatting that's included in the message. In the Slack channel apply the "`:tracking`" emoji (only available in Slack) to signify that the ask has been processed. 
-6. 
+6. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message and remove it from the [¶¶¶¶ 🌪️🦿 Roundup (:help-being-ceo)](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit).
 
 ### Archive a document
 Follow these steps to archive any document:
