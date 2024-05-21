@@ -906,7 +906,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 				us.hardware_serial,
 				COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), ''),
 				us.platform,
-				'2000-01-01 00:00:00' AS last_enrolled_at,
+				IF(us.platform = 'ios' OR us.platform = 'ipados', NOW(), '2000-01-01 00:00:00') AS last_enrolled_at,
 				'2000-01-01 00:00:00' AS detail_updated_at,
 				NULL AS osquery_host_id,
 				1 AS refetch_requested,
