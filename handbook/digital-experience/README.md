@@ -320,8 +320,8 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
        - LinkedIn messages (careful not to mark things as read!)
        - Google Drive 
   - Be sure to do this from the CEO's browser so as to not lock him out of any meeting docs.
-  - Change “Notes” into “Agenda” when the document is ready for the CEO to review prior to the meeting.
   - Connect the CEO with the person they are meeting with on LinkedIn (Do not send a note when doing this).
+  - Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped. 
 
 
 ### Process the CEO's inbox
