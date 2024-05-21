@@ -333,9 +333,12 @@ const DeviceUserPage = ({
     const findSelectedTab = (pathname: string) =>
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
 
-    // TODO: This is a temporary fix to prevent the software tab from rendering if the host has no
-    // software. Ideally we should be checking the config for whether software is enabled to
-    // show/hide the tab. And we should have better specified empty states.
+    // TODO: This is a temporary fix that conditionally shows the new software tab depending on
+    // whether software items returned in the device details response (legacy endpoint).
+    // If the tab is selected, we call the new host software endpoint and display those results.
+    // Software in the legacy response is only being used as a proxy for `iseSoftwareEnabled`.
+    // Ideally we should be checking the config for whether software is enabled to show/hide the tab,
+    // but it isn't available via device token authenticated API. And we need better specified empty states.
     const isSoftwareEnabled = !!host?.software.length;
 
     return (
