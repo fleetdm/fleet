@@ -4993,6 +4993,8 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+| custom_settings        | string  | body  | Configuration profile to customize disk encryption options for macOS hosts. |
+
 
 #### Example
 
