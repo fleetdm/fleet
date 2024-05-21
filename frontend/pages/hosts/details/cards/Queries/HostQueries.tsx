@@ -105,6 +105,39 @@ const HostQueries = ({
     [queryReportsDisabled]
   );
 
+  const renderHostQueries = () => {
+    if (
+      !schedule ||
+      !schedule.length ||
+      hostPlatform === "chrome" ||
+      hostPlatform === "ios" ||
+      hostPlatform === "ipados"
+    ) {
+      return renderEmptyQueriesTab();
+    }
+
+    return (
+      <div>
+        <TableContainer
+          columnConfigs={columnConfigs}
+          data={tableData}
+          onQueryChange={() => null}
+          resultsTitle="queries"
+          defaultSortHeader="query_name"
+          defaultSortDirection="asc"
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          emptyComponent={() => <></>}
+          disablePagination
+          disableCount
+          disableMultiRowSelect
+          isLoading={false} // loading state handled at parent level
+          onSelectSingleRow={onSelectSingleRow}
+        />
+      </div>
+    );
+  };
+
   return (
     <Card
       borderRadiusSize="large"
@@ -113,32 +146,7 @@ const HostQueries = ({
       className={baseClass}
     >
       <p className="card__header">Queries</p>
-      {!schedule ||
-      !schedule.length ||
-      hostPlatform === "chrome" ||
-      hostPlatform === "ios" ||
-      hostPlatform === "ipados" ? (
-        renderEmptyQueriesTab()
-      ) : (
-        <div>
-          <TableContainer
-            columnConfigs={columnConfigs}
-            data={tableData}
-            onQueryChange={() => null}
-            resultsTitle="queries"
-            defaultSortHeader="query_name"
-            defaultSortDirection="asc"
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            emptyComponent={() => <></>}
-            disablePagination
-            disableCount
-            disableMultiRowSelect
-            isLoading={false} // loading state handled at parent level
-            onSelectSingleRow={onSelectSingleRow}
-          />
-        </div>
-      )}
+      {renderHostQueries()}
     </Card>
   );
 };
