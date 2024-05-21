@@ -188,10 +188,10 @@ type Datastore interface {
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
 	// members of this label, or an error.
-	SaveLabel(ctx context.Context, label *Label) (*Label, []uint, error)
+	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*Label, []uint, error)
 	DeleteLabel(ctx context.Context, name string) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
-	Label(ctx context.Context, lid uint) (*Label, []uint, error)
+	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*Label, []uint, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
