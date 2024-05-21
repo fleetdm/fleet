@@ -33,9 +33,16 @@
               width: 0;
             }
           }
+
+          .report-updated-cell__link {
+            opacity: 0;
+            transition: opacity 250ms;
+          }
+
           &:hover {
-            .report-updated-cell__link-text {
+            .report-updated-cell__link {
               opacity: 1;
+              transition: opacity 250ms;
             }
           }
           @media (max-width: $break-md) {

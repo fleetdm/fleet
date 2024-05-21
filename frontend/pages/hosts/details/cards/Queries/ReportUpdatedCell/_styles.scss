@@ -12,10 +12,4 @@
   &__link {
     @include table-link;
   }
-
-  &__link-text {
-    // hover state of parent tr sets opacity to 1
-    opacity: 0;
-    transition: opacity 250ms;
-  }
 }
