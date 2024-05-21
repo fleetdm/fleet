@@ -137,7 +137,18 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
 	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+
+	activity := dummyActivity{
+		name:    "test0",
+		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+	}
+	// If we don't set the ActivityWebhookContextKey context value, the activity will not be created
+	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
+	// If we set the context value to the wrong thing, the activity will not be created
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, "bozo")
+	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
+
+	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	require.NoError(
 		t, ds.NewActivity(
 			ctx, u, dummyActivity{
