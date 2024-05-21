@@ -104,8 +104,9 @@ INSERT INTO software_installers (
 	install_script_content_id,
 	pre_install_query,
 	post_install_script_content_id,
-	platform
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	platform,
+    self_service
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	args := []interface{}{
 		payload.TeamID,
@@ -118,6 +119,7 @@ INSERT INTO software_installers (
 		payload.PreInstallQuery,
 		postInstallScriptID,
 		payload.Platform,
+		payload.SelfService,
 	}
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)

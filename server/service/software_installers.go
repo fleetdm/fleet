@@ -20,6 +20,7 @@ type uploadSoftwareInstallerRequest struct {
 	InstallScript     string
 	PreInstallQuery   string
 	PostInstallScript string
+	SelfService       bool
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -99,6 +100,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		PostInstallScript: req.PostInstallScript,
 		InstallerFile:     ff,
 		Filename:          req.File.Filename,
+		SelfService:       req.SelfService,
 	}
 
 	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {

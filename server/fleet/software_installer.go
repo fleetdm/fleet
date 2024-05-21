@@ -252,6 +252,7 @@ type UploadSoftwareInstallerPayload struct {
 	Version           string
 	Source            string
 	Platform          string
+	SelfService       bool
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
