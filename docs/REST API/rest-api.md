@@ -886,7 +886,7 @@ None.
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true,
-      "disk_encryptioncustom_settings": ["path/to/disk-encryption-profile.mobileconfig"]
+      "disk_encryption_custom_settings": ["path/to/disk-encryption-profile.mobileconfig"]
     },
     "windows_settings": {
       "custom_settings": ["path/to/profile2.xml"],
