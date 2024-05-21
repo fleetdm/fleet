@@ -308,17 +308,19 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
     - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
-- **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
-  - In the notes document include:
-    1. LinkedIn profile link of all outside participants
-    2. Screen-shot of LinkedIn profile pic
-    3. Company name (in doc title and file name)
-    4. Correct date (20XX-XX-XX in doc title and file name)
-    5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
-       - CEO's email
-       - LinkedIn messages (careful not to mark things as read!)
-       - Google Drive 
-  - Be sure to do this from the CEO's browser so as to not lock him out of any meeting docs.
+- **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings. Using the CEO's browser, prepare each document by including the following:
+
+> If a meeting agenda has to be created from scratch, be sure to move it to the "Meeting notes" folder in Google Drive so that he isn't locked out of any documents.
+ 
+  1. LinkedIn profile url of all outside participants. Connect with any of the attendees that the CEO is not already connected to on LinkedIn, this should always be a blank connect request meaning "Send without note". 
+  2. A screen-shot of LinkedIn profile pic
+  3. Company name (in doc title and file name)
+  4. Correct date (20XX-XX-XX in doc title and file name)
+  5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
+    - CEO's email
+    - LinkedIn messages (careful not to mark things as read!)
+    - Google Drive 
+  6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped. 
 
 
 ### Process the CEO's inbox
