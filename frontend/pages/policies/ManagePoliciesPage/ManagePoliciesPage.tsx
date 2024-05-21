@@ -508,6 +508,9 @@ const ManagePolicyPage = ({
       );
 
       await Promise.all(responses);
+      await refetchTeamPolicies();
+      await refetchTeamConfig();
+
       renderFlash("success", "Successfully updated policy automations.");
     } catch {
       renderFlash(
@@ -517,8 +520,6 @@ const ManagePolicyPage = ({
     } finally {
       toggleCalendarEventsModal();
       setIsUpdatingCalendarEvents(false);
-      refetchTeamPolicies();
-      refetchTeamConfig();
     }
   };
 
