@@ -1286,6 +1286,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels` list of label names.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
+| mdm.macos_settings.disk_encryption_custom_settings | string   | body  | Path to configuration profile (.mobileconfig) to customize disk encryption settings.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
 
@@ -1352,6 +1353,7 @@ If the `name` is not already associated with an existing team, this API route cr
             "labels": ["Label 3", "Label 4"]
           },
           "enable_disk_encryption": true
+          "disk_encryption_custom_setting": "path/to/disk-encryption-profile.mobileconfig"
         },
         "windows_settings": {
           "custom_settings": {
