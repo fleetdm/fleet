@@ -311,10 +311,11 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
 - **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
   - In the notes document include:
     1. LinkedIn profile link of all outside participants
-    2. Screen-shot of LinkedIn profile pic
-    3. Company name (in doc title and file name)
-    4. Correct date (20XX-XX-XX in doc title and file name)
-    5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
+      - Connect with any of the attendees that the CEO is not already connected to on LinkedIn, this should always be a blank connect request meaning "Send without note". 
+    3. Screen-shot of LinkedIn profile pic
+    4. Company name (in doc title and file name)
+    5. Correct date (20XX-XX-XX in doc title and file name)
+    6. Context that helps the CEO to understand the purpose of the meeting at a glance from:
        - CEO's email
        - LinkedIn messages (careful not to mark things as read!)
        - Google Drive 
