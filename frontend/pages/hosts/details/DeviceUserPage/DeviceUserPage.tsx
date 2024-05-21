@@ -350,6 +350,14 @@ const DeviceUserPage = ({
       router.push(tabPaths[0]);
     }
 
+    // TODO: This is a temporary fix that conditionally shows the new software tab depending on
+    // whether software items returned in the device details response (legacy endpoint).
+    // If the tab is selected, we call the new host software endpoint and display those results.
+    // Software in the legacy response is only being used as a proxy for `iseSoftwareEnabled`.
+    // Ideally we should be checking the config for whether software is enabled to show/hide the tab,
+    // but it isn't available via device token authenticated API. And we need better specified empty states.
+    const isSoftwareEnabled = !!host?.software.length;
+
     return (
       <div className="core-wrapper">
         {!host || isLoadingHost ? (
@@ -404,7 +412,7 @@ const DeviceUserPage = ({
                 <TabList>
                   <Tab>Details</Tab>
                   {isPremiumTier && <Tab>Self-service</Tab>}
-                  <Tab>Software</Tab>
+                  {isSoftwareEnabled && <Tab>Software</Tab>}
                   {isPremiumTier && (
                     <Tab>
                       <div>
@@ -435,17 +443,20 @@ const DeviceUserPage = ({
                     />
                   </TabPanel>
                 )}
-                <TabPanel>
-                  <SoftwareCard
-                    id={deviceAuthToken}
-                    isFleetdHost={!!host.orbit_version}
-                    router={router}
-                    pathname={location.pathname}
-                    queryParams={parseHostSoftwareQueryParams(location.query)}
-                    isMyDevicePage
-                    teamId={host.team_id || 0}
-                  />
-                </TabPanel>
+                {isSoftwareEnabled && (
+                  <TabPanel>
+                    <SoftwareCard
+                      id={deviceAuthToken}
+                      isFleetdHost={!!host.orbit_version}
+                      router={router}
+                      pathname={location.pathname}
+                      queryParams={parseHostSoftwareQueryParams(location.query)}
+                      isMyDevicePage
+                      teamId={host.team_id || 0}
+                      isSoftwareEnabled={isSoftwareEnabled}
+                    />
+                  </TabPanel>
+                )}
                 {isPremiumTier && (
                   <TabPanel>
                     <PoliciesCard
