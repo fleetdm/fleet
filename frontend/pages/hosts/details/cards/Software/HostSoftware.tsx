@@ -241,15 +241,13 @@ const HostSoftware = ({
 
   const data = isMyDevicePage ? deviceSoftwareRes : hostSoftwareRes;
 
-  if (hostPlatform === "ios" || hostPlatform === "ipados") {
-    return (
-      <Card
-        borderRadiusSize="large"
-        includeShadow
-        largePadding
-        className={baseClass}
-      >
-        <p className="card__header">Software</p>
+  const renderHostSoftware = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (hostPlatform === "ios" || hostPlatform === "ipados") {
+      return (
         <EmptyTable
           header="Software is not supported for this host"
           info={
@@ -260,9 +258,31 @@ const HostSoftware = ({
             </>
           }
         />
-      </Card>
+      );
+    }
+
+    return (
+      <>
+        {(isError || !data) && <DataError />}
+        {!isError && data && (
+          <HostSoftwareTable
+            isLoading={
+              isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
+            }
+            data={data}
+            router={router}
+            tableConfig={tableConfig}
+            sortHeader={queryParams.order_key}
+            sortDirection={queryParams.order_direction}
+            searchQuery={queryParams.query}
+            page={queryParams.page}
+            pagePath={pathname}
+          />
+        )}
+      </>
     );
-  }
+  };
+
   return (
     <Card
       borderRadiusSize="large"
@@ -271,28 +291,7 @@ const HostSoftware = ({
       className={baseClass}
     >
       <p className="card__header">Software</p>
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <>
-          {(isError || !data) && <DataError />}
-          {!isError && data && (
-            <HostSoftwareTable
-              isLoading={
-                isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
-              }
-              data={data}
-              router={router}
-              tableConfig={tableConfig}
-              sortHeader={queryParams.order_key}
-              sortDirection={queryParams.order_direction}
-              searchQuery={queryParams.query}
-              page={queryParams.page}
-              pagePath={pathname}
-            />
-          )}
-        </>
-      )}
+      {renderHostSoftware()}
     </Card>
   );
 };
