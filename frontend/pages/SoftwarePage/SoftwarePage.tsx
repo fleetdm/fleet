@@ -281,8 +281,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
     setResetPageIndex(false);
-    console.log("queryParams.page", queryParams.page);
-    console.log("page.toString()", page.toString());
 
     // Ensures setting page to same page as seen in URL
     if (initialPage !== page) {
