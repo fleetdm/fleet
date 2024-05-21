@@ -4993,8 +4993,6 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
-| custom_settings        | string  | body  | Configuration profile to customize disk encryption options for macOS hosts. |
-
 
 #### Example
 
@@ -5002,8 +5000,108 @@ _Available in Fleet Premium_
 
 ##### Default response
 
-`204`
+`Status: 204`
 
+### Add custom disk encryption settings
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/disk_encryption/custom_settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | form  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| custom_settings        | file  | form  | **Required**. The configuration profile (.mobileconfig) fir macOS.|
+
+#### Example
+
+`POST /api/v1/fleet/disk_encryption/custom_settings`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="disk-encryption-settings.mobileconfig"
+Content-Type: application/octet-stream
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array/>
+  <key>PayloadDisplayName</key>
+  <string>Disk encryption settings</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.profile</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+--------------------------f02md47480und42y--
+```
+
+##### Default response
+
+`Status: 204`
+
+### Download custom disk encryption settings
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/disk_encryption/custom_settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | query  | The team ID. Get the configuration profile of specified team.      |
+| alt                    | string  | query  | If specified and set to "media", downloads the configuration profile.|
+
+#### Example
+
+`GET /api/v1/fleet/disk_encryption/custom_settings?team_id=1?alt=media`
+
+##### Default response
+
+`Status: 200`
+
+### Delete custom disk encryption settings
+
+_Available in Fleet Premium_
+
+`DELETE /api/v1/fleet/disk_encryption/custom_settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | query  | The team ID. Delete configuration profile from specified team.      |
+
+#### Example
+
+`DELETE /api/v1/fleet/disk_encryption/custom_settings?team_id=1?alt=media`
+
+##### Default response
+
+`Status: 200`
 
 ### Get disk encryption statistics
 
