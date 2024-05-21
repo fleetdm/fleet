@@ -257,8 +257,8 @@ The Apprentice will perform the following steps to process all communication fro
 2. In the "[¶¶¶¶ 🌪️🦿 Roundup (:help-being-ceo)](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit)" (confidential Google doc), create a new bullet at the bottom of the "Help-being-ceo" section and record the entire message verbatim 
 3. Prefix the bullet with the date and time of the message matching the formatting with what is reflected in Slack (e.g. 2024-05-20 01:41). 
 4. Make your prefix a link by copying the message link from Slack and linking it in the Google doc using the date and time text.
-5. Copy the entire message verbatim from Slack including all images and replies making sure to not lose any context and mimic all formatting that's included in the message. 
-
+5. Copy the entire message verbatim from Slack including all images and replies making sure to not lose any context and mimic all formatting that's included in the message. In the Slack channel apply the "`:tracking`" emoji (only available in Slack) to signify that the ask has been processed. 
+6. 
 
 ### Archive a document
 Follow these steps to archive any document:
