@@ -885,7 +885,8 @@ None.
     },
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
-      "enable_disk_encryption": true
+      "enable_disk_encryption": true,
+      "disk_encryptioncustom_settings": ["path/to/disk-encryption-profile.mobileconfig"]
     },
     "windows_settings": {
       "custom_settings": ["path/to/profile2.xml"],
@@ -1114,6 +1115,7 @@ Modifies the Fleet's configuration with the supplied information.
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. macOS hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
+| disk_encryption_custom_settings   | string | body  | _mdm.macos_settings settings_. macOS hosts that belong to no team will have custom disk encryption profile applied. |
 | custom_settings                   | list    | body  | _mdm.windows_settings settings_. Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
@@ -1218,7 +1220,8 @@ Note that when making changes to the `integrations` object, all integrations mus
         "path": "path/to/profile2.json",
         "labels": ["Label 3", "Label 4"]
       },
-      "enable_disk_encryption": true
+      "enable_disk_encryption": true,
+      "disk_encryptioncustom_settings": ["path/to/disk-encryption-profile.mobileconfig"]
     },
     "windows_settings": {
       "custom_settings": {
