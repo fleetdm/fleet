@@ -585,6 +585,7 @@ const ManageHostsPage = ({
   useEffect(() => {
     // TODO: cleanup this effect
     setResetPageIndex(false);
+
     if (queryParams.page === page) {
       setPage(queryParams.page);
     }

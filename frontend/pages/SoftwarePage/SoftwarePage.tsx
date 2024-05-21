@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -141,10 +141,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams?.order_direction === undefined
       ? DEFAULT_SORT_DIRECTION
       : queryParams.order_direction;
-  const page =
+  const initialPage = (() =>
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
-      : DEFAULT_PAGE;
+      : DEFAULT_PAGE)();
   // TODO: move these down into the Software Titles component.
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
@@ -160,6 +160,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
+  const [page, setPage] = useState(initialPage);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   const {
     currentTeamId,
@@ -275,23 +277,43 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     }
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  // NOTE: Solution reused from ManageHostPage.tsx
+  useEffect(() => {
+    setResetPageIndex(false);
+    console.log("queryParams.page", queryParams.page);
+    console.log("page.toString()", page.toString());
+
+    // Ensures setting page to same page as seen in URL
+    if (initialPage !== page) {
+      setPage(initialPage);
+    }
+  }, [queryParams, page]);
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setResetPageIndex(true);
+  };
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      // TODO: reset page to 0 when changing teams
+      handleResetPageIndex();
     },
     [handleTeamChange]
   );
 
   const navigateToNav = useCallback(
     (i: number): void => {
+      handleResetPageIndex(); // Fixes flakey page reset in table state when switching between tabs
+
       // Only query param to persist between tabs is team id
       const teamIdParam = buildQueryStringFromParams({
         team_id: location?.query.team_id,
+        page: 0, // Fixes flakey page reset in API call when switching between tabs
       });
 
       const navPath = softwareSubNav[i].pathname.concat(`?${teamIdParam}`);
-
       router.replace(navPath);
     },
     [location, router]
@@ -385,6 +407,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           query,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
+          resetPageIndex,
         })}
       </div>
     );
