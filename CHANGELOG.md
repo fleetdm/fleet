@@ -1,3 +1,9 @@
+## Fleet 4.49.4 (May 20, 2024)
+
+### Bug fixes
+
+* Fixed an issue with SCEP renewals that could prevent commands to renew from being enqueued.
+
 ## Fleet 4.49.3 (May 06, 2024)
 
 ### Bug fixes

@@ -30,7 +30,7 @@ export default {
   // Device endpoints
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
   DEVICE_SOFTWARE: (token: string) =>
-    `/${API_VERSION}/fleet/devices/${token}/software`,
+    `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
   },
