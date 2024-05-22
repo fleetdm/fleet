@@ -455,6 +455,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				PreInstallQuery:   p.PreInstallQuery,
 				PostInstallScript: p.PostInstallScript,
 				InstallerFile:     bytes.NewReader(bodyBytes),
+				SelfService:       p.SelfService,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
