@@ -4116,3 +4116,21 @@ VALUES
 
 	return nil
 }
+
+func (ds *Datastore) InsertMDMAppleCertificates(ctx context.Context, name fleet.MDMAssetName, value []byte) error {
+	const stmt = `
+INSERT INTO
+    mdm_config_assets (
+		name,
+		value
+	)
+VALUES
+    (?,?)
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, name, value); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing MDM apple certificates to db")
+	}
+
+	return nil
+}

@@ -143,6 +143,51 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	return nil
 }
 
+// GetSignedAPNSCSRNoEmail makes a request to the fleetdm.com API to get a signed APNs
+// CSR and returns the signed CSR
+func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) (*x509.CertificateRequest, error) {
+	csrPEM := EncodeCertRequestPEM(csr)
+
+	payload := getSignedAPNSCSRRequest{
+		UnsignedCSRData: csrPEM,
+	}
+
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal payload: %w", err)
+	}
+
+	// for testing
+	baseURL := defaultFleetDMAPIURL
+	if x := os.Getenv("TEST_FLEETDM_API_URL"); x != "" {
+		baseURL = strings.TrimRight(x, "/")
+	}
+	u := baseURL + getSignedAPNSCSRPath
+
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes)}
+	}
+
+	signedCSR, err := x509.ParseCertificateRequest(respBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return signedCSR, nil
+}
+
 // NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and
 // returns the certificate and its private key.
 func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {

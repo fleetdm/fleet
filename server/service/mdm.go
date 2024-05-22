@@ -2125,23 +2125,64 @@ func (r getMDMAppleCSRResponse) error() error { return r.Err }
 
 func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	slog.With("filename", "server/service/mdm.go", "func", "getMDMAppleCSREndpoint").Info("JVE_LOG: in endpoint method ")
-	_, _ = svc.GetMDMAppleCSR(ctx)
+	_, err := svc.GetMDMAppleCSR(ctx)
+	if err != nil {
+		return &getMDMAppleCSRResponse{Err: err}, nil
+	}
 
 	return &getMDMAppleCSRResponse{}, nil
 }
 
 func (svc *Service) GetMDMAppleCSR(ctx context.Context) (*fleet.AppleCSR, error) {
-	// TODO(JVE): figure out auth
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
 	}
 	slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("JVE_LOG: in service method ")
 
-	a, b, err := apple_mdm.GenerateAPNSCSRKeyNoEmail("foo")
+	// Get SCEP certificate and key
+	scepCert, scepKey, err := apple_mdm.NewSCEPCACertKey()
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
+	}
+	// slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("\n\n\nJVE_LOG: what we got\n\n\n ", "certReq", string(scepCert.Raw), "privateKey", scepKey)
+
+	// Get APNS key
+	_, apnsKey, err := apple_mdm.GenerateAPNSCSRKeyNoEmail("foo")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate APNS cert and key")
+	}
+	// slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("\n\n\nJVE_LOG: what we got\n\n\n ", "certReq", string(apnsCSR.Raw), "privateKey", apnsKey)
+
+	// Submit CSR to fleetdm.com for signing
+	// websiteClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+
+	// signedCSR, err := apple_mdm.GetSignedAPNSCSRNoEmail(websiteClient, apnsCSR)
+	// if err != nil {
+	// 	return nil, ctxerr.Wrap(ctx, err, "get signed CSR")
+	// }
+
+	// slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("JVE_LOG: storing secrets ", "signedCSR", signedCSR)
+
+	// Store APNS key, SCEP key, SCEP cert
+
+	// slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("JVE_LOG: storing secrets ", "signedCSR", signedCSR)
+
+	scepCACertPEM := apple_mdm.EncodeCertPEM(scepCert)
+	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepKey)
+	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
+
+	if err := svc.ds.InsertMDMAppleCertificates(ctx, fleet.MDMAssetCACert, scepCACertPEM); err != nil {
 		return nil, err
 	}
-	slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("\n\n\nJVE_LOG: what we got\n\n\n ", "certReq", string(a.Raw), "privateKey", b)
+
+	if err := svc.ds.InsertMDMAppleCertificates(ctx, fleet.MDMAssetCAKey, scepCAKeyPEM); err != nil {
+		return nil, err
+	}
+
+	if err := svc.ds.InsertMDMAppleCertificates(ctx, fleet.MDMAssetAPNSKey, apnsKeyPEM); err != nil {
+		return nil, err
+	}
+	// Return signed CSR
 
 	return nil, nil
 }
