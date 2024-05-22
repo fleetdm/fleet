@@ -365,7 +365,14 @@ func (svc Service) updateStats(
 
 	// Do aggregation
 	if aggregateStats && tracker.aggregationNeeded {
-		err := svc.ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
+		// Since we just wrote new stats, we need to sync the replica before calculating aggregated stats.
+		// The calculations are done on the replica to reduce the load on the master.
+		err := svc.ds.ReplicaSync(ctx)
+		if err != nil {
+			// We log and continue. We will calculate the aggregated stats even though they may be out of date.
+			level.Error(logger).Log("msg", "error syncing replica", "err", err)
+		}
+		err = svc.ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
 		if err != nil {
 			level.Error(logger).Log("msg", "error aggregating performance stats", "err", err)
 			tracker.saveStats = false

@@ -28,6 +28,7 @@ const (
 	testPassword              = "toor"
 	testAddress               = "localhost:3307"
 	testReplicaDatabaseSuffix = "_replica"
+	testReplicaAddress        = "localhost:3310"
 )
 
 func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
@@ -40,7 +41,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 
 	// Create datastore client
 	var replicaOpt DBOption
-	if opts.Replica {
+	if opts.DummyReplica {
 		replicaConf := config
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
@@ -57,14 +58,23 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"))
 	require.Nil(t, err)
 
-	if opts.Replica {
-		setupReadReplica(t, testName, ds, opts)
+	if opts.DummyReplica {
+		setupDummyReplica(t, testName, ds, opts)
+	}
+	if opts.RealReplica {
+		replicaOpts := &dbOptions{
+			minLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
+			maxAttempts:         1,
+			logger:              log.NewNopLogger(),
+			sqlMode:             "ANSI",
+		}
+		setupRealReplica(t, testName, ds, replicaOpts)
 	}
 
 	return ds
 }
 
-func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
 	t.Helper()
 
 	// create the context that will cancel the replication goroutine on test exit
@@ -185,6 +195,96 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 	}
 }
 
+func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
+	t.Helper()
+	const replicaUser = "replicator"
+	const replicaPassword = "rotacilper"
+
+	t.Cleanup(
+		func() {
+			// Stop slave
+			if out, err := exec.Command(
+				"docker-compose", "exec", "-T", "mysql_replica_test",
+				// Command run inside container
+				"mysql",
+				"-u"+testUsername, "-p"+testPassword,
+				"-e",
+				"STOP SLAVE; RESET SLAVE ALL;",
+			).CombinedOutput(); err != nil {
+				t.Log(err)
+				t.Log(string(out))
+			}
+		},
+	)
+
+	ctx := context.Background()
+
+	// Create replication user
+	_, err := ds.primary.ExecContext(ctx, fmt.Sprintf("DROP USER IF EXISTS '%s'", replicaUser))
+	require.NoError(t, err)
+	_, err = ds.primary.ExecContext(ctx, fmt.Sprintf("CREATE USER '%s'@'%%' IDENTIFIED BY '%s'", replicaUser, replicaPassword))
+	require.NoError(t, err)
+	_, err = ds.primary.ExecContext(ctx, fmt.Sprintf("GRANT REPLICATION SLAVE ON *.* TO '%s'@'%%'", replicaUser))
+	require.NoError(t, err)
+	_, err = ds.primary.ExecContext(ctx, "FLUSH PRIVILEGES")
+	require.NoError(t, err)
+
+	// Retrieve master binary log coordinates
+	ms, err := ds.MasterStatus(ctx)
+	require.NoError(t, err)
+
+	// Get MySQL version
+	var version string
+	err = ds.primary.GetContext(ctx, &version, "SELECT VERSION()")
+	require.NoError(t, err)
+	using57 := strings.HasPrefix(version, "5.7")
+	extraMasterOptions := ""
+	if !using57 {
+		extraMasterOptions = "GET_MASTER_PUBLIC_KEY=1," // needed for MySQL 8.0 caching_sha2_password authentication
+	}
+
+	// Configure slave and start replication
+	if out, err := exec.Command(
+		"docker-compose", "exec", "-T", "mysql_replica_test",
+		// Command run inside container
+		"mysql",
+		"-u"+testUsername, "-p"+testPassword,
+		"-e",
+		fmt.Sprintf(
+			`
+			STOP SLAVE;
+			RESET SLAVE ALL;
+			CHANGE MASTER TO
+				%s
+				MASTER_HOST='mysql_test',
+				MASTER_USER='%s',
+				MASTER_PASSWORD='%s',
+				MASTER_LOG_FILE='%s',
+				MASTER_LOG_POS=%d;
+			START SLAVE;
+			`, extraMasterOptions, replicaUser, replicaPassword, ms.File, ms.Position,
+		),
+	).CombinedOutput(); err != nil {
+		t.Error(err)
+		t.Error(string(out))
+		t.FailNow()
+	}
+
+	// Connect to the replica
+	replicaConfig := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Database: testName,
+		Address:  testReplicaAddress,
+	}
+	require.NoError(t, checkConfig(&replicaConfig))
+	replica, err := newDB(&replicaConfig, options)
+	require.NoError(t, err)
+	ds.replica = replica
+	ds.readReplicaConfig = &replicaConfig
+
+}
+
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
@@ -200,7 +300,7 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	// execute the schema for the test db, and once more for the replica db if
 	// that option is set.
 	dbs := []string{testName}
-	if opts.Replica {
+	if opts.DummyReplica {
 		dbs = append(dbs, testName+testReplicaDatabaseSuffix)
 	}
 	for _, dbName := range dbs {
@@ -221,20 +321,42 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 			t.FailNow()
 		}
 	}
+	if opts.RealReplica {
+		// Load schema from dumpfile
+		if out, err := exec.Command(
+			"docker-compose", "exec", "-T", "mysql_replica_test",
+			// Command run inside container
+			"mysql",
+			"-u"+testUsername, "-p"+testPassword,
+			"-e",
+			fmt.Sprintf(
+				"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+				testName, testName, testName, schema,
+			),
+		).CombinedOutput(); err != nil {
+			t.Error(err)
+			t.Error(string(out))
+			t.FailNow()
+		}
+	}
+
 	return connectMySQL(t, testName, opts)
 }
 
 // DatastoreTestOptions configures how the test datastore is created
 // by CreateMySQLDSWithOptions.
 type DatastoreTestOptions struct {
-	// Replica indicates that a read replica test database should be created.
-	Replica bool
+	// DummyReplica indicates that a read replica test database should be created.
+	DummyReplica bool
 
 	// RunReplication is the function to call to execute the replication of all
 	// missing changes from the primary to the replica. The function is created
 	// and set automatically by CreateMySQLDSWithOptions. The test is in full
-	// control of when the replication is executed.
+	// control of when the replication is executed. Only applies to DummyReplica.
 	RunReplication func()
+
+	// RealReplica indicates that the replica should be a real DB replica, with a dedicated connection.
+	RealReplica bool
 }
 
 func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datastore {
@@ -249,6 +371,12 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 	if opts == nil {
 		// so it is never nil in internal helper functions
 		opts = new(DatastoreTestOptions)
+	}
+
+	if opts.RealReplica {
+		if _, ok := os.LookupEnv("MYSQL_REPLICA_TEST"); !ok {
+			t.Skip("MySQL replica tests are disabled. Set env var MYSQL_REPLICA_TEST=1 to enable.")
+		}
 	}
 
 	pc, _, _, ok := runtime.Caller(2)

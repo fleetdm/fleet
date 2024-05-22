@@ -710,6 +710,15 @@ type Datastore interface {
 	DBLocks(ctx context.Context) ([]*DBLock, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Replica
+
+	// ReplicaSync syncs the read replica with the primary datastore.
+	// This method is useful for read-after-write consistency. For example, after
+	// a write operation on the primary datastore, the replica can be synced to
+	// ensure that the read operation on the replica returns the latest data.
+	ReplicaSync(ctx context.Context) error
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Cron Stats
 
 	// GetLatestCronStats returns a slice of no more than two cron stats records, where index 0 (if

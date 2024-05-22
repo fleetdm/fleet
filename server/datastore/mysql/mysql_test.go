@@ -40,10 +40,11 @@ func TestDatastoreReplica(t *testing.T) {
 		ds := CreateMySQLDSWithOptions(t, nil)
 		defer ds.Close()
 		require.Equal(t, ds.reader(ctx), ds.writer(ctx))
+		assert.NoError(t, ds.ReplicaSync(ctx))
 	})
 
 	t.Run("replica", func(t *testing.T) {
-		opts := &DatastoreTestOptions{Replica: true}
+		opts := &DatastoreTestOptions{DummyReplica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
 		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))
@@ -1280,4 +1281,25 @@ func TestBatchProcessDB(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, callCount)
 	})
+}
+
+func TestReplicaSync(t *testing.T) {
+	opts := &DatastoreTestOptions{
+		RealReplica: true,
+	}
+	ds := CreateMySQLDSWithOptions(t, opts)
+
+	// Write to master
+	_, err := ds.writer(context.Background()).ExecContext(context.Background(), "CREATE TABLE test (id INT)")
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).ExecContext(context.Background(), "INSERT INTO test (id) VALUES (1)")
+	require.NoError(t, err)
+
+	// Sync slave to master
+	assert.NoError(t, ds.ReplicaSync(context.Background()))
+
+	// Check that slave has caught up
+	var result int
+	require.NoError(t, sqlx.GetContext(context.Background(), ds.reader(context.Background()), &result, "SELECT * FROM test"))
+	assert.Equal(t, 1, result)
 }
