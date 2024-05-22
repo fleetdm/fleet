@@ -1,3 +1,5 @@
+import { AxiosResponse } from "axios";
+
 import { snakeCase, reduce } from "lodash";
 
 import sendRequest from "services";
@@ -5,11 +7,12 @@ import endpoints from "utilities/endpoints";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
-  IGetSoftwareByIdResponse,
   ISoftwareVersion,
   ISoftwareTitle,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
+import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -18,6 +21,7 @@ export interface ISoftwareApiParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   vulnerable?: boolean;
+  availableForInstall?: boolean;
   teamId?: number;
 }
 
@@ -100,6 +104,7 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     vulnerable,
+    availableForInstall,
     teamId,
   }: ISoftwareApiParams): Promise<ISoftwareResponse> => {
     const { SOFTWARE } = endpoints;
@@ -111,6 +116,7 @@ export default {
       teamId,
       query,
       vulnerable,
+      availableForInstall,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -145,16 +151,9 @@ export default {
     return sendRequest("GET", path.concat(`?${queryString}`));
   },
 
-  getSoftwareById: async (
-    softwareId: string
-  ): Promise<IGetSoftwareByIdResponse> => {
-    const { SOFTWARE } = endpoints;
-    const path = `${SOFTWARE}/${softwareId}`;
-
-    return sendRequest("GET", path);
-  },
-
-  getSoftwareTitles: (params: ISoftwareApiParams) => {
+  getSoftwareTitles: (
+    params: ISoftwareApiParams
+  ): Promise<ISoftwareTitlesResponse> => {
     const { SOFTWARE_TITLES } = endpoints;
     const snakeCaseParams = convertParamsToSnakeCase(params);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
@@ -162,10 +161,12 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getSoftwareTitle: ({ softwareId, teamId }: IGetSoftwareTitleQueryParams) => {
+  getSoftwareTitle: ({
+    softwareId,
+    teamId,
+  }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
     const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
-
     return sendRequest("GET", path);
   },
 
@@ -184,6 +185,56 @@ export default {
     const endpoint = endpoints.SOFTWARE_VERSION(versionId);
     const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
+    return sendRequest("GET", path);
+  },
+
+  addSoftwarePackage: (data: IAddSoftwareFormData, teamId?: number) => {
+    const { SOFTWARE_PACKAGE_ADD } = endpoints;
+
+    if (!data.software) {
+      throw new Error("Software package is required");
+    }
+
+    const formData = new FormData();
+    formData.append("software", data.software);
+    data.installScript && formData.append("install_script", data.installScript);
+    data.preInstallCondition &&
+      formData.append("pre_install_query", data.preInstallCondition);
+    data.postInstallScript &&
+      formData.append("post_install_script", data.postInstallScript);
+    teamId && formData.append("team_id", teamId.toString());
+
+    return sendRequest("POST", SOFTWARE_PACKAGE_ADD, formData);
+  },
+
+  deleteSoftwarePackage: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_PACKAGE } = endpoints;
+    const path = `${SOFTWARE_PACKAGE(softwareId)}?team_id=${teamId}`;
+    return sendRequest("DELETE", path);
+  },
+
+  downloadSoftwarePackage: (
+    softwareTitleId: number,
+    teamId: number
+  ): Promise<AxiosResponse> => {
+    const path = `${endpoints.SOFTWARE_PACKAGE(
+      softwareTitleId
+    )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
+
+    return sendRequest(
+      "GET",
+      path,
+      undefined,
+      "blob",
+      undefined,
+      undefined,
+      true // return raw response
+    );
+  },
+
+  getSoftwareInstallResult: (installUuid: string) => {
+    const { SOFTWARE_INSTALL_RESULTS } = endpoints;
+    const path = SOFTWARE_INSTALL_RESULTS(installUuid);
     return sendRequest("GET", path);
   },
 };

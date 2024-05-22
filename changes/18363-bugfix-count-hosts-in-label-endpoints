@@ -1,0 +1,1 @@
+* Fixed a bug where the returned `count` field (the count of hosts in a label) as returned by the "Add label", "Update label" and "Get label" endpoints included hosts that the user did not have the permission to see, unlike the "List labels" endpoint which was correct.

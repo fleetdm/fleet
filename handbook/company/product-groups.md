@@ -429,20 +429,20 @@ Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizin
 Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
 
 ## High priority user stories and bugs
-All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate urgency for the business.
+All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
 
 - Emergency: `P0`
-  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate business emergency.
+  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
   - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
   - Impact: Significant impact. May void current sprint.
 
 - Critical: `P1`
-  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical business need.
+  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
   - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
   - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
 
 - Urgent: `P2`
-  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent business need.
+  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
   - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
   - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
 

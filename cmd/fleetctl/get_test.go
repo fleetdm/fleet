@@ -623,9 +623,9 @@ func TestGetSoftwareTitles(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
-		return []fleet.SoftwareTitle{
+		return []fleet.SoftwareTitleListResult{
 			{
 				Name:          "foo",
 				Source:        "chrome_extensions",
@@ -677,6 +677,7 @@ spec:
 - hosts_count: 2
   id: 0
   name: foo
+  software_package: null
   source: chrome_extensions
   versions:
   - id: 0
@@ -696,6 +697,7 @@ spec:
 - hosts_count: 0
   id: 0
   name: bar
+  software_package: null
   source: deb_packages
   versions:
   - id: 0
@@ -738,7 +740,8 @@ spec:
             "cve-123-456-003"
           ]
         }
-      ]
+      ],
+	  "software_package": null
     },
     {
       "id": 0,
@@ -752,7 +755,8 @@ spec:
           "version": "0.0.3",
 		  "vulnerabilities": null
         }
-      ]
+      ],
+	  "software_package": null
     }
   ]
 }
@@ -2230,6 +2234,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})

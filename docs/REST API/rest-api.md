@@ -3840,7 +3840,7 @@ Requires that disk encryption is enforced and the host has MDM turned on.
 
 ### Get configuration profiles assigned to a host
 
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
+Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 Retrieves a list of the configuration profiles assigned to a host.
 

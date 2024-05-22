@@ -11,21 +11,14 @@ import (
 const maxRetries = 2
 
 type DiskEncryptionRunner struct {
-	fetcher   OrbitConfigFetcher
 	isRunning atomic.Bool
 }
 
-func ApplyDiskEncryptionRunnerMiddleware(f OrbitConfigFetcher) *DiskEncryptionRunner {
-	return &DiskEncryptionRunner{fetcher: f}
+func ApplyDiskEncryptionRunnerMiddleware() fleet.OrbitConfigReceiver {
+	return &DiskEncryptionRunner{}
 }
 
-func (d *DiskEncryptionRunner) GetConfig() (*fleet.OrbitConfig, error) {
-	cfg, err := d.fetcher.GetConfig()
-	if err != nil {
-		log.Debug().Err(err).Msg("calling GetConfig from DiskEncryptionFetcher")
-		return nil, err
-	}
-
+func (d *DiskEncryptionRunner) Run(cfg *fleet.OrbitConfig) error {
 	log.Debug().Msgf("running disk encryption fetcher middleware, notification: %v, isIdle: %v", cfg.Notifications.RotateDiskEncryptionKey, d.isRunning.Load())
 
 	if cfg.Notifications.RotateDiskEncryptionKey && !d.isRunning.Swap(true) {
@@ -37,5 +30,5 @@ func (d *DiskEncryptionRunner) GetConfig() (*fleet.OrbitConfig, error) {
 		}()
 	}
 
-	return cfg, nil
+	return nil
 }

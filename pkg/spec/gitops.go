@@ -54,6 +54,8 @@ type GitOps struct {
 	Controls     Controls
 	Policies     []*fleet.PolicySpec
 	Queries      []*fleet.QuerySpec
+	// Software is only allowed on teams, not on global config.
+	Software []*fleet.TeamSpecSoftware
 }
 
 // GitOpsFromBytes parses a GitOps yaml file.
@@ -77,7 +79,7 @@ func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	var multiError *multierror.Error
 	result := &GitOps{}
 
-	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries"}
+	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
 			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
@@ -87,16 +89,18 @@ func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	// Figure out if this is an org or team settings file
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
+	teamSoftware, teamSoftwareOk := top["software"]
 	orgSettingsRaw, orgOk := top["org_settings"]
 	if orgOk {
-		if teamOk || teamSettingsOk {
-			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name' or 'team_settings'"))
+		if teamOk || teamSettingsOk || teamSoftwareOk {
+			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings' or 'software'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
 	} else if teamOk && teamSettingsOk {
 		multiError = parseName(teamRaw, result, multiError)
 		multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
+		multiError = parseSoftware(teamSoftware, result, baseDir, multiError)
 	} else {
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
@@ -507,6 +511,24 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate query names: %v", duplicates))
+	}
+	return multiError
+}
+
+func parseSoftware(softwareRaw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+	var softwareInstallers []fleet.TeamSpecSoftware
+	if len(softwareRaw) > 0 {
+		if err := json.Unmarshal(softwareRaw, &softwareInstallers); err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to unmarshal software: %v", err))
+		}
+	}
+	for _, item := range softwareInstallers {
+		item := item
+		if item.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("software URL is required"))
+			continue
+		}
+		result.Software = append(result.Software, &item)
 	}
 	return multiError
 }
