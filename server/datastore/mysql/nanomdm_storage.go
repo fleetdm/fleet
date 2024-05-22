@@ -3,21 +3,16 @@ package mysql
 import (
 	"context"
 	"crypto/tls"
-	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	mdmctx "github.com/fleetdm/fleet/v4/server/contexts/mdm"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/go-kit/log"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -141,93 +136,6 @@ func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fle
 
 		return nil
 	}, s.logger)
-}
-
-func (s *NanoMDMStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
-	//
-	// The following code to SELECT FROM nano_commands, nano_command_results and
-	// nano_enrollment_queue was copied verbatim from the nanomdm
-	// implementation. Ideally we modify some of the interfaces to not
-	// duplicate the code here, but that needs more careful planning
-	// (which we lack right now).
-	//
-	command := new(mdm.Command)
-	err := s.db.QueryRowContext(
-		r.Context, `
-SELECT c.command_uuid, c.request_type, c.command
-FROM nano_enrollment_queue AS q
-    INNER JOIN nano_commands AS c
-        ON q.command_uuid = c.command_uuid
-    LEFT JOIN nano_command_results r
-        ON r.command_uuid = q.command_uuid AND r.id = q.id
-WHERE q.id = ?
-    AND q.active = 1
-    AND (r.status IS NULL OR (r.status = 'NotNow' AND NOT ?))
-ORDER BY
-    q.priority DESC,
-    q.created_at
-LIMIT 1;`,
-		r.ID, skipNotNow,
-	).Scan(&command.CommandUUID, &command.Command.RequestType, &command.Raw)
-	switch {
-	case err == nil:
-		return command, nil
-	case errors.Is(err, sql.ErrNoRows):
-		// If there are no "real" commands for the device to run,
-		// we continue to check if we need to send the "refetch" command to iPhones/iPads.
-	default:
-		return nil, err
-	}
-
-	if mdmctx.IsRefetchResultsRequest(r.Context) {
-		// If this request is the response to a "refetch" command itself, then there's nothing to do.
-		return nil, nil
-	}
-
-	// Check if the device needs to be refetched.
-	var needsRefecth bool
-	if err := s.db.GetContext(r.Context, &needsRefecth, `
-		SELECT EXISTS(SELECT 1 FROM hosts
-		WHERE uuid = ? AND (platform = 'ios' OR platform = 'ipados') AND
-		TIMESTAMPDIFF(SECOND, detail_updated_at, NOW()) > ?);`,
-		r.ID, 1*time.Hour.Seconds()); err != nil {
-		return nil, err
-	}
-	if !needsRefecth {
-		return nil, nil
-	}
-
-	// This is an iPhone/iPad and needs to be "refetched",
-	// thus we send a DeviceInformation command to the device.
-	commandUUID := fmt.Sprintf("REFETCH-%s", uuid.NewString())
-	return &mdm.Command{
-		CommandUUID: commandUUID,
-		Command: struct{ RequestType string }{
-			RequestType: "DeviceInformation",
-		},
-		Raw: []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-        <key>Queries</key>
-        <array>
-            <string>DeviceName</string>
-            <string>DeviceCapacity</string>
-            <string>AvailableDeviceCapacity</string>
-            <string>OSVersion</string>
-            <string>WiFiMAC</string>
-            <string>ProductName</string>
-        </array>
-        <key>RequestType</key>
-        <string>DeviceInformation</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
-</dict>
-</plist>`, commandUUID)),
-	}, nil
 }
 
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore

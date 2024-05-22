@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 )
 
 const (
@@ -551,3 +553,19 @@ func MDMPlatform(hostPlatform string) string {
 func MDMSupported(hostPlatform string) bool {
 	return MDMPlatform(hostPlatform) != ""
 }
+
+func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
+	i := 0
+	for _, profilePayload := range profiles {
+		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
+			(profilePayload.ProfileName == mdm_types.FleetdConfigProfileName ||
+				profilePayload.ProfileName == mdm_types.FleetFileVaultProfileName) {
+			continue
+		}
+		profiles[i] = profilePayload
+		i++
+	}
+	return profiles[:i]
+}
+
+const RefetchCommandUUIDPrefix = "REFETCH-"

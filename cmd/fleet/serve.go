@@ -798,7 +798,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
+			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)

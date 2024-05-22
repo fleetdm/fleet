@@ -1188,7 +1188,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN('darwin', 'windows')`
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados')`
 	}
 	return sql, params
 }
@@ -1297,7 +1297,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
 	// current implementation.
 
-	sqlFmt := ` AND h.platform IN('windows', 'darwin')`
+	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados')`
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -1306,7 +1306,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	var whereMacOS, whereWindows string
 	sqlFmt += `
 AND ((h.platform = 'windows' AND (%s))
-OR (h.platform = 'darwin' AND (%s)))`
+OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s)))`
 
 	whereMacOS, paramsMacOS, err := subqueryOSSettingsStatusMac()
 	if err != nil {

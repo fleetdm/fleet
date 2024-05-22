@@ -2644,8 +2644,9 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, nil
 	}
 
-	// Check if this is a result of a "refetch" command sent to iPhones/iPads to fetch their device information periodically.
-	if strings.HasPrefix(cmdResult.CommandUUID, "REFETCH-") {
+	// Check if this is a result of a "refetch" command sent to iPhones/iPads
+	// to fetch their device information periodically.
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCommandUUIDPrefix) {
 		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.UDID)
 		if err != nil {
 			return nil, ctxerr.Wrap(r.Context, err)
@@ -2908,13 +2909,8 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
 
-	// Exclude the "Fleetd configuration" profiles from iPhones/iPads.
-	for i, profilePayload := range toInstall {
-		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
-			profilePayload.ProfileName == mdm_types.FleetdConfigProfileName {
-			toInstall = append(toInstall[:i], toInstall[i+1:]...)
-		}
-	}
+	// Exclude macOS only profiles from iPhones/iPads.
+	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
 	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
 	if err != nil {

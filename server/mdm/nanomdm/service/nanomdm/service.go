@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
-	mdmctx "github.com/fleetdm/fleet/v4/server/contexts/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -233,19 +231,9 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	}
 	logger.Info(logs...)
 
-	//
-	// If this is a "refetch" command (used for iPhones/iPads) then we
-	// don't store the command on the database and we set that this is a "refetch" request
-	// on the context (to be used by s.store.RetrieveNextCommand).
-	//
-
-	if strings.HasPrefix(results.CommandUUID, "REFETCH-") {
-		r.Context = mdmctx.SetRefetchResultsRequest(r.Context)
-	} else {
-		err := s.store.StoreCommandReport(r, results)
-		if err != nil {
-			return nil, fmt.Errorf("storing command report: %w", err)
-		}
+	err := s.store.StoreCommandReport(r, results)
+	if err != nil {
+		return nil, fmt.Errorf("storing command report: %w", err)
 	}
 	cmd, err := s.store.RetrieveNextCommand(r, results.Status == "NotNow")
 	if err != nil {

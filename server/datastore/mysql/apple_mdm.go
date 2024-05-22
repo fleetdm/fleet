@@ -799,8 +799,10 @@ func insertMDMAppleHostDB(
 	appCfg *fleet.AppConfig,
 ) error {
 	refetchRequested := 1
+	var lastEnrolledAt any = "2000-01-01 00:00:00"
 	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
 		refetchRequested = 0
+		lastEnrolledAt = time.Now()
 	}
 	insertStmt := `
 		INSERT INTO hosts (
@@ -821,7 +823,7 @@ func insertMDMAppleHostDB(
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
 		mdmHost.Platform,
-		"2000-01-01 00:00:00",
+		lastEnrolledAt,
 		"2000-01-01 00:00:00",
 		mdmHost.UUID,
 		refetchRequested,
@@ -890,7 +892,6 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		us, unionArgs := unionSelectDevices(devices)
 		args = append(args, unionArgs...)
 
-		// TODO(lucas): Not set refetch_requested for ios and ipados.
 		stmt := fmt.Sprintf(`
 		INSERT INTO hosts (
 			hardware_serial,
@@ -909,7 +910,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 				IF(us.platform = 'ios' OR us.platform = 'ipados', NOW(), '2000-01-01 00:00:00') AS last_enrolled_at,
 				'2000-01-01 00:00:00' AS detail_updated_at,
 				NULL AS osquery_host_id,
-				1 AS refetch_requested,
+				IF(us.platform = 'ios' OR us.platform = 'ipados', 0, 1) AS refetch_requested,
 				? AS team_id
 			FROM (%s) us
 			LEFT JOIN hosts h ON us.hardware_serial = h.hardware_serial
@@ -1659,6 +1660,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 	}
+
+	// Exclude macOS only profiles from iPhones/iPads.
+	wantedProfiles = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(wantedProfiles)
 
 	toRemoveStmt := fmt.Sprintf(`
 	SELECT
@@ -4163,10 +4167,25 @@ VALUES
 }
 
 func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
+	// Exclude iPhones/iPads that already have a "refetch" command queued without an answer.
 	stmt := `
-SELECT uuid FROM hosts
-WHERE (platform = 'ios' OR platform = 'ipados')
-AND TIMESTAMPDIFF(SECOND, detail_updated_at, NOW()) > ?;`
+SELECT h.uuid FROM hosts h
+JOIN host_mdm hmdm ON hmdm.host_id = h.id
+LEFT JOIN (
+	SELECT last_refetch_commands.id, last_refetch_commands.command_uuid, r.status FROM (
+		SELECT q.id, q.command_uuid FROM nano_enrollment_queue q JOIN (SELECT q.id, q.priority, MAX(q.created_at) as max_created_at
+		FROM nano_enrollment_queue AS q
+		WHERE 
+	  	  q.active = 1 AND LEFT(q.command_uuid, 8) = 'REFETCH-'
+		GROUP BY
+	 	   q.id, q.priority
+		) last_refetch_command_enqueued ON last_refetch_command_enqueued.id=q.id AND last_refetch_command_enqueued.priority=q.priority AND last_refetch_command_enqueued.max_created_at=q.created_at
+	) last_refetch_commands LEFT JOIN nano_command_results r ON r.command_uuid = last_refetch_commands.command_uuid AND r.id = last_refetch_commands.id
+) refetch_acknowledged ON refetch_acknowledged.id = h.uuid
+WHERE (h.platform = 'ios' OR h.platform = 'ipados')
+AND (refetch_acknowledged.id IS NULL OR refetch_acknowledged.status = 'Acknowledged')
+AND hmdm.enrolled
+AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, stmt, interval.Seconds()); err != nil {
 		return nil, err
 	}
