@@ -80,6 +80,11 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.PostInstallScript = val[0]
 	}
 
+	val, ok = r.MultipartForm.Value["self_service"]
+	if ok && len(val) > 0 && val[0] != "" {
+		decoded.SelfService = true
+	}
+
 	return &decoded, nil
 }
 

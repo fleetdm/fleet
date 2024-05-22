@@ -9715,6 +9715,9 @@ func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.
 	require.NoError(t, w.WriteField("install_script", payload.InstallScript))
 	require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
 	require.NoError(t, w.WriteField("post_install_script", payload.PostInstallScript))
+	if payload.SelfService {
+		require.NoError(t, w.WriteField("self_service", "true"))
+	}
 
 	w.Close()
 
