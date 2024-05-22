@@ -272,7 +272,7 @@ func processUbuntuDef(r io.Reader) ([]byte, error) {
 
 func parseUbuntuXML(reader io.Reader) (*oval_input.UbuntuResultXML, error) {
 	r := &oval_input.UbuntuResultXML{
-		Variables: make(map[string]oval_input.ConstantVariableXML),
+		Variables:       make(map[string]oval_input.ConstantVariableXML),
 		VariableObjects: make(map[int]oval_input.VariableObjectXML),
 	}
 	d := xml.NewDecoder(reader)
@@ -472,7 +472,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 				continue
 			}
 		}
-		
+
 		for _, sta := range t.States {
 			vstaToTst[sta.Id] = append(vstaToTst[sta.Id], id)
 		}
