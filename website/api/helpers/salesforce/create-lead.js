@@ -72,8 +72,9 @@ module.exports = {
     }).intercept((err)=>{
       return new Error(`When attempting to create a Lead record using an exisitng Account record (ID: ${salesforceAccountId}), An error occured when retreiving the specified record. Error: ${err}`);
     });
-    // If the account record is owned by the integrations admin user and is not the special account where unenriched contacts go, we'll round robin it and reassign it to an AE.
-    if(accountRecord.OwnerId === '0054x00000735wDAAQ' && salesforceAccountId !== '0014x000025JC8DAAW') {
+    let salesforceAccountOwnerId = accountRecord.OwnerId;
+    // If the account record is owned by the integrations admin user and is not the account where unenriched contacts go, we'll round robin it and reassign it to an AE.
+    if(salesforceAccountOwnerId === '0054x00000735wDAAQ' && salesforceAccountId !== '0014x000025JC8DAAW') {
       // Get all round robin users.
       let roundRobinUsers = await salesforceConnection.sobject('User')
       .find({
@@ -84,7 +85,7 @@ module.exports = {
 
       let today = new Date();
       let nowOn = today.toISOString().replace('Z', '+0000');
-      // Update the accountOwnerId value to be the ID of the next user in the round robin.
+      // Update the salesforceAccountOwnerId value to be the ID of the next user in the round robin.
       salesforceAccountOwnerId = userWithEarliestAssignTimeStamp.Id;
       // Update this user to put them at the bottom of the round robin list.
       await salesforceConnection.sobject('User')
