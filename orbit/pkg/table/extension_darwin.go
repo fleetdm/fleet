@@ -4,6 +4,7 @@ package table
 
 import (
 	"context"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
@@ -44,6 +45,7 @@ func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
 		table.NewPlugin("csrutil_info", csrutil_info.Columns(), csrutil_info.Generate),
 		table.NewPlugin("nvram_info", nvram_info.Columns(), nvram_info.Generate),
+		table.NewPlugin("tcc_access", tcc_access.Columns(), tcc_access.Generate),
 		table.NewPlugin("authdb", authdb.Columns(), authdb.Generate),
 		table.NewPlugin("pmset", pmset.Columns(), pmset.Generate),
 		table.NewPlugin("sudo_info", sudo_info.Columns(), sudo_info.Generate),
