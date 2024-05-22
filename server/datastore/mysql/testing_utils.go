@@ -364,13 +364,13 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 		t.Skip("MySQL tests are disabled")
 	}
 
-	if tt, ok := t.(*testing.T); ok {
-		tt.Parallel()
-	}
-
 	if opts == nil {
 		// so it is never nil in internal helper functions
 		opts = new(DatastoreTestOptions)
+	}
+
+	if tt, ok := t.(*testing.T); ok && !opts.RealReplica {
+		tt.Parallel()
 	}
 
 	if opts.RealReplica {

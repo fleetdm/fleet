@@ -1482,7 +1482,17 @@ func (ds *Datastore) ReplicaStatus(ctx context.Context) (ReplicaStatus, error) {
 			return status, ctxerr.Wrap(ctx, err, "scan row")
 		}
 		for i, col := range cols {
+			value := col.(*sql.NullString)
+			valueString := value.String
+			if !value.Valid {
+				valueString = "INVALID"
+			}
+
 			switch columns[i] {
+			case "Slave_SQL_Running_State", "Replica_SQL_Running_State":
+				fmt.Printf("Column: %s, Value: %s\n", columns[i], valueString)
+			case "Read_Master_Log_Pos", "Read_Source_Log_Pos":
+				fmt.Printf("Column: %s, Value: %s\n", columns[i], valueString)
 			case "Exec_Master_Log_Pos", // MySQL 5.7 name
 				"Exec_Source_Log_Pos": // MySQL 8.0/8.4 name
 				pos := col.(*sql.NullString)
@@ -1490,7 +1500,8 @@ func (ds *Datastore) ReplicaStatus(ctx context.Context) (ReplicaStatus, error) {
 				if err != nil {
 					return status, ctxerr.Wrap(ctx, err, "parse Exec_Source_Log_Pos")
 				}
-				break
+				// break
+				fmt.Printf("Column: %s, Value: %s\n", columns[i], valueString)
 			}
 		}
 	}
