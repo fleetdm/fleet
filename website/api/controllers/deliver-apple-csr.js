@@ -130,6 +130,7 @@ module.exports = {
         respBody = JSON.stringify({
           csr: Buffer.from(generateCertificateResult.request).toString('base64'),
         });
+        break;
       default:
         // Send an email to the user, with the result from the mdm-gen-cert command attached as a plain text file.
         await sails.helpers.sendTemplateEmail.with({
