@@ -288,7 +288,7 @@ const HostSummary = ({
   };
   const renderDiskEncryptionSummary = () => {
     // TODO: improve this typing, platforms!
-    if (!["darwin", "windows", "chrome", "ios", "ipados"].includes(platform)) {
+    if (!["darwin", "windows", "chrome"].includes(platform)) {
       return <></>;
     }
     const tooltipMessage = getHostDiskEncryptionTooltipMessage(
