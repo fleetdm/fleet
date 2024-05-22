@@ -9084,7 +9084,8 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 				"name": teamName,
 				"software": []map[string]any{
 					{
-						"url": "http://foo.com",
+						"url":          "http://foo.com",
+						"self_service": true,
 						"install_script": map[string]string{
 							"path": "./foo/install-script.sh",
 						},
@@ -9116,12 +9117,14 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	wantSoftware := []fleet.TeamSpecSoftware{
 		{
 			URL:               "http://foo.com",
+			SelfService:       true,
 			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
 			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
 		},
 		{
 			URL:               "http://bar.com",
+			SelfService:       false,
 			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
 			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
