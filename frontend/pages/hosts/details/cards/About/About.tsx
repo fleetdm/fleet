@@ -199,14 +199,16 @@ const About = ({
             />
           }
         />
-        <DataSet
-          title="Last restarted"
-          value={
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={aboutData.last_restarted_at}
-            />
-          }
-        />
+        {!!isIosOrIpadosHost && (
+          <DataSet
+            title="Last restarted"
+            value={
+              <HumanTimeDiffWithFleetLaunchCutoff
+                timeString={aboutData.last_restarted_at}
+              />
+            }
+          />
+        )}
         {renderHardwareSerialAndIPs()}
         {renderMunkiData()}
         {renderMdmData()}
