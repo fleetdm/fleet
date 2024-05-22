@@ -7004,6 +7004,16 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		sort.Slice(want, func(i, j int) bool {
 			return want[i].Name < want[j].Name
 		})
+		for _, v := range got {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
+		for _, v := range want {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
 
 		require.EqualValues(t, want, got)
 	}
