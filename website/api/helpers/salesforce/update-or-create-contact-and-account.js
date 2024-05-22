@@ -104,7 +104,6 @@ module.exports = {
         // If no existing account record was found, create a new one.
         let newAccountRecord = await salesforceConnection.sobject('Account')
         .create({
-          OwnerId: salesforceAccountOwnerId,
           Account_Assigned_date__c: nowOn,// eslint-disable-line camelcase
           // eslint-disable-next-line camelcase
           Current_Assignment_Reason__c: 'Inbound Lead',// TODO verify that this matters. if not, do not set it.
