@@ -1574,6 +1574,10 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this
 // host's software list.
 func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
+	// Parallels is a common VM software for MacOS. Parallels makes the VM's applications
+	// visible in the host as MacOS applications, which leads to confusing output (e.g. a MacOS
+	// host reporting that it has Notepad installed when this is just an app from the Windows VM
+	// under Parallels). We want to filter out those "applications" to avoid confusion.
 	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
 }
 
