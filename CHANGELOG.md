@@ -2,30 +2,29 @@
 
 ### Endpoint Operations
 
-- Added integration so Fleet server can communicate with https://fleetdm.com to get AI generated policy descriptions and resolutions.
+- Added optional AI-generated policy descriptions and remediations. 
 - Added flag to enable deletion of old activities and associated data in cleanup cron job.
 - Added support for escaping `$` (with `\`) in gitops yaml files.
-- Added a new command `fleetctl api` to easily use fleetctl to hit any REST endpoint via the CLI.
 - Optimized policy_stats updates to not lock the policy_membership table.
 - Optimized the hourly host_software count query to reduce individual query runtime.
-- Added the `cron` job to periodically remove unused software installers from the store.
-- Added advanced setting to set expiry window for activity log.
-- Updated MySQL host_operating_system insert statement to reduce table lock time.
 - Updated built-in labels to support being applied via `fleetctl apply`.
-- Updated fleetctl to print team id as part of the `fleetctl get teams` command.
 
 ### Device Management (MDM)
 
-- Added functionality to filter hosts by software installer status.
 - Added endpoints to upload, delete, and download software installers.
 - Added ability to upload software from the UI.
+- Added functionality to filter hosts by software installer status.
 - Added support to the global activity feed for "Added software" and "Deleted software" actions.
 - Added the `POST /api/fleet/orbit/software_install/result` endpoint for fleetd to send results for a software installation attempt.
 - Added the `GET /api/v1/fleet/hosts/{id}/software` endpoint to list the installed software for the host.
 - Added support for uploading and running zsh scripts on macOS and Linux hosts.
-- Updated software page to support new add software feature.
+- Added the `cron` job to periodically remove unused software installers from the store.
+- Added a new command `fleetctl api` to easily use fleetctl to hit any REST endpoint via the CLI.
 - Added support to extract package name and version from software installers.
 - Added the uninstalled but available software installers to the response payload of the "List software titles" endpoint.
+- Updated MySQL host_operating_system insert statement to reduce table lock time.
+- Updated software page to support new add software feature.
+- Updated fleetctl to print team id as part of the `fleetctl get teams` command.
 - Implemented an S3-based and local filesystem-based storage abstraction for software installers.
 
 ### Vulnerability Management
