@@ -373,8 +373,6 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 
 	staToTst := make(map[string][]int)
 	objToTst := make(map[string][]int)
-	ustaToTst := make(map[string][]int)
-	vstaToTst := make(map[string][]int)
 
 	for _, d := range xmlResult.Definitions {
 		if len(d.Vulnerabilities) > 0 {
@@ -429,66 +427,5 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 			}
 		}
 	}
-
-	for _, t := range xmlResult.UnameTests {
-		id, tst, err := mapUnixUnameTest(t)
-		if err != nil {
-			return nil, fmt.Errorf("mapping uname test: %w", err)
-		}
-
-		for _, sta := range t.States {
-			ustaToTst[sta.Id] = append(ustaToTst[sta.Id], id)
-		}
-		r.AddUnameTest(id, tst)
-	}
-
-	for _, s := range xmlResult.UnameStates {
-		sta := mapUnameState(s)
-		for _, tId := range ustaToTst[s.Id] {
-			t, ok := r.UnameTests[tId]
-			if ok {
-				t.States = append(t.States, *sta)
-			} else {
-				return nil, fmt.Errorf("test not found: %d", tId)
-			}
-		}
-	}
-
-	for _, t := range xmlResult.VariableTests {
-		id, tst, err := mapVariableTest(t)
-		if err != nil {
-			return nil, fmt.Errorf("mapping variable test: %w", err)
-		}
-
-		// Skip tests that are not used in any uname test
-		// (there should be none)
-		if obj, ok := xmlResult.VariableObjects[id]; ok {
-			id, err := extractId(obj.RefID)
-			if err != nil {
-				return nil, fmt.Errorf("extracting variable object id: %w", err)
-			}
-			if _, ok := r.UnameTests[id]; !ok {
-				continue
-			}
-		}
-
-		for _, sta := range t.States {
-			vstaToTst[sta.Id] = append(vstaToTst[sta.Id], id)
-		}
-		r.AddUnameTest(id, tst)
-	}
-
-	for _, s := range xmlResult.VariableStates {
-		sta := mapVariableState(s)
-		for _, tId := range vstaToTst[s.Id] {
-			t, ok := r.UnameTests[tId]
-			if ok {
-				t.States = append(t.States, *sta)
-			} else {
-				return nil, fmt.Errorf("test not found: %d", tId)
-			}
-		}
-	}
-
 	return r, nil
 }
