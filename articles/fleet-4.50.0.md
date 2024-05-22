@@ -132,6 +132,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2024-05-20">
+<meta name="publishedOn" value="2024-05-22">
 <meta name="articleTitle" value="Fleet 4.50.0 | Security agent deployment, AI descriptions, and Mac Admins SOFA support.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.50.0-1600x900@2x.png">
