@@ -60,6 +60,33 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 	return certReq, key, nil
 }
 
+func GenerateAPNSCSRKeyNoEmail(org string) (*x509.CertificateRequest, *rsa.PrivateKey, error) {
+	key, err := newPrivateKey()
+	if err != nil {
+		return nil, nil, fmt.Errorf("generate private key: %w", err)
+	}
+
+	subj := pkix.Name{
+		Organization: []string{org},
+	}
+	template := &x509.CertificateRequest{
+		Subject:            subj,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+	}
+
+	b, err := x509.CreateCertificateRequest(rand.Reader, template, key)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	certReq, err := x509.ParseCertificateRequest(b)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return certReq, key, nil
+}
+
 type FleetWebsiteError struct {
 	Status  int
 	message string

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -2108,4 +2109,39 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 	}
 
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple/request_csr
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMAppleCSRRequest struct{}
+
+type getMDMAppleCSRResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleCSRResponse) error() error { return r.Err }
+
+func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	slog.With("filename", "server/service/mdm.go", "func", "getMDMAppleCSREndpoint").Info("JVE_LOG: in endpoint method ")
+	_, _ = svc.GetMDMAppleCSR(ctx)
+
+	return &getMDMAppleCSRResponse{}, nil
+}
+
+func (svc *Service) GetMDMAppleCSR(ctx context.Context) (*fleet.AppleCSR, error) {
+	// TODO(JVE): figure out auth
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("JVE_LOG: in service method ")
+
+	a, b, err := apple_mdm.GenerateAPNSCSRKeyNoEmail("foo")
+	if err != nil {
+		return nil, err
+	}
+	slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("\n\n\nJVE_LOG: what we got\n\n\n ", "certReq", string(a.Raw), "privateKey", b)
+
+	return nil, nil
 }
