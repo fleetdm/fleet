@@ -55,7 +55,7 @@ module "fleet" {
 
   vpc = {
     # By default, Availabililty zones for us-east-2 are configured. If an alternative region is desired,
-    # configure the azs variable below to the desired region. If you have an exported AWS-REGION or a
+    # configure the azs (3 required) variable below to the desired region.  If you have an exported AWS-REGION or a
     # region declared in ~/.aws/config, this value must match the region declared below.
     name = local.vpc_name
     # azs = ["ca-central-1a", "ca-central-1b", "ca-central-1d"]
