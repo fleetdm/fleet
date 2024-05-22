@@ -18,13 +18,20 @@ CREATE TABLE mdm_config_assets (
     name varchar(256) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 
     -- value holds the raw value of the asset
-    value blob NOT NULL,
+    value longblob NOT NULL,
 
-    -- this table does soft deletes, and the application logic is in charge of
-    -- preventing INSERTs of two rows with the same name that are not deleted
+    -- deleted_at is used to track the date in which the row was marked as
+    -- deleted for auditing/debugging purposes.
     deleted_at timestamp NULL DEFAULT NULL,
 
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    -- deletion_uuid is used as part of an UNIQUE KEY to guarantee that only
+    -- one non-deleted row with a given name exists. This value should be filled
+    -- along with deleted_at
+    deletion_uuid varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE KEY idx_mdm_config_assets_name_deletion_uuid (name, deletion_uuid)
 )`)
 	if err != nil {
 		return fmt.Errorf("creating mdm_config_assets table: %w", err)

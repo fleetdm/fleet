@@ -807,10 +807,12 @@ CREATE TABLE `mdm_apple_setup_assistants` (
 CREATE TABLE `mdm_config_assets` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(256) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `value` blob NOT NULL,
+  `value` longblob NOT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
+  `deletion_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_config_assets_name_deletion_uuid` (`name`,`deletion_uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
