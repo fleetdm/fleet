@@ -1430,7 +1430,7 @@ AWS secret access key to use for Firehose authentication.
   firehose:
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
-
+Optional unique identifier that can be used by the principal assuming the role to assert its identity.
 ##### firehose_sts_assume_role_arn
 
 This flag only has effect if one of the following is true:
@@ -1445,6 +1445,23 @@ AWS STS role ARN to use for Firehose authentication.
   ```yaml
   firehose:
     sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  ```
+
+##### firehose_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Firehose authentication. This is typically used in 
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_FIREHOSE_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  firehose:
+    sts_external_id: your_unique_id
   ```
 
 ##### firehose_status_stream
@@ -1519,6 +1536,7 @@ firehose:
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  sts_external_id: your_unique_id
   status_stream: osquery_status
   result_stream: osquery_result
 ```
@@ -1594,6 +1612,23 @@ AWS STS role ARN to use for Kinesis authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
   ```
 
+##### kinesis_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Kinesis authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_KINESIS_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  kinesis:
+    sts_external_id: your_unique_id
+  ```
+
 ##### kinesis_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
@@ -1665,6 +1700,7 @@ kinesis:
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  sts_external_id: your_unique_id
   status_stream: osquery_status
   result_stream: osquery_result
 ```
@@ -1738,6 +1774,23 @@ AWS STS role ARN to use for Lambda authentication.
   ```yaml
   lambda:
     sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
+  ```
+
+##### lambda_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Lambda authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  lambda:
+    sts_external_id: your_unique_id
   ```
 
 ##### lambda_status_function
@@ -1907,9 +1960,7 @@ pubsub:
   project: my-gcp-project
   result_topic: osquery_result
   status_topic: osquery_status
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-  status_function: statusFunction
-  result_function: resultFunction
+  add_attributes: true
 ```
 
 #### Kafka REST Proxy logging
@@ -2102,6 +2153,22 @@ AWS STS role ARN to use for SES authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
+##### ses_sts_external_id
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS STS External ID to use for SES authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+
+- Default value: none
+- Environment variable: `FLEET_SES_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  ses:
+    sts_external_id: your_unique_id
+  ```
+
 ##### ses_source_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
@@ -2185,6 +2252,19 @@ AWS STS role ARN to use for S3 authentication.
   ```yaml
   s3:
     sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### s3_sts_external_id
+
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_S3_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  s3:
+    sts_external_id: your_unique_id
   ```
 
 ##### s3_endpoint_url
@@ -2620,6 +2700,20 @@ This is the AWS STS role ARN for S3 authentication.
   packaging:
     s3:
       sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### packaging_s3_sts_external_id
+
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  packaging:
+    s3:
+      sts_external_id: your_unique_id
   ```
 
 ##### packaging_s3_endpoint_url

@@ -30,7 +30,7 @@ type lambdaLogWriter struct {
 	logger       log.Logger
 }
 
-func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, functionName string, logger log.Logger) (*lambdaLogWriter, error) {
+func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, stsExternalID, functionName string, logger log.Logger) (*lambdaLogWriter, error) {
 	conf := &aws.Config{
 		Region: &region,
 	}
@@ -47,7 +47,11 @@ func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, functionName strin
 	}
 
 	if stsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn)
+		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
+			if stsExternalID != "" {
+				provider.ExternalID = &stsExternalID
+			}
+		})
 		conf.Credentials = creds
 
 		sess, err = session.NewSession(conf)

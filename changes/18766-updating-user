@@ -1,0 +1,1 @@
+Fixed bug where updating user via `/api/v1/fleet/users/:id` endpoint sometimes did not update the activity feed and returned the un-updated user object.

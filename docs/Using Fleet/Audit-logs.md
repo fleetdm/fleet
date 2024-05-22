@@ -280,7 +280,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }
 ```
 
@@ -297,7 +297,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }
 ```
 
@@ -357,7 +357,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo",
+	"team_name": "Workstations",
 	"global": false
 }
 ```
@@ -1125,6 +1125,73 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "profile_name": "Passcode requirements"
 }
+```
+
+## installed_software
+
+Generated when a software is installed on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "install_uuid": ID of the software installation.
+- "software_title": Name of the software.
+- "status": Status of the software installation.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Falcon.app",
+  "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "status": "pending"
+}
+```
+
+## added_software
+
+Generated when a software installer is uploaded to Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
+- "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123
+}
+
+```
+
+## deleted_software
+
+Generated when a software installer is deleted from Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. `null if it was added to no team.
+- "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123
+}
+
 ```
 
 
