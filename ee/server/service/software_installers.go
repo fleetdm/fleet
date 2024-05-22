@@ -117,6 +117,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		SoftwarePackage: meta.Name,
 		TeamName:        teamName,
 		TeamID:          meta.TeamID,
+		SelfService:     meta.SelfService,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}

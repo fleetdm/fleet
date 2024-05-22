@@ -206,6 +206,7 @@ SELECT
   si.pre_install_query,
   si.post_install_script_content_id,
   si.uploaded_at,
+  si.self_service,
   COALESCE(st.name, '') AS software_title
   %s
 FROM

@@ -95,6 +95,9 @@ type SoftwareInstaller struct {
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.
 	SoftwareTitle string `json:"-" db:"software_title"`
+	// SelfService indicates that the software can be installed by the
+	// end user without admin intervention
+	SelfService bool `json:"-" db:"self_service"`
 }
 
 // AuthzType implements authz.AuthzTyper.
