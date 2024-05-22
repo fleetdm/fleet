@@ -73,6 +73,7 @@ export interface ISoftwareTitle {
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   browser: string;
+  self_service: boolean;
 }
 
 export interface ISoftwareVulnerability {

@@ -1,7 +1,5 @@
 import { AxiosResponse } from "axios";
 
-import { snakeCase, reduce } from "lodash";
-
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
@@ -10,7 +8,10 @@ import {
   ISoftwareVersion,
   ISoftwareTitle,
 } from "interfaces/software";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
 
 import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
 
@@ -22,6 +23,7 @@ export interface ISoftwareApiParams {
   query?: string;
   vulnerable?: boolean;
   availableForInstall?: boolean;
+  selfService?: boolean;
   teamId?: number;
 }
 
@@ -51,6 +53,14 @@ export interface ISoftwareTitleResponse {
 
 export interface ISoftwareVersionResponse {
   software: ISoftwareVersion;
+}
+
+export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  scope: "software-versions";
+}
+
+export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  scope: "software-titles";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -85,17 +95,6 @@ export interface IGetSoftwareVersionQueryKey
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
-const convertParamsToSnakeCase = (params: ISoftwareApiParams) => {
-  return reduce<typeof params, QueryParams>(
-    params,
-    (result, val, key) => {
-      result[snakeCase(key)] = val;
-      return result;
-    },
-    {}
-  );
-};
-
 export default {
   load: async ({
     page,
@@ -104,9 +103,12 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     vulnerable,
-    availableForInstall,
+    // availableForInstall, // TODO: Is this supported for the versions endpoint?
     teamId,
-  }: ISoftwareApiParams): Promise<ISoftwareResponse> => {
+  }: Omit<
+    ISoftwareApiParams,
+    "availableForInstall" | "selfService"
+  >): Promise<ISoftwareResponse> => {
     const { SOFTWARE } = endpoints;
     const queryParams = {
       page,
@@ -116,7 +118,7 @@ export default {
       teamId,
       query,
       vulnerable,
-      availableForInstall,
+      // availableForInstall,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
