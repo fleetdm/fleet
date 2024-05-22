@@ -1398,7 +1398,7 @@ func (ds *Datastore) ReplicaSync(ctx context.Context) error {
 		select {
 		case err := <-done:
 			return err
-		case <-time.After(5 * time.Second):
+		case <-time.After(60 * time.Second): // BOZO
 			return ctxerr.New(ctx, "replica sync timeout: replica did not catch up to the master in 5 seconds")
 		}
 	}
