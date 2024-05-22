@@ -6602,7 +6602,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	// create a bunch of software
 	sws := make([]fleet.Software, 20)
 	for i := range sws {
-		sw := fleet.Software{Name: "sw" + strconv.Itoa(i), Version: "0.0." + strconv.Itoa(i), Source: "apps"}
+		sw := fleet.Software{Name: fmt.Sprintf("sw%02d", i), Version: "0.0." + strconv.Itoa(i), Source: "apps"}
 		if i%2 == 0 {
 			sw.Source = "chrome_extensions"
 			sw.Browser = "chrome"
