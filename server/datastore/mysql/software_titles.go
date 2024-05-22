@@ -204,7 +204,7 @@ SELECT
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
 	si.filename as software_package
 FROM software_titles st
-LEFT JOIN software_installers si ON si.title_id = st.id
+LEFT JOIN software_installers si ON si.title_id = st.id AND COALESCE(si.team_id, 0) = ?
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s
@@ -220,9 +220,10 @@ GROUP BY st.id, software_package`
 	}
 
 	var globalOrTeamID uint
-	args := []any{0}
+	args := []any{0, 0}
 	if opt.TeamID != nil {
 		args[0] = *opt.TeamID
+		args[1] = *opt.TeamID
 		globalOrTeamID = *opt.TeamID
 	}
 

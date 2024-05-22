@@ -16,7 +16,7 @@ const baseClass = "host-software-table";
 
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
-  data: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
+  data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
   isLoading: boolean;
   router: InjectedRouter;
   sortHeader: string;
@@ -26,7 +26,7 @@ interface IHostSoftwareTableProps {
   pagePath: string;
 }
 
-const SoftwareCount = (count: number) => {
+const SoftwareCount = ({ count }: { count: number }) => {
   return (
     <div className={`${baseClass}__count`}>
       <span>
@@ -107,8 +107,9 @@ const HostSoftwareTable = ({
   );
 
   const memoizedSoftwareCount = useCallback(() => {
-    return SoftwareCount(data.count || data.software.length || 0);
-  }, [data.count, data.software.length]);
+    const count = data?.count || data?.software.length || 0;
+    return <SoftwareCount count={count} />;
+  }, [data?.count, data?.software.length]);
 
   const memoizedEmptyComponent = useCallback(() => {
     return <EmptySoftwareTable isSearching={searchQuery !== ""} />;
@@ -120,12 +121,13 @@ const HostSoftwareTable = ({
         renderCount={memoizedSoftwareCount}
         resultsTitle="software items"
         columnConfigs={tableConfig}
-        data={data.software}
+        data={data?.software || []}
         isLoading={isLoading}
         defaultSortHeader={sortHeader}
         defaultSortDirection={sortDirection}
         defaultSearchQuery={searchQuery}
         defaultPageIndex={page}
+        disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}

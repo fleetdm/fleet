@@ -122,7 +122,7 @@ const SoftwareCard = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && !isMyDevicePage,
+      enabled: isSoftwareEnabled && !isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -250,8 +250,8 @@ const SoftwareCard = ({
         <Spinner />
       ) : (
         <>
-          {(isError || !data) && <DataError />}
-          {!isError && data && (
+          {isError && <DataError />}
+          {!isError && (
             <HostSoftwareTable
               isLoading={
                 isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
