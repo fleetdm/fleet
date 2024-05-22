@@ -1,8 +1,20 @@
+## Orbit 1.25.0 (May 22, 2024)
+
+* Added code to detect value of `DISPLAY` variable of user instead of defaulting to `:0` (to support Ubuntu 24.04 with Xorg).
+
+* Close idle connections every 55 minutes to prevent load balancers (like AWS ELB) from forcefully terminating long lived connections.
+
+* Add support for executing zsh scripts on macOS and Linux hosts
+
+* Windows orbit.exe and fleet-desktop.exe are now signed.
+
+* Added ability to install software when requested by the Fleet server. Note that this is disabled unless the package was built with the `--enable-scripts` flag.
+
 ## Orbit 1.24.0 (Apr 17, 2024)
 
 * Fixed script execution exit codes on windows by casting to signed integers to match windows interpreter.
 
-* In orbit_info table, added desktop_version and scripts_enabled fields.
+* In `orbit_info` table, added `desktop_version` and `scripts_enabled` fields.
 
 ## Orbit 1.23.0 (Apr 08, 2024)
 
