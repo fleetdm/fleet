@@ -278,7 +278,7 @@ changelog_and_versions() {
             *)          echo "unknown distro to parse version"
         esac
         git add terraform charts infrastructure tools
-        git commit -m "Adding changes for $target_milestone"
+        git commit -m "Adding changes for Fleet v$target_milestone"
         git push origin $branch_for_changelog -f
         gh pr create -f -B $source_branch
         gh workflow run goreleaser-snapshot-fleet.yaml --ref $source_branch # Manually trigger workflow run
