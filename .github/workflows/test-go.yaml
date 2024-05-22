@@ -101,6 +101,12 @@ jobs:
             sleep 1
         done
         echo "mysql is ready"
+        echo "waiting for mysql replica..."
+        until docker-compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+            echo "."
+            sleep 1
+        done
+        echo "mysql replica is ready"
 
     - name: Run Go Tests
       run: |

@@ -1373,11 +1373,13 @@ func (ds *Datastore) ReplicaSync(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Master status: %+v\n", ms)
 	// We read replica status right away because replica may already be in sync if there were no recent writes
 	rs, err := ds.ReplicaStatus(ctx)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Replica status: %+v\n", rs)
 	if rs.ExecSourceLogPosition < ms.Position {
 		// Wait for replica to catch up. In production environment, replication time is usually under 30 milliseconds.
 		done := make(chan error, 1)
@@ -1389,6 +1391,7 @@ func (ds *Datastore) ReplicaSync(ctx context.Context) error {
 					done <- err
 					return
 				}
+				fmt.Printf("Replica status: %+v\n", rs)
 			}
 			done <- nil
 		}()
