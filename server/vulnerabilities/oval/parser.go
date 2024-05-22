@@ -373,6 +373,8 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 
 	staToTst := make(map[string][]int)
 	objToTst := make(map[string][]int)
+	ustaToTst := make(map[string][]int)
+	vstaToTst := make(map[string][]int)
 
 	for _, d := range xmlResult.Definitions {
 		if len(d.Vulnerabilities) > 0 {
