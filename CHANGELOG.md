@@ -49,6 +49,7 @@
 - Updated switched accordion text.
 - Updated sort the host details page queries table case-insensitively.
 - Added support for ExternalId in STS Assume Role APIs.
+
 ## Fleet 4.49.4 (May 20, 2024)
 
 ### Bug fixes
