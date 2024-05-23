@@ -16,8 +16,8 @@ type StatisticsPayload struct {
 	NumHostSoftwares              int    `json:"numHostSoftwares"`
 	NumSoftwareTitles             int    `json:"numSoftwareTitles"`
 	NumHostSoftwareInstalledPaths int    `json:"numHostSoftwareInstalledPaths"`
-	NumSoftwareCpes               int    `json:"numSoftwareCpes"`
-	NumSoftwareCves               int    `json:"numSoftwareCves"`
+	NumSoftwareCpes               int    `json:"numSoftwareCPEs"`
+	NumSoftwareCves               int    `json:"numSoftwareCVEs"`
 	NumTeams                      int    `json:"numTeams"`
 	NumPolicies                   int    `json:"numPolicies"`
 	NumLabels                     int    `json:"numLabels"`
