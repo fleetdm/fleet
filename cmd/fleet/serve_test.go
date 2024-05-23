@@ -91,7 +91,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 			LicenseTier:                          "premium",
 			NumHostsEnrolled:                     999,
 			NumUsers:                             99,
-			NumSoftwares:                         100,
+			NumSoftwareVersions:                     101,
 			NumHostSoftwares:                     101,
 			NumSoftwareTitles:                    102,
 			NumHostSoftwareInstalledPaths:        103,
