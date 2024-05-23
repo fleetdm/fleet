@@ -16,7 +16,6 @@ module.exports = {
       description: 'Base64 encoded CSR submitted from the Fleet server or `fleetctl` on behalf of the user.'
     },
     alt: {
-      required: false,
       type: 'string',
       description: 'Allows to customize the response type. If specified and set to "json" it returns the signed CSR contents in the response.'
     }
