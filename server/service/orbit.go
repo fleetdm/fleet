@@ -917,7 +917,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{
