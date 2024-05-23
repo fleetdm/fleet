@@ -1412,10 +1412,10 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID)
+	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID, info.Platform)
 }
 
-func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string) error {
+func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string, platform string) error {
 	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer func() {
@@ -1444,7 +1444,7 @@ func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context
 			mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 			err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 				Action:   mdmlifecycle.HostActionTurnOff,
-				Platform: "darwin",
+				Platform: platform,
 				UUID:     deviceID,
 			})
 			if err != nil {
@@ -2552,7 +2552,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:          mdmlifecycle.HostActionTurnOn,
-		Platform:        "darwin",
+		Platform:        info.Platform,
 		UUID:            r.ID,
 		EnrollReference: r.Params[mobileconfig.FleetEnrollReferenceKey],
 	})
@@ -2573,7 +2573,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
-		Platform: "darwin",
+		Platform: info.Platform,
 		UUID:     r.ID,
 	})
 	if err != nil {
