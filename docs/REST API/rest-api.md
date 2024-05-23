@@ -1863,6 +1863,8 @@ None.
 - [List host OS versions](#list-host-os-versions)
 - [Get host OS version](#get-host-os-version)
 - [Get host's scripts](#get-hosts-scripts)
+- [Get host's software](#get-hosts-software)
+- [Install software](#install-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Lock host](#lock-host)
@@ -1920,6 +1922,7 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_status       | string | query | The status of the software install to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -3751,6 +3754,113 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 }
 
 ```
+
+### Get host's software
+
+`GET /api/v1/fleet/hosts/:id/software`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 3,
+  "software": [
+    {
+      "id": 121,
+      "name": "Google Chrome.app",
+      "package_available_for_install": "GoogleChrome.pkg",
+      "source": "apps",
+      "status": "failed",
+      "last_install": {
+        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+        "installed_at": "2024-05-15T15:23:57Z"
+      },
+      "installed_versions": [
+        { 
+          "version": "121.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Google Chrome.app"]
+        }
+      ]
+    },
+    {
+      "id": 134,
+      "name": "Falcon.app",
+      "package_available_for_install": "FalconSensor-6.44.pkg",
+      "source": "",
+      "status": null,
+      "last_install": null,
+      "installed_versions": [],
+    },
+    {
+      "id": 147,
+      "name": "Firefox.app",
+      "package_available_for_install": null,
+      "source": "apps",
+      "bundle_identifier": "org.mozilla.firefox",
+      "status": null,
+      "last_install": null,
+      "installed_versions": [
+        {
+          "version": "118.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234"],
+          "installed_paths": ["/Applications/Firefox.app"]
+        },
+        { 
+          "version": "119.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Downloads/Firefox.app"]
+        }
+      ]
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Install software
+
+_Available in Fleet Premium._
+
+Install software on a macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
+
+`POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
+
+#### Parameters
+
+| Name              | Type       | In   | Description                                      |
+| ---------         | ---------- | ---- | --------------------------------------------     |
+| id                | integer    | path | **Required**. The host's ID.                     |
+| software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/software/install/3435`
+
+##### Default response
+
+`Status: 202`
 
 ### Get hosts report in CSV
 
@@ -7885,10 +7995,161 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
+- [Add software](#add-software)
+- [Download software](#download-software)
+- [Delete software](#delete-software)
+- [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
+
+### Add software
+
+_Available in Fleet Premium._
+
+Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
+
+
+`POST /api/v1/fleet/software/package`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
+| team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](#TODO-link-to-docs) for each package type. |
+| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+
+#### Example
+
+`POST /api/v1/fleet/software/package`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="install_script"
+sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="pre_install_query"
+SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="post_install_script"
+sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+
+### Download software
+
+_Available in Fleet Premium._
+
+Download a software package.
+
+`GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software_title_id              | integer | path | **Required**. The ID of the software title to download software package.|
+| team_id | integer | form | **Required**. The team ID. Downloads a software package added to the specified team. |
+| alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software package. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+### Delete software
+
+_Available in Fleet Premium._
+
+Delete a software package.
+
+`DELETE /api/v1/fleet/software/titles/:software_title_id/package`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software_title_id              | integer | path | **Required**. The ID of the software title for the software package to delete. |
+| team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/software/titles/24/package?team_id=2`
+
+##### Default response
+
+`Status: 204`
+
+### Get installation results
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/install/results/:install_uuid`
+
+Get the results of a software installation.
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| install_uuid | string | path | **Required**. The installation UUID of the software.|
+
+#### Example
+
+`GET /api/v1/fleet/software/install/results/b15ce221-e22e-4c6a-afe7-5b3400a017da`
+
+##### Default response
+
+`Status: 200`
+
+```json
+ {
+   "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+   "software_title": "Falcon.app",
+   "software_title_id": 8353,
+   "software_package": "FalconSensor-6.44.pkg",
+   "host_id": 123,
+   "host_display_name": "Marko's MacBook Pro",
+   "status": "failed",
+   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+   "pre_install_query_output": "Query returned result\nSuccess",
+   "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+ }
+```
 
 ### List software
 
@@ -7907,6 +8168,7 @@ Get a list of all software.
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| available_for_insall    | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                                    |
 
 #### Example
 
@@ -7924,6 +8186,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "software_package": "FirefoxInstall.pkg",
       "versions_count": 3,
       "source": "apps",
       "browser": "",
@@ -7949,6 +8212,7 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
+      "software_package": null,
       "versions_count": 5,
       "source": "apps",
       "browser": "",
@@ -7979,6 +8243,7 @@ Get a list of all software.
     {
       "id": 32,
       "name": "1Password – Password Manager",
+      "software_package": null,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
@@ -8099,6 +8364,19 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
+    "software_package": {
+      "name": "FalconSensor-6.44.pkg",
+      "version": "6.44",
+      "uploaded_at": "2024-04-01T14:22:58Z",
+      "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+      "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+      "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+      "status": {
+        "installed": 3,
+        "pending": 1,
+        "failed": 2,
+      }
+    },
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
