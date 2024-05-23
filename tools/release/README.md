@@ -34,17 +34,35 @@ example
 ./tools/release/publish_release.sh -a
 # Do QA until ready to release
 
-# QA is passed on all teams and ready for release
+# - QA is passed on all teams and ready for release
+# - Merge changelog and versions update PR into main
+# - git pull main locally with the changelog as the latest commit
 
 # Tag main
 ./tools/release/publish_release.sh -ag
+
+# - Wait for build to run
+
 # Publish main
 ./tools/release/publish_release.sh -auq
-# Go update osquery-slack version
+
+# - Wait for publish process to complete.
+# - Merge release article and wait for website to build.
+# - When the release article is published, create a LinkedIn post on Fleet's company page. 
+# - Copy te LinkedIn post URL as the value for the linkedin_post_url variable in the general_announce_info() function.
+# - Go update osquery-slack version
+
+# Announce release
+# Change $current_version to the current version that was just released
+# For example, ./tools/release/publish_release.sh -anu -v 4.50.0
+./tools/release/publish_release.sh -anu -v {current_version}
 ```
 
 ...
-TODO example output
+:cloud: :rocket: The latest version of Fleet is 4.50.0.
+More info: https://github.com/fleetdm/fleet/releases/tag/fleet-v4.50.0
+Release article: https://fleetdm.com/releases/fleet-4.50.0
+LinkedIn post: https://www.linkedin.com/feed/update/urn:li:activity:7199509896705232898/
 ...
 
 
