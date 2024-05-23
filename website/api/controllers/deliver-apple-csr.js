@@ -153,6 +153,7 @@ module.exports = {
         }).intercept((err)=>{
           return new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), an error occured. Full error: ${err}`);
         });
+        break;
       default:
         throw 'badRequest';
     }
