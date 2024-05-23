@@ -3754,7 +3754,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 _Available in Fleet Premium_
 
-Install software on macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
+Install software on a macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
 
 `POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
 
