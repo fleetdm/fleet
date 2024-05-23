@@ -527,7 +527,7 @@ Delete pack by name.
 
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
-- [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
+- [Generate Apple Business Manager public key](#generate-apple-business-manager-public-key)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
@@ -536,23 +536,23 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
 
-### Generate Apple Business Manager public key (AED)
+### Generate Apple Business Manager public key (ADE)
 
 `GET /api/v1/fleet/mdm/apple/abm_public_key`
 
-#### Parameters
+#### Example
 
-| Name | Type    | In   | Description                             |
-| ---- | ------- | ---- | --------------------------------------- |
-| alt   | string | query | **Required.** Set to "media" to download the public key for ABM. |
-
-#### Example (download public key)
-
-`GET /api/v1/fleet/mdm/apple/abm_public_key?alt=media`
+`GET /api/v1/fleet/mdm/apple/abm_public_key`
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+    "public_key": "23K9LCBGG26gc2AjcmV9Kz="
+}
+```
 
 ### Request Certificate Signing Request (CSR)
 
