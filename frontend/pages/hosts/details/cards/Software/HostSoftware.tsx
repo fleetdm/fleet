@@ -101,6 +101,8 @@ const HostSoftware = ({
     number | null
   >(null);
 
+  const isIosOrIpadOs = hostPlatform === "ipados" || hostPlatform === "ios";
+
   const {
     data: hostSoftwareRes,
     isLoading: hostSoftwareLoading,
@@ -125,7 +127,7 @@ const HostSoftware = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && !isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message
+      enabled: isSoftwareEnabled && !isMyDevicePage && !isIosOrIpadOs, // if disabled, we'll always show a generic "No software detected" message
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -216,13 +218,13 @@ const HostSoftware = ({
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
-        router,
-        installingSoftwareId,
-        canInstall: canInstallSoftware,
-        onSelectAction,
-        teamId: hostTeamId,
-        isFleetdHost,
-      });
+          router,
+          installingSoftwareId,
+          canInstall: canInstallSoftware,
+          onSelectAction,
+          teamId: hostTeamId,
+          isFleetdHost,
+        });
   }, [
     isMyDevicePage,
     router,
@@ -246,7 +248,7 @@ const HostSoftware = ({
       return <Spinner />;
     }
 
-    if (hostPlatform === "ios" || hostPlatform === "ipados") {
+    if (isIosOrIpadOs) {
       return (
         <EmptyTable
           header="Software is not supported for this host"
