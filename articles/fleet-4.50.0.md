@@ -42,7 +42,7 @@ Fleet has expanded its scripting capabilities by adding support for `zsh` (Z She
 
 ## Changes
 
-### Endpoint Operations
+### Endpoint operations
 
 - Added optional AI-generated policy descriptions and remediations. 
 - Added flag to enable deletion of old activities and associated data in cleanup cron job.
@@ -51,7 +51,7 @@ Fleet has expanded its scripting capabilities by adding support for `zsh` (Z She
 - Optimized the hourly host_software count query to reduce individual query runtime.
 - Updated built-in labels to support being applied via `fleetctl apply`.
 
-### Device Management (MDM)
+### Device management (MDM)
 
 - Added endpoints to upload, delete, and download software installers.
 - Added ability to upload software from the UI.
@@ -69,7 +69,7 @@ Fleet has expanded its scripting capabilities by adding support for `zsh` (Z She
 - Updated fleetctl to print team id as part of the `fleetctl get teams` command.
 - Implemented an S3-based and local filesystem-based storage abstraction for software installers.
 
-### Vulnerability Management
+### Vulnerability management
 
 - Added OVAL vulnerability scanning support on Ubuntu 22.10, 23.04, 23.10, and 24.04.
 
