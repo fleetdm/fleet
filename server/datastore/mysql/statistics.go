@@ -46,7 +46,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		amountHostSoftwareInstalledPaths, err := amountHostSoftwareInstalledPathsDB(ctx, ds.writer(ctx))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "amount HostSoftwareInstalledPath")
+			return ctxerr.Wrap(ctx, err, "amount host_software_installed_paths")
 		}
 		amountSoftwareCpes, err := amountSoftwareCpesDB(ctx, ds.writer(ctx))
 		if err != nil {
