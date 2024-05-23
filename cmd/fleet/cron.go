@@ -1196,6 +1196,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
+			start := time.Now()
 			uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
@@ -1203,7 +1204,7 @@ func newIPhoneIPadRefetcher(
 			if len(uuids) == 0 {
 				return nil
 			}
-			logger.Log("msg", "send commands to refetch", "count", len(uuids))
+			logger.Log("msg", "sending commands to refetch", "count", len(uuids), "lookup-duration", time.Since(start))
 			commandUUID := fleet.RefetchCommandUUIDPrefix + uuid.NewString()
 			if err := commander.EnqueueCommand(ctx, uuids, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

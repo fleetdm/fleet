@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -74,6 +75,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
+		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 	}
 
 	for _, c := range cases {
@@ -5498,4 +5500,88 @@ func createRawAppleCmd(reqType, cmdUUID string) string {
     <string>%s</string>
 </dict>
 </plist>`, reqType, cmdUUID)
+}
+
+func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+
+	refetchInterval := 1 * time.Hour
+	hostCount := 0
+	newHost := func(platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       fmt.Sprintf("foobar%d", hostCount),
+			OsqueryHostID:  ptr.String(fmt.Sprintf("foobar-%d", hostCount)),
+			NodeKey:        ptr.String(fmt.Sprintf("foobar-%d", hostCount)),
+			UUID:           fmt.Sprintf("foobar-%d", hostCount),
+			Platform:       platform,
+			HardwareSerial: fmt.Sprintf("foobar-%d", hostCount),
+		})
+		require.NoError(t, err)
+		hostCount++
+		return h
+	}
+
+	// Test with no hosts.
+	uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Empty(t, uuids)
+
+	// Create a placeholder macOS host.
+	_ = newHost("darwin")
+
+	// Mock results incoming from depsync.Syncer
+	depDevices := []godep.Device{
+		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
+		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
+	}
+	n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), n)
+
+	// Hosts are not enrolled yet (e.g. DEP enrolled)
+	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Empty(t, uuids)
+
+	// Now simulate the initial MDM checkin of the devices.
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "iOS0_UUID",
+		HardwareSerial: "iOS0_SERIAL",
+		HardwareModel:  "iPhone13,18",
+		Platform:       "ios",
+		OsqueryHostID:  ptr.String("iOS0_OSQUERY_HOST_ID"),
+	})
+	require.NoError(t, err)
+	iOS0, err := ds.HostByIdentifier(ctx, "iOS0_SERIAL")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iOS0, false)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "iPadOS0_UUID",
+		HardwareSerial: "iPadOS0_SERIAL",
+		HardwareModel:  "iPad13,18",
+		Platform:       "ipados",
+		OsqueryHostID:  ptr.String("iPadOS0_OSQUERY_HOST_ID"),
+	})
+	require.NoError(t, err)
+	iPadOS0, err := ds.HostByIdentifier(ctx, "iPadOS0_SERIAL")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPadOS0, false)
+
+	// Test with hosts but empty state in nanomdm command tables.
+	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.Len(t, uuids, 2)
+	sort.Slice(uuids, func(i, j int) bool {
+		return uuids[i] < uuids[j]
+	})
+	require.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
+
+	// Send a refetch command to the iOS device.
+	err = commander.EnqueueCommand(ctx, []string{"iOS0_UUID"}, createRawAppleCmd("ProfileList", "REFETCH-"+uuid.NewString()))
+	require.NoError(t, err)
+
+	// Test with hosts but empty state in nanomdm command tables.
+	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.Len(t, uuids, 1)
+	require.Equal(t, uuids[0], "iPadOS0_UUID")
 }

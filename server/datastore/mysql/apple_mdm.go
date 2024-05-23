@@ -4168,6 +4168,10 @@ VALUES
 	return nil
 }
 
+// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched.
+// It will return iOS/iPadOS (enrolled) devices with the following criteria:
+//   - No refetch command has been sent to the device, or
+//   - More than refetchInterval time has passed since last refetch command was acknowledged.
 func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
 	// Exclude iPhones/iPads that already have a "refetch" command queued without an answer.
 	// The subquery is to get the last REFETCH command sent per device and its answer (if any).
@@ -4178,12 +4182,18 @@ LEFT JOIN (
 	SELECT last_refetch_commands.id, last_refetch_commands.command_uuid, r.status FROM (
 		SELECT q.id, q.command_uuid FROM nano_enrollment_queue q JOIN (SELECT q.id, q.priority, MAX(q.created_at) as max_created_at
 		FROM nano_enrollment_queue AS q
-		WHERE 
+		WHERE
 	  	  q.active = 1 AND LEFT(q.command_uuid, %d) = '%s'
 		GROUP BY
 	 	   q.id, q.priority
-		) last_refetch_command_enqueued ON last_refetch_command_enqueued.id=q.id AND last_refetch_command_enqueued.priority=q.priority AND last_refetch_command_enqueued.max_created_at=q.created_at
-	) last_refetch_commands LEFT JOIN nano_command_results r ON r.command_uuid = last_refetch_commands.command_uuid AND r.id = last_refetch_commands.id
+		) last_refetch_command_enqueued ON
+			last_refetch_command_enqueued.id=q.id AND
+			last_refetch_command_enqueued.priority=q.priority AND
+			last_refetch_command_enqueued.max_created_at=q.created_at
+	) last_refetch_commands
+	LEFT JOIN nano_command_results r ON
+		r.command_uuid = last_refetch_commands.command_uuid AND
+		r.id = last_refetch_commands.id
 ) last_refetch_command_result ON last_refetch_command_result.id = h.uuid
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
 AND (last_refetch_command_result.id IS NULL OR last_refetch_command_result.status = 'Acknowledged')
