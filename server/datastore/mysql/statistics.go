@@ -34,7 +34,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		amountSoftwares, err := amountSoftwaresDB(ctx, ds.writer(ctx))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "amount Softwares")
+			return ctxerr.Wrap(ctx, err, "amount software")
 		}
 		amountHostSoftwares, err := amountHostSoftwaresDB(ctx, ds.writer(ctx))
 		if err != nil {
