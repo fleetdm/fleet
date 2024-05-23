@@ -337,7 +337,7 @@ general_announce_info() {
         fi
 
         # TODO Publish Linkedin post about release article here and save url
-        linkedin_post_url="https://www.linkedin.com/posts/fleetdm_fleet-4500-security-agent-deployment-activity-7199509896705232898-qqJs?utm_source=share&utm_medium=member_desktop"
+        linkedin_post_url=""
     fi
     echo "========================================================================="
     echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
