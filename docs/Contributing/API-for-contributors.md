@@ -563,7 +563,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 | Name          | Type   | In   | Description                                                                            |
 | ------------- | ------ | ---- | -------------------------------------------------------------------------------------- |
-| organization  | string | body | **Required.** The name of the organization associated with the Apple APNs certificate. |
 | alt  | string | query | **Required.** Set to "media" to download the certificate signing request (CSR). |
 
 #### Example (download CSR)
