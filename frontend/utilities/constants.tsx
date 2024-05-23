@@ -317,22 +317,6 @@ export const HOSTS_SEARCH_BOX_PLACEHOLDER =
 export const HOSTS_SEARCH_BOX_TOOLTIP =
   "Search hosts by name, hostname, UUID, serial number, or private IP address";
 
-export const VULNERABLE_DROPDOWN_OPTIONS = [
-  {
-    disabled: false,
-    label: "All software",
-    value: false,
-    helpText: "All software installed on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Vulnerable software",
-    value: true,
-    helpText:
-      "All software installed on your hosts with detected vulnerabilities.",
-  },
-];
-
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (automatic)": (

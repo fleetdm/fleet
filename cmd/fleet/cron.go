@@ -708,6 +708,7 @@ func newCleanupsAndAggregationSchedule(
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
+	softwareInstallStore fleet.SoftwareInstallerStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -847,6 +848,9 @@ func newCleanupsAndAggregationSchedule(
 			// sizes in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
 			const maxCount = 5000
 			return ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+		}),
+		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
+			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore)
 		}),
 	)
 

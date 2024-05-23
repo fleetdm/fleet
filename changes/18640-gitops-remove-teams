@@ -1,4 +1,0 @@
-Improvements to `fleetctl gitops` command:
-- Added the ability to pass multiple files, like `fleetctl gitops -f file1 -f file2`, where the first file must be the global configuration
-- Added the ability to remove teams that were not specified in team configs using the switch `--delete-other-teams`
-- When passing a global config and team config during initial configuration, the `org_settings.mdm.apple_bm_default_team` value can be set to match the team that will be created by the provided team config.

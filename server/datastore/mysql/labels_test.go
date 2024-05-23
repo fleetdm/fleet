@@ -217,13 +217,13 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	err := db.ApplyLabelSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	all, _, err := db.Label(context.Background(), specs[len(specs)-1].ID)
-	require.Nil(t, err)
-	l3, _, err := db.Label(context.Background(), specs[2].ID)
-	require.Nil(t, err)
-
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
+
+	all, _, err := db.Label(context.Background(), specs[len(specs)-1].ID, filter)
+	require.Nil(t, err)
+	l3, _, err := db.Label(context.Background(), specs[2].ID, filter)
+	require.Nil(t, err)
 
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
@@ -665,7 +665,8 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&label})
 	require.Nil(t, err)
 
-	saved, _, err := db.Label(context.Background(), label.ID)
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+	saved, _, err := db.Label(context.Background(), label.ID, filter)
 	require.Nil(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 }
@@ -806,9 +807,10 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
-	_, _, err = db.SaveLabel(context.Background(), label)
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+	_, _, err = db.SaveLabel(context.Background(), label, filter)
 	require.NoError(t, err)
-	saved, _, err := db.Label(context.Background(), label.ID)
+	saved, _, err := db.Label(context.Background(), label.ID, filter)
 	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
@@ -1501,10 +1503,12 @@ func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
 	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
 	require.NoError(t, err)
 
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
 	// Adding and removing labels.
 	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID})
 	require.NoError(t, err)
-	lbl, hids, err := ds.Label(ctx, label1.ID)
+	lbl, hids, err := ds.Label(ctx, label1.ID, filter)
 	require.NoError(t, err)
 	require.Equal(t, label1.ID, lbl.ID)
 	require.ElementsMatch(t, []uint{host1.ID}, hids)
@@ -1551,7 +1555,7 @@ func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 
-	lbl, hids, err = ds.Label(ctx, label1.ID)
+	lbl, hids, err = ds.Label(ctx, label1.ID, filter)
 	require.NoError(t, err)
 	require.Equal(t, label1.ID, lbl.ID)
 	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, hids)

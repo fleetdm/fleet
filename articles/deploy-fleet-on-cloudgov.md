@@ -1,5 +1,7 @@
 # Deploy Fleet on Cloud.gov (Cloud Foundry)
 
+> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+
 ![Deploy Fleet on Cloud.gov](../website/assets/images/articles/deploy-fleet-on-cloudgov-800x450@2x.png)
 
 Cloud.gov is a [FEDRAMP moderate Platform-as-a-Service
@@ -115,7 +117,7 @@ variables](https://fleetdm.com/docs/deploying/configuration#using-only-environme
 <meta name="articleTitle" value="Deploy Fleet on Cloud.gov">
 <meta name="authorGitHubUsername" value="JJediny">
 <meta name="authorFullName" value="John Jediny">
-<meta name="publishedOn" value="2022-04-24">
+<meta name="publishedOn" value="2022-09-08">
 <meta name="category" value="guides">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-cloudgov-800x450@2x.png">
 <meta name="description" value="Information for deploying Fleet on Cloud.gov.">

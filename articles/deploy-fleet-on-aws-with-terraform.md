@@ -1,12 +1,12 @@
 # Deploy Fleet on AWS with Terraform
 
+> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+
 ![Deploy Fleet on AWS ECS](../website/assets/images/articles/deploy-fleet-on-aws-with-terraform-800x450@2x.png)
 
 Learn how to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
 Deploying on AWS with Fleet’s reference architecture is an easy way to get a fully functional Fleet instance that can scale to your needs.
-
-> Updated May 2023 to reflect Fleet's current Terraform Module setup. 
 
 ## Prerequisites:
 
@@ -23,8 +23,7 @@ Remote state can be simple (local state) or complicated (S3, state locking, etc.
 
 ### Modules
 
-[Fleet terraform](https://github.com/fleetdm/fleet/tree/main/terraform) is made up of multiple modules. These modules can be used independently, or as group to stand up an opinionated
-set of infrastructure that we have found success with.
+[Fleet terraform](https://github.com/fleetdm/fleet/tree/main/terraform) is made up of multiple modules. These modules can be used independently, or as group to stand up an opinionated set of infrastructure that we have found success with.
 
 Each module defines the required resource and consumes the next nested module. The root module creates the VPC and then pulls in the `byo-vpc` module configuring it as necessary. The `byo-vpc` module creates the database and cache instances that get passed into the `byo-db` module. And finally the `byo-db` module creates the ECS cluster and load balancer to be consumed by the `byo-ecs` module.
 

@@ -98,7 +98,6 @@ const Software = ({
                   emptyComponent={() => (
                     <EmptySoftwareTable
                       isCollectingSoftware={isCollectingInventory}
-                      noSandboxHosts={noSandboxHosts}
                     />
                   )}
                   showMarkAllPages={false}
@@ -125,8 +124,7 @@ const Software = ({
                   emptyComponent={() => (
                     <EmptySoftwareTable
                       isCollectingSoftware={isCollectingInventory}
-                      noSandboxHosts={noSandboxHosts}
-                      isFilterVulnerable
+                      softwareFilter="vulnerableSoftware"
                     />
                   )}
                   showMarkAllPages={false}

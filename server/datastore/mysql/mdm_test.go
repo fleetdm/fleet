@@ -6199,6 +6199,29 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	require.Equal(t, h3.UUID, assocs[2].HostUUID)
 	require.Equal(t, h4.UUID, assocs[3].HostUUID)
 
+	// add a new host with a very old expiriy so it shows first, verify
+	// that it's present before deleting it.
+	h5 := setHost(time.Now().AddDate(-2, -1, 0))
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 5)
+	require.Equal(t, h5.UUID, assocs[0].HostUUID)
+	require.Equal(t, h1.UUID, assocs[1].HostUUID)
+	require.Equal(t, h2.UUID, assocs[2].HostUUID)
+	require.Equal(t, h3.UUID, assocs[3].HostUUID)
+	require.Equal(t, h4.UUID, assocs[4].HostUUID)
+
+	// delete the host and verify that things work as expected
+	// see https://github.com/fleetdm/fleet/issues/19149
+	require.NoError(t, ds.DeleteHost(ctx, h5.ID))
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 4)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+
 	checkSCEPRenew := func(assoc fleet.SCEPIdentityAssociation, want *string) {
 		var got *string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

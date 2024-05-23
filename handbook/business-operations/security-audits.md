@@ -1,10 +1,12 @@
 # Security audits
 This page contains explanations of the latest external security audits performed on Fleet software.
 
-## June 2023 penetration testing of Fleet 4.33 
+## June 2023 penetration testing of Fleet 4.32 
 In June 2023, [Latacora](https://www.latacora.com/) performed an application penetration assessment of the application from Fleet. 
 
 An application penetration test captures a point-in-time assessment of vulnerabilities, misconfigurations, and gaps in applications that could allow an attacker to compromise the security, availability, processing integrity, confidentiality, and privacy (SAPCP) of sensitive data and application resources. An application penetration test simulates the capabilities of a real adversary, but accelerates testing by using information provided by the target company.
+
+Latacora identified a few issues, the most critical ones we have addressed in 4.33. These are described below.
 
 You can find the full report here: [2023-06-09-fleet-penetration-test.pdf](https://github.com/fleetdm/fleet/raw/main/docs/files/2023-06-09-fleet-penetration-test.pdf).
 
@@ -16,7 +18,7 @@ You can find the full report here: [2023-06-09-fleet-penetration-test.pdf](https
 
 All tooltips using the "tipContent" tag are set using "dangerouslySetInnerHTML". This allows manipulation of the DOM without sanitization. If a user can control the content sent to this function, it can lead to a cross-site scripting vulnerability. 
 
-- Resolved. Resolution information TBA
+This was resolved in version release [4.33.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) with [implementation of DOMPurify library](https://github.com/fleetdm/fleet/pull/12229) to remove dangerous dataset.
 
 #### 2 - Broken authorization leads to observers able to add hosts
 | Type                | Latacora Severity |
@@ -25,12 +27,12 @@ All tooltips using the "tipContent" tag are set using "dangerouslySetInnerHTML".
 
 Observers are not supposed to be able to add hosts to Fleet. Via specific endpoints, it becomes possible to retrieve the certificate chains and the secrets for all teams, and these are the information required to add a host. 
 
-- Resolved. Resolution information TBA
+This was resolvedin version release [4.33.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) with [updating the observer permissions](https://github.com/fleetdm/fleet/pull/12216).
 
 ## April 2022 penetration testing of Fleet 4.12 
 In April 2022, we worked with [Lares](https://www.lares.com/) to perform penetration testing on our Fleet instance, which was running 4.12 at the time. 
 
-They identified a few issues, the most critical ones we have addressed in 4.13. Other less impactful items remain. These are described below.
+Lares identified a few issues, the most critical ones we have addressed in 4.13. Other less impactful items remain. These are described below.
 
 As usual, we have made the full report (minus redacted details such as email addresses and tokens) available.
 

@@ -80,7 +80,7 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllDEPStora
 			// Request.
 			msg := err.Error()
 			if authErr.StatusCode == http.StatusUnauthorized {
-				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm for help."
+				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/learn-more-about/setup-abm for help."
 			}
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message:     msg,

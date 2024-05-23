@@ -1,0 +1,1 @@
+- Prevent the `host_id`s field from being returned from the list labels endpoint.

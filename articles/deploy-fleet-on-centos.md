@@ -1,6 +1,10 @@
 # Deploy Fleet on CentOS
 
+> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+
 ![Deploy Fleet on CentOS](../website/assets/images/articles/deploy-fleet-on-centos-800x450@2x.png)
+
+> Updated on December 2, 2020, by [Noah Talerman](https://github.com/noahtalerman).
 
 In this guide, we're going to install Fleet and all of its application dependencies on a CentOS 7.1 server. Once we have Fleet up and running, we're going to install osquery on that same CentOS 7.1 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
 
@@ -219,7 +223,7 @@ If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/h
 <meta name="articleTitle" value="Deploy Fleet on CentOS">
 <meta name="authorGitHubUsername" value="marpaia">
 <meta name="authorFullName" value="Mike Arpaia">
-<meta name="publishedOn" value="2022-06-27">
+<meta name="publishedOn" value="2017-09-22">
 <meta name="category" value="guides">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-centos-800x450@2x.png">
 <meta name="description" value="A guide to deploy Fleet on CentOS.">
