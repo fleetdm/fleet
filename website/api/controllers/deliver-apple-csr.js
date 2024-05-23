@@ -15,9 +15,11 @@ module.exports = {
       type: 'string',
       description: 'Base64 encoded CSR submitted from the Fleet server or `fleetctl` on behalf of the user.'
     },
-    alt: {
+    deliveryMethod: {
       type: 'string',
-      description: 'Allows to customize the response type. If specified and set to "json" it returns the signed CSR contents in the response.'
+      description: 'How the signed CSR will be delivered to the user. ',
+      defaultsTo: 'email',
+      isIn: ['email', 'json']
     }
   },
 
@@ -41,7 +43,7 @@ module.exports = {
 
   },
 
-  fn: async function({unsignedCsrData, alt}) {
+  fn: async function({unsignedCsrData, deliveryMethod}) {
     let path = require('path');
 
     let signingToolExists = await sails.helpers.fs.exists(path.resolve(sails.config.appPath, '.tools/mdm-gen-cert'));
@@ -121,16 +123,16 @@ module.exports = {
 
     // respBody contains the raw response body content, it defaults to
     // `undefined` as this was the default behavior of this endpoint before the
-    // 'alt' parameter was introduced.
+    // 'deliveryMethod' parameter was introduced.
     var respBody;
-    switch(alt) {
+    switch(deliveryMethod) {
       case 'json':
         this.res.type('application/json');
         respBody = JSON.stringify({
           csr: Buffer.from(generateCertificateResult.request).toString('base64'),
         });
         break;
-      default:
+      case 'email':
         // Send an email to the user, with the result from the mdm-gen-cert command attached as a plain text file.
         await sails.helpers.sendTemplateEmail.with({
           to: generateCertificateResult.email,
@@ -151,6 +153,8 @@ module.exports = {
         }).intercept((err)=>{
           return new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), an error occured. Full error: ${err}`);
         });
+      default:
+        throw 'badRequest';
     }
 
     // Send a message to Slack.
