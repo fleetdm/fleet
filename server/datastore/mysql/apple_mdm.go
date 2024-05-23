@@ -4116,3 +4116,32 @@ VALUES
 
 	return nil
 }
+
+func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	stmt := `
+INSERT INTO
+    mdm_config_assets (
+		name,
+		value
+	)
+VALUES
+     %s
+	`
+
+	var args []any
+	var insertVals strings.Builder
+
+	for _, a := range assets {
+		insertVals.WriteString(`(?, ?),`)
+		args = append(args, a.Name, a.Value)
+	}
+
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	})
+
+	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
+}

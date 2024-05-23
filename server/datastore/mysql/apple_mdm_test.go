@@ -74,6 +74,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
+		{"TestInsertMDMAsset", testInsertMDMAsset},
 	}
 
 	for _, c := range cases {
@@ -5496,4 +5497,26 @@ func createRawAppleCmd(reqType, cmdUUID string) string {
     <string>%s</string>
 </dict>
 </plist>`, reqType, cmdUUID)
+}
+
+func testInsertMDMAsset(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	assets := []fleet.MDMConfigAsset{
+		{
+			Name:  fleet.MDMAssetCACert,
+			Value: []byte("some bytes"),
+		},
+		{
+			Name:  fleet.MDMAssetCAKey,
+			Value: []byte("some bytes"),
+		},
+	}
+
+	err := ds.InsertMDMConfigAssets(ctx, assets)
+	require.NoError(t, err)
+
+	var a []fleet.MDMConfigAsset
+
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &a, `SELECT name, value FROM mdm_config_assets`))
+	require.Len(t, a, 2)
 }
