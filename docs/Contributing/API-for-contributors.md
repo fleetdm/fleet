@@ -554,25 +554,24 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 `Status: 204`
 
-
 ### Request Certificate Signing Request (CSR)
 
 `GET /api/v1/fleet/mdm/apple/request_csr`
 
-#### Parameters
+#### Example
 
-| Name          | Type   | In   | Description                                                                            |
-| ------------- | ------ | ---- | -------------------------------------------------------------------------------------- |
-| alt  | string | query | **Required.** Set to "media" to download the certificate signing request (CSR). |
-
-#### Example (download CSR)
-
-`GET /api/v1/fleet/mdm/apple/request_csr?alt=media`
+`GET /api/v1/fleet/mdm/apple/request_csr`
 
 ##### Default response
 
 ```
-Status: 204
+Status: 200
+```
+
+```json
+{
+    "csr": "lKT5LCBJJ20gc2VjcmV0Cg="
+}
 ```
 
 ### Upload ABM Token
