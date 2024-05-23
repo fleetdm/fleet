@@ -1,1 +1,0 @@
-Added a new command `fleetctl api` to be able to easily use fleetctl to hit any REST endpoint via the cli.
