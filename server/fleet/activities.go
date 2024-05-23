@@ -7,6 +7,11 @@ import (
 
 //go:generate go run gen_activity_doc.go "../../docs/Using Fleet/Audit-logs.md"
 
+type ContextKey string
+
+// ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
+const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
+
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedPack{},
@@ -1415,9 +1420,11 @@ func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
-func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User) error {
+func LogRoleChangeActivities(
+	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
+) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
-		if err := ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			adminUser,
 			ActivityTypeChangedUserGlobalRole{
@@ -1431,7 +1438,7 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 		}
 	}
 	if user.GlobalRole == nil && oldGlobalRole != nil {
-		if err := ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			adminUser,
 			ActivityTypeDeletedUserGlobalRole{
@@ -1456,7 +1463,7 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 		if ok && o.Role == t.Role {
 			continue
 		}
-		if err := ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			adminUser,
 			ActivityTypeChangedUserTeamRole{
@@ -1475,7 +1482,7 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 		if _, ok := newTeamsLookup[o.ID]; ok {
 			continue
 		}
-		if err := ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			adminUser,
 			ActivityTypeDeletedUserTeamRole{

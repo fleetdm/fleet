@@ -343,7 +343,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 			return ctxerr.Wrap(ctx, err, "enqueuing lock request for darwin")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			vc.User,
 			fleet.ActivityTypeLockedHost{
@@ -377,7 +377,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		return err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		vc.User,
 		fleet.ActivityTypeLockedHost{
@@ -427,7 +427,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 		}
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		vc.User,
 		fleet.ActivityTypeUnlockedHost{
@@ -482,7 +482,7 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 		}
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		vc.User,
 		fleet.ActivityTypeWipedHost{

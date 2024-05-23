@@ -57,6 +57,9 @@ github.com/fleetdm/fleet/v4/server/fleet/FleetDesktopSettings	TransparencyURL	st
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	VulnerabilitySettings	fleet.VulnerabilitySettings
 github.com/fleetdm/fleet/v4/server/fleet/VulnerabilitySettings	DatabasesPath	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	WebhookSettings	fleet.WebhookSettings
+github.com/fleetdm/fleet/v4/server/fleet/WebhookSettings	ActivitiesWebhook	fleet.ActivitiesWebhookSettings
+github.com/fleetdm/fleet/v4/server/fleet/ActivitiesWebhookSettings	Enable	bool
+github.com/fleetdm/fleet/v4/server/fleet/ActivitiesWebhookSettings	DestinationURL	string
 github.com/fleetdm/fleet/v4/server/fleet/WebhookSettings	HostStatusWebhook	fleet.HostStatusWebhookSettings
 github.com/fleetdm/fleet/v4/server/fleet/HostStatusWebhookSettings	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/HostStatusWebhookSettings	DestinationURL	string
