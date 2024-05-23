@@ -2189,7 +2189,7 @@ for the email address specified in the Source parameter of SendRawEmail.
 
 ##### s3_bucket
 
-Name of the S3 bucket to use to store software and file carves.
+Name of the S3 bucket for storing software and file carves.
 
 - Default value: none
 - Environment variable: `FLEET_S3_BUCKET`
