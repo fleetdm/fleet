@@ -57,7 +57,7 @@ html, body {
 
 [purpose='page-header'] {
   max-width: 1200px;
-  padding: 19px 64px;
+  padding: 19px 32px;
   height: 80px;
   color: @core-fleet-black;
   [purpose='header-logo'] {
@@ -256,6 +256,7 @@ html, body {
     [purpose='log-out-button'] {
       padding-left: 16px;
       color: @core-fleet-black-75;
+      font-size: 14px;
       white-space: nowrap;
       &:hover {
         color: @core-fleet-black-75;
@@ -286,8 +287,8 @@ html, body {
       }
     }
     [purpose='gh-button'] {
-      margin-left: 24px;
-      margin-right: 24px;
+      margin-left: 20px;
+      margin-right: 20px;
     }
     [purpose='header-dropdown'] {
       box-shadow: 0px 4px 40px rgba(0, 0, 0, 0.4);
@@ -445,9 +446,6 @@ body.detected-mobile {
   // …
 }
 @media (max-width: 991px) {
-  [purpose='page-header'] {
-    padding: 19px 40px;
-  }
   [purpose='page-wrap'] {
     padding-bottom: 460px;
   }
@@ -462,7 +460,6 @@ body.detected-mobile {
 
 @media (max-width: 767px) {
   [purpose='page-header'] {
-    padding: 19px 32px;
     [purpose='mobile-nav'] {
       [purpose='mobile-nav-header'] {
         padding: 19px 32px;
@@ -499,10 +496,10 @@ body.detected-mobile {
     padding-bottom: 925px;
   }
   [purpose='page-header'] {
-    padding: 19px 24px;
+    padding: 19px 20px;
     [purpose='mobile-nav'] {
       [purpose='mobile-nav-header'] {
-        padding: 19px 24px;
+        padding: 19px 20px;
       }
       [purpose='mobile-nav-container'] {
         padding: 8px 24px 0px 24px;
@@ -542,7 +539,6 @@ body.detected-mobile {
 
 @media (max-width: 375px) {
   [purpose='page-header'] {
-    padding: 19px 16px;
     [purpose='mobile-nav'] {
       [purpose='mobile-nav-header'] {
         padding: 19px 16px;
