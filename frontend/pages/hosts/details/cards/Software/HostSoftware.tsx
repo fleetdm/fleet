@@ -263,8 +263,8 @@ const HostSoftware = ({
 
     return (
       <>
-        {(isError || !data) && <DataError />}
-        {!isError && data && (
+        {isError && <DataError />}
+        {!isError && (
           <HostSoftwareTable
             isLoading={
               isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
@@ -291,28 +291,7 @@ const HostSoftware = ({
       className={baseClass}
     >
       <p className="card__header">Software</p>
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <>
-          {isError && <DataError />}
-          {!isError && (
-            <HostSoftwareTable
-              isLoading={
-                isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
-              }
-              data={data}
-              router={router}
-              tableConfig={tableConfig}
-              sortHeader={queryParams.order_key}
-              sortDirection={queryParams.order_direction}
-              searchQuery={queryParams.query}
-              page={queryParams.page}
-              pagePath={pathname}
-            />
-          )}
-        </>
-      )}
+      {renderHostSoftware()}
     </Card>
   );
 };
