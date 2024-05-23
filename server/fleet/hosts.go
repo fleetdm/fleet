@@ -146,6 +146,9 @@ type HostListOptions struct {
 	// use. This identifies a "software title" independent of the specific
 	// version.
 	SoftwareTitleIDFilter *uint
+	// SoftwareStatusFilter filters the hosts by the status of the software installer, if any,
+	// managed by Fleet. If specified, the SoftwareTitleIDFilter must also be specified.
+	SoftwareStatusFilter *SoftwareInstallerStatus
 
 	OSIDFilter        *uint
 	OSNameFilter      *string
@@ -210,6 +213,7 @@ func (h HostListOptions) Empty() bool {
 		h.SoftwareIDFilter == nil &&
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
+		h.SoftwareStatusFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&

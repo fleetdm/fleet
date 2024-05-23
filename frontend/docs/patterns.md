@@ -11,6 +11,7 @@ should be discussed within the team and documented before merged.
 - [Typing](#typing)
 - [Utilities](#utilities)
 - [Components](#components)
+- [Forms] (#forms)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
@@ -194,11 +195,30 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
 export default PackComposerPage;
 ```
 
+
+## Forms
+
+### Data validation
+
+Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
+new and possibly former form data) and whose output is an object of formFieldName:errorMessage
+key-value pairs (`Record<string,string>`) e.g.
+
+```
+const validate = (newFormData: IFormData) => {
+  const errors = {};
+  ...
+  return errors;
+}
+```
+The output of `validate` should be used by the calling `onChange` handler to set a `formErrors`
+state. 
+
 ## React hooks
 
 [Hooks](https://reactjs.org/docs/hooks-intro.html) are used to track state and use other features
 of React. Hooks are only allowed in functional components, which are created like so:
-
+  
 ```typescript
 import React, { useState, useEffect } from "React";
 

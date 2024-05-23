@@ -281,7 +281,7 @@ queries:
   automations_enabled: true
   logging: snapshot
 `
-	gitOps, err = gitOpsFromString(t, config)
+	_, err = gitOpsFromString(t, config)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "variable \"NOT_DEFINED\" not set")
 }
@@ -293,20 +293,20 @@ func TestMixingGlobalAndTeamConfig(t *testing.T) {
 	config := getGlobalConfig(nil)
 	config += "name: TeamName\n"
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name' or 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
 
 	// Mixing org_settings and team_settings
 	config = getGlobalConfig(nil)
 	config += "team_settings:\n  secrets: []\n"
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name' or 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
 
 	// Mixing org_settings and team name and team_settings
 	config = getGlobalConfig(nil)
 	config += "name: TeamName\n"
 	config += "team_settings:\n  secrets: []\n"
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name' or 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
 }
 
 func TestInvalidGitOpsYaml(t *testing.T) {

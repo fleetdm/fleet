@@ -24,10 +24,10 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Business Operations
+| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle - Commission" payroll          | Head of Business Operations
 | Sign-on bonus                | "Bonus" payroll              | Head of Business Operations
 | Performance bonus            | "Bonus" payroll              | Head of Business Operations     
-| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Business Operations
+| Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Head of Business Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
 ### Reconcile monthly recurring expenses
@@ -77,8 +77,6 @@ Here's how:
 
 Then, send the DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight and tasks undertaken during those hours (if provided). Ensure the screenshot does not contain any compensation information.
 
-> 
-> More info: https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked
 
 ### Change the DRI of a consultant
 
@@ -147,14 +145,27 @@ For payment instructions please refer to your invoice, and reach out to [Fleet's
 Thanks,
 [name]
 ```
-
 - If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
 
+
 ### Run US commission payroll
-- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have a **Close date** within the previous month.
-  - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
-- Let the Head of Business Operations know they can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
-- Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
+1. Update individual teammates commission calculators (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with new revenue from any deals that are closed-won (have a subscription agreement signed by both parties) and have a **close date** within the previous month.
+    - Verify closed-won deal numbers with CRO to ensure any agreed upon exceptions are captured (eg: CRO approves an AE to receive commission on a renewal deal due to cross-sell).
+2. In the "Monthly commission payroll party" meeting, present the commission calculations for Fleeties receiving commission for approval.
+    - If there are any quarterly accelerators due for the teammate receiving commission, ensure the individual total includes both the monthly and the quarterly amount.
+3. After the amounts are approved in the meeting, process the commission payroll.
+    - Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
+4. Once commission payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid. 
+
+
+### Run quarterly or annual employee bonus payroll
+1. Update individual teammate bonus calculator (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with relevant metrics.
+    - Bonus plans will have details specified on how to measure success, with most drawing from the [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing) or from linked SFDC reports. If unsure where to pull achievement metrics from, contact teammate's manager to clarify.
+2. In the "Monthly commission payroll party" meeting, present the bonus calculations for Fleeties receiving bonus for approval.
+3. After the amounts are approved in the meeting, process the bonus payroll.
+    - Use the off-cycle payroll option in Gusto and be sure to classify the payment as "Bonus".
+    - For international teammates, you may need to use the "Help" function, or email support to notify Plane of the amount needing to be paid.
+4. Once bonus payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the bonus as paid. 
 
 
 ### Convert a Fleetie to a consultant
@@ -185,6 +196,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - The change is now actioned, notify the team member and close the issue.
 
 > Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
+
 
 ### Change a Fleetie's job title
 When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
@@ -223,12 +235,12 @@ When BizOps receives notification of a Fleetie's manager changing, follow these 
 > **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
  
 
-
 ### Prepare salary benchmarking information
 - Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
 - Copy the template text and paste at the end of the document.
 - Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
 - Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries, and include all company assumtions. Add the direct link to the Pave benchmark.
+
 
 ### Update a team member's compensation
 To [change a team member's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
@@ -251,11 +263,13 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 - The close date is tracked each month in [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit).
 - **When is the issue created?** We create and close the monthly accounting issue for the previous month within the first 7 days of the following month.  For example, the monthly accounting issue to close out the month of January is created promptly in February and closed before the end of the day, Feb 7th.  A convenient trick is to create the issue on the first Friday of the month and close it ASAP.
 
+
 ### Check franchise tax status
 No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
 - Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
 - If no outstanding amounts: the tax has been paid.
 - If outstanding amounts shown: ensure payment before due date to avoid penalties, interest, and entering bad standing.
+
 
 ### Check finances for quirks
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
@@ -263,6 +277,7 @@ Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up 
 - Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
 - Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
 - Once quirks are resolved, note the day it was resolved in the spreadsheet.
+
 
 ### Report quarterly numbers in Chronograph
 Follow these steps to perform quarterly reporting for Fleet's investors:
@@ -315,9 +330,45 @@ Within 60 days of the end of the year, follow these steps:
 - Make the cancellation notification in accordance with the contract terms between Fleet and the vendor, typically these notifications are made via email and may have a specific address that notice must be sent to. If the vendor has an autorenew contract with Fleet there will often be a window of time in which Fleet can cancel, if notification is made after this time period Fleet may be obligated to pay for the subsequent year even if we don't use the vendor during the next contract term.  
 - Once cancelled, update the recurring expenses section of [The Numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) to reflect the cancellation by changing the projected monthly burn in column G to $0 and adding "CANCELLED" in front of the vendor's name in column C.
 
+
+### Review an NDA
+We need to review an NDA anytime a vendor, customer or other party wants to:
+- Use their own NDA rather than Fleet's standard NDA, or
+- "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
+
+We should always seek to use Fleet's own NDA first, without alteration. 
+
+When reading an NDA, we want to pay close attention to the following:
+- We want to be sure that the confidentiality obligations of the NDA are reciprocal.  Fleet and the other party to the agreement should be bound to the same standards of confidentiality toward the handling of each other's confidential information.
+- Fleet does not agree to _"do not compete"_ or _"do not solicit clauses"_. An NDA should not contain provisions beyond the scope of an NDA. The two most commonly encountered examples of this are the "do not compete" and "do not solicit" clauses. We want to be free to hire the best people and make the best products, so when reading through an NDA it is important to keep an eye out for language that prohibits Fleet from hiring or soliciting current or former employees of other companies or that prohibit Fleet from independently developing products that compete with another company's products.  Using the `cmd + f` function to search for "solici", "compet" and "hir" and reading through the results is a helpful method to quickly scan for these clauses.
+- Look for any language that discusses a transfer of property rights. Rarely, you may find a clause snuck into an agreement that discusses the transfer of intellectual property rights.  _We want to avoid any situation where Fleet transfers its intellectual property to another party as part of an NDA_.  
+- Should you find any clauses in steps 2 or 3 that are beyond the scope of protecting both party's confidential information in a customer NDA or an altered version of Fleet's NDA, reject this language and communicate that Fleet cannot agree to those terms.
+- Any concerns or uncertainty over _any_ provisions in an NDA should be brought to Nathanael Holliday in BizOps, who will consult legal counsel if necessary to resolve any concerns.
+
+### Review a vendor agreement
+When reviewing contracts from a vendor, Fleet is concerned about the following:
+- If there are confidentiality provisions in the agreement in place of a stand-alone NDA, verify the confidentiality provisions are appropriate and protect Fleet when sensitive data is involved that isn't otherwise available to the public.
+- We want to make sure there are no _do not solicit_ or _do not compete_ clauses in the contract.  To aid in this search, we double check by using the cmd + f function and searching for "solici", "compet" and "hir" and then looking through the results to be sure that nothing prohibits Fleet from independently developing competing products or from hiring personnel with ties to the vendor.
+- We want to make sure that contracts can be terminated relatively easily and be aware of what the process is for terminating them, avoiding commitments over 12 months in length.
+- We want to make sure the payment terms work for us (i.e. being able to pay via wire transfer, credit card or bill.com) and that the price in any contract or order form is what we have agreed to.  While almost never malicious, mistakes often occur in the steps between agreeing on a price, negotiating a contract, and receiving an invoice.  We want to be sure at every step that the dollar amount and service provided is consistent with what has been negotiated and agreed upon.
+- Remember, once we have signed the agreement - we're stuck with it. If any clause in the agreement appears strange or gives you pause or concern, it is better to seek clarification than to commit to something that might be detrimental to Fleet.  Contracts are fairly standardized, and you'll quickly learn what is normal and what feels out of place.  Unusual clauses or wording that seems out of the ordinary should get a second set of eyes just to be sure, do not hesitate to reach out to Nathanael Holliday with questions, who will reach out to legal counsel as necessary.
+
+### Review an order form
+- We should always check order forms for additional terms that go beyond the scope of the order form (caps on price increases, for example).
+- Be sure the order form includes contact information + billing address and information so that Fleet knows how and who to invoice for payment.
+- Verify that the payment terms are correct and matches what's in the agreement. This is a frequent common mistake as companies usually have default payment terms and overlook changing them to match atypical payment terms.
+- Make sure the effective term of the order matches what was agreed upon (usually a one year term) and that the order form includes the correct number of hosts and whether or not it should contain professional services (usually, it does not). 
+- Check that the amount on the order form reflects what Fleet agreed to, as this is the amount that the customer will expect to be invoiced for.
+- Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to Nathanael Holliday in BizOps with concerns.
+
+### Review a non-standard subscription agreement
+We want to use our standard terms whenever possible with our customers, but it is common that customers want to use their own agreement or redline (modify) Fleet's terms.  
+When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
+   
+
 ### Update weekly KPIs
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
-- Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
+- Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
 
 ## Rituals

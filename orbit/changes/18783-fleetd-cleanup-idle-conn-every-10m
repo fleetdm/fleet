@@ -1,1 +1,0 @@
-* Close idle connections every 10 minutes to prevent load balancers (like AWS ELB) from forcefully terminating long lived connections.

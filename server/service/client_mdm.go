@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -158,30 +157,6 @@ func (c *Client) ValidateBootstrapPackageFromURL(url string) (*fleet.MDMAppleBoo
 	return downloadRemoteMacosBootstrapPackage(url)
 }
 
-func extractFilenameFromPath(p string) string {
-	u, err := url.Parse(p)
-	if err != nil {
-		return ""
-	}
-
-	invalid := map[string]struct{}{
-		"":  {},
-		".": {},
-		"/": {},
-	}
-
-	b := path.Base(u.Path)
-	if _, ok := invalid[b]; ok {
-		return ""
-	}
-
-	if _, ok := invalid[path.Ext(b)]; ok {
-		return b + ".pkg"
-	}
-
-	return b
-}
-
 func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstrapPackage, error) {
 	resp, err := http.Get(pkgURL) // nolint:gosec // we want this URL to be provided by the user. It will run on their machine.
 	if err != nil {
@@ -205,7 +180,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 
 	// if it fails, try to extract it from the URL
 	if filename == "" {
-		filename = extractFilenameFromPath(pkgURL)
+		filename = file.ExtractFilenameFromURLPath(pkgURL, "pkg")
 	}
 
 	// if all else fails, use a default name

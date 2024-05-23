@@ -792,6 +792,13 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fl
 		}
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
+		if opts.TestSecondaryOrderKey != "" {
+			direction := "ASC"
+			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
+				direction = "DESC"
+			}
+			sql += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.TestSecondaryOrderKey), direction)
+		}
 	}
 	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
 	// that an unbounded query with many results doesn't consume too much memory

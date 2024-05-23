@@ -92,3 +92,13 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	query.Add("team_name", tmName)
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, query.Encode())
 }
+
+func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/software/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	query.Add("team_name", tmName)
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, verb, path, nil, query.Encode())
+}
