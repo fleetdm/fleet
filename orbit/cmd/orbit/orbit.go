@@ -1499,9 +1499,8 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 				"stderr", string(osquerydStderr.Bytes()),
 			).Msg("getHostInfo via osquery")
 			return nil, err
-		} else {
-			log.Warn().Str("status", err.Error()).Msg("getHostInfo via osquery returned data, but with a non-zero exit status")
 		}
+		log.Warn().Str("status", err.Error()).Msg("getHostInfo via osquery returned data, but with a non-zero exit status")
 	}
 	if len(info) == 0 {
 		if err := json.Unmarshal(osquerydStdout.Bytes(), &info); err != nil {
