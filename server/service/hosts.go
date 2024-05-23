@@ -2433,7 +2433,10 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 
 	var dynamicLabels []string
 	for labelName, labelID := range labels {
-		label, _, err := svc.ds.Label(ctx, labelID)
+		// we use a global admin filter because we want to get that label
+		// regardless of user roles
+		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+		label, _, err := svc.ds.Label(ctx, labelID, filter)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load label from id")
 		}

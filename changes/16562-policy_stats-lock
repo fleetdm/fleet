@@ -1,1 +1,0 @@
-Optimized policy_stats updates to NOT lock the policy_membership table. This should improve performance on deployments with a large number of global policies and team hosts.
