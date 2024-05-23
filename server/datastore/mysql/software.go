@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -45,41 +44,7 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
-	result, err := ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
-	if err != nil {
-		return result, err
-	}
-
-	// We perform the following cleanup on a separate transaction to avoid deadlocks.
-	//
-	// Cleanup the software table when no more hosts have the deleted host_software
-	// table entries. Otherwise the software will be listed by ds.ListSoftware but
-	// ds.SoftwareByID, ds.CountHosts and ds.ListHosts will return a *notFoundError
-	// error for such software.
-	if len(result.Deleted) > 0 {
-		deletesHostSoftwareIDs := make([]uint, 0, len(result.Deleted))
-		for _, software := range result.Deleted {
-			deletesHostSoftwareIDs = append(deletesHostSoftwareIDs, software.ID)
-		}
-		slices.Sort(deletesHostSoftwareIDs)
-		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			stmt := `DELETE FROM software WHERE id IN (?) AND NOT EXISTS (
-				SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
-			)`
-			stmt, args, err := sqlx.In(stmt, deletesHostSoftwareIDs)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build delete software query")
-			}
-			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete software")
-			}
-			return nil
-		}); err != nil {
-			return result, err
-		}
-	}
-
-	return result, err
+	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
 }
 
 func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
@@ -623,8 +588,6 @@ func updateModifiedHostSoftwareDB(
 	incomingMap map[string]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
 ) error {
-	const stmt = `UPDATE host_software SET last_opened_at = ? WHERE host_id = ? AND software_id = ?`
-
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
 		curSw, ok := currentMap[key]
@@ -640,9 +603,31 @@ func updateModifiedHostSoftwareDB(
 	}
 	sort.Strings(keysToUpdate)
 
-	for _, key := range keysToUpdate {
-		curSw, newSw := currentMap[key], incomingMap[key]
-		if _, err := tx.ExecContext(ctx, stmt, newSw.LastOpenedAt, hostID, curSw.ID); err != nil {
+	for i := 0; i < len(keysToUpdate); i += softwareInsertBatchSize {
+		start := i
+		end := i + softwareInsertBatchSize
+		if end > len(keysToUpdate) {
+			end = len(keysToUpdate)
+		}
+		totalToProcess := end - start
+
+		const numberOfArgsPerSoftware = 3 // number of ? in each UPDATE
+		// Using UNION ALL (instead of UNION) because it is faster since it does not check for duplicates.
+		values := strings.TrimSuffix(
+			strings.Repeat(" SELECT ? as host_id, ? as software_id, ? as last_opened_at UNION ALL", totalToProcess), "UNION ALL",
+		)
+		stmt := fmt.Sprintf(
+			`UPDATE host_software hs JOIN (%s) a ON hs.host_id = a.host_id AND hs.software_id = a.software_id SET hs.last_opened_at = a.last_opened_at`,
+			values,
+		)
+
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+		for j := start; j < end; j++ {
+			key := keysToUpdate[j]
+			curSw, newSw := currentMap[key], incomingMap[key]
+			args = append(args, hostID, curSw.ID, newSw.LastOpenedAt)
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host software")
 		}
 	}
@@ -1247,11 +1232,12 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 	}
 
 	q = q.Where(goqu.I("s.id").Eq(id))
-	// filter software that is not associated with any hosts
-	if teamID == nil {
-		q = q.Where(goqu.L("EXISTS (SELECT 1 FROM host_software WHERE software_id = ? LIMIT 1)", id))
-	} else {
-		// if teamID filter is used, host counts need to be up-to-date
+	// If teamID is not specified, we still return the software even if it is not associated with any hosts.
+	// Software is cleaned up by a cron job, so it is possible to have software in software_hosts_counts that has been deleted from a host.
+	if teamID != nil {
+		// If teamID filter is used, host counts need to be up-to-date.
+		// This should generally be the case, since unused software is cleared when host counts are updated.
+		// However, it is possible that the software was deleted from all hosts after the last host count update.
 		q = q.Where(
 			goqu.L(
 				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0)", id, *teamID,
@@ -1346,14 +1332,19 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 		valuesPart = `(?, ?, ?, ?),`
 
+		// We must ensure that software is not in host_software table before deleting it.
+		// This prevents a race condition where a host just added the software, but it is not part of software_host_counts yet.
+		// When a host adds software, software table and host_software table are updated in the same transaction.
 		cleanupSoftwareStmt = `
       DELETE s
       FROM software s
       LEFT JOIN software_host_counts shc
       ON s.id = shc.software_id
       WHERE
-        shc.software_id IS NULL OR
-        (shc.team_id = 0 AND shc.hosts_count = 0)`
+        (shc.software_id IS NULL OR
+        (shc.team_id = 0 AND shc.hosts_count = 0)) AND
+		NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
+	  `
 
 		cleanupOrphanedStmt = `
 		  DELETE shc
