@@ -1094,7 +1094,7 @@ interface IActivityItemProps {
     details: IActivityDetails
   ) => void;
 }
-
+// TODO: update global and host activities for self-service
 const ActivityItem = ({
   activity,
   isPremiumTier,
