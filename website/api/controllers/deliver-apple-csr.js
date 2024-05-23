@@ -26,7 +26,7 @@ module.exports = {
 
     success: {
       description: 'Signed the provided CSR.',
-      outputType: ['string'],
+      outputType: {csr:'string'},
       outputFriendlyName: 'Signed CSR',
     },
 
