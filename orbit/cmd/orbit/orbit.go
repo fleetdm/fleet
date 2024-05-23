@@ -1485,17 +1485,27 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	)
 	cmd.Stdout = &osquerydStdout
 	cmd.Stderr = &osquerydStderr
-	if err := cmd.Run(); err != nil {
-		log.Error().Str(
-			"output", string(osquerydStdout.Bytes()),
-		).Str(
-			"stderr", string(osquerydStderr.Bytes()),
-		).Msg("getHostInfo via osquery")
-		return nil, err
-	}
 	var info []osqueryHostInfo
-	if err := json.Unmarshal(osquerydStdout.Bytes(), &info); err != nil {
-		return nil, err
+	if err := cmd.Run(); err != nil {
+		// osquery may return correct data with an exit status 78, in which case we only log the error
+		// Related issue: https://github.com/osquery/osquery/issues/6566
+		unmarshalErr := json.Unmarshal(osquerydStdout.Bytes(), &info)
+		// Note: Unmarshal will fail on an empty buffer output.
+		if unmarshalErr != nil {
+			// Since the original command failed, we log the original error and the output for debugging purposes.
+			log.Error().Str(
+				"output", string(osquerydStdout.Bytes()),
+			).Str(
+				"stderr", string(osquerydStderr.Bytes()),
+			).Msg("getHostInfo via osquery")
+			return nil, err
+		}
+		log.Warn().Str("status", err.Error()).Msg("getHostInfo via osquery returned data, but with a non-zero exit status")
+	}
+	if len(info) == 0 {
+		if err := json.Unmarshal(osquerydStdout.Bytes(), &info); err != nil {
+			return nil, err
+		}
 	}
 	if len(info) != 1 {
 		return nil, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
