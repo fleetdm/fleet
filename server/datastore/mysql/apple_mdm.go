@@ -4146,7 +4146,7 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
-func (ds *Datastore) MDMConfigAssetsExist(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
 	stmt := `
 SELECT
     name, value

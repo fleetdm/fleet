@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -2128,7 +2127,6 @@ type getMDMAppleCSRResponse struct {
 func (r getMDMAppleCSRResponse) error() error { return r.Err }
 
 func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	slog.With("filename", "server/service/mdm.go", "func", "getMDMAppleCSREndpoint").Info("JVE_LOG: in endpoint method ")
 	signedCSRB64, err := svc.GetMDMAppleCSR(ctx)
 	if err != nil {
 		return &getMDMAppleCSRResponse{Err: err}, nil
@@ -2143,9 +2141,8 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) (string, error) {
 	}
 
 	// Check if we have existing certs and keys
-
 	var apnsKey *rsa.PrivateKey
-	savedAssets, err := svc.ds.MDMConfigAssetsExist(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	savedAssets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "checking asset existence")
 	}

@@ -895,17 +895,35 @@ func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
 
 func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
+	ctx := context.Background()
 
+	// Check that we return bad gateway if the website API errors
 	s.FailNextCSRRequestWith(http.StatusInternalServerError)
 	errResp := validationErrResp{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusBadGateway, &errResp)
 	require.Len(t, errResp.Errors, 1)
 	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
 
+	// Successful request
 	resp := getMDMAppleCSRResponse{}
 	s.SucceedNextCSRRequest()
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
 	require.NotNil(t, resp.CSR)
+
+	// Check that we created the right assets
+	assetsFromCall1, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	require.NoError(t, err)
+	require.Len(t, assetsFromCall1, 3)
+
+	resp = getMDMAppleCSRResponse{}
+	s.SucceedNextCSRRequest()
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
+	require.NotNil(t, resp.CSR)
+
+	// Check that the assets stayed the same in the subsequent call
+	assetsFromCall2, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	require.NoError(t, err)
+	require.Equal(t, assetsFromCall1, assetsFromCall2)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
