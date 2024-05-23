@@ -893,7 +893,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 
 	ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
-		return &fleet.HostMDMCheckinInfo{}, nil
+		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
 	}
 
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
@@ -1211,6 +1211,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 			InstalledFromDEP:   true,
 			TeamID:             wantTeamID,
 			DEPAssignedToFleet: true,
+			Platform:           "darwin",
 		}, nil
 	}
 
@@ -1272,6 +1273,7 @@ func TestMDMCheckout(t *testing.T) {
 			HardwareSerial:   serial,
 			DisplayName:      displayName,
 			InstalledFromDEP: installedFromDEP,
+			Platform:         "darwin",
 		}, nil
 	}
 
