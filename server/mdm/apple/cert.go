@@ -143,7 +143,7 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 }
 
 // GetSignedAPNSCSRNoEmail makes a request to the fleetdm.com API to get a signed APNs
-// CSR and returns the signed CSR
+// CSR and returns the signed CSR.
 func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) ([]byte, error) {
 	csrPEM := EncodeCertRequestPEM(csr)
 
@@ -178,11 +178,6 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 	if resp.StatusCode != http.StatusOK {
 		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes)}
 	}
-
-	// signedCSR, err := x509.ParseCertificateRequest(respBytes)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	return respBytes, nil
 }

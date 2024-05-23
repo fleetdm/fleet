@@ -4156,8 +4156,8 @@ WHERE
     name IN (%s)
 	`
 
-	var p strings.Builder
 	var b []any
+	var p strings.Builder
 	for _, an := range assetNames {
 		b = append(b, an)
 		p.WriteString("?,")
@@ -4166,7 +4166,7 @@ WHERE
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(p.String(), ","))
 	var res []fleet.MDMConfigAsset
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, b...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking asset existence")
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
 	}
 
 	return res, nil

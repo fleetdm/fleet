@@ -900,7 +900,7 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	// Check that we return bad gateway if the website API errors
 	s.FailNextCSRRequestWith(http.StatusInternalServerError)
 	errResp := validationErrResp{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusBadGateway, &errResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusBadGateway, &errResp)
 	require.Len(t, errResp.Errors, 1)
 	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
 
