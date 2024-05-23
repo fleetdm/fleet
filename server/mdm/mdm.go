@@ -38,7 +38,7 @@ func prefixMatches(val []byte, prefix string) bool {
 // GetRawProfilePlatform identifies the platform type of a profile bytes by
 // examining its initial content:
 //
-//   - Returns "apple" if the profile starts with "<?xml", typical of Apple
+//   - Returns "darwin" if the profile starts with "<?xml", typical of Apple
 //     platform profiles.
 //   - Returns "windows" if the profile begins with "<replace" or "<add",
 //   - Returns an empty string for profiles that are either unrecognized or
@@ -51,7 +51,7 @@ func GetRawProfilePlatform(profile []byte) string {
 	}
 
 	if prefixMatches(trimmedProfile, "<?xml") || prefixMatches(trimmedProfile, `{`) {
-		return "apple"
+		return "darwin"
 	}
 
 	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") {

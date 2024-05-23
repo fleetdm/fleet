@@ -592,7 +592,7 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 	return &fleet.CommandEnqueueResult{
 		CommandUUID: cmd.CommandUUID,
 		RequestType: cmd.Command.RequestType,
-		Platform:    "apple",
+		Platform:    "darwin",
 	}, nil
 }
 
@@ -680,7 +680,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 
 	var results []*fleet.MDMCommandResult
 	switch p {
-	case "apple":
+	case "darwin":
 		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
 	case "windows":
 		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)
@@ -1702,7 +1702,7 @@ func getAppleProfiles(
 	// "declaration" to differentiate between the two types of profiles
 	byName, byIdent := make(map[string]string, len(profiles)), make(map[string]string, len(profiles))
 	for _, prof := range profiles {
-		if mdm.GetRawProfilePlatform(prof.Contents) != "apple" {
+		if mdm.GetRawProfilePlatform(prof.Contents) != "darwin" {
 			continue
 		}
 
@@ -1863,7 +1863,7 @@ func getWindowsProfiles(
 func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
-		if platform != "apple" && platform != "windows" {
+		if platform != "darwin" && platform != "windows" {
 			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
 			return fleet.NewInvalidArgumentError("mdm", "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 		}

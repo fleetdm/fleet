@@ -71,7 +71,7 @@ INSERT INTO
 		for i := range cp.Labels {
 			cp.Labels[i].ProfileUUID = profUUID
 		}
-		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "apple"); err != nil {
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
 		}
 
@@ -1529,7 +1529,7 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	// insert label associations
-	if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "apple"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
+	if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "darwin"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
@@ -1632,6 +1632,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	SELECT
 		ds.profile_uuid as profile_uuid,
 		ds.host_uuid as host_uuid,
+		ds.host_platform as host_platform,
 		ds.profile_identifier as profile_identifier,
 		ds.profile_name as profile_name,
 		ds.checksum as checksum

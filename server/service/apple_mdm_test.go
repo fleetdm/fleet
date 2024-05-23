@@ -397,7 +397,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	}
 
 	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
-		return "apple", nil
+		return "darwin", nil
 	}
 
 	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {

@@ -90,7 +90,7 @@ func mdmRunCommand() *cli.Command {
 			var (
 				hostUUIDs     []string
 				notFoundCount int
-				mdmPlatform   string // "apple" or "windows"
+				mdmPlatform   string // "darwin" or "windows"
 			)
 			for _, ident := range hostIdents {
 				host, err := client.HostByIdentifier(ident)
@@ -143,7 +143,7 @@ func mdmRunCommand() *cli.Command {
 
 				var sce kithttp.StatusCoder
 				if errors.As(err, &sce) {
-					if sce.StatusCode() == http.StatusUnsupportedMediaType && mdmPlatform == "apple" {
+					if sce.StatusCode() == http.StatusUnsupportedMediaType && mdmPlatform == "darwin" {
 						return fmt.Errorf("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file: %w", err)
 					}
 					// this condition needs to be repeated here: maybe the user has
@@ -230,7 +230,7 @@ func mdmUnlockCommand() *cli.Command {
 				return fmt.Errorf("Failed to unlock host: %w", err)
 			}
 
-			if fleet.MDMPlatform(host.Platform) == "apple" {
+			if fleet.MDMPlatform(host.Platform) == "darwin" {
 				fmt.Fprintf(c.App.Writer, `
 Use this 6 digit PIN to unlock the host:
 

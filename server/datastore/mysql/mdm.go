@@ -18,7 +18,7 @@ import (
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
-	WHEN EXISTS (SELECT 1 FROM nano_commands WHERE command_uuid = ?) THEN 'apple'
+	WHEN EXISTS (SELECT 1 FROM nano_commands WHERE command_uuid = ?) THEN 'darwin'
 	WHEN EXISTS (SELECT 1 FROM windows_mdm_commands WHERE command_uuid = ?) THEN 'windows'
 	ELSE ''
 END AS platform
@@ -141,7 +141,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
-		'apple' as platform,
+		'darwin' as platform,
 		identifier,
 		checksum,
 		created_at,
@@ -175,7 +175,7 @@ FROM (
 		declaration_uuid AS profile_uuid,
 		team_id,
 		name,
-		'apple' AS platform,
+		'darwin' AS platform,
 		identifier,
 		checksum AS checksum,
 		created_at,
@@ -890,10 +890,19 @@ func batchSetProfileLabelAssociationsDB(
 	}
 
 	var platformPrefix string
-	if platform != "apple" && platform != "windows" {
+	switch platform {
+	case "darwin":
+		// map "darwin" to "apple" to be consistent with other
+		// "platform-agnostic" datastore methods. We initially used "darwin"
+		// because that's what hosts use (as the data is reported by osquery)
+		// and sometimes we want to dynamically select a table based on host
+		// data.
+		platformPrefix = "apple"
+	case "windows":
+		platformPrefix = "windows"
+	default:
 		return fmt.Errorf("unsupported platform %s", platform)
 	}
-	platformPrefix = platform
 
 	// delete any profile+label tuple that is NOT in the list of provided tuples
 	// but are associated with the provided profiles (so we don't delete

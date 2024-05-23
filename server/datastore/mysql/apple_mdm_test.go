@@ -2881,7 +2881,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	// but it's already enqueued
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
 	require.NoError(t, err)
-	require.Equal(t, "apple", p)
+	require.Equal(t, "darwin", p)
 
 	// simulate a result for enrolledHosts[0]
 	err = storage.StoreCommandReport(&mdm.Request{
@@ -2911,7 +2911,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	})
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
 	require.NoError(t, err)
-	require.Equal(t, "apple", p)
+	require.Equal(t, "darwin", p)
 
 	// simulate a result for enrolledHosts[1]
 	err = storage.StoreCommandReport(&mdm.Request{
@@ -2956,7 +2956,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
 	require.NoError(t, err)
-	require.Equal(t, "apple", p)
+	require.Equal(t, "darwin", p)
 
 	// delete host [0] and verify that it didn't delete its command results
 	err = ds.DeleteHost(ctx, enrolledHosts[0].ID)
@@ -2991,7 +2991,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
 	require.NoError(t, err)
-	require.Equal(t, "apple", p)
+	require.Equal(t, "darwin", p)
 }
 
 func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.MDMAppleCommander, *NanoMDMStorage) {

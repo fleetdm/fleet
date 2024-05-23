@@ -282,7 +282,7 @@ func (c *Client) MDMGetCommandResults(commandUUID string) ([]*fleet.MDMCommandRe
 func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform string) (*fleet.CommandEnqueueResult, error) {
 	var prepareFn func([]byte) ([]byte, error)
 	switch forPlatform {
-	case "apple":
+	case "darwin":
 		prepareFn = c.prepareAppleMDMCommand
 	case "windows":
 		prepareFn = c.prepareWindowsMDMCommand

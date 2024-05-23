@@ -5828,11 +5828,11 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(
 		t,
-		batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, "apple"),
+		batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, "darwin"),
 	)
 
 	platforms := map[string]string{
-		"apple":   macOSProfile.ProfileUUID,
+		"darwin":  macOSProfile.ProfileUUID,
 		"windows": windowsProfile.ProfileUUID,
 	}
 
@@ -5842,10 +5842,15 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				return
 			}
 
+			p := platform
+			if p == "darwin" {
+				p = "apple"
+			}
+
 			query := fmt.Sprintf(
 				"SELECT %s_profile_uuid as profile_uuid, label_id, label_name FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ?",
-				platform,
-				platform,
+				p,
+				p,
 			)
 
 			var got []fleet.ConfigurationProfileLabel
@@ -5867,7 +5872,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			expectLabels(t, uuid, platform, want)
 			// does not change other profiles
 			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
-			expectLabels(t, otherMacProfile.ProfileUUID, "apple", wantOtherMac)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
 		})
 
 		t.Run("valid input "+platform, func(t *testing.T) {
@@ -5881,7 +5886,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			expectLabels(t, uuid, platform, profileLabels)
 			// does not change other profiles
 			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
-			expectLabels(t, otherMacProfile.ProfileUUID, "apple", wantOtherMac)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
 		})
 
 		t.Run("invalid profile UUID "+platform, func(t *testing.T) {
@@ -5949,7 +5954,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 
 			// does not change other profiles
 			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
-			expectLabels(t, otherMacProfile.ProfileUUID, "apple", wantOtherMac)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
 		})
 	}
 

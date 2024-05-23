@@ -57,7 +57,7 @@ const createProfileExtension = (profile: IMdmProfile) => {
   if (isDDMProfile(profile)) {
     return "json";
   }
-  return profile.platform === "apple" ? "mobileconfig" : "xml";
+  return profile.platform === "darwin" ? "mobileconfig" : "xml";
 };
 
 const createFileContent = async (profile: IMdmProfile) => {
