@@ -35,7 +35,7 @@ SELECT
 	MAX(sthc.updated_at)  as counts_updated_at
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
-WHERE st.id = ? 
+WHERE st.id = ?
 AND (sthc.hosts_count > 0 OR EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?))
 GROUP BY
 	st.id,
@@ -202,7 +202,8 @@ SELECT
 	st.browser,
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
-	si.filename as software_package
+	si.filename as software_package,
+    si.self_service
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?

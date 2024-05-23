@@ -184,6 +184,8 @@ type SoftwareTitleListResult struct {
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 	// SoftwarePackage is the filename of the installer for this software title.
 	SoftwarePackage *string `json:"software_package" db:"software_package"`
+	// SelfService indicates if the end user can initiate the installation
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 type SoftwareTitleListOptions struct {
