@@ -30,6 +30,9 @@ import (
 )
 
 type DetailQuery struct {
+	// Description is an optional description of the query to be displayed in the
+	// Host Vitals documentation https://fleetdm.com/docs/using-fleet/understanding-host-vitals
+	Description string
 	// Query is the SQL query string.
 	Query string
 	// QueryFunc is optionally used to dynamically build a query.
@@ -41,8 +44,9 @@ type DetailQuery struct {
 	// empty, run on all platforms.
 	Platforms []string
 	// SoftwareOverrideMatch is a function that can be used to override a software
-	// result.  If the function returns true, the software will be overridden with
-	// the results of the Query.
+	// result.  The function evaluates a software detail query result row and deletes
+	// the result if the function returns true so the result of this detail query can be
+	// used instead.
 	SoftwareOverrideMatch func(row map[string]string) bool
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
@@ -758,6 +762,28 @@ func macOSBundleIDExistsQuery(appName string) string {
 	return fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' LIMIT 1", appName)
 }
 
+// multiCondition generates a SQL query that returns 1 if all subqueries return 1, otherwise 0.
+// subqueries should be a list of SQL queries that return 1 if a condition is met, otherwise 0.
+func generateSQLForAllExists(subqueries ...string) string {
+	if len(subqueries) == 0 {
+		return "SELECT 0;" // Return 0 if no subqueries provided
+	}
+
+	// Generate EXISTS clause for each subquery
+	var conditions []string
+	for _, query := range subqueries {
+		condition := fmt.Sprintf("EXISTS (%s)", query)
+		conditions = append(conditions, condition)
+	}
+
+	// Join all conditions with AND
+	fullCondition := strings.Join(conditions, " AND ")
+
+	// Build the final SQL with CASE statement
+	sql := fmt.Sprintf("SELECT CASE WHEN %s THEN 1 ELSE 0 END;", fullCondition)
+	return sql
+}
+
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
@@ -1090,6 +1116,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// macos_firefox Differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
 	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
 	"macos_firefox": {
+		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`",
 		Query: `
 			WITH app_paths AS (
 				SELECT path 
@@ -1120,7 +1147,10 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
 			WHERE apps.bundle_identifier = 'org.mozilla.firefox'`,
 		Platforms: []string{"darwin"},
-		Discovery: macOSBundleIDExistsQuery("org.mozilla.firefox"),
+		Discovery: generateSQLForAllExists(
+			macOSBundleIDExistsQuery("org.mozilla.firefox"),
+			discoveryTable("parse_ini"),
+		),
 		SoftwareOverrideMatch: func(row map[string]string) bool {
 			return row["bundle_identifier"] == "org.mozilla.firefox"
 		},

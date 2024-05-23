@@ -1301,10 +1301,7 @@ func preProcessSoftwareExtraResults(
 func removeOverrides(rows []map[string]string, override osquery_utils.DetailQuery) []map[string]string {
 	if override.SoftwareOverrideMatch != nil {
 		rows = slices.DeleteFunc(rows, func(row map[string]string) bool {
-			if override.SoftwareOverrideMatch(row) {
-				return true
-			}
-			return false
+			return override.SoftwareOverrideMatch(row)
 		})
 	}
 
