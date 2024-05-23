@@ -5516,5 +5516,6 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	a, err := ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
 	require.Equal(t, assets, a)
 }
