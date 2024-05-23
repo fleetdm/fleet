@@ -32,7 +32,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount users")
 		}
-		amountSoftwares, err := amountSoftwaresDB(ctx, ds.writer(ctx))
+		amountSoftwaresVersions, err := amountSoftwaresDB(ctx, ds.writer(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount software")
 		}
@@ -101,12 +101,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumUsers = amountUsers
-		stats.NumSoftwares = amountSoftwares
+		stats.NumSoftwareVersions = amountSoftwaresVersions
 		stats.NumHostSoftwares = amountHostSoftwares
 		stats.NumSoftwareTitles = amountSoftwareTitles
 		stats.NumHostSoftwareInstalledPaths = amountHostSoftwareInstalledPaths
-		stats.NumSoftwareCpes = amountSoftwareCpes
-		stats.NumSoftwareCves = amountSoftwareCves
+		stats.NumSoftwareCPEs = amountSoftwareCpes
+		stats.NumSoftwareCVEs = amountSoftwareCves
 		stats.NumTeams = amountTeams
 		stats.NumPolicies = amountPolicies
 		stats.NumLabels = amountLabels

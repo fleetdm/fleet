@@ -12,12 +12,12 @@ type StatisticsPayload struct {
 	Organization                  string `json:"organization"`
 	NumHostsEnrolled              int    `json:"numHostsEnrolled"`
 	NumUsers                      int    `json:"numUsers"`
-	NumSoftwareVersions                         int    `json:"numSoftwareVersions"`
+	NumSoftwareVersions           int    `json:"numSoftwareVersions"`
 	NumHostSoftwares              int    `json:"numHostSoftwares"`
 	NumSoftwareTitles             int    `json:"numSoftwareTitles"`
 	NumHostSoftwareInstalledPaths int    `json:"numHostSoftwareInstalledPaths"`
-	NumSoftwareCpes               int    `json:"numSoftwareCPEs"`
-	NumSoftwareCves               int    `json:"numSoftwareCVEs"`
+	NumSoftwareCPEs               int    `json:"numSoftwareCPEs"`
+	NumSoftwareCVEs               int    `json:"numSoftwareCVEs"`
 	NumTeams                      int    `json:"numTeams"`
 	NumPolicies                   int    `json:"numPolicies"`
 	NumLabels                     int    `json:"numLabels"`
