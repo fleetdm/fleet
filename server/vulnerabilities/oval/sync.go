@@ -121,7 +121,7 @@ func Sync(dstDir string, platforms []Platform) error {
 
 		err = os.Remove(defFile)
 		if err != nil {
-			return fmt.Errorf("remove: %w", err)
+			return fmt.Errorf("removing %s: %w", defFile, err)
 		}
 	}
 	return nil
