@@ -1,6 +1,6 @@
 # Automations
 
-You can configure Fleet to trigger an automations that reserve time in your end users' calendars (maintenance windows), send webhooks, or to create a tickets.
+You can configure Fleet to trigger automations that reserve time in your end users' calendars (maintenance windows), send webhooks, or to create tickets.
 
 To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
 
