@@ -2846,7 +2846,7 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ### Batch-apply software 
 
-_Available in Fleet Premium_
+_Available in Fleet Premium._
 
 `POST /api/v1/fleet/software/batch`
 

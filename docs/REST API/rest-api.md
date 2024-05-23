@@ -3752,7 +3752,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Install software
 
-_Available in Fleet Premium_
+_Available in Fleet Premium._
 
 Install software on a macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
 
@@ -7832,9 +7832,9 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### Add software
 
-_Available in Fleet Premium_
+_Available in Fleet Premium._
 
-Add software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
+Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 
 
 `POST /api/v1/fleet/software/package`
@@ -7889,9 +7889,9 @@ Content-Type: application/octet-stream
 
 ### Download software
 
-_Available in Fleet Premium_
+_Available in Fleet Premium._
 
-Download software package.
+Download a software package.
 
 `GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
 
@@ -7921,9 +7921,9 @@ Body: <blob>
 
 ### Delete software
 
-_Available in Fleet Premium_
+_Available in Fleet Premium._
 
-Delete software package.
+Delete a software package.
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/package`
 
@@ -7931,7 +7931,7 @@ Delete software package.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id              | integer | path | **Required**. The ID of the software title to delete the software package. |
+| software_title_id              | integer | path | **Required**. The ID of the software title for the software package to delete. |
 | team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
@@ -7944,11 +7944,11 @@ Delete software package.
 
 ### Get installation results
 
-_Available in Fleet Premium_
+_Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/install/results/:install_uuid`
 
-Get an installation result of the software that was installed.
+Get the results of a software installation.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
@@ -7994,7 +7994,7 @@ Get a list of all software.
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
-| available_for_insall    | bool    | query | If true or 1, only list software that is availble for install (added by the user). Default is `false`.                                                                                    |
+| available_for_insall    | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                                    |
 
 #### Example
 
