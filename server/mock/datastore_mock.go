@@ -823,6 +823,8 @@ type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID str
 
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
+type MDMConfigAssetsExistFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error)
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -2161,6 +2163,9 @@ type DataStore struct {
 
 	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
 	InsertMDMConfigAssetsFuncInvoked bool
+
+	MDMConfigAssetsExistFunc        MDMConfigAssetsExistFunc
+	MDMConfigAssetsExistFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5175,6 +5180,13 @@ func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MD
 	s.InsertMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertMDMConfigAssetsFunc(ctx, assets)
+}
+
+func (s *DataStore) MDMConfigAssetsExist(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	s.mu.Lock()
+	s.MDMConfigAssetsExistFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMConfigAssetsExistFunc(ctx, assetNames)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

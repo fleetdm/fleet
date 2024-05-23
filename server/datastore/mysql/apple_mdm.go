@@ -4145,3 +4145,29 @@ VALUES
 
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
+
+func (ds *Datastore) MDMConfigAssetsExist(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	stmt := `
+SELECT
+    name, value
+FROM
+   mdm_config_assets
+WHERE
+    name IN (%s)
+	`
+
+	var p strings.Builder
+	var b []any
+	for _, an := range assetNames {
+		b = append(b, an)
+		p.WriteString("?,")
+	}
+
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(p.String(), ","))
+	var res []fleet.MDMConfigAsset
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, b...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking asset existence")
+	}
+
+	return res, nil
+}

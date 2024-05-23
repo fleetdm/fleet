@@ -895,6 +895,13 @@ func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
 
 func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
+
+	s.FailNextCSRRequestWith(http.StatusInternalServerError)
+	errResp := validationErrResp{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusBadGateway, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
+
 	resp := getMDMAppleCSRResponse{}
 	s.SucceedNextCSRRequest()
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)

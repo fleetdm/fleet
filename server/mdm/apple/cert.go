@@ -60,12 +60,7 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 	return certReq, key, nil
 }
 
-func GenerateAPNSCSRKeyNoEmail(org string) (*x509.CertificateRequest, *rsa.PrivateKey, error) {
-	key, err := newPrivateKey()
-	if err != nil {
-		return nil, nil, fmt.Errorf("generate private key: %w", err)
-	}
-
+func GenerateAPNSCSR(org string, key *rsa.PrivateKey) (*x509.CertificateRequest, error) {
 	subj := pkix.Name{
 		Organization: []string{org},
 	}
@@ -76,15 +71,19 @@ func GenerateAPNSCSRKeyNoEmail(org string) (*x509.CertificateRequest, *rsa.Priva
 
 	b, err := x509.CreateCertificateRequest(rand.Reader, template, key)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	certReq, err := x509.ParseCertificateRequest(b)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return certReq, key, nil
+	return certReq, nil
+}
+
+func NewPrivateKey() (*rsa.PrivateKey, error) {
+	return newPrivateKey()
 }
 
 type FleetWebsiteError struct {
@@ -162,7 +161,7 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 	if x := os.Getenv("TEST_FLEETDM_API_URL"); x != "" {
 		baseURL = strings.TrimRight(x, "/")
 	}
-	u := baseURL + getSignedAPNSCSRPath
+	u := baseURL + getSignedAPNSCSRPath + "?deliveryMethod=json"
 
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(b))
 	if err != nil {
