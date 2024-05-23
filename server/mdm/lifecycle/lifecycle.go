@@ -59,7 +59,7 @@ func New(ds fleet.Datastore, logger kitlog.Logger) *HostLifecycle {
 func (t *HostLifecycle) Do(ctx context.Context, opts HostOptions) error {
 	switch opts.Platform {
 	case "darwin", "ios", "ipados":
-		err := t.doApple(ctx, opts)
+		err := t.doDarwin(ctx, opts)
 		return ctxerr.Wrapf(ctx, err, "running apple lifecycle action %s", opts.Action)
 	case "windows":
 		err := t.doWindows(ctx, opts)
@@ -69,19 +69,19 @@ func (t *HostLifecycle) Do(ctx context.Context, opts HostOptions) error {
 	}
 }
 
-func (t *HostLifecycle) doApple(ctx context.Context, opts HostOptions) error {
+func (t *HostLifecycle) doDarwin(ctx context.Context, opts HostOptions) error {
 	switch opts.Action {
 	case HostActionTurnOn:
-		return t.turnOnApple(ctx, opts)
+		return t.turnOnDarwin(ctx, opts)
 
 	case HostActionTurnOff:
 		return t.doWithUUIDValidation(ctx, t.ds.MDMTurnOff, opts)
 
 	case HostActionReset:
-		return t.resetApple(ctx, opts)
+		return t.resetDarwin(ctx, opts)
 
 	case HostActionDelete:
-		return t.deleteApple(ctx, opts)
+		return t.deleteDarwin(ctx, opts)
 
 	default:
 		return ctxerr.Errorf(ctx, "unknown action %s", opts.Action)
@@ -115,7 +115,7 @@ func (t *HostLifecycle) doWithUUIDValidation(ctx context.Context, action uuidFn,
 	return action(ctx, opts.UUID)
 }
 
-func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
+func (t *HostLifecycle) resetDarwin(ctx context.Context, opts HostOptions) error {
 	if opts.UUID == "" || opts.HardwareSerial == "" || opts.HardwareModel == "" {
 		return ctxerr.New(ctx, "UUID, HardwareSerial and HardwareModel options are required for this action")
 	}
@@ -134,7 +134,7 @@ func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error 
 	return ctxerr.Wrap(ctx, err, "reset mdm enrollment")
 }
 
-func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error {
+func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) error {
 	if opts.UUID == "" {
 		return ctxerr.New(ctx, "UUID option is required for this action")
 	}
@@ -197,7 +197,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 	return nil
 }
 
-func (t *HostLifecycle) deleteApple(ctx context.Context, opts HostOptions) error {
+func (t *HostLifecycle) deleteDarwin(ctx context.Context, opts HostOptions) error {
 	if opts.Host == nil {
 		return ctxerr.New(ctx, "a non-nil Host option is required to perform this action")
 	}

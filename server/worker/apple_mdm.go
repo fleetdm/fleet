@@ -85,7 +85,7 @@ func (a *AppleMDM) Run(ctx context.Context, argsJSON json.RawMessage) error {
 }
 
 func isMacOS(platform string) bool {
-	// For backwards compatibility, we assume empty platform is macOS.
+	// For backwards compatibility, we assume empty platform in job arguments is macOS.
 	return platform == "" ||
 		platform == "darwin"
 }

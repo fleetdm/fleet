@@ -1175,6 +1175,13 @@ func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
 	return result
 }
 
+// newIPhoneIPadRefetcher will enqueue DeviceInformation commands on iOS/iPadOS devices
+// to refetch their host details.
+//
+// See https://developer.apple.com/documentation/devicemanagement/get_device_information.
+//
+// We will refetch iPhones/iPads every 1 hour (to match the default
+// detail interval of all (osquery-capable) hosts in Fleet).
 func newIPhoneIPadRefetcher(
 	ctx context.Context,
 	instanceID string,

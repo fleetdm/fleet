@@ -32,7 +32,8 @@ type Authenticate struct {
 	// ProductName contains the device's product name (e.g. `iPhone3,1`).
 	//
 	// iPhones and iPads send ProductName but not Model/ModelName,
-	// thus we use this field as the device's Model.
+	// thus we use this field as the device's Model (which is required
+	// on lifecycle stages).
 	ProductName string
 
 	// Fields that may be present but are not strictly required for the

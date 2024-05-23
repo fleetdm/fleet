@@ -803,7 +803,7 @@ the way that the Fleet server works.
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
 				}); err != nil {
-					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
 			}
 

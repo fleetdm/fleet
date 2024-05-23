@@ -537,7 +537,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin", "ios", "ipad":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -803,7 +803,7 @@ WHERE
 }
 
 func (ds *Datastore) GetHostMDMProfilesRetryCounts(ctx context.Context, host *fleet.Host) ([]fleet.HostMDMProfileRetryCount, error) {
-	const appleStmt = `
+	const darwinStmt = `
 SELECT
 	profile_identifier,
 	retries
@@ -824,7 +824,7 @@ WHERE
 	var stmt string
 	switch host.Platform {
 	case "darwin", "ios", "ipados":
-		stmt = appleStmt
+		stmt = darwinStmt
 	case "windows":
 		stmt = windowsStmt
 	default:
@@ -840,7 +840,7 @@ WHERE
 }
 
 func (ds *Datastore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
-	const appleStmt = `
+	const darwinStmt = `
 SELECT
 	profile_identifier, retries
 FROM
@@ -861,7 +861,7 @@ WHERE
 	var stmt string
 	switch host.Platform {
 	case "darwin", "ios", "ipados":
-		stmt = appleStmt
+		stmt = darwinStmt
 	case "windows":
 		stmt = windowsStmt
 	default:

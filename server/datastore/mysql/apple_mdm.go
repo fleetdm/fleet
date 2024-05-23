@@ -72,7 +72,7 @@ INSERT INTO
 			cp.Labels[i].ProfileUUID = profUUID
 		}
 		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "darwin"); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
+			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
 
 		return nil
@@ -1135,10 +1135,11 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	parts := []string{}
 	args := []interface{}{}
 	for _, h := range hosts {
+		// iOS/iPadOS devices only get the "All Hosts" label.
 		if h.Platform == "ios" || h.Platform == "ipados" {
 			parts = append(parts, "(?,?)")
 			args = append(args, h.ID, labelIDs[0])
-		} else {
+		} else { // macOS devices get both labels, "All Hosts" and "macOS".
 			parts = append(parts, "(?,?),(?,?)")
 			args = append(args, h.ID, labelIDs[0], h.ID, labelIDs[1])
 		}
@@ -3465,8 +3466,8 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" && host.Platform != "windows" {
-			return ctxerr.Errorf(ctx, "unsupported host platform: %s", host.Platform)
+		if !fleet.MDMSupported(host.Platform) {
+			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
 		// Deleting profiles from this table will cause all profiles to
@@ -4169,7 +4170,8 @@ VALUES
 
 func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
 	// Exclude iPhones/iPads that already have a "refetch" command queued without an answer.
-	stmt := `
+	// The subquery is to get the last REFETCH command sent per device and its answer (if any).
+	stmt := fmt.Sprintf(`
 SELECT h.uuid FROM hosts h
 JOIN host_mdm hmdm ON hmdm.host_id = h.id
 LEFT JOIN (
@@ -4177,16 +4179,16 @@ LEFT JOIN (
 		SELECT q.id, q.command_uuid FROM nano_enrollment_queue q JOIN (SELECT q.id, q.priority, MAX(q.created_at) as max_created_at
 		FROM nano_enrollment_queue AS q
 		WHERE 
-	  	  q.active = 1 AND LEFT(q.command_uuid, 8) = 'REFETCH-'
+	  	  q.active = 1 AND LEFT(q.command_uuid, %d) = '%s'
 		GROUP BY
 	 	   q.id, q.priority
 		) last_refetch_command_enqueued ON last_refetch_command_enqueued.id=q.id AND last_refetch_command_enqueued.priority=q.priority AND last_refetch_command_enqueued.max_created_at=q.created_at
 	) last_refetch_commands LEFT JOIN nano_command_results r ON r.command_uuid = last_refetch_commands.command_uuid AND r.id = last_refetch_commands.id
-) refetch_acknowledged ON refetch_acknowledged.id = h.uuid
+) last_refetch_command_result ON last_refetch_command_result.id = h.uuid
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
-AND (refetch_acknowledged.id IS NULL OR refetch_acknowledged.status = 'Acknowledged')
+AND (last_refetch_command_result.id IS NULL OR last_refetch_command_result.status = 'Acknowledged')
 AND hmdm.enrolled
-AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`
+AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`, len(fleet.RefetchCommandUUIDPrefix), fleet.RefetchCommandUUIDPrefix)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, stmt, interval.Seconds()); err != nil {
 		return nil, err
 	}

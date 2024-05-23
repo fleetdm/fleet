@@ -230,7 +230,6 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		logs = append(logs, "command_uuid", results.CommandUUID)
 	}
 	logger.Info(logs...)
-
 	err := s.store.StoreCommandReport(r, results)
 	if err != nil {
 		return nil, fmt.Errorf("storing command report: %w", err)

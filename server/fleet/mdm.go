@@ -172,6 +172,7 @@ type CommandEnqueueResult struct {
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 	// Platform is the platform of the hosts targeted by the command.
 	// Current possible values are "darwin" or "windows".
+	// Here "darwin" means "Apple" devices (iOS/iPadOS/macOS).
 	Platform string `json:"platform"`
 }
 
@@ -540,6 +541,8 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	return len(pathLabelCounts) == 0
 }
 
+// MDMPlatform returns "darwin" or "windows" as MDM platforms
+// derived from a host's platform (hosts.platform field).
 func MDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
 	case "darwin", "ios", "ipados":
@@ -550,10 +553,13 @@ func MDMPlatform(hostPlatform string) string {
 	return ""
 }
 
+// MDMSupported returns whether MDM is supported for a given host platform.
 func MDMSupported(hostPlatform string) bool {
 	return MDMPlatform(hostPlatform) != ""
 }
 
+// FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
+// if the profile target's platform is ios/ipados.
 func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
 	i := 0
 	for _, profilePayload := range profiles {
@@ -568,4 +574,5 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 	return profiles[:i]
 }
 
+// RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
 const RefetchCommandUUIDPrefix = "REFETCH-"
