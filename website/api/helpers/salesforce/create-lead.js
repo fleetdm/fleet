@@ -94,8 +94,7 @@ module.exports = {
         // eslint-disable-next-line camelcase
         AE_Account_Assignment_round_robin__c: nowOn
       });
-      // If we found an existing Account record owned by the integrations admin user account, reassign it to the new owner.
-      salesforceAccountId = existingAccountRecord.Id;
+      // Reassign the account to the new owner.
       await salesforceConnection.sobject('Account')
       .update({
         Id: salesforceAccountId,

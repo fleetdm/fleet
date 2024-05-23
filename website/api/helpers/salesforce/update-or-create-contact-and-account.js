@@ -102,6 +102,10 @@ module.exports = {
         // console.log('exising account found!', salesforceAccountId);
       } else {
         // If no existing account record was found, create a new one.
+        // Create a timestamp to use for the new account's assigned date.
+        let today = new Date();
+        let nowOn = today.toISOString().replace('Z', '+0000');
+
         let newAccountRecord = await salesforceConnection.sobject('Account')
         .create({
           Account_Assigned_date__c: nowOn,// eslint-disable-line camelcase
