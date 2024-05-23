@@ -4,7 +4,7 @@ import ReactTooltip from "react-tooltip";
 
 import { uniqueId } from "lodash";
 
-import { ISoftwareTitle } from "interfaces/software";
+import { ISoftwarePackage } from "interfaces/software";
 
 import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -16,7 +16,7 @@ const baseClass = "software-name-cell";
 const InstallIconWithTooltip = ({
   isSelfService,
 }: {
-  isSelfService: ISoftwareTitle["self_service"];
+  isSelfService: ISoftwarePackage["self_service"];
 }) => {
   const tooltipId = uniqueId();
   return (
