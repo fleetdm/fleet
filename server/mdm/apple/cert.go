@@ -145,7 +145,7 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 
 // GetSignedAPNSCSRNoEmail makes a request to the fleetdm.com API to get a signed APNs
 // CSR and returns the signed CSR
-func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) (*x509.CertificateRequest, error) {
+func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) ([]byte, error) {
 	csrPEM := EncodeCertRequestPEM(csr)
 
 	payload := getSignedAPNSCSRRequest{
@@ -180,12 +180,12 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes)}
 	}
 
-	signedCSR, err := x509.ParseCertificateRequest(respBytes)
-	if err != nil {
-		return nil, err
-	}
+	// signedCSR, err := x509.ParseCertificateRequest(respBytes)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	return signedCSR, nil
+	return respBytes, nil
 }
 
 // NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and

@@ -2118,75 +2118,65 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 type getMDMAppleCSRRequest struct{}
 
 type getMDMAppleCSRResponse struct {
-	Err error `json:"error,omitempty"`
+	CSR string `json:"csr"` // base64 encoded
+	Err error  `json:"error,omitempty"`
 }
 
 func (r getMDMAppleCSRResponse) error() error { return r.Err }
 
 func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	slog.With("filename", "server/service/mdm.go", "func", "getMDMAppleCSREndpoint").Info("JVE_LOG: in endpoint method ")
-	_, err := svc.GetMDMAppleCSR(ctx)
+	signedCSRB64, err := svc.GetMDMAppleCSR(ctx)
 	if err != nil {
 		return &getMDMAppleCSRResponse{Err: err}, nil
 	}
 
-	return &getMDMAppleCSRResponse{}, nil
+	return &getMDMAppleCSRResponse{CSR: signedCSRB64}, nil
 }
 
-func (svc *Service) GetMDMAppleCSR(ctx context.Context) (*fleet.AppleCSR, error) {
+func (svc *Service) GetMDMAppleCSR(ctx context.Context) (string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return nil, err
+		return "", err
 	}
-	slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("JVE_LOG: in service method ")
 
 	// Get SCEP certificate and key
 	scepCert, scepKey, err := apple_mdm.NewSCEPCACertKey()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
+		return "", ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
 	}
-	// slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("\n\n\nJVE_LOG: what we got\n\n\n ", "certReq", string(scepCert.Raw), "privateKey", scepKey)
 
 	// Get APNS key
-	_, apnsKey, err := apple_mdm.GenerateAPNSCSRKeyNoEmail("foo")
+	apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKeyNoEmail("foo")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generate APNS cert and key")
+		return "", ctxerr.Wrap(ctx, err, "generate APNS cert and key")
 	}
-	// slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("\n\n\nJVE_LOG: what we got\n\n\n ", "certReq", string(apnsCSR.Raw), "privateKey", apnsKey)
 
 	// Submit CSR to fleetdm.com for signing
-	// websiteClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+	websiteClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
-	// signedCSR, err := apple_mdm.GetSignedAPNSCSRNoEmail(websiteClient, apnsCSR)
-	// if err != nil {
-	// 	return nil, ctxerr.Wrap(ctx, err, "get signed CSR")
-	// }
-
-	// slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("JVE_LOG: storing secrets ", "signedCSR", signedCSR)
+	signedCSRB64, err := apple_mdm.GetSignedAPNSCSRNoEmail(websiteClient, apnsCSR)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get signed CSR")
+	}
 
 	// Store APNS key, SCEP key, SCEP cert
 
-	// slog.With("filename", "server/service/mdm.go", "func", "GetMDMAppleCSR").Info("JVE_LOG: storing secrets ", "signedCSR", signedCSR)
-
-	scepCACertPEM := apple_mdm.EncodeCertPEM(scepCert)
-	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepKey)
-	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
-
-	appleCSR := &fleet.AppleCSR{
-		SCEPCert: scepCACertPEM,
-		SCEPKey:  scepCAKeyPEM,
-		APNsKey:  apnsKeyPEM,
+	var assets []fleet.MDMConfigAsset
+	for k, v := range map[fleet.MDMAssetName][]byte{
+		fleet.MDMAssetCACert:  apple_mdm.EncodeCertPEM(scepCert),
+		fleet.MDMAssetCAKey:   apple_mdm.EncodePrivateKeyPEM(scepKey),
+		fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsKey),
+	} {
+		assets = append(assets, fleet.MDMConfigAsset{
+			Name:  k,
+			Value: v,
+		})
 	}
 
-	asset := fleet.MDMConfigAsset{
-		Name:  fleet.MDMAssetCACert,
-		Value: scepCACertPEM,
+	if err := svc.ds.InsertMDMConfigAssets(ctx, assets); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "inserting mdm config assets")
 	}
 
-	if err := svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset}); err != nil {
-		return nil, err
-	}
-
-	// Return signed CSR
-
-	return appleCSR, nil
+	// Return signed CSR; these bytes are already base64 encoded
+	return string(signedCSRB64), nil
 }

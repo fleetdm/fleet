@@ -893,6 +893,14 @@ func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
 	require.Contains(t, string(reqCSRResp.SCEPKey), "-----BEGIN RSA PRIVATE KEY-----\n")
 }
 
+func (s *integrationMDMTestSuite) TestGetMDMCSR() {
+	t := s.T()
+	resp := getMDMAppleCSRResponse{}
+	s.SucceedNextCSRRequest()
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
+	require.NotNil(t, resp.CSR)
+}
+
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	t := s.T()
 

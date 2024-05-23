@@ -689,7 +689,7 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
-	GetMDMAppleCSR(ctx context.Context) (*AppleCSR, error)
+	GetMDMAppleCSR(ctx context.Context) (string, error)
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
