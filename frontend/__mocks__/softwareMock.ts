@@ -52,6 +52,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   hosts_count: 1,
   browser: "chrome",
   versions: [createMockSoftwareTitleVersion()],
+  self_service: false,
 };
 
 export const createMockSoftwareTitle = (

@@ -199,6 +199,7 @@ export default {
 
     const formData = new FormData();
     formData.append("software", data.software);
+    formData.append("self_service", data.selfService.toString());
     data.installScript && formData.append("install_script", data.installScript);
     data.preInstallCondition &&
       formData.append("pre_install_query", data.preInstallCondition);
