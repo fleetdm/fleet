@@ -142,8 +142,9 @@ const About = ({
               tipContent={getDeviceUserTipContent(newDeviceMapping)}
             >
               {displayPrimaryUser}
-              <span className="device-mapping__more">{` +${newDeviceMapping.length - 1
-                } more`}</span>
+              <span className="device-mapping__more">{` +${
+                newDeviceMapping.length - 1
+              } more`}</span>
             </TooltipWrapper>
           ) : (
             displayPrimaryUser
