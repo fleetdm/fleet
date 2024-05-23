@@ -323,7 +323,7 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
  
   1. LinkedIn profile url of all outside participants. Connect with any of the attendees that the CEO is not already connected to on LinkedIn, this should always be a blank connect request meaning "Send without note". 
   2. A screen-shot of LinkedIn profile pic
-  3. Company name (in doc title and file name)
+  3. Company name (in doc title, file name and Google calendar event title)
   4. Correct date (20XX-XX-XX in doc title and file name)
   5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
     - CEO's email
