@@ -15,12 +15,14 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { internationalTimeFormat } from "utilities/helpers";
 import { uploadedFromNow } from "utilities/date_format";
 
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
@@ -93,6 +95,59 @@ const PackageStatusCount = ({
         </a>
       }
     />
+  );
+};
+
+const DROPDOWN_OPTIONS = [
+  {
+    label: "Download",
+    value: "download",
+  },
+  {
+    label: "Delete",
+    value: "delete",
+  },
+  {
+    label: "Advanced options",
+    value: "advanced",
+  },
+] as const;
+
+const ActionsDropdown = ({
+  onDownloadClick,
+  onDeleteClick,
+  onAdvancedOptionsClick,
+}: {
+  onDownloadClick: () => void;
+  onDeleteClick: () => void;
+  onAdvancedOptionsClick: () => void;
+}) => {
+  const onSelect = (value: string) => {
+    switch (value) {
+      case "download":
+        onDownloadClick();
+        break;
+      case "delete":
+        onDeleteClick();
+        break;
+      case "advanced":
+        onAdvancedOptionsClick();
+        break;
+      default:
+      // noop
+    }
+  };
+
+  return (
+    <div className={`${baseClass}__actions`}>
+      <Dropdown
+        className={`${baseClass}__host-actions-dropdown`}
+        onChange={onSelect}
+        placeholder="Actions"
+        searchable={false}
+        options={DROPDOWN_OPTIONS}
+      />
+    </div>
   );
 };
 
@@ -170,6 +225,8 @@ const SoftwarePackageCard = ({
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
+  // TODO: truncate with tooltips, left-align when count slides
+
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
       <div className={`${baseClass}__main-content`}>
@@ -215,20 +272,25 @@ const SoftwarePackageCard = ({
           />
         </div>
       </div>
-      {showActions && (
-        <div className={`${baseClass}__actions`}>
-          <Button variant="icon" onClick={onAdvancedOptionsClick}>
-            <Icon name="settings" color={"ui-fleet-black-75"} />
-          </Button>
-          {/* TODO: make a component for download icons */}
-          <Button variant="icon" onClick={onDownloadClick}>
-            <Icon name="download" color={"ui-fleet-black-75"} />
-          </Button>
-          <Button variant="icon" onClick={onDeleteClick}>
-            <Icon name="trash" color={"ui-fleet-black-75"} />
-          </Button>
-        </div>
-      )}
+      <div className={`${baseClass}__actions-wrapper`}>
+        {true && (
+          <div className={`${baseClass}__self-service-badge`}>
+            <Icon
+              name="install-self-service"
+              size="small"
+              color="ui-fleet-black-75"
+            />
+            Self-service
+          </div>
+        )}
+        {showActions && (
+          <ActionsDropdown
+            onDownloadClick={onDownloadClick}
+            onDeleteClick={onDeleteClick}
+            onAdvancedOptionsClick={onAdvancedOptionsClick}
+          />
+        )}
+      </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal
           installScript={softwarePackage.install_script}

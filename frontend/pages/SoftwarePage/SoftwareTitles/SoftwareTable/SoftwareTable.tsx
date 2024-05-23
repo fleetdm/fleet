@@ -19,7 +19,10 @@ import {
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import {
+  ISoftwareTitleWithPackageName,
+  ISoftwareVersion,
+} from "interfaces/software";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -157,7 +160,10 @@ const SoftwareTable = ({
     [determineQueryParamChange, generateNewQueryParams, router, currentPath]
   );
 
-  let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
+  let tableData:
+    | ISoftwareTitleWithPackageName[]
+    | ISoftwareVersion[]
+    | undefined;
   let generateTableConfig: ITableConfigGenerator;
 
   if (data === undefined) {

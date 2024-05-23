@@ -6,7 +6,8 @@ import {
   ISoftwareResponse,
   ISoftwareCountResponse,
   ISoftwareVersion,
-  ISoftwareTitle,
+  ISoftwareTitleWithPackageDetail,
+  ISoftwareTitleWithPackageName,
 } from "interfaces/software";
 import {
   buildQueryStringFromParams,
@@ -30,7 +31,7 @@ export interface ISoftwareApiParams {
 export interface ISoftwareTitlesResponse {
   counts_updated_at: string | null;
   count: number;
-  software_titles: ISoftwareTitle[];
+  software_titles: ISoftwareTitleWithPackageName[];
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
@@ -48,7 +49,7 @@ export interface ISoftwareVersionsResponse {
 }
 
 export interface ISoftwareTitleResponse {
-  software_title: ISoftwareTitle;
+  software_title: ISoftwareTitleWithPackageDetail;
 }
 
 export interface ISoftwareVersionResponse {

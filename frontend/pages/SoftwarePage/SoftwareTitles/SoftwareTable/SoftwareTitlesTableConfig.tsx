@@ -2,7 +2,10 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
+import {
+  ISoftwareTitleWithPackageName as ISoftwareTitle,
+  formatSoftwareType,
+} from "interfaces/software";
 import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
