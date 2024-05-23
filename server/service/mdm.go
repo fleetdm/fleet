@@ -2171,18 +2171,22 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) (*fleet.AppleCSR, error)
 	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepKey)
 	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
 
-	if err := svc.ds.InsertMDMAppleCertificates(ctx, fleet.MDMAssetCACert, scepCACertPEM); err != nil {
+	appleCSR := &fleet.AppleCSR{
+		SCEPCert: scepCACertPEM,
+		SCEPKey:  scepCAKeyPEM,
+		APNsKey:  apnsKeyPEM,
+	}
+
+	asset := fleet.MDMConfigAsset{
+		Name:  fleet.MDMAssetCACert,
+		Value: scepCACertPEM,
+	}
+
+	if err := svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset}); err != nil {
 		return nil, err
 	}
 
-	if err := svc.ds.InsertMDMAppleCertificates(ctx, fleet.MDMAssetCAKey, scepCAKeyPEM); err != nil {
-		return nil, err
-	}
-
-	if err := svc.ds.InsertMDMAppleCertificates(ctx, fleet.MDMAssetAPNSKey, apnsKeyPEM); err != nil {
-		return nil, err
-	}
 	// Return signed CSR
 
-	return nil, nil
+	return appleCSR, nil
 }

@@ -4117,20 +4117,31 @@ VALUES
 	return nil
 }
 
-func (ds *Datastore) InsertMDMAppleCertificates(ctx context.Context, name fleet.MDMAssetName, value []byte) error {
-	const stmt = `
+func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	stmt := `
 INSERT INTO
     mdm_config_assets (
 		name,
 		value
 	)
 VALUES
-    (?,?)
+     %s
 	`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, name, value); err != nil {
-		return ctxerr.Wrap(ctx, err, "writing MDM apple certificates to db")
+	var args []any
+	var insertVals strings.Builder
+
+	for _, a := range assets {
+		insertVals.WriteString(`(?, ?),`)
+		args = append(args, a.Name, a.Value)
 	}
 
-	return nil
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	})
+
+	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }

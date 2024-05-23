@@ -562,3 +562,8 @@ const (
 	// that can be used for the authentication process with the ABM API
 	MDMAssetABMToken MDMAssetName = "abm_token"
 )
+
+type MDMConfigAsset struct {
+	Name  MDMAssetName `db:"name"`
+	Value []byte       `db:"value"`
+}

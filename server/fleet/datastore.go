@@ -1249,7 +1249,7 @@ type Datastore interface {
 	// the provided value.
 	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
 
-	InsertMDMAppleCertificates(ctx context.Context, name MDMAssetName, value []byte) error
+	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
