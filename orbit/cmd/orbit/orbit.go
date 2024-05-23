@@ -1486,7 +1486,7 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	cmd.Stdout = &osquerydStdout
 	cmd.Stderr = &osquerydStderr
 	var info []osqueryHostInfo
-	if err := cmd.Run(); err != nil { // BOZO: !=
+	if err := cmd.Run(); err != nil {
 		// osquery may return correct data with an exit status 78, in which case we only log the error
 		// Related issue: https://github.com/osquery/osquery/issues/6566
 		unmarshalErr := json.Unmarshal(osquerydStdout.Bytes(), &info)
