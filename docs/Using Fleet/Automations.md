@@ -34,6 +34,6 @@ Host status automations send a webhook request if a configured percentage of hos
 
 Fleet sends these webhook requests once per day by default. This interval can be updated with the `webhook_settings.interval` [configuration option](https://fleetdm.com/docs/configuration/configuration-files#organization-settings).  Note that this interval currently configures both host status and failing policy automations.
 
-<meta name="pageOrderInSection" value="1300">
+<meta name="pageOrderInSection" value="1509">
 <meta name="description" value="Configure Fleet automations to trigger webhooks or create tickets in Jira and Zendesk for vulnerability, policy, and host status events.">
 <meta name="navSection" value="Device management">
