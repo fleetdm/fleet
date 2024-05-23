@@ -2201,7 +2201,7 @@ Name of the S3 bucket to use to store software and file carves.
 
 ##### s3_prefix
 
-Prefix to prepend to software and carve objects.
+Prefix to prepend to software and file carves.
 
 All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
 
