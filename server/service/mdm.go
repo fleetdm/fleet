@@ -2282,7 +2282,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	}
 
 	if cert == nil {
-		return fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
 
 	// Get cert file bytes
@@ -2294,17 +2294,17 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	// Validate cert
 	block, _ := pem.Decode(certBytes)
 	if block == nil {
-		return fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
 
 	// Save to DB
-	if err := svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "writing apns cert to db")
-	}
-
-	return nil
+	return ctxerr.Wrap(
+		ctx,
+		svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+			{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
+		}),
+		"writing apns cert to db",
+	)
 }
 
 type deleteMDMAppleAPNSCertRequest struct{}
