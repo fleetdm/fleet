@@ -38,14 +38,14 @@ module "kinesis" {
          retention_period    = 24 # number of hours you want the data to be retained on the stream
          shard_level_metrics = [] # IncomingBytes IncomingRecords OutgoingBytes OutgoingRecords WriteProvisionedThroughputExceeded ReadProvisionedThroughputExceeded IteratorAgeMilliseconds
       }
-      results  = {
+      status  = {
          name                = "osquery-status"
          shard_count         = 0 # shard count only matters if `stream_mode` is `PROVISIONED`
          stream_mode         = "ON_DEMAND" # valid values are `ON_DEMAND` or `PROVISIONED`
          retention_period    = 24 # number of hours you want the data to be retained on the stream
          shard_level_metrics = [] # IncomingBytes IncomingRecords OutgoingBytes OutgoingRecords WriteProvisionedThroughputExceeded ReadProvisionedThroughputExceeded IteratorAgeMilliseconds
       }
-      results  = {
+      audit  = {
          name                = "fleet-audit"
          shard_count         = 0 # shard count only matters if `stream_mode` is `PROVISIONED`
          stream_mode         = "ON_DEMAND" # valid values are `ON_DEMAND` or `PROVISIONED`
