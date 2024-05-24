@@ -1,3 +1,54 @@
+## Fleet 4.50.0 (May 22, 2024)
+
+### Endpoint Operations
+
+- Added optional AI-generated policy descriptions and remediations. 
+- Added flag to enable deletion of old activities and associated data in cleanup cron job.
+- Added support for escaping `$` (with `\`) in gitops yaml files.
+- Optimized policy_stats updates to not lock the policy_membership table.
+- Optimized the hourly host_software count query to reduce individual query runtime.
+- Updated built-in labels to support being applied via `fleetctl apply`.
+
+### Device Management (MDM)
+
+- Added endpoints to upload, delete, and download software installers.
+- Added ability to upload software from the UI.
+- Added functionality to filter hosts by software installer status.
+- Added support to the global activity feed for "Added software" and "Deleted software" actions.
+- Added the `POST /api/fleet/orbit/software_install/result` endpoint for fleetd to send results for a software installation attempt.
+- Added the `GET /api/v1/fleet/hosts/{id}/software` endpoint to list the installed software for the host.
+- Added support for uploading and running zsh scripts on macOS and Linux hosts.
+- Added the `cron` job to periodically remove unused software installers from the store.
+- Added a new command `fleetctl api` to easily use fleetctl to hit any REST endpoint via the CLI.
+- Added support to extract package name and version from software installers.
+- Added the uninstalled but available software installers to the response payload of the "List software titles" endpoint.
+- Updated MySQL host_operating_system insert statement to reduce table lock time.
+- Updated software page to support new add software feature.
+- Updated fleetctl to print team id as part of the `fleetctl get teams` command.
+- Implemented an S3-based and local filesystem-based storage abstraction for software installers.
+
+### Vulnerability Management
+
+- Added OVAL vulnerability scanning support on Ubuntu 22.10, 23.04, 23.10, and 24.04.
+
+### Bug fixes and improvements
+
+- Fixed ingestion of private IPv6 address from agent.
+- Fixed a bug where a singular software version in the Software table generated a tooltip unnecessarily.
+- Fixed bug where updating user via `/api/v1/fleet/users/:id` endpoint sometimes did not update activity feed.
+- Fixed bug where hosts query results were not cleared after transferring the host to other teams.
+- Fixed a bug where the returned `count` field included hosts that the user did not have permission to see.
+- Fixed issue where resolved_in_version was not returning if the version number differed by a 4th part.
+- Fixed MySQL sort buffer overflow when fetching activities.
+- Fixed a bug with users not being collected on Linux devices.
+- Fixed typo in Powershell scripts for installing Windows software.
+- Fixed an issue with software severity column display in Fleet UI.
+- Fixed the icon on Software OS table to show a Linux icon for Linux operating systems.
+- Fixed missing tooltips in disabled "Calendar events" manage automations dropdown option.
+- Updated switched accordion text.
+- Updated sort the host details page queries table case-insensitively.
+- Added support for ExternalId in STS Assume Role APIs.
+
 ## Fleet 4.49.4 (May 20, 2024)
 
 ### Bug fixes

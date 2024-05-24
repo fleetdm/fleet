@@ -50,7 +50,7 @@ const FormField = ({
           (tooltip ? (
             <TooltipWrapper
               tipContent={tooltip}
-              position={labelTooltipPosition || "top-start"}
+              position={labelTooltipPosition}
             >
               {label as string}
             </TooltipWrapper>

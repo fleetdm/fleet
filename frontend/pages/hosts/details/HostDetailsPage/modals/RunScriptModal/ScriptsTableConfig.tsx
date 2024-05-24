@@ -137,7 +137,6 @@ export const generateTableColumnConfigs = (
           return (
             <span className="run-script-action--disabled">
               <TooltipWrapper
-                position="top"
                 tipContent={
                   <div>
                     Running scripts is disabled in organization settings

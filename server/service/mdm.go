@@ -1162,11 +1162,12 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedWindowsProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: prof.Name,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedWindowsProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: prof.Name,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm windows config profile")
 	}
 
@@ -1371,11 +1372,12 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedWindowsProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: newCP.Name,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedWindowsProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: newCP.Name,
+		}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm windows config profile")
 	}
 
@@ -1562,22 +1564,25 @@ func (svc *Service) BatchSetMDMProfiles(
 	// TODO(roberto): should we generate activities only of any profiles were
 	// changed? this is the existing behavior for macOS profiles so I'm
 	// leaving it as-is for now.
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
 	}
 
@@ -2099,11 +2104,12 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err, "resending host mdm profile")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfile{
-		HostID:          &host.ID,
-		HostDisplayName: ptr.String(host.DisplayName()),
-		ProfileName:     profileName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfile{
+			HostID:          &host.ID,
+			HostDisplayName: ptr.String(host.DisplayName()),
+			ProfileName:     profileName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
 	}
 

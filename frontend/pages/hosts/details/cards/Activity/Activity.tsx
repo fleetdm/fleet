@@ -29,7 +29,6 @@ export type ShowActivityDetailsHandler = (
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
-      position="top-start"
       tipContent={
         <>
           Upcoming activities will run as listed. Failure of one activity won’t

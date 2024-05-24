@@ -1621,15 +1621,23 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	require.NotZero(t, barSoftwareID)
 	require.NotZero(t, baz2SoftwareID)
 
+	// "baz2" is still present in the database, even though no hosts are using it, until ds.SyncHostsSoftware is executed.
+	soft, err := ds.SoftwareByID(ctx, baz2SoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "baz2", soft.Name)
+	assert.Zero(t, soft.HostsCount)
+
 	// "new" is not returned until ds.SyncHostsSoftware is executed.
-	// "baz2" is gone from the software list.
+	// "bar" and "baz2" are gone from host_software, but will not be deleted until ds.SyncHostsSoftware is executed.
 	// "baz" still has the wrong count because ds.SyncHostsSoftware hasn't run yet.
 	//
 	// So... counts are "off" until ds.SyncHostsSoftware is run.
-	software = listSoftwareCheckCount(t, ds, 2, 2, opts, false)
+	software = listSoftwareCheckCount(t, ds, 4, 4, opts, false)
 	expectedSoftware = []fleet.Software{
 		{Name: "foo", Version: "0.0.1", HostsCount: 2},
 		{Name: "baz", Version: "0.0.3", HostsCount: 2},
+		{Name: "bar", Version: "0.0.2", HostsCount: 2},
+		{Name: "baz2", Version: "0.0.3", HostsCount: 1},
 	}
 	cmpNameVersionCount(expectedSoftware, software)
 
@@ -1660,6 +1668,13 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	softwareInsertBatchSizeOrig := softwareInsertBatchSize
+	t.Cleanup(
+		func() {
+			softwareInsertBatchSize = softwareInsertBatchSizeOrig
+		},
+	)
+	softwareInsertBatchSize = 2
 
 	now := time.Now()
 	lastYear := now.Add(-365 * 24 * time.Hour)
@@ -1739,6 +1754,17 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
+
+	// more changes: all software receives a date further in the future, so all should be updated
+	farFuture := now.Add(4 * 24 * time.Hour)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &farFuture},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &farFuture},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux", LastOpenedAt: &farFuture},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{"bar", farFuture}, tup{"baz", farFuture}, tup{"qux", farFuture})
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
@@ -2835,6 +2861,8 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// remove the bar software title from host 2
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:2])
 	require.NoError(t, err)
+	// SyncHostsSoftware will remove the above software item from the software table
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]}, nil)
 
 	// bar is no longer associated with any host so the title should be deleted

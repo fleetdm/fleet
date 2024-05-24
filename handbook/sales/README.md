@@ -110,6 +110,39 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
  - Do not assign the issue. The Director of Solutions Consulting will assign the issue.
  - Ensure that the product category is defined ("Endpoint ops", "Device management", or "Vulnerability management") in the description of the issue.
 
+### Hand off a technical evaluation to a temporary DRI
+Tech evals will have a DRI at all times; should the DRI be unavailable (ie: vacation), a hand off process to a temporary DRI will be required. In advance of vacation time (target one week in advance), refer to the following examples and review with each individual that will act as the temporary DRI for the technical evaluation while you are away. This can be documented as a google doc or can be added to the relevant tech eval epic issue in github.
+
+Ensure that our valued customers know that you will be away and that the temporary DRI has been debriefed on their setup and can handle any technical questions that come up. 
+
+```
+Active Technical Evaluations (TechEvals), workshops that need monitoring:
+
+Account Name:
+Issue link:
+Status: Cloud instance deployed, 1st enablement session complete, MDM assets generated, need to create infrastructure request to get deployed
+AE: 
+Background: First workshop completed <date>
+Documentation: link to Tech eval plan
+Slack Channel (external): #fleet-at-
+Slack Channel (internal): #op-
+Temp Transfer to: Temp technical DRI
+
+
+Likely to convert to demo:
+
+Account name:
+Issue Link:
+Status: RFP complete, video content delivered via consensus, awaiting further requests for Demo (Live)..
+AE: 
+Background: 
+Documentation: gong links, meeting minutes links, summary 
+Slack Channel (external): n/a
+Slack Channel (internal): #op-
+Temp Transfer to: Temp technical DRI
+
+```
+
 - **Documenting a prospect call:** When we do prospect calls, add the prospect's name in both the google doc title and the heading, ex. "Alex + Natalie (Fleet + Acme Co)."  This makes it easier when searching for the document later. 
 - **Before a prospect call(48hrs):** Check the calendar invite 48hrs before the meeting to determine if the prospect has accepted the invitation.
   - If the prospect has not accepted the invitation, reach out to confirm attendance (e.g., EAs, email, Slack).

@@ -91,6 +91,9 @@ spec:
   vulnerability_settings:
     databases_path: ""
   webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: false
+      destination_url: ""
     failing_policies_webhook:
       destination_url: ""
       enable_failing_policies_webhook: false
