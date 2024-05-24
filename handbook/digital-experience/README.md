@@ -346,30 +346,23 @@ Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/hand
 
 
 ### Send the weekly update
-We like to be open about milestones and announcements.
-  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. Central Time Zone. 
-  - Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
+We like to be open about milestones and announcements. Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
     - A link to view KPIs
     - Who was on-call that week
     - Fleeties who are currently onboarding
     - Planned hires who haven't started yet
     - Fleeties that departed that week
   
-  - Change the "⚡️" to "🔭" in the beginning of the formula
-
-<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/574f251c-6ea7-4e22-b0ca-1c450ca09ec6">
-
-  - Select this week's cell (first week with the 🔮) in the KPI spreadsheet and copy the entire formula
+  To send the weekly update follow these steps:  
   
-  - Paste without formating (CMD+⇧+V) back into the same cell
-  
-  - The formula will now look like this:
-    
-  <img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
-  
-  - Paste the newly formatted message in the [#general](https://fleetdm.slack.com/archives/C019FNQPA23) Slack channel and delete any links that unfurl from links in the weekly update message.
+1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
 
-  - 📬 **Send it!**
+<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
+
+3. In the "Weekly update" column (column E) for that row, double-click into that cell and change the "⚡️" to "🔭" in the beginning of the formula.  
+4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
+5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
 
 
 ### Troubleshoot signature automation
