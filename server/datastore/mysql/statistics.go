@@ -28,33 +28,33 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount enrolled hosts by os")
 		}
-		amountUsers, err := amountUsersDB(ctx, ds.writer(ctx))
+		amountUsers, err := tableRowsCount(ctx, ds.writer(ctx), "users")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount users")
 		}
-		amountSoftwaresVersions, err := amountSoftwaresDB(ctx, ds.writer(ctx))
+		amountSoftwaresVersions, err := tableRowsCount(ctx, ds.writer(ctx), "software")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount software")
 		}
-		amountHostSoftwares, err := amountHostSoftwaresDB(ctx, ds.writer(ctx))
+		amountHostSoftwares, err := tableRowsCount(ctx, ds.writer(ctx), "host_software")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount host_software")
 		}
-		amountSoftwareTitles, err := amountSoftwareTitlesDB(ctx, ds.writer(ctx))
+		amountSoftwareTitles, err := tableRowsCount(ctx, ds.writer(ctx), "software_titles")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount software_titles")
 		}
-		amountHostSoftwareInstalledPaths, err := amountHostSoftwareInstalledPathsDB(ctx, ds.writer(ctx))
+		amountHostSoftwareInstalledPaths, err := tableRowsCount(ctx, ds.writer(ctx), "host_software_installed_paths")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount host_software_installed_paths")
 		}
-		amountSoftwareCpes, err := amountSoftwareCpesDB(ctx, ds.writer(ctx))
+		amountSoftwareCpes, err := tableRowsCount(ctx, ds.writer(ctx), "software_cpe")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount software_cpe")
 		}
-		amountSoftwareCves, err := amountSoftwareCvesDB(ctx, ds.writer(ctx))
+		amountSoftwareCves, err := tableRowsCount(ctx, ds.writer(ctx), "software_cve")
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "amount software_cpe")
+			return ctxerr.Wrap(ctx, err, "amount software_cve")
 		}
 		amountTeams, err := amountTeamsDB(ctx, ds.writer(ctx))
 		if err != nil {
