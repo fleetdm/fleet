@@ -170,7 +170,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type |
 | ------------ | ----------------------- | ------------- |
 | Redis        | 6                       | t4g.small     |
-| MySQL        | 8.0.mysql_aurora.3.02.0 | db.t4g.medium |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.t4g.medium |
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
 
@@ -181,7 +181,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type |
 | ------------ | ----------------------- | ------------- |
 | Redis        | 6                       | m6g.large     |
-| MySQL        | 8.0.mysql_aurora.3.02.0 | db.r6g.large  |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.large  |
 
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=1d8fdd63f01e71027e9d898ed05f4a07299a7000)
@@ -193,7 +193,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type  | Nodes |
 | ------------ | ----------------------- | -------------- | ----- |
 | Redis        | 6                       | m6g.large      | 3     |
-| MySQL        | 8.0.mysql_aurora.3.02.0 | db.r6g.4xlarge | 1     |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.4xlarge | 1     |
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=f3da0597a172c6a0a3683023e2700a6df6d42c0b)
 
@@ -204,7 +204,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | m6g.large       | 3     |
-| MySQL        | 8.0.mysql_aurora.3.02.0 | db.r6g.16xlarge | 2     |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.16xlarge | 2     |
 
 AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/terraform/example). This configuration includes:
 
