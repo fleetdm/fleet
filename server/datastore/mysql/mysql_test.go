@@ -1281,24 +1281,3 @@ func TestBatchProcessDB(t *testing.T) {
 		require.Equal(t, 2, callCount)
 	})
 }
-
-func TestReplicaSync(t *testing.T) {
-	opts := &DatastoreTestOptions{
-		RealReplica: true,
-	}
-	ds := CreateMySQLDSWithOptions(t, opts)
-
-	// Write to master
-	_, err := ds.writer(context.Background()).ExecContext(context.Background(), "CREATE TABLE test (id INT)")
-	require.NoError(t, err)
-	//_, err = ds.writer(context.Background()).ExecContext(context.Background(), "INSERT INTO test (id) VALUES (1)")
-	//require.NoError(t, err)
-	//
-	//// Sync slave to master
-	//assert.NoError(t, ds.ReplicaSync(context.Background()))
-	//
-	//// Check that slave has caught up
-	//var result int
-	//require.NoError(t, sqlx.GetContext(context.Background(), ds.reader(context.Background()), &result, "SELECT * FROM test"))
-	//assert.Equal(t, 1, result)
-}

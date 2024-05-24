@@ -225,6 +225,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 		hostIDs = append(hostIDs, i)
 	}
 	tracker.saveStats = true
+	// We overwrite the last executed time to ensure that these stats have a different timestamp than later stats
 	overwriteLastExecuted = true
 	overwriteLastExecutedTime = time.Now().Add(-2 * time.Second).Round(time.Second)
 	svc.updateStats(ctx, queryID, svc.logger, &tracker, false)

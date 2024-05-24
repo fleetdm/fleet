@@ -385,18 +385,28 @@ func (svc Service) updateStats(
 		// To sync with the replica, we read the last stats entry from the replica and compare the timestamp to what was written on the master.
 		if tracker.lastStatsEntry != nil { // This check is just to be safe. It should never be nil.
 			done := make(chan error, 1)
+			stop := make(chan struct{}, 1)
 			go func() {
 				var stats []*fleet.LiveQueryStats
 				var err error
-				for len(stats) == 0 || stats[0].LastExecuted.Before(tracker.lastStatsEntry.LastExecuted) {
-					stats, err = svc.ds.GetLiveQueryStats(ctx, queryID, []uint{tracker.lastStatsEntry.HostID})
-					if err != nil {
-						done <- err
+				for {
+					select {
+					case <-stop:
 						return
+					default:
+						stats, err = svc.ds.GetLiveQueryStats(ctx, queryID, []uint{tracker.lastStatsEntry.HostID})
+						if err != nil {
+							done <- err
+							return
+						}
+						if !(len(stats) == 0 || stats[0].LastExecuted.Before(tracker.lastStatsEntry.LastExecuted)) {
+							// Replica is in sync with the last query stats update
+							done <- nil
+							return
+						}
+						time.Sleep(30 * time.Millisecond) // We see the replication time less than 30 ms in production.
 					}
 				}
-				// Replica is in sync with the last query stats update
-				done <- nil
 			}()
 			select {
 			case err := <-done:
@@ -406,6 +416,7 @@ func (svc Service) updateStats(
 					return
 				}
 			case <-time.After(5 * time.Second):
+				stop <- struct{}{}
 				level.Error(logger).Log("msg", "replica sync timeout: replica did not catch up to the master in 5 seconds")
 				// We proceed with the aggregation even if the replica is not in sync.
 			}
