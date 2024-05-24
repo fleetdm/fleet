@@ -4,7 +4,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Team
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Head of Demand Generation          | [Dustin Gerdes](https://www.linkedin.com/in/dustingerdes/) _([@3kindsoffish](https://github.com/3kindsoffish))_
 | Digital Marketing Manager          | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
 
 
@@ -25,7 +24,7 @@ The Demand department is directly responsible for achieving revenue pipeline ta
 4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
 5. log in to [Salesforce](https://fleetdm.lightning.force.com/lightning/o/Lead/list?filterName=00B4x00000DtaRDEAZ) and search the lead list by first name and match the corresponding email to find the right lead.
 6. Enrich each lead with company information and buying situation.
-7. If a lead is completed or out of ICP, update the lead status in Salesforce to "Closed" or "Disqualified". If within ICP at-mention the [Head of Revenue Operations](https://fleetdm.com/handbook/digital-experience#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel and move lead to their name in SFDC.
+7. If a lead is completed or out of ICP, update the lead status in Salesforce to "Closed" or "Disqualified". If within ICP at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel and move lead to their name in SFDC.
 8. Mark the Slack message as complete with the "✅" emoji.
 
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
@@ -196,5 +195,5 @@ Please see [handbook/company/communications#video](https://fleetdm.com/handbook/
 
 
 
-<meta name="maintainedBy" value="3kindsoffish">
+<meta name="maintainedBy" value="Drew-P-Drawers">
 <meta name="title" value="🫧 Demand">
