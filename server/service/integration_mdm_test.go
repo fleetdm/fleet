@@ -270,7 +270,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
 		w.WriteHeader(status.(int))
-		_, _ = w.Write([]byte(fmt.Sprintf("status: %d", status)))
+		resp := []byte(fmt.Sprintf("status: %d", status))
+		if status == http.StatusOK && strings.Contains(r.URL.RawQuery, "deliveryMethod=json") {
+			resp = []byte(fmt.Sprintf(`{"csr": "%s"}`, base64.StdEncoding.EncodeToString([]byte(`-----BEGIN CERTIFICATE REQUEST-----
+foobar
+-----END CERTIFICATE REQUEST-----`))))
+		}
+		_, _ = w.Write(resp)
 	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 
@@ -909,6 +915,9 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	s.SucceedNextCSRRequest()
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
 	require.NotNil(t, resp.CSR)
+	require.Equal(t, string(resp.CSR), `-----BEGIN CERTIFICATE REQUEST-----
+foobar
+-----END CERTIFICATE REQUEST-----`)
 
 	// Check that we created the right assets
 	assetsFromCall1, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
@@ -919,6 +928,9 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	s.SucceedNextCSRRequest()
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
 	require.NotNil(t, resp.CSR)
+	require.Equal(t, string(resp.CSR), `-----BEGIN CERTIFICATE REQUEST-----
+foobar
+-----END CERTIFICATE REQUEST-----`)
 
 	// Check that the assets stayed the same in the subsequent call
 	assetsFromCall2, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
