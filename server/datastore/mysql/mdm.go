@@ -454,12 +454,12 @@ WHERE
 		}
 	}
 
-	var macHosts []string
+	var appleHosts []string
 	var winHosts []string
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
-			macHosts = append(macHosts, h.UUID)
+			appleHosts = append(appleHosts, h.UUID)
 		case "windows":
 			winHosts = append(winHosts, h.UUID)
 		default:
@@ -471,7 +471,7 @@ WHERE
 		}
 	}
 
-	if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
+	if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 

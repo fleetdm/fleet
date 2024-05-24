@@ -752,6 +752,7 @@ func updateMDMAppleHostDB(
 ) error {
 	refetchRequested := 1
 	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
+		// refetch_requested does not apply to iOS/iPadOS.
 		refetchRequested = 0
 	}
 	updateStmt := `
@@ -801,7 +802,9 @@ func insertMDMAppleHostDB(
 	refetchRequested := 1
 	var lastEnrolledAt any = "2000-01-01 00:00:00"
 	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
+		// refetch_requested does not apply to iOS/iPadOS.
 		refetchRequested = 0
+		// We set last_enrolled_at here because there's no osquery on iOS/iPadOS.
 		lastEnrolledAt = time.Now()
 	}
 	insertStmt := `
@@ -907,7 +910,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 				us.hardware_serial,
 				COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), ''),
 				us.platform,
-				IF(us.platform = 'ios' OR us.platform = 'ipados', NOW(), '2000-01-01 00:00:00') AS last_enrolled_at,
+				'2000-01-01 00:00:00' AS last_enrolled_at,
 				'2000-01-01 00:00:00' AS detail_updated_at,
 				NULL AS osquery_host_id,
 				IF(us.platform = 'ios' OR us.platform = 'ipados', 0, 1) AS refetch_requested,
