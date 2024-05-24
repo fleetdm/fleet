@@ -694,6 +694,8 @@ type Service interface {
 	// write these to the DB. On subsequent calls, it will use the saved APNS key for generating the CSR.
 	GetMDMAppleCSR(ctx context.Context) ([]byte, error)
 
+	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
+
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
