@@ -38,6 +38,11 @@
     font-size: 16px;
     line-height: @text-lineheight;
     color: @core-fleet-black-75;
+    a[href] {
+      text-decoration: underline;
+      color: @core-fleet-black-75;
+      text-underline-offset: 3px;
+    }
   }
   strong {
     color: @core-fleet-black;
@@ -185,6 +190,13 @@
   }
   [purpose='testimonial-quote'] {
     width: 640px;
+    a {
+      text-decoration: none;
+      color: unset;
+      &:hover {
+        text-decoration: none;
+      }
+    }
     [purpose='quote'] {
       p {
         color: @core-fleet-black-75;

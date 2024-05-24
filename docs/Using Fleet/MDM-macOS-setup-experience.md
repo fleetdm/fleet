@@ -12,7 +12,7 @@ In Fleet, you can customize the out-of-the-box macOS setup experience for your e
 
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
-MacOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-macos-setup.md#apple-business-manager-abm).
+macOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-setup.md#apple-business-manager-abm).
 
 ## End user authentication and EULA
 
@@ -196,7 +196,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 1. Choose which team you want to add the automatic enrollment profile to.
 
-  In this example, let's assume you have a "Workstations" team as your [default team](./mdm-macos-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production.
+  In this example, let's assume you have a "Workstations" team as your [default team](./mdm-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production.
 
   To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
 
@@ -242,7 +242,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
 
-  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](./mdm-macos-setup.md#pending-hosts).
+  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](./mdm-setup.md#pending-hosts).
 
 3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
 

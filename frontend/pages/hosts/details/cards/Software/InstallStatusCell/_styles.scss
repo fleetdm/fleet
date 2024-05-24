@@ -1,0 +1,15 @@
+.install-status-cell {
+  &__status-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__status-tooltip {
+    text-align: center;
+  }
+
+  &__status-tooltip-text {
+    font-size: $xx-small;
+  }
+}

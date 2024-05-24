@@ -34,9 +34,10 @@ parasails.registerPage('signup', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     // If we're redirecting this user to the license dispenser after they sign up, modify the link to the login page and the pageToRedirectToAfterRegistration
-    if(this.redirectToLicenseDispenser){
-      this.loginSlug = '/login?purchaseLicense';
+    if(window.location.hash && window.location.hash === '#purchaseLicense'){
+      this.loginSlug = '/login#purchaseLicense';
       this.pageToRedirectToAfterRegistration = '/new-license';
+      window.location.hash = '';
     }
   },
   mounted: async function() {
@@ -67,7 +68,7 @@ parasails.registerPage('signup', {
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      window.location = this.pageToRedirectToAfterRegistration;// « / start if the user came here from the start now button, or customers/new-license if the user came here from the "Get your license" link.
+      this.goto(this.pageToRedirectToAfterRegistration);// « / start if the user came here from the start now button, or customers/new-license if the user came here from the "Get your license" link.
     }
 
 

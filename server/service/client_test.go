@@ -462,29 +462,6 @@ spec:
 	}
 }
 
-func TestExtractFilenameFromPath(t *testing.T) {
-	cases := []struct {
-		in  string
-		out string
-	}{
-		{"http://example.com", ""},
-		{"http://example.com/", ""},
-		{"http://example.com?foo=bar", ""},
-		{"http://example.com/foo.pkg", "foo.pkg"},
-		{"http://example.com/foo.exe", "foo.exe"},
-		{"http://example.com/foo.pkg?bar=baz", "foo.pkg"},
-		{"http://example.com/foo.bar.pkg", "foo.bar.pkg"},
-		{"http://example.com/foo", "foo.pkg"},
-		{"http://example.com/foo/bar/baz", "baz.pkg"},
-		{"http://example.com/foo?bar=baz", "foo.pkg"},
-	}
-
-	for _, c := range cases {
-		got := extractFilenameFromPath(c.in)
-		require.Equalf(t, c.out, got, "for URL %s", c.in)
-	}
-}
-
 func TestGetProfilesContents(t *testing.T) {
 	tempDir := t.TempDir()
 	darwinProfile := mobileconfigForTest("bar", "I")

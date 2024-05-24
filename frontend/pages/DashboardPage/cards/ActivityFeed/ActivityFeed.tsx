@@ -15,6 +15,9 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
+
+import { SoftwareInstallDetailsModal } from "pages/SoftwarePage/components/SoftwareInstallDetails";
+
 import ActivityItem from "./ActivityItem";
 import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
 
@@ -35,6 +38,7 @@ const ActivityFeed = ({
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+  const [installedSoftwareUuid, setInstalledSoftwareUuid] = useState("");
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
@@ -81,6 +85,7 @@ const ActivityFeed = ({
     activityType: ActivityType,
     details: IActivityDetails
   ) => {
+    console.log("activityType", activityType);
     switch (activityType) {
       case ActivityType.LiveQuery:
         queryShown.current = details.query_sql ?? "";
@@ -92,6 +97,11 @@ const ActivityFeed = ({
       case ActivityType.RanScript:
         scriptExecutionId.current = details.script_execution_id ?? "";
         setShowScriptDetailsModal(true);
+        break;
+      case ActivityType.InstalledSoftware:
+        // installUuid.current = details.install_uuid ?? "";
+        // console.log("installUuid.current", installUuid.current);
+        setInstalledSoftwareUuid(details.install_uuid ?? "");
         break;
       default:
         break;
@@ -182,6 +192,12 @@ const ActivityFeed = ({
         <ScriptDetailsModal
           scriptExecutionId={scriptExecutionId.current}
           onCancel={() => setShowScriptDetailsModal(false)}
+        />
+      )}
+      {installedSoftwareUuid && (
+        <SoftwareInstallDetailsModal
+          installUuid={installedSoftwareUuid}
+          onCancel={() => setInstalledSoftwareUuid("")}
         />
       )}
     </div>

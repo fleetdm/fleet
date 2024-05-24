@@ -246,10 +246,9 @@ const PolicyForm = ({
       });
     }
 
-    let selectedPlatforms: OsqueryPlatform[] = [];
-    if (isEditMode || defaultPolicy) {
-      selectedPlatforms = getSelectedPlatforms();
-    } else {
+    let selectedPlatforms = getSelectedPlatforms();
+    if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
+      // If no platforms are selected, default to all compatible platforms
       selectedPlatforms = getCompatiblePlatforms();
       setSelectedPlatforms(selectedPlatforms);
     }

@@ -77,7 +77,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
@@ -253,7 +253,7 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
@@ -546,7 +546,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecPolicy{
@@ -609,9 +609,32 @@ func (e AutofillError) Internal() string {
 }
 
 func (svc *Service) AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		svc.authz.SkipAuthorization(ctx)
+		return "", "", fleet.ErrNoContext
+	}
+
 	// We expect that only users with policy write permissions will autofill policies.
-	if err = svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
-		return "", "", err
+	if vc.User.GlobalRole != nil || len(vc.User.Teams) == 0 {
+		if err = svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+			return "", "", err
+		}
+	} else {
+		// Check if this user has team policy write permissions.
+		teamID := vc.User.Teams[0].Team.ID
+		for _, teamUser := range vc.User.Teams {
+			if teamUser.Role == fleet.RoleAdmin || teamUser.Role == fleet.RoleMaintainer || teamUser.Role == fleet.RoleGitOps {
+				teamID = teamUser.Team.ID
+				break
+			}
+		}
+		err = svc.authz.Authorize(
+			ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: &teamID}}, fleet.ActionWrite,
+		)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)

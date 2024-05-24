@@ -6593,13 +6593,20 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}
+	detailsBytes, err := json.Marshal(activity)
+	require.NoError(t, err)
+
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity( // automatically creates the host_activities entry
-		context.Background(),
+		ctx,
 		user1,
-		fleet.ActivityTypeRanScript{
-			HostID:          host.ID,
-			HostDisplayName: host.DisplayName(),
-		},
+		activity,
+		detailsBytes,
+		time.Now(),
 	)
 	require.NoError(t, err)
 
@@ -8689,8 +8696,11 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), h, false))
 
 	soft1 := h.Software[0]
-	if soft1.Name != "bar" {
-		soft1 = h.Software[1]
+	for _, item := range h.Software {
+		if item.Name == "bar" {
+			soft1 = item
+			break
+		}
 	}
 
 	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
@@ -8700,8 +8710,11 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	// Reload software so that 'GeneratedCPEID is set.
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), h, false))
 	soft1 = h.Software[0]
-	if soft1.Name != "bar" {
-		soft1 = h.Software[1]
+	for _, item := range h.Software {
+		if item.Name == "bar" {
+			soft1 = item
+			break
+		}
 	}
 
 	inserted, err := ds.InsertSoftwareVulnerability(

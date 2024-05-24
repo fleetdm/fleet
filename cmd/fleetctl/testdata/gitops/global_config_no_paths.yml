@@ -153,6 +153,9 @@ org_settings:
       metadata: ""
       metadata_url: ""
   webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: https://activities_webhook_url
     failing_policies_webhook:
       destination_url: https://host.docker.internal:8080/bozo
       enable_failing_policies_webhook: false
