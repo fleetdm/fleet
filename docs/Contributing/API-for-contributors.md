@@ -582,17 +582,36 @@ Status: 200
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token | file | body | *Required* The file containing the token |
+| token | file | form | *Required* The file containing the token (.p7m) from Apple Business Manager |
 
 #### Example
 
 `POST /api/v1/fleet/mdm/apple/abm_token`
 
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Type: application/octet-stream
+
+----- TOKEN -----
+
+--------------------------f02md47480und42y
+```
+
+
 #### Default response
 
-```
-Status: 201
-```
+`Status: 200`
+
 
 ### Upload APNS certificate
 
@@ -602,17 +621,34 @@ Status: 201
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| certificate | file | body | *Required* The file containing the certificate |
+| certificate | file | form | *Required* The file conataining the APNS certificate (.pem) |
 
 #### Example
 
 `POST /api/v1/fleet/mdm/apple/apns_certificate`
 
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Type: application/octet-stream
+
+----- CERTIFICATE -----
+
+--------------------------f02md47480und42y
+```
+
 #### Default response
 
-```
-Status: 201
-```
+`Status: 200`
 
 ### Disable ABM
 
