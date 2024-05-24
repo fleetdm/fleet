@@ -1,7 +1,7 @@
 name: authdb
 platforms:
   - darwin
-description: Returns JSON output for the `authorizationdb read <right_name>` command.
+description: The macOS authorizationdb is used by Mac admins to give their users or themselves granular permissions on the Macs they manage. The `authdb` osquery table returns JSON output for the `authorizationdb read <right_name>` command.
 evented: false
 columns:
   - name: right_name
