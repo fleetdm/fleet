@@ -673,7 +673,7 @@ func (c *Client) ApplyGroup(
 		}
 		if len(tmSoftwarePayloads) > 0 {
 			for tmName, software := range tmSoftwarePayloads {
-				if err := c.ApplyTeamSoftwareInstallers(tmName, software, opts); err != nil {
+				if err := c.ApplyTeamSoftwareInstallers(tmName, software, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 				}
 			}
