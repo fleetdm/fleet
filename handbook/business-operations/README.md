@@ -157,7 +157,24 @@ Thanks,
     - If there are any quarterly accelerators due for the teammate receiving commission, ensure the individual total includes both the monthly and the quarterly amount.
 3. After the amounts are approved in the meeting, process the commission payroll.
     - Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
-4. Once commission payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid. 
+4. Once commission payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid.
+
+### Run international commission payroll
+1. Follow the steps in [run US commission payroll](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll) to have the commission amounts approved by the CRO.
+2. After the amounts are approved in the "Monthly commission payroll party", navigate to Help > Ask a question in Plane to request a commission payment for the teammate.
+3. Send a message using the following template
+
+    ```
+    Hello,
+    I’d like to run an off-cycle commission payment for [teammate’s full name] for the period of [commission period].
+    The amount of [USD amount] should be paid with their next payroll.
+    Please let me know if you need any additional information to process this request.
+    
+    Thanks,
+    [name]
+    ```
+
+4. Once Plane confirms the payroll change has been actioned, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit#gid=928324236) to mark the commission as paid. 
 
 
 ### Run quarterly or annual employee bonus payroll
