@@ -45,6 +45,7 @@ type statsTracker struct {
 	saveStats         bool
 	aggregationNeeded bool
 	stats             []statsToSave
+	lastStatsEntry    *fleet.LiveQueryStats
 }
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
@@ -327,6 +328,7 @@ func (svc Service) updateStats(
 		}
 
 		// Update stats
+		lastExecuted := time.Now()
 		for _, gatheredStats := range tracker.stats {
 			stats, ok := statsMap[gatheredStats.hostID]
 			if !ok {
@@ -338,6 +340,7 @@ func (svc Service) updateStats(
 					UserTime:      gatheredStats.UserTime,
 					WallTime:      gatheredStats.WallTimeMs,
 					OutputSize:    gatheredStats.outputSize,
+					LastExecuted:  lastExecuted,
 				}
 				currentStats = append(currentStats, &newStats)
 			} else {
@@ -348,6 +351,7 @@ func (svc Service) updateStats(
 				stats.UserTime = stats.UserTime + gatheredStats.UserTime
 				stats.WallTime = stats.WallTime + gatheredStats.WallTimeMs
 				stats.OutputSize = stats.OutputSize + gatheredStats.outputSize
+				stats.LastExecuted = lastExecuted
 			}
 		}
 
@@ -359,19 +363,45 @@ func (svc Service) updateStats(
 			return
 		}
 
+		tracker.lastStatsEntry = currentStats[0]
 		tracker.aggregationNeeded = true
 		tracker.stats = nil
 	}
 
 	// Do aggregation
 	if aggregateStats && tracker.aggregationNeeded {
-		// Since we just wrote new stats, we need to sync the replica before calculating aggregated stats.
+		// Since we just wrote new stats, we need the write data to sync to the replica before calculating aggregated stats.
 		// The calculations are done on the replica to reduce the load on the master.
-		//err := svc.ds.ReplicaSync(ctx)
-		//if err != nil {
-		//	// We log and continue. We will calculate the aggregated stats even though they may be out of date.
-		//	level.Error(logger).Log("msg", "error syncing replica", "err", err)
-		//}
+		// Although this check is not necessary if replica is not used, we leave it in for consistency and to ensure the code is exercised in dev/test environments.
+		// To sync with the replica, we read the last stats entry from the replica and compare the timestamp to what was written on the master.
+		if tracker.lastStatsEntry != nil { // This check is just to be safe. It should never be nil.
+			done := make(chan error, 1)
+			go func() {
+				var stats []*fleet.LiveQueryStats
+				var err error
+				for len(stats) == 0 || stats[0].LastExecuted.Before(tracker.lastStatsEntry.LastExecuted) {
+					stats, err = svc.ds.GetLiveQueryStats(ctx, queryID, []uint{tracker.lastStatsEntry.HostID})
+					if err != nil {
+						done <- err
+						return
+					}
+				}
+				// Replica is in sync with the last query stats update
+				done <- nil
+			}()
+			select {
+			case err := <-done:
+				if err != nil {
+					level.Error(logger).Log("msg", "error syncing replica to master", "err", err)
+					tracker.saveStats = false
+					return
+				}
+			case <-time.After(5 * time.Second):
+				level.Error(logger).Log("msg", "replica sync timeout: replica did not catch up to the master in 5 seconds")
+				// We proceed with the aggregation even if the replica is not in sync.
+			}
+		}
+
 		err := svc.ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
 		if err != nil {
 			level.Error(logger).Log("msg", "error aggregating performance stats", "err", err)
