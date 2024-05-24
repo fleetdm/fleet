@@ -643,6 +643,7 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/18865
 - industryName: Self-service portal for users to install apps
   description: Add optional apps for your end users through Fleet Desktop (for macOS, Windows, and Linux).
   tier: Premium
@@ -650,6 +651,7 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/17587
 - industryName: License apps on macOS and iOS/iPadOS through Volume Purchasing Program (VPP).
   description: Offer licenses for Photoshop and other App Sore apps for your end users.
   tier: Premium
@@ -657,6 +659,7 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
 - industryName: Puppet module
   documentationUrl: https://fleetdm.com/docs/using-fleet/puppet-module
   friendlyName: Map macOS settings to computers with Puppet module
