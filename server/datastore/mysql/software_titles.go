@@ -203,7 +203,7 @@ SELECT
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
 	si.filename as software_package,
-    MAX(COALESCE(si.self_service, false)) as self_service
+	MAX(COALESCE(si.self_service, false)) as self_service
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
