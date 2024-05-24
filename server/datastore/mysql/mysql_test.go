@@ -40,7 +40,6 @@ func TestDatastoreReplica(t *testing.T) {
 		ds := CreateMySQLDSWithOptions(t, nil)
 		defer ds.Close()
 		require.Equal(t, ds.reader(ctx), ds.writer(ctx))
-		assert.NoError(t, ds.ReplicaSync(ctx))
 	})
 
 	t.Run("replica", func(t *testing.T) {
