@@ -7625,6 +7625,14 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "ruby.deb",
+		SelfService:   false,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "emacs.deb",
+		SelfService:   true,
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
@@ -7639,6 +7647,21 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.False(t, *&resp.SoftwareTitles[0].SelfService)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"self_service", "true",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
