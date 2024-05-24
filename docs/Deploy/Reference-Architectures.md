@@ -170,7 +170,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type |
 | ------------ | ----------------------- | ------------- |
 | Redis        | 6                       | t4g.small     |
-| MySQL        | 8.0.mysql_aurora.3.02.0 | db.t3.small   |
+| MySQL        | 8.0.mysql_aurora.3.02.0 | db.t4g.medium |
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
 
