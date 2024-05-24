@@ -1777,10 +1777,11 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		}
 	}
 
-	err = svc.ds.NewActivity(ctx, nil, &fleet.ActivityTypeMDMEnrolled{
-		HostDisplayName: reqDeviceName,
-		MDMPlatform:     fleet.MDMPlatformMicrosoft,
-	})
+	err = svc.NewActivity(
+		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
+			HostDisplayName: reqDeviceName,
+			MDMPlatform:     fleet.MDMPlatformMicrosoft,
+		})
 	if err != nil {
 		// only logging, the device is enrolled at this point, and we
 		// wouldn't want to fail the request because there was a problem
