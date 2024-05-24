@@ -1249,7 +1249,11 @@ type Datastore interface {
 	// the provided value.
 	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
 
+	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
 	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
+
+	// GetMDMConfigAssetsByName returns the requested config assets.
+	GetMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) ([]MDMConfigAsset, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

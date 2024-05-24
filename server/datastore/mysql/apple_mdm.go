@@ -4145,3 +4145,27 @@ VALUES
 
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
+
+func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	stmt := `
+SELECT
+    name, value
+FROM
+   mdm_config_assets
+WHERE
+    name IN (?)
+	AND deletion_uuid = ''
+	`
+
+	stmt, args, err := sqlx.In(stmt, assetNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In GetMDMConfigAssetsByName")
+	}
+
+	var res []fleet.MDMConfigAsset
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
+	}
+
+	return res, nil
+}

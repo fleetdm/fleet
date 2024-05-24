@@ -3,7 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -108,7 +111,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/apple/request_csr
+// POST /mdm/apple/request_csr
 ////////////////////////////////////////////////////////////////////////////////
 
 type requestMDMAppleCSRRequest struct {
@@ -2108,4 +2111,116 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 	}
 
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple/request_csr
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMAppleCSRRequest struct{}
+
+type getMDMAppleCSRResponse struct {
+	CSR []byte `json:"csr"` // base64 encoded
+	Err error  `json:"error,omitempty"`
+}
+
+func (r getMDMAppleCSRResponse) error() error { return r.Err }
+
+func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	signedCSRB64, err := svc.GetMDMAppleCSR(ctx)
+	if err != nil {
+		return &getMDMAppleCSRResponse{Err: err}, nil
+	}
+
+	return &getMDMAppleCSRResponse{CSR: signedCSRB64}, nil
+}
+
+func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	// Check if we have existing certs and keys
+	var apnsKey *rsa.PrivateKey
+	savedAssets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking asset existence")
+	}
+
+	if len(savedAssets) == 0 {
+		// Then we should create them
+		scepCert, scepKey, err := apple_mdm.NewSCEPCACertKey()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
+		}
+
+		apnsKey, err = apple_mdm.NewPrivateKey()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "generate new apns private key")
+		}
+
+		// Store our config assets
+		var assets []fleet.MDMConfigAsset
+		for k, v := range map[fleet.MDMAssetName][]byte{
+			fleet.MDMAssetCACert:  apple_mdm.EncodeCertPEM(scepCert),
+			fleet.MDMAssetCAKey:   apple_mdm.EncodePrivateKeyPEM(scepKey),
+			fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsKey),
+		} {
+			assets = append(assets, fleet.MDMConfigAsset{
+				Name:  k,
+				Value: v,
+			})
+		}
+
+		if err := svc.ds.InsertMDMConfigAssets(ctx, assets); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "inserting mdm config assets")
+		}
+	} else {
+		for _, a := range savedAssets {
+			if a.Name == fleet.MDMAssetAPNSKey {
+				block, _ := pem.Decode(a.Value)
+				apnsKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "unmarshaling saved apns key")
+				}
+			}
+		}
+	}
+
+	// Generate new APNS CSR every time this is called
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	apnsCSR, err := apple_mdm.GenerateAPNSCSR(appConfig.OrgInfo.OrgName, vc.Email(), apnsKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate APNS cert and key")
+	}
+
+	// Submit CSR to fleetdm.com for signing
+	websiteClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+
+	signedCSRB64, err := apple_mdm.GetSignedAPNSCSRNoEmail(websiteClient, apnsCSR)
+	if err != nil {
+		var fwe apple_mdm.FleetWebsiteError
+		if errors.As(err, &fwe) {
+			return nil, ctxerr.Wrap(
+				ctx,
+				fleet.NewUserMessageError(
+					fmt.Errorf("FleetDM CSR request failed: %w", err),
+					http.StatusBadGateway,
+				),
+			)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get signed CSR")
+	}
+
+	// Return signed CSR; these bytes are already base64 encoded
+	return signedCSRB64, nil
 }
