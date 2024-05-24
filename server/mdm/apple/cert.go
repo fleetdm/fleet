@@ -173,12 +173,12 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(b))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating csr signing request for fleetdm api: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sending csr signing request to fleetdm api: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -189,7 +189,7 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 
 	var csrResp WebsiteResponse
 	if err := json.Unmarshal(respBytes, &csrResp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshalling signed csr response from fleetdm api: %w", err)
 	}
 
 	return csrResp.CSR, nil
