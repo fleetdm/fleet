@@ -689,10 +689,10 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
-	// GetMDMAppleCSR returns a signed CSR as a base64 encoded string for Apple MDM. The first time
+	// GetMDMAppleCSR returns a signed CSR as base64 encoded bytes for Apple MDM. The first time
 	// this method is called, it will create a SCEP certificate, a SCEP key, and an APNS key and
 	// write these to the DB. On subsequent calls, it will use the saved APNS key for generating the CSR.
-	GetMDMAppleCSR(ctx context.Context) (string, error)
+	GetMDMAppleCSR(ctx context.Context) ([]byte, error)
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)

@@ -60,9 +60,13 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 	return certReq, key, nil
 }
 
-func GenerateAPNSCSR(org string, key *rsa.PrivateKey) (*x509.CertificateRequest, error) {
+func GenerateAPNSCSR(org, email string, key *rsa.PrivateKey) (*x509.CertificateRequest, error) {
 	subj := pkix.Name{
 		Organization: []string{org},
+		ExtraNames: []pkix.AttributeTypeAndValue{{
+			Type:  emailAddressOID,
+			Value: email,
+		}},
 	}
 	template := &x509.CertificateRequest{
 		Subject:            subj,
@@ -142,8 +146,12 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	return nil
 }
 
+type WebsiteResponse struct {
+	CSR []byte `json:"csr"`
+}
+
 // GetSignedAPNSCSRNoEmail makes a request to the fleetdm.com API to get a signed APNs
-// CSR and returns the signed CSR.
+// CSR and returns the signed CSR directly.
 func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) ([]byte, error) {
 	csrPEM := EncodeCertRequestPEM(csr)
 
@@ -179,7 +187,12 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes)}
 	}
 
-	return respBytes, nil
+	var csrResp WebsiteResponse
+	if err := json.Unmarshal(respBytes, &csrResp); err != nil {
+		return nil, err
+	}
+
+	return csrResp.CSR, nil
 }
 
 // NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and

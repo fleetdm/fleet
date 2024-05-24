@@ -4153,19 +4153,17 @@ SELECT
 FROM
    mdm_config_assets
 WHERE
-    name IN (%s)
+    name IN (?)
+	AND deletion_uuid = ''
 	`
 
-	var b []any
-	var p strings.Builder
-	for _, an := range assetNames {
-		b = append(b, an)
-		p.WriteString("?,")
+	stmt, args, err := sqlx.In(stmt, assetNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In GetMDMConfigAssetsByName")
 	}
 
-	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(p.String(), ","))
 	var res []fleet.MDMConfigAsset
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, b...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
 	}
 

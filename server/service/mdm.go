@@ -2120,7 +2120,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 type getMDMAppleCSRRequest struct{}
 
 type getMDMAppleCSRResponse struct {
-	CSR string `json:"csr"` // base64 encoded
+	CSR []byte `json:"csr"` // base64 encoded
 	Err error  `json:"error,omitempty"`
 }
 
@@ -2135,28 +2135,33 @@ func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.
 	return &getMDMAppleCSRResponse{CSR: signedCSRB64}, nil
 }
 
-func (svc *Service) GetMDMAppleCSR(ctx context.Context) (string, error) {
+func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return "", err
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
 	}
 
 	// Check if we have existing certs and keys
 	var apnsKey *rsa.PrivateKey
 	savedAssets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "checking asset existence")
+		return nil, ctxerr.Wrap(ctx, err, "checking asset existence")
 	}
 
 	if len(savedAssets) == 0 {
 		// Then we should create them
 		scepCert, scepKey, err := apple_mdm.NewSCEPCACertKey()
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
+			return nil, ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
 		}
 
 		apnsKey, err = apple_mdm.NewPrivateKey()
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "generate new apns private key")
+			return nil, ctxerr.Wrap(ctx, err, "generate new apns private key")
 		}
 
 		// Store our config assets
@@ -2173,7 +2178,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) (string, error) {
 		}
 
 		if err := svc.ds.InsertMDMConfigAssets(ctx, assets); err != nil {
-			return "", ctxerr.Wrap(ctx, err, "inserting mdm config assets")
+			return nil, ctxerr.Wrap(ctx, err, "inserting mdm config assets")
 		}
 	} else {
 		for _, a := range savedAssets {
@@ -2181,7 +2186,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) (string, error) {
 				block, _ := pem.Decode(a.Value)
 				apnsKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 				if err != nil {
-					return "", ctxerr.Wrap(ctx, err, "unmarshaling saved apns key")
+					return nil, ctxerr.Wrap(ctx, err, "unmarshaling saved apns key")
 				}
 			}
 		}
@@ -2190,12 +2195,12 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) (string, error) {
 	// Generate new APNS CSR every time this is called
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get app config")
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
-	apnsCSR, err := apple_mdm.GenerateAPNSCSR(appConfig.OrgInfo.OrgName, apnsKey)
+	apnsCSR, err := apple_mdm.GenerateAPNSCSR(appConfig.OrgInfo.OrgName, vc.Email(), apnsKey)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "generate APNS cert and key")
+		return nil, ctxerr.Wrap(ctx, err, "generate APNS cert and key")
 	}
 
 	// Submit CSR to fleetdm.com for signing
@@ -2203,8 +2208,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) (string, error) {
 
 	signedCSRB64, err := apple_mdm.GetSignedAPNSCSRNoEmail(websiteClient, apnsCSR)
 	if err != nil {
-		if _, ok := err.(apple_mdm.FleetWebsiteError); ok {
-			return "", ctxerr.Wrap(
+		var fwe apple_mdm.FleetWebsiteError
+		if errors.As(err, &fwe) {
+			return nil, ctxerr.Wrap(
 				ctx,
 				fleet.NewUserMessageError(
 					fmt.Errorf("FleetDM CSR request failed: %w", err),
@@ -2212,9 +2218,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) (string, error) {
 				),
 			)
 		}
-		return "", ctxerr.Wrap(ctx, err, "get signed CSR")
+		return nil, ctxerr.Wrap(ctx, err, "get signed CSR")
 	}
 
 	// Return signed CSR; these bytes are already base64 encoded
-	return string(signedCSRB64), nil
+	return signedCSRB64, nil
 }
