@@ -278,7 +278,7 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 
 func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {
 	var count int
-	err := sqlx.GetContext(ctx, db, &count, `SELECT count(*) FROM ?`, tableName)
+	err := sqlx.GetContext(ctx, db, &count, fmt.Sprintf(`SELECT count(*) FROM %s`, tableName))
 	if err != nil {
 		return 0, err
 	}
