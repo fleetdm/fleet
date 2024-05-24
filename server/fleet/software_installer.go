@@ -97,7 +97,7 @@ type SoftwareInstaller struct {
 	SoftwareTitle string `json:"-" db:"software_title"`
 	// SelfService indicates that the software can be installed by the
 	// end user without admin intervention
-	SelfService bool `json:"-" db:"self_service"`
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 // AuthzType implements authz.AuthzTyper.

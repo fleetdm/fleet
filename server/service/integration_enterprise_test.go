@@ -7662,6 +7662,15 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 	require.True(t, *&resp.SoftwareTitles[0].SelfService)
 
+	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
+	respTitle := getSoftwareTitleResponse{}
+	s.DoJSON("GET", emacsPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
+
+	require.NotNil(t, respTitle.SoftwareTitle)
+	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.SoftwarePackage.Name)
+	fmt.Printf("respTitle.SoftwareTitle.SoftwarePackage: %+v\n", respTitle.SoftwareTitle.SoftwarePackage)
+	require.True(t, respTitle.SoftwareTitle.SoftwarePackage.SelfService)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
