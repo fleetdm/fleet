@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"io"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"text/tabwriter"
@@ -614,4 +616,58 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 		})
 	}
 	return now
+}
+
+// MasterStatus is a struct that holds the file and position of the master, retrieved by SHOW MASTER STATUS
+type MasterStatus struct {
+	File     string
+	Position uint64
+}
+
+func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
+
+	rows, err := ds.writer(ctx).Query("SHOW MASTER STATUS")
+	if err != nil {
+		return MasterStatus{}, ctxerr.Wrap(ctx, err, "show master status")
+	}
+	defer rows.Close()
+
+	// Since we don't control the column names, and we want to be future compatible,
+	// we only scan for the columns we care about.
+	ms := MasterStatus{}
+	// Get the column names from the query
+	columns, err := rows.Columns()
+	if err != nil {
+		return ms, ctxerr.Wrap(ctx, err, "get columns")
+	}
+	numberOfColumns := len(columns)
+	for rows.Next() {
+		cols := make([]interface{}, numberOfColumns)
+		for i := range cols {
+			cols[i] = new(string)
+		}
+		err := rows.Scan(cols...)
+		if err != nil {
+			return ms, ctxerr.Wrap(ctx, err, "scan row")
+		}
+		for i, col := range cols {
+			switch columns[i] {
+			case "File":
+				ms.File = *col.(*string)
+			case "Position":
+				ms.Position, err = strconv.ParseUint(*col.(*string), 10, 64)
+				if err != nil {
+					return ms, ctxerr.Wrap(ctx, err, "parse Position")
+				}
+
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return ms, ctxerr.Wrap(ctx, err, "rows error")
+	}
+	if ms.File == "" || ms.Position == 0 {
+		return ms, ctxerr.New(ctx, "missing required fields in master status")
+	}
+	return ms, nil
 }
