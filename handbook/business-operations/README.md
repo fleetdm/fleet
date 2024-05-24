@@ -161,6 +161,7 @@ Thanks,
 1. Follow the steps in [run US commission payroll](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll) to have the commission amounts approved by the CRO.
 2. After the amounts are approved in the "Monthly commission payroll party", navigate to Help > Ask a question in Plane to request a commission payment for the teammate.
 3. Send a message using the following template
+
     ```
     Hello,
     I’d like to run an off-cycle commission payment for [teammate’s full name] for the period of [commission period].
