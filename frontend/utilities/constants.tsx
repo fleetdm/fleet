@@ -26,6 +26,12 @@ export const DEFAULT_GRAVATAR_LINK_FALLBACK =
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
+export const ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { value: 30, label: "30 days" },
+  { value: 60, label: "60 days" },
+  { value: 90, label: "90 days" },
+];
+
 export const FREQUENCY_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { value: 0, label: "Never" },
   { value: 300, label: "Every 5 minutes" },
@@ -310,37 +316,6 @@ export const HOSTS_SEARCH_BOX_PLACEHOLDER =
 
 export const HOSTS_SEARCH_BOX_TOOLTIP =
   "Search hosts by name, hostname, UUID, serial number, or private IP address";
-
-export const VULNERABLE_DROPDOWN_OPTIONS = [
-  {
-    disabled: false,
-    label: "All software",
-    value: false,
-    helpText: "All software installed on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Vulnerable software",
-    value: true,
-    helpText:
-      "All software installed on your hosts with detected vulnerabilities.",
-  },
-];
-
-export const EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS = [
-  {
-    disabled: false,
-    label: "All vulnerabilities",
-    value: false,
-    helpText: "All vulnerabilities detected on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Exploited vulnerabilities",
-    value: true,
-    helpText: "Vulnerabilities that have been actively exploited in the wild.",
-  },
-];
 
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {

@@ -161,15 +161,6 @@ type EnrolledAPIResult struct {
 // EnrolledAPIResults is a map of enrollments to a per-enrollment API result.
 type EnrolledAPIResults map[string]*EnrolledAPIResult
 
-// MDMAppleHostDetails represents the device identifiers used to ingest an MDM device as a Fleet
-// host pending enrollment.
-// See also https://developer.apple.com/documentation/devicemanagement/authenticaterequest.
-type MDMAppleHostDetails struct {
-	SerialNumber string
-	UDID         string
-	Model        string
-}
-
 type MDMAppleCommandTimeoutError struct{}
 
 func (e MDMAppleCommandTimeoutError) Error() string {
@@ -306,6 +297,12 @@ type MDMAppleProfilePayload struct {
 	OperationType     MDMOperationType   `db:"operation_type"`
 	Detail            string             `db:"detail"`
 	CommandUUID       string             `db:"command_uuid"`
+}
+
+// FailedToInstallOnHost indicates whether this profile failed to be installed on the host (and
+// therefore is not, as far as Fleet knows, currently on the host).
+func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
+	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {

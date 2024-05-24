@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -31,11 +30,11 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -384,12 +383,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
-		TeamID:            actTeamID,
-		TeamName:          actTeamName,
-		ProfileName:       newCP.Name,
-		ProfileIdentifier: newCP.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
+			TeamID:            actTeamID,
+			TeamName:          actTeamName,
+			ProfileName:       newCP.Name,
+			ProfileIdentifier: newCP.Identifier,
+		}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple config profile")
 	}
 
@@ -470,12 +470,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: decl.Name,
-		Identifier:  decl.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: decl.Name,
+			Identifier:  decl.Identifier,
+		}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple declaration")
 	}
 
@@ -772,12 +773,13 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:            actTeamID,
-		TeamName:          actTeamName,
-		ProfileName:       cp.Name,
-		ProfileIdentifier: cp.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
+			TeamID:            actTeamID,
+			TeamName:          actTeamName,
+			ProfileName:       cp.Name,
+			ProfileIdentifier: cp.Identifier,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
 	}
 
@@ -851,12 +853,13 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: decl.Name,
-		Identifier:  decl.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: decl.Name,
+			Identifier:  decl.Identifier,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple declaration")
 	}
 
@@ -1405,11 +1408,12 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
-		HostSerial:       h.HardwareSerial,
-		HostDisplayName:  h.DisplayName(),
-		InstalledFromDEP: info.InstalledFromDEP,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+			HostSerial:       h.HardwareSerial,
+			HostDisplayName:  h.DisplayName(),
+			InstalledFromDEP: info.InstalledFromDEP,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
@@ -1441,6 +1445,16 @@ func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context
 			}
 			// success, mdm enrollment is no longer enabled for the device
 			level.Info(svc.logger).Log("msg", "mdm disabled for device", "id", deviceID, "command_uuid", cmdUUID)
+
+			mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+			err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+				Action:   mdmlifecycle.HostActionTurnOff,
+				Platform: "darwin",
+				UUID:     deviceID,
+			})
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 	}
@@ -1811,10 +1825,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 	}
 	return nil
@@ -1946,7 +1961,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
 		}
@@ -2447,13 +2462,20 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 ////////////////////////////////////////////////////////////////////////////////
 
 type MDMAppleCheckinAndCommandService struct {
-	ds        fleet.Datastore
-	logger    kitlog.Logger
-	commander *apple_mdm.MDMAppleCommander
+	ds           fleet.Datastore
+	logger       kitlog.Logger
+	commander    *apple_mdm.MDMAppleCommander
+	mdmLifecycle *mdmlifecycle.HostLifecycle
 }
 
 func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
-	return &MDMAppleCheckinAndCommandService{ds: ds, commander: commander, logger: logger}
+	mdmLifecycle := mdmlifecycle.New(ds, logger)
+	return &MDMAppleCheckinAndCommandService{
+		ds:           ds,
+		commander:    commander,
+		logger:       logger,
+		mdmLifecycle: mdmLifecycle,
+	}
 }
 
 // Authenticate handles MDM [Authenticate][1] requests.
@@ -2467,38 +2489,42 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
 func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
-	host := fleet.MDMAppleHostDetails{}
-	host.SerialNumber = m.SerialNumber
-	host.UDID = m.UDID
-	host.Model = m.Model
-
-	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		var nfe fleet.NotFoundError
 		if !errors.As(err, &nfe) {
-			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
+			return ctxerr.Wrap(r.Context, err, "getting checkin info")
 		}
 	} else if existingDeviceInfo.SCEPRenewalInProgress {
-		svc.logger.Log("info", "Authenticate message received for a SCEP renewal in process, skipping host ingestion and cleanups", "host_uuid", r.ID)
+		svc.logger.Log("info", "host lifecycle action received for a SCEP renewal in process, skipping host ingestion and cleanups", "host_uuid", r.ID)
 		return nil
 	}
 
-	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
-		return ctxerr.Wrap(r.Context, err, "ingesting device in Authenticate message")
+	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
+		Action:         mdmlifecycle.HostActionReset,
+		Platform:       "darwin",
+		UUID:           m.UDID,
+		HardwareSerial: m.SerialNumber,
+		HardwareModel:  m.Model,
+	})
+	if err != nil {
+		return err
 	}
-	if err := svc.ds.ResetMDMAppleEnrollment(r.Context, host.UDID); err != nil {
-		return ctxerr.Wrap(r.Context, err, "resetting nano enrollment info in Authenticate message")
-	}
-	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+
+	// MDM state changes after is reset, fetch the checkin updatedInfo again
+	updatedInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 	}
-	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
-		HostSerial:       info.HardwareSerial,
-		HostDisplayName:  info.DisplayName,
-		InstalledFromDEP: info.DEPAssignedToFleet,
-		MDMPlatform:      fleet.MDMPlatformApple,
-	})
+
+	return newActivity(
+		r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
+			HostSerial:       updatedInfo.HardwareSerial,
+			HostDisplayName:  updatedInfo.DisplayName,
+			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
+			MDMPlatform:      fleet.MDMPlatformApple,
+		}, svc.ds, svc.logger,
+	)
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.
@@ -2507,69 +2533,23 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
 func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
-	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
-		return ctxerr.Wrap(r.Context, err, "retrieving host checkin info on TokenUpdate")
+		return ctxerr.Wrap(r.Context, err, "getting checkin info")
 	}
 
 	if info.SCEPRenewalInProgress {
-		svc.logger.Log("info", "TokenUpdate message received for a SCEP renewal in process", "host_uuid", r.ID)
+		svc.logger.Log("info", "host lifecycle action received for a SCEP renewal in process", "host_uuid", r.ID)
 		err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID)
-		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs on TokenUpdate")
+		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
 	}
 
-	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
-	if err != nil {
-		return ctxerr.Wrap(r.Context, err, "retrieving nano enrollment info on TokenUpdate")
-	}
-
-	if nanoEnroll != nil && nanoEnroll.Enabled &&
-		nanoEnroll.Type == "Device" && nanoEnroll.TokenUpdateTally == 1 {
-		// device is enrolled for the first time, not a token update
-		svc.logger.Log("info", "TokenUpdate message received for a new enrollment", "host_uuid", r.ID)
-
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
-			return err
-		}
-
-		var tmID *uint
-		if info.TeamID != 0 {
-			tmID = &info.TeamID
-		}
-
-		// TODO: improve this to not enqueue the job if a host that is
-		// assigned in ABM is manually enrolling for some reason.
-		if info.DEPAssignedToFleet || info.InstalledFromDEP {
-			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
-			if err := worker.QueueAppleMDMJob(
-				r.Context,
-				svc.ds,
-				svc.logger,
-				worker.AppleMDMPostDEPEnrollmentTask,
-				r.ID,
-				tmID,
-				r.Params[mobileconfig.FleetEnrollReferenceKey],
-			); err != nil {
-				return ctxerr.Wrap(r.Context, err, "queue DEP post-enroll task")
-			}
-		}
-
-		// manual MDM enrollments that are not fleet-enrolled yet
-		if !info.InstalledFromDEP && !info.OsqueryEnrolled {
-			if err := worker.QueueAppleMDMJob(
-				r.Context,
-				svc.ds,
-				svc.logger,
-				worker.AppleMDMPostManualEnrollmentTask,
-				r.ID,
-				tmID,
-				r.Params[mobileconfig.FleetEnrollReferenceKey],
-			); err != nil {
-				return ctxerr.Wrap(r.Context, err, "queue manual post-enroll task")
-			}
-		}
-	}
-	return nil
+	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
+		Action:          mdmlifecycle.HostActionTurnOn,
+		Platform:        "darwin",
+		UUID:            r.ID,
+		EnrollReference: r.Params[mobileconfig.FleetEnrollReferenceKey],
+	})
 }
 
 // CheckOut handles MDM [CheckOut][1] requests.
@@ -2585,14 +2565,22 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 		return err
 	}
 
-	if err := svc.ds.UpdateHostTablesOnMDMUnenroll(r.Context, m.UDID); err != nil {
+	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
+		Action:   mdmlifecycle.HostActionTurnOff,
+		Platform: "darwin",
+		UUID:     r.ID,
+	})
+	if err != nil {
 		return err
 	}
-	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
-		HostSerial:       info.HardwareSerial,
-		HostDisplayName:  info.DisplayName,
-		InstalledFromDEP: info.InstalledFromDEP,
-	})
+
+	return newActivity(
+		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
+			HostSerial:       info.HardwareSerial,
+			HostDisplayName:  info.DisplayName,
+			InstalledFromDEP: info.InstalledFromDEP,
+		}, svc.ds, svc.logger,
+	)
 }
 
 // SetBootstrapToken handles MDM [SetBootstrapToken][1] requests.
@@ -2968,6 +2956,13 @@ func ReconcileAppleProfiles(
 			continue
 		}
 
+		if p.FailedToInstallOnHost() {
+			// then we shouldn't send an additional remove command since it failed to install on the
+			// host.
+			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			continue
+		}
+
 		target := removeTargets[p.ProfileUUID]
 		if target == nil {
 			target = &cmdTarget{
@@ -3096,80 +3091,6 @@ func ReconcileAppleProfiles(
 	}
 
 	return nil
-}
-
-func (svc *Service) maybeRestorePendingDEPHost(ctx context.Context, host *fleet.Host) error {
-	if host.Platform != "darwin" {
-		return nil
-	}
-
-	if !license.IsPremium(ctx) {
-		// only premium tier supports DEP so nothing more to do
-		return nil
-	}
-
-	ac, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get app config")
-	} else if !ac.MDM.AppleBMEnabledAndConfigured {
-		// if ABM is not enabled and configured, nothing more to do
-		return nil
-	}
-
-	dep, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
-	switch {
-	case err != nil && !fleet.IsNotFound(err):
-		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get host dep assignment")
-	case dep != nil && dep.DeletedAt == nil:
-		return svc.restorePendingDEPHost(ctx, host, ac)
-	default:
-		// no DEP assignment was found or the DEP assignment was deleted in ABM
-		// so nothing more to do
-	}
-
-	return nil
-}
-
-func (svc *Service) restorePendingDEPHost(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) error {
-	tmID, err := svc.getConfigAppleBMDefaultTeamID(ctx, appCfg)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "restore pending dep host")
-	}
-	host.TeamID = tmID
-
-	if err := svc.ds.RestoreMDMApplePendingDEPHost(ctx, host); err != nil {
-		return ctxerr.Wrap(ctx, err, "restore pending dep host")
-	}
-
-	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger,
-		worker.MacosSetupAssistantHostsTransferred, tmID, host.HardwareSerial); err != nil {
-		return ctxerr.Wrap(ctx, err, "restore pending dep host")
-	}
-
-	return nil
-}
-
-func (svc *Service) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *fleet.AppConfig) (*uint, error) {
-	var tmID *uint
-	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
-		team, err := svc.ds.TeamByName(ctx, name)
-		switch {
-		case fleet.IsNotFound(err):
-			level.Debug(svc.logger).Log(
-				"msg",
-				"unable to find default team assigned in config, mdm devices won't be assigned to a team",
-				"team_name",
-				name,
-			)
-			return nil, nil
-		case err != nil:
-			return nil, ctxerr.Wrap(ctx, err, "get default team for mdm devices")
-		case team != nil:
-			tmID = &team.ID
-		}
-	}
-
-	return tmID, nil
 }
 
 // scepCertRenewalThresholdDays defines the number of days before a SCEP

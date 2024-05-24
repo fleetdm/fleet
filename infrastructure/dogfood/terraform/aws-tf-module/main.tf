@@ -70,6 +70,7 @@ module "main" {
   }
   rds_config = {
     name                = local.customer
+    engine_version      = "8.0.mysql_aurora.3.05.2"
     snapshot_identifier = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
     db_parameters = {
       # 8mb up from 262144 (256k) default
@@ -318,7 +319,7 @@ module "monitoring" {
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id
     # Format of https://pkg.go.dev/time#ParseDuration
-    delay_tolerance = "2h"
+    delay_tolerance = "4h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
     run_interval = "1 hour"
   }

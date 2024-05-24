@@ -67,7 +67,7 @@ parasails.registerPage('new-license', {
 
     clickGoToDashboard: async function() {
       this.syncing = true;
-      window.location = '/customers/dashboard?order-complete';
+      this.goto('/customers/dashboard?order-complete');
     },
 
     submittedQuoteForm: async function(quote) {
@@ -90,7 +90,7 @@ parasails.registerPage('new-license', {
     clickScheduleDemo: async function() {
       this.syncing = true;
       // Note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
-      window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`;
+      this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`);
     },
 
     clickResetForm: async function() {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -81,6 +82,7 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		"",
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -144,7 +146,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appConfig, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails) error {
+		ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 			return nil
 		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -423,7 +425,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		spec := &fleet.TeamSpec{
 			Name: team2.Name,
 		}
-		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.SaveTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -522,7 +524,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 
 		// apply team spec creates new team without defaults
-		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.NewTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
@@ -535,7 +537,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 
 		// apply team spec edits existing team without applying defaults
 		spec.MDM.MacOSUpdates.Deadline = optjson.SetString("2025-01-01")
-		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 		require.True(t, ds.SaveTeamFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)

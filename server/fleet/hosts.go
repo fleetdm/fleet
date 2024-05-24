@@ -146,6 +146,9 @@ type HostListOptions struct {
 	// use. This identifies a "software title" independent of the specific
 	// version.
 	SoftwareTitleIDFilter *uint
+	// SoftwareStatusFilter filters the hosts by the status of the software installer, if any,
+	// managed by Fleet. If specified, the SoftwareTitleIDFilter must also be specified.
+	SoftwareStatusFilter *SoftwareInstallerStatus
 
 	OSIDFilter        *uint
 	OSNameFilter      *string
@@ -210,6 +213,7 @@ func (h HostListOptions) Empty() bool {
 		h.SoftwareIDFilter == nil &&
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
+		h.SoftwareStatusFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
@@ -361,7 +365,9 @@ type Host struct {
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
 type HostOrbitInfo struct {
-	ScriptsEnabled *bool `json:"scripts_enabled" db:"scripts_enabled"`
+	Version        string  `json:"version" db:"version"`
+	DesktopVersion *string `json:"desktop_version" db:"desktop_version"`
+	ScriptsEnabled *bool   `json:"scripts_enabled" db:"scripts_enabled"`
 }
 
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with

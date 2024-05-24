@@ -173,7 +173,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -545,7 +547,9 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -705,7 +709,9 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1001,6 +1007,18 @@ spec:
   platforms:
     - darwin
 `
+	builtinLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  description: All Ubuntu hosts
+  hosts: null
+  id: 8
+  label_membership_type: dynamic
+  label_type: builtin
+  name: Ubuntu Linux
+  query: select 1 from os_version where platform = 'ubuntu';
+`
 	packsSpec = `---
 apiVersion: v1
 kind: pack
@@ -1039,7 +1057,9 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1127,7 +1147,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return gitOps, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1614,6 +1636,36 @@ func TestApplyLabels(t *testing.T) {
 	_, err := runAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "declared as manual but contains no `hosts key`")
+
+	// Apply built-in label (no changes)
+	// The label values below should match the spec.
+	ubuntuLabel := &fleet.Label{
+		ID:                  8,
+		Name:                fleet.BuiltinLabelNameUbuntuLinux,
+		Query:               "select 1 from os_version where platform = 'ubuntu';",
+		Description:         "All Ubuntu hosts",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameUbuntuLinux}, names)
+		return map[string]*fleet.Label{
+			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
+		}, nil
+	}
+
+	name = writeTmpYml(t, builtinLabelSpec)
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.False(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.LabelsByNameFuncInvoked)
+
+	// Apply built-in label (with changes)
+	ubuntuLabel.Description = "CHANGED"
+	name = writeTmpYml(t, builtinLabelSpec)
+	_, err = runAppNoChecks([]string{"apply", "-f", name})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "cannot modify or add built-in label")
+
 }
 
 func TestApplyPacks(t *testing.T) {
@@ -1622,7 +1674,9 @@ func TestApplyPacks(t *testing.T) {
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1672,7 +1726,9 @@ func TestApplyQueries(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1777,7 +1833,9 @@ func TestApplyMacosSetup(t *testing.T) {
 		teamsByID := map[uint]*fleet.Team{
 			tm1.ID: tm1,
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		ds.NewActivityFunc = func(
+			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+		) error {
 			return nil
 		}
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
@@ -2543,7 +2601,9 @@ func TestApplySpecs(t *testing.T) {
 		}
 
 		// activities
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		ds.NewActivityFunc = func(
+			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+		) error {
 			return nil
 		}
 
@@ -3604,6 +3664,58 @@ spec:
     windows_enabled_and_configured: true
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
+		},
+		{
+			desc: "activities_webhook empty destination_url",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: ""
+`,
+			wantErr: `422 Validation Failed: destination_url is required`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 1",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: ftp://host
+`,
+			wantErr: `422 Validation Failed: destination_url must be http`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 2",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: /foo
+`,
+			wantErr: `422 Validation Failed: destination_url must be http`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 3",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: foo
+`,
+			wantErr: `422 Validation Failed: parse "foo": invalid URI`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because

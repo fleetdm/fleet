@@ -705,6 +705,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 type WebhookSettings struct {
+	ActivitiesWebhook      ActivitiesWebhookSettings      `json:"activities_webhook"`
 	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 	VulnerabilitiesWebhook VulnerabilitiesWebhookSettings `json:"vulnerabilities_webhook"`
@@ -712,6 +713,11 @@ type WebhookSettings struct {
 	//
 	// This value currently configures both the host status and failing policies webhooks.
 	Interval Duration `json:"interval"`
+}
+
+type ActivitiesWebhookSettings struct {
+	Enable         bool   `json:"enable_activities_webhook"`
+	DestinationURL string `json:"destination_url"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -881,6 +887,7 @@ type ServerSettings struct {
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
+	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -997,6 +1004,11 @@ type ListOptions struct {
 	After string `query:"after,optional"`
 	// Used to request the metadata of a query
 	IncludeMetadata bool
+
+	// The following fields are for tests, to ensure a deterministic sort order
+	// when the single-column order key is not unique.
+	TestSecondaryOrderKey       string         `query:"-,optional"`
+	TestSecondaryOrderDirection OrderDirection `query:"-,optional"`
 }
 
 func (l ListOptions) Empty() bool {
@@ -1015,6 +1027,9 @@ type ListQueryOptions struct {
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
 	IsScheduled *bool
+	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
+	// is set.
+	MergeInherited bool
 }
 
 type ListActivitiesOptions struct {
@@ -1033,6 +1048,11 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+}
+
+type ApplyTeamSpecOptions struct {
+	ApplySpecOptions
+	DryRunAssumptions *TeamSpecsDryRunAssumptions
 }
 
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
