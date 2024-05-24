@@ -490,7 +490,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           formData.url !==
             config?.webhook_settings.activities_webhook.destination_url
         ) {
-          configAPI.update({});
+          configAPI.update({
+            webhook_settings: {
+              activities_webhook: {
+                enable_activities_webhook: formData.enabled,
+                destination_url: formData.url,
+              },
+            },
+          });
         }
         renderFlash(
           "success",
