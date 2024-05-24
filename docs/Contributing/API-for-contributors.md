@@ -602,7 +602,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
 Content-Type: application/octet-stream
 
------ TOKEN -----
+<TOKEN_DATA>
 
 --------------------------f02md47480und42y
 ```
@@ -641,7 +641,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
 Content-Type: application/octet-stream
 
------ CERTIFICATE -----
+<CERTIFICATE_DATA>
 
 --------------------------f02md47480und42y
 ```
