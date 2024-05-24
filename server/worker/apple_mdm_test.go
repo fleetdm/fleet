@@ -190,7 +190,8 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "")
+		// use "" instead of "darwin" as platform to test a queued job after the upgrade to iOS/iPadOS support.
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "")
 		require.NoError(t, err)
 
 		// run the worker, should succeed
