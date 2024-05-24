@@ -2287,6 +2287,12 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, err, "reading apns certificate")
 	}
 
+	// Validate cert TODO(JVE): is there more to do here for validation?
+	block, _ := pem.Decode(certBytes)
+	if block == nil {
+		return fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
+	}
+
 	// Save to DB
 	if err := svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetAPNSCert, Value: certBytes},

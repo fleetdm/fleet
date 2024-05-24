@@ -938,8 +938,11 @@ foobar
 	require.NoError(t, err)
 	require.Equal(t, originalAssets, assets)
 
-	// Upload an APNS cert
-	s.uploadAPNSCert("apns.pem", http.StatusAccepted)
+	// Invalid APNS cert upload attempt
+	s.uploadAPNSCert("apns_invalid.pem", http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
+
+	// Successfully upload an APNS cert
+	s.uploadAPNSCert("apns.pem", http.StatusAccepted, "")
 
 	assets, err = s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
 	require.NoError(t, err)
@@ -953,7 +956,7 @@ foobar
 	require.Len(t, assets, 0)
 }
 
-func (s *integrationMDMTestSuite) uploadAPNSCert(pemFileName string, expectedStatus int) {
+func (s *integrationMDMTestSuite) uploadAPNSCert(pemFileName string, expectedStatus int, wantErr string) {
 	t := s.T()
 	read := func(name string) []byte {
 		b, err := os.ReadFile(filepath.Join("testdata", name))
@@ -980,7 +983,11 @@ func (s *integrationMDMTestSuite) uploadAPNSCert(pemFileName string, expectedSta
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/apns_certificate", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/apns_certificate", b.Bytes(), expectedStatus, headers)
+	if wantErr != "" {
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, wantErr)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
