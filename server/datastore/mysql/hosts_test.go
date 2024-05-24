@@ -7384,6 +7384,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		HardwareSerial:  "123456789",
 		TeamID:          &tm.ID,
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "")
@@ -7396,6 +7397,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, tm.ID, info.TeamID)
 	require.False(t, info.DEPAssignedToFleet)
 	require.True(t, info.OsqueryEnrolled)
+	require.Equal(t, "darwin", info.Platform)
 
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host})
 	require.NoError(t, err)
