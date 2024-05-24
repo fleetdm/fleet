@@ -299,6 +299,10 @@ func calculateOutputSize(perfStatsTracker *statsTracker, res *fleet.DistributedQ
 	return outputSize
 }
 
+// overwriteLastExecuted is used for testing purposes to overwrite the last executed time of the live query stats.
+var overwriteLastExecuted = false
+var overwriteLastExecutedTime time.Time
+
 func (svc Service) updateStats(
 	ctx context.Context, queryID uint, logger log.Logger, tracker *statsTracker, aggregateStats bool,
 ) {
@@ -328,7 +332,12 @@ func (svc Service) updateStats(
 		}
 
 		// Update stats
-		lastExecuted := time.Now()
+		// We round to the nearest second because MySQL default precision of TIMESTAMP is 1 second.
+		// We could alter the table to increase precision. However, this precision granularity is sufficient for the live query stats use case.
+		lastExecuted := time.Now().Round(time.Second)
+		if overwriteLastExecuted {
+			lastExecuted = overwriteLastExecutedTime
+		}
 		for _, gatheredStats := range tracker.stats {
 			stats, ok := statsMap[gatheredStats.hostID]
 			if !ok {

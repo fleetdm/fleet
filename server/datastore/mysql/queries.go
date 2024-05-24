@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -691,7 +690,7 @@ func (ds *Datastore) GetLiveQueryStats(ctx context.Context, queryID uint, hostID
 }
 
 // UpdateLiveQueryStats writes new stats as a batch
-func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, lastExecuted time.Time, stats []*fleet.LiveQueryStats) error {
+func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error {
 	if len(stats) == 0 {
 		return nil
 	}
@@ -706,7 +705,7 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, las
 	for _, s := range stats {
 		args = append(
 			args, queryID, s.HostID, statsLiveQueryType, s.Executions, s.AverageMemory, s.SystemTime, s.UserTime, s.WallTime, s.OutputSize,
-			0, 0, lastExecuted,
+			0, 0, s.LastExecuted,
 		)
 	}
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
