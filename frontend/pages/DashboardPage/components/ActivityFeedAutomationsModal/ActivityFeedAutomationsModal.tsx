@@ -86,6 +86,14 @@ const ActivityFeedAutomationsModal = ({
     setFormData(newFormData);
   };
 
+  const onModalSubmit = () => {
+    const newErrors = validateForm(formData);
+    setFormErrors(newErrors);
+    if (Object.keys(newErrors).length === 0) {
+      onSubmit(formData);
+    }
+  };
+
   const renderExamplePayload = () => {
     return (
       <>
@@ -116,7 +124,7 @@ const ActivityFeedAutomationsModal = ({
       title="Manage automations"
       width="large"
       onExit={onExit}
-      onEnter={() => onSubmit(formData)}
+      onEnter={onModalSubmit}
     >
       <div className={`${baseClass} form`}>
         <Slider
@@ -153,7 +161,7 @@ const ActivityFeedAutomationsModal = ({
           <Button
             type="submit"
             variant="brand"
-            onClick={onSubmit}
+            onClick={onModalSubmit}
             className="save-loading"
             isLoading={isUpdating}
             disabled={Object.keys(formErrors).length > 0}
