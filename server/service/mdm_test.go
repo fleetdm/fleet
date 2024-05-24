@@ -60,6 +60,16 @@ func TestMDMAppleAuthorization(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
+	ds.GetMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+		return []fleet.MDMConfigAsset{}, nil
+	}
+
+	ds.InsertMDMConfigAssetsFunc = func(ctx context.Context, assets []fleet.MDMConfigAsset) error { return nil }
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Nurv"}}, nil
+	}
+
 	// use a custom implementation of checkAuthErr as the service call will fail
 	// with a not found error (given that MDM is not really configured) in case
 	// of success, and the package-wide checkAuthErr requires no error.
@@ -81,6 +91,9 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		// deliberately send invalid args so it doesn't actually generate a CSR
 		_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
 		require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		_, err = svc.GetMDMAppleCSR(ctx)
 		checkAuthErr(t, shouldFailWithAuth, err)
 	}
 

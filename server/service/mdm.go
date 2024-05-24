@@ -2137,7 +2137,7 @@ func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.
 
 func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
