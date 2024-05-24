@@ -25,7 +25,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Product marketing (PMM)              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand marketing                      | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Public relations                     | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
-| Revenue pipeline                     | <sup><sub>_See [🫧 Head of Demand Generation](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Revenue pipeline                     | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
 | Ads                                  | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
 | Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
 | Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
@@ -114,7 +114,7 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
 #### Event lead follow-up
-Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. It is up to Head of Demand to make sure this process is followed.
+Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. It is up to Digital Marketing Manager to make sure this process is followed.
 
 1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
 2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
@@ -509,7 +509,7 @@ For recurring business expenses paid by credit card, there are four accounts pay
 | Business spend | Business tax, insurance, IT, SaaS, other | CEO |
 | Individualized spend | Flowers, swag, and other internal gifting for Fleeties, coaching/training, coworking, and other large [individualized expenses](https://fleetdm.com/handbook/company/communications#individualized-expenses) | Head of Business Operations |
 | Infrastructure spend | AWS and other production/cloud infrastructure related to hosting Fleet for customers or load testing customer scale | CTO |
-| Marketing program spend | Ads, events, sponsorship, etc. | Head of Demand Generation | 
+| Marketing program spend | Ads, events, sponsorship, etc. | Head of Business Operations | 
 
 
 ## Travel
