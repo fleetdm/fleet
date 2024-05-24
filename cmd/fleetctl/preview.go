@@ -227,32 +227,32 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			// Create a random private key for MDM asset encryption and save it to the filesystem
 			// for use in subsequent runs. If one already exists, use that one.
-			var pk string
-			pkFilename := filepath.Join(previewDir, ".private_key")
-			_, err = os.Stat(pkFilename)
-			if err != nil {
-				if errors.Is(err, os.ErrNotExist) {
-					pk, err := generatePrivateKey(32) // use AES-256
-					if err != nil {
-						return fmt.Errorf("generating private key: %w", err)
-					}
-
-					if err := os.WriteFile(filepath.Join(previewDir, ".private_key"), []byte(pk), os.ModeAppend); err != nil {
-						return fmt.Errorf("writing private key file: %w", err)
-					}
-
-				}
-
-				return fmt.Errorf("stat private key file: %w", err)
-			}
-
-			if len(pk) == 0 {
+			getPrivateKey := func() (string, error) {
+				pkFilename := filepath.Join(previewDir, ".private_key")
 				filePK, err := os.ReadFile(pkFilename)
 				if err != nil {
-					return fmt.Errorf("reading private key file: %w", err)
+					if errors.Is(err, os.ErrNotExist) {
+						genPK, err := generatePrivateKey(32) // use AES-256
+						if err != nil {
+							return "", fmt.Errorf("generating private key: %w", err)
+						}
+
+						if err := os.WriteFile(filepath.Join(previewDir, ".private_key"), []byte(genPK), os.ModeAppend); err != nil {
+							return "", fmt.Errorf("writing private key file: %w", err)
+						}
+
+						return genPK, nil
+					}
+
+					return "", fmt.Errorf("stat private key file: %w", err)
 				}
 
-				pk = string(filePK)
+				return string(filePK), nil
+			}
+
+			pk, err := getPrivateKey()
+			if err != nil {
+				return fmt.Errorf("getting private key: %w", err)
 			}
 
 			if err := os.Setenv("FLEET_SERVER_PRIVATE_KEY", pk); err != nil {
