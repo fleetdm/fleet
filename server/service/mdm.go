@@ -2278,7 +2278,11 @@ func uploadMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, sv
 
 func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return err
+	}
+
+	if cert == nil {
+		return fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
 	}
 
 	// Get cert file bytes
@@ -2287,7 +2291,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, err, "reading apns certificate")
 	}
 
-	// Validate cert TODO(JVE): is there more to do here for validation?
+	// Validate cert
 	block, _ := pem.Decode(certBytes)
 	if block == nil {
 		return fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
@@ -2323,7 +2327,7 @@ func deleteMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, sv
 
 func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return err
 	}
 
 	return ctxerr.Wrap(ctx, svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
