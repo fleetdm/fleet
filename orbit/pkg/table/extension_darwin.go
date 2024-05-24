@@ -3,7 +3,6 @@
 package table
 
 import (
-	"context"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
@@ -29,14 +28,13 @@ import (
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
-	"github.com/macadmins/osquery-extension/tables/sofa"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
 
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
+func PlatformTables() []osquery.OsqueryPlugin {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
@@ -67,18 +65,6 @@ func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
-		table.NewPlugin(
-			"sofa_security_release_info", sofa.SofaSecurityReleaseInfoColumns(),
-			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-				return sofa.SofaSecurityReleaseInfoGenerate(ctx, queryContext, opts.Socket)
-			},
-		),
-		table.NewPlugin(
-			"sofa_unpatched_cves", sofa.SofaUnpatchedCVEsColumns(),
-			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.Socket)
-			},
-		),
 
 		filevault_status.TablePlugin(osqueryLogger), // table name is "filevault_status"
 		ioreg.TablePlugin(osqueryLogger),            // table name is "ioreg"

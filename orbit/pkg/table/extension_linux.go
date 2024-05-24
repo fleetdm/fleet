@@ -10,7 +10,7 @@ import (
 	"github.com/osquery/osquery-go"
 )
 
-func PlatformTables(_ PluginOpts) []osquery.OsqueryPlugin {
+func PlatformTables() []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
 		cryptsetup.TablePlugin(osqueryLogger),            // table name is "cryptsetup_status"
 		falconctl.NewFalconctlOptionTable(osqueryLogger), // table name is "falconctl_option"

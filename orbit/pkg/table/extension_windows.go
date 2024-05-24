@@ -11,7 +11,7 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-func PlatformTables(_ PluginOpts) []osquery.OsqueryPlugin {
+func PlatformTables() []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("mdm_bridge", mdmbridge.Columns(), mdmbridge.Generate),
