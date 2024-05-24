@@ -1,5 +1,7 @@
 # Deploy Fleet on Hetzner Cloud
 
+> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+
 ![Deploy Fleet on Hetzner Cloud](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-800x450@2x.png)
 
 Learn how to deploy Fleet on Hetzner Cloud using cloud-init and Docker. [Hetzner](https://hetzner.com) is a great price-performance provider for “root” (dedicated) and Virtual Private Servers (VPS), offering high performance and generous bandwidth.

@@ -353,7 +353,6 @@ module.exports.routes = {
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
-  'GET /docs/using-fleet/mdm-setup': '/docs/using-fleet/mdm-macos-setup',
   'GET /platform': '/',
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/ceo',
@@ -440,6 +439,7 @@ module.exports.routes = {
   'GET /docs/deploy/deploy-on-hetzner-cloud': '/guides/deploy-fleet-on-hetzner-cloud',
   'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
   'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
+  'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -508,6 +508,9 @@ module.exports.routes = {
   'GET /learn-more-about/rotating-enroll-secrets': '/docs/configuration/configuration-files#rotating-enroll-secrets',
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
+  'GET /learn-more-about/setup-windows-mdm': '/docs/using-fleet/mdm-setup',
+  'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#renewing-apns',
 
   // Sitemap
   // =============================================================================================================

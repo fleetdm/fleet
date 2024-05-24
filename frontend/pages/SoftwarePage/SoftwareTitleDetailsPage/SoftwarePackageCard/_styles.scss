@@ -1,0 +1,69 @@
+.software-package-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &__main-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-xxlarge;
+  }
+
+  &__main-info {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__title {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  &__details {
+    font-size: $xx-small;
+  }
+
+  &__package-statuses {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  &__status-title {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  &__status-count {
+    font-weight: normal;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $pad-medium;
+  }
+
+  &__download-icon {
+    display: flex;
+    justify-content: center;
+    width: 44px;
+  }
+
+  @media (max-width: $break-md) {
+    align-items: flex-start;
+
+    &__main-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: $pad-large;
+    }
+  }
+}

@@ -15,6 +15,8 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
+import { SoftwareInstallStatus } from "interfaces/software";
+
 import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
@@ -70,6 +72,7 @@ interface IHostsFilterBlockProps {
     osSettingsStatus?: MdmProfileStatus;
     diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
+    softwareStatus?: SoftwareInstallStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -83,6 +86,9 @@ interface IHostsFilterBlockProps {
   ) => void;
   onChangeMacSettingsFilter: (
     newMacSettingsStatus: MacSettingsStatusQueryParam
+  ) => void;
+  onChangeSoftwareInstallStatusFilter: (
+    newStatus: SoftwareInstallStatus
   ) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
@@ -117,6 +123,7 @@ const HostsFilterBlock = ({
     osSettingsStatus,
     diskEncryptionStatus,
     bootstrapPackageStatus,
+    softwareStatus,
   },
   selectedLabel,
   isOnlyObserver,
@@ -127,6 +134,7 @@ const HostsFilterBlock = ({
   onChangeDiskEncryptionStatusFilter,
   onChangeBootstrapPackageStatusFilter,
   onChangeMacSettingsFilter,
+  onChangeSoftwareInstallStatusFilter,
   onClickEditLabel,
   onClickDeleteLabel,
   isSandboxMode = false,
@@ -254,7 +262,7 @@ const HostsFilterBlock = ({
     );
   };
 
-  const renderSoftwareFilterBlock = () => {
+  const renderSoftwareFilterBlock = (additionalClearParams?: string[]) => {
     if (!softwareDetails) return null;
 
     const { name, version } = softwareDetails;
@@ -263,6 +271,16 @@ const HostsFilterBlock = ({
       label += ` ${version}`;
     }
     label = label.trim() || "Unknown software";
+
+    const clearParams = [
+      "software_id",
+      "software_version_id",
+      "software_title_id",
+    ];
+
+    if (additionalClearParams?.length) {
+      clearParams.push(...additionalClearParams);
+    }
 
     // const TooltipDescription = (
     //   <span>
@@ -275,13 +293,7 @@ const HostsFilterBlock = ({
     return (
       <FilterPill
         label={label}
-        onClear={() =>
-          handleClearFilter([
-            "software_id",
-            "software_version_id",
-            "software_title_id",
-          ])
-        }
+        onClear={() => handleClearFilter(clearParams)}
         // tooltipDescription={TooltipDescription}
       />
     );
@@ -452,6 +464,26 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderSoftwareInstallStatusBlock = () => {
+    const OPTIONS = [
+      { value: "installed", label: "Installed" },
+      { value: "failed", label: "Failed" },
+      { value: "pending", label: "Pending" },
+    ];
+
+    return (
+      <>
+        <Dropdown
+          value={softwareStatus}
+          className={`${baseClass}__sw-install-status-dropdown`}
+          options={OPTIONS}
+          onChange={onChangeSoftwareInstallStatusFilter}
+        />
+        {renderSoftwareFilterBlock([HOSTS_QUERY_PARAMS.SOFTWARE_STATUS])}
+      </>
+    );
+  };
+
   const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
   if (
@@ -461,6 +493,7 @@ const HostsFilterBlock = ({
     softwareId ||
     softwareTitleId ||
     softwareVersionId ||
+    softwareStatus ||
     mdmId ||
     mdmEnrollmentStatus ||
     lowDiskSpaceHosts ||
@@ -501,6 +534,8 @@ const HostsFilterBlock = ({
           return renderPoliciesFilterBlock();
         case !!macSettingsStatus:
           return renderMacSettingsStatusFilterBlock();
+        case !!softwareStatus:
+          return renderSoftwareInstallStatusBlock();
         case !!softwareId || !!softwareVersionId || !!softwareTitleId:
           return renderSoftwareFilterBlock();
         case !!mdmId:

@@ -1045,7 +1045,7 @@ func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiry
 			COALESCE(MAX(hm.fleet_enroll_ref), '') as enroll_reference
 		 FROM
 			nano_cert_auth_associations ncaa
-			LEFT JOIN hosts h ON h.uuid = ncaa.id
+			JOIN hosts h ON h.uuid = ncaa.id
 			LEFT JOIN host_mdm hm ON hm.host_id = h.id
 		 WHERE
 			cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
@@ -1112,7 +1112,9 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	stmt := `
 	UPDATE nano_cert_auth_associations
 	SET renew_command_uuid = NULL
-	WHERE id = ?`
+	WHERE id = ?
+	ORDER BY created_at desc
+	LIMIT 1`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
 	if err != nil {
