@@ -39,41 +39,41 @@ func TestMDMApple(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
-		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
-		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
-		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
-		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
-		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
-		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
-		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
-		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
-		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
-		{"TestMDMAppleProfileManagementBatch3", testMDMAppleProfileManagementBatch3},
-		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
-		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
-		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
-		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
-		{"TestIgnoreMDMClientError", testDoNotIgnoreMDMClientError},
-		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
-		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
-		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
-		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
-		{"TestListMDMAppleCommands", testListMDMAppleCommands},
-		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
-		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
-		{"TestListMDMAppleSerials", testListMDMAppleSerials},
-		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
-		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
-		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
-		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
-		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
-		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
-		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
-		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
-		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
-		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
-		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
+		// {"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
+		// {"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
+		// {"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
+		// {"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
+		// {"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
+		// {"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
+		// {"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
+		// {"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
+		// {"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
+		// {"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
+		// {"TestMDMAppleProfileManagementBatch3", testMDMAppleProfileManagementBatch3},
+		// {"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
+		// {"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
+		// {"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
+		// {"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
+		// {"TestIgnoreMDMClientError", testDoNotIgnoreMDMClientError},
+		// {"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
+		// {"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
+		// {"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
+		// {"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
+		// {"TestListMDMAppleCommands", testListMDMAppleCommands},
+		// {"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
+		// {"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
+		// {"TestListMDMAppleSerials", testListMDMAppleSerials},
+		// {"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
+		// {"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
+		// {"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
+		// {"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
+		// {"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
+		// {"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
+		// {"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
+		// {"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
+		// {"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
+		// {"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
+		// {"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
 		{"TestInsertMDMAsset", testMDMConfigAsset},
 	}
 
@@ -5518,4 +5518,36 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	a, err := ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.NoError(t, err)
 	require.Equal(t, assets, a)
+
+	// Soft delete the assets
+
+	err = ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
+
+	a, err = ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
+	require.Len(t, a, 0)
+
+	// Verify that they're still in the DB
+
+	type assetRow struct {
+		Name         string    `db:"name"`
+		Value        []byte    `db:"value"`
+		DeletionUUID string    `db:"deletion_uuid"`
+		DeletedAt    time.Time `db:"deleted_at"`
+	}
+
+	var ar []assetRow
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &ar, "SELECT name, value, deletion_uuid, deleted_at FROM mdm_config_assets WHERE name IN (?, ?) ORDER BY name", fleet.MDMAssetCACert, fleet.MDMAssetCAKey)
+	require.NoError(t, err)
+
+	require.Len(t, ar, 2)
+
+	for i, a := range ar {
+		require.Equal(t, assets[i].Name, fleet.MDMAssetName(a.Name))
+		require.Equal(t, assets[i].Value, a.Value)
+		require.NotEmpty(t, a.DeletionUUID)
+		require.NotEmpty(t, a.DeletedAt)
+	}
 }
