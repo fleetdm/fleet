@@ -1,1 +1,0 @@
-- Fixes a bug that caused the `GET /software/titles` endpoint to ignore the team filter for uploaded software.

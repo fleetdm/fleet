@@ -1,1 +1,0 @@
-* Added a `cron` job to periodically remove unused software installers from the store.

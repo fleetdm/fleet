@@ -1,1 +1,0 @@
-Fixed MySQL sort buffer overflow when fetching activities. This issue happened when activities contained very large details, such as large SQL queries.

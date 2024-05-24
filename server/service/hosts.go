@@ -865,7 +865,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 		}
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeTransferredHostsToTeam{
@@ -2145,7 +2145,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 	key.DecryptedValue = string(decryptedKey)
 
-	err = svc.ds.NewActivity(
+	err = svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeReadHostDiskEncryptionKey{
