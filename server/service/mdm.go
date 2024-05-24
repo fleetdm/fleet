@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -2346,7 +2345,10 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return err
 	}
 
-	slog.With("filename", "server/service/mdm.go", "func", "UploadMDMAppleAPNSCert").Info("JVE_LOG: env var value ", "var", svc.config.Server.PrivateKey)
+	if len(svc.config.Server.PrivateKey) == 0 {
+		return ctxerr.Wrap(ctx, errors.New("no private key configured"))
+	}
+
 	if cert == nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
@@ -2363,11 +2365,16 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
 
-	// Save to DB
+	// Save to DB encrypted
+	encryptedCert, err := Encrypt(certBytes, svc.config.Server.PrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypting apns certificate")
+	}
+
 	return ctxerr.Wrap(
 		ctx,
 		svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-			{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
+			{Name: fleet.MDMAssetAPNSCert, Value: encryptedCert},
 		}),
 		"writing apns cert to db",
 	)
