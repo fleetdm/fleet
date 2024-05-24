@@ -695,6 +695,7 @@ type Service interface {
 	GetMDMAppleCSR(ctx context.Context) ([]byte, error)
 
 	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
+	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)

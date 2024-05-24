@@ -2296,3 +2296,34 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 
 	return nil
 }
+
+type deleteMDMAppleAPNSCertRequest struct{}
+
+type deleteMDMAppleAPNSCertResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteMDMAppleAPNSCertResponse) error() error {
+	return r.Err
+}
+
+func deleteMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	if err := svc.DeleteMDMAppleAPNSCert(ctx); err != nil {
+		return &deleteMDMAppleAPNSCertResponse{Err: err}, nil
+	}
+
+	return &deleteMDMAppleAPNSCertResponse{}, nil
+}
+
+func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	return ctxerr.Wrap(ctx, svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+		fleet.MDMAssetAPNSKey,
+		fleet.MDMAssetCACert,
+		fleet.MDMAssetCAKey,
+	}), "deleting apple mdm assets")
+}

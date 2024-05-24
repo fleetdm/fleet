@@ -714,6 +714,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/mdm/apple/request_csr", getMDMAppleCSREndpoint, getMDMAppleCSRRequest{})
 	ue.POST("/api/_version_/fleet/mdm/apple/apns_certificate", uploadMDMAppleAPNSCertEndpoint, uploadMDMAppleAPNSCertRequest{})
+	ue.DELETE("/api/_version_/fleet/mdm/apple/apns_certificate", deleteMDMAppleAPNSCertEndpoint, deleteMDMAppleAPNSCertRequest{})
 
 	// Deprecated: GET /mdm/apple_bm is now deprecated, replaced by the
 	// GET /abm endpoint.

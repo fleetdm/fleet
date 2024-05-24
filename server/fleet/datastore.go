@@ -1255,6 +1255,9 @@ type Datastore interface {
 	// GetMDMConfigAssetsByName returns the requested config assets.
 	GetMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) ([]MDMConfigAsset, error)
 
+	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
+	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
