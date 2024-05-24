@@ -248,6 +248,10 @@ GROUP BY st.id, software_package`
 		args = append(args, match, match)
 	}
 
+	if opt.SelfService {
+		additionalWhere += "AND self_serice"
+	}
+
 	defaultFilter := `
 	  EXISTS (
 	    SELECT 1

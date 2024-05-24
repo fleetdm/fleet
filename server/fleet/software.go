@@ -195,6 +195,7 @@ type SoftwareTitleListOptions struct {
 	TeamID              *uint `query:"team_id,optional"`
 	VulnerableOnly      bool  `query:"vulnerable,optional"`
 	AvailableForInstall bool  `query:"available_for_install,optional"`
+	SelfService         bool  `query:"self_service"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
