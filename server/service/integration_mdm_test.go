@@ -920,9 +920,10 @@ foobar
 -----END CERTIFICATE REQUEST-----`)
 
 	// Check that we created the right assets
-	assetsFromCall1, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	var originalAssets []fleet.MDMConfigAsset
+	originalAssets, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
 	require.NoError(t, err)
-	require.Len(t, assetsFromCall1, 3)
+	require.Len(t, originalAssets, 3)
 
 	resp = getMDMAppleCSRResponse{}
 	s.SucceedNextCSRRequest()
@@ -933,9 +934,53 @@ foobar
 -----END CERTIFICATE REQUEST-----`)
 
 	// Check that the assets stayed the same in the subsequent call
-	assetsFromCall2, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	assets, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
 	require.NoError(t, err)
-	require.Equal(t, assetsFromCall1, assetsFromCall2)
+	require.Equal(t, originalAssets, assets)
+
+	// Upload an APNS cert
+	s.uploadAPNSCert("apns.pem", http.StatusAccepted)
+
+	assets, err = s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	require.NoError(t, err)
+	require.Len(t, assets, 4)
+
+	// Delete APNS cert, should soft delete all certs and keys created in this test
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
+
+	assets, err = s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	require.NoError(t, err)
+	require.Len(t, assets, 0)
+}
+
+func (s *integrationMDMTestSuite) uploadAPNSCert(pemFileName string, expectedStatus int) {
+	t := s.T()
+	read := func(name string) []byte {
+		b, err := os.ReadFile(filepath.Join("testdata", name))
+		require.NoError(t, err)
+		return b
+	}
+
+	pemBytes := read(pemFileName)
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the package field
+	fw, err := w.CreateFormFile("certificate", pemFileName)
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewBuffer(pemBytes))
+	require.NoError(t, err)
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/apns_certificate", b.Bytes(), expectedStatus, headers)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
