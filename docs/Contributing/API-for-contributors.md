@@ -608,7 +608,7 @@ Content-Type: application/octet-stream
 ```
 
 
-#### Default response
+##### Default response
 
 `Status: 200`
 
@@ -646,7 +646,7 @@ Content-Type: application/octet-stream
 --------------------------f02md47480und42y
 ```
 
-#### Default response
+##### Default response
 
 `Status: 200`
 
@@ -658,11 +658,9 @@ Content-Type: application/octet-stream
 
 `DELETE /api/v1/fleet/mdm/apple/abm_token`
 
-#### Default response
+##### Default response
 
-```
-Status: 204
-```
+`Status: 204`
 
 ### Disable Apple MDM
 
@@ -672,12 +670,9 @@ Status: 204
 
 `DELETE /api/v1/fleet/mdm/apple/apns_certificate`
 
-#### Default response
+##### Default response
 
-```
-Status: 204
-```
-
+`Status: 204`
 
 
 ### Batch-apply MDM custom settings
