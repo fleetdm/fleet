@@ -1,6 +1,6 @@
 name: arp_cache
 description: The Address Resolution Protocol (ARP) cache maps IP addresses to MAC addresses in the network stack on Linux, macOS & Windows.
-examples: >-
+examples: |-
   Basic query:
 
   ```
@@ -12,7 +12,7 @@ examples: >-
   ```
   SELECT * FROM arp_cache WHERE address IN (INSERT_GATEWAY_IPS) AND mac NOT IN (INSERT_EXPECTED_MAC_ADDRESSES);
   ```
-notes: >-
+notes: |-
   The first six digits of a MAC address are the known as the [Organizationally Unique Identifier](https://en.wikipedia.org/wiki/Organizationally_unique_identifier)
 
   Manufacturer and model information can be looked up by MAC address using [Wireshark OUI Lookup](https://www.wireshark.org/tools/oui-lookup.html)
