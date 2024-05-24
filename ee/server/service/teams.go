@@ -101,7 +101,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedTeam{
@@ -253,7 +253,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedMacOSMinVersion{
@@ -283,7 +283,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "disable team windows OS updates")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedWindowsUpdates{
@@ -309,7 +309,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
@@ -357,7 +357,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedAgentOptions{
@@ -572,7 +572,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedTeam{
@@ -833,7 +833,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if !applyOpts.DryRun {
-			if err := svc.ds.NewActivity(
+			if err := svc.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeAppliedSpecTeam{
@@ -952,7 +952,7 @@ func (svc *Service) createTeamFromSpec(
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name},
@@ -1150,7 +1150,7 @@ func (svc *Service) editTeamFromSpec(
 				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
@@ -1297,7 +1297,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 					return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 				}
 			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 			}
 		}
