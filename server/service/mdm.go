@@ -3,6 +3,9 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
@@ -10,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -2117,6 +2121,50 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 // GET /mdm/apple/request_csr
 ////////////////////////////////////////////////////////////////////////////////
 
+func Encrypt(plainText []byte, privateKey string) ([]byte, error) {
+	block, err := aes.NewCipher([]byte(privateKey))
+	if err != nil {
+		return nil, fmt.Errorf("create new cipher: %w", err)
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("create new gcm: %w", err)
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, fmt.Errorf("generate nonce: %w", err)
+	}
+
+	return aesGCM.Seal(nonce, nonce, plainText, nil), nil
+}
+
+func Decrypt(encrypted []byte, privateKey string) ([]byte, error) {
+	block, err := aes.NewCipher([]byte(privateKey))
+	if err != nil {
+		return nil, fmt.Errorf("create new cipher: %w", err)
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("create new gcm: %w", err)
+	}
+
+	// Get the nonce size
+	nonceSize := aesGCM.NonceSize()
+
+	// Extract the nonce from the encrypted data
+	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
+
+	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, fmt.Errorf("generate nonce: %w", err)
+	}
+
+	return decrypted, nil
+}
+
 type getMDMAppleCSRRequest struct{}
 
 type getMDMAppleCSRResponse struct {
@@ -2140,6 +2188,10 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
+	if len(svc.config.Server.PrivateKey) == 0 {
+		return nil, ctxerr.Wrap(ctx, errors.New("no private key configured"))
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext
@@ -2154,6 +2206,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 
 	if len(savedAssets) == 0 {
 		// Then we should create them
+
 		scepCert, scepKey, err := apple_mdm.NewSCEPCACertKey()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
@@ -2164,16 +2217,20 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 			return nil, ctxerr.Wrap(ctx, err, "generate new apns private key")
 		}
 
-		// Store our config assets
+		// Store our config assets encrypted
 		var assets []fleet.MDMConfigAsset
 		for k, v := range map[fleet.MDMAssetName][]byte{
 			fleet.MDMAssetCACert:  apple_mdm.EncodeCertPEM(scepCert),
 			fleet.MDMAssetCAKey:   apple_mdm.EncodePrivateKeyPEM(scepKey),
 			fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsKey),
 		} {
+			encryptedVal, err := Encrypt(v, svc.config.Server.PrivateKey)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", k))
+			}
 			assets = append(assets, fleet.MDMConfigAsset{
 				Name:  k,
-				Value: v,
+				Value: encryptedVal,
 			})
 		}
 
@@ -2183,7 +2240,15 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	} else {
 		for _, a := range savedAssets {
 			if a.Name == fleet.MDMAssetAPNSKey {
-				block, _ := pem.Decode(a.Value)
+				// decrypt value first
+				decryptedKey, err := Decrypt(a.Value, svc.config.Server.PrivateKey)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "decrypting apns key")
+				}
+				block, _ := pem.Decode(decryptedKey)
+				if block == nil {
+					return nil, ctxerr.Wrap(ctx, errors.New("decoding apns key"))
+				}
 				apnsKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "unmarshaling saved apns key")
@@ -2281,6 +2346,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return err
 	}
 
+	slog.With("filename", "server/service/mdm.go", "func", "UploadMDMAppleAPNSCert").Info("JVE_LOG: env var value ", "var", svc.config.Server.PrivateKey)
 	if cert == nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
