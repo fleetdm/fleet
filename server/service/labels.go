@@ -33,7 +33,7 @@ func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return createLabelResponse{Err: err}, nil
 	}
 
-	labelResp, err := labelResponseForLabel(ctx, svc, label, hostIDs)
+	labelResp, err := labelResponseForLabel(label, hostIDs)
 	if err != nil {
 		return createLabelResponse{Err: err}, nil
 	}
@@ -139,7 +139,7 @@ func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return modifyLabelResponse{Err: err}, nil
 	}
 
-	labelResp, err := labelResponseForLabel(ctx, svc, label, hostIDs)
+	labelResp, err := labelResponseForLabel(label, hostIDs)
 	if err != nil {
 		return modifyLabelResponse{Err: err}, nil
 	}
@@ -221,7 +221,7 @@ type labelResponse struct {
 	fleet.Label
 	DisplayText string `json:"display_text"`
 	Count       int    `json:"count"`
-	HostIDs     []uint `json:"host_ids"`
+	HostIDs     []uint `json:"host_ids,omitempty"`
 }
 
 type getLabelResponse struct {
@@ -237,7 +237,7 @@ func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err != nil {
 		return getLabelResponse{Err: err}, nil
 	}
-	resp, err := labelResponseForLabel(ctx, svc, label, hostIDs)
+	resp, err := labelResponseForLabel(label, hostIDs)
 	if err != nil {
 		return getLabelResponse{Err: err}, nil
 	}
@@ -282,7 +282,7 @@ func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	resp := listLabelsResponse{}
 	for _, label := range labels {
-		labelResp, err := labelResponseForLabel(ctx, svc, label, nil)
+		labelResp, err := labelResponseForLabel(label, nil)
 		if err != nil {
 			return listLabelsResponse{Err: err}, nil
 		}
@@ -310,7 +310,7 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*f
 	return svc.ds.ListLabels(ctx, filter, opt)
 }
 
-func labelResponseForLabel(ctx context.Context, svc fleet.Service, label *fleet.Label, hostIDs []uint) (*labelResponse, error) {
+func labelResponseForLabel(label *fleet.Label, hostIDs []uint) (*labelResponse, error) {
 	return &labelResponse{
 		Label:       *label,
 		DisplayText: label.Name,

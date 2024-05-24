@@ -1443,7 +1443,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 		commonSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Common_%d.app", i),
 			"version":           "0.0.1",
-			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%s_%d", a.CachedString("hostname"), i),
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 			"source":            "apps",
 			"last_opened_at":    lastOpenedAt,
 			"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),

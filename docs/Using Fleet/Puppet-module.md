@@ -151,7 +151,7 @@ if $err != '' {
 
 The above example includes the XML payload for the `EnableRemoteDesktop` MDM command. Learn more about creating the payload for other custom commands [here](./MDM-commands.md).
 
-<meta name="pageOrderInSection" value="1509">
+<meta name="pageOrderInSection" value="1510">
 <meta name="title" value="Puppet module">
 <meta name="description" value="Learn how to use Fleet's Puppet module to automatically assign custom configuration profiles on your macOS hosts.">
 <meta name="navSection" value="Device management">
