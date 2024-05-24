@@ -25,7 +25,7 @@ As cyber threats grow more sophisticated, the healthcare industry must prioritiz
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Alex Mitchell">
 <meta name="authorGitHubUsername" value="alexmitchelliii">
-<meta name="publishedOn" value="2024-05-23">
+<meta name="publishedOn" value="2024-05-24">
 <meta name="articleTitle" value="Endpoint management's crucial role in healthcare">
 <meta name="articleImageUrl" value="../website/assets/images/articles/endpoint-managements-crucial-role-in-healthcare-1600x900@2x.png">
 <meta name="description" value="Discover how robust endpoint management is essential for securing healthcare data, ensuring compliance, and building patient trust.">
