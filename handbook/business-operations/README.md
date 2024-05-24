@@ -171,6 +171,7 @@ Thanks,
     Thanks,
     [name]
     ```
+
 4. Once Plane confirms the payroll change has been actioned, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit#gid=928324236) to mark the commission as paid. 
 
 
