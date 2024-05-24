@@ -67,12 +67,13 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// Create activity
-	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-		SoftwareTitle:   payload.Title,
-		SoftwarePackage: payload.Filename,
-		TeamName:        teamName,
-		TeamID:          payload.TeamID,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+			SoftwareTitle:   payload.Title,
+			SoftwarePackage: payload.Filename,
+			TeamName:        teamName,
+			TeamID:          payload.TeamID,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
@@ -111,12 +112,13 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		teamName = &t.Name
 	}
 
-	if err := svc.ds.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
-		SoftwareTitle:   meta.SoftwareTitle,
-		SoftwarePackage: meta.Name,
-		TeamName:        teamName,
-		TeamID:          meta.TeamID,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
+			SoftwareTitle:   meta.SoftwareTitle,
+			SoftwarePackage: meta.Name,
+			TeamName:        teamName,
+			TeamID:          meta.TeamID,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
 
