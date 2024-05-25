@@ -83,7 +83,6 @@ module.exports = {
       'AnthonySnyder8',
       'jahzielv',
       'getvictor',
-      '3kindsoffish',
       'phtardif1',
       'pintomi1989',
       'nonpunctual',

@@ -119,9 +119,9 @@ There are many times in which community members, customers, and contributors are
 
 ### Run a new ad or change an existing ad
 Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
-1. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
+1. [Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
 2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-3. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
+3. [Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
 
 > **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
 
@@ -170,8 +170,6 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 ## Rituals
 <rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
 
-<!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
-<!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 
 #### Stubs
 The following stubs are included only to make links backward compatible

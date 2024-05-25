@@ -512,6 +512,7 @@ For recurring business expenses paid by credit card, there are four accounts pay
 | Marketing program spend | Ads, events, sponsorship, etc. | Head of Business Operations | 
 
 
+
 ## Travel
 
 ### Flights
