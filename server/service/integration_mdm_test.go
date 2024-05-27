@@ -903,6 +903,9 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
 	ctx := context.Background()
 
+	// trying to upload a certificate without generating a private key first is not allowed
+	s.uploadAPNSCert("apns.pem", http.StatusBadRequest, "Please generate a private key first.")
+
 	// Check that we return bad gateway if the website API errors
 	s.FailNextCSRRequestWith(http.StatusInternalServerError)
 	errResp := validationErrResp{}

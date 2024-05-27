@@ -2301,6 +2301,21 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
 
+	if err := svc.authz.Authorize(ctx, &fleet.AppleMDM{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	assets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving APNs key")
+	}
+
+	if len(assets) == 0 {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Please generate a private key first.",
+		}, "uploading APNs certificate")
+	}
+
 	// Save to DB
 	return ctxerr.Wrap(
 		ctx,
