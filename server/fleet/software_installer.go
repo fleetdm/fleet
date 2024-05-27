@@ -95,6 +95,9 @@ type SoftwareInstaller struct {
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.
 	SoftwareTitle string `json:"-" db:"software_title"`
+	// SelfService indicates that the software can be installed by the
+	// end user without admin intervention
+	SelfService bool `json:"-" db:"self_service"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -175,6 +178,9 @@ type HostSoftwareInstallerResult struct {
 	InstallScriptExitCode *int `json:"-" db:"install_script_exit_code"`
 	// PostInstallScriptExitCode is used internally to determine the output displayed to the user.
 	PostInstallScriptExitCode *int `json:"-" db:"post_install_script_exit_code"`
+	// SelfService indicates that the installation was queued by the
+	// end user and not an administrator
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 const (
@@ -252,6 +258,7 @@ type UploadSoftwareInstallerPayload struct {
 	Version           string
 	Source            string
 	Platform          string
+	SelfService       bool
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

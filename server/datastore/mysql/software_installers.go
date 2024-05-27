@@ -104,8 +104,9 @@ INSERT INTO software_installers (
 	install_script_content_id,
 	pre_install_query,
 	post_install_script_content_id,
-	platform
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	platform,
+    self_service
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	args := []interface{}{
 		payload.TeamID,
@@ -118,6 +119,7 @@ INSERT INTO software_installers (
 		payload.PreInstallQuery,
 		postInstallScriptID,
 		payload.Platform,
+		payload.SelfService,
 	}
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
@@ -204,6 +206,7 @@ SELECT
   si.pre_install_query,
   si.post_install_script_content_id,
   si.uploaded_at,
+  si.self_service,
   COALESCE(st.name, '') AS software_title
   %s
 FROM
@@ -299,7 +302,8 @@ SELECT
 	h.team_id AS host_team_id,
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
-	hsi.install_script_exit_code
+	hsi.install_script_exit_code,
+    hsi.self_service
 FROM
 	host_software_installs hsi
 	JOIN hosts h ON h.id = hsi.host_id
