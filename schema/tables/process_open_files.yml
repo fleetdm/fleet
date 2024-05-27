@@ -1,5 +1,5 @@
 name: process_open_files
-examples: >-
+examples: |-
   See what processes have which files open, for example, what processes are
   currently interacting with files with 1Password in their name?
 

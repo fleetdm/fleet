@@ -1,5 +1,5 @@
 name: docker_images
-examples: >-
+examples: |-
   See how much storage is used by Docker images. Requires Docker to be running.
 
   ```

@@ -1,5 +1,5 @@
 name: processes
-examples: >-
+examples: |-
   List executables listening on network ports.
 
   ```

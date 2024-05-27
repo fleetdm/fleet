@@ -1,5 +1,5 @@
 name: groups
-examples: >-
+examples: |-
   See all groups with the IsHidden OpenDirectory attribute
   
   ```

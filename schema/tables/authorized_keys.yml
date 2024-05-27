@@ -1,5 +1,5 @@
 name: authorized_keys
-examples: >-
+examples: |-
   ```
 
   SELECT * FROM users CROSS JOIN authorized_keys USING (uid);

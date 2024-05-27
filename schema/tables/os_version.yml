@@ -4,7 +4,7 @@ platforms:
   - linux
   - windows
   - chrome
-examples: >-
+examples: |-
   See the OS version as well as the CPU architecture in use (X86 vs ARM for
   example)
 
@@ -23,5 +23,5 @@ columns:
   - name: mount_namespace_id
     platforms:
       - linux
-notes: >-
+notes: |-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

@@ -1,5 +1,5 @@
 name: process_envs
-examples: >-
+examples: |-
   See what PATH is configured as an environment variable.
   
   ```

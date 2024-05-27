@@ -4,7 +4,7 @@ platforms:
   - windows
   - linux
   - chrome
-examples: >-
+examples: |-
   List users that have interactive access via a shell that isn't false.
   
   ```
@@ -61,5 +61,5 @@ columns:
       - linux
   - name: username
     description: Username
-notes: >-
+notes: |-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

@@ -1,5 +1,5 @@
 name: crashes
-examples: >-
+examples: |-
   ```
 
   SELECT * FROM users CROSS JOIN crashes USING (uid);

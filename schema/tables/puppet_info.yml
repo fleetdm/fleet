@@ -6,7 +6,7 @@ platforms:
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   List all the information available about the last Puppet run.
 
   ```

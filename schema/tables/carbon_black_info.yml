@@ -1,5 +1,5 @@
 name: carbon_black_info
-examples: >-
+examples: |-
   See systems running Carbon Black but which have protection disabled.
   
   ```

@@ -1,5 +1,5 @@
 name: cups_jobs
-examples: >-
+examples: |-
   See what file format are being printed to what printer. This is useful for
   identifying systems that print a lot, which can help you ensure they have
   access to faster printers. Using this table, you could also highlight slow

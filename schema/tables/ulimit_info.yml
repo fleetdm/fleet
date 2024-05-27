@@ -1,5 +1,5 @@
 name: ulimit_info
-examples: >-
+examples: |-
   Check the stack size limit
   
   ```

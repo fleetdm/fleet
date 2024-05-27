@@ -1,5 +1,5 @@
 name: package_bom
-examples: >-
+examples: |-
   List the bill of materials of a package. The receipts directory contains
   packages to installed applications.
 

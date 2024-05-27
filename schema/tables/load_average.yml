@@ -1,5 +1,5 @@
 name: load_average
-examples: >-
+examples: |-
   Find computers with a load average of 3.5 or higher over the last 15 minutes.
   
   ```

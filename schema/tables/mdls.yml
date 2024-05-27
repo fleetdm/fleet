@@ -1,5 +1,5 @@
 name: mdls
-examples: >-
+examples: |-
   Identify hidden files that have been indexed by Spotlight. This could reveal
   files that were recently deleted and are still in the Spotlight database.
 

@@ -1,5 +1,5 @@
 name: kernel_info
-examples: >-
+examples: |-
   See the kernel version running
   
   ```

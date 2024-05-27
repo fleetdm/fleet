@@ -4,7 +4,7 @@ description: High level information on installed profiles enrollment.
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Identify all profiles that are not *verified*.
   
   ```

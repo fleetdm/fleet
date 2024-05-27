@@ -1,5 +1,5 @@
 name: cpuid
-examples: >-
+examples: |-
   Identify Intel powered Macs that support a specific Intel CPU feature, such as
   sgx1.
 

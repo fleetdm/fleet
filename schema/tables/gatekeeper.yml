@@ -1,5 +1,5 @@
 name: gatekeeper
-examples: >-
+examples: |-
   Policy query to check that Gatekeeper is enabled
   
   ```

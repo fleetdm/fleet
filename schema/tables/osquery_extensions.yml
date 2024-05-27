@@ -1,5 +1,5 @@
 name: osquery_extensions
-examples: >-
+examples: |-
   Identify osquery extensions in use that are not part of osquery core.
   
   ```

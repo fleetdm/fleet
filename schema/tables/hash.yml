@@ -1,5 +1,5 @@
 name: hash
-examples: >-
+examples: |-
   List zip files in the downloads folder as well as their associated sha256
   hash.
 

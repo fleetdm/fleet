@@ -1,5 +1,5 @@
 name: nvram
-examples: >-
+examples: |-
   If a Mac had a sleep failure, this query will return the reason for it.
   
   ```

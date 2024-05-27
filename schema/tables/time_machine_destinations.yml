@@ -1,5 +1,5 @@
 name: time_machine_destinations
-examples: >-
+examples: |-
   If Time Machine is configured, see what destination it is configured to go
   to. 
 

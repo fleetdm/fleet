@@ -1,5 +1,5 @@
 name: azure_instance_metadata
-examples: >-
+examples: |-
   See in which Azure location a VM is located
   
   ```

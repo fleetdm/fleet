@@ -1,5 +1,5 @@
 name: interface_addresses
-examples: >-
+examples: |-
   Find all interfaces that have a public Internet IP. This query filters out all
   RFC1918 IPv4 addresses as well as IPv6 localhost.
 

@@ -1,5 +1,5 @@
 name: docker_container_ports
-examples: >-
+examples: |-
   Identify the ports exposed at the host level and see which containers they
   redirect traffic to.
 

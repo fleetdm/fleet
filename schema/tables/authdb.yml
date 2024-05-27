@@ -7,20 +7,20 @@ columns:
   - name: right_name
     type: text
     required: true
-    description: >-
+    description: |-
       The right_name to query in the `authorizationdb read <right_name>` command.
   - name: json_result
     type: text
     required: false
-    description: >-
+    description: |-
       The JSON output parsed from the plist output of the `authorizationdb read <right_name>` command. 
-example: >-
+example: |-
 
   ```
   SELECT * FROM authdb WHERE right_name='system.login.console';
   ```
 
-notes: >
+notes: |-
   
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
   
