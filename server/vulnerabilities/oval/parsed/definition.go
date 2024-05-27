@@ -102,3 +102,86 @@ func (d Definition) CveVulnerabilities() []string {
 	}
 	return r
 }
+
+func intersect(a, b []uint) []uint {
+	m := make(map[uint]bool)
+	for _, v := range a {
+		m[v] = true
+	}
+
+	var r []uint
+	for _, v := range b {
+		if m[v] {
+			r = append(r, v)
+		}
+	}
+	return r
+}
+
+func union(a, b []uint) []uint {
+	m := make(map[uint]bool)
+	for _, v := range a {
+		m[v] = true
+	}
+
+	for _, v := range b {
+		if !m[v] {
+			a = append(a, v)
+		}
+	}
+	return a
+}
+
+func findMatchingSoftware(c *Criteria, uTests map[int][]uint) []uint {
+	switch c.Operator {
+	case And:
+		return findAndMatch(c, uTests)
+	case Or:
+		return findOrMatch(c, uTests)
+	}
+	return nil
+}
+
+func findAndMatch(c *Criteria, uTests map[int][]uint) []uint {
+	if c.Criteriums != nil {
+		return intersectSoftware(c.Criteriums, uTests)
+	}
+
+	matchingSoftware := make([]uint, 0)
+	for _, subCriteria := range c.Criterias {
+		subMatchingSoftware := findMatchingSoftware(subCriteria, uTests)
+		if len(matchingSoftware) == 0 {
+			matchingSoftware = subMatchingSoftware
+		} else {
+			matchingSoftware = intersect(matchingSoftware, subMatchingSoftware)
+		}
+	}
+	return matchingSoftware
+}
+
+func intersectSoftware(criteriums []int, uTests map[int][]uint) []uint {
+	if len(criteriums) == 0 {
+		return nil
+	}
+
+	softwareSets := make([][]uint, 0, len(criteriums))
+	for _, c := range criteriums {
+		softwareSets = append(softwareSets, uTests[c])
+	}
+
+	intersected := softwareSets[0]
+	for _, s := range softwareSets[1:] {
+		intersected = intersect(intersected, s)
+	}
+
+	return intersected
+}
+
+func findOrMatch(c *Criteria, uTests map[int][]uint) []uint {
+	matchingSoftware := make([]uint, 0)
+	for _, subCriteria := range c.Criterias {
+		subMatchingSoftware := findMatchingSoftware(subCriteria, uTests)
+		matchingSoftware = union(matchingSoftware, subMatchingSoftware)
+	}
+	return matchingSoftware
+}
