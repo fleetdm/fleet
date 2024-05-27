@@ -784,12 +784,12 @@ type Service interface {
 	// Deprecated: NewMDMAppleDEPKeyPair exists only to support a deprecated endpoint.
 	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
-	// GenerateABMKeypair generates and stores in the database public and
+	// GenerateABMKeyPair generates and stores in the database public and
 	// private keys to use in ABM to generate an encrypted auth token.
-	GenerateABMKeypair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
+	GenerateABMKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
 	// SaveABMToken reads and validates if the provided token can be
-	// decrypted using the keys stored in the database.
+	// decrypted using the keys stored in the database, then saves the token.
 	SaveABMToken(ctx context.Context, token io.Reader) error
 
 	// DisableABM disables ABM by soft-deleting the relevant assets

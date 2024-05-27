@@ -4147,6 +4147,11 @@ VALUES
 }
 
 func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+
+	if len(assetNames) == 0 {
+		return nil, nil
+	}
+
 	stmt := `
 SELECT
     name, value

@@ -8697,7 +8697,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	// try to upload a token without a keypair
 	s.uploadABMToken([]byte("foo"), http.StatusBadRequest, "Please generate a keypair first.")
 
-	var abmResp generateABMKeypairResponse
+	var abmResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &abmResp)
 	require.Nil(t, abmResp.Err)
 	require.NotEmpty(t, abmResp.PublicKey)
@@ -8764,7 +8764,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	require.Len(t, assets, 0)
 
 	// enable ABM again, creates a new keypair because the previous one was deleted
-	var newABMResp generateABMKeypairResponse
+	var newABMResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &newABMResp)
 	require.Nil(t, newABMResp.Err)
 	require.NotEmpty(t, newABMResp.PublicKey)
@@ -8774,7 +8774,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	require.NotEqual(t, abmResp.PublicKey, newABMResp.PublicKey)
 
 	// as long as the certs are not deleted, we should return the same values to support renewing the token
-	var renewABMResp generateABMKeypairResponse
+	var renewABMResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &renewABMResp)
 	require.Nil(t, renewABMResp.Err)
 	require.NotEmpty(t, renewABMResp.PublicKey)

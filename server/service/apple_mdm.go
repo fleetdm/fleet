@@ -3433,27 +3433,27 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 // Generate ABM keypair endpoint
 ////////////////////////////////////////////////////////////////////////////////
 
-type generateABMKeypairResponse struct {
+type generateABMKeyPairResponse struct {
 	PublicKey []byte `json:"public_key,omitempty"`
 	Err       error  `json:"error,omitempty"`
 }
 
-func (r generateABMKeypairResponse) error() error { return r.Err }
+func (r generateABMKeyPairResponse) error() error { return r.Err }
 
-func generateABMKeypairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	keyPair, err := svc.GenerateABMKeypair(ctx)
+func generateABMKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	keyPair, err := svc.GenerateABMKeyPair(ctx)
 	if err != nil {
-		return generateABMKeypairResponse{
+		return generateABMKeyPairResponse{
 			Err: err,
 		}, nil
 	}
 
-	return generateABMKeypairResponse{
+	return generateABMKeyPairResponse{
 		PublicKey: keyPair.PublicKey,
 	}, nil
 }
 
-func (svc *Service) GenerateABMKeypair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
+func (svc *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -3550,6 +3550,8 @@ func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
+	// first check for reads as we need to load the cert/key from the db. We will
+	// do another write check below.
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
 		return err
 	}
