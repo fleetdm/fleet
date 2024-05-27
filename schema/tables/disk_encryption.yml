@@ -1,5 +1,5 @@
 name: disk_encryption
-examples: |-
+examples: >-
   A policy query to check if Filevault disk encryption is enabled on a Mac.
 
   ```

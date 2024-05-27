@@ -1,5 +1,5 @@
 name: docker_containers
-examples: |-
+examples: >-
   Identify containers that are running with high privileges.
 
   ```

@@ -6,7 +6,7 @@ platforms:
   - windows
   - linux
 evented: false
-examples: |-
+examples: >-
   Output the content of `/etc/hosts` line by line. 
   
   ```

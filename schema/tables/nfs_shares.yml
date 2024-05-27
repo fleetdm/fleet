@@ -1,5 +1,5 @@
 name: nfs_shares
-examples: |-
+examples: >-
   List shares exported via NFS on Macs, and if they are read only (readonly=1)
   or not.
 

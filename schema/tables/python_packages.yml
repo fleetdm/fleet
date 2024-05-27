@@ -1,5 +1,5 @@
 name: python_packages
-examples: |-
+examples: >-
   List the versions of pip installed.
   
   ```

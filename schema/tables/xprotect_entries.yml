@@ -1,5 +1,5 @@
 name: xprotect_entries
-examples: |-
+examples: >-
   Identify the Bundlore variants Xprotect protects the computer from
 
   ```

@@ -1,5 +1,5 @@
 name: shell_history
-examples: |-
+examples: >-
   ```
 
   SELECT * FROM users CROSS JOIN shell_history USING (uid);
@@ -18,5 +18,5 @@ columns:
   - name: uid
   
 
-notes: |-
+notes: >-
   - Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

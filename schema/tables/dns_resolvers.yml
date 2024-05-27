@@ -1,5 +1,5 @@
 name: dns_resolvers
-examples: |-
+examples: >-
   Identify computers that are using an external DNS server instead of an
   internal one. This query also removes null and empty strings that can be
   returned by this table.

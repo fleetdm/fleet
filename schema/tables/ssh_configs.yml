@@ -1,5 +1,5 @@
 name: ssh_configs
-examples: |-
+examples: >-
   ```
 
   SELECT * FROM users CROSS JOIN ssh_configs USING (uid);

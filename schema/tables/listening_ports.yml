@@ -1,5 +1,5 @@
 name: listening_ports
-examples: |-
+examples: >-
   List executables listening on network ports.
 
   ```

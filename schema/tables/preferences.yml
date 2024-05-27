@@ -1,5 +1,5 @@
 name: preferences
-examples: |-
+examples: >-
   This table reads a huge amount of preferences, including on third-party apps.
   
   ```
@@ -7,7 +7,7 @@ examples: |-
   SELECT * FROM users CROSS JOIN preferences USING (username);
 
   ```
-notes: |-
+notes: >-
   - Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
   
   - The `value` column will be empty for keys that contain binary data.

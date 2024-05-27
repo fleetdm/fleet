@@ -1,5 +1,5 @@
 name: time
-examples: |-
+examples: >-
   View the timezone a system is configured in. 
   
   ```

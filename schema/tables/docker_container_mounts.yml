@@ -1,5 +1,5 @@
 name: docker_container_mounts
-examples: |-
+examples: >-
   List the source and destination of Docker bind and volume mounts.
 
   ```

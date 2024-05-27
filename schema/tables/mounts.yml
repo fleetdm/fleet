@@ -1,5 +1,5 @@
 name: mounts
-examples: |-
+examples: >-
   Returns the drive free space in gigabytes and as percentage.
 
   ```

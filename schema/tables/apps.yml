@@ -1,5 +1,5 @@
 name: apps
-examples: |-
+examples: >-
   See the last time applications were used. Useful to know if a vulnerable
   application is being used as well as for licensing purposes.
 

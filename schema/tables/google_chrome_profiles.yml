@@ -6,7 +6,7 @@ platforms:
   - windows
   - linux
 evented: false
-examples: |-
+examples: >-
   List the Google Chrome accounts logged in to with `fleetdm.com` email addresses, joined to the
   [users](https://fleetdm.com/tables/users) table, to see the description of the operating system
   account that owns it.

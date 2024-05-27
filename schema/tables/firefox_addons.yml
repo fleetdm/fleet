@@ -1,6 +1,6 @@
 name: firefox_addons
 description: Firefox browser [add-ons](https://addons.mozilla.org/en-US/firefox/) (plugins).
-examples: |-
+examples: >-
   ```
 
   SELECT * FROM users CROSS JOIN firefox_addons USING (uid);

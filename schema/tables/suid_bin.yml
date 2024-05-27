@@ -1,5 +1,5 @@
 name: suid_bin
-examples: |-
+examples: >-
   Identify unsigned executables with suid privileges.
 
   ```

@@ -1,5 +1,5 @@
 name: sip_config
-examples: |-
+examples: >-
   View the status of System Integrity Protection.
   
   ```

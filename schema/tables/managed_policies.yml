@@ -2,7 +2,7 @@ name: managed_policies
 columns:
   - name: username
     description: policy only applies to the listed user. Blank if global.
-examples: |-
+examples: >-
   Check if critical software update installation is enabled via a profile (1 =
   enabled)
 

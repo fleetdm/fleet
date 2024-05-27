@@ -1,6 +1,6 @@
 name: vscode_extensions
 description: Installed extensions for [Visual Studio (VS) Code](https://code.visualstudio.com/). 
-examples: |-
+examples: >-
   ```
 
   SELECT * FROM users CROSS JOIN vscode_extensions USING (uid);

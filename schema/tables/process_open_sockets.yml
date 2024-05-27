@@ -8,7 +8,7 @@ columns:
   - name: net_namespace
     platforms:
       - linux
-examples: |-
+examples: >-
   This table allows you to see network activity by process. With this query, list all connections
   made to or from a process, excluding connections to localhost and
   [RFC1918](https://en.wikipedia.org/wiki/Private_network) IP addresses.

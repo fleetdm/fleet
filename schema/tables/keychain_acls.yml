@@ -1,5 +1,5 @@
 name: keychain_acls
-examples: |-
+examples: >-
   Identify keychain items with permissions granted to Applications at the system
   or user level.
 

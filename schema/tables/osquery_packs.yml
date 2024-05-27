@@ -1,5 +1,5 @@
 name: osquery_packs
-examples: |-
+examples: >-
   See query packs currently active on osquery.
   
   ```

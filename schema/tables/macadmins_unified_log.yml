@@ -4,7 +4,7 @@ description: Allows querying macOS [unified logs](https://developer.apple.com/do
 platforms: 
   - darwin
 evented: false
-examples: |-
+examples: >-
   Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.
 
   ```

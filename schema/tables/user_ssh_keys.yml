@@ -1,5 +1,5 @@
 name: user_ssh_keys
-examples: |-
+examples: >-
   ```
 
   SELECT * FROM users CROSS JOIN user_ssh_keys USING (uid);

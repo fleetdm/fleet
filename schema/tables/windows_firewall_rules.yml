@@ -1,5 +1,5 @@
 name: windows_firewall_rules
-examples: |-
+examples: >-
   Controlling inbound access to remote services is essential for maintaining security on a system. This query lists all enabled Windows Firewall rules that allow inbound RDP, WinRM & VNC connections on the public firewall profile.
   
   ```
@@ -8,5 +8,5 @@ examples: |-
   
   ```
   
-notes: |-
+notes: >-
   * A rule can exist, but it has to be part of the currently enabled firewall profile to be enforced.

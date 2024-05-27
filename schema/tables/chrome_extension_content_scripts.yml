@@ -1,7 +1,7 @@
 name: chrome_extension_content_scripts
 columns:
   - name: uid
-examples: |-
+examples: >-
   ```
 
   SELECT * FROM users CROSS JOIN chrome_extension_content_scripts USING (uid);

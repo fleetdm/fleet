@@ -1,5 +1,5 @@
 name: startup_items
-examples: |-
+examples: >-
   List commands executed as user/logon startup items.
   
   ```

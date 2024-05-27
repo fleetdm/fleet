@@ -1,6 +1,6 @@
 name: power_sensors
 notes: Returns useful results on Intel Macs only.
-examples: |-
+examples: >-
   See the total power usage of an Intel Mac.
   
   ```

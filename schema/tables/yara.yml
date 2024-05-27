@@ -1,5 +1,5 @@
 name: yara
-examples: |-
+examples: >-
   Look for files under `/root` that match a Yara signature. This example uses the [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/).
 
   ```

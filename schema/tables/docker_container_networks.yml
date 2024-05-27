@@ -1,5 +1,5 @@
 name: docker_container_networks
-examples: |-
+examples: >-
   List the IP address of Docker containers.
 
   ```
