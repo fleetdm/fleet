@@ -7148,6 +7148,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.1", Vulnerabilities: nil},
 				{Version: "0.0.3", Vulnerabilities: nil},
 			},
+			SelfService: false,
 		},
 		{
 			Name:          "bar",
@@ -7157,6 +7158,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
+			SelfService: false,
 		},
 	}, resp.SoftwareTitles)
 
@@ -7640,8 +7642,16 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "ruby.deb",
+		SelfService:   false,
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "emacs.deb",
+		SelfService:   true,
+	}
+	s.uploadSoftwareInstaller(payloadEmacs, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -7669,6 +7679,30 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"self_service", "true",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 2)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+
+	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
+	respTitle := getSoftwareTitleResponse{}
+	s.DoJSON("GET", emacsPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
+
+	require.NotNil(t, respTitle.SoftwareTitle)
+	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.SoftwarePackage.Name)
+	fmt.Printf("respTitle.SoftwareTitle.SoftwarePackage: %+v\n", respTitle.SoftwareTitle.SoftwarePackage)
+	require.True(t, respTitle.SoftwareTitle.SoftwarePackage.SelfService)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
