@@ -1,5 +1,5 @@
 name: mdm
-notes: >-
+notes: |-
   - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 
   - Code based on work by [Kolide](https://github.com/kolide/launcher).
@@ -9,13 +9,11 @@ description: Information on the device's MDM enrollment.
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Identify Macs that are DEP capable but have not been enrolled to MDM.
 
   ```
-  
   SELECT * FROM mdm WHERE dep_capable='true' AND enrolled='false';
-  
   ```
 columns:
   - name: access_rights
