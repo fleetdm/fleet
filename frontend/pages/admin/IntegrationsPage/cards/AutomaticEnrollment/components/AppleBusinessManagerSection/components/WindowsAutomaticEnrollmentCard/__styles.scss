@@ -1,5 +1,6 @@
-.windows-automatic-enrollment-card {
-  margin-top: $pad-xxxlarge;
+.automatic-enrollment-card {
+  margin-top: 0;
+  margin-bottom: $pad-xxlarge;
   font-size: $x-small;
   display: flex;
   justify-content: space-between;
@@ -14,5 +15,16 @@
   p {
     margin: 0;
     max-width: 520px;
+
+    span {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+  }
+
+  &__turn-on-mdm {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

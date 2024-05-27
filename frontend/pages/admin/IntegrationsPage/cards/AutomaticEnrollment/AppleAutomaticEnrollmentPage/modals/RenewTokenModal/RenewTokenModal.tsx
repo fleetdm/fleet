@@ -11,9 +11,10 @@ import {
   FileDetails,
 } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
-import DownloadCSR, { RequestState } from "../../actions/DownloadCSR";
+import { RequestState } from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage/components/actions/DownloadCSR";
+// import DownloadCSR, { RequestState } from "../../actions/DownloadCSR";
 
-const baseClass = "modal renew-cert-modal";
+const baseClass = "modal renew-token-modal";
 
 interface IRenewCertModalProps {
   onCancel: () => void;
@@ -76,47 +77,42 @@ const RenewCertModal = ({ onCancel }: IRenewCertModalProps): JSX.Element => {
         <ol className={`${baseClass}__setup-instructions-list`}>
           <li>
             <p>
-              1. Download a certificate signing request (CSR) for Apple Push
-              Notification service (APNs).
-            </p>
-            <DownloadCSR baseClass={baseClass} />
-          </li>
-          <li>
-            <p>
-              2. Sign in to{" "}
+              1. Sign in to{" "}
               <CustomLink
-                url="https://identity.apple.com/pushcert/"
-                text="Apple Push Certificates Portal"
+                url="https://business.apple.com/"
+                text="Apple Business Manager"
                 newTab
               />
             </p>
           </li>
           <li>
             <p>
-              3. In Apple Push Certificates Portal, select <b>Renew</b> next to
-              your certificate (make sure that the certificate&apos;s{" "}
-              <b>Common Name (CN)</b> matches the one presented in Fleet).
+              2. Select your <b>account name</b> at the bottom left of the
+              screen, then select <b>Preferences</b>.
             </p>
           </li>
           <li>
-            <p>4. Upload your CSR and download new APNs certificate.</p>
+            <p>
+              3. In the <b>Your MDM Servers</b> section, select your Fleet
+              server, then select <b>Download Token</b> at the top.
+            </p>
           </li>
           <li>
             <p>
-              5. Upload APNs certificate (.pem file) below.
+              5. Upload the downloaded token (.p7m file) below.
               <FileUploader
                 className={`${baseClass}__file-uploader`}
-                accept=".pem"
+                accept=".p7m"
                 buttonMessage="Choose file"
                 buttonType="link"
-                graphicName="file-pem"
-                message="APNs certificate (.pem)"
+                graphicName="file-p7m"
+                message="ABM token (.p7m)"
                 onFileUpload={onSelectFile}
                 filePreview={
                   pemFile && (
                     <FileDetails
                       details={{ name: pemFile.name }}
-                      graphicName="file-pem"
+                      graphicName="file-p7m"
                     />
                   )
                 }

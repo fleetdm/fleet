@@ -1,11 +1,10 @@
 import React from "react";
-import { noop } from "lodash";
 
 import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 
-const baseClass = "windows-automatic-enrollment-card";
+const baseClass = "automatic-enrollment-card";
 
 interface IWindowsAutomaticEnrollmentCardProps {
   viewDetails: () => void;

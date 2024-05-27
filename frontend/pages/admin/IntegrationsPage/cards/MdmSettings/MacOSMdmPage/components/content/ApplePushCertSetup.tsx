@@ -70,7 +70,7 @@ const ApplePushCertSetup = ({ baseClass }: IApplePushCertSetupProps) => {
               className={`${baseClass}__file-uploader ${
                 isUploading ? `${baseClass}__file-uploader--loading` : ""
               }`}
-              // accept=".pem" // TODO: uncomment this
+              accept=".pem"
               buttonMessage={isUploading ? "Uploading..." : "Upload"}
               buttonType="link"
               diabled={isUploading}
