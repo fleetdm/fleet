@@ -360,7 +360,6 @@ type ScriptPayload struct {
 
 type SoftwareInstallerPayload struct {
 	URL               string `json:"url"`
-	SelfService       bool   `json:"self_service"`
 	PreInstallQuery   string `json:"pre_install_query"`
 	InstallScript     string `json:"install_script"`
 	PostInstallScript string `json:"post_install_script"`
