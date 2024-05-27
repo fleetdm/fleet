@@ -13,7 +13,28 @@
   // when the file preview is showing, we want the padding to be
   // slightly smaller on the top and bottom.
   &__file-preview {
+    // display: flex;
     padding: $pad-medium $pad-large;
+  }
+
+  &__selected-file {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+
+    &--details {
+      &--name {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+
+      &--platform {
+        font-size: $xx-small;
+        color: $ui-fleet-black-75;
+      }
+    }
   }
 
   &__graphics {

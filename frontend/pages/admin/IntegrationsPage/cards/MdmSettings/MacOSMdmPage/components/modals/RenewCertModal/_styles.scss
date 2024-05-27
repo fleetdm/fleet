@@ -1,24 +1,8 @@
-.mac-os-mdm-page {
-  &__back-to-mdm {
+.renew-cert-modal {
+  width: 730px;
+
+  &__info-header {
     margin-bottom: $pad-xlarge;
-  }
-
-  h1 {
-    margin-bottom: $pad-xxlarge;
-    font-size: $x-large;
-  }
-
-  h4 {
-    margin-bottom: 0;
-  }
-
-  p {
-    font-size: $x-small;
-    margin: 0 0 $pad-large;
-  }
-
-  &__page-content {
-    font-size: $x-small;
   }
 
   &__setup-content {
@@ -39,6 +23,10 @@
     display: flex;
     flex-direction: column;
     gap: $pad-large;
+
+    li > p {
+      margin: 0;
+    }
   }
 
   &__request-button {
@@ -46,6 +34,7 @@
     gap: $pad-small;
     align-items: center;
     margin-top: $pad-small;
+    margin-left: $pad-medium;
 
     label {
       display: flex;
@@ -54,36 +43,23 @@
     }
   }
 
-  &__apc-info {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-medium;
-
-    dt {
-      font-weight: $bold;
-      margin-bottom: $pad-xsmall;
-    }
-  }
-
-  &__apns-button-wrap {
-    display: flex;
-    gap: $pad-medium;
-    align-items: center;
-    margin-top: $pad-xxlarge;
-  }
-
   &__file-uploader {
     margin-top: $pad-medium;
+    margin-left: $pad-medium;
     border-radius: 6px;
 
     .file-uploader__message {
       color: $ui-fleet-black-75;
+      margin: 0;
     }
+  }
 
-    &--loading {
-      label {
-        opacity: 0.5;
-      }
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+
+    .renew-cert-modal__submit-button.uploading.button--disabled {
+      opacity: 1;
     }
   }
 }
