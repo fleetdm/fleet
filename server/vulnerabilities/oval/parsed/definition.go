@@ -132,7 +132,7 @@ func union(a, b []uint) []uint {
 	return a
 }
 
-func findMatchingSoftware(c *Criteria, uTests map[int][]uint) []uint {
+func findMatchingSoftware(c Criteria, uTests map[int][]uint) []uint {
 	switch c.Operator {
 	case And:
 		return findAndMatch(c, uTests)
@@ -142,14 +142,14 @@ func findMatchingSoftware(c *Criteria, uTests map[int][]uint) []uint {
 	return nil
 }
 
-func findAndMatch(c *Criteria, uTests map[int][]uint) []uint {
+func findAndMatch(c Criteria, uTests map[int][]uint) []uint {
 	if c.Criteriums != nil {
 		return intersectSoftware(c.Criteriums, uTests)
 	}
 
 	matchingSoftware := make([]uint, 0)
 	for _, subCriteria := range c.Criterias {
-		subMatchingSoftware := findMatchingSoftware(subCriteria, uTests)
+		subMatchingSoftware := findMatchingSoftware(*subCriteria, uTests)
 		if len(matchingSoftware) == 0 {
 			matchingSoftware = subMatchingSoftware
 		} else {
@@ -177,10 +177,10 @@ func intersectSoftware(criteriums []int, uTests map[int][]uint) []uint {
 	return intersected
 }
 
-func findOrMatch(c *Criteria, uTests map[int][]uint) []uint {
+func findOrMatch(c Criteria, uTests map[int][]uint) []uint {
 	matchingSoftware := make([]uint, 0)
 	for _, subCriteria := range c.Criterias {
-		subMatchingSoftware := findMatchingSoftware(subCriteria, uTests)
+		subMatchingSoftware := findMatchingSoftware(*subCriteria, uTests)
 		matchingSoftware = union(matchingSoftware, subMatchingSoftware)
 	}
 	return matchingSoftware

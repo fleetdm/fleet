@@ -343,7 +343,7 @@ func TestFindAndMatch(t *testing.T) {
 			expected: []uint{1, 2, 3},
 		},
 	} {
-		result := findAndMatch(&tc.criteria, criterionToSoftware)
+		result := findAndMatch(tc.criteria, criterionToSoftware)
 		require.ElementsMatch(t, tc.expected, result)
 	}
 }
@@ -419,7 +419,7 @@ func TestFindOrMatch(t *testing.T) {
 			expected: []uint{1, 2, 3},
 		},
 	} {
-		result := findOrMatch(&tc.criteria, criterionToSoftware)
+		result := findOrMatch(tc.criteria, criterionToSoftware)
 		require.ElementsMatch(t, tc.expected, result)
 	}
 }
@@ -453,6 +453,6 @@ func TestFindMatchingSoftware(t *testing.T) {
 		},
 	}
 
-	matchingSoftware := findMatchingSoftware(&criteria, criterionToSoftware)
+	matchingSoftware := findMatchingSoftware(criteria, criterionToSoftware)
 	require.ElementsMatch(t, []uint{3, 7}, matchingSoftware)
 }

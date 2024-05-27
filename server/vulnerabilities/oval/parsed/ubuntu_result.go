@@ -99,7 +99,7 @@ func (r UbuntuResult) EvalKernel(software []fleet.Software) ([]fleet.SoftwareVul
 
 	vuln := make([]fleet.SoftwareVulnerability, 0)
 	for _, d := range r.Definitions {
-		swIDs := findMatchingSoftware(d.Criteria, uTests)
+		swIDs := findMatchingSoftware(*d.Criteria, uTests)
 		for _, v := range d.CveVulnerabilities() {
 			for _, swID := range swIDs {
 				vuln = append(vuln, fleet.SoftwareVulnerability{
