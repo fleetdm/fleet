@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -2221,6 +2222,152 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		return nil, ctxerr.Wrap(ctx, err, "get signed CSR")
 	}
 
-	// Return signed CSR; these bytes are already base64 encoded
+	// Return signed CSR
 	return signedCSRB64, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/apple/apns_certificate
+////////////////////////////////////////////////////////////////////////////////
+
+type uploadMDMAppleAPNSCertRequest struct {
+	File *multipart.FileHeader
+}
+
+func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := uploadSoftwareInstallerRequest{}
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	if r.MultipartForm.File["certificate"] == nil || len(r.MultipartForm.File["certificate"]) == 0 {
+		return nil, &fleet.BadRequestError{
+			Message:     "certificate multipart field is required",
+			InternalErr: err,
+		}
+	}
+
+	decoded.File = r.MultipartForm.File["certificate"][0]
+
+	return &decoded, nil
+}
+
+type uploadMDMAppleAPNSCertResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r uploadMDMAppleAPNSCertResponse) error() error {
+	return r.Err
+}
+
+func (r uploadMDMAppleAPNSCertResponse) Status() int { return http.StatusAccepted }
+
+func uploadMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uploadSoftwareInstallerRequest)
+	file, err := req.File.Open()
+	if err != nil {
+		return uploadMDMAppleAPNSCertResponse{Err: err}, nil
+	}
+	defer file.Close()
+
+	if err := svc.UploadMDMAppleAPNSCert(ctx, file); err != nil {
+		return &uploadMDMAppleAPNSCertResponse{Err: err}, nil
+	}
+
+	return &uploadMDMAppleAPNSCertResponse{}, nil
+}
+
+func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if cert == nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
+	}
+
+	// Get cert file bytes
+	certBytes, err := io.ReadAll(cert)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading apns certificate")
+	}
+
+	// Validate cert
+	block, _ := pem.Decode(certBytes)
+	if block == nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.AppleMDM{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	assets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving APNs key")
+	}
+
+	if len(assets) == 0 {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Please generate a private key first.",
+		}, "uploading APNs certificate")
+	}
+
+	// this should never happen
+	if len(assets) != 1 || assets[0].Name != fleet.MDMAssetAPNSKey {
+		return ctxerr.New(ctx, "corrupt APNs information stored in the database")
+	}
+
+	_, err = tls.X509KeyPair(certBytes, assets[0].Value)
+	if err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
+	}
+
+	// Save to DB
+	return ctxerr.Wrap(
+		ctx,
+		svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+			{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
+		}),
+		"writing apns cert to db",
+	)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DELETE /mdm/apple/apns_certificate
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteMDMAppleAPNSCertRequest struct{}
+
+type deleteMDMAppleAPNSCertResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteMDMAppleAPNSCertResponse) error() error {
+	return r.Err
+}
+
+func deleteMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	if err := svc.DeleteMDMAppleAPNSCert(ctx); err != nil {
+		return &deleteMDMAppleAPNSCertResponse{Err: err}, nil
+	}
+
+	return &deleteMDMAppleAPNSCertResponse{}, nil
+}
+
+func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return ctxerr.Wrap(ctx, svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+		fleet.MDMAssetAPNSKey,
+		fleet.MDMAssetCACert,
+		fleet.MDMAssetCAKey,
+	}), "deleting apple mdm assets")
 }

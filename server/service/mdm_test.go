@@ -70,6 +70,8 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Nurv"}}, nil
 	}
 
+	ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error { return nil }
+
 	// use a custom implementation of checkAuthErr as the service call will fail
 	// with a not found error (given that MDM is not really configured) in case
 	// of success, and the package-wide checkAuthErr requires no error.
@@ -94,6 +96,14 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		checkAuthErr(t, shouldFailWithAuth, err)
 
 		_, err = svc.GetMDMAppleCSR(ctx)
+		require.Error(t, err)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.UploadMDMAppleAPNSCert(ctx, nil)
+		require.Error(t, err)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.DeleteMDMAppleAPNSCert(ctx) // Don't expect anything other than an authz error here, since this is pretty much just a DB wrapper.
 		checkAuthErr(t, shouldFailWithAuth, err)
 	}
 

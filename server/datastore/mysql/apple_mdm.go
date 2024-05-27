@@ -4169,3 +4169,25 @@ WHERE
 
 	return res, nil
 }
+
+func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	stmt := `
+UPDATE
+    mdm_config_assets
+SET
+    deleted_at = CURRENT_TIMESTAMP(),
+	deletion_uuid = ?
+WHERE
+    name IN (?) AND deletion_uuid = ''
+	`
+
+	deletionUUID := uuid.New().String()
+
+	stmt, args, err := sqlx.In(stmt, deletionUUID, assetNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In DeleteMDMConfigAssetsByName")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	return ctxerr.Wrap(ctx, err, "deleting mdm config assets")
+}
