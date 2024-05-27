@@ -3,14 +3,18 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -272,9 +276,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		w.WriteHeader(status.(int))
 		resp := []byte(fmt.Sprintf("status: %d", status))
 		if status == http.StatusOK && strings.Contains(r.URL.RawQuery, "deliveryMethod=json") {
-			resp = []byte(fmt.Sprintf(`{"csr": "%s"}`, base64.StdEncoding.EncodeToString([]byte(`-----BEGIN CERTIFICATE REQUEST-----
-foobar
------END CERTIFICATE REQUEST-----`))))
+			rawBody, err := io.ReadAll(r.Body)
+			require.NoError(s.T(), err)
+			var req struct {
+				UnsignedCSRData []byte `json:"unsignedCsrData"`
+			}
+			err = json.Unmarshal(rawBody, &req)
+			require.NoError(s.T(), err)
+
+			resp = []byte(
+				fmt.Sprintf(
+					`{"csr": %q}`,
+					base64.StdEncoding.EncodeToString(req.UnsignedCSRData),
+				),
+			)
 		}
 		_, _ = w.Write(resp)
 	}))
@@ -904,7 +919,7 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	ctx := context.Background()
 
 	// trying to upload a certificate without generating a private key first is not allowed
-	s.uploadAPNSCert("apns.pem", http.StatusBadRequest, "Please generate a private key first.")
+	s.uploadAPNSCert([]byte("-----BEGIN CERTIFICATE-----\nZm9vCg==\n-----END CERTIFICATE-----"), http.StatusBadRequest, "Please generate a private key first.")
 
 	// Check that we return bad gateway if the website API errors
 	s.FailNextCSRRequestWith(http.StatusInternalServerError)
@@ -918,9 +933,9 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	s.SucceedNextCSRRequest()
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
 	require.NotNil(t, resp.CSR)
-	require.Equal(t, string(resp.CSR), `-----BEGIN CERTIFICATE REQUEST-----
-foobar
------END CERTIFICATE REQUEST-----`)
+	block, _ := pem.Decode(resp.CSR)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that we created the right assets
 	var originalAssets []fleet.MDMConfigAsset
@@ -932,9 +947,9 @@ foobar
 	s.SucceedNextCSRRequest()
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
 	require.NotNil(t, resp.CSR)
-	require.Equal(t, string(resp.CSR), `-----BEGIN CERTIFICATE REQUEST-----
-foobar
------END CERTIFICATE REQUEST-----`)
+	block, _ = pem.Decode(resp.CSR)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that the assets stayed the same in the subsequent call
 	assets, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
@@ -942,10 +957,29 @@ foobar
 	require.Equal(t, originalAssets, assets)
 
 	// Invalid APNS cert upload attempt
-	s.uploadAPNSCert("apns_invalid.pem", http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
+	s.uploadAPNSCert([]byte("invalid-cert"), http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
 
 	// Successfully upload an APNS cert
-	s.uploadAPNSCert("apns.pem", http.StatusAccepted, "")
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	require.NoError(t, err)
+
+	certTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(12345678),
+		Subject:      csr.Subject,
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+
+	mockAppleSigner, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+	require.NoError(t, err)
+	mockAppleCert, err := x509.ParseCertificate(mockAppleSigner.Certificate[0])
+	require.NoError(t, err)
+	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, mockAppleCert, csr.PublicKey, mockAppleSigner.PrivateKey)
+	require.NoError(t, err)
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	s.uploadAPNSCert(certPEM, http.StatusAccepted, "")
 
 	assets, err = s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
 	require.NoError(t, err)
@@ -959,21 +993,14 @@ foobar
 	require.Len(t, assets, 0)
 }
 
-func (s *integrationMDMTestSuite) uploadAPNSCert(pemFileName string, expectedStatus int, wantErr string) {
+func (s *integrationMDMTestSuite) uploadAPNSCert(pemBytes []byte, expectedStatus int, wantErr string) {
 	t := s.T()
-	read := func(name string) []byte {
-		b, err := os.ReadFile(filepath.Join("testdata", name))
-		require.NoError(t, err)
-		return b
-	}
-
-	pemBytes := read(pemFileName)
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
 	// add the package field
-	fw, err := w.CreateFormFile("certificate", pemFileName)
+	fw, err := w.CreateFormFile("certificate", "certificate.pem")
 	require.NoError(t, err)
 	_, err = io.Copy(fw, bytes.NewBuffer(pemBytes))
 	require.NoError(t, err)

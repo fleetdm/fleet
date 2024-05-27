@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -2314,6 +2315,16 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "Please generate a private key first.",
 		}, "uploading APNs certificate")
+	}
+
+	// this should never happen
+	if len(assets) != 1 || assets[0].Name != fleet.MDMAssetAPNSKey {
+		return ctxerr.New(ctx, "corrupt APNs information stored in the database")
+	}
+
+	_, err = tls.X509KeyPair(certBytes, assets[0].Value)
+	if err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
 
 	// Save to DB
