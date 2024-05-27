@@ -527,8 +527,12 @@ Delete pack by name.
 
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
-- [Generate Apple Business Manager public key](#generate-apple-business-manager-public-key)
+- [Generate Apple Business Manager public key (ADE)](#generate-apple-business-manager-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
+- [Upload APNS certificate](#upload-apns-certificate)
+- [Upload ABM Token](#upload-abm-token)
+- [Turn off Apple MDM](#turn-off-apple-mdm)
+- [Disable automatic enrollment (ADE)](#disable-automatic-enrollment-ade)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
@@ -574,44 +578,6 @@ Status: 200
 }
 ```
 
-### Upload ABM Token
-
-`POST /api/v1/fleet/mdm/apple/abm_token`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the token (.p7m) from Apple Business Manager |
-
-#### Example
-
-`POST /api/v1/fleet/mdm/apple/abm_token`
-
-##### Request header
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
-Content-Type: application/octet-stream
-
-<TOKEN_DATA>
-
---------------------------f02md47480und42y
-```
-
-
-##### Default response
-
-`Status: 200`
-
 
 ### Upload APNS certificate
 
@@ -638,7 +604,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Disposition: form-data; name="certificate"; filename="apns_cert.pem"
 Content-Type: application/octet-stream
 
 <CERTIFICATE_DATA>
@@ -650,25 +616,65 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Disable ABM
+### Upload ABM Token
 
-`DELETE /api/v1/fleet/mdm/apple/abm_token`
+`POST /api/v1/fleet/mdm/apple/abm_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | *Required* The file containing the token (.p7m) from Apple Business Manager |
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/abm_token`
+`POST /api/v1/fleet/mdm/apple/abm_token`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+
+--------------------------f02md47480und42y
+```
+
+
+##### Default response
+
+`Status: 200`
+
+
+### Turn off Apple MDM
+
+`DELETE /api/v1/fleet/mdm/apple/apns_certificate`
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/apns_certificate`
 
 ##### Default response
 
 `Status: 204`
 
-### Disable Apple MDM
 
-`DELETE /api/v1/fleet/mdm/apple/apns_certificate`
+### Disable automatic enrollment (ADE)
+
+`DELETE /api/v1/fleet/mdm/apple/abm_token`
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/apns_certificate`
+`DELETE /api/v1/fleet/mdm/apple/abm_token`
 
 ##### Default response
 
