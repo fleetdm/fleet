@@ -10,6 +10,8 @@ type UnixUnameTest struct {
 	States []ObjectStateString
 }
 
+// Eval evaluates a kernel version against a UnameTest.  Returns true
+// if the kernel version matches the test.  Currently only used for Ubuntu.
 func (t UnixUnameTest) Eval(version string) (bool, error) {
 	var match bool
 	var err error
