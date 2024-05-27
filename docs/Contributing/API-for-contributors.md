@@ -536,6 +536,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
+- [Upload VPP content token](#upload-vpp-content-token)
 
 ### Generate Apple DEP Key Pair
 
@@ -772,6 +773,41 @@ This endpoint uses the profiles stored by the [Preassign profiles to devices](#p
 ##### Default response
 
 `Status: 204`
+
+### Upload VPP content token
+
+`POST /api/v1/fleet/mdm/apple/vpp_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/vpp_token`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+<TOKEN_DATA>
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
 
 ## Get or apply configuration files
 
