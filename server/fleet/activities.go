@@ -1422,6 +1422,7 @@ type ActivityTypeInstalledSoftware struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 	SoftwareTitle   string `json:"software_title"`
+	SelfService     bool   `json:"self_service"`
 	InstallUUID     string `json:"install_uuid"`
 	Status          string `json:"status"`
 }
@@ -1440,11 +1441,13 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "install_uuid": ID of the software installation.
+- "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
 - "status": Status of the software installation.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending"
 }`
@@ -1467,22 +1470,22 @@ func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
-- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.`,
-		`{
+- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
-  "team_id": 123
-}
-`
+  "team_id": 123,
+  "self_service": true
+}`
 }
 
 type ActivityTypeDeletedSoftware struct {
-	SelfService     bool    `json:"self_service"`
 	SoftwareTitle   string  `json:"software_title"`
 	SoftwarePackage string  `json:"software_package"`
 	TeamName        *string `json:"team_name"`
 	TeamID          *uint   `json:"team_id"`
+	SelfService     bool    `json:"self_service"`
 }
 
 func (a ActivityTypeDeletedSoftware) ActivityName() string {
@@ -1494,14 +1497,14 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null " + `if it was added to no team.
-- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.`,
-		`{
+- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
+- "self_service": Whether the software was available for installation by the end user.`, `{
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
-  "team_id": 123
-}
-`
+  "team_id": 123,
+  "self_service": true
+}`
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
