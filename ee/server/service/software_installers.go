@@ -72,6 +72,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		SoftwarePackage: payload.Filename,
 		TeamName:        teamName,
 		TeamID:          payload.TeamID,
+		SelfService:     payload.SelfService,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
@@ -116,6 +117,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		SoftwarePackage: meta.Name,
 		TeamName:        teamName,
 		TeamID:          meta.TeamID,
+		SelfService:     meta.SelfService,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
@@ -453,6 +455,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				PreInstallQuery:   p.PreInstallQuery,
 				PostInstallScript: p.PostInstallScript,
 				InstallerFile:     bytes.NewReader(bodyBytes),
+				SelfService:       p.SelfService,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
