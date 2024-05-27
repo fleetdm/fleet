@@ -910,7 +910,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 
 		var user *fleet.User
-		if hsi.UserID != nil {
+		if hsi.UserID != nil && !hsi.SelfService {
 			user, err = svc.ds.UserByID(ctx, *hsi.UserID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get host software installation user")
@@ -926,6 +926,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				SoftwareTitle:   hsi.SoftwareTitle,
 				InstallUUID:     result.InstallUUID,
 				Status:          string(status),
+				SelfService:     hsi.SelfService,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")

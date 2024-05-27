@@ -290,7 +290,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
 				'install_uuid', hsi.execution_id,
-				'status', %s
+				'status', %s,
+				'self_service', si.self_service
 			) as details
 		FROM
 			host_software_installs hsi
