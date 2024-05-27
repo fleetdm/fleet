@@ -60,8 +60,8 @@ func TestMDMAppleAuthorization(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
-	ds.GetMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
-		return []fleet.MDMConfigAsset{}, nil
+	ds.GetMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 	}
 
 	ds.InsertMDMConfigAssetsFunc = func(ctx context.Context, assets []fleet.MDMConfigAsset) error { return nil }

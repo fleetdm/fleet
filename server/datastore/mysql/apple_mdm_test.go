@@ -5511,13 +5511,17 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 			Value: []byte("some other bytes"),
 		},
 	}
+	wantAssets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+	for _, a := range assets {
+		wantAssets[a.Name] = a
+	}
 
 	err := ds.InsertMDMConfigAssets(ctx, assets)
 	require.NoError(t, err)
 
 	a, err := ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.NoError(t, err)
-	require.Equal(t, assets, a)
+	require.Equal(t, wantAssets, a)
 
 	// Soft delete the assets
 

@@ -823,7 +823,7 @@ type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID str
 
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
-type GetMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error)
+type GetMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 
 type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) error
 
@@ -5187,7 +5187,7 @@ func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MD
 	return s.InsertMDMConfigAssetsFunc(ctx, assets)
 }
 
-func (s *DataStore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+func (s *DataStore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	s.mu.Lock()
 	s.GetMDMConfigAssetsByNameFuncInvoked = true
 	s.mu.Unlock()

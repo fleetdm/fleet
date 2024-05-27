@@ -4146,7 +4146,7 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
-func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	stmt := `
 SELECT
     name, value
@@ -4167,7 +4167,12 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
 	}
 
-	return res, nil
+	assetMap := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+	for _, asset := range res {
+		assetMap[asset.Name] = asset
+	}
+
+	return assetMap, nil
 }
 
 func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
