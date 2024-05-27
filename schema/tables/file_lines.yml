@@ -6,13 +6,11 @@ platforms:
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   Output the content of `/etc/hosts` line by line. 
   
   ```
-  
   SELECT * FROM file_lines WHERE path='/etc/hosts';
-  
   ```
 columns:
   - name: path

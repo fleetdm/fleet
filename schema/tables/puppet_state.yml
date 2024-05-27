@@ -6,13 +6,11 @@ platforms:
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   List resources that failed or took over a minute to evaluate.
 
   ```
-  
-  SELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';
-  
+  SELECT * FROM puppet_state WHERE failed='true' OR evaluation_time|-'60';
   ```
 columns:
   - name: title

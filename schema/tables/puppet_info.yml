@@ -6,13 +6,11 @@ platforms:
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   List all the information available about the last Puppet run.
 
   ```
-  
   SELECT * FROM puppet_info;
-  
   ```
 columns:
   - name: cached_catalog_status

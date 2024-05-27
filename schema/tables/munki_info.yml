@@ -1,5 +1,5 @@
 name: munki_info
-notes: >-
+notes: |-
   - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
   
   - Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).
@@ -7,13 +7,11 @@ description: Information from the last [Munki](https://github.com/munki/munki) r
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Output errors, warnings and problematic installations from Munki.
 
   ```
-  
   SELECT errors, warnings, problem_installs FROM munki_info ;
-  
   ```
 columns:
   - name: console_user

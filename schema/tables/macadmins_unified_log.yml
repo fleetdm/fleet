@@ -4,13 +4,11 @@ description: Allows querying macOS [unified logs](https://developer.apple.com/do
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.
 
   ```
-  
   SELECT u.category, u.event_message, u.process_id, datetime(u.timestamp, 'unixepoch') AS human_time, p.path, s.signed, s.identifier, s.authority FROM macadmins_unified_log u JOIN processes p ON u.process_id = p.pid JOIN signature s ON p.path = s.path WHERE u.sender_image_path LIKE '%LaunchServices%' AND last = "1m";
-  
   ```
 columns:
   - name: trace_id

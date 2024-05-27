@@ -1,5 +1,5 @@
 name: sofa_unpatched_cves
-notes: >-
+notes: |-
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 
   - By default this table will return all unpatched vulnerability data for the running operating system.
@@ -7,13 +7,11 @@ notes: >-
   - Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).
 
 description: The CVEs that are unpatched on the device from [SOFA](https://sofa.macadmins.io/).
-examples: >-
+examples: |-
   For historical data, use the `os_version` predicate
   
   ```
-
   SELECT * FROM sofa_unpatched_cves WHERE os_version="14.4.0"
-
   ```
 platforms:
   - darwin
@@ -28,7 +26,7 @@ columns:
     required: false
     type: text
   - name: actively_exploited
-    description: >-
+    description: |-
       "true" if this CVE is being actively exploited, "false" otherwise
     required: false
     type: text

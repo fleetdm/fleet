@@ -4,15 +4,13 @@ description: Information on the users able to unlock the current boot volume if 
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   List the usernames able to unlock and boot a computer protected by FileVault, joined to
   [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating
   system account that owns it.
 
   ```
-  
   SELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;
-  
   ```
 columns:
   - name: username

@@ -6,13 +6,11 @@ platforms:
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   List Puppet logs that are of a level of anything but informational.
 
   ```
-  
   SELECT * FROM puppet_logs WHERE level!='info';
-  
   ```
 columns:
   - name: level
