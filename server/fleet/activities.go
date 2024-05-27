@@ -1422,6 +1422,7 @@ type ActivityTypeInstalledSoftware struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 	SoftwareTitle   string `json:"software_title"`
+	SoftwarePackage string `json:"software_package"`
 	SelfService     bool   `json:"self_service"`
 	InstallUUID     string `json:"install_uuid"`
 	Status          string `json:"status"`
@@ -1443,10 +1444,12 @@ func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detai
 - "install_uuid": ID of the software installation.
 - "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
+- "software_package": Filename of the installer.
 - "status": Status of the software installation.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending"

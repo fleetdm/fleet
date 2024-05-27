@@ -924,6 +924,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostID:          host.ID,
 				HostDisplayName: host.DisplayName(),
 				SoftwareTitle:   hsi.SoftwareTitle,
+				SoftwarePackage: hsi.SoftwarePackage,
 				InstallUUID:     result.InstallUUID,
 				Status:          string(status),
 				SelfService:     hsi.SelfService,
