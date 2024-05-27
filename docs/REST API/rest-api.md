@@ -5788,6 +5788,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+- [Get Volume Purchasing Program (VPP)](#get-volume-purchasing-program-vpp)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -5839,6 +5840,27 @@ None.
   "mdm_server_url": "https://example.com/mdm/apple/mdm",
   "renew_date": "2023-11-29T00:00:00Z",
   "default_team": ""
+}
+```
+
+Get Volume Purchasing Program (VPP)
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/vpp`
+
+#### Example
+
+`GET /api/v1/fleet/vpp`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "org_name": "Fleet Device Management",
+  "renew_date": "2023-11-29T00:00:00Z",
 }
 ```
 
