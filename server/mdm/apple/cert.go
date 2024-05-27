@@ -146,7 +146,7 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	return nil
 }
 
-type WebsiteResponse struct {
+type websiteSignCSRResponse struct {
 	CSR []byte `json:"csr"`
 }
 
@@ -182,12 +182,15 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 	}
 	defer resp.Body.Close()
 
-	respBytes, _ := io.ReadAll(resp.Body)
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("parsing CSR body response from fleetdm api: %w", err)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes)}
 	}
 
-	var csrResp WebsiteResponse
+	var csrResp websiteSignCSRResponse
 	if err := json.Unmarshal(respBytes, &csrResp); err != nil {
 		return nil, fmt.Errorf("unmarshalling signed csr response from fleetdm api: %w", err)
 	}

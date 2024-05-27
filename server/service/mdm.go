@@ -7,6 +7,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -2289,6 +2290,10 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	return signedCSRB64, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/apple/apns_certificate
+////////////////////////////////////////////////////////////////////////////////
+
 type uploadMDMAppleAPNSCertRequest struct {
 	File *multipart.FileHeader
 }
@@ -2345,10 +2350,6 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return err
 	}
 
-	if len(svc.config.Server.PrivateKey) == 0 {
-		return ctxerr.Wrap(ctx, errors.New("no private key configured"))
-	}
-
 	if cert == nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
@@ -2365,20 +2366,44 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
 
-	// Save to DB encrypted
-	encryptedCert, err := Encrypt(certBytes, svc.config.Server.PrivateKey)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "encrypting apns certificate")
+	if err := svc.authz.Authorize(ctx, &fleet.AppleMDM{}, fleet.ActionRead); err != nil {
+		return err
 	}
 
+	assets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving APNs key")
+	}
+
+	if len(assets) == 0 {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Please generate a private key first.",
+		}, "uploading APNs certificate")
+	}
+
+	// this should never happen
+	if len(assets) != 1 || assets[0].Name != fleet.MDMAssetAPNSKey {
+		return ctxerr.New(ctx, "corrupt APNs information stored in the database")
+	}
+
+	_, err = tls.X509KeyPair(certBytes, assets[0].Value)
+	if err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
+	}
+
+	// Save to DB
 	return ctxerr.Wrap(
 		ctx,
 		svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-			{Name: fleet.MDMAssetAPNSCert, Value: encryptedCert},
+			{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
 		}),
 		"writing apns cert to db",
 	)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// DELETE /mdm/apple/apns_certificate
+////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMAppleAPNSCertRequest struct{}
 
