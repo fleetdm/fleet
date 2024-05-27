@@ -163,6 +163,7 @@ type TeamSpecSoftwareAsset struct {
 
 type TeamSpecSoftware struct {
 	URL               string                `json:"url"`
+	SelfService       bool                  `json:"self_service"`
 	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`

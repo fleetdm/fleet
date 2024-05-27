@@ -2999,20 +2999,35 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("linux"))
 	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
-	opts := fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}
+	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}}
 
 	expectStatus := func(s fleet.SoftwareInstallerStatus) *fleet.SoftwareInstallerStatus {
 		return &s
 	}
 
 	// no software yet
-	sw, meta, err := ds.ListHostSoftware(ctx, host, false, opts)
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Empty(t, sw)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 
 	// works with available software too
-	sw, meta, err = ds.ListHostSoftware(ctx, host, true, opts)
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	// self-service only works too
+	opts.SelfServiceOnly = true
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Empty(t, sw)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
@@ -3155,7 +3170,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	}
 
 	// it now returns the software with vulnerabilities and installed paths
-	sw, meta, err = ds.ListHostSoftware(ctx, host, false, opts)
+	opts.SelfServiceOnly = false
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 5}, meta)
 	compareResults(expected, sw, true)
@@ -3212,16 +3229,17 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			}
 			res, err := q.ExecContext(ctx, `
 				INSERT INTO software_installers
-					(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform)
+					(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform, self_service)
 				VALUES
-					(?, ?, ?, ?, ?, ?, unhex(?), ?)`,
-				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")), "linux")
+					(?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")), "linux", i < 2)
 			if err != nil {
 				return err
 			}
 			id, _ := res.LastInsertId()
 			swiIDs = append(swiIDs, uint(id))
 		}
+		// sw1Pending and swi2Installed are self-service installers
 		swi1Pending, swi2Installed, swi3Failed, swi4Available, swi5Tm = swiIDs[0], swiIDs[1], swiIDs[2], swiIDs[3], swiIDs[4]
 
 		// create the results for the host
@@ -3318,7 +3336,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[i1.Name+i1.Source] = i1
 
 	// request without available software
-	sw, meta, err = ds.ListHostSoftware(ctx, host, false, opts)
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
 	compareResults(expected, sw, true)
@@ -3342,20 +3361,22 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	}
 	expected[i3.Name+i3.Source] = i3
 
-	sw, meta, err = ds.ListHostSoftware(ctx, host, true, opts)
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 8}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source)
 
 	// request in descending order
-	opts.OrderDirection = fleet.OrderDescending
-	opts.TestSecondaryOrderDirection = fleet.OrderDescending
-	sw, meta, err = ds.ListHostSoftware(ctx, host, false, opts)
+	opts.ListOptions.OrderDirection = fleet.OrderDescending
+	opts.ListOptions.TestSecondaryOrderDirection = fleet.OrderDescending
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
 	compareResults(expected, sw, false, i2.Name+i2.Source, i3.Name+i3.Source)
-	opts.OrderDirection = fleet.OrderAscending
-	opts.TestSecondaryOrderDirection = fleet.OrderAscending
+	opts.ListOptions.OrderDirection = fleet.OrderAscending
+	opts.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
 
 	// record a new install request for i1, this time as pending, and mark install request for b (swi1) as failed
 	time.Sleep(time.Second) // ensure the timestamp is later
@@ -3397,13 +3418,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	}
 
 	// request without available software
-	sw, meta, err = ds.ListHostSoftware(ctx, host, false, opts)
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
 	compareResults(expected, sw, true, i2.Name+i2.Source, i3.Name+i3.Source)
 
 	// request with available software)
-	sw, meta, err = ds.ListHostSoftware(ctx, host, true, opts)
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 8}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source)
@@ -3414,13 +3437,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no installed software for this host
-	sw, meta, err = ds.ListHostSoftware(ctx, tmHost, false, opts)
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost, opts)
 	require.NoError(t, err)
 	require.Empty(t, sw)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 
 	// sees the available installer in its team
-	sw, meta, err = ds.ListHostSoftware(ctx, tmHost, true, opts)
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 1}, meta)
 	compareResults(map[string]fleet.HostSoftwareWithInstaller{
@@ -3428,86 +3453,92 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	}, sw, true)
 
 	// test with a search query (searches on name), with and without available software
-	opts.MatchQuery = "a"
-	sw, _, err = ds.ListHostSoftware(ctx, host, false, opts)
+	opts.ListOptions.MatchQuery = "a"
+	opts.IncludeAvailableForInstall = false
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	compareResults(map[string]fleet.HostSoftwareWithInstaller{
 		byNSV[a1].Name + byNSV[a1].Source: expected[byNSV[a1].Name+byNSV[a1].Source],
 		byNSV[a2].Name + byNSV[a2].Source: expected[byNSV[a2].Name+byNSV[a2].Source],
 	}, sw, true)
-	sw, _, err = ds.ListHostSoftware(ctx, host, true, opts)
+	opts.IncludeAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	compareResults(map[string]fleet.HostSoftwareWithInstaller{
 		byNSV[a1].Name + byNSV[a1].Source: expected[byNSV[a1].Name+byNSV[a1].Source],
 		byNSV[a2].Name + byNSV[a2].Source: expected[byNSV[a2].Name+byNSV[a2].Source],
 	}, sw, true)
 
-	opts.MatchQuery = "zz"
-	sw, _, err = ds.ListHostSoftware(ctx, host, false, opts)
+	opts.ListOptions.MatchQuery = "zz"
+	opts.IncludeAvailableForInstall = false
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Empty(t, sw)
-	sw, _, err = ds.ListHostSoftware(ctx, host, true, opts)
+	opts.IncludeAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Empty(t, sw)
 
 	// test the pagination
 	cases := []struct {
-		opts          fleet.ListOptions
-		withAvailable bool
-		wantNames     []string
-		wantMeta      *fleet.PaginationMetadata
+		opts      fleet.HostSoftwareTitleListOptions
+		wantNames []string
+		wantMeta  *fleet.PaginationMetadata
 	}{
 		{
-			opts:          fleet.ListOptions{PerPage: 3},
-			withAvailable: false,
-			wantNames:     []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 7},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 1, PerPage: 3},
-			withAvailable: false,
-			wantNames:     []string{byNSV[c1].Name, byNSV[d].Name, i0.Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{byNSV[c1].Name, byNSV[d].Name, i0.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 2, PerPage: 3},
-			withAvailable: false,
-			wantNames:     []string{i1.Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 2, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{i1.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 3, PerPage: 3},
-			withAvailable: false,
-			wantNames:     []string{},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 3, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 7},
 		},
 		{
-			opts:          fleet.ListOptions{PerPage: 4},
-			withAvailable: true,
-			wantNames:     []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name, byNSV[c1].Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name, byNSV[c1].Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 1, PerPage: 4},
-			withAvailable: true,
-			wantNames:     []string{byNSV[d].Name, i0.Name, i1.Name, i2.Name},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{byNSV[d].Name, i0.Name, i1.Name, i2.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
-			opts:          fleet.ListOptions{Page: 2, PerPage: 4},
-			withAvailable: true,
-			wantNames:     []string{},
-			wantMeta:      &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 2, PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{byNSV[b].Name, i0.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 2},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 2},
 		},
 	}
 	for _, c := range cases {
-		t.Run(fmt.Sprintf("%t: %#v", c.withAvailable, c.opts), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%#v", c.opts), func(t *testing.T) {
 			// always include metadata
-			c.opts.IncludeMetadata = true
-			c.opts.OrderKey = "name"
-			c.opts.TestSecondaryOrderKey = "source"
+			c.opts.ListOptions.IncludeMetadata = true
+			c.opts.ListOptions.OrderKey = "name"
+			c.opts.ListOptions.TestSecondaryOrderKey = "source"
 
-			sw, meta, err := ds.ListHostSoftware(ctx, host, c.withAvailable, c.opts)
+			sw, meta, err := ds.ListHostSoftware(ctx, host, c.opts)
 			require.NoError(t, err)
 
 			require.Equal(t, len(c.wantNames), len(sw))

@@ -80,7 +80,11 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					calendarSchedule, err = cron.NewCalendarSchedule(ctx, s.T().Name(), s.ds, 24*time.Hour, log.NewJSONLogger(os.Stdout))
+					cronLog := log.NewJSONLogger(os.Stdout)
+					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+						cronLog = kitlog.NewNopLogger()
+					}
+					calendarSchedule, err = cron.NewCalendarSchedule(ctx, s.T().Name(), s.ds, 24*time.Hour, cronLog)
 					return calendarSchedule, err
 				}
 			},
@@ -7004,6 +7008,16 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		sort.Slice(want, func(i, j int) bool {
 			return want[i].Name < want[j].Name
 		})
+		for _, v := range got {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
+		for _, v := range want {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
 
 		require.EqualValues(t, want, got)
 	}
@@ -7118,6 +7132,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	var resp listSoftwareTitlesResponse
+	// no self-service software yet
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "self_service", "1")
+	require.Empty(t, resp.SoftwareTitles)
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
@@ -7633,7 +7650,22 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		http.StatusOK, &resp,
 		"query", "ruby",
 	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 
+	// software installer not returned with self-service only (not marked as such)
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "self_service", "1", "query", "ruby")
+	require.Len(t, resp.SoftwareTitles, 0)
+
+	// update it to be self-service, check that it gets returned
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payload.Filename)
+		return err
+	})
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "self_service", "1", "query", "ruby")
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
@@ -8745,10 +8777,16 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	var getHostSw getHostSoftwareResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 0)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 0)
 
 	var getDeviceSw getDeviceSoftwareResponse
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	err := json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 0)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 0)
 
@@ -8787,6 +8825,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
 
+	// update it to be self-service
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payload.Filename)
+		return err
+	})
+
 	// available installer is returned by user-authenticated endpoint
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
@@ -8799,6 +8843,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
 	require.Nil(t, getHostSw.Software[2].Status)
 
+	// only the installer is returned for self-service only
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+
 	// available installer is not returned by device-authenticated endpoint
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
@@ -8810,6 +8860,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
 	require.Nil(t, getDeviceSw.Software[1].PackageAvailableForInstall)
+
+	// but it gets returned for self-service only
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
 
 	// request installation on the host
 	var installResp installSoftwareResponse
@@ -8829,7 +8887,13 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NotNil(t, getHostSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
 
-	// now returned by device-authenticated endpoin
+	// still returned with self-service filter
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+
+	// now returned by device-authenticated endpoint
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
@@ -8842,6 +8906,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Nil(t, getDeviceSw.Software[2].PackageAvailableForInstall)
 	require.NotNil(t, getDeviceSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
+
+	// still returned for self-service only too
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
 
 	// test with a query
 	getHostSw = getHostSoftwareResponse{}
@@ -9085,7 +9157,8 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 				"name": teamName,
 				"software": []map[string]any{
 					{
-						"url": "http://foo.com",
+						"url":          "http://foo.com",
+						"self_service": true,
 						"install_script": map[string]string{
 							"path": "./foo/install-script.sh",
 						},
@@ -9117,12 +9190,14 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	wantSoftware := []fleet.TeamSpecSoftware{
 		{
 			URL:               "http://foo.com",
+			SelfService:       true,
 			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
 			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
 		},
 		{
 			URL:               "http://bar.com",
+			SelfService:       false,
 			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
 			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},

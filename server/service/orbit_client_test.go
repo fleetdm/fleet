@@ -149,10 +149,11 @@ func TestExecuteConfigReceiversCancel(t *testing.T) {
 
 func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 200 * time.Millisecond
+	defer client.ReceiverUpdateCancelFunc()
+
+	client.ReceiverUpdateInterval = 100 * time.Millisecond
 
 	var called bool
-
 	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		called = true
 		return nil
@@ -160,14 +161,13 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 
 	client.RegisterConfigReceiver(rfunc)
 
-	finChan := make(chan error, 1)
-
+	finChan := make(chan error)
 	go func() {
 		finChan <- client.ExecuteConfigReceivers()
 	}()
 
 	go func() {
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		client.ReceiverUpdateCancelFunc()
 	}()
 
@@ -178,6 +178,4 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 	case <-time.NewTimer(2 * time.Second).C:
 		require.Fail(t, "receiver interrupt cancel didn't work")
 	}
-
-	client.ReceiverUpdateCancelFunc()
 }
