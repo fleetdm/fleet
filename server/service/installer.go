@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gorilla/mux"
@@ -168,31 +167,4 @@ func (svc *Service) CheckInstallerExistence(ctx context.Context, installer fleet
 	}
 
 	return nil
-}
-
-type fleetSelfServiceSoftwareInstallRequest struct {
-	Token           string `url:"token"`
-	SoftwareTitleID string `url:"software_title_id"`
-}
-
-func (r *fleetSelfServiceSoftwareInstallRequest) deviceAuthToken() string {
-	return r.Token
-}
-
-type submitSelfServiceSoftwareInstallResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r submitSelfServiceSoftwareInstallResponse) error() error { return r.Err }
-
-func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return submitSelfServiceSoftwareInstallResponse{Err: err}, nil
-	}
-
-	req := request.(*fleetSelfServiceSoftwareInstallRequest)
-
-	return nil, nil
 }
