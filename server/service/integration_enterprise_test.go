@@ -9703,6 +9703,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		SoftwareTitle:   payload.Title,
+		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUIDs[0],
 		Status:          string(fleet.SoftwareInstallerFailed),
 	}
