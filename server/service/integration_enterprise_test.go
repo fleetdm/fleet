@@ -7646,12 +7646,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
-	payload = &fleet.UploadSoftwareInstallerPayload{
+	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "emacs.deb",
 		SelfService:   true,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(payloadEmacs, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -7679,7 +7679,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
-	require.False(t, *&resp.SoftwareTitles[0].SelfService)
+	require.True(t, *&resp.SoftwareTitles[0].SelfService)
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -7689,7 +7689,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Len(t, resp.SoftwareTitles, 1)
+	require.Len(t, resp.SoftwareTitles, 2)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 	require.True(t, *&resp.SoftwareTitles[0].SelfService)
