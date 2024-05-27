@@ -8192,7 +8192,8 @@ Get a list of all software.
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
-| available_for_insall    | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                                    |
+| available_for_install   | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                               |
+| vpp                     | bool    | query | If `true` or `1`, only list VPP software (added from Apple Business Manager). Default is `false`.                                                                     |
 
 #### Example
 
@@ -8388,6 +8389,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
+    "bundle_identifier": "org.mozilla.firefox",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
