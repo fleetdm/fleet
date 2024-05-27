@@ -8025,6 +8025,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List software versions](#list-software-versions)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
+- [Get VPP software](#get-vpp-software)
+- [Add VPP software](#add-vpp-software)
 
 ### Add software
 
@@ -8481,8 +8483,62 @@ Returns information about the specified software version.
 }
 ```
 
-## Vulnerabilities
+### Get VPP software
 
+Returns the list of software purchased in Apple Business Manager.
+
+`GET /api/v1/fleet/software/vpp`
+
+#### Example
+
+`GET /api/v1/fleet/software/versions/12`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vpp_software": {
+    {
+      "id": 1,
+      "name": "Xcode",
+      "latest_version": "15.4",
+    },
+    {
+      "id": 2,
+      "name": "Xcode",
+      "latest_version": "15.4",
+    },
+}
+}
+```
+
+### Add VPP software
+
+_Available in Fleet Premium._
+
+Add a VPP software form App Store to the Fleet software title.
+
+`POST /api/v1/fleet/software/vpp/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The VPP software's ID. |
+| team_id       | integer | query | **Required**. The team ID. Adds VPP software to the specified team.  |
+
+#### Example
+
+`POST /api/v1/fleet/software/vpp/2?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+
+## Vulnerabilities
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
