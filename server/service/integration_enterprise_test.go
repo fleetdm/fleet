@@ -7008,6 +7008,16 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		sort.Slice(want, func(i, j int) bool {
 			return want[i].Name < want[j].Name
 		})
+		for _, v := range got {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
+		for _, v := range want {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
 
 		require.EqualValues(t, want, got)
 	}
@@ -9147,7 +9157,8 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 				"name": teamName,
 				"software": []map[string]any{
 					{
-						"url": "http://foo.com",
+						"url":          "http://foo.com",
+						"self_service": true,
 						"install_script": map[string]string{
 							"path": "./foo/install-script.sh",
 						},
@@ -9179,12 +9190,14 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	wantSoftware := []fleet.TeamSpecSoftware{
 		{
 			URL:               "http://foo.com",
+			SelfService:       true,
 			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
 			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
 		},
 		{
 			URL:               "http://bar.com",
+			SelfService:       false,
 			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
 			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
