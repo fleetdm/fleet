@@ -809,6 +809,20 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
+
+### Disable VPP
+
+`DELETE /api/v1/fleet/mdm/apple/vpp_token`
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/vpp_token`
+
+##### Default response
+
+`Status: 204`
+
+
 ## Get or apply configuration files
 
 These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](https://fleetdm.com/docs/using-fleet/configuration-files/).
