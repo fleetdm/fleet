@@ -174,13 +174,6 @@
     }
   }
   [purpose='testimonial-quote'] {
-    a {
-      text-decoration: none;
-      color: unset;
-      &:hover {
-        text-decoration: none;
-      }
-    }
     max-width: 591px;
     [purpose='quote'] {
       p {
@@ -198,8 +191,20 @@
         height: 48px;
       }
     }
+    a {
+      text-decoration: none;
+      color: unset;
+      &:hover {
+        text-decoration: none;
+      }
+    }
     [purpose='quote-attribution'] {
-      padding-top: 8px;
+      display: flex;
+      display: inline-flex;
+      padding: 4px 16px 4px 4px;
+      border-radius: 28px;
+      width: fit-content;
+      margin-top: 8px;
       [purpose='name'] {
         font-size: 12px;
         font-weight: 700;
@@ -213,7 +218,12 @@
         line-height: 18px;
         margin-bottom: 0px;
       }
-
+      &:hover {
+        background-color: #F9FAFC;
+      }
+      &:active {
+        background-color: #F2F2F5;
+      }
     }
   }
   [purpose='testimonial-video'] {
