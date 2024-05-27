@@ -86,12 +86,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |            |            | ✅    | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |            |            | ✅    | ✅      |
 | View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
-| Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |            |            | ✅    |         |
-| View/download MDM macOS setup assistant\*                                                                                                  |          |            | ✅         | ✅    |         |
-| Edit/upload MDM macOS setup assistant\*                                                                                                    |          |            | ✅         | ✅    | ✅      |
-| View metadata of MDM macOS bootstrap packages\*                                                                                            |          |            | ✅         | ✅    |         |
-| Edit/upload MDM macOS bootstrap packages\*                                                                                                 |          |            | ✅         | ✅    | ✅      |
-| Enable/disable MDM macOS setup end user authentication\*                                                                                   |          |            | ✅         | ✅    | ✅      |
+| Edit setup experience (end user authentication, bootstrap package, Setup Assistant)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
+| Edit end user license agreement (EULA)\*                                                                                         |          |            |              | ✅    |         |
 | Run arbitrary scripts on hosts\*                                                                                                           |          |            | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |

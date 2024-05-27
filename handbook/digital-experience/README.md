@@ -251,6 +251,15 @@ Fleet will occasionally release information to the press regarding upcoming init
 5. Schedule 2.5 hrs of async time for the CEO work on edits and a 60m followup postgame (solo) where CEO edits and then settles+sends final release.
 
 
+### Process the help-being-ceo Slack channel
+The Apprentice will perform the following steps to process all communication from the CEO in the [help-being-ceo Slack channel](https://fleetdm.slack.com/archives/C03U703J0G5).
+1. As soon as the message is received in the channel, add the "`:eyes:` (👀)" emoji to the Slack message to signify that you have seen and understood the task or question.
+2. In the "[¶¶¶¶ 🌪️🦿 Roundup (:help-being-ceo)](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit)" (confidential Google doc), create a new bullet at the bottom of the "Help-being-ceo" section and record the entire message verbatim 
+3. Prefix the bullet with the date and time of the message matching the formatting with what is reflected in Slack (e.g. 2024-05-20 01:41). 
+4. Make your prefix a link by copying the message link from Slack and linking it in the Google doc using the date and time text.
+5. Copy the entire message verbatim from Slack including all images and replies making sure to not lose any context and mimic all formatting that's included in the message. In the Slack channel apply the "`:tracking`" emoji (only available in Slack) to signify that the ask has been processed. 
+6. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message and remove it from the [¶¶¶¶ 🌪️🦿 Roundup (:help-being-ceo)](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit).
+
 ### Archive a document
 Follow these steps to archive any document:
 1. Create a copy of the document prefixed with the date using the format "`YYYY-MM-DD` Backup of `DOCUMENT_NAME`" (e.g. "2024-03-22 Backup of 🪂🗞️ Customer voice").
@@ -314,7 +323,7 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
  
   1. LinkedIn profile url of all outside participants. Connect with any of the attendees that the CEO is not already connected to on LinkedIn, this should always be a blank connect request meaning "Send without note". 
   2. A screen-shot of LinkedIn profile pic
-  3. Company name (in doc title and file name)
+  3. Company name (in doc title, file name and Google calendar event title)
   4. Correct date (20XX-XX-XX in doc title and file name)
   5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
     - CEO's email
@@ -337,30 +346,23 @@ Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/hand
 
 
 ### Send the weekly update
-We like to be open about milestones and announcements.
-  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. Central Time Zone. 
-  - Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
+We like to be open about milestones and announcements. Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
     - A link to view KPIs
     - Who was on-call that week
     - Fleeties who are currently onboarding
     - Planned hires who haven't started yet
     - Fleeties that departed that week
   
-  - Change the "⚡️" to "🔭" in the beginning of the formula
-
-<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/574f251c-6ea7-4e22-b0ca-1c450ca09ec6">
-
-  - Select this week's cell (first week with the 🔮) in the KPI spreadsheet and copy the entire formula
+  To send the weekly update follow these steps:  
   
-  - Paste without formating (CMD+⇧+V) back into the same cell
-  
-  - The formula will now look like this:
-    
-  <img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
-  
-  - Paste the newly formatted message in the [#general](https://fleetdm.slack.com/archives/C019FNQPA23) Slack channel and delete any links that unfurl from links in the weekly update message.
+1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
 
-  - 📬 **Send it!**
+<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
+
+3. In the "Weekly update" column (column E) for that row, double-click into that cell and change the "⚡️" to "🔭" in the beginning of the formula.  
+4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
+5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
 
 
 ### Troubleshoot signature automation

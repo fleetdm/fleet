@@ -2185,23 +2185,23 @@ for the email address specified in the Source parameter of SendRawEmail.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
-#### S3 file carving backend
+#### S3
 
 ##### s3_bucket
 
-Name of the S3 bucket to use to store file carves.
+Name of the S3 bucket for storing software and file carves.
 
 - Default value: none
 - Environment variable: `FLEET_S3_BUCKET`
 - Config file format:
   ```yaml
   s3:
-    bucket: some-carve-bucket
+    bucket: some-bucket
   ```
 
 ##### s3_prefix
 
-Prefix to prepend to carve objects.
+Prefix to prepend to software and file carves.
 
 All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
 
@@ -2210,7 +2210,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 - Config file format:
   ```yaml
   s3:
-    prefix: carves-go-here/
+    prefix: prefix-here/
   ```
 
 ##### s3_access_key_id
@@ -2327,8 +2327,8 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 
 ```yaml
 s3:
-  bucket: some-carve-bucket
-  prefix: carves-go-here/
+  bucket: some-bucket
+  prefix: prefix-here/
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role

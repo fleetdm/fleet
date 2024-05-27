@@ -201,10 +201,7 @@ const AppleBusinessManagerSection = ({
         </div>
         <div className={`${baseClass}__section-information`}>
           <h4>
-            <TooltipWrapper
-              position="top-start"
-              tipContent="macOS hosts will be added to this team when they’re first unboxed."
-            >
+            <TooltipWrapper tipContent="macOS hosts will be added to this team when they’re first unboxed.">
               Team
             </TooltipWrapper>
           </h4>

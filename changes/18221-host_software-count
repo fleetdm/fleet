@@ -1,1 +1,0 @@
-Broke apart the hourly host_software count query to reduce the individual query runtime. This fixes timeouts seen when host_software table has over 25 million records.

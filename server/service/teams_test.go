@@ -26,7 +26,9 @@ func TestTeamAuth(t *testing.T) {
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
@@ -275,7 +277,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return team, nil
 				}
 
-				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+				ds.NewActivityFunc = func(
+					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+				) error {
 					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
 					require.Len(t, act.Teams, 1)
 					return nil
@@ -356,7 +360,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return &fleet.Team{ID: 123}, nil
 				}
 
-				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+				ds.NewActivityFunc = func(
+					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+				) error {
 					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
 					require.Len(t, act.Teams, 1)
 					return nil
@@ -389,7 +395,9 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
