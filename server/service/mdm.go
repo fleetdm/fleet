@@ -27,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	fleetmysql "github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -2155,15 +2154,10 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		fleet.MDMAssetAPNSKey,
 	})
 	if err != nil {
-		if !errors.Is(err, fleetmysql.ErrPartialResult) {
+		// allow not found errors as it means we're generating the assets for
+		// the first time.
+		if !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
-		}
-
-		// If we have a partial results but at least one asset, it
-		// means that the database is in a corrupt state. This should
-		// never happen.
-		if len(savedAssets) != 0 {
-			return nil, ctxerr.Wrap(ctx, err, "corrupt state loading existing assets from the database")
 		}
 	}
 
@@ -2319,13 +2313,11 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving APNs key")
-	}
-
-	if len(assets) == 0 {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: "Please generate a private key first.",
-		}, "uploading APNs certificate")
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "Please generate a private key first.",
+			}, "uploading APNs certificate")
+		}
 	}
 
 	_, err = tls.X509KeyPair(certBytes, assets[fleet.MDMAssetAPNSKey].Value)

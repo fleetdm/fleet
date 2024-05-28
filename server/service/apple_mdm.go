@@ -27,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -3464,15 +3463,10 @@ func (svc *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPK
 		fleet.MDMAssetABMKey,
 	})
 	if err != nil {
-		if !errors.Is(err, mysql.ErrPartialResult) {
+		// allow not found errors as it means that we're generating the
+		// keypair for the first time
+		if !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "loading ABM keys from the database")
-		}
-
-		// If we have a partial results but at least one asset, it
-		// means that the database is in a corrupt state. This should
-		// never happen.
-		if len(assets) != 0 {
-			return nil, ctxerr.Wrap(ctx, err, "corrupt state loading ABM keys from the database")
 		}
 	}
 
@@ -3566,7 +3560,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		fleet.MDMAssetABMKey,
 	})
 	if err != nil {
-		if errors.Is(err, mysql.ErrPartialResult) && len(assets) == 0 {
+		if fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: "Please generate a keypair first.",
 			}, "saving ABM token")

@@ -988,8 +988,9 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
 
 	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
-	require.NoError(t, err)
-	require.Len(t, assets, 0)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, assets)
 }
 
 func (s *integrationMDMTestSuite) uploadAPNSCert(pemBytes []byte, expectedStatus int, wantErr string) {
@@ -8760,8 +8761,9 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMToken,
 	})
-	require.NoError(t, err)
-	require.Len(t, assets, 0)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, assets)
 
 	// enable ABM again, creates a new keypair because the previous one was deleted
 	var newABMResp generateABMKeyPairResponse

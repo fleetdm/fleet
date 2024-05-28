@@ -5524,8 +5524,9 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.Equal(t, wantAssets, a)
 
 	// try to fetch an asset that doesn't exist
+	var nfe fleet.NotFoundError
 	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
-	require.ErrorIs(t, err, ErrPartialResult)
+	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
 
 	// try to fetch a mix of assets that exist and doesn't exist
@@ -5539,7 +5540,7 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
-	require.ErrorIs(t, err, ErrPartialResult)
+	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
 
 	// Verify that they're still in the DB

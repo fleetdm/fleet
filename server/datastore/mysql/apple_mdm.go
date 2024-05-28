@@ -4164,7 +4164,7 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, assetNames)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In GetMDMConfigAssetsByName")
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
 	}
 
 	var res []fleet.MDMConfigAsset
@@ -4173,7 +4173,7 @@ WHERE
 	}
 
 	if len(res) == 0 {
-		return nil, ErrPartialResult
+		return nil, notFound("MDMConfigAsset")
 	}
 
 	assetMap := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(res))
