@@ -9691,11 +9691,11 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	s.uploadSoftwareInstaller(payloadSS, http.StatusOK, "")
 	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
 
-	respSS := submitSelfServiceSoftwareInstallResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", *host1.OrbitNodeKey, titleIDSS), nil, http.StatusAccepted, &respSS)
+	// respSS := submitSelfServiceSoftwareInstallResponse{}
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", *host1.OrbitNodeKey, titleIDSS), nil, http.StatusAccepted)
 
-	respNoSS := submitSelfServiceSoftwareInstallResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", *host1.OrbitNodeKey, titleIDNoSS), nil, http.StatusBadRequest, &respNoSS)
+	// respNoSS := submitSelfServiceSoftwareInstallResponse{}
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", *host1.OrbitNodeKey, titleIDNoSS), nil, http.StatusBadRequest)
 
 }
 

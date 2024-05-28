@@ -644,7 +644,7 @@ type Service interface {
 
 	// SelfServiceInstallSoftwareTitle installs a software title
 	// initiated by the user
-	SelfServiceInstallSoftwareTitle(ctx context.Context, softwareTitleID uint) error
+	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities

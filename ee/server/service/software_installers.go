@@ -513,12 +513,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 	return nil
 }
 
-func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, softwareTitleID uint) error {
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-	}
-
+func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
 		if fleet.IsNotFound(err) {
