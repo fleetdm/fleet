@@ -94,6 +94,7 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [orgLogoURL, setOrgLogoURL] = useState("");
+  const [orgContactURL, setOrgContactURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -166,15 +167,19 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
+      // TODO: refactor to use non-refetch data directly in the component and remove
+      // unnecesary derived states for values that aren't related to the refetch status
       onSuccess: ({
         license,
         org_logo_url,
+        org_contact_url,
         global_config,
         host: responseHost,
       }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
         setIsPremiumTier(license.tier === "premium");
         setOrgLogoURL(org_logo_url);
+        setOrgContactURL(org_contact_url);
         setGlobalConfig(global_config);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
@@ -434,7 +439,7 @@ const DeviceUserPage = ({
                 {isPremiumTier && (
                   <TabPanel>
                     <SelfService
-                      contactUrl={globalConfig?.org_info?.contact_url || ""}
+                      contactUrl={orgContactURL}
                       deviceToken={deviceAuthToken}
                       isSoftwareEnabled
                       pathname={location.pathname}

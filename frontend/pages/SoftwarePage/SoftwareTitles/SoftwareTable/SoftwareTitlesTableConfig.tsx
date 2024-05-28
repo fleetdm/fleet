@@ -3,7 +3,7 @@ import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
 import {
-  ISoftwareTitleWithPackageName as ISoftwareTitle,
+  ISoftwareTitleWithPackageName,
   formatSoftwareType,
 } from "interfaces/software";
 import PATHS from "router/paths";
@@ -22,17 +22,20 @@ import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 
-type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
-type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
-type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
+type ISoftwareTitlesTableConfig = Column<ISoftwareTitleWithPackageName>;
+type ITableStringCellProps = IStringCellProps<ISoftwareTitleWithPackageName>;
+type IVersionsCellProps = CellProps<
+  ISoftwareTitleWithPackageName,
+  ISoftwareTitleWithPackageName["versions"]
+>;
 type IVulnerabilitiesCellProps = IVersionsCellProps;
 type IHostCountCellProps = CellProps<
-  ISoftwareTitle,
-  ISoftwareTitle["hosts_count"]
+  ISoftwareTitleWithPackageName,
+  ISoftwareTitleWithPackageName["hosts_count"]
 >;
-type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
+type IViewAllHostsLinkProps = CellProps<ISoftwareTitleWithPackageName>;
 
-type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
+type ITableHeaderProps = IHeaderProps<ISoftwareTitleWithPackageName>;
 
 export const getVulnerabilities = <
   T extends { vulnerabilities: string[] | null }
@@ -66,7 +69,13 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source, software_package } = cellProps.row.original;
+        const {
+          id,
+          name,
+          source,
+          software_package,
+          self_service,
+        } = cellProps.row.original;
 
         const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
         const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
@@ -82,6 +91,7 @@ const generateTableHeaders = (
             path={softwareTitleDetailsPath}
             router={router}
             hasPackage={hasPackage}
+            isSelfService={self_service === true}
           />
         );
       },

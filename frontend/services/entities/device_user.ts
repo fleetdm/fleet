@@ -58,13 +58,9 @@ export default {
     deviceToken: string,
     softwareTitleId: number
   ) => {
-    // TODO: integrate with new endpoint
     const { DEVICE_SOFTWARE_INSTALL } = endpoints;
     const path = DEVICE_SOFTWARE_INSTALL(deviceToken, softwareTitleId);
 
-    console.log("installSelfServiceSoftware", deviceToken, softwareTitleId);
-    console.log("path", path);
-
-    return Promise.resolve({ status: 202 });
+    return sendRequest("POST", path);
   },
 };

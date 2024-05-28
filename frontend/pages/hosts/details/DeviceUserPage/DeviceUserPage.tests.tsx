@@ -88,7 +88,6 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
-          org_info: { contact_url: "" }, // TODO: update this
         },
       });
 
@@ -105,7 +104,6 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
-          org_info: { contact_url: "" }, // TODO: update this
         },
       });
 
@@ -122,7 +120,6 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: false },
-          org_info: { contact_url: "" }, // TODO: update this
         },
       });
 
@@ -140,7 +137,6 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
-          org_info: { contact_url: "" }, // TODO: update this
         },
       });
 

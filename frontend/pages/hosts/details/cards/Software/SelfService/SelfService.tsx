@@ -31,7 +31,7 @@ import { parseHostSoftwareQueryParams } from "../Software";
 const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
-const DEFAULT_QUERY_PARAMS = {
+const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   per_page: 9, // TODO: confirm page size; dev note says 9 but design depicts 6
   order_key: "name",
   order_direction: "asc",
@@ -59,7 +59,8 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     displayText: "Failed",
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
-        Software failed to install ({dateAgo(lastInstalledAt)}). Select{" "}
+        Software failed to install
+        {lastInstalledAt ? `(${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
         <b>Retry</b> to install again, or contact your IT department.
       </>
     ),
@@ -113,10 +114,20 @@ const InstallerStatusAction = ({
   software: IHostSoftware;
   onInstall: () => void;
 }) => {
-  const [isInstalling, setIsInstalling] = React.useState(false);
+  // localStatus is used to track the status of the any user-initiated install action
+  const [localStatus, setLocalStatus] = React.useState<
+    SoftwareInstallStatus | undefined
+  >(undefined);
+
+  // displayStatus allows us to display the localStatus (if any) or the status from the list
+  // software reponse
+  const displayStatus = localStatus || status;
+
+  // if the localStatus is "failed", we don't our tooltip to include the old installed_at date so we
+  // set this to null, which tells the tooltip to omit the parenthetical date
+  const lastInstall = localStatus === "failed" ? null : last_install;
 
   const isMountedRef = useRef(false);
-
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -125,7 +136,7 @@ const InstallerStatusAction = ({
   }, []);
 
   const onClick = useCallback(async () => {
-    setIsInstalling(true);
+    setLocalStatus("pending");
     try {
       // TODO: confirm specs for response handling
       const resp = await deviceApi.installSelfServiceSoftware(deviceToken, id);
@@ -139,8 +150,11 @@ const InstallerStatusAction = ({
     } catch (error) {
       // TODO: confirm specs for error handling
       console.log("error", error);
+      if (isMountedRef.current) {
+        setLocalStatus("failed");
+      }
     } finally {
-      // TODO: anything else to do here? subject to isMountedRef.current check?
+      // TODO: anything else to do here? maybe something subject to isMountedRef.current check?
       console.log("finally");
     }
   }, [deviceToken, id, onInstall]);
@@ -150,21 +164,21 @@ const InstallerStatusAction = ({
       <div className={`${baseClass}__item-status`}>
         <InstallerStatus
           id={id}
-          status={isInstalling ? "pending" : status}
-          last_install={last_install}
+          status={displayStatus}
+          last_install={lastInstall}
         />
       </div>
       <div className={`${baseClass}__item-action`}>
-        {(status === "failed" || status === null) && (
+        {(displayStatus === "failed" || displayStatus === null) && (
           <Button
             variant="text-icon"
             type="button"
             className={`${baseClass}__item-action-button${
-              isInstalling ? "--installing" : ""
+              localStatus === "pending" ? "--installing" : ""
             }`}
             onClick={onClick}
           >
-            {status === "failed" ? "Retry" : "Install"}
+            {displayStatus === "failed" ? "Retry" : "Install"}
           </Button>
         )}
       </div>
@@ -215,7 +229,7 @@ const SoftwareSelfService = ({
         scope: "device_software",
         id: deviceToken,
         page: queryParams.page,
-        ...DEFAULT_QUERY_PARAMS,
+        ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
       },
     ],
     ({ queryKey }) =>

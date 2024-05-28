@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 
+import { NotificationContext } from "context/notification";
 import getInstallScript from "utilities/software_install_scripts";
 
 import Button from "components/buttons/Button";
@@ -74,6 +75,8 @@ const AddSoftwareForm = ({
   onCancel,
   onSubmit,
 }: IAddSoftwareFormProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [formData, setFormData] = useState<IAddSoftwareFormData>({
@@ -91,10 +94,19 @@ const AddSoftwareForm = ({
   const onFileUpload = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
+
+      let installScript: string;
+      try {
+        installScript = getInstallScript(file.name);
+      } catch (e) {
+        renderFlash("error", `${e}`);
+        return;
+      }
+
       const newData = {
         ...formData,
         software: file,
-        installScript: getInstallScript(file.name),
+        installScript,
       };
       setFormData(newData);
       setFormValidation(
