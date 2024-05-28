@@ -26,7 +26,6 @@
       </div>
       <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
         <div purpose="testimonial-quote">
-          <a href="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>" target="_blank">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
             <p>
@@ -36,7 +35,8 @@
               <% } %>
             </p>
           </div>
-          <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
+          <a href="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>" target="_blank">
+          <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
             <div purpose="quote-image"><img src="/images/<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'testimonial-author-nico-waisman-48x48@2x.png' : ['eo-it'].includes(primaryBuyingSituation) ? 'testimonial-author-eric-tan-99x99@2x.png' : 'testimonial-author-kenny-botelho-48x48@2x.png'%>" alt="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'Nico Waisman' : ['eo-it'].includes(primaryBuyingSituation) ? 'Eric Tan' : 'Kenny Botelho'%>"></div>
             <div class="d-flex flex-column">
               <p purpose="name"><%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'Nico Waisman' : ['eo-it'].includes(primaryBuyingSituation) ? 'Eric Tan' : 'Kenny Botelho'%></p>
