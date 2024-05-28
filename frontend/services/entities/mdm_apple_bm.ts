@@ -33,6 +33,11 @@ export default {
     });
   },
 
+  downloadPublicKey: () => {
+    const { MDM_APPLE_ABM_PUBLIC_KEY } = endpoints;
+    return sendRequest("GET", MDM_APPLE_ABM_PUBLIC_KEY);
+  },
+
   uploadToken: (token: File) => {
     // TODO: confirm this work for renewing token when set by env vars
     const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;

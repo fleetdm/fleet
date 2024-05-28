@@ -12,7 +12,7 @@ import {
   FileDetails,
 } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
-import DownloadCSR from "../../actions/DownloadCSR";
+import DownloadCSR from "../../../../../../../components/DownloadFileButtons/DownloadCSR";
 
 const baseClass = "modal renew-cert-modal";
 

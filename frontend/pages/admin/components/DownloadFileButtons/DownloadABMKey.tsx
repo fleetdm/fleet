@@ -1,35 +1,25 @@
 import React, { FormEvent, useCallback, useMemo, useState } from "react";
 
-import mdmAppleApi from "services/entities/mdm_apple";
+import mdmAppleBusinessManagerApi from "services/entities/mdm_apple_bm";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import { downloadFile, RequestState } from "./helpers";
 
-interface IDownloadCSRProps {
+interface IDownloadABMKeyProps {
   baseClass: string;
   onSuccess?: () => void;
   onError?: (e: unknown) => void;
 }
 
-export type RequestState = "loading" | "error" | "success" | undefined;
-
-const downloadFile = (tokens: string, fileName: string) => {
-  const linkSource = `data:application/octet-stream;base64,${tokens}`;
-  const downloadLink = document.createElement("a");
-
-  downloadLink.href = linkSource;
-  downloadLink.download = fileName;
-  downloadLink.click();
+const downloadKeyFile = (data: { public_key: string }) => {
+  downloadFile(data.public_key, "fleet-mdm-apple-bm-public-key.crt");
 };
 
-const downloadCSRFile = (data: { csr: string }) => {
-  downloadFile(data.csr, "fleet-mdm-apple.csr");
-};
-
-const useDownloadCSR = ({
+const useDownloadABMKey = ({
   onSuccess,
   onError,
-}: Omit<IDownloadCSRProps, "baseClass">) => {
+}: Omit<IDownloadABMKeyProps, "baseClass">) => {
   const [downloadState, setDownloadState] = useState<RequestState>(undefined);
 
   const handleDownload = useCallback(
@@ -37,8 +27,8 @@ const useDownloadCSR = ({
       evt.preventDefault();
       setDownloadState("loading");
       try {
-        const data = await mdmAppleApi.requestCSR();
-        downloadCSRFile(data);
+        const data = await mdmAppleBusinessManagerApi.downloadPublicKey();
+        downloadKeyFile(data);
         setDownloadState("success");
         onSuccess && onSuccess();
       } catch (e) {
@@ -62,12 +52,12 @@ const useDownloadCSR = ({
   return memoized;
 };
 
-export const DownloadCSR = ({
+export const DownloadABMKey = ({
   baseClass,
   onSuccess,
   onError,
-}: IDownloadCSRProps) => {
-  const { handleDownload } = useDownloadCSR({ onSuccess, onError });
+}: IDownloadABMKeyProps) => {
+  const { handleDownload } = useDownloadABMKey({ onSuccess, onError });
 
   return (
     <Button
@@ -75,12 +65,12 @@ export const DownloadCSR = ({
       variant="text-icon"
       onClick={handleDownload}
     >
-      <label htmlFor="request-csr">
+      <label htmlFor="download-key">
         <Icon name="download" color="core-fleet-blue" size="medium" />
-        <span>Download CSR</span>
+        <span>Download public key</span>
       </label>
     </Button>
   );
 };
 
-export default DownloadCSR;
+export default DownloadABMKey;

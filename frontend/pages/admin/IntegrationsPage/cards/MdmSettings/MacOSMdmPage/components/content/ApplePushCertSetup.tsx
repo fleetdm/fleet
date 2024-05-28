@@ -6,7 +6,7 @@ import mdmAppleApi from "services/entities/mdm_apple";
 
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
-import DownloadCSR from "../actions/DownloadCSR";
+import DownloadCSR from "../../../../../../components/DownloadFileButtons/DownloadCSR";
 
 interface IApplePushCertSetupProps {
   baseClass: string;
