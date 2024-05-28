@@ -238,14 +238,14 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 							return "", fmt.Errorf("generating private key: %w", err)
 						}
 
-						if err := os.WriteFile(filepath.Join(previewDir, "config", ".private_key"), []byte(genPK), os.ModeAppend); err != nil {
+						if err := os.WriteFile(pkFilename, []byte(genPK), 0o777); err != nil {
 							return "", fmt.Errorf("writing private key file: %w", err)
 						}
 
 						return genPK, nil
 					}
 
-					return "", fmt.Errorf("stat private key file: %w", err)
+					return "", fmt.Errorf("reading private key file: %w", err)
 				}
 
 				return string(filePK), nil
