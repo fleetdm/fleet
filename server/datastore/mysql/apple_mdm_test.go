@@ -77,7 +77,7 @@ func TestMDMApple(t *testing.T) {
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
-		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSiPadOS},
+		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 	}
@@ -5508,7 +5508,6 @@ func createRawAppleCmd(reqType, cmdUUID string) string {
 
 func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
 
 	refetchInterval := 1 * time.Hour
 	hostCount := 0
@@ -5581,60 +5580,6 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
 
-	// Send a refetch command to the iOS device.
-	refetchCommandUUID := "REFETCH-" + uuid.NewString()
-	refetchCommand := fmt.Sprintf(`<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">                                                                                              <plist version="1.0">                                                                                                                                                                               <dict>                                                                                                                                                                                                  <key>Command</key>                                                                                                                                                                                  <dict>                                                                                                                                                                                                  <key>Queries</key>                                                                                                                                                                                  <array>                                                                                                                                                                                                 <string>DeviceName</string>                                                                                                                                                                         <string>DeviceCapacity</string>                                                                                                                                                                     <string>AvailableDeviceCapacity</string>                                                                                                                                                            <string>OSVersion</string>                                                                                                                                                                          <string>WiFiMAC</string>                                                                                                                                                                            <string>ProductName</string>                                                                                                                                                                    </array>
-        <key>RequestType</key>
-        <string>DeviceInformation</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
-</dict>
-</plist>`, refetchCommandUUID)
-	err = commander.EnqueueCommand(ctx, []string{"iOS0_UUID"}, refetchCommand)
-	require.NoError(t, err)
-
-	// iOS device should not be returned for refetch as it has a command queued without response.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
-	require.NoError(t, err)
-	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iPadOS0_UUID")
-
-	genAckCommand := func(deviceUUID, commandUUID string) []byte {
-		return []byte(fmt.Sprintf(`<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-        <key>CommandUUID</key>
-        <string>%s</string>
-        <key>Status</key>
-        <string>Acknowledged</string>
-        <key>UDID</key>
-        <string>%s</string>
-</dict>
-</plist>`, commandUUID, deviceUUID))
-	}
-
-	// iOS device sends result back.
-	err = storage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: "iOS0_UUID"},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: refetchCommandUUID,
-		Status:      "Acknowledged",
-		RequestType: "DeviceInformation",
-		Raw:         genAckCommand("iOS0_UUID", refetchCommandUUID),
-	})
-	require.NoError(t, err)
-
-	// Both devices should be listed now (because detail_updated_at was never updated yet).
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
-	require.NoError(t, err)
-	require.Len(t, uuids, 2)
-	sort.Slice(uuids, func(i, j int) bool {
-		return uuids[i] < uuids[j]
-	})
-	require.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
-
 	// Set iOS detail_updated_at as 30 minutes in the past.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 30 MINUTE) WHERE id = ?`, iOS0.ID)
@@ -5647,47 +5592,31 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Len(t, uuids, 1)
 	require.Equal(t, uuids[0], "iPadOS0_UUID")
 
-	// Send some unrelated command to both devices.
-	unrelatedCommandUUID := uuid.NewString()
-	err = commander.EnqueueCommand(ctx, []string{"iOS0_UUID", "iPadOS0_UUID"}, createRawAppleCmd("ProfileList", unrelatedCommandUUID))
-	require.NoError(t, err)
+	// Set iPadOS detail_updated_at as 30 minutes in the past.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 30 MINUTE) WHERE id = ?`, iPadOS0.ID)
+		return err
+	})
 
-	// No change, only the iPadOS device should be returned.
+	// Both devices are up-to-date thus none should be returned.
+	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	require.NoError(t, err)
+	require.Empty(t, uuids)
+
+	// Set iOS detail_updated_at as 2 hours in the past.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, iOS0.ID)
+		return err
+	})
+
+	// iOS device be returned because it is out of date.
 	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
 	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iPadOS0_UUID")
-
-	// Both devices send results back
-	err = storage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: "iOS0_UUID"},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: refetchCommandUUID,
-		Status:      "Acknowledged",
-		RequestType: "DeviceInformation",
-		Raw:         genAckCommand("iOS0_UUID", unrelatedCommandUUID),
-	})
-	require.NoError(t, err)
-	err = storage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: "iPadOS0_UUID"},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: refetchCommandUUID,
-		Status:      "Acknowledged",
-		RequestType: "DeviceInformation",
-		Raw:         genAckCommand("iPadOS0_UUID", unrelatedCommandUUID),
-	})
-	require.NoError(t, err)
-
-	// No change, only the iPadOS device should be returned.
-	uuids, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
-	require.NoError(t, err)
-	require.Len(t, uuids, 1)
-	require.Equal(t, uuids[0], "iPadOS0_UUID")
+	require.Equal(t, uuids[0], "iOS0_UUID")
 }
 
-func testMDMAppleUpsertHostIOSiPadOS(t *testing.T, ds *Datastore) {
+func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	createBuiltinLabels(t, ds)
 

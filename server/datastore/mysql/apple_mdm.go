@@ -750,11 +750,6 @@ func updateMDMAppleHostDB(
 	mdmHost *fleet.Host,
 	appCfg *fleet.AppConfig,
 ) error {
-	refetchRequested := 1
-	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
-		// refetch_requested does not apply to iOS/iPadOS.
-		refetchRequested = 0
-	}
 	updateStmt := `
 		UPDATE hosts SET
 			hardware_serial = ?,
@@ -772,7 +767,7 @@ func updateMDMAppleHostDB(
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
 		mdmHost.Platform,
-		refetchRequested,
+		mdmHost.SupportsOsquery(),
 		// Set osquery_host_id to the device UUID only if it is not already set.
 		mdmHost.UUID,
 		hostID,
@@ -799,12 +794,13 @@ func insertMDMAppleHostDB(
 	logger log.Logger,
 	appCfg *fleet.AppConfig,
 ) error {
-	refetchRequested := 1
-	var lastEnrolledAt any = "2000-01-01 00:00:00"
-	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
-		// refetch_requested does not apply to iOS/iPadOS.
-		refetchRequested = 0
-		// We set last_enrolled_at here because there's no osquery on iOS/iPadOS.
+	supportsOsquery := mdmHost.SupportsOsquery()
+	lastEnrolledAt, err := time.Parse("2006-01-02 15:04:05", "2000-01-01 00:00:00")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parse last_enrolled_at time")
+	}
+	if !supportsOsquery {
+		// Given the device does not have osquery, we set the last_enrolled_at as the MDM enroll time.
 		lastEnrolledAt = time.Now()
 	}
 	insertStmt := `
@@ -829,7 +825,7 @@ func insertMDMAppleHostDB(
 		lastEnrolledAt,
 		"2000-01-01 00:00:00",
 		mdmHost.UUID,
-		refetchRequested,
+		supportsOsquery,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert mdm apple host")
@@ -4171,39 +4167,19 @@ VALUES
 	return nil
 }
 
-// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched.
-// It will return iOS/iPadOS (enrolled) devices with the following criteria:
-//   - No refetch command has been sent to the device, or
-//   - More than refetchInterval time has passed since last refetch command was acknowledged.
+// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
+// (their details haven't been updated in the given `interval`).
 func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
-	// Exclude iPhones/iPads that already have a "refetch" command queued without an answer.
-	// The subquery is to get the last REFETCH command sent per device and its answer (if any).
-	stmt := fmt.Sprintf(`
+	var deviceUUIDs []string
+	hostsStmt := fmt.Sprintf(`
 SELECT h.uuid FROM hosts h
 JOIN host_mdm hmdm ON hmdm.host_id = h.id
-LEFT JOIN (
-	SELECT last_refetch_commands.id, last_refetch_commands.command_uuid, r.status FROM (
-		SELECT q.id, q.command_uuid FROM nano_enrollment_queue q JOIN (SELECT q.id, q.priority, MAX(q.created_at) as max_created_at
-		FROM nano_enrollment_queue AS q
-		WHERE
-	  	  q.active = 1 AND LEFT(q.command_uuid, %d) = '%s'
-		GROUP BY
-	 	   q.id, q.priority
-		) last_refetch_command_enqueued ON
-			last_refetch_command_enqueued.id=q.id AND
-			last_refetch_command_enqueued.priority=q.priority AND
-			last_refetch_command_enqueued.max_created_at=q.created_at
-	) last_refetch_commands
-	LEFT JOIN nano_command_results r ON
-		r.command_uuid = last_refetch_commands.command_uuid AND
-		r.id = last_refetch_commands.id
-) last_refetch_command_result ON last_refetch_command_result.id = h.uuid
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
-AND (last_refetch_command_result.id IS NULL OR last_refetch_command_result.status = 'Acknowledged')
 AND hmdm.enrolled
-AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`, len(fleet.RefetchCommandUUIDPrefix), fleet.RefetchCommandUUIDPrefix)
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, stmt, interval.Seconds()); err != nil {
+AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &deviceUUIDs, hostsStmt, interval.Seconds()); err != nil {
 		return nil, err
 	}
-	return uuids, nil
+
+	return deviceUUIDs, nil
 }

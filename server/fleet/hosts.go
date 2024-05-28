@@ -840,6 +840,11 @@ func (h *Host) FleetPlatform() string {
 	return PlatformFromHost(h.Platform)
 }
 
+// SupportsOsquery returns whether the device runs osquery.
+func (h *Host) SupportsOsquery() bool {
+	return h.Platform != "ios" && h.Platform != "ipados"
+}
+
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
 	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed",

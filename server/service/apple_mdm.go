@@ -2649,7 +2649,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCommandUUIDPrefix) {
 		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.UDID)
 		if err != nil {
-			return nil, ctxerr.Wrap(r.Context, err)
+			return nil, ctxerr.Wrap(r.Context, err, "failed to get host by identifier")
 		}
 		var deviceInformationResponse struct {
 			QueryResponses map[string]interface{} `plist:"QueryResponses"`
