@@ -74,7 +74,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
-		{"TestInsertMDMAsset", testMDMConfigAsset},
+		{"TestMDMConfigAsset", testMDMConfigAsset},
 	}
 
 	for _, c := range cases {
@@ -5519,17 +5519,17 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	err := ds.InsertMDMConfigAssets(ctx, assets)
 	require.NoError(t, err)
 
-	a, err := ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.NoError(t, err)
 	require.Equal(t, wantAssets, a)
 
 	// try to fetch an asset that doesn't exist
-	a, err = ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
-	require.NoError(t, err)
-	require.Len(t, a, 0)
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
+	require.ErrorIs(t, err, ErrPartialResult)
+	require.Nil(t, a)
 
 	// try to fetch a mix of assets that exist and doesn't exist
-	a, err = ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
 	require.ErrorIs(t, err, ErrPartialResult)
 	require.Len(t, a, 1)
 
@@ -5538,9 +5538,9 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.NoError(t, err)
 
-	a, err = ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
-	require.NoError(t, err)
-	require.Len(t, a, 0)
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.ErrorIs(t, err, ErrPartialResult)
+	require.Nil(t, a)
 
 	// Verify that they're still in the DB
 

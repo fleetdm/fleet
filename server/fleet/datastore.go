@@ -1252,12 +1252,10 @@ type Datastore interface {
 	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
 	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
-	// GetMDMConfigAssetsByName returns the requested config assets.
+	// GetAllMDMConfigAssetsByName returns the requested config assets.
 	//
-	// - If it doesn't find any assests, it returns a nil map
-	// - If it only finds some of the assets, it returns the assets found
-	//   and ErrPartialResult as the error
-	GetMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
+	// If it doesn't find all the assets requested, the error returned is `mysql.ErrPartialResult`
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
 
 	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error

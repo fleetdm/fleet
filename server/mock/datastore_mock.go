@@ -5187,7 +5187,7 @@ func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MD
 	return s.InsertMDMConfigAssetsFunc(ctx, assets)
 }
 
-func (s *DataStore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+func (s *DataStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	s.mu.Lock()
 	s.GetMDMConfigAssetsByNameFuncInvoked = true
 	s.mu.Unlock()

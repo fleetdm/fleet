@@ -4146,7 +4146,7 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
-func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 
 	if len(assetNames) == 0 {
 		return nil, nil
@@ -4173,7 +4173,7 @@ WHERE
 	}
 
 	if len(res) == 0 {
-		return nil, nil
+		return nil, ErrPartialResult
 	}
 
 	assetMap := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(res))

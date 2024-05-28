@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	fleetmysql "github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -2148,13 +2149,22 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 
 	// Check if we have existing certs and keys
 	var apnsKey *rsa.PrivateKey
-	savedAssets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+	savedAssets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
 		fleet.MDMAssetCAKey,
 		fleet.MDMAssetAPNSKey,
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking asset existence")
+		if !errors.Is(err, fleetmysql.ErrPartialResult) {
+			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
+		}
+
+		// If we have a partial results but at least one asset, it
+		// means that the database is in a corrupt state. This should
+		// never happen.
+		if len(savedAssets) != 0 {
+			return nil, ctxerr.Wrap(ctx, err, "corrupt state loading existing assets from the database")
+		}
 	}
 
 	if len(savedAssets) == 0 {
@@ -2307,7 +2317,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return err
 	}
 
-	assets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving APNs key")
 	}

@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -3458,12 +3459,21 @@ func (svc *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPK
 		return nil, err
 	}
 	var publicKeyPEM, privateKeyPEM []byte
-	assets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading ABM keys from the database")
+		if !errors.Is(err, mysql.ErrPartialResult) {
+			return nil, ctxerr.Wrap(ctx, err, "loading ABM keys from the database")
+		}
+
+		// If we have a partial results but at least one asset, it
+		// means that the database is in a corrupt state. This should
+		// never happen.
+		if len(assets) != 0 {
+			return nil, ctxerr.Wrap(ctx, err, "corrupt state loading ABM keys from the database")
+		}
 	}
 
 	// if we don't have any certificates, create a new keypair, otherwise
@@ -3551,18 +3561,18 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return err
 	}
 
-	assets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
 	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
-	}
+		if errors.Is(err, mysql.ErrPartialResult) && len(assets) == 0 {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "Please generate a keypair first.",
+			}, "saving ABM token")
+		}
 
-	if len(assets) == 0 {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: "Please generate a keypair first.",
-		}, "saving ABM token")
+		return ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
 	}
 
 	tokenBytes, err := io.ReadAll(token)
