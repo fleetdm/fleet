@@ -530,7 +530,13 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	}
 
 	if !installer.SelfService {
-		return ctxerr.Wrap(ctx, errors.New("Software title is not available through self-service"))
+		return &fleet.BadRequestError{
+			Message: "Software title is not available through self-service",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "software title not available through self-service",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
+		}
 	}
 
 	ext := filepath.Ext(installer.Name)
