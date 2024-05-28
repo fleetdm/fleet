@@ -302,7 +302,20 @@ func TestUnion(t *testing.T) {
 	a := []uint{1, 2, 3, 4}
 	b := []uint{3, 4, 5, 6}
 	expected := []uint{1, 2, 3, 4, 5, 6}
-	result := union(a, b)
+	result := unionAll(a, b)
+	require.ElementsMatch(t, expected, result)
+
+	// a has duplicates
+	a = []uint{1, 2, 3, 4, 4}
+	expected = []uint{1, 2, 3, 4, 5, 6}
+	result = unionAll(a, b)
+	require.ElementsMatch(t, expected, result)
+
+	// b has duplicates
+	a = []uint{1, 2, 3, 4}
+	b = []uint{3, 4, 5, 6, 6}
+	expected = []uint{1, 2, 3, 4, 5, 6}
+	result = unionAll(a, b)
 	require.ElementsMatch(t, expected, result)
 }
 

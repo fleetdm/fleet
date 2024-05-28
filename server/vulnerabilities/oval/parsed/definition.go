@@ -103,6 +103,7 @@ func (d Definition) CveVulnerabilities() []string {
 	return r
 }
 
+// intersect returns the intersection of two slices of uints.
 func intersect(a, b []uint) []uint {
 	m := make(map[uint]bool)
 	for _, v := range a {
@@ -118,20 +119,29 @@ func intersect(a, b []uint) []uint {
 	return r
 }
 
-func union(a, b []uint) []uint {
+// unionAll returns the union of two slices of uints without duplicates.
+func unionAll(a, b []uint) []uint {
 	m := make(map[uint]bool)
+	var result []uint
+
 	for _, v := range a {
-		m[v] = true
+		if !m[v] {
+			m[v] = true
+			result = append(result, v)
+		}
 	}
 
 	for _, v := range b {
 		if !m[v] {
-			a = append(a, v)
+			m[v] = true
+			result = append(result, v)
 		}
 	}
-	return a
+
+	return result
 }
 
+// findMatchingSoftware returns the software IDs that match the given OVAL criteria.
 func findMatchingSoftware(c Criteria, uTests map[int][]uint) []uint {
 	switch c.Operator {
 	case And:
@@ -142,6 +152,7 @@ func findMatchingSoftware(c Criteria, uTests map[int][]uint) []uint {
 	return nil
 }
 
+// findAndMatch finds the software that matches all the criteria using the AND operator
 func findAndMatch(c Criteria, uTests map[int][]uint) []uint {
 	if c.Criteriums != nil {
 		return intersectSoftware(c.Criteriums, uTests)
@@ -159,6 +170,7 @@ func findAndMatch(c Criteria, uTests map[int][]uint) []uint {
 	return matchingSoftware
 }
 
+// intersectSoftware returns the intersection of the software IDs for the given criteria.
 func intersectSoftware(criteriums []int, uTests map[int][]uint) []uint {
 	if len(criteriums) == 0 {
 		return nil
@@ -177,11 +189,12 @@ func intersectSoftware(criteriums []int, uTests map[int][]uint) []uint {
 	return intersected
 }
 
+// findOrMatch finds the software that matches any of the criteria using the OR operator
 func findOrMatch(c Criteria, uTests map[int][]uint) []uint {
 	matchingSoftware := make([]uint, 0)
 	for _, subCriteria := range c.Criterias {
 		subMatchingSoftware := findMatchingSoftware(*subCriteria, uTests)
-		matchingSoftware = union(matchingSoftware, subMatchingSoftware)
+		matchingSoftware = unionAll(matchingSoftware, subMatchingSoftware)
 	}
 	return matchingSoftware
 }
