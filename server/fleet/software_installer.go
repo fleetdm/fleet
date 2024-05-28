@@ -62,7 +62,7 @@ type SoftwareInstallDetails struct {
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// SelfService insicates the install was initiated by the device user
-	SelfService bool `json:"self_service", db:"self_service"`
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 // SoftwareInstaller represents a software installer package that can be used to install software on

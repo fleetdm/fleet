@@ -73,10 +73,10 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 
 	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "banana",
-		PreInstallQuery:   "SELECT 2",
-		PostInstallScript: "hello",
+		PreInstallQuery:   "SELECT 3",
+		PostInstallScript: "apple",
 		InstallerFile:     bytes.NewReader([]byte("hello")),
-		StorageID:         "storage2",
+		StorageID:         "storage3",
 		Filename:          "file3",
 		Title:             "file3",
 		Version:           "3.0",
@@ -152,11 +152,11 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.Equal(t, host1.ID, exec2.HostID)
-	require.Equal(t, hostInstall1, exec2.ExecutionID)
+	require.Equal(t, hostInstall6, exec2.ExecutionID)
 	require.Equal(t, "banana", exec2.InstallScript)
-	require.Equal(t, "world", exec2.PostInstallScript)
-	require.Equal(t, installerID1, exec2.InstallerID)
-	require.Equal(t, "SELECT 1", exec2.PreInstallCondition)
+	require.Equal(t, "apple", exec2.PostInstallScript)
+	require.Equal(t, installerID3, exec2.InstallerID)
+	require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
 	require.True(t, exec2.SelfService)
 
 }
