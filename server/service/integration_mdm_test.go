@@ -938,8 +938,7 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that we created the right assets
-	var originalAssets []fleet.MDMConfigAsset
-	originalAssets, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
 	require.NoError(t, err)
 	require.Len(t, originalAssets, 3)
 
@@ -952,7 +951,7 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
 	// Check that the assets stayed the same in the subsequent call
-	assets, err := s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
 	require.NoError(t, err)
 	require.Equal(t, originalAssets, assets)
 
@@ -981,16 +980,17 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 	s.uploadAPNSCert(certPEM, http.StatusAccepted, "")
 
-	assets, err = s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
 	require.NoError(t, err)
 	require.Len(t, assets, 4)
 
 	// Delete APNS cert, should soft delete all certs and keys created in this test
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
 
-	assets, err = s.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
-	require.NoError(t, err)
-	require.Len(t, assets, 0)
+	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, assets)
 }
 
 func (s *integrationMDMTestSuite) uploadAPNSCert(pemBytes []byte, expectedStatus int, wantErr string) {
@@ -8689,5 +8689,123 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 3) // This would be 4 if we hadn't deleted the profile that failed to install.
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		require.NotEqual(t, "N1", hm.Name)
+	}
+}
+
+func (s *integrationMDMTestSuite) TestABMAssetManagement() {
+	t := s.T()
+
+	// try to upload a token without a keypair
+	s.uploadABMToken([]byte("foo"), http.StatusBadRequest, "Please generate a keypair first.")
+
+	var abmResp generateABMKeyPairResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &abmResp)
+	require.Nil(t, abmResp.Err)
+	require.NotEmpty(t, abmResp.PublicKey)
+	block, _ := pem.Decode(abmResp.PublicKey)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE", block.Type)
+
+	// try to upload an invalid token
+	s.uploadABMToken([]byte("foo"), http.StatusBadRequest, "Invalid token. Please provide a valid token from Apple Business Manager.")
+
+	// generate a mock token and encrypt it using the public key
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	rawToken, err := json.Marshal(testBMToken)
+	require.NoError(t, err)
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	smimeToken := fmt.Sprintf(
+		"Content-Type: text/plain;charset=UTF-8\r\n"+
+			"Content-Transfer-Encoding: 7bit\r\n"+
+			"\r\n%s", rawToken,
+	)
+
+	encryptedToken, err := pkcs7.Encrypt([]byte(smimeToken), []*x509.Certificate{cert})
+	require.NoError(t, err)
+
+	// upload the encrypted token
+	smimeMessage := fmt.Sprintf(
+		"Content-Type: application/pkcs7-mime; name=\"smime.p7m\"; smime-type=enveloped-data\r\n"+
+			"Content-Transfer-Encoding: base64\r\n"+
+			"Content-Disposition: attachment; filename=\"smime.p7m\"\r\n"+
+			"Content-Description: S/MIME Encrypted Message\r\n"+
+			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
+	s.uploadABMToken([]byte(smimeMessage), http.StatusOK, "")
+
+	// verify that all the secrets are in the db
+	ctx := context.Background()
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+		fleet.MDMAssetABMKey,
+		fleet.MDMAssetABMToken,
+	})
+	require.NoError(t, err)
+	require.Len(t, assets, 3)
+	require.Equal(t, smimeMessage, string(assets[fleet.MDMAssetABMToken].Value))
+	require.Equal(t, abmResp.PublicKey, assets[fleet.MDMAssetABMCert].Value)
+
+	// disable ABM
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/abm_token", nil, http.StatusNoContent)
+	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+		fleet.MDMAssetABMKey,
+		fleet.MDMAssetABMToken,
+	})
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, assets)
+
+	// enable ABM again, creates a new keypair because the previous one was deleted
+	var newABMResp generateABMKeyPairResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &newABMResp)
+	require.Nil(t, newABMResp.Err)
+	require.NotEmpty(t, newABMResp.PublicKey)
+	block, _ = pem.Decode(newABMResp.PublicKey)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE", block.Type)
+	require.NotEqual(t, abmResp.PublicKey, newABMResp.PublicKey)
+
+	// as long as the certs are not deleted, we should return the same values to support renewing the token
+	var renewABMResp generateABMKeyPairResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &renewABMResp)
+	require.Nil(t, renewABMResp.Err)
+	require.NotEmpty(t, renewABMResp.PublicKey)
+	require.Equal(t, renewABMResp.PublicKey, newABMResp.PublicKey)
+}
+
+func (s *integrationMDMTestSuite) uploadABMToken(encryptedToken []byte, expectedStatus int, wantErr string) {
+	t := s.T()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the package field
+	fw, err := w.CreateFormFile("token", "token.tok")
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewBuffer(encryptedToken))
+	require.NoError(t, err)
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/abm_token", b.Bytes(), expectedStatus, headers)
+	if wantErr != "" {
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, wantErr)
 	}
 }

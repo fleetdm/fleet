@@ -5511,36 +5511,37 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 			Value: []byte("some other bytes"),
 		},
 	}
+	wantAssets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+	for _, a := range assets {
+		wantAssets[a.Name] = a
+	}
 
 	err := ds.InsertMDMConfigAssets(ctx, assets)
-	require.ErrorContains(t, err, "private key not found")
-
-	testPK := strings.Repeat("a", 32)
-
-	ds.serverPrivateKey = testPK
-
-	err = ds.InsertMDMConfigAssets(ctx, assets)
 	require.NoError(t, err)
 
-	a, err := ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.NoError(t, err)
-	require.Equal(t, assets, a)
+	require.Equal(t, wantAssets, a)
+
+	// try to fetch an asset that doesn't exist
+	var nfe fleet.NotFoundError
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, a)
+
+	// try to fetch a mix of assets that exist and doesn't exist
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
+	require.ErrorIs(t, err, ErrPartialResult)
+	require.Len(t, a, 1)
 
 	// Soft delete the assets
 
 	err = ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.NoError(t, err)
 
-	ds.serverPrivateKey = ""
-
-	a, err = ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
-	require.ErrorContains(t, err, "private key not found")
-
-	ds.serverPrivateKey = testPK
-
-	a, err = ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
-	require.NoError(t, err)
-	require.Len(t, a, 0)
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, a)
 
 	// Verify that they're still in the DB. Values should be encrypted.
 

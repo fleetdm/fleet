@@ -190,3 +190,7 @@ func isMySQLAccessDenied(err error) bool {
 	}
 	return false
 }
+
+// ErrPartialResult indicates that a batch operation was completed,
+// but some of the results are missing or incomplete.
+var ErrPartialResult = errors.New("batch operation completed with partial results")

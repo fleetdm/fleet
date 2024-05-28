@@ -4166,10 +4166,6 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 }
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	if len(ds.serverPrivateKey) == 0 {
-		return ctxerr.Wrap(ctx, errors.New("private key not found"))
-	}
-
 	stmt := `
 INSERT INTO
     mdm_config_assets (
@@ -4202,9 +4198,9 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
-func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
-	if len(ds.serverPrivateKey) == 0 {
-		return nil, ctxerr.Wrap(ctx, errors.New("private key not found"))
+func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	if len(assetNames) == 0 {
+		return nil, nil
 	}
 
 	stmt := `
@@ -4219,7 +4215,7 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, assetNames)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In GetMDMConfigAssetsByName")
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
 	}
 
 	var res []fleet.MDMConfigAsset
@@ -4227,16 +4223,25 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
 	}
 
-	for i, a := range res {
-		decryptedVal, err := decrypt(a.Value, ds.serverPrivateKey)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting mdm config asset %s", a.Name))
-		}
-
-		res[i].Value = decryptedVal
+	if len(res) == 0 {
+		return nil, notFound("MDMConfigAsset")
 	}
 
-	return res, nil
+	assetMap := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(res))
+	for _, asset := range res {
+		decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting mdm config asset %s", asset.Name))
+		}
+
+		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal}
+	}
+
+	if len(res) < len(assetNames) {
+		return assetMap, ErrPartialResult
+	}
+
+	return assetMap, nil
 }
 
 func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
