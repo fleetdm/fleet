@@ -42,31 +42,3 @@ func (sta ObjectStateString) Eval(other string) (bool, error) {
 
 	return false, fmt.Errorf("can not compute op %q", op)
 }
-
-func (sta ObjectStateString) EvalUname(other string) (bool, error) {
-	op, val := sta.unpack()
-
-	// strip EVR epoch
-	parts := strings.Split(val, ":")
-	if len(parts) > 1 {
-		val = parts[1]
-	}
-
-	switch op {
-	case Equals:
-		return val == other, nil
-	case NotEqual:
-		return val != other, nil
-	case CaseInsensitiveEquals:
-		return strings.ToLower(val) == strings.ToLower(other), nil
-	case CaseInsensitiveNotEqual:
-		return strings.ToLower(val) != strings.ToLower(other), nil
-	case LessThan:
-		return val < other, nil
-	case PatternMatch:
-		// Skipping pattern matching to support custom kernel versions
-		return false, nil
-	}
-
-	return false, fmt.Errorf("can not compute op %q", op)
-}
