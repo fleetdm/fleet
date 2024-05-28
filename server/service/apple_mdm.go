@@ -3230,7 +3230,19 @@ func RenewSCEPCertificates(
 
 		cmdUUID := uuid.NewString()
 		var uuids []string
+		duplicateUUIDCheck := map[string]struct{}{}
 		for _, assoc := range assocsWithoutRefs {
+			// this should never happen if our DB logic is on point.
+			// This sanity check is in place to prevent issues like
+			// https://github.com/fleetdm/fleet/issues/19311 where a
+			// single duplicated UUID prevents _all_ the commands from
+			// being enqueued.
+			if _, ok := duplicateUUIDCheck[assoc.HostUUID]; ok {
+				logger.Log("inf", "duplicated host UUID while renewing associations", "host_uuid", assoc.HostUUID)
+				continue
+			}
+
+			duplicateUUIDCheck[assoc.HostUUID] = struct{}{}
 			uuids = append(uuids, assoc.HostUUID)
 			assoc.RenewCommandUUID = cmdUUID
 		}
