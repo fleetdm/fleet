@@ -36,7 +36,7 @@ columns:
     required: false
     description: The MDM policy that allows TCC access for the application.
   - name: indirect_object_identifier
-    type: string
+    type: text
     required: false
     description: For kTCCServiceAppleEvents, what the client is asking to interact with, or "UNUSED" when it doesn't apply. Absolute path or bundle identifier.
   - name: indirect_object_identifier_type
