@@ -2312,15 +2312,13 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, err, "retrieving APNs key")
 	}
 
-	// this should never happen
-	apnsKey, ok := assets[fleet.MDMAssetAPNSKey]
-	if !ok {
+	if len(assets) == 0 {
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "Please generate a private key first.",
 		}, "uploading APNs certificate")
 	}
 
-	_, err = tls.X509KeyPair(certBytes, apnsKey.Value)
+	_, err = tls.X509KeyPair(certBytes, assets[fleet.MDMAssetAPNSKey].Value)
 	if err != nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
