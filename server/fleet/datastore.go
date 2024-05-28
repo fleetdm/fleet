@@ -1253,6 +1253,10 @@ type Datastore interface {
 	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
 	// GetMDMConfigAssetsByName returns the requested config assets.
+	//
+	// - If it doesn't find any assests, it returns a nil map
+	// - If it only finds some of the assets, it returns the assets found
+	//   and ErrPartialResult as the error
 	GetMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
 
 	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.

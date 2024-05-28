@@ -2148,7 +2148,11 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 
 	// Check if we have existing certs and keys
 	var apnsKey *rsa.PrivateKey
-	savedAssets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	savedAssets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+		fleet.MDMAssetCAKey,
+		fleet.MDMAssetAPNSKey,
+	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking asset existence")
 	}
@@ -2182,12 +2186,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 			return nil, ctxerr.Wrap(ctx, err, "inserting mdm config assets")
 		}
 	} else {
-		rawApnsKey, ok := savedAssets[fleet.MDMAssetAPNSKey]
-		// this should never happen
-		if !ok {
-			return nil, ctxerr.New(ctx, "APNs cert is missing but other assets were found")
-		}
-
+		rawApnsKey := savedAssets[fleet.MDMAssetAPNSKey]
 		block, _ := pem.Decode(rawApnsKey.Value)
 		apnsKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 		if err != nil {

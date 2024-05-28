@@ -5523,6 +5523,16 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, wantAssets, a)
 
+	// try to fetch an asset that doesn't exist
+	a, err = ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
+	require.NoError(t, err)
+	require.Len(t, a, 0)
+
+	// try to fetch a mix of assets that exist and doesn't exist
+	a, err = ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
+	require.ErrorIs(t, err, ErrPartialResult)
+	require.Len(t, a, 1)
+
 	// Soft delete the assets
 
 	err = ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})

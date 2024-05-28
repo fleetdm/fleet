@@ -4172,9 +4172,17 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
 	}
 
-	assetMap := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	assetMap := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(res))
 	for _, asset := range res {
 		assetMap[asset.Name] = asset
+	}
+
+	if len(res) < len(assetNames) {
+		return assetMap, ErrPartialResult
 	}
 
 	return assetMap, nil

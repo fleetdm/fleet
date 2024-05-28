@@ -3482,15 +3482,10 @@ func (svc *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPK
 			return nil, ctxerr.Wrap(ctx, err, "saving ABM keypair in database")
 		}
 	} else {
-		rawCert, hasCert := assets[fleet.MDMAssetABMCert]
-		rawKey, hasKey := assets[fleet.MDMAssetABMKey]
-		// this should never happen
-		if !hasCert || !hasKey {
-			return nil, ctxerr.Wrapf(ctx, err, "unexpected database state, hasCert: %t, hasKey: %t", hasCert, hasKey)
-		}
-
-		publicKeyPEM = rawCert.Value
-		privateKeyPEM = rawKey.Value
+		// we can trust that the keys exist due to the contract specified by
+		// the datastore method
+		publicKeyPEM = assets[fleet.MDMAssetABMCert].Value
+		privateKeyPEM = assets[fleet.MDMAssetABMKey].Value
 	}
 
 	return &fleet.MDMAppleDEPKeyPair{
@@ -3564,9 +3559,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return ctxerr.Wrap(ctx, err, "retrieving stored ABM assets")
 	}
 
-	rawCert, hasCert := assets[fleet.MDMAssetABMCert]
-	rawKey, hasKey := assets[fleet.MDMAssetABMKey]
-	if !hasCert || !hasKey {
+	if len(assets) == 0 {
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "Please generate a keypair first.",
 		}, "saving ABM token")
@@ -3577,7 +3570,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return ctxerr.Wrap(ctx, err, "reading token bytes")
 	}
 
-	derCert, _ := pem.Decode(rawCert.Value)
+	derCert, _ := pem.Decode(assets[fleet.MDMAssetABMCert].Value)
 	if derCert == nil {
 		return ctxerr.Wrap(ctx, err, "ABM certificate in the database cannot be parsed")
 	}
@@ -3587,7 +3580,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return ctxerr.Wrap(ctx, err, "parsing ABM certificate")
 	}
 
-	if _, err := config.DecryptAndValidateABMToken(tokenBytes, cert, rawKey.Value); err != nil {
+	if _, err := config.DecryptAndValidateABMToken(tokenBytes, cert, assets[fleet.MDMAssetABMKey].Value); err != nil {
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
 			InternalErr: err,
