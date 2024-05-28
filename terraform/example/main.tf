@@ -128,6 +128,7 @@ module "migrations" {
 }
 
 module "osquery-carve" {
+  # The carve bucket also stores software.
   source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.1"
   osquery_carve_s3_bucket = {
     name = local.osquery_carve_bucket_name
