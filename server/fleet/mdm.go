@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 )
 
 const (
@@ -169,6 +171,8 @@ type CommandEnqueueResult struct {
 	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 	// Platform is the platform of the hosts targeted by the command.
+	// Current possible values are "darwin" or "windows".
+	// Here "darwin" means "Apple" devices (iOS/iPadOS/macOS).
 	Platform string `json:"platform"`
 }
 
@@ -532,3 +536,42 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 
 	return len(pathLabelCounts) == 0
 }
+
+// MDMPlatform returns "darwin" or "windows" as MDM platforms
+// derived from a host's platform (hosts.platform field).
+//
+// Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
+// to keep backwards compatibility throughout the app).
+func MDMPlatform(hostPlatform string) string {
+	switch hostPlatform {
+	case "darwin", "ios", "ipados":
+		return "darwin"
+	case "windows":
+		return "windows"
+	}
+	return ""
+}
+
+// MDMSupported returns whether MDM is supported for a given host platform.
+func MDMSupported(hostPlatform string) bool {
+	return MDMPlatform(hostPlatform) != ""
+}
+
+// FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
+// if the profile target's platform is ios/ipados.
+func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
+	i := 0
+	for _, profilePayload := range profiles {
+		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
+			(profilePayload.ProfileName == mdm_types.FleetdConfigProfileName ||
+				profilePayload.ProfileName == mdm_types.FleetFileVaultProfileName) {
+			continue
+		}
+		profiles[i] = profilePayload
+		i++
+	}
+	return profiles[:i]
+}
+
+// RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
+const RefetchCommandUUIDPrefix = "REFETCH-"

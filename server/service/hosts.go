@@ -293,7 +293,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 		for _, host := range hosts {
-			if host.Platform == "darwin" || host.Platform == "windows" {
+			if fleet.MDMSupported(host.Platform) {
 				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 					Action:   mdmlifecycle.HostActionDelete,
 					Host:     host,
@@ -749,7 +749,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host")
 	}
 
-	if host.Platform == "windows" || host.Platform == "darwin" {
+	if fleet.MDMSupported(host.Platform) {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionDelete,
@@ -1104,7 +1104,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				profiles = append(profiles, p.ToHostMDMProfile())
 			}
 
-		case "darwin":
+		case "darwin", "ios", "ipados":
 			if ac.MDM.EnabledAndConfigured {
 				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 				if err != nil {
@@ -1120,7 +1120,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-					profiles = append(profiles, p.ToHostMDMProfile())
+					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
 				}
 			}
 		}

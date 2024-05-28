@@ -1417,10 +1417,10 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID)
+	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID, info.Platform)
 }
 
-func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string) error {
+func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string, platform string) error {
 	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer func() {
@@ -1449,7 +1449,7 @@ func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context
 			mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 			err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 				Action:   mdmlifecycle.HostActionTurnOff,
-				Platform: "darwin",
+				Platform: platform,
 				UUID:     deviceID,
 			})
 			if err != nil {
@@ -2500,9 +2500,23 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		return nil
 	}
 
+	// iPhones and iPads send ProductName but not Model/ModelName,
+	// thus we use this field as the device's Model (which is required on lifecycle stages).
+	platform := "darwin"
+	iPhone := strings.HasPrefix(m.ProductName, "iPhone")
+	iPad := strings.HasPrefix(m.ProductName, "iPad")
+	if iPhone || iPad {
+		m.Model = m.ProductName
+		if iPhone {
+			platform = "ios"
+		} else {
+			platform = "ipados"
+		}
+	}
+
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:         mdmlifecycle.HostActionReset,
-		Platform:       "darwin",
+		Platform:       platform,
 		UUID:           m.UDID,
 		HardwareSerial: m.SerialNumber,
 		HardwareModel:  m.Model,
@@ -2546,7 +2560,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:          mdmlifecycle.HostActionTurnOn,
-		Platform:        "darwin",
+		Platform:        info.Platform,
 		UUID:            r.ID,
 		EnrollReference: r.Params[mobileconfig.FleetEnrollReferenceKey],
 	})
@@ -2567,7 +2581,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
-		Platform: "darwin",
+		Platform: info.Platform,
 		UUID:     r.ID,
 	})
 	if err != nil {
@@ -2637,6 +2651,48 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 		}
 
+		return nil, nil
+	}
+
+	// Check if this is a result of a "refetch" command sent to iPhones/iPads
+	// to fetch their device information periodically.
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCommandUUIDPrefix) {
+		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.UDID)
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to get host by identifier")
+		}
+		var deviceInformationResponse struct {
+			QueryResponses map[string]interface{} `plist:"QueryResponses"`
+		}
+		if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to unmarshal device information command result")
+		}
+		deviceName := deviceInformationResponse.QueryResponses["DeviceName"].(string)
+		deviceCapacity := deviceInformationResponse.QueryResponses["DeviceCapacity"].(float64)
+		availableDeviceCapacity := deviceInformationResponse.QueryResponses["AvailableDeviceCapacity"].(float64)
+		osVersion := deviceInformationResponse.QueryResponses["OSVersion"].(string)
+		wifiMac := deviceInformationResponse.QueryResponses["WiFiMAC"].(string)
+		productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
+		host.ComputerName = deviceName
+		host.Hostname = deviceName
+		host.GigsDiskSpaceAvailable = availableDeviceCapacity
+		host.GigsTotalDiskSpace = deviceCapacity
+		var osVersionPrefix string
+		if strings.HasPrefix(productName, "iPhone") {
+			osVersionPrefix = "iOS "
+		} else { // iPad
+			osVersionPrefix = "iPadOS "
+		}
+		host.OSVersion = osVersionPrefix + osVersion
+		host.PrimaryMac = wifiMac
+		host.HardwareModel = productName
+		host.DetailUpdatedAt = time.Now()
+		if err := svc.ds.UpdateHost(r.Context, host); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host")
+		}
+		if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity, deviceCapacity); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+		}
 		return nil, nil
 	}
 
@@ -2862,6 +2918,10 @@ func ReconcileAppleProfiles(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
+
+	// Exclude macOS only profiles from iPhones/iPads.
+	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
+
 	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
