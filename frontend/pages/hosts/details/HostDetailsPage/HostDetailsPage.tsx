@@ -12,8 +12,8 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
-  IHostActivitiesResponse,
-  IUpcomingActivitiesResponse,
+  IHostPastActivitiesResponse,
+  IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
@@ -368,9 +368,9 @@ const HostDetailsPage = ({
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
-    IHostActivitiesResponse,
+    IHostPastActivitiesResponse,
     Error,
-    IHostActivitiesResponse,
+    IHostPastActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -406,9 +406,9 @@ const HostDetailsPage = ({
     isError: upcomingActivitiesIsError,
     refetch: refetchUpcomingActivities,
   } = useQuery<
-    IUpcomingActivitiesResponse,
+    IHostUpcomingActivitiesResponse,
     Error,
-    IUpcomingActivitiesResponse,
+    IHostUpcomingActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
