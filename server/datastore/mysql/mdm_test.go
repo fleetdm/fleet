@@ -6242,8 +6242,9 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 				ctx,
 				q,
 				&got,
-				`SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ?`,
+				`SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ? AND sha256 = ?`,
 				assoc.HostUUID,
+				assoc.SHA256,
 			)
 		})
 		require.EqualValues(t, want, got)
