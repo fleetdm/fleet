@@ -61,23 +61,25 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 		return nil, err
 	}
 
-	// if there is no apple mdm config, fail with a 404
-	if !svc.config.MDM.IsAppleAPNsSet() {
-		return nil, newNotFoundError()
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 	}
 
-	apns, _, _, err := svc.config.MDM.AppleAPNs()
+	apns, err := x509.ParseCertificate(assets[fleet.MDMAssetAPNSCert].Value)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "parse certificate")
 	}
 
 	appleMDM := &fleet.AppleMDM{
-		CommonName: apns.Leaf.Subject.CommonName,
-		Issuer:     apns.Leaf.Issuer.CommonName,
-		RenewDate:  apns.Leaf.NotAfter,
+		CommonName: apns.Subject.CommonName,
+		Issuer:     apns.Issuer.CommonName,
+		RenewDate:  apns.NotAfter,
 	}
-	if apns.Leaf.SerialNumber != nil {
-		appleMDM.SerialNumber = apns.Leaf.SerialNumber.String()
+	if apns.SerialNumber != nil {
+		appleMDM.SerialNumber = apns.SerialNumber.String()
 	}
 
 	return appleMDM, nil

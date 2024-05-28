@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -51,7 +52,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err != nil {
 		return nil, err
 	}
-	tok, err := svc.config.MDM.AppleBM()
+	appleBMAssets, err := svc.config.MDM.AppleBM()
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +63,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	}
 
 	// fill the rest of the AppleBM fields
-	appleBM.RenewDate = tok.AccessTokenExpiry
+	appleBM.RenewDate = appleBMAssets.Token.AccessTokenExpiry
 	appleBM.DefaultTeam = appCfg.MDM.AppleBMDefaultTeam
 	appleBM.MDMServerURL = mdmServerURL
 
@@ -171,16 +172,23 @@ func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID
 }
 
 func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	cert, _, _, err := svc.config.MDM.AppleSCEP()
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+		return ctxerr.Wrap(ctx, err, "loading SCEP cert from the database")
+	}
+
+	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return ctxerr.Wrap(ctx, err, "decoding SCEP certificate")
 	}
 
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 		PayloadName:          mdm.FleetFileVaultProfileName,
-		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
+		Base64DerCertificate: base64.StdEncoding.EncodeToString(block.Bytes),
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")

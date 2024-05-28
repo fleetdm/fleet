@@ -234,7 +234,7 @@ func (ds *Datastore) NewQuery(
 		query.DiscardData,
 	)
 
-	if err != nil && isDuplicate(err) {
+	if err != nil && IsDuplicate(err) {
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new Query")

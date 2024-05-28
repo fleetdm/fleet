@@ -112,7 +112,7 @@ func (e *existsError) Resource() string {
 	return e.ResourceType
 }
 
-func isDuplicate(err error) bool {
+func IsDuplicate(err error) bool {
 	err = ctxerr.Cause(err)
 	if driverErr, ok := err.(*mysql.MySQLError); ok {
 		if driverErr.Number == mysqlerr.ER_DUP_ENTRY {

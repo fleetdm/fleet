@@ -527,14 +527,32 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
 				}
 
-				tok, err := config.MDM.AppleBM()
+				appleBM, err := config.MDM.AppleBM()
 				if err != nil {
 					initFatal(err, "validate Apple BM token, certificate and key")
 				}
-				depStorage, err = mds.NewMDMAppleDEPStorage(*tok)
+				depStorage, err = mds.NewMDMAppleDEPStorage(*appleBM.Token)
 				if err != nil {
 					initFatal(err, "initialize Apple BM DEP storage")
 				}
+
+				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+					{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
+					{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM},
+					{Name: fleet.MDMAssetABMToken, Value: appleBM.EncryptedToken},
+				})
+				if err != nil {
+					// duplicate key errors mean that we already
+					// have a value for those keys in the
+					// database, fail to initalize on other
+					// cases.
+					if !mysql.IsDuplicate(err) {
+						initFatal(err, "inserting MDM ABM assets")
+					}
+
+					level.Warn(logger).Log("msg", "Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
+				}
+
 				appCfg.MDM.AppleBMEnabledAndConfigured = true
 			}
 
@@ -557,6 +575,25 @@ the way that the Fleet server works.
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 				ddmService = service.NewMDMAppleDDMService(ds, logger)
+
+				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+					{Name: fleet.MDMAssetAPNSCert, Value: appleAPNsCertPEM},
+					{Name: fleet.MDMAssetAPNSKey, Value: appleAPNsKeyPEM},
+					{Name: fleet.MDMAssetCACert, Value: appleSCEPCertPEM},
+					{Name: fleet.MDMAssetCAKey, Value: appleSCEPKeyPEM},
+				})
+				if err != nil {
+					// duplicate key errors mean that we already
+					// have a value for those keys in the
+					// database, fail to initalize on other
+					// cases.
+					if !mysql.IsDuplicate(err) {
+						initFatal(err, "inserting MDM APNs and SCEP assets")
+					}
+
+					level.Warn(logger).Log("msg", "Your server already has stored SCEP and APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
+				}
+
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -745,4 +746,105 @@ func TestCachedResultCountForQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, testCount, c3)
 	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
+}
+
+func TestCachedInsertMDMConfigAssets(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS).(*cachedMysql)
+
+	mockedDS.InsertMDMConfigAssetsFunc = func(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+		return nil
+	}
+
+	assets := []fleet.MDMConfigAsset{
+		{Name: "asset1", Value: []byte("value1")},
+		{Name: "asset2", Value: []byte("value2")},
+	}
+
+	err := ds.InsertMDMConfigAssets(context.Background(), assets)
+	require.NoError(t, err)
+
+	for _, a := range assets {
+		_, found := ds.c.Get(context.Background(), fmt.Sprintf(mdmConfigAssetKey, a.Name))
+		assert.False(t, found)
+	}
+
+	assert.True(t, mockedDS.InsertMDMConfigAssetsFuncInvoked)
+}
+
+func TestCachedGetAllMDMConfigAssetsByName(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithMDMConfigAssetExpiration(100*time.Millisecond)).(*cachedMysql)
+
+	assets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+		"asset1": {Name: "asset1", Value: []byte("value1")},
+		"asset2": {Name: "asset2", Value: []byte("value2")},
+	}
+
+	mockedDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset)
+		for _, name := range assetNames {
+			if asset, ok := assets[name]; ok {
+				result[name] = asset
+			}
+		}
+		return result, nil
+	}
+
+	// First call gets the result from the DB
+	names := []fleet.MDMAssetName{"asset1", "asset2"}
+	res, err := ds.GetAllMDMConfigAssetsByName(context.Background(), names)
+	require.NoError(t, err)
+	require.Equal(t, assets, res)
+	for name := range res {
+		_, found := ds.c.Get(context.Background(), fmt.Sprintf(mdmConfigAssetKey, name))
+		assert.True(t, found)
+	}
+	assert.True(t, mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked)
+	mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked = false
+
+	// Change "stored" assets.
+	assets["asset1"] = fleet.MDMConfigAsset{Name: "asset1", Value: []byte("newvalue1")}
+
+	// This call gets it from the cache
+	res, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names)
+	require.NoError(t, err)
+	require.NotEqual(t, assets["asset1"], res["asset1"]) // returns the old cached value
+	assert.False(t, mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked)
+}
+
+func TestCachedDeleteMDMConfigAssetsByName(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS).(*cachedMysql)
+
+	mockedDS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+		return nil
+	}
+
+	// Insert assets into cache
+	assets := []fleet.MDMConfigAsset{
+		{Name: "asset1", Value: []byte("value1")},
+		{Name: "asset2", Value: []byte("value2")},
+	}
+	for _, a := range assets {
+		ds.c.Set(context.Background(), fmt.Sprintf(mdmConfigAssetKey, a.Name), a, ds.mdmConfigAssetExp)
+	}
+
+	// Delete the assets
+	names := []fleet.MDMAssetName{"asset1", "asset2"}
+	err := ds.DeleteMDMConfigAssetsByName(context.Background(), names)
+	require.NoError(t, err)
+
+	// Ensure assets are removed from cache
+	for _, name := range names {
+		_, found := ds.c.Get(context.Background(), fmt.Sprintf(mdmConfigAssetKey, name))
+		assert.False(t, found)
+	}
+	assert.True(t, mockedDS.DeleteMDMConfigAssetsByNameFuncInvoked)
 }

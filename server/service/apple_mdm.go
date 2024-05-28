@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -3128,9 +3129,21 @@ func RenewSCEPCertificates(
 		return ctxerr.Wrap(ctx, err, "getting AppConfig")
 	}
 
-	mdmPushCertTopic, err := config.MDM.AppleAPNsTopic()
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting certificate topic")
+		return ctxerr.Wrap(ctx, err, "loading existing assets from the database")
+	}
+
+	apnsCert, err := x509.ParseCertificate(assets[fleet.MDMAssetAPNSCert].Value)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing APNs certificate")
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
 	}
 
 	// assocsWithRefs stores hosts that have enrollment references on their
