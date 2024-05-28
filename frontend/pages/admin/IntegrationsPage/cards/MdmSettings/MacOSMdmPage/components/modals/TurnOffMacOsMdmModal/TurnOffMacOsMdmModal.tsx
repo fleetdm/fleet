@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 
 import Button from "components/buttons/Button";
 
@@ -17,11 +17,18 @@ const TurnOffMacOsMdmModal = ({
 }: ITurnOffMacOsMdmModalProps): JSX.Element => {
   // TODO: add loading state for the button? Handle submission inside this modal?
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = useCallback(() => {
+    setIsDeleting(true);
+    onConfirm();
+  }, [onConfirm]);
+
   return (
     <Modal
       title="Turn off macOS MDM"
       onExit={onCancel}
-      onEnter={onConfirm}
+      // onEnter={onConfirm}
       className={baseClass}
     >
       <div className={baseClass}>
@@ -32,8 +39,9 @@ const TurnOffMacOsMdmModal = ({
             type="button"
             variant="alert"
             onClick={onConfirm}
-            // className="delete-loading"
-            // isLoading={}
+            className="delete-loading"
+            isLoading={isDeleting}
+            disabled={isDeleting}
           >
             Turn off
           </Button>

@@ -1,31 +1,17 @@
-import React, { FormEvent, useCallback, useContext, useState } from "react";
+import React, { FormEvent, useCallback, useMemo, useState } from "react";
 
-import { NotificationContext } from "context/notification";
+import mdmAppleApi from "services/entities/mdm_apple";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 
+interface IDownloadCSRProps {
+  baseClass: string;
+  onSuccess?: () => void;
+  onError?: (e: unknown) => void;
+}
+
 export type RequestState = "loading" | "error" | "success" | undefined;
-
-type RequestCsrResponse = {
-  apns_key: string;
-  scep_key: string;
-  scep_cert: string;
-};
-
-type ResponseKeys = keyof RequestCsrResponse;
-
-type CSRFile = {
-  name: string;
-  key: ResponseKeys;
-  value?: string;
-};
-
-const FILES: CSRFile[] = [
-  { name: "mdmcert.download.push.key", key: "apns_key" }, // APNS key
-  { name: "fleet-mdm-apple-scep.key", key: "scep_key" }, // SCEP key
-  { name: "fleet-mdm-apple-scep.crt", key: "scep_cert" }, // SCEP cert
-];
 
 const downloadFile = (tokens: string, fileName: string) => {
   const linkSource = `data:application/octet-stream;base64,${tokens}`;
@@ -36,20 +22,14 @@ const downloadFile = (tokens: string, fileName: string) => {
   downloadLink.click();
 };
 
-const downloadCSRFiles = (data: RequestCsrResponse) => {
-  // TODO: test this
-  FILES.forEach((file) => {
-    downloadFile(data[file.key], file.name);
-  });
+const downloadCSRFile = (data: { csr: string }) => {
+  downloadFile(data.csr, "fleet-mdm-apple.csr");
 };
 
 const useDownloadCSR = ({
   onSuccess,
   onError,
-}: {
-  onSuccess?: () => void;
-  onError?: () => void;
-}) => {
+}: Omit<IDownloadCSRProps, "baseClass">) => {
   const [downloadState, setDownloadState] = useState<RequestState>(undefined);
 
   const handleDownload = useCallback(
@@ -57,30 +37,37 @@ const useDownloadCSR = ({
       evt.preventDefault();
       setDownloadState("loading");
       try {
-        // const data = await MdmAPI.requestCSR();
-        // downloadCSRFiles(data);
-        // setRequestState("success");
-        console.log("Download CSR clicked");
+        const data = await mdmAppleApi.requestCSR();
+        downloadCSRFile(data);
+        setDownloadState("success");
         onSuccess && onSuccess();
       } catch (e) {
         console.error(e);
-        // TODO: error handling per Figma
+        // TODO: error handling per Figma?
         setDownloadState("error");
-        onError && onError();
+        onError && onError(e);
       }
     },
     [onError, onSuccess]
   );
 
-  return {
-    downloadState,
-    handleDownload,
-  };
+  const memoized = useMemo(
+    () => ({
+      downloadState,
+      handleDownload,
+    }),
+    [downloadState, handleDownload]
+  );
+
+  return memoized;
 };
 
-export const DownloadCSR = ({ baseClass }: { baseClass: string }) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const { downloadState, handleDownload } = useDownloadCSR({});
+export const DownloadCSR = ({
+  baseClass,
+  onSuccess,
+  onError,
+}: IDownloadCSRProps) => {
+  const { handleDownload } = useDownloadCSR({ onSuccess, onError });
 
   return (
     <Button

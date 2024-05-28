@@ -1,8 +1,9 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 
 import { NotificationContext } from "context/notification";
 
-import MdmAPI from "services/entities/mdm";
+import mdmAppleApi from "services/entities/mdm_apple";
+import { getErrorReason } from "interfaces/errors";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -11,64 +12,63 @@ import {
   FileDetails,
 } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
-import DownloadCSR, { RequestState } from "../../actions/DownloadCSR";
+import DownloadCSR from "../../actions/DownloadCSR";
 
 const baseClass = "modal renew-cert-modal";
 
 interface IRenewCertModalProps {
   onCancel: () => void;
+  onRenew: () => void;
 }
 
-const RenewCertModal = ({ onCancel }: IRenewCertModalProps): JSX.Element => {
+const RenewCertModal = ({
+  onCancel,
+  onRenew,
+}: IRenewCertModalProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [uploadState, setUploadState] = useState<RequestState>(undefined);
-  const [pemFile, setPemFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [certFile, setCertFile] = useState<File | null>(null);
 
-  const onSelectFile = (files: FileList | null) => {
+  const onSelectFile = useCallback((files: FileList | null) => {
     const file = files?.[0];
     if (file) {
-      setPemFile(file);
+      setCertFile(file);
     }
-    console.log("File uploaded", files?.length);
-  };
+  }, []);
 
-  const onRenewCertClick = async () => {
-    if (!pemFile) {
+  const onRenewClick = useCallback(async () => {
+    if (!certFile) {
+      // this shouldn'r happen, but just in case
+      renderFlash("error", "Please provide a certificate file.");
       return;
     }
-
-    setUploadState("loading");
-
+    setIsUploading(true);
     try {
-      // const formData = new FormData();
-      // formData.append("cert", pemFile);
-
-      // await MdmAPI.uploadAPNsCert(formData);
-      // setRequestState("success");
-      console.log("Renew cert clicked");
+      await mdmAppleApi.uploadApplePushCertificate(certFile);
+      renderFlash("success", "APNs certificate renewed successfully.");
+      setIsUploading(false);
+      onRenew();
     } catch (e) {
       console.error(e);
-      // TODO: error handling per Figma
-      setUploadState("error");
+      const msg = getErrorReason(e);
+      if (msg.toLowerCase().includes("valid certificate")) {
+        renderFlash("error", msg);
+      } else {
+        renderFlash("error", "Couldn’t renew. Please try again.");
+      }
+      setIsUploading(false);
+      onCancel();
     }
-  };
+  }, [certFile, renderFlash, onCancel, onRenew]);
 
-  useEffect(() => {
-    if (uploadState === "loading") {
-      setTimeout(() => {
-        setUploadState("error");
-      }, 5000);
-    }
-    if (uploadState === "success") {
-      renderFlash("success", "Certificate renewed successfully");
-      onCancel();
-    }
-    if (uploadState === "error") {
-      renderFlash("error", "Failed to renew certificate");
-      onCancel();
-    }
-  }, [uploadState, onCancel, renderFlash]);
+  const onDownloadError = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (e: unknown) => {
+      renderFlash("error", "Something’s gone wrong. Please try again.");
+    },
+    [renderFlash]
+  );
 
   return (
     <Modal title="Renew certificate" onExit={onCancel} className={baseClass}>
@@ -79,7 +79,7 @@ const RenewCertModal = ({ onCancel }: IRenewCertModalProps): JSX.Element => {
               1. Download a certificate signing request (CSR) for Apple Push
               Notification service (APNs).
             </p>
-            <DownloadCSR baseClass={baseClass} />
+            <DownloadCSR baseClass={baseClass} onError={onDownloadError} />
           </li>
           <li>
             <p>
@@ -113,9 +113,9 @@ const RenewCertModal = ({ onCancel }: IRenewCertModalProps): JSX.Element => {
                 message="APNs certificate (.pem)"
                 onFileUpload={onSelectFile}
                 filePreview={
-                  pemFile && (
+                  certFile && (
                     <FileDetails
-                      details={{ name: pemFile.name }}
+                      details={{ name: certFile.name }}
                       graphicName="file-pem"
                     />
                   )
@@ -127,13 +127,13 @@ const RenewCertModal = ({ onCancel }: IRenewCertModalProps): JSX.Element => {
         <div className={`${baseClass}__button-wrap`}>
           <Button
             className={`${baseClass}__submit-button ${
-              uploadState === "loading" ? `uploading` : ""
+              isUploading ? `uploading` : ""
             }`}
             variant="brand"
-            disabled={!pemFile || uploadState === "loading"}
-            isLoading={uploadState === "loading"}
+            disabled={!certFile || isUploading}
+            isLoading={isUploading}
             type="button"
-            onClick={onRenewCertClick}
+            onClick={onRenewClick}
           >
             Renew certificate
           </Button>

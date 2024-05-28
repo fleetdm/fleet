@@ -27,7 +27,7 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
   const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [isTurningOff, setIsTurningOff] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [showRenewCertModal, setShowRenewCertModal] = useState(false);
   const [showTurnOffMdmModal, setShowTurnOffMdmModal] = useState(false);
 
@@ -36,7 +36,9 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
   // call has completed.
   const {
     data: appleAPNInfo,
-    isLoading: isLoadingMdmApple,
+    isLoading,
+    isRefetching,
+    refetch,
     error: errorMdmApple,
   } = useQuery<IMdmApple, AxiosError, IMdmApple>(
     ["appleAPNInfo"],
@@ -45,6 +47,8 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
       retry: (tries, error) => error.status !== 404 && tries <= 3,
       enabled: config?.mdm.enabled_and_configured,
       staleTime: 5000,
+      refetchOnWindowFocus: false,
+      onSettled: () => setIsUpdating(false),
     }
   );
 
@@ -57,26 +61,35 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
   };
 
   const turnOffMdm = useCallback(async () => {
-    setIsTurningOff(true);
+    setIsUpdating(true);
     toggleTurnOffMdmModal();
     console.log("Turn off MDM confirmed");
     try {
       // TODO: handle submission
-      // await mdmApi.TurnOffMacOsMdm();
+      await mdmAppleAPI.deleteApplePushCertificate();
       renderFlash("success", "macOS MDM turned off successfully.");
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     } catch (e) {
       renderFlash("error", "Couldn’t turn off MDM. Please try again.");
-      setIsTurningOff(false);
+      setIsUpdating(false);
     }
   }, [renderFlash, router]);
+
+  const onRenewCert = useCallback(() => {
+    refetch();
+    toggleRenewCertModal();
+  }, [refetch]);
+
+  const onSetupSuccess = useCallback(() => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  }, [router]);
 
   // The API returns a 404 error if APNs is not configured yet, in that case we
   // want to prompt the user to download the certs and keys to configure the
   // server instead of the default error message.
   const isMdmAppleError = errorMdmApple && errorMdmApple.status !== 404;
 
-  const showSpinner = isLoadingMdmApple || isTurningOff;
+  const showSpinner = isLoading || isUpdating || isRefetching;
   const showError = !config || isMdmAppleError;
   const showContent = !showSpinner && !showError;
 
@@ -95,7 +108,7 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
           (!appleAPNInfo ? (
             <ApplePushCertSetup
               baseClass={baseClass}
-              // onClickRequest={toggleRequestCSRModal}
+              onSetupSuccess={onSetupSuccess}
             />
           ) : (
             <ApplePushCertInfo
@@ -108,7 +121,10 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
             />
           ))}
         {showRenewCertModal && (
-          <RenewCertModal onCancel={toggleRenewCertModal} />
+          <RenewCertModal
+            onCancel={toggleRenewCertModal}
+            onRenew={onRenewCert}
+          />
         )}
         {showTurnOffMdmModal && (
           <TurnOffMacOsMdmModal

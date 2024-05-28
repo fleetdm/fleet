@@ -1,35 +1,61 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
+import mdmAppleApi from "services/entities/mdm_apple";
 
-import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
-import Icon from "components/Icon";
 import DownloadCSR from "../actions/DownloadCSR";
 
 interface IApplePushCertSetupProps {
   baseClass: string;
-  // onClickRequest: () => void;
+  onSetupSuccess: () => void;
 }
-const ApplePushCertSetup = ({ baseClass }: IApplePushCertSetupProps) => {
+const ApplePushCertSetup = ({
+  baseClass,
+  onSetupSuccess,
+}: IApplePushCertSetupProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUploading, setIsUploading] = useState(false);
 
-  const onFileUpload = (files: FileList | null) => {
-    console.log(files?.length);
-    setIsUploading(true);
-    // TODO: upload file
-  };
-
-  // TODO: remove this (it's just for dev testing)
-  useEffect(() => {
-    if (isUploading) {
-      setTimeout(() => {
+  const onFileUpload = useCallback(
+    async (files: FileList | null) => {
+      if (!files?.length) {
+        renderFlash("error", "No file selected");
+        return;
+      }
+      setIsUploading(true);
+      try {
+        await mdmAppleApi.uploadApplePushCertificate(files[0]);
+        renderFlash("success", "macOS MDM turned on successfully.");
+        onSetupSuccess();
+      } catch (e) {
+        const msg = getErrorReason(e);
+        if (msg.toLowerCase().includes("invalid certificate")) {
+          renderFlash("error", msg);
+        } else {
+          renderFlash("error", "Couldn’t connect. Please try again.");
+        }
         setIsUploading(false);
-      }, 5000);
-    }
-  }, [isUploading]);
+      }
+    },
+    [renderFlash, onSetupSuccess]
+  );
+
+  const onDownloadError = useCallback(
+    (e: unknown) => {
+      const msg = getErrorReason(e);
+      if (msg.toLowerCase().includes("email address")) {
+        renderFlash("error", msg);
+      } else {
+        renderFlash("error", "Something’s gone wrong. Please try again.");
+      }
+    },
+    [renderFlash]
+  );
+
+  // TODO: Cleanup styles to indent list items properly (first line hangs over indented content below)
 
   return (
     <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
@@ -39,17 +65,17 @@ const ApplePushCertSetup = ({ baseClass }: IApplePushCertSetupProps) => {
       <ol className={`${baseClass}__setup-instructions-list`}>
         <li>
           <p>
-            1.Download a certificate signing request (CSR) for Apple Push
+            1. Download a certificate signing request (CSR) for Apple Push
             Notification service (APNs).
           </p>
-          <DownloadCSR baseClass={baseClass} />
+          <DownloadCSR baseClass={baseClass} onError={onDownloadError} />
         </li>
         <li>
           <p>
-            2.{" "}
+            2. Sign in to{" "}
             <CustomLink
               url="https://identity.apple.com/pushcert/"
-              text="Sign in to Apple Push Certificates Portal"
+              text="Apple Push Certificates Portal"
               newTab
             />
             <br />

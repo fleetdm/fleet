@@ -2,6 +2,10 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
+export interface IAppleBusinessManagerTokenFormData {
+  token: File | null;
+}
+
 export default {
   getAppleBMInfo: () => {
     const { MDM_APPLE_BM } = endpoints;
@@ -27,5 +31,20 @@ export default {
 
       return Promise.resolve({ decodedPublic, decodedPrivate });
     });
+  },
+
+  uploadToken: (token: File) => {
+    // TODO: confirm this work for renewing token when set by env vars
+    const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
+    const formData = new FormData();
+    formData.append("token", token);
+
+    return sendRequest("POST", MDM_APPLE_BM_TOKEN, formData);
+  },
+
+  disableAutomaticEnrollment: () => {
+    // TODO: confirm this actually deletes the tokeb
+    const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
+    return sendRequest("DELETE", MDM_APPLE_BM_TOKEN);
   },
 };

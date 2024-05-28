@@ -73,7 +73,7 @@ interface IFileUploaderProps {
   /** If provided FileUploader will display this component when the file is
    * selected. This is used for previewing the file before uploading.
    */
-  filePreview?: ReactNode;
+  filePreview?: ReactNode; // TODO: refactor this to be a function that returns a ReactNode?
   onFileUpload: (files: FileList | null) => void;
 }
 

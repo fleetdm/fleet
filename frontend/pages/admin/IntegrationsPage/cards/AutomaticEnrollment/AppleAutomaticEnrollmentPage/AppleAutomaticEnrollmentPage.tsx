@@ -6,6 +6,9 @@ import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
+
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 import { IMdmAppleBm } from "interfaces/mdm";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 import { readableDate } from "utilities/helpers";
@@ -30,6 +33,8 @@ const AppleAutomaticEnrollmentPage = ({
 }: {
   router: InjectedRouter;
 }) => {
+  const { renderFlash } = useContext(NotificationContext);
+
   // TODO: implement uploading state
   const [isUploading, setIsUploading] = useState(false);
   const [showDisableModal, setShowDisableModal] = useState(false);
@@ -37,8 +42,9 @@ const AppleAutomaticEnrollmentPage = ({
 
   const {
     data: mdmAppleBm,
-    isLoading: isLoadingMdmAppleBm,
     error: errorMdmAppleBm,
+    isLoading,
+    isRefetching,
     refetch,
   } = useQuery<IMdmAppleBm, AxiosError, IMdmAppleBm>(
     ["mdmAppleBmAPI"],
@@ -48,19 +54,74 @@ const AppleAutomaticEnrollmentPage = ({
     }
   );
 
-  const onConfirmDisable = useCallback(() => {
-    // TODO: Implement this
-    console.log("Disable automatic enrollment");
-    refetch();
+  const uploadToken = useCallback(
+    async (data: FileList | null) => {
+      setIsUploading(true);
+      const token = data?.[0]; // TODO: handle multiple files, undefined, etc.?
+      if (!token) {
+        setIsUploading(false);
+        renderFlash("error", "No token selected.");
+        return;
+      }
+
+      try {
+        await mdmAppleBmAPI.uploadToken(token);
+        renderFlash(
+          "success",
+          "Automatic enrollment for macOS hosts is enabled."
+        );
+        router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+      } catch (e) {
+        const msg = getErrorReason(e);
+        if (msg.toLowerCase().includes("valid token")) {
+          renderFlash("error", msg);
+        } else {
+          renderFlash("error", "Couldn’t enable. Please try again.");
+        }
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [renderFlash, router]
+  );
+
+  const onClickDisable = useCallback(() => {
+    setShowDisableModal(true);
+  }, []);
+
+  const onClickRenew = useCallback(() => {
+    setShowRenewModal(true);
+  }, []);
+
+  const disableAutomaticEnrollment = useCallback(async () => {
+    try {
+      await mdmAppleBmAPI.disableAutomaticEnrollment();
+      renderFlash("success", "Automatic enrollment disabled successfully.");
+      router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+    } catch (e) {
+      renderFlash(
+        "error",
+        "Couldn’t disable automatic enrollment. Please try again."
+      );
+      setShowDisableModal(false);
+    }
+  }, [renderFlash, router]);
+
+  const onCancelDisable = useCallback(() => {
     setShowDisableModal(false);
+  }, []);
+
+  const onRenew = useCallback(() => {
+    refetch();
+    setShowRenewModal(false);
   }, [refetch]);
 
-  if (isLoadingMdmAppleBm) {
-    return (
-      <div className={baseClass}>
-        <Spinner />
-      </div>
-    );
+  const onCancelRenew = useCallback(() => {
+    setShowRenewModal(false);
+  }, []);
+
+  if (isLoading || isRefetching) {
+    return <Spinner />;
   }
 
   if (errorMdmAppleBm?.status === 404) {
@@ -91,13 +152,10 @@ const AppleAutomaticEnrollmentPage = ({
             <h4>Renew date</h4>
             <p>{readableDate(mdmAppleBm.renew_date)}</p>
             <div className={`${baseClass}__button-wrap`}>
-              <Button
-                variant="inverse"
-                onClick={() => setShowDisableModal(true)}
-              >
+              <Button variant="inverse" onClick={onClickDisable}>
                 Disable automatic enrollment
               </Button>
-              <Button variant="brand" onClick={() => setShowRenewModal(true)}>
+              <Button variant="brand" onClick={onClickRenew}>
                 Renew token
               </Button>
             </div>
@@ -189,19 +247,19 @@ const AppleAutomaticEnrollmentPage = ({
               graphicName={"file-p7m"}
               buttonType="link"
               buttonMessage={isUploading ? "Uploading..." : "Upload"}
-              onFileUpload={() => console.log("file uploaded")}
+              onFileUpload={uploadToken}
             />
           </>
         )}
       </>
       {showDisableModal && (
         <DisableAutomaticEnrollmentModal
-          onCancel={() => setShowDisableModal(false)}
-          onConfirm={onConfirmDisable}
+          onCancel={onCancelDisable}
+          onConfirm={disableAutomaticEnrollment}
         />
       )}
       {showRenewModal && (
-        <RenewTokenModal onCancel={() => setShowRenewModal(false)} />
+        <RenewTokenModal onCancel={onCancelRenew} onRenew={onRenew} />
       )}
     </MainContent>
   );
