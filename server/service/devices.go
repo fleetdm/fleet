@@ -153,12 +153,6 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
-	deviceGlobalConfig := fleet.DeviceGlobalConfig{
-		MDM: fleet.DeviceGlobalMDMConfig{
-			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
-		},
-	}
-
 	resp.DEPAssignedToFleet = ptr.Bool(false)
 	if ac.MDM.EnabledAndConfigured && license.IsPremium() {
 		hdep, err := svc.GetHostDEPAssignment(ctx, host)
@@ -166,6 +160,30 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			return getDeviceHostResponse{Err: err}, nil
 		}
 		resp.DEPAssignedToFleet = ptr.Bool(hdep.IsDEPAssignedToFleet())
+	}
+
+	softwareInventoryEnabled := ac.Features.EnableSoftwareInventory
+	if resp.TeamID != nil {
+		// load the team to get the device's team's software inventory config.
+		tm, err := svc.GetTeam(ctx, *resp.TeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return getDeviceHostResponse{Err: err}, nil
+		}
+		if tm != nil {
+			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory
+		}
+	}
+
+	deviceGlobalConfig := fleet.DeviceGlobalConfig{
+		MDM: fleet.DeviceGlobalMDMConfig{
+			// TODO(mna): is this used at all on the frontend? It currently only
+			// returns the Apple enabled and configured, regardless of the platform
+			// of the device.
+			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
+		},
+		Features: fleet.DeviceFeatures{
+			EnableSoftwareInventory: softwareInventoryEnabled,
+		},
 	}
 
 	return getDeviceHostResponse{

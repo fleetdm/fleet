@@ -23,6 +23,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, err)
 	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
 	ac.OrgInfo.ContactURL = "http://example.com/contact"
+	ac.Features.EnableSoftwareInventory = true
 	err = s.ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
@@ -80,6 +81,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NotNil(t, getHostResp.Host.Batteries)
 	require.Equal(t, &fleet.HostBattery{CycleCount: 1, Health: "Normal"}, (*getHostResp.Host.Batteries)[0])
 	require.True(t, getHostResp.GlobalConfig.MDM.EnabledAndConfigured)
+	require.True(t, getHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 	hostDevResp := getHostResp.Host
 
 	// make request for same host on the host details API endpoint,

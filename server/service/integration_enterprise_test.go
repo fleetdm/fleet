@@ -2475,6 +2475,7 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
+	ctx := context.Background()
 
 	// set the logo via the modify appconfig endpoint, so that the cache is
 	// properly updated.
@@ -2489,7 +2490,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL)
 	require.Equal(t, "http://example.com/contact", acResp.OrgInfo.ContactURL)
 
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
 		ID:          51,
 		Name:        "team1-policies",
 		Description: "desc team1",
@@ -2498,10 +2499,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 
 	token := "much_valid"
 	host := createHostAndDeviceToken(t, s.ds, token)
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+	qr, err := s.ds.NewQuery(ctx, &fleet.Query{
 		Name:           "TestQueryEnterpriseGlobalPolicy",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
@@ -2520,7 +2521,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NotNil(t, gpResp.Policy)
 
 	// add a policy execution
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host,
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(ctx, host,
 		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false))
 
 	// add a policy to team
@@ -2545,7 +2546,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	}
 
 	require.NoError(t, u.SetPassword(password, 10, 10))
-	_, err = s.ds.NewUser(context.Background(), u)
+	_, err = s.ds.NewUser(ctx, u)
 	require.NoError(t, err)
 
 	s.token = s.getTestToken(email, password)
@@ -2587,6 +2588,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
 	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
@@ -2598,6 +2600,17 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, getDesktopResp.Err)
 	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+
+	// update the team to enable software inventory
+	team.Config.Features.EnableSoftwareInventory = true
+	_, err = s.ds.SaveTeam(ctx, team)
+	require.NoError(t, err)
+
+	getDeviceHostResp = getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
+	require.True(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
