@@ -2999,7 +2999,7 @@ func ReconcileAppleProfiles(
 	// response from the device before we set its status as 'pending'
 	//
 	// We'll do another pass at the end to revert any changes for failed
-	// delivieries.
+	// deliveries.
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
@@ -3344,7 +3344,7 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
 	references := strings.TrimSuffix(parts[2], ".activation")
 
-	// ensure the declaration for the requested activation stil exists
+	// ensure the declaration for the requested activation still exists
 	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, references, hostUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
