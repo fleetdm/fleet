@@ -344,6 +344,7 @@ type submitSelfServiceSoftwareInstallResponse struct {
 }
 
 func (r submitSelfServiceSoftwareInstallResponse) error() error { return r.Err }
+func (r submitSelfServiceSoftwareInstallResponse) Status() int  { return http.StatusAccepted }
 
 func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	_, ok := hostctx.FromContext(ctx)

@@ -9664,6 +9664,41 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
 }
 
+func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
+	t := s.T()
+
+	host1 := createOrbitEnrolledHost(t, "linux", "", s.ds)
+
+	payloadNoSS := &fleet.UploadSoftwareInstallerPayload{
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "install",
+		PostInstallScript: "echo hi",
+		Filename:          "ruby.deb",
+		Title:             "ruby",
+		SelfService:       false,
+	}
+	s.uploadSoftwareInstaller(payloadNoSS, http.StatusOK, "")
+	titleIDNoSS := getSoftwareTitleID(t, s.ds, payloadNoSS.Title, "deb_packages")
+
+	payloadSS := &fleet.UploadSoftwareInstallerPayload{
+		PreInstallQuery:   "SELECT 2",
+		InstallScript:     "install again",
+		PostInstallScript: "echo bye",
+		Filename:          "emacs.deb",
+		Title:             "emacs",
+		SelfService:       true,
+	}
+	s.uploadSoftwareInstaller(payloadSS, http.StatusOK, "")
+	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
+
+	respSS := submitSelfServiceSoftwareInstallResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", *host1.OrbitNodeKey, titleIDSS), nil, http.StatusAccepted, &respSS)
+
+	respNoSS := submitSelfServiceSoftwareInstallResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", *host1.OrbitNodeKey, titleIDNoSS), nil, http.StatusBadRequest, &respNoSS)
+
+}
+
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	ctx := context.Background()
 	t := s.T()
