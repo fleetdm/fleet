@@ -41,6 +41,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.host_id AS host_id,
     hsi.execution_id AS execution_id,
     hsi.software_installer_id AS installer_id,
+	hsi.self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     inst.contents AS install_script,
     COALESCE(pisnt.contents, '') AS post_install_script
