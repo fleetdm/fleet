@@ -9794,6 +9794,65 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), lastActID)
 }
 
+func (s *integrationEnterpriseTestSuite) TestHostScriptAndSoftwareInstallSoftDelete() {
+	t := s.T()
+
+	// create a host and request a software install and a script execution
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script",
+		Filename:      "ruby.deb",
+		Title:         "ruby",
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
+
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", host.ID, titleID), nil, http.StatusAccepted, &installResp)
+
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 1)
+	installID := getHostSw.Software[0].LastInstall.InstallUUID
+
+	// record a result for the installation, so that the (past) activity is
+	// created
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "ok",
+			"install_script_exit_code": 0,
+			"install_script_output": "ok"
+		}`, *host.OrbitNodeKey, installID)), http.StatusNoContent)
+	wantAct := fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   payload.Title,
+		SoftwarePackage: payload.Filename,
+		InstallUUID:     installID,
+		Status:          string(fleet.SoftwareInstallerInstalled),
+	}
+	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+	scriptID := runResp.ExecutionID
+
+	// post a script result so that the (past) activity is created
+	s.Do("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptID)),
+		http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), scriptID), 0)
+
+	// TODO(mna): get script and install details, confirm the results, delete the
+	// host, get the details again, confirm it still works
+}
+
 func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
 	t := s.T()
 	openFile := func(name string) *os.File {
