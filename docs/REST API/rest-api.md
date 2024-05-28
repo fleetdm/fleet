@@ -5902,7 +5902,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "install_software": null
     },
     {
       "id": 2,
@@ -5920,7 +5921,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "install_software": 3432
     }
   ]
 }
@@ -6017,6 +6019,8 @@ An error is returned if both `query` and `query_id` are set on the request.
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| install_software  | integer | body | _Available in Fleet Premium_. Software title ID. Install specified software to hosts failing the policy. |
+
 
 Either `query` or `query_id` must be provided.
 
@@ -6033,7 +6037,8 @@ Either `query` or `query_id` must be provided.
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "resolution": "Resolution steps",
   "platform": "darwin",
-  "critical": true
+  "critical": true,
+  "install_software": 3432
 }
 ```
 
@@ -6059,7 +6064,9 @@ Either `query` or `query_id` must be provided.
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": null
+    "host_count_updated_at": null,
+    "install_software": 3432
+
   }
 }
 ```
@@ -6152,6 +6159,8 @@ Where `query_id` references an existing `query`.
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| install_software  | integer | body | _Available in Fleet Premium_. Software title ID. Install specified software to hosts failing the policy. |
+
 
 #### Example
 
@@ -6286,7 +6295,8 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true
+      "calendar_events_enabled": true,
+      "install_software": null
     },
     {
       "id": 2,
@@ -6305,7 +6315,8 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2300,
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": false
+      "calendar_events_enabled": false,
+      "install_software": 3432
     }
   ],
   "inherited_policies": [
@@ -6325,7 +6336,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "install_software": null
     }
   ]
 }
@@ -6395,7 +6407,8 @@ Team policies work the same as policies, but at the team level.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": true
+    "calendar_events_enabled": true,
+    "install_software": null
   }
 }
 ```
@@ -6418,6 +6431,8 @@ The semantics for creating a team policy are the same as for global policies, se
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
+| install_software  | integer | body | _Available in Fleet Premium_. Software title ID. Install specified software to hosts failing the policy. |
+
 
 Either `query` or `query_id` must be provided.
 
@@ -6461,7 +6476,8 @@ Either `query` or `query_id` must be provided.
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "calendar_events_enabled": false
+    "calendar_events_enabled": false,
+    "install_software": null
   }
 }
 ```
@@ -6516,6 +6532,8 @@ Either `query` or `query_id` must be provided.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 | calendar_events_enabled    | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing. |
+| install_software  | integer | body | _Available in Fleet Premium_. Software title ID. Install specified software to hosts failing the policy. |
+
 
 #### Example
 
@@ -6530,7 +6548,8 @@ Either `query` or `query_id` must be provided.
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "critical": true,
   "resolution": "Resolution steps",
-  "platform": "darwin"
+  "platform": "darwin",
+  "install_software": 3432
 }
 ```
 
