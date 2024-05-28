@@ -535,7 +535,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, softwar
 	}
 
 	if !installer.SelfService {
-		return ctxerr.Wrap(ctx, fmt.Errorf("Software title is not available through self-service"))
+		return ctxerr.Wrap(ctx, errors.New("Software title is not available through self-service"))
 	}
 
 	ext := filepath.Ext(installer.Name)
