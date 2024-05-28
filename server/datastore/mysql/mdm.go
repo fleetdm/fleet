@@ -1043,27 +1043,38 @@ SELECT
     h.uuid AS host_uuid,
     ncaa.sha256 AS sha256,
     COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference
-FROM
-    nano_cert_auth_associations ncaa
+FROM (
+    -- grab only the latest certificate associated with this device 
+    SELECT
+        n1.id,
+	n1.sha256,
+	n1.cert_not_valid_after,
+	n1.renew_command_uuid
+    FROM
+        nano_cert_auth_associations n1
+    WHERE
+        n1.sha256 = (
+            SELECT
+                n2.sha256
+            FROM
+                nano_cert_auth_associations n2
+            WHERE
+                n1.id = n2.id
+            ORDER BY
+                n2.created_at DESC,
+                n2.sha256 ASC
+            LIMIT 1
+        )
+) ncaa
 JOIN
     hosts h ON h.uuid = ncaa.id
 LEFT JOIN
     host_mdm hm ON hm.host_id = h.id
--- grab only the latest certificate associated with this device 
-JOIN (
-    SELECT
-        id,
-        MAX(created_at) AS latest_created_at
-    FROM
-        nano_cert_auth_associations
-    GROUP BY
-        id
-) latest_ncaa ON ncaa.id = latest_ncaa.id AND ncaa.created_at = latest_ncaa.latest_created_at
 WHERE
-    cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
-    AND renew_command_uuid IS NULL
+    ncaa.cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+    AND ncaa.renew_command_uuid IS NULL
 GROUP BY
-    host_uuid, ncaa.sha256, cert_not_valid_after
+    host_uuid, ncaa.sha256, ncaa.cert_not_valid_after
 ORDER BY
     cert_not_valid_after ASC
 LIMIT ?`, expiryDays, limit)

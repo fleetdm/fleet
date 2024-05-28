@@ -6145,22 +6145,6 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 		certHash := certauth.HashCert(cert)
 		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
 		require.NoError(t, err)
-		// add a random created_at timestamp
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(
-				ctx,
-				`UPDATE nano_cert_auth_associations
-				SET created_at = DATE_ADD(
-				  '2024-01-01 00:00:00',
-				  INTERVAL
-				    FLOOR(RAND() * TIMESTAMPDIFF(SECOND, '2024-01-01 00:00:00', '2024-12-31 23:59:59'))
-				    SECOND
-				)
-				WHERE id = ?`,
-				h.UUID,
-			)
-			return err
-		})
 	}
 
 	var i int
