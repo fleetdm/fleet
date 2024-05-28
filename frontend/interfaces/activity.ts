@@ -142,4 +142,5 @@ export interface IActivityDetails {
   software_package?: string;
   status?: string;
   install_uuid?: string;
+  self_service?: boolean;
 }
