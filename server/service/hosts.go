@@ -374,10 +374,11 @@ func (svc *Service) CountHosts(ctx context.Context, labelID *uint, opts fleet.Ho
 }
 
 func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt fleet.HostListOptions) (int, error) {
-	filter, err := processHostFilters(ctx, opt, nil)
-	if err != nil {
-		return 0, err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return 0, fleet.ErrNoContext
 	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
@@ -385,6 +386,7 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 	}
 
 	var count int
+	var err error
 	if labelID != nil {
 		count, err = svc.ds.CountHostsInLabel(ctx, filter, *labelID, opt)
 	} else {
@@ -1277,13 +1279,15 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 }
 
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, []*fleet.Host, error) {
-	filter, err := processHostFilters(ctx, opt, lid)
-	if err != nil {
-		return nil, nil, nil, err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, nil, fleet.ErrNoContext
 	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	// Load hosts, either from label if provided or from all hosts.
 	var hosts []*fleet.Host
+	var err error
 	if lid != nil {
 		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
@@ -1305,21 +1309,6 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 		hostNames = append(hostNames, h.DisplayName())
 	}
 	return hostIDs, hostNames, hosts, nil
-}
-
-func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) (fleet.TeamFilter, error) {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return fleet.TeamFilter{}, fleet.ErrNoContext
-	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	if opt.StatusFilter != "" && lid != nil {
-		return fleet.TeamFilter{}, fleet.NewInvalidArgumentError("status", "may not be provided with label_id")
-	}
-
-	opt.PerPage = fleet.PerPageUnlimited
-	return filter, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
