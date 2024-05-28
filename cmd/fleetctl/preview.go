@@ -208,6 +208,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			for _, item := range []string{
 				filepath.Join(previewDir, "logs"),
 				filepath.Join(previewDir, "vulndb"),
+				filepath.Join(previewDir, "config"),
 			} {
 				if err := os.MkdirAll(item, 0o777); err != nil {
 					return fmt.Errorf("create directory %q: %w", item, err)
@@ -228,7 +229,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Create a random private key for MDM asset encryption and save it to the filesystem
 			// for use in subsequent runs. If one already exists, use that one.
 			getPrivateKey := func() (string, error) {
-				pkFilename := filepath.Join(previewDir, ".private_key")
+				pkFilename := filepath.Join(previewDir, "config", ".private_key")
 				filePK, err := os.ReadFile(pkFilename)
 				if err != nil {
 					if errors.Is(err, os.ErrNotExist) {
@@ -237,7 +238,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 							return "", fmt.Errorf("generating private key: %w", err)
 						}
 
-						if err := os.WriteFile(filepath.Join(previewDir, ".private_key"), []byte(genPK), os.ModeAppend); err != nil {
+						if err := os.WriteFile(filepath.Join(previewDir, "config", ".private_key"), []byte(genPK), os.ModeAppend); err != nil {
 							return "", fmt.Errorf("writing private key file: %w", err)
 						}
 
