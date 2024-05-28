@@ -2479,8 +2479,15 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	// set the logo via the modify appconfig endpoint, so that the cache is
 	// properly updated.
 	var acResp appConfigResponse
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_logo_url": "http://example.com/logo"}}`), http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{
+		"org_info":{
+			"org_logo_url": "http://example.com/logo",
+			"contact_url": "http://example.com/contact"
+		}
+	}`), http.StatusOK, &acResp)
 	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL)
+	require.Equal(t, "http://example.com/contact", acResp.OrgInfo.ContactURL)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          51,
@@ -2578,6 +2585,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
