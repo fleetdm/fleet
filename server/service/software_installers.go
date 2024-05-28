@@ -358,7 +358,7 @@ func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, 
 		return submitSelfServiceSoftwareInstallResponse{Err: err}, nil
 	}
 
-	return nil, nil
+	return submitSelfServiceSoftwareInstallResponse{}, nil
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
