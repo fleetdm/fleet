@@ -5,42 +5,32 @@ description: Information about macOS TCC database contents, for determining perm
 columns:
   - name: source
     type: text
-    required: true
     description: Either "user" or "system".
   - name: service
     type: text
-    required: true
     description: The name of the TCC service.
   - name: client
     type: text
-    required: true
     description: The bundle identifier or absolute path to the program using the TCC service.
   - name: client_type
     type: integer
-    required: true
     description: Indicates whether client is a bundle identifier (0) or absolute path (1). 
   - name: auth_value
     type: integer
-    required: true
     description: 'Indicates whether the access is: denied (0), unknown (1), allowed (2), or limited (3).'
   - name: auth_reason
     type: integer
-    required: true
     description: TODO
   - name: last_modified
     type: bigint
-    required: true
     description: The last time the entry was modified, in epoch seconds.
   - name: policy_id
     type: integer
-    required: false
     description: The MDM policy that allows TCC access for the application.
   - name: indirect_object_identifier
     type: text
-    required: false
     description: For kTCCServiceAppleEvents, what the client is asking to interact with, or "UNUSED" when it doesn't apply. Absolute path or bundle identifier.
   - name: indirect_object_identifier_type
     type: integer
-    required: false
     description: Indicates whether indirect_object_identifier is a bundle identifier (0) or absolute path (1), if applicable. 
 notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
