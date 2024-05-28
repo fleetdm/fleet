@@ -5543,7 +5543,7 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
 
-	// Verify that they're still in the DB
+	// Verify that they're still in the DB. Values should be encrypted.
 
 	type assetRow struct {
 		Name         string    `db:"name"`
@@ -5561,7 +5561,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 
 	for i, a := range ar {
 		require.Equal(t, assets[i].Name, fleet.MDMAssetName(a.Name))
-		require.Equal(t, assets[i].Value, a.Value)
+		require.NotEmpty(t, a.Value)
+		d, err := decrypt(a.Value, ds.serverPrivateKey)
+		require.NoError(t, err)
+		require.Equal(t, assets[i].Value, d)
 		require.NotEmpty(t, a.DeletionUUID)
 		require.NotEmpty(t, a.DeletedAt)
 	}

@@ -104,6 +104,10 @@ type Datastore struct {
 	//
 	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
 	testBatchSetMDMWindowsProfilesErr string
+
+	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
+	// certificates and keys.
+	serverPrivateKey string
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -335,6 +339,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff: options.minLastOpenedAtDiff,
+		serverPrivateKey:    options.privateKey,
 	}
 
 	go ds.writeChanLoop()

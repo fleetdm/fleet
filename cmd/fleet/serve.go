@@ -508,6 +508,10 @@ the way that the Fleet server works.
 				cancel()
 			}
 
+			if len(config.Server.PrivateKey) > 0 && len([]byte(config.Server.PrivateKey)) != 32 {
+				initFatal(errors.New("private key must be 32 bytes long"), "validate private key")
+			}
+
 			appCfg, err := ds.AppConfig(context.Background())
 			if err != nil {
 				initFatal(err, "loading app config")

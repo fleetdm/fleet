@@ -2141,6 +2141,10 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
+	if len(svc.config.Server.PrivateKey) == 0 {
+		return nil, ctxerr.New(ctx, "no private key configured")
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext
@@ -2163,6 +2167,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 
 	if len(savedAssets) == 0 {
 		// Then we should create them
+
 		scepCert, scepKey, err := apple_mdm.NewSCEPCACertKey()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "generate SCEP cert and key")
@@ -2173,7 +2178,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 			return nil, ctxerr.Wrap(ctx, err, "generate new apns private key")
 		}
 
-		// Store our config assets
+		// Store our config assets encrypted
 		var assets []fleet.MDMConfigAsset
 		for k, v := range map[fleet.MDMAssetName][]byte{
 			fleet.MDMAssetCACert:  apple_mdm.EncodeCertPEM(scepCert),

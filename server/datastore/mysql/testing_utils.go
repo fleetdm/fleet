@@ -31,7 +31,7 @@ const (
 )
 
 func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
-	config := config.MysqlConfig{
+	cfg := config.MysqlConfig{
 		Username: testUsername,
 		Password: testPassword,
 		Database: testName,
@@ -41,10 +41,17 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// Create datastore client
 	var replicaOpt DBOption
 	if opts.Replica {
-		replicaConf := config
+		replicaConf := cfg
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
+
+	// For use with WithFleetConfig. Note that since we're setting up the DB in a different way
+	// than in production, we have to reset the MinSoftwareLastOpenedAtDiff field to its default so
+	// it's not overwritten here.
+	tc := config.TestConfig()
+	tc.Osquery.MinSoftwareLastOpenedAtDiff = defaultMinLastOpenedAtDiff
+
 	// set SQL mode to ANSI, as it's a special mode equivalent to:
 	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
 	// ONLY_FULL_GROUP_BY
@@ -54,7 +61,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// standard SQL.
 	//
 	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"))
+	ds, err := New(cfg, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.Replica {
