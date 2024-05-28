@@ -1,4 +1,4 @@
-# PowerShell script to log off all non-administrative users and disable their accounts
+# PowerShell script to log off all users and disable their accounts
 
 # Log off all users
 $loggedOffUsers = @{}
@@ -32,4 +32,4 @@ Get-LocalUser | Where-Object { $_.Enabled -eq $true } | ForEach-Object {
     Write-Host "Disabled account for $username"
 }
 
-Write-Host "All non-administrative users have been logged out and their accounts disabled."
+Write-Host "All users have been logged out and their accounts disabled."
