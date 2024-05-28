@@ -2142,7 +2142,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	}
 
 	if len(svc.config.Server.PrivateKey) == 0 {
-		return nil, ctxerr.Wrap(ctx, errors.New("no private key configured"))
+		return nil, ctxerr.New(ctx, "no private key configured")
 	}
 
 	vc, ok := viewer.FromContext(ctx)

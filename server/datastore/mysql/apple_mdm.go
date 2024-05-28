@@ -4231,7 +4231,7 @@ WHERE
 	for _, asset := range res {
 		decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting mdm config asset %s", asset.Name))
+			return nil, ctxerr.Wrapf(ctx, err, "decrypting mdm config asset %s", asset.Name)
 		}
 
 		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal}
