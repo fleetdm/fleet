@@ -9668,6 +9668,8 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	t := s.T()
 
 	host1 := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	token := "secret_token"
+	createDeviceTokenForHost(t, s.ds, host1.ID, token)
 
 	payloadNoSS := &fleet.UploadSoftwareInstallerPayload{
 		PreInstallQuery:   "SELECT 1",
@@ -9691,12 +9693,11 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	s.uploadSoftwareInstaller(payloadSS, http.StatusOK, "")
 	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
 
-	// respSS := submitSelfServiceSoftwareInstallResponse{}
-	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", *host1.OrbitNodeKey, titleIDSS), nil, http.StatusAccepted)
-
 	// respNoSS := submitSelfServiceSoftwareInstallResponse{}
-	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", *host1.OrbitNodeKey, titleIDNoSS), nil, http.StatusBadRequest)
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDNoSS), nil, http.StatusBadRequest)
 
+	// respSS := submitSelfServiceSoftwareInstallResponse{}
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDSS), nil, http.StatusAccepted)
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
