@@ -1,5 +1,5 @@
 name: macadmins_unified_log
-notes: notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).
 platforms: 
   - darwin
