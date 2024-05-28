@@ -6580,6 +6580,17 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
 	require.NoError(t, err)
+	installerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "echo 'a'",
+		InstallerFile: strings.NewReader(`foo`),
+		StorageID:     uuid.NewString(),
+		Filename:      "foo.deb",
+		Title:         "foo",
+		Platform:      "linux",
+	})
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, installerID)
+	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, command_uuid)
@@ -6640,6 +6651,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err, tbl)
 		require.True(t, ok, "table: %s", tbl)
 	}
+	for tbl, col := range additionalHostRefsSoftDelete {
+		var ok bool
+		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ? AND %s IS NULL", tbl, col), host.ID)
+		require.NoError(t, err, tbl)
+		require.True(t, ok, "table: %s", tbl)
+	}
 
 	err = ds.DeleteHosts(context.Background(), []uint{host.ID})
 	require.NoError(t, err)
@@ -6656,6 +6673,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE %s = ?", tbl, col), host.UUID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
 		require.False(t, ok, "table: %s", tbl)
+	}
+	for tbl, col := range additionalHostRefsSoftDelete {
+		var ok bool
+		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ? AND %s IS NULL", tbl, col), host.ID)
+		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
+		require.False(t, ok, "table: %s", tbl) // the soft-delete column is not null anymore, so no row is found
 	}
 }
 
