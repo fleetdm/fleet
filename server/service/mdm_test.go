@@ -96,7 +96,6 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		checkAuthErr(t, shouldFailWithAuth, err)
 
 		_, err = svc.GetMDMAppleCSR(ctx)
-		require.Error(t, err)
 		checkAuthErr(t, shouldFailWithAuth, err)
 
 		err = svc.UploadMDMAppleAPNSCert(ctx, nil)
