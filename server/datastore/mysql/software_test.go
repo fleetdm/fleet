@@ -3144,6 +3144,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			require.True(t, ok)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
+			if e.SelfService != nil {
+				// there is a software installer, so package information should be present
+				require.Equal(t, e.SelfService, g.SelfService)
+				require.NotNil(t, g.Package)
+				require.NotNil(t, g.PackageAvailableForInstall)
+				require.Equal(t, e.PackageAvailableForInstall, g.PackageAvailableForInstall)
+				require.Equal(t, *e.PackageAvailableForInstall, g.Package.Name)
+				require.NotEmpty(t, g.Package.Version)
+			}
 			require.Len(t, g.InstalledVersions, len(e.InstalledVersions))
 			if len(e.InstalledVersions) > 0 {
 				byVers := make(map[string]fleet.HostSoftwareInstalledVersion, len(e.InstalledVersions))
@@ -3313,6 +3322,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:                     expectStatus(fleet.SoftwareInstallerPending),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid1"},
 		PackageAvailableForInstall: ptr.String("installer-0.pkg"),
+		SelfService:                ptr.Bool(true),
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -3322,6 +3332,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source:                     "apps",
 		Status:                     expectStatus(fleet.SoftwareInstallerInstalled),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid2"},
+		SelfService:                ptr.Bool(true),
 		PackageAvailableForInstall: ptr.String("installer-1.pkg"),
 	}
 	expected[i0.Name+i0.Source] = i0
@@ -3331,6 +3342,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source:                     "apps",
 		Status:                     expectStatus(fleet.SoftwareInstallerFailed),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid3"},
+		SelfService:                ptr.Bool(false),
 		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
 	}
 	expected[i1.Name+i1.Source] = i1
@@ -3349,6 +3361,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:                     nil,
 		LastInstall:                nil,
 		PackageAvailableForInstall: ptr.String("installer-3.pkg"),
+		SelfService:                ptr.Bool(false),
 	}
 	expected[i2.Name+i2.Source] = i2
 
@@ -3358,6 +3371,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:                     nil,
 		LastInstall:                nil,
 		PackageAvailableForInstall: ptr.String("installer-4.pkg"),
+		SelfService:                ptr.Bool(false),
 	}
 	expected[i3.Name+i3.Source] = i3
 
@@ -3405,6 +3419,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:                     expectStatus(fleet.SoftwareInstallerFailed),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid1"},
 		PackageAvailableForInstall: ptr.String("installer-0.pkg"),
+		SelfService:                ptr.Bool(true),
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -3414,6 +3429,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source:                     "apps",
 		Status:                     expectStatus(fleet.SoftwareInstallerPending),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid4"},
+		SelfService:                ptr.Bool(false),
 		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
 	}
 
