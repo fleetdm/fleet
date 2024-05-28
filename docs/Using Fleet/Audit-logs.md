@@ -1135,7 +1135,9 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "install_uuid": ID of the software installation.
+- "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
+- "software_package": Filename of the installer.
 - "status": Status of the software installation.
 
 #### Example
@@ -1145,6 +1147,8 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending"
 }
@@ -1159,6 +1163,7 @@ This activity contains the following fields:
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.
 
 #### Example
 
@@ -1167,9 +1172,9 @@ This activity contains the following fields:
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
-  "team_id": 123
+  "team_id": 123,
+  "self_service": true
 }
-
 ```
 
 ## deleted_software
@@ -1181,6 +1186,7 @@ This activity contains the following fields:
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added. `null if it was added to no team.
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software was available for installation by the end user.
 
 #### Example
 
@@ -1189,9 +1195,9 @@ This activity contains the following fields:
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
-  "team_id": 123
+  "team_id": 123,
+  "self_service": true
 }
-
 ```
 
 
