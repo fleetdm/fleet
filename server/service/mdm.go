@@ -3,9 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -2121,50 +2118,6 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 // GET /mdm/apple/request_csr
 ////////////////////////////////////////////////////////////////////////////////
 
-func Encrypt(plainText []byte, privateKey string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(privateKey))
-	if err != nil {
-		return nil, fmt.Errorf("create new cipher: %w", err)
-	}
-
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("create new gcm: %w", err)
-	}
-
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, fmt.Errorf("generate nonce: %w", err)
-	}
-
-	return aesGCM.Seal(nonce, nonce, plainText, nil), nil
-}
-
-func Decrypt(encrypted []byte, privateKey string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(privateKey))
-	if err != nil {
-		return nil, fmt.Errorf("create new cipher: %w", err)
-	}
-
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("create new gcm: %w", err)
-	}
-
-	// Get the nonce size
-	nonceSize := aesGCM.NonceSize()
-
-	// Extract the nonce from the encrypted data
-	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
-
-	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, fmt.Errorf("generate nonce: %w", err)
-	}
-
-	return decrypted, nil
-}
-
 type getMDMAppleCSRRequest struct{}
 
 type getMDMAppleCSRResponse struct {
@@ -2224,13 +2177,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 			fleet.MDMAssetCAKey:   apple_mdm.EncodePrivateKeyPEM(scepKey),
 			fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsKey),
 		} {
-			encryptedVal, err := Encrypt(v, svc.config.Server.PrivateKey)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", k))
-			}
 			assets = append(assets, fleet.MDMConfigAsset{
 				Name:  k,
-				Value: encryptedVal,
+				Value: v,
 			})
 		}
 
@@ -2240,12 +2189,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	} else {
 		for _, a := range savedAssets {
 			if a.Name == fleet.MDMAssetAPNSKey {
-				// decrypt value first
-				decryptedKey, err := Decrypt(a.Value, svc.config.Server.PrivateKey)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "decrypting apns key")
-				}
-				block, _ := pem.Decode(decryptedKey)
+				block, _ := pem.Decode(a.Value)
 				if block == nil {
 					return nil, ctxerr.Wrap(ctx, errors.New("decoding apns key"))
 				}
