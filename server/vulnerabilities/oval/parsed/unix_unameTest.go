@@ -2,6 +2,7 @@ package oval_parsed
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
@@ -13,8 +14,6 @@ type UnixUnameTest struct {
 // Eval evaluates a kernel version against a UnameTest.  Returns true
 // if the kernel version matches the test.  Currently only used for Ubuntu.
 func (t UnixUnameTest) Eval(version string) (bool, error) {
-	var match bool
-	var err error
 	for _, s := range t.States {
 		op, val := s.unpack()
 		switch op {
@@ -23,16 +22,16 @@ func (t UnixUnameTest) Eval(version string) (bool, error) {
 				return false, nil
 			}
 		case PatternMatch:
-			match, err = s.Eval(version)
-			if !match {
+			match, err := regexp.Compile(val)
+			if err != nil {
+				return false, err
+			}
+			if !match.MatchString(version) {
 				return false, nil
 			}
 		default:
 			return false, fmt.Errorf("operation %q not supported for uname test", op)
 		}
-	}
-	if err != nil {
-		return false, err
 	}
 
 	return true, nil
