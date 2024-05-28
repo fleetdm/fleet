@@ -295,7 +295,15 @@ Agenda:
 5. Apprentice: LINK_TO_DOC_OR_ISSUE
 ```
 
-> Keep calendar event titles short so they are readable at a glance.  Please include any other info via link, so that information is not duplicated or lost in the calendar.
+### Obtain a signature from the CEO
+When an agreement is routed to the CEO for signature, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) is responsible for obtaining a signature from the CEO using the following steps:
+1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
+2. A Business Operations Engineer will at-mention the Apprentice in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
+3. Inform there's an agreement ready for his review/signiture.
+
+> The SLA for the CEO to review and sign a document is 48hrs
+
+5. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/business-operations#team).
 
 
 ### Prepare for CEO office minutes 
