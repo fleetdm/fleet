@@ -231,3 +231,11 @@ export interface IHostSoftware {
   last_install: ISoftwareLastInstall | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
+
+export interface IDeviceSoftware extends IHostSoftware {
+  package_available_for_install: never;
+  package: {
+    name: string;
+    version: string;
+  };
+}

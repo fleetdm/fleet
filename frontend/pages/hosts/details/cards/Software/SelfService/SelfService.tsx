@@ -3,9 +3,12 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { AxiosError } from "axios";
-import { uniqueId } from "lodash";
 
-import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
+import {
+  IDeviceSoftware,
+  IHostSoftware,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 import deviceApi, {
   IDeviceSoftwareQueryKey,
   IGetDeviceSoftwareResponse,
@@ -186,18 +189,20 @@ const InstallerStatusAction = ({
   );
 };
 
-const InstallerInfo = ({ software }: { software: IHostSoftware }) => {
-  const { name, source, package_available_for_install } = software;
-  // TODO: version is missing from the API response
-  const version = package_available_for_install || "Something is missing :(";
+const InstallerInfo = ({ software }: { software: IDeviceSoftware }) => {
+  const { name, source, package: installerPackage } = software;
   return (
     <div className={`${baseClass}__item-topline`}>
       <div className={`${baseClass}__item-icon`}>
         <SoftwareIcon name={name} source={source} size="medium_large" />
       </div>
       <div className={`${baseClass}__item-name-version`}>
-        <div className={`${baseClass}__item-name`}>{name}</div>
-        <div className={`${baseClass}__item-version`}>{version}</div>
+        <div className={`${baseClass}__item-name`}>
+          {name || installerPackage?.name}
+        </div>
+        <div className={`${baseClass}__item-version`}>
+          {installerPackage?.version || ""}
+        </div>
       </div>
     </div>
   );
@@ -218,6 +223,7 @@ const SoftwareSelfService = ({
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
 }) => {
+  // TOOD: loading state for fetching?
   const { data, isLoading, isError, isFetching, refetch } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
@@ -232,21 +238,7 @@ const SoftwareSelfService = ({
         ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
       },
     ],
-    ({ queryKey }) =>
-      deviceApi.getDeviceSoftware(queryKey[0]).then((res) => {
-        // TODO: remove `.then`, just using it to simulate that the data is changing when we refetch
-        const newSoftware = res.software.map((s) => {
-          if (s.last_install) {
-            const newInstall = {
-              ...s.last_install,
-              install_uuid: uniqueId(),
-            };
-            return { ...s, last_install: newInstall };
-          }
-          return s;
-        });
-        return { ...res, software: newSoftware };
-      }),
+    ({ queryKey }) => deviceApi.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isSoftwareEnabled,
