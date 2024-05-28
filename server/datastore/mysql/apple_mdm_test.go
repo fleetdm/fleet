@@ -74,7 +74,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
-		{"TesMDMConfigAsset", testMDMConfigAsset},
+		{"TestMDMConfigAsset", testMDMConfigAsset},
 	}
 
 	for _, c := range cases {

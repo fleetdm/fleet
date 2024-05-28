@@ -31,7 +31,7 @@ const (
 )
 
 func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
-	config := config.MysqlConfig{
+	cfg := config.MysqlConfig{
 		Username: testUsername,
 		Password: testPassword,
 		Database: testName,
@@ -41,7 +41,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// Create datastore client
 	var replicaOpt DBOption
 	if opts.Replica {
-		replicaConf := config
+		replicaConf := cfg
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
@@ -54,7 +54,8 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// standard SQL.
 	//
 	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"))
+	tc := config.TestConfig()
+	ds, err := New(cfg, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.Replica {

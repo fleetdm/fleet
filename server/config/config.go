@@ -849,7 +849,7 @@ func (man Manager) addConfigs() {
 		"When enabled, Fleet limits some features for the Sandbox")
 	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
-	man.addConfigString("server.private_key", "", "TODO(JVE): add some copy here")
+	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
@@ -1732,7 +1732,7 @@ func TestConfig() FleetConfig {
 			AuditLogFile:  testLogFile,
 			MaxSize:       500,
 		},
-		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"}, // TODO(JVE): can this be toggled at runtime for integration testing?
+		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"},
 	}
 }
 

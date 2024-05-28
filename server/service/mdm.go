@@ -2154,7 +2154,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	var apnsKey *rsa.PrivateKey
 	savedAssets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking asset existence")
+		return nil, ctxerr.Wrap(ctx, err, "getting saved assets")
 	}
 
 	if len(savedAssets) == 0 {
