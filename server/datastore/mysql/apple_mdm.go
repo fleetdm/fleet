@@ -743,6 +743,20 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	}
 }
 
+func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnrolledAt time.Time) {
+	supportsOsquery := mdmHost.SupportsOsquery()
+	// 2000-01-01 00:00:00 is what Fleet considers the zero/"Never" time.
+	lastEnrolledAt, err := time.Parse("2006-01-02 15:04:05", "2000-01-01 00:00:00")
+	if err != nil {
+		panic(err)
+	}
+	if !supportsOsquery {
+		// Given the device does not have osquery, we set the last_enrolled_at as the MDM enroll time.
+		lastEnrolledAt = time.Now()
+	}
+	return supportsOsquery, lastEnrolledAt
+}
+
 func updateMDMAppleHostDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -750,6 +764,8 @@ func updateMDMAppleHostDB(
 	mdmHost *fleet.Host,
 	appCfg *fleet.AppConfig,
 ) error {
+	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
+
 	updateStmt := `
 		UPDATE hosts SET
 			hardware_serial = ?,
@@ -757,6 +773,7 @@ func updateMDMAppleHostDB(
 			hardware_model = ?,
 			platform =  ?,
 			refetch_requested = ?,
+			last_enrolled_at = ?,
 			osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?)
 		WHERE id = ?`
 
@@ -767,7 +784,8 @@ func updateMDMAppleHostDB(
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
 		mdmHost.Platform,
-		mdmHost.SupportsOsquery(),
+		refetchRequested,
+		lastEnrolledAt,
 		// Set osquery_host_id to the device UUID only if it is not already set.
 		mdmHost.UUID,
 		hostID,
@@ -794,15 +812,7 @@ func insertMDMAppleHostDB(
 	logger log.Logger,
 	appCfg *fleet.AppConfig,
 ) error {
-	supportsOsquery := mdmHost.SupportsOsquery()
-	lastEnrolledAt, err := time.Parse("2006-01-02 15:04:05", "2000-01-01 00:00:00")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parse last_enrolled_at time")
-	}
-	if !supportsOsquery {
-		// Given the device does not have osquery, we set the last_enrolled_at as the MDM enroll time.
-		lastEnrolledAt = time.Now()
-	}
+	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 	insertStmt := `
 		INSERT INTO hosts (
 			hardware_serial,
@@ -825,7 +835,7 @@ func insertMDMAppleHostDB(
 		lastEnrolledAt,
 		"2000-01-01 00:00:00",
 		mdmHost.UUID,
-		supportsOsquery,
+		refetchRequested,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert mdm apple host")
