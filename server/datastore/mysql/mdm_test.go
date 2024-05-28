@@ -6122,6 +6122,47 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	nanoStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
 	require.NoError(t, err)
 
+	addCert := func(notAfter time.Time, h *fleet.Host) {
+		serial, err := scepDepot.Serial()
+		require.NoError(t, err)
+		cert := &x509.Certificate{
+			SerialNumber: serial,
+			Subject: pkix.Name{
+				CommonName: "FleetDM Identity",
+			},
+			NotAfter: notAfter,
+			// use a random value, just to make sure they're
+			// different from each other, we don't care about the
+			// DER contents here
+			Raw: []byte(uuid.NewString()),
+		}
+		err = scepDepot.Put(cert.Subject.CommonName, cert)
+		require.NoError(t, err)
+		req := mdm.Request{
+			EnrollID: &mdm.EnrollID{ID: h.UUID},
+			Context:  ctx,
+		}
+		certHash := certauth.HashCert(cert)
+		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
+		require.NoError(t, err)
+		// add a random created_at timestamp
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(
+				ctx,
+				`UPDATE nano_cert_auth_associations
+				SET created_at = DATE_ADD(
+				  '2024-01-01 00:00:00',
+				  INTERVAL
+				    FLOOR(RAND() * TIMESTAMPDIFF(SECOND, '2024-01-01 00:00:00', '2024-12-31 23:59:59'))
+				    SECOND
+				)
+				WHERE id = ?`,
+				h.UUID,
+			)
+			return err
+		})
+	}
+
 	var i int
 	setHost := func(notAfter time.Time) *fleet.Host {
 		i++
@@ -6135,28 +6176,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// create a cert + association
-		serial, err := scepDepot.Serial()
-		require.NoError(t, err)
-		cert := &x509.Certificate{
-			SerialNumber: serial,
-			Subject: pkix.Name{
-				CommonName: "FleetDM Identity",
-			},
-			NotAfter: notAfter,
-			// use the host UUID, just to make sure they're
-			// different from each other, we don't care about the
-			// DER contents here
-			Raw: []byte(h.UUID),
-		}
-		err = scepDepot.Put(cert.Subject.CommonName, cert)
-		require.NoError(t, err)
-		req := mdm.Request{
-			EnrollID: &mdm.EnrollID{ID: h.UUID},
-			Context:  ctx,
-		}
-		certHash := certauth.HashCert(cert)
-		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
-		require.NoError(t, err)
+		addCert(notAfter, h)
 		nanoEnroll(t, ds, h, false)
 		return h
 	}
@@ -6216,6 +6236,15 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteHost(ctx, h5.ID))
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.NoError(t, err)
+	require.Len(t, assocs, 4)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+
+	// add a second expired cert to one of the hosts
+	addCert(time.Now().AddDate(-1, -1, 0), h1)
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.Len(t, assocs, 4)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)

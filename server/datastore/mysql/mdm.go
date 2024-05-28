@@ -1038,23 +1038,35 @@ func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiry
 	//
 	// Note that we use GROUP BY because we can't guarantee unique entries
 	// based on uuid in the hosts table.
-	stmt, args, err := sqlx.In(
-		`SELECT
-			h.uuid as host_uuid,
-			ncaa.sha256 as sha256,
-			COALESCE(MAX(hm.fleet_enroll_ref), '') as enroll_reference
-		 FROM
-			nano_cert_auth_associations ncaa
-			JOIN hosts h ON h.uuid = ncaa.id
-			LEFT JOIN host_mdm hm ON hm.host_id = h.id
-		 WHERE
-			cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
-			AND renew_command_uuid IS NULL
-		GROUP BY
-			host_uuid, ncaa.sha256, cert_not_valid_after
-		ORDER BY cert_not_valid_after ASC
-		LIMIT ?
-		`, expiryDays, limit)
+	stmt, args, err := sqlx.In(`
+SELECT
+    h.uuid AS host_uuid,
+    ncaa.sha256 AS sha256,
+    COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference
+FROM
+    nano_cert_auth_associations ncaa
+JOIN
+    hosts h ON h.uuid = ncaa.id
+LEFT JOIN
+    host_mdm hm ON hm.host_id = h.id
+-- grab only the latest certificate associated with this device 
+JOIN (
+    SELECT
+        id,
+        MAX(created_at) AS latest_created_at
+    FROM
+        nano_cert_auth_associations
+    GROUP BY
+        id
+) latest_ncaa ON ncaa.id = latest_ncaa.id AND ncaa.created_at = latest_ncaa.latest_created_at
+WHERE
+    cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+    AND renew_command_uuid IS NULL
+GROUP BY
+    host_uuid, ncaa.sha256, cert_not_valid_after
+ORDER BY
+    cert_not_valid_after ASC
+LIMIT ?`, expiryDays, limit)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query")
 	}
