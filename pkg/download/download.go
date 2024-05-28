@@ -11,12 +11,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ulikunitz/xz"
 )
 
-const backoffMaxElapsedTime = 3 * 60 // 3 minutes
+const backoffMaxElapsedTime = 5 * time.Minute
 
 // Download downloads a file from a URL and writes it to path.
 func Download(client *http.Client, u *url.URL, path string) error {
@@ -41,7 +42,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 
 	// ensure dir exists
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+		return fmt.Errorf("create directory: %w", err)
 	}
 
 	tmpFile, err := os.CreateTemp(dir, file)
@@ -69,12 +70,12 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 
 		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 		if err != nil {
-			return err
+			return fmt.Errorf("create request: %w", err)
 		}
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return err
+			return fmt.Errorf("do request: %w", err)
 		}
 		defer resp.Body.Close()
 
@@ -86,7 +87,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 			case strings.HasSuffix(u.Path, "gz"):
 				gr, err := gzip.NewReader(resp.Body)
 				if err != nil {
-					return err
+					return fmt.Errorf("gzip reader: %w", err)
 				}
 				r = gr
 			case strings.HasSuffix(u.Path, "bz2"):
@@ -94,7 +95,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 			case strings.HasSuffix(u.Path, "xz"):
 				xzr, err := xz.NewReader(resp.Body)
 				if err != nil {
-					return err
+					return fmt.Errorf("xz reader: %w", err)
 				}
 				r = xzr
 			default:
@@ -103,7 +104,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 		}
 
 		if _, err := io.Copy(tmpFile, r); err != nil {
-			return err
+			return fmt.Errorf("copy to temporary file: %w", err)
 		}
 
 		return nil
@@ -111,7 +112,9 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 
 	expBackOff := backoff.NewExponentialBackOff()
 	expBackOff.MaxElapsedTime = backoffMaxElapsedTime
-	if err := backoff.Retry(operation, expBackOff); err != nil {
+	if err := backoff.RetryNotify(operation, expBackOff, func(err error, d time.Duration) {
+		fmt.Printf("Download failed on %s: %v. Retrying in %v\n", u.String(), err, d)
+	}); err != nil {
 		return fmt.Errorf("download and write file: %w", err)
 	}
 
