@@ -8426,6 +8426,35 @@ Returns information about the specified software. By default, `versions` are sor
         "hosts_count": 4
       }
     ]  
+  },
+  {
+    "id": 15,
+    "name": "Logic Pro.app",
+    "bundle_identifier": "org.apple.logic10",
+    "software_package": {
+      "name": "Logic Pro",
+      "version": "2.0.11",
+      "uploaded_at": "2024-04-01T14:22:58Z",
+      "install_script": "",
+      "pre_install_query": "",
+      "post_install_script": "",
+      "status": {
+        "installed": 3,
+        "pending": 1,
+        "failed": 2,
+      }
+    },
+    "source": "vpp",
+    "browser": "",
+    "hosts_count": 23,
+    "versions": [ 
+      {
+        "id": 123,
+        "version": "2.0.11",
+        "vulnerabilities": [],
+        "hosts_count": 23
+      }
+    ]  
   }
 }
 ```
