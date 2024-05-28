@@ -4166,6 +4166,10 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 }
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	if len(ds.serverPrivateKey) == 0 {
+		return ctxerr.Wrap(ctx, errors.New("private key not found"))
+	}
+
 	stmt := `
 INSERT INTO
     mdm_config_assets (
@@ -4199,6 +4203,10 @@ VALUES
 }
 
 func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	if len(ds.serverPrivateKey) == 0 {
+		return nil, ctxerr.Wrap(ctx, errors.New("private key not found"))
+	}
+
 	stmt := `
 SELECT
     name, value
