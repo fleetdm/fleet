@@ -2318,6 +2318,8 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 				Message: "Please generate a private key first.",
 			}, "uploading APNs certificate")
 		}
+
+		return ctxerr.Wrap(ctx, err, "retrieving APNs key")
 	}
 
 	_, err = tls.X509KeyPair(certBytes, assets[fleet.MDMAssetAPNSKey].Value)
