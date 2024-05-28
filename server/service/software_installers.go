@@ -346,16 +346,24 @@ type submitSelfServiceSoftwareInstallResponse struct {
 func (r submitSelfServiceSoftwareInstallResponse) error() error { return r.Err }
 
 func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	host, ok := hostctx.FromContext(ctx)
+	_, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 		return submitSelfServiceSoftwareInstallResponse{Err: err}, nil
 	}
 
 	req := request.(*fleetSelfServiceSoftwareInstallRequest)
-	if err := svc.SelfServiceInstallSoftwareTitle(ctx, host.ID, req.SoftwareTitleID); err != nil {
+	if err := svc.SelfServiceInstallSoftwareTitle(ctx, req.SoftwareTitleID); err != nil {
 		return submitSelfServiceSoftwareInstallResponse{Err: err}, nil
 	}
 
 	return nil, nil
+}
+
+func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, softwareTitleID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }
