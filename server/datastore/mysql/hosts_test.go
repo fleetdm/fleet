@@ -164,6 +164,8 @@ func TestHosts(t *testing.T) {
 		{"LastRestarted", testLastRestarted},
 		{"HostHealth", testHostHealth},
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
+		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
+		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6591,13 +6593,20 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}
+	detailsBytes, err := json.Marshal(activity)
+	require.NoError(t, err)
+
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity( // automatically creates the host_activities entry
-		context.Background(),
+		ctx,
 		user1,
-		fleet.ActivityTypeRanScript{
-			HostID:          host.ID,
-			HostDisplayName: host.DisplayName(),
-		},
+		activity,
+		detailsBytes,
+		time.Now(),
 	)
 	require.NoError(t, err)
 
@@ -7382,6 +7391,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		HardwareSerial:  "123456789",
 		TeamID:          &tm.ID,
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "")
@@ -7394,6 +7404,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, tm.ID, info.TeamID)
 	require.False(t, info.DEPAssignedToFleet)
 	require.True(t, info.OsqueryEnrolled)
+	require.Equal(t, "darwin", info.Platform)
 
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host})
 	require.NoError(t, err)
@@ -8687,8 +8698,11 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), h, false))
 
 	soft1 := h.Software[0]
-	if soft1.Name != "bar" {
-		soft1 = h.Software[1]
+	for _, item := range h.Software {
+		if item.Name == "bar" {
+			soft1 = item
+			break
+		}
 	}
 
 	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
@@ -8698,8 +8712,11 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	// Reload software so that 'GeneratedCPEID is set.
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), h, false))
 	soft1 = h.Software[0]
-	if soft1.Name != "bar" {
-		soft1 = h.Software[1]
+	for _, item := range h.Software {
+		if item.Name == "bar" {
+			soft1 = item
+			break
+		}
 	}
 
 	inserted, err := ds.InsertSoftwareVulnerability(
@@ -8794,4 +8811,265 @@ func testGetHostOrbitInfo(t *testing.T, ds *Datastore) {
 	hostOrbitInfo, err = ds.GetHostOrbitInfo(context.Background(), host.ID)
 	require.NoError(t, err)
 	assert.True(t, *hostOrbitInfo.ScriptsEnabled)
+}
+
+func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	// create a few hosts with different identifiers
+	h1, err := ds.NewHost(
+		ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(),
+			PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
+			NodeKey:        ptr.String("abc"),
+			UUID:           "def",
+			Hostname:       "ghi.local",
+			HardwareSerial: "jkl",
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, h1)
+
+	h2, err := ds.NewHost(
+		ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(),
+			PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
+			NodeKey:        ptr.String("def"),
+			UUID:           "mno",
+			Hostname:       "pqr.local",
+			HardwareSerial: "sty",
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, h2)
+
+	h3, err := ds.NewHost(
+		ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(),
+			PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
+			NodeKey:        ptr.String("mno"),
+			UUID:           "vwx",
+			Hostname:       "yzA.local",
+			HardwareSerial: "def",
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, h3)
+
+	cases := []struct {
+		desc string
+		in   []string
+		out  []string
+	}{
+		{desc: "no identifier", in: nil, out: nil},
+		{desc: "no match", in: []string{"ZZZ"}, out: nil},
+		{desc: "single match", in: []string{"abc"}, out: []string{h1.Hostname}},
+		{desc: "two matches", in: []string{"mno"}, out: []string{h2.Hostname, h3.Hostname}},
+		{desc: "all matches", in: []string{"def"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
+		{desc: "multiple identifiers", in: []string{"abc", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
+		{desc: "duplicate identifiers", in: []string{"abc", "abc", "ghi"}, out: []string{h1.Hostname}},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got, err := ds.HostnamesByIdentifiers(ctx, c.in)
+			require.NoError(t, err)
+			require.ElementsMatch(t, c.out, got)
+		})
+	}
+}
+
+func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	hostCount := 1
+	newHost := func(teamID *uint) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String(fmt.Sprintf("foobar%d", hostCount)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey%d", hostCount)),
+			TeamID:        teamID,
+		})
+		require.NoError(t, err)
+		hostCount++
+		return h
+	}
+	newQuery := func(name string, teamID *uint) *fleet.Query {
+		q, err := ds.NewQuery(ctx, &fleet.Query{
+			Name:    name,
+			Query:   "SELECT 1:",
+			TeamID:  teamID,
+			Logging: fleet.LoggingSnapshot,
+		})
+		require.NoError(t, err)
+		return q
+	}
+
+	h0 := newHost(nil)
+	h1 := newHost(&team1.ID)
+	h2 := newHost(&team2.ID)
+	h3 := newHost(&team2.ID)
+
+	hostStaticOnTeam1 := newHost(&team1.ID) // host that we won't move
+
+	query0Global := newQuery("query0Global", nil)
+	query1Team1 := newQuery("query1Team1", &team1.ID)
+	query2Team2 := newQuery("query2Team2", &team2.ID)
+
+	// Transfer h2 from team2 to team1 and back without any query results yet.
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h2.ID})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{h2.ID})
+	require.NoError(t, err)
+
+	data := ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`))
+	h0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h0.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h1Global0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h1.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h1Query1Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h1.ID,
+			QueryID: query1Team1.ID,
+			Data:    data,
+		},
+	}
+	h2Global0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h2.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h2Query2Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h2.ID,
+			QueryID: query2Team2.ID,
+			Data:    data,
+		},
+	}
+	h3Global0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h3.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h3Query2Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  h3.ID,
+			QueryID: query2Team2.ID,
+			Data:    data,
+		},
+	}
+	h4Global0Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  hostStaticOnTeam1.ID,
+			QueryID: query0Global.ID,
+			Data:    data,
+		},
+	}
+	h4Query1Results := []*fleet.ScheduledQueryResultRow{
+		{
+			HostID:  hostStaticOnTeam1.ID,
+			QueryID: query1Team1.ID,
+			Data:    data,
+		},
+	}
+	for _, results := range [][]*fleet.ScheduledQueryResultRow{
+		h0Results,
+		h1Global0Results,
+		h1Query1Results,
+		h2Global0Results,
+		h2Query2Results,
+		h3Global0Results,
+		h3Query2Results,
+		h4Global0Results,
+		h4Query1Results,
+	} {
+		err = ds.OverwriteQueryResultRows(ctx, results)
+		require.NoError(t, err)
+	}
+
+	tf := fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	}
+
+	rows, err := ds.QueryResultRows(ctx, query0Global.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 5)
+	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+
+	// Transfer h2 from team2 to team1.
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h2.ID})
+	require.NoError(t, err)
+	// Transfer h1 from team1 to team2.
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{h1.ID})
+	require.NoError(t, err)
+	// Transfer h3 from team2 to global.
+	err = ds.AddHostsToTeam(ctx, nil, []uint{h3.ID})
+	require.NoError(t, err)
+
+	// No global query results should be deleted
+	rows, err = ds.QueryResultRows(ctx, query0Global.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 5)
+	// Results for h1 should be gone, and results for hostStaticOnTeam1 should be here.
+	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, hostStaticOnTeam1.ID, rows[0].HostID)
+	// Results for h2 and h3 should be gone.
+	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	require.NoError(t, err)
+	require.Empty(t, rows)
+
+	// h1 should have only the global result.
+	h1, err = ds.Host(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, h1.PackStats, 1)
+	require.Len(t, h1.PackStats[0].QueryStats, 1)
+	require.Equal(t, query0Global.ID, h1.PackStats[0].QueryStats[0].ScheduledQueryID)
+
+	// h2 should have only the global result.
+	h2, err = ds.Host(ctx, h2.ID)
+	require.NoError(t, err)
+	require.Len(t, h2.PackStats, 1)
+	require.Len(t, h2.PackStats[0].QueryStats, 1)
+	require.Equal(t, query0Global.ID, h2.PackStats[0].QueryStats[0].ScheduledQueryID)
+
+	// h3 should have only the global result.
+	h3, err = ds.Host(ctx, h3.ID)
+	require.NoError(t, err)
+	require.Len(t, h3.PackStats, 1)
+	require.Len(t, h3.PackStats[0].QueryStats, 1)
+	require.Equal(t, query0Global.ID, h3.PackStats[0].QueryStats[0].ScheduledQueryID)
+
+	// hostStaticOnTeam1 should have the global result and the team1 result.
+	hostStaticOnTeam1, err = ds.Host(ctx, hostStaticOnTeam1.ID)
+	require.NoError(t, err)
+	require.Len(t, hostStaticOnTeam1.PackStats, 2)
+	require.Len(t, hostStaticOnTeam1.PackStats[0].QueryStats, 1)
+	require.Equal(t, query0Global.ID, hostStaticOnTeam1.PackStats[0].QueryStats[0].ScheduledQueryID)
+	require.Len(t, hostStaticOnTeam1.PackStats[1].QueryStats, 1)
+	require.Equal(t, query1Team1.ID, hostStaticOnTeam1.PackStats[1].QueryStats[0].ScheduledQueryID)
 }

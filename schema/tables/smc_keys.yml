@@ -1,11 +1,9 @@
 name: smc_keys
-examples: >-
+examples: |-
   See if the temperature sensor on an Intel Mac is returning values. SMC values
   aren't officially documented and as such this table is useful if you are
   troubleshooting and digging into a specific hardware related issue.
 
   ```
-
   SELECT * FROM smc_keys WHERE key='TC0P';
-
   ```

@@ -9,6 +9,7 @@ The script takes no arguments, but can be configured through three environment v
 - `FLEET_ENROLL_SECRET` (required) The fleet enrollment secret
 - `FLEET_URL` (required) The fleet base url
 - `MACOS_ENROLLMENT_VM_NAME` (optional) The name of the VM. If nothing is specified, the default name is `enrollment-test`.
+- `MACOS_ENROLLMENT_VM_IMAGE` (optional) The image to use for the VM. If nothing is specified, the default image is `ghcr.io/cirruslabs/macos-sonoma-base:latest`
 
 The entire process from the generation of the `pkg` file to the installation is automated. The only part that requires user intervention is installing the MDM profile.
 

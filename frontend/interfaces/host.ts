@@ -206,7 +206,7 @@ export interface IPackStats {
   type: string;
 }
 
-export interface IHostPolicyQuery {
+export interface IPolicyHostResponse {
   id: number;
   display_name: string;
   query_results?: unknown[];

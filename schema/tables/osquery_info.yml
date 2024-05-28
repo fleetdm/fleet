@@ -46,13 +46,11 @@ columns:
       - windows
       - linux
 
-examples: >-
+examples: |-
   See the version of the currently running osquery.
   
   ```
-  
   SELECT version FROM osquery_info; 
-  
   ```
-notes: |
+notes: |-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

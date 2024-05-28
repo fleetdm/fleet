@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -131,7 +132,7 @@ func TestGetTeams(t *testing.T) {
 				require.NoError(t, err)
 				return []*fleet.Team{
 					{
-						ID:          42,
+						ID:          12,
 						CreatedAt:   created_at,
 						Name:        "team1",
 						Description: "team1 description",
@@ -145,7 +146,7 @@ func TestGetTeams(t *testing.T) {
 						},
 					},
 					{
-						ID:          43,
+						ID:          32,
 						CreatedAt:   created_at,
 						Name:        "team2",
 						Description: "team2 description",
@@ -245,11 +246,11 @@ func TestGetTeamsByName(t *testing.T) {
 		}, nil
 	}
 
-	expectedText := `+-----------+------------+------------+
-| TEAM NAME | HOST COUNT | USER COUNT |
-+-----------+------------+------------+
-| team1     |         43 |         99 |
-+-----------+------------+------------+
+	expectedText := `+-----------+---------+------------+------------+
+| TEAM NAME | TEAM ID | HOST COUNT | USER COUNT |
++-----------+---------+------------+------------+
+| team1     |      42 |         43 |         99 |
++-----------+---------+------------+------------+
 `
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams", "--name", "test1"}))
 }
@@ -622,9 +623,9 @@ func TestGetSoftwareTitles(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
-		return []fleet.SoftwareTitle{
+		return []fleet.SoftwareTitleListResult{
 			{
 				Name:          "foo",
 				Source:        "chrome_extensions",
@@ -676,6 +677,7 @@ spec:
 - hosts_count: 2
   id: 0
   name: foo
+  software_package: null
   source: chrome_extensions
   versions:
   - id: 0
@@ -695,6 +697,7 @@ spec:
 - hosts_count: 0
   id: 0
   name: bar
+  software_package: null
   source: deb_packages
   versions:
   - id: 0
@@ -737,7 +740,8 @@ spec:
             "cve-123-456-003"
           ]
         }
-      ]
+      ],
+	  "software_package": null
     },
     {
       "id": 0,
@@ -751,7 +755,8 @@ spec:
           "version": "0.0.3",
 		  "vulnerabilities": null
         }
-      ]
+      ],
+	  "software_package": null
     }
   ]
 }
@@ -944,6 +949,7 @@ apiVersion: v1
 kind: label
 spec:
   description: some description
+  hosts: null
   id: 32
   label_membership_type: dynamic
   name: label1
@@ -954,14 +960,15 @@ apiVersion: v1
 kind: label
 spec:
   description: some other description
+  hosts: null
   id: 33
   label_membership_type: dynamic
   name: label2
   platform: linux
   query: select 42;
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
-{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic"}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "labels"}))
@@ -990,13 +997,14 @@ apiVersion: v1
 kind: label
 spec:
   description: some description
+  hosts: null
   id: 32
   label_membership_type: dynamic
   name: label1
   platform: windows
   query: select 1;
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic"}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))
@@ -2196,7 +2204,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -2214,6 +2224,20 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+		return nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 

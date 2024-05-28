@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
@@ -29,21 +30,28 @@ type commandPayload struct {
 // the caller.
 type MDMAppleCommander struct {
 	storage fleet.MDMAppleStore
+	config  config.MDMConfig
 	pusher  nanomdm_push.Pusher
 }
 
 // NewMDMAppleCommander creates a new commander instance.
-func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
+func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm_push.Pusher, config config.MDMConfig) *MDMAppleCommander {
 	return &MDMAppleCommander{
 		storage: mdmStorage,
 		pusher:  mdmPushService,
+		config:  config,
 	}
 }
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
 func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
-	base64Profile := base64.StdEncoding.EncodeToString(profile)
+	signedProfile, err := mobileconfig.Sign(profile, svc.config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	base64Profile := base64.StdEncoding.EncodeToString(signedProfile)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -59,7 +67,7 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 	</dict>
 </dict>
 </plist>`, uuid, base64Profile)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
 	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 

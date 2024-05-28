@@ -1,3 +1,0 @@
-- Fix a bug where the translate API returned "forbidden" instead of "bad request" for an empty JSON body.
-- Fixed an uncaught bug where "forbidden" would be returned for invalid payload type, which should
-  also be a bad request.

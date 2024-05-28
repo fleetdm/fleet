@@ -69,8 +69,9 @@ interface IHeaderGroup extends HeaderGroup {
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
-// This data table uses react-table for implementation. The relevant documentation of the library
-// can be found here https://react-table.tanstack.com/docs/api/useTable
+// This data table uses react-table for implementation. The relevant v7 documentation of the library
+// can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
+
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
@@ -157,7 +158,7 @@ const DataTable = ({
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
-      filterTypes: React.useMemo(
+      filterTypes: useMemo(
         () => ({
           hasLength: (
             // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -178,7 +179,7 @@ const DataTable = ({
       // Expands the enumerated `sortTypes` for react-table
       // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
       // with custom `sortTypes` defined for this `useTable` instance
-      sortTypes: React.useMemo(
+      sortTypes: useMemo(
         () => ({
           boolean: (
             a: { values: Record<string, unknown> },

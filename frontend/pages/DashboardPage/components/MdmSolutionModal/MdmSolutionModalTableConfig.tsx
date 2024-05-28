@@ -48,7 +48,6 @@ export const generateSolutionsTableHeaders = (
     Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          position="top-start"
           tipContent={
             <>
               The MDM server URL is used to connect hosts with the MDM service.

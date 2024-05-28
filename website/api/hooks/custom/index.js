@@ -88,8 +88,10 @@ will be disabled and/or hidden in the UI.
           from: sails.config.custom.fromEmailAddress,
           fromName: sails.config.custom.fromName,
         });
-
-        if(sails.config.environment === 'production'){
+        // Send a request to our Algolia crawler to reindex the website.
+        // FUTURE: If this breaks again, use the Platform model to store when the website was last crawled
+        // (platform.algoliaLastCrawledWebsiteAt), and then only send a request if it was <30m ago, then remove dyno check.
+        if(sails.config.environment === 'production' && process.env.DYNO === 'web.1'){
           sails.helpers.http.post.with({
             url: `https://crawler.algolia.com/api/1/crawlers/${sails.config.custom.algoliaCrawlerId}/reindex`,
             headers: { 'Authorization': sails.config.custom.algoliaCrawlerApiToken}
@@ -123,9 +125,9 @@ will be disabled and/or hidden in the UI.
 
             var url = require('url');
 
-            // First, if this is a GET request (and thus potentially a view),
+            // First, if this is a GET request (and thus potentially a view) or a HEAD request,
             // attach a couple of guaranteed locals.
-            if (req.method === 'GET') {
+            if (req.method === 'GET' || req.method === 'HEAD') {
 
               // The  `_environment` local lets us do a little workaround to make Vue.js
               // run in "production mode" without unnecessarily involving complexities

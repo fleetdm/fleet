@@ -7,6 +7,7 @@ import (
 type UbuntuResult struct {
 	Definitions  []Definition
 	PackageTests map[int]*DpkgInfoTest
+	UnameTests   map[int]*UnixUnameTest
 }
 
 // NewUbuntuResult is the result of parsing an OVAL file that targets an Ubuntu distro.
@@ -14,6 +15,7 @@ type UbuntuResult struct {
 func NewUbuntuResult() *UbuntuResult {
 	return &UbuntuResult{
 		PackageTests: make(map[int]*DpkgInfoTest),
+		UnameTests:   make(map[int]*UnixUnameTest),
 	}
 }
 
@@ -25,6 +27,10 @@ func (r *UbuntuResult) AddDefinition(def Definition) {
 // AddPackageTest adds a package test to the given result.
 func (r *UbuntuResult) AddPackageTest(id int, tst *DpkgInfoTest) {
 	r.PackageTests[id] = tst
+}
+
+func (r *UbuntuResult) AddUnameTest(id int, tst *UnixUnameTest) {
+	r.UnameTests[id] = tst
 }
 
 func (r UbuntuResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]fleet.SoftwareVulnerability, error) {

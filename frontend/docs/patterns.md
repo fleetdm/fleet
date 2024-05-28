@@ -11,12 +11,15 @@ should be discussed within the team and documented before merged.
 - [Typing](#typing)
 - [Utilities](#utilities)
 - [Components](#components)
-- [React Hooks](#react-hooks)
+- [Forms] (#forms)
+- [React hooks](#react-hooks)
 - [React Context](#react-context)
-- [Fleet API Calls](#fleet-api-calls)
-- [Page Routing](#page-routing)
+- [Fleet API calls](#fleet-api-calls)
+- [Page routing](#page-routing)
 - [Styles](#styles)
-- [Icons and Images](#icons-and-images)
+- [Icons and images](#icons-and-images)
+- [Testing](#testing)
+- [Security considerations](#security-considerations)
 - [Other](#other)
 
 ## Typing
@@ -192,11 +195,30 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
 export default PackComposerPage;
 ```
 
+
+## Forms
+
+### Data validation
+
+Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
+new and possibly former form data) and whose output is an object of formFieldName:errorMessage
+key-value pairs (`Record<string,string>`) e.g.
+
+```
+const validate = (newFormData: IFormData) => {
+  const errors = {};
+  ...
+  return errors;
+}
+```
+The output of `validate` should be used by the calling `onChange` handler to set a `formErrors`
+state. 
+
 ## React hooks
 
 [Hooks](https://reactjs.org/docs/hooks-intro.html) are used to track state and use other features
 of React. Hooks are only allowed in functional components, which are created like so:
-
+  
 ```typescript
 import React, { useState, useEffect } from "React";
 
@@ -344,9 +366,9 @@ Below are a few need-to-knows about what's available in Fleet's CSS:
    action buttons (cancel, save, delete, etc.) and proceed to style as needed.
 
 
-## Icons and Images
+## Icons and images
 
-### Adding Icons
+### Adding icons
 
 To add a new icon:
 
@@ -372,6 +394,20 @@ The icon should now be available to use with the `Icon` component from the given
 
 The recommend line limit per page/component is 500 lines. This is only a recommendation.
 Larger files are to be split into multiple files if possible.
+
+
+## Testing
+
+At a bare minimum, we make every effort to test that components that should render data are doing so
+as expected. For example: `HQRTable.tests.tsx` tests that the `HQRTable` component correctly renders
+data being passed to it.
+
+At a bare minimum, critical bugs released involving the UI will have automated testing discussed at the critical bug post-mortem with a frontend engineer and an engineering manager. We make every effort to add an automated test to either the unit, integration, or E2E layer to prevent the critical bug from resurfacing.
+
+## Security considerations
+
+We make every effort to avoid using the `dangerouslySetInnerHTML` prop. When absolutely necessary to
+use this prop, we make sure to sanitize any user-defined input to it with `DOMPurify.sanitize`
 
 ## Other
 

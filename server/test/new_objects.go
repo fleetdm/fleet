@@ -112,7 +112,7 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 			Name:                "All Hosts",
 			Query:               "select 1",
 			LabelType:           fleet.LabelTypeBuiltIn,
-			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 		},
 		{
 			Name:                "macOS",
@@ -153,6 +153,12 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 		{
 			Name:                "chrome",
 			Query:               "select 1 from os_version where platform = 'chrome';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                fleet.BuiltinLabelMacOS14Plus,
+			Query:               "select 1 from os_version where platform = 'darwin' and major >= 14;",
 			LabelType:           fleet.LabelTypeBuiltIn,
 			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 		},

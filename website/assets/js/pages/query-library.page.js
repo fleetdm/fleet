@@ -57,11 +57,11 @@ parasails.registerPage('query-library', {
     },
 
     clickCard: function (querySlug) {
-      window.location = '/queries/' + querySlug; // we can trust the query slug is url-safe
+      this.goto('/queries/' + querySlug); // we can trust the query slug is url-safe
     },
 
     clickAvatar: function (contributor) {
-      window.location = contributor.htmlUrl;
+      this.goto(contributor.htmlUrl);
     },
 
     getAvatarUrl: function (contributorData) {

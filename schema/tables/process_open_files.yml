@@ -1,10 +1,8 @@
 name: process_open_files
-examples: >-
+examples: |-
   See what processes have which files open, for example, what processes are
   currently interacting with files with 1Password in their name?
 
   ```
-
   SELECT f.path file_path, p.path process_path FROM process_open_files f JOIN processes p ON p.pid = f.pid WHERE f.path LIKE '%1Password%';
-
   ```

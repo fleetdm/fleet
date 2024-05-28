@@ -39,7 +39,7 @@ type Runner struct {
 	// execCmdFn can be set for tests to mock actual execution of the script. If
 	// nil, execCmd will be used, which has a different implementation on Windows
 	// and non-Windows platforms.
-	execCmdFn func(ctx context.Context, scriptPath string) ([]byte, int, error)
+	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
@@ -103,13 +103,11 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		}()
 	}
 
-	ext := ".sh"
+	var ext string
 	if runtime.GOOS == "windows" {
 		ext = ".ps1"
 	}
 	scriptFile := filepath.Join(runDir, "script"+ext)
-	// the file does not need the executable bit set, it will be executed as
-	// argument to powershell or /bin/sh.
 	if err := os.WriteFile(scriptFile, []byte(script.ScriptContents), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write script file: %w", err)
 	}
@@ -119,10 +117,10 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 
 	execCmdFn := r.execCmdFn
 	if execCmdFn == nil {
-		execCmdFn = execCmd
+		execCmdFn = ExecCmd
 	}
 	start := time.Now()
-	output, exitCode, execErr := execCmdFn(ctx, scriptFile)
+	output, exitCode, execErr := execCmdFn(ctx, scriptFile, nil)
 	duration := time.Since(start)
 
 	// report the output or the error

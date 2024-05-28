@@ -21,11 +21,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/pandatix/nvdapi/common"
@@ -36,7 +36,7 @@ import (
 // to the directory specified in the dbDir field in the form of JSON files.
 // It stores the CVE information using the legacy feed format.
 // The reason we decided to store in the legacy format is because
-// the github.com/facebookincubator/nvdtools doesn't yet support parsing
+// the github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools doesn't yet support parsing
 // the new API 2.0 JSON format.
 type CVE struct {
 	client           *http.Client
@@ -183,7 +183,7 @@ func (s *CVE) update(ctx context.Context) error {
 
 func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	// The NVD legacy feed files start at year 2002.
-	// This is assumed by the facebookincubator/nvdtools package.
+	// This is assumed by the github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools package.
 	if year < 2002 {
 		year = 2002
 	}
@@ -600,8 +600,6 @@ func (s *CVE) downloadVulnCheckArchive(ctx context.Context, downloadURL, outFile
 }
 
 func (s *CVE) processVulnCheckFile(fileName string) error {
-	cvesByYear := make(map[int][]VulnCheckCVE)
-
 	sanitizedPath, err := sanitizeArchivePath(s.dbDir, fileName)
 	if err != nil {
 		return fmt.Errorf("error sanitizing archive path: %w", err)
@@ -617,15 +615,14 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 		return zipReader.File[i].Name > zipReader.File[j].Name
 	})
 
-	var data VulnCheckBackupDataFile
-	var stopProcessing bool
-
 	// files are in reverse chronological order by modification date
 	// so we can stop processing files once we find one that is older
 	// than the configured vulnCheckStartDate
 	var addCount int
 	var modCount int
 	for _, file := range zipReader.File {
+		cvesByYear := make(map[int][]VulnCheckCVE)
+		var stopProcessing bool
 
 		gzFile, err := file.Open()
 		if err != nil {
@@ -637,6 +634,7 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			return fmt.Errorf("error creating gzip reader for file %s: %w", file.Name, err)
 		}
 
+		var data VulnCheckBackupDataFile
 		if err := json.NewDecoder(gReader).Decode(&data); err != nil {
 			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
 		}

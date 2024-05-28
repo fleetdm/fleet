@@ -6,6 +6,9 @@ module.exports = {
 
   description: 'Display "Login" page.',
 
+  inputs: {
+
+  },
 
   exits: {
 
@@ -31,7 +34,7 @@ module.exports = {
       }
     }
 
-    return {};
+    return;
 
   }
 

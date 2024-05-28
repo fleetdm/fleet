@@ -59,6 +59,7 @@ func TestLabels(t *testing.T) {
 		{"GetSpec", testLabelsGetSpec},
 		{"ApplySpecsRoundtrip", testLabelsApplySpecsRoundtrip},
 		{"IDsByName", testLabelsIDsByName},
+		{"ByName", testLabelsByName},
 		{"Save", testLabelsSave},
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
@@ -68,7 +69,10 @@ func TestLabels(t *testing.T) {
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
 		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
+		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 	}
+	// call TruncateTables first to remove migration-created labels
+	TruncateTables(t, ds)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
@@ -92,15 +96,13 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	err = db.UpdateHost(context.Background(), host)
 	require.NoError(t, err)
 
-	// No labels to check
 	queries, err := db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
-	// Only 'All Hosts' label should be returned
 	labels, err := db.ListLabelsForHost(context.Background(), host.ID)
 	assert.Nil(t, err)
-	assert.Len(t, labels, 1)
+	assert.Len(t, labels, 1) // all hosts only
 
 	newLabels := []*fleet.LabelSpec{
 		// Note these are intentionally out of order
@@ -215,13 +217,13 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	err := db.ApplyLabelSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	all, err := db.Label(context.Background(), specs[len(specs)-1].ID)
-	require.Nil(t, err)
-	l3, err := db.Label(context.Background(), specs[2].ID)
-	require.Nil(t, err)
-
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
+
+	all, _, err := db.Label(context.Background(), specs[len(specs)-1].ID, filter)
+	require.Nil(t, err)
+	l3, _, err := db.Label(context.Background(), specs[2].ID, filter)
+	require.Nil(t, err)
 
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
@@ -663,7 +665,8 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&label})
 	require.Nil(t, err)
 
-	saved, err := db.Label(context.Background(), label.ID)
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+	saved, _, err := db.Label(context.Background(), label.ID, filter)
 	require.Nil(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 }
@@ -754,6 +757,30 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, map[string]uint{"foo": 1, "bar": 2, "bing": 3}, labels)
 }
 
+func testLabelsByName(t *testing.T, ds *Datastore) {
+	setupLabelSpecsTest(t, ds)
+
+	names := []string{"foo", "bar", "bing"}
+	labels, err := ds.LabelsByName(context.Background(), names)
+	require.NoError(t, err)
+	require.Len(t, labels, 3)
+	for _, name := range names {
+		assert.Contains(t, labels, name)
+		assert.Equal(t, name, labels[name].Name)
+		switch name {
+		case "foo":
+			assert.Equal(t, uint(1), labels[name].ID)
+			assert.Equal(t, "foo description", labels[name].Description)
+		case "bar":
+			assert.Equal(t, uint(2), labels[name].ID)
+			assert.Empty(t, labels[name].Description)
+		case "bing":
+			assert.Equal(t, uint(3), labels[name].ID)
+			assert.Empty(t, labels[name].Description)
+		}
+	}
+}
+
 func testLabelsSave(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -780,9 +807,10 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
-	_, err = db.SaveLabel(context.Background(), label)
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+	_, _, err = db.SaveLabel(context.Background(), label, filter)
 	require.NoError(t, err)
-	saved, err := db.Label(context.Background(), label.ID)
+	saved, _, err := db.Label(context.Background(), label.ID, filter)
 	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
@@ -1428,4 +1456,124 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 		hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}, 1)
 		checkHosts(t, hosts, []uint{h2.ID})
 	})
+}
+
+func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("1"),
+		NodeKey:       ptr.String("1"),
+		UUID:          "1",
+		Hostname:      "foo.local",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("2"),
+		NodeKey:       ptr.String("2"),
+		UUID:          "2",
+		Hostname:      "bar.local",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	err = ds.AddLabelsToHost(ctx, host1.ID, nil)
+	require.NoError(t, err)
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, nil)
+	require.NoError(t, err)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "label1",
+		Query:               "SELECT 1;",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "label2",
+		Query:               "SELECT 2;",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+
+	// Removing a label and multiple labels that the host is not a member of.
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID})
+	require.NoError(t, err)
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+	// Adding and removing labels.
+	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID})
+	require.NoError(t, err)
+	lbl, hids, err := ds.Label(ctx, label1.ID, filter)
+	require.NoError(t, err)
+	require.Equal(t, label1.ID, lbl.ID)
+	require.ElementsMatch(t, []uint{host1.ID}, hids)
+	getLabelUpdatedAt := func(updatedAt *time.Time) func(q sqlx.ExtContext) error {
+		return func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, updatedAt, `SELECT updated_at FROM label_membership WHERE host_id = ? AND label_id = ?`, host1.ID, label1.ID)
+		}
+	}
+	var labelUpdatedAt1 time.Time
+	ExecAdhocSQL(t, ds, getLabelUpdatedAt(&labelUpdatedAt1))
+	time.Sleep(1 * time.Second)
+	// Add a label that the host is already member of.
+	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID})
+	require.NoError(t, err)
+	var labelUpdatedAt2 time.Time
+	ExecAdhocSQL(t, ds, getLabelUpdatedAt(&labelUpdatedAt2))
+	require.True(t, labelUpdatedAt2.After(labelUpdatedAt1))
+	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+	labels2, err := ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Empty(t, labels2)
+
+	// Removing a label that the host is a member of
+	// and one that the host is not a member of.
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Empty(t, labels)
+
+	// Add and remove multiple labels.
+	err = ds.AddLabelsToHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 2)
+
+	err = ds.AddLabelsToHost(ctx, host2.ID, []uint{label1.ID})
+	require.NoError(t, err)
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	lbl, hids, err = ds.Label(ctx, label1.ID, filter)
+	require.NoError(t, err)
+	require.Equal(t, label1.ID, lbl.ID)
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, hids)
+
+	err = ds.RemoveLabelsFromHost(ctx, host1.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Empty(t, labels)
+}
+
+func labelIDFromName(t *testing.T, ds fleet.Datastore, name string) uint {
+	allLbls, err := ds.ListLabels(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	require.Nil(t, err)
+	for _, lbl := range allLbls {
+		if lbl.Name == name {
+			return lbl.ID
+		}
+	}
+	return 0
 }

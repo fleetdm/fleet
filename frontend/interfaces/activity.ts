@@ -1,6 +1,6 @@
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
-import { IScheduledQueryStats } from "./scheduled_query_stats";
+import { ISchedulableQueryStats } from "./schedulable_query";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -70,13 +70,18 @@ export enum ActivityType {
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
+  ResentConfigurationProfile = "resent_configuration_profile",
+  AddedSoftware = "added_software",
+  DeletedSoftware = "deleted_software",
+  InstalledSoftware = "installed_software",
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
-export type IHostPastActivityType =
+export type IHostActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
-  | ActivityType.UnlockedHost;
+  | ActivityType.UnlockedHost
+  | ActivityType.InstalledSoftware;
 
 export interface IActivity {
   created_at: string;
@@ -89,8 +94,9 @@ export interface IActivity {
   details?: IActivityDetails;
 }
 
-export type IPastActivity = Omit<IActivity, "type"> & {
-  type: IHostPastActivityType;
+export type IHostActivity = Omit<IActivity, "type" | "details"> & {
+  type: IHostActivityType;
+  details: IActivityDetails;
 };
 
 export interface IActivityDetails {
@@ -117,6 +123,7 @@ export interface IActivityDetails {
   host_display_name?: string;
   host_display_names?: string[];
   host_ids?: number[];
+  host_id?: number;
   host_platform?: string;
   installed_from_dep?: boolean;
   mdm_platform?: "microsoft" | "apple";
@@ -130,6 +137,9 @@ export interface IActivityDetails {
   script_name?: string;
   deadline_days?: number;
   grace_period_days?: number;
-  stats?: IScheduledQueryStats;
-  host_id?: number;
+  stats?: ISchedulableQueryStats;
+  software_title?: string;
+  software_package?: string;
+  status?: string;
+  install_uuid?: string;
 }

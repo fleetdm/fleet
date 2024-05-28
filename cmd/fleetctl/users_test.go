@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -33,7 +34,9 @@ func TestUserDelete(t *testing.T) {
 		deletedUser = id
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		assert.Equal(t, fleet.ActivityTypeDeletedUser{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
@@ -65,7 +68,9 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, &notFoundError{}
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -123,7 +128,9 @@ func TestCreateBulkUsers(t *testing.T) {
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -154,7 +161,9 @@ func TestCreateBulkUsers(t *testing.T) {
 
 func TestDeleteBulkUsers(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	csvFilePath := writeTmpCsv(t,
