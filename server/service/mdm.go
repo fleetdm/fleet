@@ -2148,9 +2148,17 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 
 	// Check if we have existing certs and keys
 	var apnsKey *rsa.PrivateKey
-	savedAssets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	savedAssets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+		fleet.MDMAssetCAKey,
+		fleet.MDMAssetAPNSKey,
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking asset existence")
+		// allow not found errors as it means we're generating the assets for
+		// the first time.
+		if !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
+		}
 	}
 
 	if len(savedAssets) == 0 {
@@ -2182,14 +2190,11 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 			return nil, ctxerr.Wrap(ctx, err, "inserting mdm config assets")
 		}
 	} else {
-		for _, a := range savedAssets {
-			if a.Name == fleet.MDMAssetAPNSKey {
-				block, _ := pem.Decode(a.Value)
-				apnsKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "unmarshaling saved apns key")
-				}
-			}
+		rawApnsKey := savedAssets[fleet.MDMAssetAPNSKey]
+		block, _ := pem.Decode(rawApnsKey.Value)
+		apnsKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling saved apns key")
 		}
 	}
 
@@ -2306,23 +2311,18 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return err
 	}
 
-	assets, err := svc.ds.GetMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSKey})
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "Please generate a private key first.",
+			}, "uploading APNs certificate")
+		}
+
 		return ctxerr.Wrap(ctx, err, "retrieving APNs key")
 	}
 
-	if len(assets) == 0 {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: "Please generate a private key first.",
-		}, "uploading APNs certificate")
-	}
-
-	// this should never happen
-	if len(assets) != 1 || assets[0].Name != fleet.MDMAssetAPNSKey {
-		return ctxerr.New(ctx, "corrupt APNs information stored in the database")
-	}
-
-	_, err = tls.X509KeyPair(certBytes, assets[0].Value)
+	_, err = tls.X509KeyPair(certBytes, assets[fleet.MDMAssetAPNSKey].Value)
 	if err != nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}

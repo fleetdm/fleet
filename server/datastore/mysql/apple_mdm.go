@@ -4146,7 +4146,12 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
-func (ds *Datastore) GetMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+
+	if len(assetNames) == 0 {
+		return nil, nil
+	}
+
 	stmt := `
 SELECT
     name, value
@@ -4159,7 +4164,7 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, assetNames)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In GetMDMConfigAssetsByName")
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
 	}
 
 	var res []fleet.MDMConfigAsset
@@ -4167,7 +4172,20 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
 	}
 
-	return res, nil
+	if len(res) == 0 {
+		return nil, notFound("MDMConfigAsset")
+	}
+
+	assetMap := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(res))
+	for _, asset := range res {
+		assetMap[asset.Name] = asset
+	}
+
+	if len(res) < len(assetNames) {
+		return assetMap, ErrPartialResult
+	}
+
+	return assetMap, nil
 }
 
 func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {

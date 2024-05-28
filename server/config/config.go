@@ -636,6 +636,31 @@ func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleSCEP, m.appleSCEPPEMCert, m.appleSCEPPEMKey, nil
 }
 
+// DecryptAndValidateABMToken tries to decrypt and do basic validations on the
+// provided encrypted ABM token using the cert/key provided.
+//
+// TODO(roberto): I don't believe this function belongs here, but the proper
+// place is still uncertain until we get to
+// https://github.com/fleetdm/fleet/issues/19180
+func DecryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
+	bmKey, err := tokenpki.RSAKeyFromPEM(keyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
+	}
+	token, err := tokenpki.DecryptTokenJSON(tokenBytes, cert, bmKey)
+	if err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: decrypt token: %w", err)
+	}
+	var jsonTok nanodep_client.OAuth1Tokens
+	if err := json.Unmarshal(token, &jsonTok); err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
+	}
+	if jsonTok.AccessTokenExpiry.Before(time.Now()) {
+		return nil, errors.New("Apple BM configuration: token is expired")
+	}
+	return &jsonTok, nil
+}
+
 // AppleBM returns the parsed, validated and decrypted server token for Apple
 // Business Manager. It also parses and validates the Apple BM certificate and
 // private key in the process, in order to decrypt the token.
@@ -655,22 +680,11 @@ func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("Apple BM configuration: %w", err)
 		}
-		bmKey, err := tokenpki.RSAKeyFromPEM(pair.keyBytes)
+		jsonTok, err := DecryptAndValidateABMToken(encToken, cert.Leaf, pair.keyBytes)
 		if err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
+			return nil, err
 		}
-		token, err := tokenpki.DecryptTokenJSON(encToken, cert.Leaf, bmKey)
-		if err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: decrypt token: %w", err)
-		}
-		var jsonTok nanodep_client.OAuth1Tokens
-		if err := json.Unmarshal(token, &jsonTok); err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
-		}
-		if jsonTok.AccessTokenExpiry.Before(time.Now()) {
-			return nil, errors.New("Apple BM configuration: token is expired")
-		}
-		m.appleBMToken = &jsonTok
+		m.appleBMToken = jsonTok
 	}
 	return m.appleBMToken, nil
 }
