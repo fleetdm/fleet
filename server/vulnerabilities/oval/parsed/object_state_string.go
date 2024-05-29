@@ -58,7 +58,7 @@ func (sta ObjectStateString) ParseKernelVariants() []string {
 
 	re := regexp.MustCompile(pattern)
 
-	match := re.FindStringSubmatch(string(v))
+	match := re.FindStringSubmatch(v)
 	if len(match) < 2 {
 		return []string{}
 	}

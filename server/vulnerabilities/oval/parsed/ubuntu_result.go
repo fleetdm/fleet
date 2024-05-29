@@ -44,10 +44,6 @@ func (r *UbuntuResult) AddKernelVariant(v string) {
 	r.KernelVariants = append(r.KernelVariants, v)
 }
 
-func parseKernelVariants(s string) []string {
-	return strings.Fields(s)
-}
-
 func (r UbuntuResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]fleet.SoftwareVulnerability, error) {
 	// Test Id => Matching software
 	pkgTstResults := make(map[int][]fleet.Software)
