@@ -10,10 +10,12 @@ import CustomLink from "components/CustomLink";
 import Slider from "components/forms/fields/Slider";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Graphic from "components/Graphic";
 import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
 import { syntaxHighlight } from "utilities/helpers";
+import Icon from "components/Icon";
+import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
+import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
 
 const baseClass = "calendar-events-modal";
 
@@ -68,31 +70,54 @@ const CalendarEventsModal = ({
     false
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
+  const [selectedPolicyToPreview, setSelectedPolicyToPreview] = useState<
+    IPolicy | undefined
+  >();
 
-  const validateCalendarEventsFormData = (
-    curFormData: ICalendarEventsFormData
-  ) => {
+  // Used on URL change only when URL error exists and always on attempting to save
+  const validateForm = (newFormData: ICalendarEventsFormData) => {
     const errors: Record<string, string> = {};
-    if (curFormData.enabled) {
-      const { url: curUrl } = curFormData;
-      if (!validURL({ url: curUrl })) {
-        const errorPrefix = curUrl ? `${curUrl} is not` : "Please enter";
-        errors.url = `${errorPrefix} a valid resolution webhook URL`;
-      }
+    const { url: newUrl } = newFormData;
+    if (
+      formData.enabled &&
+      !validURL({ url: newUrl || "", protocols: ["http", "https"] })
+    ) {
+      const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
+      errors.url = `${errorPrefix} a valid resolution webhook URL`;
     }
+
     return errors;
   };
 
-  // two onChange handlers to handle different levels of nesting in the form data
-  const onFeatureEnabledOrUrlChange = useCallback(
-    (newVal: { name: "enabled" | "url"; value: string | boolean }) => {
-      const { name, value } = newVal;
-      const newFormData = { ...formData, [name]: value };
-      setFormData(newFormData);
-      setFormErrors(validateCalendarEventsFormData(newFormData));
-    },
-    [formData]
-  );
+  const onFeatureEnabledChange = () => {
+    const newFormData = { ...formData, enabled: !formData.enabled };
+
+    const isDisabling = newFormData.enabled === false;
+
+    // On disabling feature, validate URL and if an error clear input and error
+    if (isDisabling) {
+      const errors = validateForm(newFormData);
+
+      if (errors.url) {
+        newFormData.url = "";
+        delete formErrors.url;
+        setFormErrors(formErrors);
+      }
+    }
+
+    setFormData(newFormData);
+  };
+
+  const onUrlChange = (value: string) => {
+    const newFormData = { ...formData, url: value };
+    // On URL change with erroneous URL, validate form
+    if (formErrors.url) {
+      setFormErrors(validateForm(newFormData));
+    }
+
+    setFormData(newFormData);
+  };
+
   const onPolicyEnabledChange = useCallback(
     (newVal: { name: FormNames; value: boolean }) => {
       const { name, value } = newVal;
@@ -104,10 +129,19 @@ const CalendarEventsModal = ({
       });
       const newFormData = { ...formData, policies: newFormPolicies };
       setFormData(newFormData);
-      setFormErrors(validateCalendarEventsFormData(newFormData));
     },
     [formData]
   );
+
+  const onUpdatePolicyEnabledCalendarEvents = () => {
+    const errors = validateForm(formData);
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+    } else {
+      updatePolicyEnabledCalendarEvents(formData);
+    }
+  };
 
   const togglePreviewCalendarEvent = () => {
     setShowPreviewCalendarEvent(!showPreviewCalendarEvent);
@@ -141,23 +175,40 @@ const CalendarEventsModal = ({
     return (
       <div className="form-field">
         <div className="form-field__label">Policies:</div>
-        {formData.policies.map((policy) => {
-          const { isChecked, name, id } = policy;
-          return (
-            <div key={id}>
-              <Checkbox
-                value={isChecked}
-                name={name}
-                // can't use parseTarget as value needs to be set to !currentValue
-                onChange={() => {
-                  onPolicyEnabledChange({ name, value: !isChecked });
-                }}
-              >
-                {name}
-              </Checkbox>
-            </div>
-          );
-        })}
+        <div className="automated-policies-section">
+          {formData.policies.map((policy) => {
+            const { isChecked, name, id } = policy;
+            return (
+              <div className="checkbox-row" id={`checkbox-row--${id}`} key={id}>
+                <Checkbox
+                  value={isChecked}
+                  name={name}
+                  // can't use parseTarget as value needs to be set to !currentValue
+                  onChange={() => {
+                    onPolicyEnabledChange({ name, value: !isChecked });
+                  }}
+                  smallTick
+                >
+                  {name}
+                </Checkbox>
+                <div>
+                  <Button
+                    variant="text-icon"
+                    onClick={() => {
+                      setSelectedPolicyToPreview(
+                        policies.find((p) => p.id === id)
+                      );
+                      togglePreviewCalendarEvent();
+                    }}
+                    className="checkbox-row__preview-button"
+                  >
+                    <Icon name="eye" /> Preview
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
         <span className="form-field__help-text">
           A calendar event will be created for end users if one of their hosts
           fail any of these policies.{" "}
@@ -170,32 +221,12 @@ const CalendarEventsModal = ({
       </div>
     );
   };
-  const renderPreviewCalendarEventModal = () => {
-    return (
-      <Modal
-        title="Calendar event preview"
-        width="large"
-        onExit={togglePreviewCalendarEvent}
-        className="calendar-event-preview"
-      >
-        <>
-          <p>A similar event will appear in the end user&apos;s calendar:</p>
-          <Graphic name="calendar-event-preview" />
-          <div className="modal-cta-wrap">
-            <Button onClick={togglePreviewCalendarEvent} variant="brand">
-              Done
-            </Button>
-          </div>
-        </>
-      </Modal>
-    );
-  };
 
   const renderPlaceholderModal = () => {
     return (
       <div className="placeholder">
         <a href="https://www.fleetdm.com/learn-more-about/calendar-events">
-          <Graphic name="calendar-event-preview" />
+          <img src={CalendarPreview} alt="Calendar preview" />
         </a>
         <div>
           To create calendar events for end users if their hosts fail policies,
@@ -224,19 +255,17 @@ const CalendarEventsModal = ({
       <div className="form-header">
         <Slider
           value={formData.enabled}
-          onChange={() => {
-            onFeatureEnabledOrUrlChange({
-              name: "enabled",
-              value: !formData.enabled,
-            });
-          }}
+          onChange={onFeatureEnabledChange}
           inactiveText="Disabled"
           activeText="Enabled"
         />
         <Button
           type="button"
           variant="text-link"
-          onClick={togglePreviewCalendarEvent}
+          onClick={() => {
+            setSelectedPolicyToPreview(undefined);
+            togglePreviewCalendarEvent();
+          }}
         >
           Preview calendar event
         </Button>
@@ -247,14 +276,12 @@ const CalendarEventsModal = ({
         <InputField
           placeholder="https://server.com/example"
           label="Resolution webhook URL"
-          onChange={onFeatureEnabledOrUrlChange}
+          onChange={onUrlChange}
           name="url"
           value={formData.url}
-          parseTarget
           error={formErrors.url}
           tooltip="Provide a URL to deliver a webhook request to."
-          labelTooltipPosition="top-start"
-          helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
+          helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
         />
         <RevealButton
           isShowing={showExamplePayload}
@@ -273,9 +300,7 @@ const CalendarEventsModal = ({
         <Button
           type="submit"
           variant="brand"
-          onClick={() => {
-            updatePolicyEnabledCalendarEvents(formData);
-          }}
+          onClick={onUpdatePolicyEnabledCalendarEvents}
           className="save-loading"
           isLoading={isUpdating}
           disabled={Object.keys(formErrors).length > 0}
@@ -290,8 +315,14 @@ const CalendarEventsModal = ({
   );
 
   if (showPreviewCalendarEvent) {
-    return renderPreviewCalendarEventModal();
+    return (
+      <CalendarEventPreviewModal
+        onCancel={togglePreviewCalendarEvent}
+        policy={selectedPolicyToPreview}
+      />
+    );
   }
+
   return (
     <Modal
       title="Calendar events"

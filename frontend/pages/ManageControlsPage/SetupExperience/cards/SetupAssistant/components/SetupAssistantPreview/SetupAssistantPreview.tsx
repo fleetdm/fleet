@@ -2,7 +2,7 @@ import React from "react";
 
 import Card from "components/Card";
 
-import OsSetupPreview from "../../../../../../../../assets/images/os-setup-preview.gif";
+import OsPrefillPreview from "../../../../../../../../assets/images/os-prefill-preview.gif";
 
 const baseClass = "setup-assistant-preview";
 
@@ -25,7 +25,7 @@ const SetupAssistantPreview = () => {
       </p>
       <img
         className={`${baseClass}__preview-img`}
-        src={OsSetupPreview}
+        src={OsPrefillPreview}
         alt="OS setup preview"
       />
     </Card>

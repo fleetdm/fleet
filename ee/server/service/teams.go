@@ -101,7 +101,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedTeam{
@@ -214,7 +214,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		// Only update the calendar integration if it's not nil
 		if payload.Integrations.GoogleCalendar != nil {
 			invalid := &fleet.InvalidArgumentError{}
-			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, invalid)
+			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, false, invalid)
 			if invalid.HasErrors() {
 				return nil, ctxerr.Wrap(ctx, invalid)
 			}
@@ -249,7 +249,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 	if macOSMinVersionUpdated {
-		if err := svc.ds.NewActivity(
+		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")
+		}
+
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedMacOSMinVersion{
@@ -279,7 +283,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "disable team windows OS updates")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedWindowsUpdates{
@@ -305,7 +309,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
@@ -353,7 +357,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedAgentOptions{
@@ -568,7 +572,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedTeam{
@@ -724,7 +728,9 @@ func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fle
 	return nil
 }
 
-func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) (map[string]uint, error) {
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (
+	map[string]uint, error,
+) {
 	if len(specs) == 0 {
 		setAuthCheckedOnPreAuthErr(ctx)
 		// Nothing to do.
@@ -810,7 +816,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			continue
 		}
 
-		if err := svc.editTeamFromSpec(ctx, team, spec, appConfig, secrets, applyOpts.DryRun); err != nil {
+		if err := svc.editTeamFromSpec(ctx, team, spec, appConfig, secrets, applyOpts); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "editing team from spec")
 		}
 
@@ -827,7 +833,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if !applyOpts.DryRun {
-			if err := svc.ds.NewActivity(
+			if err := svc.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeAppliedSpecTeam{
@@ -946,7 +952,7 @@ func (svc *Service) createTeamFromSpec(
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name},
@@ -963,7 +969,7 @@ func (svc *Service) editTeamFromSpec(
 	spec *fleet.TeamSpec,
 	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
-	dryRun bool,
+	opts fleet.ApplyTeamSpecOptions,
 ) error {
 	team.Name = spec.Name
 
@@ -984,8 +990,10 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
+	var mdmMacOSUpdatesEdited bool
 	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+		mdmMacOSUpdatesEdited = true
 	}
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
@@ -1058,8 +1066,12 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
+		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
+	}
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
-		if !appCfg.MDM.WindowsEnabledAndConfigured &&
+		if !windowsEnabledAndConfigured &&
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
@@ -1071,6 +1083,10 @@ func (svc *Service) editTeamFromSpec(
 
 	if spec.Scripts.Set {
 		team.Config.Scripts = spec.Scripts
+	}
+
+	if spec.Software.Set {
+		team.Config.Software = spec.Software
 	}
 
 	if len(secrets) > 0 {
@@ -1095,7 +1111,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
-		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, invalid)
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
@@ -1106,7 +1122,7 @@ func (svc *Service) editTeamFromSpec(
 		return ctxerr.Wrap(ctx, invalid)
 	}
 
-	if dryRun {
+	if opts.DryRun {
 		return nil
 	}
 
@@ -1134,7 +1150,7 @@ func (svc *Service) editTeamFromSpec(
 				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
@@ -1165,18 +1181,24 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	if mdmMacOSUpdatesEdited {
+		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(
 	calendarIntegration *fleet.TeamGoogleCalendarIntegration,
-	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+	appCfg *fleet.AppConfig, dryRun bool, invalid *fleet.InvalidArgumentError,
 ) error {
 	if !calendarIntegration.Enable {
 		return nil
 	}
-	// Check that global configs exist
-	if len(appCfg.Integrations.GoogleCalendar) == 0 {
+	// Check that global configs exist. During dry run, the global config may not be available yet.
+	if len(appCfg.Integrations.GoogleCalendar) == 0 && !dryRun {
 		invalid.Append("integrations.google_calendar.enable_calendar_events", "global Google Calendar integration is not configured")
 	}
 	// Validate URL
@@ -1275,7 +1297,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 					return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 				}
 			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 			}
 		}

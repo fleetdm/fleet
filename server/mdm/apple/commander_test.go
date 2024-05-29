@@ -3,10 +3,10 @@ package apple_mdm
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -15,7 +15,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/google/uuid"
+	"github.com/groob/plist"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 func TestMDMAppleCommander(t *testing.T) {
@@ -28,7 +31,10 @@ func TestMDMAppleCommander(t *testing.T) {
 		pushFactory,
 		stdlogfmt.New(),
 	)
-	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher, config.MDMConfig{
+		AppleSCEPCert: "../../service/testdata/server.pem",
+		AppleSCEPKey:  "../../service/testdata/server.key",
+	})
 
 	// TODO(roberto): there's a data race in the mock when more
 	// than one host ID is provided because the pusher uses one
@@ -41,7 +47,11 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 		require.NotNil(t, cmd)
 		require.Equal(t, cmd.Command.RequestType, "InstallProfile")
-		require.Contains(t, string(cmd.Raw), base64.StdEncoding.EncodeToString(mc))
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+		require.NoError(t, err)
+		require.Equal(t, string(p7.Content), string(mc))
 		return nil, nil
 	}
 

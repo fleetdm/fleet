@@ -1,8 +1,8 @@
 package nvd
 
 import (
-	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 type IndexedCPEItem struct {

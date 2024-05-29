@@ -5,8 +5,6 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-
 import {
   HostMdmDeviceStatusUIState,
   isDeviceStatusUpdating,
@@ -77,8 +75,8 @@ interface IHostActionConfigOptions {
   isMacMdmEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
-  isSandboxMode: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
+  hostScriptsEnabled: boolean | null;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -238,7 +236,7 @@ const canRunScript = ({
   );
 };
 
-const filterOutOptions = (
+const removeUnavailableOptions = (
   options: IDropdownOption[],
   config: IHostActionConfigOptions
 ) => {
@@ -282,13 +280,43 @@ const filterOutOptions = (
   return options;
 };
 
-const setOptionsAsDisabled = (
+const modifyOptions = (
   options: IDropdownOption[],
-  { isHostOnline, isSandboxMode, hostMdmDeviceStatus }: IHostActionConfigOptions
+  {
+    isHostOnline,
+    hostMdmDeviceStatus,
+    hostScriptsEnabled,
+    hostPlatform,
+  }: IHostActionConfigOptions
 ) => {
+  // Available tooltips for disabled options
+  const getDropdownOptionTooltipContent = (value: string | number) => {
+    const tooltipAction: Record<string, string> = {
+      runScript: "run scripts on",
+      wipe: "wipe",
+      lock: "lock",
+      unlock: "unlock",
+    };
+    if (tooltipAction[value]) {
+      return (
+        <>
+          To {tooltipAction[value]} this host, deploy the
+          <br />
+          fleetd agent with --enable-scripts and
+          <br />
+          refetch host vitals
+        </>
+      );
+    }
+    if (!isHostOnline && value === "query") {
+      return <>You can&apos;t query an offline host.</>;
+    }
+  };
+
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
       option.disabled = true;
+      option.tooltipContent = getDropdownOptionTooltipContent(option.value);
     });
   };
 
@@ -305,12 +333,33 @@ const setOptionsAsDisabled = (
       )
     );
   }
-  if (isSandboxMode) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "transfer")
-    );
-  }
 
+  // null intentionally excluded from this condition:
+  // scripts_enabled === null means this agent is not an orbit agent, or this agent is version
+  // <=1.23.0 which is not collecting the scripts enabled info
+  // in each of these cases, we maintain these options
+  if (hostScriptsEnabled === false) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "runScript")
+    );
+    if (isLinuxLike(hostPlatform)) {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter(
+          (option) =>
+            option.value === "lock" ||
+            option.value === "unlock" ||
+            option.value === "wipe"
+        )
+      );
+    }
+    if (hostPlatform === "windows") {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter(
+          (option) => option.value === "lock" || option.value === "unlock"
+        )
+      );
+    }
+  }
   disableOptions(optionsToDisable);
   return options;
 };
@@ -324,28 +373,11 @@ const setOptionsAsDisabled = (
 export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   // deep clone to always start with a fresh copy of the default options.
   let options: IDropdownOption[] = cloneDeep([...DEFAULT_OPTIONS]);
-  options = filterOutOptions(options, config);
+  options = removeUnavailableOptions(options, config);
 
   if (options.length === 0) return options;
 
-  options = setOptionsAsDisabled(options, config);
-
-  if (config.isSandboxMode) {
-    const premiumOnlyOptions: IDropdownOption[] = options.filter(
-      (option) => !!option.premiumOnly
-    );
-
-    premiumOnlyOptions.forEach((option) => {
-      option.label = (
-        <span>
-          {option.label}
-          <PremiumFeatureIconWithTooltip
-            tooltipPositionOverrides={{ leftAdj: 2 }}
-          />
-        </span>
-      );
-    });
-  }
+  options = modifyOptions(options, config);
 
   return options;
 };

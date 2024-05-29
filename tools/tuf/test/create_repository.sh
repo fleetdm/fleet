@@ -29,7 +29,7 @@ SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
 SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.11.0
+    OSQUERY_VERSION=5.12.2
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -82,7 +82,7 @@ for system in $SYSTEMS; do
        ORBIT_BINARY_PATH=$orbit_target \
        go run ./orbit/tools/build/build.go
     else
-      GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+      CGO_ENABLED=0 GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \

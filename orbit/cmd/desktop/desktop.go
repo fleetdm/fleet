@@ -59,6 +59,13 @@ func setupRunners() {
 }
 
 func main() {
+	// Orbits uses --version to get the fleet-desktop version. Logs do not need to be set up when running this.
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		// Must work with update.GetVersion
+		fmt.Println("fleet-desktop", version)
+		return
+	}
+
 	setupLogs()
 	setupStderr()
 

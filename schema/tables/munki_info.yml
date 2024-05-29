@@ -1,16 +1,14 @@
 name: munki_info
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Information from the last [Munki](https://github.com/munki/munki) run.
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Output errors, warnings and problematic installations from Munki.
 
   ```
-  
   SELECT errors, warnings, problem_installs FROM munki_info ;
-  
   ```
 columns:
   - name: console_user

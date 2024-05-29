@@ -12,6 +12,10 @@
     margin-block-start: $pad-small;
   }
 
+  ul {
+    margin: 0;
+  }
+
   li {
     margin: $pad-small 0;
   }
@@ -27,6 +31,7 @@
   }
 
   &__api-key-json {
+    font-family: "SourceCodePro", $monospace;
     min-width: 100%; // resize vertically only
     height: 294px;
     font-size: $x-small;

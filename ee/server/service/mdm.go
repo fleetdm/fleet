@@ -80,7 +80,7 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllDEPStora
 			// Request.
 			msg := err.Error()
 			if authErr.StatusCode == http.StatusUnauthorized {
-				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm for help."
+				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/learn-more-about/setup-abm for help."
 			}
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message:     msg,
@@ -268,7 +268,7 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	} else {
 		act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{TeamID: teamID, TeamName: teamName}
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
 	}
 	return nil
@@ -353,7 +353,10 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		return err
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx),
+		fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for upload bootstrap package")
 	}
 
@@ -418,7 +421,10 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamID, TeamName: ptrTeamName}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: meta.Name, TeamID: ptrTeamID, TeamName: ptrTeamName},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for delete bootstrap package")
 	}
 
@@ -586,11 +592,12 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
 		}
 
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeChangedMacosSetupAssistant{
-			TeamID:   newAsst.TeamID,
-			TeamName: teamName,
-			Name:     newAsst.Name,
-		}); err != nil {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeChangedMacosSetupAssistant{
+				TeamID:   newAsst.TeamID,
+				TeamName: teamName,
+				Name:     newAsst.Name,
+			}); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for changed macos setup assistant")
 		}
 	}
@@ -638,11 +645,12 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 			}
 			teamName = &tm.Name
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosSetupAssistant{
-			TeamID:   teamID,
-			TeamName: teamName,
-			Name:     prevAsst.Name,
-		}); err != nil {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosSetupAssistant{
+				TeamID:   teamID,
+				TeamName: teamName,
+				Name:     prevAsst.Name,
+			}); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for deleted macos setup assistant")
 		}
 	}
@@ -949,7 +957,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 				},
 			},
 		}
-		if _, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{}); err != nil {
+		if _, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{}); err != nil {
 			return nil, err
 		}
 		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {
@@ -1055,6 +1063,60 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}, nil
 }
 
+func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint, updates fleet.MacOSUpdates) error {
+	if updates.MinimumVersion.Value == "" {
+		// OS updates disabled, remove the profile
+		if err := svc.ds.DeleteMDMAppleDeclarationByName(ctx, teamID, mdm.FleetMacOSUpdatesProfileName); err != nil {
+			return err
+		}
+		var globalOrTeamID uint
+		if teamID != nil {
+			globalOrTeamID = *teamID
+		}
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{globalOrTeamID}, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
+		return nil
+	}
+
+	// OS updates enabled, create or update the profile with the current settings
+
+	const (
+		macOSSoftwareUpdateType  = `com.apple.configuration.softwareupdate.enforcement.specific`
+		macOSSoftwareUpdateIdent = `macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
+	)
+	rawDecl := []byte(fmt.Sprintf(`{
+	"Identifier": %q,
+	"Type": %q,
+	"Payload": {
+		"TargetOSVersion": %q,
+		"TargetLocalDateTime": "%sT12:00:00"
+	}
+}`, macOSSoftwareUpdateIdent, macOSSoftwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
+	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, mdm.FleetMacOSUpdatesProfileName, macOSSoftwareUpdateType, macOSSoftwareUpdateIdent)
+
+	// associate the profile with the built-in label that ensures the host is on
+	// macOS 14+ to receive that profile
+	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{fleet.BuiltinLabelMacOS14Plus})
+	if err != nil {
+		return err
+	}
+	d.Labels = []fleet.ConfigurationProfileLabel{
+		{LabelName: fleet.BuiltinLabelMacOS14Plus, LabelID: lblIDs[fleet.BuiltinLabelMacOS14Plus]},
+	}
+
+	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d)
+	if err != nil {
+		return err
+	}
+
+	// mark all hosts affected by that profile as pending
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
+	}
+	return nil
+}
+
 func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint, updates fleet.WindowsUpdates) error {
 	var contents bytes.Buffer
 	params := windowsOSUpdatesProfileOptions{
@@ -1102,5 +1164,11 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// NOTE: the profile returned by this endpoint is intentionally not
+	// signed so it can be modified and signed by the IT admin with a
+	// custom certificate.
+	//
+	// Per @marko-lisica, we can add a parameter like `signed=true` if the
+	// need arises.
 	return mobileConfig, nil
 }

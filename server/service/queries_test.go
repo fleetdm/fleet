@@ -19,7 +19,12 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		act, ok := activity.(fleet.ActivityTypeCreatedSavedQuery)
 		assert.True(t, ok)
 		assert.NotEmpty(t, act.Name)
@@ -144,7 +149,12 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		act, ok := activity.(fleet.ActivityTypeEditedSavedQuery)
 		assert.True(t, ok)
 		assert.NotEmpty(t, act.Name)
@@ -358,7 +368,12 @@ func TestQueryAuth(t *testing.T) {
 		}
 		return nil, newNotFoundError()
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -632,7 +647,7 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.QueryReportIsClipped(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil)
+			_, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil, false)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			teamName := ""
@@ -713,4 +728,67 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 	results, err := svc.GetQueryReportResults(viewerCtx, 1)
 	require.NoError(t, err)
 	require.Nil(t, results)
+}
+
+func TestComparePlatforms(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		p1       string
+		p2       string
+		expected bool
+	}{
+		{
+			name:     "equal single value",
+			p1:       "linux",
+			p2:       "linux",
+			expected: true,
+		},
+		{
+			name:     "different single value",
+			p1:       "macos",
+			p2:       "linux",
+			expected: false,
+		},
+		{
+			name:     "equal multiple values",
+			p1:       "linux,windows",
+			p2:       "linux,windows",
+			expected: true,
+		},
+		{
+			name:     "equal multiple values out of order",
+			p1:       "linux,windows",
+			p2:       "windows,linux",
+			expected: true,
+		},
+		{
+			name:     "different multiple values",
+			p1:       "linux,windows",
+			p2:       "linux,windows,darwin",
+			expected: false,
+		},
+		{
+			name:     "no values set",
+			p1:       "",
+			p2:       "",
+			expected: true,
+		},
+		{
+			name:     "no values set",
+			p1:       "",
+			p2:       "linux",
+			expected: false,
+		},
+		{
+			name:     "single and multiple values",
+			p1:       "linux",
+			p2:       "windows,linux",
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := comparePlatforms(tc.p1, tc.p2)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
 }
