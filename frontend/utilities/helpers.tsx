@@ -20,6 +20,7 @@ import {
   intervalToDuration,
   isAfter,
   isBefore,
+  addDays,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -677,6 +678,15 @@ export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
+export const willExpireWithinXDays = (
+  expiration: string,
+  x: number
+): boolean => {
+  const xDaysFromNow = addDays(new Date(), x);
+
+  return isAfter(xDaysFromNow, new Date(expiration));
+};
+
 export const readableDate = (date: string) => {
   const dateString = new Date(date);
 
@@ -983,6 +993,7 @@ export default {
   humanQueryLastRun,
   inMilliseconds,
   hasLicenseExpired,
+  willExpireWithinXDays,
   readableDate,
   secondsToHms,
   secondsToDhms,
