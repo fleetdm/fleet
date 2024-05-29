@@ -71,5 +71,10 @@
   &__turn-on-mdm {
     flex-direction: column;
     align-items: flex-start;
+    gap: $pad-medium;
+
+    .button {
+      height: auto;
+    }
   }
 }
