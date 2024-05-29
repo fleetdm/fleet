@@ -6,7 +6,6 @@ package tcc_access
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -40,6 +39,9 @@ var sqlite3Path = "/usr/bin/sqlite3"
 
 var dbColNames = []string{"service", "client", "client_type", "auth_value", "auth_reason", "last_modified", "policy_id", "indirect_object_identifier", "indirect_object_identifier_type"}
 
+// TODO - add "username"
+var constructedColNames = []string{"source"}
+
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
@@ -64,26 +66,20 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	// TODO - check for invalid states:
 	// WHERE clause has operation other than equality
 	// SELECTed column is invalid
-	var uRs, sRs, rows []map[string]string
 	var err error
 	// TODO - update this to iterate over all existing users, assigning each respective value of
 	// "username" to that user's name.
-	uRs, err = getTCCAccessRows("user", userPath)
+	uRs, err := getTCCAccessRows("user", userPath)
 	if err != nil {
 		return nil, err
 	}
-	sRs, err = getTCCAccessRows("system", sysPath)
+	log.Info().Msgf("user rows: %v\n", uRs)
+	sRs, err := getTCCAccessRows("system", sysPath)
 	if err != nil {
 		return nil, err
 	}
-	rows = append(uRs, sRs...)
-
-	rows, err = filterByColEquality(queryContext.Constraints, rows)
-	if err != nil {
-		return nil, err
-	}
-
-	return rows, nil
+	// rows, err = filterByColEquality(queryContext.Constraints, rows)
+	return append(uRs, sRs...), nil
 }
 
 func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
@@ -122,32 +118,29 @@ func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 	// }
 
 	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("generate failed: %w", err)
-	}
 
 	rows := buildTableRows(source, parsedRows)
 
 	return rows, nil
 }
 
-func filterByColEquality(constraints map[string]table.ConstraintList, rows []map[string]string) ([]map[string]string, error) {
-	// get a simple mapping of columns to the value a row must have for it, if any, as defined by the
-	// user-supplied query.
-	cVME, err := getColValsMustEqual(constraints)
-	if err != nil {
-		return nil, fmt.Errorf("generate failed: %w", err)
-	}
+// func filterByColEquality(constraints map[string]table.ConstraintList, rows []map[string]string) ([]map[string]string, error) {
+// 	// get a simple mapping of columns to the value a row must have for it, if any, as defined by the
+// 	// user-supplied query.
+// 	cVME, err := getColValsMustEqual(constraints)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("generate failed: %w", err)
+// 	}
 
-	filteredRows := make([]map[string]string, 0, len(rows))
-	// for every row
-	for _, row := range rows {
-		if rowConstraintsSatisfied(row, cVME) {
-			filteredRows = append(filteredRows, row)
-		}
-	}
-	return filteredRows, nil
-}
+// 	filteredRows := make([]map[string]string, 0, len(rows))
+// 	// for every row
+// 	for _, row := range rows {
+// 		if rowConstraintsSatisfied(row, cVME) {
+// 			filteredRows = append(filteredRows, row)
+// 		}
+// 	}
+// 	return filteredRows, nil
+// }
 
 func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	// split by newLine for rows, then by "|" for columns
@@ -164,6 +157,7 @@ func parseTCCDbReadOutput(dbOut []byte) [][]string {
 func buildTableRows(source string, parsedRows [][]string) []map[string]string {
 	var rows []map[string]string
 	//  for each row, add "source": source key/val
+	// TODO - add "username"
 	for _, parsedRow := range parsedRows {
 		row := make(map[string]string)
 		row["source"] = source
@@ -175,39 +169,40 @@ func buildTableRows(source string, parsedRows [][]string) []map[string]string {
 	return rows
 }
 
-func getColValsMustEqual(constraints map[string]table.ConstraintList) (map[string]string, error) {
-	dbColNameSet := make(map[string]struct{}, len(dbColNames))
-	for _, name := range dbColNames {
-		dbColNameSet[name] = struct{}{}
-	}
+// func getColValsMustEqual(constraints map[string]table.ConstraintList) (map[string]string, error) {
+// 	colNameSet := make(map[string]struct{})
+// 	for _, name := range append(dbColNames, constructedColNames...) {
+// 		colNameSet[name] = struct{}{}
+// 	}
+// 	// log.Info().Msgf("dbColName: %v\n", dbColNames)
+// 	// log.Info().Msgf("colNameSet: %v\n", colNameSet)
 
-	cVME := make(map[string]string)
-	for col, constraintList := range constraints {
-		// TODO - QUESTION, should we check "Affinity" matches column typej–? LUCAs - no, all text
+// 	cVME := make(map[string]string)
+// 	log.Info().Msgf("constraints: %v\n", constraints)
+// 	for col, constraintList := range constraints {
+// 		// check that col is valid column for this table
+// 		// TODO - move this check to top of Generate function
+// 		if _, ok := colNameSet[col]; !ok {
+// 			return nil, fmt.Errorf("generate failed: column '%w' not valid for tcc_access ", errors.New(col))
+// 		}
+// 		// TODO - move to top of Generate function
+// 		for _, constraint := range constraintList.Constraints {
+// 			if constraint.Operator != table.OperatorEquals {
+// 				// TODO - QUESTION can we add additional condition options in the future ? Lucas – wait to
+// 				// see how osquery handles these for us
+// 				return nil, errors.New("tcc_access only supports equality operation in WHERE clause")
+// 			}
+// 			cVME[col] = constraint.Expression
+// 		}
+// 	}
+// 	return cVME, nil
+// }
 
-		// check that col is valid column for this table
-		// TODO - move this check to top of Generate function
-		if _, ok := dbColNameSet[col]; !ok {
-			return nil, fmt.Errorf("generate failed: column '%w' not valid for tcc_access ", errors.New(col))
-		}
-		// TODO - move to top of Generate function
-		for _, constraint := range constraintList.Constraints {
-			if constraint.Operator != table.OperatorEquals {
-				// TODO - QUESTION can we add additional condition options in the future ? Lucas – wait to
-				// see how osquery handles these for us
-				return nil, errors.New("tcc_access only supports equality operation in WHERE clause")
-			}
-			cVME[col] = constraint.Expression
-		}
-	}
-	return cVME, nil
-}
-
-func rowConstraintsSatisfied(row map[string]string, constraints map[string]string) bool {
-	for col, targetVal := range constraints {
-		if row[col] != targetVal {
-			return false
-		}
-	}
-	return true
-}
+// func rowConstraintsSatisfied(row map[string]string, constraints map[string]string) bool {
+// 	for col, targetVal := range constraints {
+// 		if row[col] != targetVal {
+// 			return false
+// 		}
+// 	}
+// 	return true
+// }
