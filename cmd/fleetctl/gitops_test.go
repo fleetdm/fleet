@@ -797,7 +797,7 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: ${ORG_NAME}
-  secrets:
+  secrets: [{"secret":"globalSecret"}]
 `,
 	)
 	require.NoError(t, err)
@@ -821,6 +821,21 @@ team_settings:
 	)
 	require.NoError(t, err)
 
+	teamFileDupSecret, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFileDupSecret.WriteString(
+		`
+controls:
+queries:
+policies:
+agent_options:
+name: ${TEST_TEAM_NAME}
+team_settings:
+  secrets: [{"secret":"${TEST_SECRET}"},{"secret":"globalSecret"}]
+`,
+	)
+	require.NoError(t, err)
+
 	// Files out of order
 	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
@@ -830,6 +845,11 @@ team_settings:
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
+
+	// Duplicate secret
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "duplicate enroll secret found")
 
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
@@ -845,7 +865,7 @@ team_settings:
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
-	assert.Empty(t, enrolledSecrets)
+	assert.Len(t, enrolledSecrets, 1)
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
 	require.Len(t, enrolledTeamSecrets, 1)

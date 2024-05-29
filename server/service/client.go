@@ -1352,3 +1352,34 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	}
 	return nil
 }
+
+func (c *Client) GetGitOpsSecrets(
+	config *spec.GitOps,
+) []string {
+	if config.TeamName == nil {
+		orgSecrets, ok := config.OrgSettings["secrets"]
+		if ok {
+			secrets, ok := orgSecrets.([]*fleet.EnrollSecret)
+			if ok {
+				secretValues := make([]string, 0, len(secrets))
+				for _, secret := range secrets {
+					secretValues = append(secretValues, secret.Secret)
+				}
+				return secretValues
+			}
+		}
+	} else {
+		teamSecrets, ok := config.TeamSettings["secrets"]
+		if ok {
+			secrets, ok := teamSecrets.([]*fleet.EnrollSecret)
+			if ok {
+				secretValues := make([]string, 0, len(secrets))
+				for _, secret := range secrets {
+					secretValues = append(secretValues, secret.Secret)
+				}
+				return secretValues
+			}
+		}
+	}
+	return nil
+}
