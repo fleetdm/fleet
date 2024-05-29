@@ -125,24 +125,6 @@ func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 	return rows, nil
 }
 
-// func filterByColEquality(constraints map[string]table.ConstraintList, rows []map[string]string) ([]map[string]string, error) {
-// 	// get a simple mapping of columns to the value a row must have for it, if any, as defined by the
-// 	// user-supplied query.
-// 	cVME, err := getColValsMustEqual(constraints)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("generate failed: %w", err)
-// 	}
-
-// 	filteredRows := make([]map[string]string, 0, len(rows))
-// 	// for every row
-// 	for _, row := range rows {
-// 		if rowConstraintsSatisfied(row, cVME) {
-// 			filteredRows = append(filteredRows, row)
-// 		}
-// 	}
-// 	return filteredRows, nil
-// }
-
 func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	// split by newLine for rows, then by "|" for columns
 	rawRows := strings.Split(string(dbOut[:]), "\n")
@@ -174,41 +156,3 @@ func buildTableRows(source string, parsedRows [][]string) []map[string]string {
 	}
 	return rows
 }
-
-// func getColValsMustEqual(constraints map[string]table.ConstraintList) (map[string]string, error) {
-// 	colNameSet := make(map[string]struct{})
-// 	for _, name := range append(dbColNames, constructedColNames...) {
-// 		colNameSet[name] = struct{}{}
-// 	}
-// 	// log.Info().Msgf("dbColName: %v\n", dbColNames)
-// 	// log.Info().Msgf("colNameSet: %v\n", colNameSet)
-
-// 	cVME := make(map[string]string)
-// 	log.Info().Msgf("constraints: %v\n", constraints)
-// 	for col, constraintList := range constraints {
-// 		// check that col is valid column for this table
-// 		// TODO - move this check to top of Generate function
-// 		if _, ok := colNameSet[col]; !ok {
-// 			return nil, fmt.Errorf("generate failed: column '%w' not valid for tcc_access ", errors.New(col))
-// 		}
-// 		// TODO - move to top of Generate function
-// 		for _, constraint := range constraintList.Constraints {
-// 			if constraint.Operator != table.OperatorEquals {
-// 				// TODO - QUESTION can we add additional condition options in the future ? Lucas – wait to
-// 				// see how osquery handles these for us
-// 				return nil, errors.New("tcc_access only supports equality operation in WHERE clause")
-// 			}
-// 			cVME[col] = constraint.Expression
-// 		}
-// 	}
-// 	return cVME, nil
-// }
-
-// func rowConstraintsSatisfied(row map[string]string, constraints map[string]string) bool {
-// 	for col, targetVal := range constraints {
-// 		if row[col] != targetVal {
-// 			return false
-// 		}
-// 	}
-// 	return true
-// }
