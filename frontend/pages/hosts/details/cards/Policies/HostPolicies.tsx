@@ -29,7 +29,7 @@ const Policies = ({
   if (policies.length === 0) {
     return (
       <Card
-        borderRadiusSize="large"
+        borderRadiusSize="xxlarge"
         includeShadow
         largePadding
         className={baseClass}
@@ -64,7 +64,7 @@ const Policies = ({
 
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={baseClass}

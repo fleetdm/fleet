@@ -10,7 +10,7 @@ const SetupAssistantPreview = () => {
   return (
     <Card
       color="gray"
-      borderRadiusSize="medium"
+      borderRadiusSize="large"
       paddingSize="xxlarge"
       className={baseClass}
     >

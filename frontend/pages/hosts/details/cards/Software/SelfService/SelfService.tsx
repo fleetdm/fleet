@@ -87,7 +87,7 @@ const SoftwareSelfService = ({
   // TODO: truncate name and version with tooltip
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       paddingSize="xxlarge"
       className={baseClass}

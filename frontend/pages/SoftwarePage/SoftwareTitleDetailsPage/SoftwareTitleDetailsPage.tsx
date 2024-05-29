@@ -179,7 +179,7 @@ const SoftwareTitleDetailsPage = ({
                 />
               )}
             <Card
-              borderRadiusSize="large"
+              borderRadiusSize="xxlarge"
               includeShadow
               className={`${baseClass}__versions-section`}
             >

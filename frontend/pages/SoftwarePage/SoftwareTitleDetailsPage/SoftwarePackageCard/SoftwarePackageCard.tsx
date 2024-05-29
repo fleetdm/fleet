@@ -228,7 +228,7 @@ const SoftwarePackageCard = ({
   // TODO: truncate with tooltips, left-align when count slides
 
   return (
-    <Card borderRadiusSize="large" includeShadow className={baseClass}>
+    <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__main-content`}>
         {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}

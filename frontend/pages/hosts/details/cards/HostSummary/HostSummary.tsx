@@ -371,7 +371,7 @@ const HostSummary = ({
 
     return (
       <Card
-        borderRadiusSize="large"
+        borderRadiusSize="xxlarge"
         includeShadow
         largePadding
         className={`${baseClass}-card`}

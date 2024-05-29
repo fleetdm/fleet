@@ -72,7 +72,7 @@ const Activity = ({
   // TODO: add count to upcoming activities tab when available via API
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={baseClass}
