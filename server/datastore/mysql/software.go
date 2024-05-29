@@ -1860,7 +1860,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			st.id,
 			st.name,
 			st.source,
+			si.self_service as self_service,
 			si.filename as package_available_for_install,
+			si.version as package_version,
 			hsi.created_at as last_install_installed_at,
 			hsi.execution_id as last_install_install_uuid,
 			%s,
@@ -1892,7 +1894,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			) OR
 			-- or software install has been attempted on host
 			hsi.host_id IS NOT NULL )
-			%s 
+			%s
 `, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause)
 
 	const stmtAvailable = `
@@ -1900,7 +1902,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			st.id,
 			st.name,
 			st.source,
+			si.self_service as self_service,
 			si.filename as package_available_for_install,
+			si.version as package_version,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
 			NULL as status,
@@ -1940,7 +1944,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		id,
 		name,
 		source,
+		self_service,
 		package_available_for_install,
+		package_version,
 		last_install_installed_at,
 		last_install_install_uuid,
 		status
@@ -1994,6 +2000,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		LastInstallInstalledAt *time.Time    `db:"last_install_installed_at"`
 		LastInstallInstallUUID *string       `db:"last_install_install_uuid"`
 		StatusSort             sql.NullInt32 `db:"status_sort"`
+		PackageVersion         *string       `db:"package_version"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2014,6 +2021,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				hs.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
 			}
 		}
+
+		// promote the package name and version to the proper destination fields
+		// (the service layer will arbitrate whether package_available_for_install
+		// or package fields are returned).
+		if hs.PackageAvailableForInstall != nil {
+			var version string
+			if hs.PackageVersion != nil {
+				version = *hs.PackageVersion
+			}
+			hs.Package = &fleet.DeviceSoftwarePackage{
+				Name:    *hs.PackageAvailableForInstall,
+				Version: version,
+			}
+		}
+
 		titleIDs = append(titleIDs, hs.ID)
 		byTitleID[hs.ID] = hs
 	}
