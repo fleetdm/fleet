@@ -11,27 +11,9 @@ import (
 	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
 )
 
-// TODO - QUESTION okay to use ~ for userPath? Seems to work.
-// ANSWER Lucas - no, get the actual absolute path
-// idea: list user's dir, use those paths.
-
-// QUESTION – case of MULTIPLE USERS include ALL user TCC dbs? How do we know which row belongs to
-// which user?
-// Lucas - solve by adding column "username", in place of/addition to(?) "source" column?
-// If user doesn't specify, include all?
-// product answer: add `username` column. QUESTION – what should be this column's value for the
-// system-sourced rows?
 var userPath, sysPath = "/Users/jacob/Library/Application Support/com.apple.TCC/TCC.db", "/Library/Application Support/com.apple.TCC/TCC.db"
-
-// TODO - QUESTION instead of getting all rows from tcc.dbs, can we pass condition sent by user query into ?
-// to only get desired rows? would elimnate need for filterByColEquality here
-// see tabl.go > QueryContext, seems like exactly this.
-// YES, looks like osquery via Constraints will do this filtering automatically in fact
-
-// var dbQuery = "SELECT service, client, client_type, auth_value, auth_reason, last_modified, policy_id, indirect_object_identifier, indirect_object_identifier_type FROM access WHERE ?;"
 
 var dbQuery = "SELECT service, client, client_type, auth_value, auth_reason, last_modified, policy_id, indirect_object_identifier, indirect_object_identifier_type FROM access;"
 
@@ -63,9 +45,6 @@ func Columns() []table.ColumnDefinition {
 // Constraints for generating can be retrieved from the queryContext.
 
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	// TODO - check for invalid states:
-	// WHERE clause has operation other than equality
-	// SELECTed column is invalid
 	var err error
 	// TODO - update this to iterate over all existing users, assigning each respective value of
 	// "username" to that user's name.
@@ -73,19 +52,16 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	if err != nil {
 		return nil, err
 	}
-	log.Info().Msgf("user rows: %v\n", uRs)
 	sRs, err := getTCCAccessRows("system", sysPath)
 	if err != nil {
 		return nil, err
 	}
-	// rows, err = filterByColEquality(queryContext.Constraints, rows)
 	return append(uRs, sRs...), nil
 }
 
 func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 	// avoids additional C compilation requirements that would be introduced by using
 	// https://github.com/mattn/go-sqlite3
-
 	cmd := exec.Command(sqlite3Path, dbPath, dbQuery)
 	var dbOut bytes.Buffer
 	var stderr bytes.Buffer
@@ -94,31 +70,9 @@ func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 	err := cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("Generate failed at `cmd.Run()`:"+stderr.String()+":%w", err)
-		// fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 	}
 
-	// simplest approach, don't get useful error message from failed process
-	// dbOut, err := cmd.Output()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Generate failed at `cmd.Output()`: %w", err)
-	// }
-
-	// Lucas approach from find_cmd_darwin:
-	// stdoutPipe, err := cmd.StdoutPipe()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("create stdout pipe: %w", err)
-	// }
-	// stderrPipe, err := cmd.StderrPipe()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("create stderr pipe: %w", err)
-	// }
-
-	// if err := cmd.Start(); err != nil {
-	// 	return nil, fmt.Errorf("command start failed: %w", err)
-	// }
-
 	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
-	log.Info().Msgf("\nParsed rows: %v\n", parsedRows)
 
 	rows := buildTableRows(source, parsedRows)
 
