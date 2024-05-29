@@ -561,7 +561,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 }
 
 // packageExtensionToPlatform returns the platform name based on the
-// pacakge extension. Returns an empty string if there is no match.
+// package extension. Returns an empty string if there is no match.
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
