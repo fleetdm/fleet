@@ -367,7 +367,7 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
-type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (string, error)
+type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareTitleID uint, selfService bool) (string, error)
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -3576,11 +3576,11 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
-func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) (string, error) {
+func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint, selfService bool) (string, error) {
 	s.mu.Lock()
 	s.InsertSoftwareInstallRequestFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareTitleID)
+	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareTitleID, selfService)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {

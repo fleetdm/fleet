@@ -642,6 +642,10 @@ type Service interface {
 	// specified team
 	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) error
 
+	// SelfServiceInstallSoftwareTitle installs a software title
+	// initiated by the user
+	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 

@@ -495,7 +495,7 @@ type Datastore interface {
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
 	// uuid.
-	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) (string, error)
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint, selfService bool) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
