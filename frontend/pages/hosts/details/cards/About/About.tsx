@@ -52,7 +52,10 @@ const About = ({
   const renderHardwareSerialAndIPs = () => {
     if (isIosOrIpadosHost) {
       return (
-        <DataSet title="Serial number" value={aboutData.hardware_serial} />
+        <>
+          <DataSet title="Serial number" value={aboutData.hardware_serial} />
+          <DataSet title="Hardware model" value={aboutData.hardware_model} />
+        </>
       );
     }
 
