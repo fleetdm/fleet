@@ -39,6 +39,20 @@
     display: flex;
     flex-direction: column;
     gap: $pad-large;
+
+    li {
+      display: flex;
+      flex-direction: row;
+      gap: $pad-small;
+
+      p {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        margin: 0;
+        gap: $pad-small;
+      }
+    }
   }
 
   &__request-button {
@@ -74,10 +88,15 @@
 
   &__file-uploader {
     margin-top: $pad-medium;
+    margin-left: $pad-medium;
     border-radius: 6px;
 
     .file-uploader__message {
       color: $ui-fleet-black-75;
+    }
+
+    button {
+      margin-top: 0;
     }
 
     &--loading {

@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, { useState, useContext, useCallback } from "react";
 
 import { NotificationContext } from "context/notification";
 
@@ -61,7 +61,7 @@ const RenewCertModal = ({
   }, [tokenFile, renderFlash, onRenew]);
 
   return (
-    <Modal title="Renew certificate" onExit={onCancel} className={baseClass}>
+    <Modal title="Renew token" onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
         <ol className={`${baseClass}__setup-instructions-list`}>
           <li>
@@ -88,7 +88,7 @@ const RenewCertModal = ({
           </li>
           <li>
             <p>
-              5. Upload the downloaded token (.p7m file) below.
+              4. Upload the downloaded token (.p7m file) below.
               <FileUploader
                 className={`${baseClass}__file-uploader`}
                 accept=".p7m"
@@ -120,7 +120,7 @@ const RenewCertModal = ({
             type="button"
             onClick={onRenewClick}
           >
-            Renew certificate
+            Renew token
           </Button>
         </div>
       </div>

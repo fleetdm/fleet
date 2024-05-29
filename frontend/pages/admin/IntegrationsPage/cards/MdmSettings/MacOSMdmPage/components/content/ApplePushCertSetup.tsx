@@ -62,51 +62,58 @@ const ApplePushCertSetup = ({
       <p className={`${baseClass}__setup-description`}>
         Connect Fleet to Apple Push Certificates Portal to turn on MDM.
       </p>
-      <ol className={`${baseClass}__setup-instructions-list`}>
-        <li>
-          <p>
-            1. Download a certificate signing request (CSR) for Apple Push
-            Notification service (APNs).
-          </p>
-          <DownloadCSR baseClass={baseClass} onError={onDownloadError} />
-        </li>
-        <li>
-          <p>
-            2. Sign in to{" "}
-            <CustomLink
-              url="https://identity.apple.com/pushcert/"
-              text="Apple Push Certificates Portal"
-              newTab
-            />
-            <br />
-            If you don&apos;t have an Apple ID, select <b>Create yours now</b>.
-          </p>
-        </li>
-        <li>
-          <p>
-            3. In Apple Push Certificates Portal, select{" "}
-            <b>Create a Certificate</b>, upload your CSR, and download your APNs
-            certificate.
-          </p>
-        </li>
-        <li>
-          <p>
-            4. Upload APNs certificate (.pem file) below.
-            <FileUploader
-              className={`${baseClass}__file-uploader ${
-                isUploading ? `${baseClass}__file-uploader--loading` : ""
-              }`}
-              accept=".pem"
-              buttonMessage={isUploading ? "Uploading..." : "Upload"}
-              buttonType="link"
-              diabled={isUploading}
-              graphicName="file-pem"
-              message="APNs certificate (.pem)"
-              onFileUpload={onFileUpload}
-            />
-          </p>
-        </li>
-      </ol>
+      <div>
+        <ol className={`${baseClass}__setup-instructions-list`}>
+          <li>
+            <span>1. </span>
+            <span>
+              <span>
+                Download a certificate signing request (CSR) for Apple Push
+                Notification service (APNs).
+              </span>
+              <DownloadCSR baseClass={baseClass} onError={onDownloadError} />
+            </span>
+          </li>
+          <li>
+            <span>2. </span>
+            <span>
+              Sign in to{" "}
+              <CustomLink
+                url="https://identity.apple.com/pushcert/"
+                text="Apple Push Certificates Portal"
+                newTab
+              />
+              <br />
+              If you don&apos;t have an Apple ID, select <b>Create yours now</b>
+              .
+            </span>
+          </li>
+          <li>
+            <span>3. </span>
+            <span>
+              In Apple Push Certificates Portal, select{" "}
+              <b>Create a Certificate</b>, upload your CSR, and download your
+              APNs certificate.
+            </span>
+          </li>
+          <li>
+            <span>4. </span>
+            <span>Upload APNs certificate (.pem file) below.</span>
+          </li>
+        </ol>
+        <FileUploader
+          className={`${baseClass}__file-uploader ${
+            isUploading ? `${baseClass}__file-uploader--loading` : ""
+          }`}
+          accept=".pem"
+          buttonMessage={isUploading ? "Uploading..." : "Upload"}
+          buttonType="link"
+          diabled={isUploading}
+          graphicName="file-pem"
+          message="APNs certificate (.pem)"
+          onFileUpload={onFileUpload}
+        />
+      </div>
     </div>
   );
 };

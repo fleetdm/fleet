@@ -65,7 +65,6 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
     toggleTurnOffMdmModal();
     console.log("Turn off MDM confirmed");
     try {
-      // TODO: handle submission
       await mdmAppleAPI.deleteApplePushCertificate();
       renderFlash("success", "macOS MDM turned off successfully.");
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);

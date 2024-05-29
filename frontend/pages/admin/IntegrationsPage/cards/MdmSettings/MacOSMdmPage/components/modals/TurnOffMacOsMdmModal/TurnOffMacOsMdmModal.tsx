@@ -15,22 +15,15 @@ const TurnOffMacOsMdmModal = ({
   onConfirm,
   onCancel,
 }: ITurnOffMacOsMdmModalProps): JSX.Element => {
-  // TODO: add loading state for the button? Handle submission inside this modal?
-
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDelete = useCallback(() => {
+  const onClickConfirm = useCallback(() => {
     setIsDeleting(true);
     onConfirm();
   }, [onConfirm]);
 
   return (
-    <Modal
-      title="Turn off macOS MDM"
-      onExit={onCancel}
-      // onEnter={onConfirm}
-      className={baseClass}
-    >
+    <Modal title="Turn off macOS MDM" onExit={onCancel} className={baseClass}>
       <div className={baseClass}>
         If you want to use MDM features again, you’ll have to upload a new APNs
         certificate and all end users will have to turn MDM off and back on.
@@ -38,14 +31,17 @@ const TurnOffMacOsMdmModal = ({
           <Button
             type="button"
             variant="alert"
-            onClick={onConfirm}
-            className="delete-loading"
+            onClick={onClickConfirm}
             isLoading={isDeleting}
             disabled={isDeleting}
           >
             Turn off
           </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button
+            onClick={onCancel}
+            disabled={isDeleting}
+            variant="inverse-alert"
+          >
             Cancel
           </Button>
         </div>
