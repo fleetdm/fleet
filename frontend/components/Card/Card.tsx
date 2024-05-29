@@ -3,12 +3,12 @@ import classnames from "classnames";
 
 const baseClass = "card";
 
-type BorderRadiusSize = "medium" | "large" | "xlarge" | "xxlarge";
+type BorderRadiusSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
 type CardColor = "white" | "gray" | "purple" | "yellow";
 
 interface ICardProps {
   children?: React.ReactNode;
-  /** The size of the border radius. Defaults to `medium`.
+  /** The size of the border radius. Defaults to `small`.
    *
    * These correspond to the boarder radius in the design system. Look at
    * `var/_global.scss` for values */
@@ -36,7 +36,7 @@ interface ICardProps {
  */
 const Card = ({
   children,
-  borderRadiusSize = "medium",
+  borderRadiusSize = "small",
   includeShadow = false,
   color = "white",
   className,

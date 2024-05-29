@@ -6,12 +6,16 @@
 
   // radius styles
 
-  &__radius-medium {
+  &__radius-small {
     border-radius: $border-radius;
   }
 
-  &__radius-large {
+  &__radius-medium {
     border-radius: $border-radius-medium;
+  }
+
+  &__radius-large {
+    border-radius: $border-radius-large;
   }
 
   &__radius-xlarge {
