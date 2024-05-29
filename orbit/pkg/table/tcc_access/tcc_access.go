@@ -11,24 +11,21 @@ import (
 	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
-var userPath, sysPath = "/Users/jacob/Library/Application Support/com.apple.TCC/TCC.db", "/Library/Application Support/com.apple.TCC/TCC.db"
-
-var dbQuery = "SELECT service, client, client_type, auth_value, auth_reason, last_modified, policy_id, indirect_object_identifier, indirect_object_identifier_type FROM access;"
-
-var sqlite3Path = "/usr/bin/sqlite3"
-
-var dbColNames = []string{"service", "client", "client_type", "auth_value", "auth_reason", "last_modified", "policy_id", "indirect_object_identifier", "indirect_object_identifier_type"}
-
-// TODO - add "username"
-var constructedColNames = []string{"source"}
+var (
+	tccPathCommon = "/Library/Application Support/com.apple.TCC/TCC.db"
+	dbQuery       = "SELECT service, client, client_type, auth_value, auth_reason, last_modified, policy_id, indirect_object_identifier, indirect_object_identifier_type FROM access;"
+	sqlite3Path   = "/usr/bin/sqlite3"
+	dbColNames    = []string{"service", "client", "client_type", "auth_value", "auth_reason", "last_modified", "policy_id", "indirect_object_identifier", "indirect_object_identifier_type"}
+)
 
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.TextColumn("source"),
-		// TODO - add a 'username' column that reports the username that a `user`-sourced row comes from
+		table.TextColumn("uid"),
 		table.TextColumn("service"),
 		table.TextColumn("client"),
 		table.IntegerColumn("client_type"),
@@ -45,23 +42,48 @@ func Columns() []table.ColumnDefinition {
 // Constraints for generating can be retrieved from the queryContext.
 
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	var err error
-	// TODO - update this to iterate over all existing users, assigning each respective value of
-	// "username" to that user's name.
-	uRs, err := getTCCAccessRows("user", userPath)
+	// get all human usernames
+	cmd := exec.Command("dscl", ".", "list", "/Users", "|", "grep", "-v", "-e", "'^_'", "-e", "'daemon'", "-e", "'root'", "-e", "'nobody'")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("generate failed: %w", err)
+	}
+	usernames := strings.Split(string(out[:]), "\n")
+
+	log.Info().Msgf("\nusernames: %v\n", usernames)
+
 	if err != nil {
 		return nil, err
 	}
-	sRs, err := getTCCAccessRows("system", sysPath)
+
+	var rows []map[string]string
+
+	for _, username := range usernames {
+		log.Info().Msgf("\nusername to get rows: %v\n", username)
+		uRs, err := getTCCAccessRows(username)
+		log.Info().Msgf("\nuser rows: %v\n", uRs)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, uRs...)
+	}
+
+	sRs, err := getTCCAccessRows("")
 	if err != nil {
 		return nil, err
 	}
-	return append(uRs, sRs...), nil
+	rows = append(rows, sRs...)
+
+	return rows, nil
 }
 
-func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
+func getTCCAccessRows(username string) ([]map[string]string, error) {
 	// avoids additional C compilation requirements that would be introduced by using
 	// https://github.com/mattn/go-sqlite3
+	dbPath := tccPathCommon
+	if username != "" {
+		dbPath = "/Users/" + username + tccPathCommon
+	}
 	cmd := exec.Command(sqlite3Path, dbPath, dbQuery)
 	var dbOut bytes.Buffer
 	var stderr bytes.Buffer
@@ -74,7 +96,7 @@ func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 
 	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
 
-	rows := buildTableRows(source, parsedRows)
+	rows, err := buildTableRows(username, parsedRows)
 
 	return rows, nil
 }
@@ -96,17 +118,33 @@ func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	return parsedRows
 }
 
-func buildTableRows(source string, parsedRows [][]string) []map[string]string {
+func buildTableRows(username string, parsedRows [][]string) ([]map[string]string, error) {
+	// root's uid, for "system" rows by default
+	uid := "0"
+	source := "system"
+	if username != "" {
+		// a user-scoped table, so get its uid
+		cmd := exec.Command("id", username)
+		out, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("generate failed: %w", err)
+		}
+
+		sOut := string(out[:])
+		unI := strings.Index(sOut, username)
+		uid = sOut[4 : unI-1]
+		source = "user"
+	}
+
 	var rows []map[string]string
-	//  for each row, add "source": source key/val
-	// TODO - add "username"
 	for _, parsedRow := range parsedRows {
 		row := make(map[string]string)
 		row["source"] = source
+		row["uid"] = uid
 		for i, rowColVal := range parsedRow {
 			row[dbColNames[i]] = rowColVal
 		}
 		rows = append(rows, row)
 	}
-	return rows
+	return rows, nil
 }
