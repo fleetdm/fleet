@@ -191,6 +191,9 @@ func TestBasicTeamGitOps(t *testing.T) {
 		}
 		return nil, nil
 	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	var savedTeam *fleet.Team
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
@@ -363,6 +366,9 @@ func TestFullGlobalGitOps(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
@@ -504,6 +510,9 @@ func TestFullTeamGitOps(t *testing.T) {
 			return team, nil
 		}
 		return nil, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
 	}
 	var savedTeam *fleet.Team
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -693,6 +702,9 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		Name:      teamName,
 	}
 
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		if teamID == nil {
 			enrolledSecrets = secrets
@@ -885,6 +897,9 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	var appliedPolicySpecs []*fleet.PolicySpec
 	var appliedQueries []*fleet.Query
 
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		if teamID == nil {
 			enrolledSecrets = secrets
