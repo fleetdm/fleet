@@ -7666,13 +7666,13 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	// verify that software installers contain SoftwarePackage field
-	payload := &fleet.UploadSoftwareInstallerPayload{
+	payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "ruby.deb",
 		SelfService:   false,
 		TeamID:        &team1.ID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(payloadRubyTm1, http.StatusOK, "")
 
 	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
@@ -7695,15 +7695,14 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 
 	// Upload an installer for the same software but different arch to a different team
-	payload = &fleet.UploadSoftwareInstallerPayload{
+	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "ruby_arm64.deb",
 		TeamID:        &team2.ID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(payloadRubyTm2, http.StatusOK, "")
 
 	// We should only see the one we uploaded to team 1
-
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -7718,21 +7717,24 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	// software installer not returned with self-service only (not marked as such)
 	resp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "self_service", "1", "query", "ruby")
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
+		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 0)
 
 	// update it to be self-service, check that it gets returned
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payload.Filename)
+		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payloadRubyTm1.Filename)
 		return err
 	})
 	resp = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "self_service", "1", "query", "ruby")
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
+		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 	require.True(t, *&resp.SoftwareTitles[0].SelfService)
 
+	// no team but self-service returns the emacs software (technically impossible via the UI)
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -7741,7 +7743,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Len(t, resp.SoftwareTitles, 2)
+	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 	require.True(t, *&resp.SoftwareTitles[0].SelfService)
@@ -7752,9 +7754,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	require.NotNil(t, respTitle.SoftwareTitle)
 	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.SoftwarePackage.Name)
-	fmt.Printf("respTitle.SoftwareTitle.SoftwarePackage: %+v\n", respTitle.SoftwareTitle.SoftwarePackage)
 	require.True(t, respTitle.SoftwareTitle.SoftwarePackage.SelfService)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
