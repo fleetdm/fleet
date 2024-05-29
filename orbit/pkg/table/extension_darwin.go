@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
