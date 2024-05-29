@@ -82,12 +82,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         setNoSandboxHosts(noSandboxHosts);
       }
 
-      // TODO: Confirm with MDM what to check on config to not hit 404 for /abm API
       if (configResponse.mdm.apple_bm_enabled_and_configured) {
         const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
         setABMExpiry(abmInfo.renew_date);
       }
-      // TODO: Confirm with MDM what to check on config to not hit 404 for /apns API
       if (configResponse.mdm.apple_bm_enabled_and_configured) {
         const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
         setAPNsExpiry(apnsInfo.renew_date);
