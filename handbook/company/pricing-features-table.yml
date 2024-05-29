@@ -553,7 +553,7 @@
   waysToUse:
     - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
-    - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
+    - description: Deploy custom declaration (DDM) profiles on macOS.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
     - description: Target profiles to specific hosts using SQL. Exclusions coming soon (2024-07-15) #customer-rosner
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17315
@@ -616,7 +616,7 @@
   pricingTableCategories: [Device management]
   waysToUse:
     - description: Enforce macOS updates via Nudge.
-    - description: Progressively enhance from Nudge to DDM-based OS updates. Coming soon (2024-03-31).
+    - description: Progressively enhance from Nudge to DDM-based OS updates.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
     - description: Automatically update Windows after the end user reaches a deadline.
 - industryName: Cross-platform remote lock and wipe
