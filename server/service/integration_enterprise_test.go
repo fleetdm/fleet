@@ -9693,11 +9693,24 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	s.uploadSoftwareInstaller(payloadSS, http.StatusOK, "")
 	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
 
-	// respNoSS := submitSelfServiceSoftwareInstallResponse{}
-	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDNoSS), nil, http.StatusBadRequest)
+	// cannot self-install if software installer does not allow it
+	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDNoSS), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available through self-service")
 
-	// respSS := submitSelfServiceSoftwareInstallResponse{}
+	// request self-install of software that allows it
 	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDSS), nil, http.StatusAccepted)
+
+	// it shows up as "self-installed" in the upcoming activities of the host
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 1)
+	require.Nil(t, listResp.Activities[0].ActorID)
+
+	var details fleet.ActivityTypeInstalledSoftware
+	err := json.Unmarshal([]byte(*listResp.Activities[0].Details), &details)
+	require.NoError(t, err)
+	//require.True(t, details.SelfService)
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
