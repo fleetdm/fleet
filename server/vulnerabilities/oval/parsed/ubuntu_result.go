@@ -1,6 +1,10 @@
 package oval_parsed
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -61,6 +65,47 @@ func (r UbuntuResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]fl
 						CVE:        v,
 					})
 				}
+			}
+		}
+	}
+
+	return vuln, nil
+}
+
+var kernelImageRegex = regexp.MustCompile(`^linux-image-(\d+\.\d+\.\d+-\d+)-\w+`)
+
+func (r UbuntuResult) EvalKernel(software []fleet.Software) ([]fleet.SoftwareVulnerability, error) {
+	// Test Id => Matching software IDs
+	uTests := make(map[int][]uint)
+	for _, s := range software {
+		if kernelImageRegex.MatchString(s.Name) {
+			v, ok := strings.CutPrefix(s.Name, "linux-image-")
+			if !ok {
+				return nil, fmt.Errorf("linux kernel package %s does not match expected format:", s.Name)
+			}
+
+			for i, u := range r.UnameTests {
+				isMatch, err := u.Eval(v)
+				if err != nil {
+					return nil, err
+				}
+
+				if isMatch {
+					uTests[i] = append(uTests[i], s.ID)
+				}
+			}
+		}
+	}
+
+	vuln := make([]fleet.SoftwareVulnerability, 0)
+	for _, d := range r.Definitions {
+		swIDs := findMatchingSoftware(*d.Criteria, uTests)
+		for _, v := range d.CveVulnerabilities() {
+			for _, swID := range swIDs {
+				vuln = append(vuln, fleet.SoftwareVulnerability{
+					SoftwareID: swID,
+					CVE:        v,
+				})
 			}
 		}
 	}
