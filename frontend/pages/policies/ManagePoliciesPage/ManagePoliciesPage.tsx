@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { isEqual } from "lodash";
 
-import { getNextLocationPath } from "utilities/helpers";
+import { getNextLocationPath, wait } from "utilities/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -508,6 +508,7 @@ const ManagePolicyPage = ({
       );
 
       await Promise.all(responses);
+      await wait(100); // Wait 100ms to avoid race conditions with refetch
       await refetchTeamPolicies();
       await refetchTeamConfig();
 
