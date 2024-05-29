@@ -1,10 +1,8 @@
 name: package_bom
-examples: >-
+examples: |-
   List the bill of materials of a package. The receipts directory contains
   packages to installed applications.
 
   ```
-
   SELECT * FROM package_bom WHERE path='/private/var/db/receipts/com.yubico.ykman.bom';
-
   ```

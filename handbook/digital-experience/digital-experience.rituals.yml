@@ -47,7 +47,7 @@
   frequency: "Daily"
   description: "Prepare the CEO office minutes calendar event and meeting agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#prepare-for-ceo-office-minutes"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
 - 
   task: "Refresh event calendar"
   startedOn: "2023-12-31"
@@ -71,7 +71,7 @@
   frequency: "Daily ⏰"
   description: "Process the CEO's inbox"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-email"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
 -
   task: "Process all \"New requests\" on the #g-digital-experience kanban board"
   startedOn: "2023-07-29"
@@ -85,14 +85,14 @@
   frequency: "Daily ⏰"
   description: "Process the CEO's calendar"  
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-calendar"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
 -
   task: "Send weekly update"
   startedOn: "2023-09-15"
   frequency: "Weekly"
   description: "Send weekly update"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
@@ -102,7 +102,7 @@
   frequency: "Weekly"
   description: "Process and backup E-group agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-sid-agenda"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
@@ -112,7 +112,7 @@
   frequency: "Weekly"
   description: "Process and backup Sid agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-e-group-agenda"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
@@ -122,7 +122,7 @@
   frequency: "Monthly"
   description: "Sharing the all hands recording"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#share-recording-of-all-hands-meeting"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
@@ -161,7 +161,7 @@
   frequency: "Monthly"
   description: "Top up coresignal account once per month: https://dashboard.coresignal.com/pricing-plans"
   moreInfoUrl: "https://dashboard.coresignal.com/pricing-plans"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential" 

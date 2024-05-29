@@ -1,9 +1,7 @@
 name: package_install_history
-examples: >-
+examples: |-
   See a list of packages installed in the last week.
 
   ```
-
-  SELECT name, version, source,  datetime(time,'unixepoch') AS install_time from package_install_history WHERE install_time >= datetime('now','-7 days');
-
+  SELECT name, version, source,  datetime(time,'unixepoch') AS install_time from package_install_history WHERE install_time |-= datetime('now','-7 days');
   ```

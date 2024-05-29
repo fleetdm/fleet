@@ -1276,7 +1276,9 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]*fleet.Host, hostsByID m
 
 		return h.MDMInfo, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 }

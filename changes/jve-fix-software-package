@@ -1,1 +1,0 @@
-- Adds a missing field `software_package` to the response from the List Software Titles endpoint.

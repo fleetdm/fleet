@@ -1,1 +1,0 @@
-* Fixed an issue on Windows hosts enrolled in MDM via Azure AD where the command to install Fleetd on the device was sent repeatedly, even though `fleetd` had been properly installed.

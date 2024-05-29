@@ -11,6 +11,7 @@ import {
   generateCSVQueryResults,
 } from "utilities/generate_csv";
 import { getTableColumnsFromSql } from "utilities/helpers";
+import { SUPPORT_LINK } from "utilities/constants";
 import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -263,13 +264,7 @@ const QueryResults = ({
       {isQueryClipped && (
         <InfoBanner
           color="yellow"
-          cta={
-            <CustomLink
-              url="https://www.fleetdm.com/support"
-              text="Get help"
-              newTab
-            />
-          }
+          cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
         >
           <div>
             <b>Results clipped.</b> A sample of this query&apos;s results and

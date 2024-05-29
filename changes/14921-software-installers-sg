@@ -1,4 +1,0 @@
-- Added functionality to filter hosts by software installer status.
-- Added endpoints to upload, delete, and download software installers.
-- Added endpoints to get host software install results.
-- Updated activity feeds to include software installer activities.
