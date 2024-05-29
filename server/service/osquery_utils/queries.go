@@ -762,11 +762,13 @@ func macOSBundleIDExistsQuery(appName string) string {
 	return fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' LIMIT 1", appName)
 }
 
-// multiCondition generates a SQL query that returns 1 if all subqueries return 1, otherwise 0.
-// subqueries should be a list of SQL queries that return 1 if a condition is met, otherwise 0.
+// generateSQLForAllExists generates a SQL query that returns 
+// 1 if all subqueries return 1, otherwise returns no rows.
+// subqueries should be a list of SQL queries that return 1+ rows 
+// if a condition is met, otherwise returns no rows.
 func generateSQLForAllExists(subqueries ...string) string {
 	if len(subqueries) == 0 {
-		return "SELECT 0;" // Return 0 if no subqueries provided
+		return "SELECT 0 LIMIT 0" // Return no rows if no subqueries provided
 	}
 
 	// Generate EXISTS clause for each subquery
@@ -780,7 +782,7 @@ func generateSQLForAllExists(subqueries ...string) string {
 	fullCondition := strings.Join(conditions, " AND ")
 
 	// Build the final SQL with CASE statement
-	sql := fmt.Sprintf("SELECT CASE WHEN %s THEN 1 ELSE 0 END;", fullCondition)
+	sql := fmt.Sprintf("SELECT 1 WHERE %s", fullCondition)
 	return sql
 }
 
