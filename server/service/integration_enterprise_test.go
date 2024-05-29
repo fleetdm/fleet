@@ -9801,9 +9801,10 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptAndSoftwareInstallSoftDel
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install script",
-		Filename:      "ruby.deb",
-		Title:         "ruby",
+		InstallScript:   "install script",
+		Filename:        "ruby.deb",
+		Title:           "ruby",
+		PreInstallQuery: "select 'ok'",
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
@@ -9849,8 +9850,52 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptAndSoftwareInstallSoftDel
 			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true}`,
 			host.ID, host.DisplayName(), scriptID), 0)
 
-	// TODO(mna): get script and install details, confirm the results, delete the
-	// host, get the details again, confirm it still works
+	// get the script result details
+	var scriptRes getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, scriptID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "ok", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	var softwareRes getSoftwareInstallResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/install/results/"+installID, nil, http.StatusOK, &softwareRes)
+	require.Equal(t, installID, softwareRes.Results.InstallUUID)
+	require.Equal(t, host.ID, softwareRes.Results.HostID)
+	require.Equal(t, payload.Filename, softwareRes.Results.SoftwarePackage)
+	require.NotNil(t, softwareRes.Results.Output)
+	require.Equal(t, "Installing software...\nSuccess\nok", *softwareRes.Results.Output)
+	require.NotNil(t, softwareRes.Results.PreInstallQueryOutput)
+	require.EqualValues(t, "Query returned result\nProceeding to install...", *softwareRes.Results.PreInstallQueryOutput)
+	// we don't render the exit codes in the JSON response, so they are null
+	require.Nil(t, softwareRes.Results.InstallScriptExitCode)
+
+	// TODO(mna): delete the host, get the details again, confirm it still works
+	var deleteResp deleteHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &deleteResp)
+
+	// get the script result details, still works
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, scriptID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "ok", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// get the software install details, still works
+	softwareRes = getSoftwareInstallResultsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/install/results/"+installID, nil, http.StatusOK, &softwareRes)
+	require.Equal(t, installID, softwareRes.Results.InstallUUID)
+	require.Equal(t, host.ID, softwareRes.Results.HostID)
+	require.Equal(t, payload.Filename, softwareRes.Results.SoftwarePackage)
+	require.NotNil(t, softwareRes.Results.Output)
+	require.Equal(t, "Installing software...\nSuccess\nok", *softwareRes.Results.Output)
+	require.NotNil(t, softwareRes.Results.PreInstallQueryOutput)
+	require.EqualValues(t, "Query returned result\nProceeding to install...", *softwareRes.Results.PreInstallQueryOutput)
+	// we don't render the exit codes in the JSON response, so they are null
+	require.Nil(t, softwareRes.Results.InstallScriptExitCode)
 }
 
 func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
