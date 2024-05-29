@@ -1,10 +1,8 @@
 name: cpu_time
-examples: >-
+examples: |-
   Identify overworked CPUs using a ratio of system to user CPU usage. Here, a
   ratio of 2 was arbitrarily chosen.
 
   ```
-
-  SELECT * FROM cpu_time WHERE user/system>2;
-
+  SELECT * FROM cpu_time WHERE user/system|-2;
   ```

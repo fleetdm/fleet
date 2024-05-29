@@ -35,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -1172,4 +1173,66 @@ func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
 		result = append(result, uint(i))
 	}
 	return result
+}
+
+// newIPhoneIPadRefetcher will enqueue DeviceInformation commands on iOS/iPadOS devices
+// to refetch their host details.
+//
+// See https://developer.apple.com/documentation/devicemanagement/get_device_information.
+//
+// We will refetch iPhones/iPads every 1 hour (to match the default
+// detail interval of all (osquery-capable) hosts in Fleet).
+func newIPhoneIPadRefetcher(
+	ctx context.Context,
+	instanceID string,
+	periodicity time.Duration,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
+	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-refetcher")
+	s := schedule.New(
+		ctx, name, instanceID, periodicity, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
+			start := time.Now()
+			uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
+			}
+			if len(uuids) == 0 {
+				return nil
+			}
+			logger.Log("msg", "sending commands to refetch", "count", len(uuids), "lookup-duration", time.Since(start))
+			commandUUID := fleet.RefetchCommandUUIDPrefix + uuid.NewString()
+			if err := commander.EnqueueCommand(ctx, uuids, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>Queries</key>
+        <array>
+            <string>DeviceName</string>
+            <string>DeviceCapacity</string>
+            <string>AvailableDeviceCapacity</string>
+            <string>OSVersion</string>
+            <string>WiFiMAC</string>
+            <string>ProductName</string>
+        </array>
+        <key>RequestType</key>
+        <string>DeviceInformation</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, commandUUID)); err != nil {
+				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
 }

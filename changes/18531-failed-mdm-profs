@@ -1,1 +1,0 @@
-- Fixes a bug where an MDM profile that wasn't present on a host wasn't removed from it in Fleet.

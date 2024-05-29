@@ -287,7 +287,7 @@ func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform st
 	case "windows":
 		prepareFn = c.prepareWindowsMDMCommand
 	default:
-		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or macOS hosts.", forPlatform)
+		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or Apple hosts.", forPlatform)
 	}
 
 	rawCmd, err := prepareFn(rawCmd)

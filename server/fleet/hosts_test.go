@@ -130,6 +130,10 @@ func TestPlatformFromHost(t *testing.T) {
 			expPlatform: "linux",
 		},
 		{
+			host:        "tuxedo",
+			expPlatform: "linux",
+		},
+		{
 			host:        "darwin",
 			expPlatform: "darwin",
 		},

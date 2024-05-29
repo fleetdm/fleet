@@ -28,7 +28,6 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
    <iframe src="https://www.youtube.com/embed/hly0tAOqveA?rel=0" frameborder="0" allowfullscreen></iframe>
 </div>
 
-
 ### Prerequisites
 
 - A Render account with payment information.
@@ -56,6 +55,7 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 6. Click on the URL to open your Fleet instance, then follow the on-screen instructions to set up your Fleet account.
 
+Support for add/install software features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
 
 <h2 class="d-none markdown-heading">AWS</h2>
 <h2 id="aws">Deploy at scale with AWS and Terraform</h2>

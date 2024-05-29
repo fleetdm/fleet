@@ -82,14 +82,24 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	_, err := ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
-		name:    "test1",
-		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-	}))
-	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
-		name:    "test2",
-		details: map[string]interface{}{"detail": 2},
-	}))
+	timestamp := time.Now()
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, u, dummyActivity{
+				name:    "test1",
+				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+			}, nil, timestamp,
+		),
+	)
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, u, dummyActivity{
+				name:    "test2",
+				details: map[string]interface{}{"detail": 2},
+			}, nil, timestamp,
+		),
+	)
 
 	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
@@ -126,14 +136,35 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 	}
 	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
-	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
-		name:    "test1",
+	timestamp := time.Now()
+
+	activity := dummyActivity{
+		name:    "test0",
 		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-	}))
-	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
-		name:    "test2",
-		details: map[string]interface{}{"detail": 2},
-	}))
+	}
+	// If we don't set the ActivityWebhookContextKey context value, the activity will not be created
+	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
+	// If we set the context value to the wrong thing, the activity will not be created
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, "bozo")
+	assert.Error(t, ds.NewActivity(ctx, u, activity, nil, timestamp))
+
+	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, u, dummyActivity{
+				name:    "test1",
+				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+			}, nil, timestamp,
+		),
+	)
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, u, dummyActivity{
+				name:    "test2",
+				details: map[string]interface{}{"detail": 2},
+			}, nil, timestamp,
+		),
+	)
 
 	opt := fleet.ListActivitiesOptions{
 		ListOptions: fleet.ListOptions{
@@ -180,18 +211,32 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
 
-	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
-		name:    "test1",
-		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-	}))
-	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
-		name:    "test2",
-		details: map[string]interface{}{"detail": 2},
-	}))
-	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
-		name:    "test3",
-		details: map[string]interface{}{"detail": 3},
-	}))
+	timestamp := time.Now()
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, u, dummyActivity{
+				name:    "test1",
+				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+			}, nil, timestamp,
+		),
+	)
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, u, dummyActivity{
+				name:    "test2",
+				details: map[string]interface{}{"detail": 2},
+			}, nil, timestamp,
+		),
+	)
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, u, dummyActivity{
+				name:    "test3",
+				details: map[string]interface{}{"detail": 3},
+			}, nil, timestamp,
+		),
+	)
 
 	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
@@ -229,21 +274,33 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 }
 
 func testActivityEmptyUser(t *testing.T, ds *Datastore) {
-	require.NoError(t, ds.NewActivity(context.Background(), nil, dummyActivity{
-		name:    "test1",
-		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-	}))
+	timestamp := time.Now()
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, nil, dummyActivity{
+				name:    "test1",
+				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+			}, nil, timestamp,
+		),
+	)
 	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 }
 
 func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
+	timestamp := time.Now()
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	for i := 0; i < 3; i++ {
-		require.NoError(t, ds.NewActivity(context.Background(), nil, dummyActivity{
-			name:    fmt.Sprintf("test-%d", i),
-			details: map[string]interface{}{},
-		}))
+		require.NoError(
+			t, ds.NewActivity(
+				ctx, nil, dummyActivity{
+					name:    fmt.Sprintf("test-%d", i),
+					details: map[string]interface{}{},
+				}, nil, timestamp,
+			),
+		)
 	}
 
 	cases := []struct {
@@ -560,8 +617,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 }
 
 func testListHostPastActivities(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
 	getDetails := func(a *fleet.Activity) map[string]any {
 		details := make(map[string]any)
 		err := json.Unmarshal([]byte(*a.Details), &details)
@@ -586,8 +641,12 @@ func testListHostPastActivities(t *testing.T, ds *Datastore) {
 		},
 	}
 
+	timestamp := time.Now()
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	for _, a := range activities {
-		require.NoError(t, ds.NewActivity(context.Background(), u, a))
+		detailsBytes, err := json.Marshal(a)
+		require.NoError(t, err)
+		require.NoError(t, ds.NewActivity(ctx, u, a, detailsBytes, timestamp))
 	}
 
 	cases := []struct {
@@ -694,27 +753,33 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 		Type:                       fleet.TargetHost,
 	})
 	require.NoError(t, err)
+	timestamp := time.Now()
+	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity(ctx, user1, dummyActivity{
 		name:    "other activity",
 		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
-	})
+	}, nil, timestamp,
+	)
 	require.NoError(t, err)
 	err = ds.NewActivity(ctx, user1, dummyActivity{
 		name:    "live query",
 		details: map[string]interface{}{"detail": 1, "foo": "bar"},
-	})
+	}, nil, timestamp,
+	)
 	require.NoError(t, err)
 	err = ds.NewActivity(ctx, user1, dummyActivity{
 		name:    "some host activity",
 		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
 		hostIDs: []uint{1},
-	})
+	}, nil, timestamp,
+	)
 	require.NoError(t, err)
 	err = ds.NewActivity(ctx, user1, dummyActivity{
 		name:    "some host activity 2",
 		details: map[string]interface{}{"detail": 0, "foo": "bar"},
 		hostIDs: []uint{2},
-	})
+	}, nil, timestamp,
+	)
 	require.NoError(t, err)
 
 	// Nothing is deleted, as the activities and associated data is recent.

@@ -30,7 +30,7 @@ export default {
   // Device endpoints
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
   DEVICE_SOFTWARE: (token: string) =>
-    `/${API_VERSION}/fleet/devices/${token}/software`,
+    `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
   },
@@ -75,8 +75,8 @@ export default {
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
   // MDM endpoints
-  MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
+  MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,

@@ -25,7 +25,6 @@ const baseClass = "activity-feed";
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
   isPremiumTier: boolean;
-  isSandboxMode?: boolean;
 }
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -33,7 +32,6 @@ const DEFAULT_PAGE_SIZE = 8;
 const ActivityFeed = ({
   setShowActivityFeedTitle,
   isPremiumTier,
-  isSandboxMode = false,
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
@@ -148,7 +146,6 @@ const ActivityFeed = ({
               <ActivityItem
                 activity={activity}
                 isPremiumTier={isPremiumTier}
-                isSandboxMode={isSandboxMode}
                 onDetailsClick={handleDetailsClick}
                 key={activity.id}
               />

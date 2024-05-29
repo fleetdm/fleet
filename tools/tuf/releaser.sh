@@ -77,11 +77,16 @@ setup () {
         fi
     fi
 
-    # These need to be exported for use by `fleetctl updates` commands.
-    FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
-    export FLEET_TARGETS_PASSPHRASE
-    FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
-    export FLEET_SNAPSHOT_PASSPHRASE
+    #
+    # Passphrases need to be exported for use by `fleetctl updates` commands.
+    #
+
+    if [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable"  ]]; then
+        FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_TARGETS_PASSPHRASE
+        FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_SNAPSHOT_PASSPHRASE
+    fi
     FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
     export FLEET_TIMESTAMP_PASSPHRASE
 
@@ -231,6 +236,12 @@ release_to_edge () {
     fi
 }
 
+update_timestamp () {
+    pushd "$TUF_DIRECTORY"
+    fleetctl updates timestamp
+    popd
+}
+
 push_to_remote () {
     echo "Running --dryrun push of repository to tuf.fleetctl.com..."
     aws s3 sync "$REPOSITORY_DIRECTORY" s3://fleet-tuf-repo --dryrun
@@ -313,6 +324,8 @@ if [[ $ACTION == "release-to-edge" ]]; then
     release_to_edge
 elif [[ $ACTION == "promote-edge-to-stable" ]]; then
     promote_edge_to_stable
+elif [[ $ACTION == "update-timestamp" ]]; then
+    update_timestamp
 else
     echo "Unsupported action: $ACTION"
     exit 1
