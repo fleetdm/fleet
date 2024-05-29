@@ -9,7 +9,7 @@
     font-size: $x-small;
   }
 
-  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
+  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?g
   .empty-table__container {
     margin: 64px 0;
   }
@@ -20,13 +20,10 @@
     font-weight: $bold;
   }
 
-  // TODO: fix styling for cards so the all shrink and grow together subject to min/max widths at
-  // breakpoints; needs to also align with pagination
   &__items {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 24px;
+    display: grid;
+    gap: $pad-large;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   }
 
   &__pagination {
