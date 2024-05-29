@@ -70,7 +70,8 @@ const AppleAutomaticEnrollmentCard = ({
           onClick={viewDetails}
           variant="text-icon"
         >
-          Details <Icon name="chevron-right" color="core-fleet-blue" />
+          <Icon name="pencil" />
+          Edit
         </Button>
       )}
     </Card>
