@@ -137,11 +137,11 @@ func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...Test
 
 // NewTestMDMClientAppleDirect will create a simulated device that will not fetch the enrollment
 // profile from Fleet. The enrollment information is to be provided in the enrollInfo.
-func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, model string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
 	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),
-		Model:        "MacBookPro16,1",
+		Model:        model,
 
 		EnrollInfo: enrollInfo,
 	}
@@ -392,6 +392,9 @@ func (c *TestAppleMDMClient) Authenticate() error {
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"SerialNumber": c.SerialNumber,
 	}
+	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
+		payload["ProductName"] = c.Model
+	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	return err
 }
@@ -476,6 +479,23 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 		"UDID":         c.UUID,
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"CommandUUID":  cmdUUID,
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName string) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":      "Acknowledged",
+		"UDID":        udid,
+		"CommandUUID": cmdUUID,
+		"QueryResponses": map[string]interface{}{
+			"AvailableDeviceCapacity": float64(51.53312768),
+			"DeviceCapacity":          float64(64),
+			"DeviceName":              deviceName,
+			"OSVersion":               "17.5.1",
+			"ProductName":             productName,
+			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
+		},
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -648,12 +668,21 @@ const serialLetters = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ"
 
 // RandSerialNumber returns a fake random serial number.
 func RandSerialNumber() string {
-	b := make([]byte, 12)
+	return randStr(12)
+}
+
+func randStr(n int) string {
+	b := make([]byte, n)
 	for i := range b {
 		//nolint:gosec // not used for crypto, only to generate random serial for testing
 		b[i] = serialLetters[mrand.Intn(len(serialLetters))]
 	}
 	return string(b)
+}
+
+// RandUDID returns a fake random iOS/iPadOS 17+ UDID.
+func RandUDID() string {
+	return fmt.Sprintf("%s-%s", randStr(8), randStr(16))
 }
 
 type scepClient interface {
