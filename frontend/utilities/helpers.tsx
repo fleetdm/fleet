@@ -19,6 +19,7 @@ import {
   intlFormat,
   intervalToDuration,
   isAfter,
+  isBefore,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -672,7 +673,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 };
 
-export const licenseExpirationWarning = (expiration: string): boolean => {
+export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
@@ -981,7 +982,7 @@ export default {
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,
-  licenseExpirationWarning,
+  hasLicenseExpired,
   readableDate,
   secondsToHms,
   secondsToDhms,

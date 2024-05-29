@@ -6951,7 +6951,6 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	assertVersionsResp(versResp, nil, time.Time{}, "", expectedVulnVersionsCount)
 
 	// /software/versions  filtered by name, version, cve (`/software` is deprecated)
-	// TODO(jacob) use `assertVersionsResp`
 	versionsResp := listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", sws[0].Name)
 	assertVersionsResp(versionsResp, []fleet.Software{sws[0]}, hostsCountTs, "", 1, 1)
