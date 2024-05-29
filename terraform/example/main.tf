@@ -50,7 +50,7 @@ locals {
 }
 
 module "fleet" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.7.3"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.8.0"
   certificate_arn = module.acm.acm_certificate_arn
 
   vpc = {
