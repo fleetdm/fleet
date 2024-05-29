@@ -4,6 +4,7 @@
 package tcc_access
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 // TODO - QUESTION okay to use ~ for userPath? Seems to work.
@@ -23,7 +25,7 @@ import (
 // If user doesn't specify, include all?
 // product answer: add `username` column. QUESTION – what should be this column's value for the
 // system-sourced rows?
-var userPath, sysPath = "~/Library/Application Support/com.apple.TCC/TCC.db", "/Library/Application Support/com.apple.TCC/TCC.db"
+var userPath, sysPath = "/Users/jacob/Library/Application Support/com.apple.TCC/TCC.db", "/Library/Application Support/com.apple.TCC/TCC.db"
 
 // TODO - QUESTION instead of getting all rows from tcc.dbs, can we pass condition sent by user query into ?
 // to only get desired rows? would elimnate need for filterByColEquality here
@@ -85,14 +87,41 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 }
 
 func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
-	// avoids additional C compilation requirements that would be introduced by using https://github.com/mattn/go-sqlite3
-	cmd := exec.Command(sqlite3Path, dbPath, dbQuery)
-	dbOut, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("generate failed: %w", err)
-	}
+	// avoids additional C compilation requirements that would be introduced by using
+	// https://github.com/mattn/go-sqlite3
 
-	parsedRows, err := parseTCCDbReadOutput(dbOut)
+	log.Info().Msgf("\n\nsqlite3 path: %v,\ndbPath: %v,\ndbQuery: %v\n", sqlite3Path, dbPath, dbQuery)
+
+	cmd := exec.Command(sqlite3Path, dbPath, dbQuery)
+	var dbOut bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &dbOut
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("Generate failed at `cmd.Output()`:"+stderr.String()+":%w", err)
+		// fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	}
+	// dbOut, err := cmd.Output()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Generate failed at `cmd.Output()`: %w", err)
+	// }
+
+	// Lucas approach from find_cmd_darwin:
+	// stdoutPipe, err := cmd.StdoutPipe()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("create stdout pipe: %w", err)
+	// }
+	// stderrPipe, err := cmd.StderrPipe()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("create stderr pipe: %w", err)
+	// }
+
+	// if err := cmd.Start(); err != nil {
+	// 	return nil, fmt.Errorf("command start failed: %w", err)
+	// }
+
+	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
@@ -120,7 +149,7 @@ func filterByColEquality(constraints map[string]table.ConstraintList, rows []map
 	return filteredRows, nil
 }
 
-func parseTCCDbReadOutput(dbOut []byte) ([][]string, error) {
+func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	// split by newLine for rows, then by "|" for columns
 	rawRows := strings.Split(string(dbOut[:]), "\n")
 
@@ -129,7 +158,7 @@ func parseTCCDbReadOutput(dbOut []byte) ([][]string, error) {
 	for _, rawRow := range rawRows {
 		parsedRows = append(parsedRows, strings.Split(rawRow, "|"))
 	}
-	return parsedRows, nil
+	return parsedRows
 }
 
 func buildTableRows(source string, parsedRows [][]string) []map[string]string {
