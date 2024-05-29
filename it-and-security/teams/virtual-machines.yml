@@ -9,7 +9,7 @@ team_settings:
   secrets:
     - secret: $DOGFOOD_VIRTUAL_MACHINES_ENROLL_SECRET
 agent_options:
-  path: ../lib/virtual-machines.agent-options.yml
+  path: ../lib/agent-options.yml
 controls:
 policies:
 queries:
