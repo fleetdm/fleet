@@ -19,7 +19,8 @@ interface ICardProps {
    *
    * These correspond to the padding sizes in the design system. Look at `padding.scss` for values */
   paddingSize?: "small" | "medium" | "large" | "xlarge" | "xxlarge";
-  /** NOTE: DEPRICATED. Use `paddingSize` prop instead.
+  /**
+   * @deprecated Use `paddingSize` prop instead.
    *
    * Increases to 40px padding. Defaults to `false` */
   largePadding?: boolean;

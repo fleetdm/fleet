@@ -1,14 +1,8 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import ReactTooltip from "react-tooltip";
 import { AxiosError } from "axios";
 
-import {
-  IDeviceSoftware,
-  IHostSoftware,
-  SoftwareInstallStatus,
-} from "interfaces/software";
 import deviceApi, {
   IDeviceSoftwareQueryKey,
   IGetDeviceSoftwareResponse,
@@ -16,20 +10,16 @@ import deviceApi, {
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import { dateAgo } from "utilities/date_format";
-
-import Button from "components/buttons/Button";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
-import Icon from "components/Icon";
 import Spinner from "components/Spinner";
 
 import Pagination from "pages/ManageControlsPage/components/Pagination";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import { IStatusDisplayConfig } from "../InstallStatusCell/InstallStatusCell";
+
 import { parseHostSoftwareQueryParams } from "../Software";
+import SelfServiceItem from "./SelfServiceItem";
 
 const baseClass = "software-self-service";
 
@@ -41,172 +31,6 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   query: "",
   self_service: true,
 } as const;
-
-const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
-  installed: {
-    iconName: "success",
-    displayText: "Installed",
-    tooltip: ({ lastInstalledAt }) => (
-      <>
-        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
-      </>
-    ),
-  },
-  pending: {
-    iconName: "pending-outline",
-    displayText: "Install in progress...",
-    tooltip: () => "Software installation in progress...",
-  },
-  failed: {
-    iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ lastInstalledAt = "" }) => (
-      <>
-        Software failed to install
-        {lastInstalledAt ? `(${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to install again, or contact your IT department.
-      </>
-    ),
-  },
-};
-
-const InstallerStatus = ({
-  id,
-  status,
-  last_install,
-}: Pick<IHostSoftware, "id" | "status" | "last_install">) => {
-  const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
-  if (!displayConfig) {
-    // API should ensure this never happens, but just in case
-    return null;
-  }
-
-  return (
-    <div className={`${baseClass}__status-content`}>
-      <div
-        className={`${baseClass}__status-with-tooltip`}
-        data-tip
-        data-for={`install-tooltip__${id}`}
-      >
-        <Icon name={displayConfig.iconName} />
-        <span>{displayConfig.displayText}</span>
-      </div>
-      <ReactTooltip
-        className={`${baseClass}__status-tooltip`}
-        effect="solid"
-        backgroundColor="#3e4771"
-        id={`install-tooltip__${id}`}
-        data-html
-      >
-        <span className={`${baseClass}__status-tooltip-text`}>
-          {displayConfig.tooltip({
-            lastInstalledAt: last_install?.installed_at,
-          })}
-        </span>
-      </ReactTooltip>
-    </div>
-  );
-};
-
-const InstallerStatusAction = ({
-  deviceToken,
-  software: { id, status, last_install },
-  onInstall,
-}: {
-  deviceToken: string;
-  software: IHostSoftware;
-  onInstall: () => void;
-}) => {
-  // localStatus is used to track the status of the any user-initiated install action
-  const [localStatus, setLocalStatus] = React.useState<
-    SoftwareInstallStatus | undefined
-  >(undefined);
-
-  // displayStatus allows us to display the localStatus (if any) or the status from the list
-  // software reponse
-  const displayStatus = localStatus || status;
-
-  // if the localStatus is "failed", we don't our tooltip to include the old installed_at date so we
-  // set this to null, which tells the tooltip to omit the parenthetical date
-  const lastInstall = localStatus === "failed" ? null : last_install;
-
-  const isMountedRef = useRef(false);
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  const onClick = useCallback(async () => {
-    setLocalStatus("pending");
-    try {
-      // TODO: confirm specs for response handling
-      const resp = await deviceApi.installSelfServiceSoftware(deviceToken, id);
-      console.log("resp", resp);
-      if (isMountedRef.current) {
-        console.log("Component is mounted, refetching data...");
-        onInstall();
-      } else {
-        console.log("Component is unmounted, skipping refetch...");
-      }
-    } catch (error) {
-      // TODO: confirm specs for error handling
-      console.log("error", error);
-      if (isMountedRef.current) {
-        setLocalStatus("failed");
-      }
-    } finally {
-      // TODO: anything else to do here? maybe something subject to isMountedRef.current check?
-      console.log("finally");
-    }
-  }, [deviceToken, id, onInstall]);
-
-  return (
-    <div className={`${baseClass}__item-status-action`}>
-      <div className={`${baseClass}__item-status`}>
-        <InstallerStatus
-          id={id}
-          status={displayStatus}
-          last_install={lastInstall}
-        />
-      </div>
-      <div className={`${baseClass}__item-action`}>
-        {(displayStatus === "failed" || displayStatus === null) && (
-          <Button
-            variant="text-icon"
-            type="button"
-            className={`${baseClass}__item-action-button${
-              localStatus === "pending" ? "--installing" : ""
-            }`}
-            onClick={onClick}
-          >
-            {displayStatus === "failed" ? "Retry" : "Install"}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const InstallerInfo = ({ software }: { software: IDeviceSoftware }) => {
-  const { name, source, package: installerPackage } = software;
-  return (
-    <div className={`${baseClass}__item-topline`}>
-      <div className={`${baseClass}__item-icon`}>
-        <SoftwareIcon name={name} source={source} size="medium_large" />
-      </div>
-      <div className={`${baseClass}__item-name-version`}>
-        <div className={`${baseClass}__item-name`}>
-          {name || installerPackage?.name}
-        </div>
-        <div className={`${baseClass}__item-version`}>
-          {installerPackage?.version || ""}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const SoftwareSelfService = ({
   contactUrl,
@@ -265,7 +89,7 @@ const SoftwareSelfService = ({
     <Card
       borderRadiusSize="large"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={baseClass}
     >
       <div className={`${baseClass}__card-header`}>Self-service</div>
@@ -300,16 +124,12 @@ const SoftwareSelfService = ({
                     {data.software.map((s) => {
                       const key = `${s.id}${s.last_install?.install_uuid}`; // concatenating install_uuid so item updates with fresh data on refetch
                       return (
-                        <div key={key} className={`${baseClass}__item`}>
-                          <div className={`${baseClass}__item-content`}>
-                            <InstallerInfo software={s} />
-                            <InstallerStatusAction
-                              deviceToken={deviceToken}
-                              software={s}
-                              onInstall={refetch}
-                            />
-                          </div>
-                        </div>
+                        <SelfServiceItem
+                          key={key}
+                          deviceToken={deviceToken}
+                          software={s}
+                          onInstall={refetch}
+                        />
                       );
                     })}
                   </div>
