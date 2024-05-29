@@ -38,6 +38,7 @@
     font-weight: $bold;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-wrap: nowrap;
   }
 
   &__item-version {
