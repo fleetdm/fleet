@@ -762,9 +762,9 @@ func macOSBundleIDExistsQuery(appName string) string {
 	return fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' LIMIT 1", appName)
 }
 
-// generateSQLForAllExists generates a SQL query that returns 
+// generateSQLForAllExists generates a SQL query that returns
 // 1 if all subqueries return 1, otherwise returns no rows.
-// subqueries should be a list of SQL queries that return 1+ rows 
+// subqueries should be a list of SQL queries that return 1+ rows
 // if a condition is met, otherwise returns no rows.
 func generateSQLForAllExists(subqueries ...string) string {
 	if len(subqueries) == 0 {
