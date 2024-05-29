@@ -45,7 +45,6 @@ const EditTeamModal = ({
 
   const handleUpdateTeam = useCallback(
     async (newName: string) => {
-      console.log("onFormSubmit");
       try {
         const configData = await configAPI.update({
           mdm: { apple_bm_default_team: newName },

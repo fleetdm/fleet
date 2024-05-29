@@ -4,7 +4,7 @@ import mdmAppleBusinessManagerApi from "services/entities/mdm_apple_bm";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import { downloadFile, RequestState } from "./helpers";
+import { downloadBase64ToFile, RequestState } from "./helpers";
 
 interface IDownloadABMKeyProps {
   baseClass: string;
@@ -13,8 +13,10 @@ interface IDownloadABMKeyProps {
 }
 
 const downloadKeyFile = (data: { public_key: string }) => {
-  downloadFile(data.public_key, "fleet-mdm-apple-bm-public-key.crt");
+  downloadBase64ToFile(data.public_key, "fleet-mdm-apple-bm-public-key.crt");
 };
+
+// TODO: why can't we use Content-Dispostion for these? We're only getting one file back now.
 
 const useDownloadABMKey = ({
   onSuccess,
@@ -32,8 +34,6 @@ const useDownloadABMKey = ({
         setDownloadState("success");
         onSuccess && onSuccess();
       } catch (e) {
-        console.error(e);
-        // TODO: error handling per Figma?
         setDownloadState("error");
         onError && onError(e);
       }

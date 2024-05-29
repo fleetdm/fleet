@@ -34,7 +34,6 @@ const AppleAutomaticEnrollmentPage = ({
 }) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  // TODO: implement uploading state?
   const [isUploading, setIsUploading] = useState(false);
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
@@ -56,7 +55,7 @@ const AppleAutomaticEnrollmentPage = ({
   const uploadToken = useCallback(
     async (data: FileList | null) => {
       setIsUploading(true);
-      const token = data?.[0]; // TODO: handle multiple files, undefined, etc.?
+      const token = data?.[0];
       if (!token) {
         setIsUploading(false);
         renderFlash("error", "No token selected.");

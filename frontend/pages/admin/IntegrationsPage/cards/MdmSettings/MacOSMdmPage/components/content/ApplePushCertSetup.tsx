@@ -55,8 +55,6 @@ const ApplePushCertSetup = ({
     [renderFlash]
   );
 
-  // TODO: Cleanup styles to indent list items properly (first line hangs over indented content below)
-
   return (
     <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
       <p className={`${baseClass}__setup-description`}>

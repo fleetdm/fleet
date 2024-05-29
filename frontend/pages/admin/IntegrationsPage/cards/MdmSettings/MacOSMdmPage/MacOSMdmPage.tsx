@@ -63,7 +63,6 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
   const turnOffMdm = useCallback(async () => {
     setIsUpdating(true);
     toggleTurnOffMdmModal();
-    console.log("Turn off MDM confirmed");
     try {
       await mdmAppleAPI.deleteApplePushCertificate();
       renderFlash("success", "macOS MDM turned off successfully.");
@@ -84,12 +83,11 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
   }, [router]);
 
   // The API returns a 404 error if APNs is not configured yet, in that case we
-  // want to prompt the user to download the certs and keys to configure the
-  // server instead of the default error message.
-  const isMdmAppleError = errorMdmApple && errorMdmApple.status !== 404;
+  // want to prompt the user to configure the server instead of the default error message.
+  const isMdmNotConfigured = errorMdmApple && errorMdmApple.status !== 404;
 
   const showSpinner = isLoading || isUpdating || isRefetching;
-  const showError = !config || isMdmAppleError;
+  const showError = !config || isMdmNotConfigured;
   const showContent = !showSpinner && !showError;
 
   return (

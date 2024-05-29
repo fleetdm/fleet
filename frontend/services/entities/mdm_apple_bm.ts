@@ -39,7 +39,6 @@ export default {
   },
 
   uploadToken: (token: File) => {
-    // TODO: confirm this work for renewing token when set by env vars
     const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
     const formData = new FormData();
     formData.append("token", token);
@@ -48,7 +47,6 @@ export default {
   },
 
   disableAutomaticEnrollment: () => {
-    // TODO: confirm this actually deletes the tokeb
     const { MDM_APPLE_ABM_TOKEN: MDM_APPLE_BM_TOKEN } = endpoints;
     return sendRequest("DELETE", MDM_APPLE_BM_TOKEN);
   },

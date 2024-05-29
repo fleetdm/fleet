@@ -23,11 +23,9 @@ type ISupportedGraphicNames = Extract<
 >;
 
 export const FileDetails = ({
-  // className,
   details: { name, platform },
   graphicName = "file-pkg",
 }: {
-  // classname?: string;
   details: {
     name: string;
     platform?: string;

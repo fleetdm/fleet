@@ -4,7 +4,7 @@ import mdmAppleApi from "services/entities/mdm_apple";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import { RequestState, downloadFile } from "./helpers";
+import { RequestState, downloadBase64ToFile } from "./helpers";
 
 interface IDownloadCSRProps {
   baseClass: string;
@@ -13,8 +13,10 @@ interface IDownloadCSRProps {
 }
 
 const downloadCSRFile = (data: { csr: string }) => {
-  downloadFile(data.csr, "fleet-mdm-apple.csr");
+  downloadBase64ToFile(data.csr, "fleet-mdm-apple.csr");
 };
+
+// TODO: why can't we use Content-Dispostion for these? We're only getting one file back now.
 
 const useDownloadCSR = ({
   onSuccess,
@@ -32,8 +34,6 @@ const useDownloadCSR = ({
         setDownloadState("success");
         onSuccess && onSuccess();
       } catch (e) {
-        console.error(e);
-        // TODO: error handling per Figma?
         setDownloadState("error");
         onError && onError(e);
       }

@@ -15,7 +15,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatu
 import EmptyTable from "components/EmptyTable/EmptyTable";
 import Button from "components/buttons/Button/Button";
 
-import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection/AppleBusinessManagerSection";
+import MdmPlatformsSection from "./components/MdmPlatformsSection/MdmPlatformsSection";
 import DefaultTeamSection from "./components/DefaultTeamSection/DefaultTeamSection";
 import IdpSection from "./components/IdpSection/IdpSection";
 import EulaSection from "./components/EulaSection/EulaSection";
@@ -70,7 +70,7 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <AppleBusinessManagerSection router={router} />
+        <MdmPlatformsSection router={router} />
       </div>
       {!!config?.mdm.apple_bm_enabled_and_configured && (
         <div className={`${baseClass}__section`}>
