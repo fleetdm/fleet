@@ -86,8 +86,6 @@ func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 	// avoids additional C compilation requirements that would be introduced by using
 	// https://github.com/mattn/go-sqlite3
 
-	log.Info().Msgf("\n\nsqlite3 path: %v,\ndbPath: %v,\ndbQuery: %v\n", sqlite3Path, dbPath, dbQuery)
-
 	cmd := exec.Command(sqlite3Path, dbPath, dbQuery)
 	var dbOut bytes.Buffer
 	var stderr bytes.Buffer
@@ -95,9 +93,11 @@ func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("Generate failed at `cmd.Output()`:"+stderr.String()+":%w", err)
+		return nil, fmt.Errorf("Generate failed at `cmd.Run()`:"+stderr.String()+":%w", err)
 		// fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 	}
+
+	// simplest approach, don't get useful error message from failed process
 	// dbOut, err := cmd.Output()
 	// if err != nil {
 	// 	return nil, fmt.Errorf("Generate failed at `cmd.Output()`: %w", err)
@@ -118,6 +118,7 @@ func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 	// }
 
 	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
+	log.Info().Msgf("\nParsed rows: %v\n", parsedRows)
 
 	rows := buildTableRows(source, parsedRows)
 
@@ -145,9 +146,14 @@ func getTCCAccessRows(source, dbPath string) ([]map[string]string, error) {
 func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	// split by newLine for rows, then by "|" for columns
 	rawRows := strings.Split(string(dbOut[:]), "\n")
+	n := len(rawRows)
+	for len(rawRows[n-1]) == 0 {
+		// if the end of the db response is "\n", the final row will be "", which we want to omit
+		rawRows = rawRows[:n-1]
+		n = len(rawRows)
+	}
 
-	parsedRows := make([][]string, len(rawRows))
-
+	var parsedRows [][]string
 	for _, rawRow := range rawRows {
 		parsedRows = append(parsedRows, strings.Split(rawRow, "|"))
 	}
