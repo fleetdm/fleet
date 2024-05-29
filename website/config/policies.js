@@ -55,4 +55,5 @@ module.exports.policies = {
   'deliver-talk-to-us-form-submission': true,
   'get-human-interpretation-from-osquery-sql': true,
   'customers/view-new-license': true,
+  'redirect-vanta-authorization-request': true,
 };
