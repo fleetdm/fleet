@@ -555,8 +555,8 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
     - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
-    - description: Target profiles to specific hosts using SQL.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
+    - description: Target profiles to specific hosts using SQL. Exclusions coming soon (2024-07-15)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17315
     - description: Automatically re-deploy configuration profiles when they're not installed.
     - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-06-30).
   productCategories: [Device management]
@@ -576,6 +576,9 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
+  waysToUse:
+    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2024-12-31)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
 - industryName: Low-level MDM commands for macOS, iOS/iPadOS*, and Windows (e.g. remote restart)
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   tier: Free
@@ -636,10 +639,10 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Deploy and update apps on macOS, Windows, and Linux computers.
-  description: Install Zoom, Slack, Chrome, and other apps without interrupting your end users.
+- industryName: Update apps on macOS, Windows, and Linux computers.
+  description: Update Zoom, Slack, Chrome, and other apps without interrupting your end users.
   tier: Premium
-  comingSoonOn: 2024-06-30
+  comingSoonOn: 2024-07-15
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -655,7 +658,7 @@
 - industryName: License apps on macOS and iOS/iPadOS through Volume Purchasing Program (VPP).
   description: Offer licenses for Photoshop and other App Sore apps for your end users.
   tier: Premium
-  comingSoonOn: 2024-06-30
+  comingSoonOn: 2024-07-15
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -752,6 +755,15 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
+- industryName: Two-factor authentication
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/5478
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Endpoint operations]
+  usualDepartment: IT
+  tier: Free
+  waysToUse:
+    - description: Enforce two-factor authentication when logging in to Fleet for added security.
+  comingSoonOn: 2024-12-31
 - industryName: Disk encryption
   documentationURL: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
@@ -784,6 +796,13 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
+- industryName: System for Cross-domain Identity Management (SCIM) provisioning
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/15671
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Endpoint operations]
+  usualDepartment: IT
+  tier: Premium
+  comingSoonOn: 2024-12-31
 - industryName: Automated user role sync via Okta, AD, or any IDP
   documentationUrl:
   productCategories: [Endpoint operations,Device management,Vulnerability management]
