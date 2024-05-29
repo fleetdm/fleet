@@ -12,6 +12,9 @@ type UbuntuResult struct {
 	Definitions  []Definition
 	PackageTests map[int]*DpkgInfoTest
 	UnameTests   map[int]*UnixUnameTest
+	// KernelVariants do not exist in the OVAL schema, but are extracted from UnameTests
+	// and used to store the kernel variants to determine if a kernel is unknown/custom.
+	KernelVariants []string
 }
 
 // NewUbuntuResult is the result of parsing an OVAL file that targets an Ubuntu distro.
@@ -35,6 +38,14 @@ func (r *UbuntuResult) AddPackageTest(id int, tst *DpkgInfoTest) {
 
 func (r *UbuntuResult) AddUnameTest(id int, tst *UnixUnameTest) {
 	r.UnameTests[id] = tst
+}
+
+func (r *UbuntuResult) AddKernelVariant(v string) {
+	r.KernelVariants = append(r.KernelVariants, v)
+}
+
+func parseKernelVariants(s string) []string {
+	return strings.Fields(s)
 }
 
 func (r UbuntuResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]fleet.SoftwareVulnerability, error) {
@@ -84,6 +95,8 @@ func (r UbuntuResult) EvalKernel(software []fleet.Software) ([]fleet.SoftwareVul
 				return nil, fmt.Errorf("linux kernel package %s does not match expected format:", s.Name)
 			}
 
+			v = r.ReplaceUnknownKernel(v)
+
 			for i, u := range r.UnameTests {
 				isMatch, err := u.Eval(v)
 				if err != nil {
@@ -111,4 +124,24 @@ func (r UbuntuResult) EvalKernel(software []fleet.Software) ([]fleet.SoftwareVul
 	}
 
 	return vuln, nil
+}
+
+var kernelVariantRegex = regexp.MustCompile(`^([\d|\.]+-\d+)([-|\w]+$)`)
+
+// ReplaceUnknownKernel replaces an unknown kernel variant with the default kernel variant.
+func (r UbuntuResult) ReplaceUnknownKernel(version string) string {
+	defaultKernel := "generic"
+
+	v := kernelVariantRegex.FindStringSubmatch(version)
+	if len(v) < 3 {
+		return version
+	}
+
+	for _, variant := range r.KernelVariants {
+		if variant == strings.TrimPrefix(v[2], "-") {
+			return version
+		}
+	}
+
+	return fmt.Sprintf("%s-%s", v[1], defaultKernel)
 }

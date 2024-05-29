@@ -23,9 +23,11 @@ func TestEval(t *testing.T) {
 		{Name: "greater than", Input: "5.15.0-1005-generic", Expected: false},
 		{Name: "equal", Input: "5.15.0-1004-generic", Expected: false},
 		{Name: "alt pattern match", Input: "5.15.0-1003-lowlatency", Expected: true},
-		{Name: "suffix doesn't match", Input: "5.15.0-1004-foo", Expected: false},
 		{Name: "lower version fails pattern match", Input: "4.0.0-10-generic", Expected: false},
 		{Name: "higher version fails pattern match", Input: "6.0.0-10-generic", Expected: false},
+		{Name: "unknown kernel variant matches generic", Input: "5.15.0-1003-foo", Expected: true},
+		{Name: "uknown kernel variant is greater than", Input: "5.15.0-1005-foo", Expected: false},
+		{Name: "unknown kernel variant is wrong version", Input: "4.0.0-1003-foo", Expected: false},
 	}
 
 	for _, tc := range testCases {
