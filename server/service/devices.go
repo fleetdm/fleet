@@ -176,9 +176,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	deviceGlobalConfig := fleet.DeviceGlobalConfig{
 		MDM: fleet.DeviceGlobalMDMConfig{
-			// TODO(mna): is this used at all on the frontend? It currently only
-			// returns the Apple enabled and configured, regardless of the platform
-			// of the device.
+			// TODO(mna): It currently only returns the Apple enabled and configured,
+			// regardless of the platform of the device. See
+			// https://github.com/fleetdm/fleet/pull/19304#discussion_r1618792410.
 			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
 		},
 		Features: fleet.DeviceFeatures{
