@@ -503,12 +503,12 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.EnrollSecret != nil {
+		if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret, opts.ApplySpecOptions); err != nil {
+			return nil, fmt.Errorf("applying enroll secrets: %w", err)
+		}
 		if opts.DryRun {
 			logfn("[+] would've applied enroll secrets\n")
 		} else {
-			if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
-				return nil, fmt.Errorf("applying enroll secrets: %w", err)
-			}
 			logfn("[+] applied enroll secrets\n")
 		}
 	}
