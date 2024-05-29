@@ -781,7 +781,7 @@ func generateSQLForAllExists(subqueries ...string) string {
 	// Join all conditions with AND
 	fullCondition := strings.Join(conditions, " AND ")
 
-	// Build the final SQL with CASE statement
+	// Build the final SQL query
 	sql := fmt.Sprintf("SELECT 1 WHERE %s", fullCondition)
 	return sql
 }
