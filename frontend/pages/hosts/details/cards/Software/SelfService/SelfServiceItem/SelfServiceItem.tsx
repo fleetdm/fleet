@@ -9,6 +9,7 @@ import {
 import deviceApi from "services/entities/device_user";
 import { dateAgo } from "utilities/date_format";
 
+import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -206,7 +207,11 @@ const SelfServiceItem = ({
   onInstall,
 }: ISelfServiceItemProps) => {
   return (
-    <div className={`${baseClass}__item`}>
+    <Card
+      borderRadiusSize="large"
+      paddingSize="medium"
+      className={`${baseClass}__item`}
+    >
       <div className={`${baseClass}__item-content`}>
         <InstallerInfo software={software} />
         <InstallerStatusAction
@@ -215,7 +220,7 @@ const SelfServiceItem = ({
           onInstall={onInstall}
         />
       </div>
-    </div>
+    </Card>
   );
 };
 
