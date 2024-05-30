@@ -77,6 +77,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       destination_url: "https://server.com",
       host_batch_size: 1000,
     },
+    activities_webhook: {
+      enable_activities_webhook: true,
+      destination_url: "https://server.com",
+    },
   },
   integrations: {
     jira: [],

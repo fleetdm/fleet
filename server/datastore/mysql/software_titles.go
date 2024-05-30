@@ -213,7 +213,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, software_package, si.self_service`
+GROUP BY st.id, software_package, self_service`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {

@@ -140,14 +140,13 @@ the account verification message.)`,
 
     // Use timers.setImmediate() to update/create CRM records in the background.
     require('timers').setImmediate(async ()=>{
-      await sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+      await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: newEmailAddress,
         firstName: firstName,
         lastName: lastName,
         organization: organization,
-        leadSource: 'Website - Sign up',
       }).tolerate((err)=>{
-        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} sign up for a fleetdm.com account, a Contact, Account, and Lead record could not be created/updated in the CRM. Error:`, err.raw);
+        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
       });
     });//_∏_  (Meanwhile...)
 

@@ -289,3 +289,183 @@ func TestOvalParsedDefinition(t *testing.T) {
 		})
 	})
 }
+
+func TestIntersect(t *testing.T) {
+	a := []uint{1, 2, 3, 4}
+	b := []uint{3, 4, 5, 6}
+	expected := []uint{3, 4}
+	result := intersect(a, b)
+	require.ElementsMatch(t, expected, result)
+}
+
+func TestUnion(t *testing.T) {
+	a := []uint{1, 2, 3, 4}
+	b := []uint{3, 4, 5, 6}
+	expected := []uint{1, 2, 3, 4, 5, 6}
+	result := unionAll(a, b)
+	require.ElementsMatch(t, expected, result)
+
+	// a has duplicates
+	a = []uint{1, 2, 3, 4, 4}
+	expected = []uint{1, 2, 3, 4, 5, 6}
+	result = unionAll(a, b)
+	require.ElementsMatch(t, expected, result)
+
+	// b has duplicates
+	a = []uint{1, 2, 3, 4}
+	b = []uint{3, 4, 5, 6, 6}
+	expected = []uint{1, 2, 3, 4, 5, 6}
+	result = unionAll(a, b)
+	require.ElementsMatch(t, expected, result)
+}
+
+func TestFindAndMatch(t *testing.T) {
+	// map of tests to softwareIDs
+	criterionToSoftware := map[int][]uint{
+		100: {1, 2, 3},
+		200: {3, 4, 5},
+		300: {5, 6, 7},
+	}
+
+	for _, tc := range []struct {
+		criteria Criteria
+		expected []uint
+	}{
+		{
+			// Criteria: 100 AND 200 must match
+			criteria: Criteria{
+				Operator:   And,
+				Criteriums: []int{100, 200},
+			},
+			expected: []uint{3},
+		},
+		{
+			// Criteria: 100 and 200 and 300 must match
+			criteria: Criteria{
+				Operator:   And,
+				Criteriums: []int{100, 200, 300},
+			},
+			expected: []uint{},
+		},
+		{
+			// Criteria: 100 must match
+			criteria: Criteria{
+				Operator:   And,
+				Criteriums: []int{100},
+			},
+			expected: []uint{1, 2, 3},
+		},
+	} {
+		result := findAndMatch(tc.criteria, criterionToSoftware)
+		require.ElementsMatch(t, tc.expected, result)
+	}
+}
+
+func TestFindOrMatch(t *testing.T) {
+	// map of tests to softwareIDs
+	criterionToSoftware := map[int][]uint{
+		100: {1, 2, 3},
+		200: {3, 4, 5},
+		300: {5, 6, 7},
+	}
+
+	for _, tc := range []struct {
+		criteria Criteria
+		expected []uint
+	}{
+		{
+			// Criteria: 100 OR 200 must match
+			criteria: Criteria{
+				Operator:   Or,
+				Criteriums: nil,
+				Criterias: []*Criteria{
+					{
+						Operator:   And,
+						Criteriums: []int{100},
+					},
+					{
+						Operator:   And,
+						Criteriums: []int{200},
+					},
+				},
+			},
+			expected: []uint{1, 2, 3, 4, 5},
+		},
+		{
+			// Criteria: 100 OR 200 OR 300 must match
+			criteria: Criteria{
+				Operator:   Or,
+				Criteriums: nil,
+				Criterias: []*Criteria{
+					{
+						Operator:   And,
+						Criteriums: []int{100},
+						Criterias:  nil,
+					},
+					{
+						Operator:   And,
+						Criteriums: []int{200},
+						Criterias:  nil,
+					},
+					{
+						Operator:   And,
+						Criteriums: []int{300},
+						Criterias:  nil,
+					},
+				},
+			},
+			expected: []uint{1, 2, 3, 4, 5, 6, 7},
+		},
+		{
+			// Criteria: 100 OR 200 OR 300 must match
+			criteria: Criteria{
+				Operator:   Or,
+				Criteriums: nil,
+				Criterias: []*Criteria{
+					{
+						Operator:   And,
+						Criteriums: []int{100},
+						Criterias:  nil,
+					},
+				},
+			},
+			expected: []uint{1, 2, 3},
+		},
+	} {
+		result := findOrMatch(tc.criteria, criterionToSoftware)
+		require.ElementsMatch(t, tc.expected, result)
+	}
+}
+
+func TestFindMatchingSoftware(t *testing.T) {
+	criterionToSoftware := map[int][]uint{
+		100: {1, 2, 3},
+		200: {3, 4, 5},
+		300: {5, 6, 7},
+		400: {7, 8, 9},
+	}
+
+	criteria := Criteria{
+		Operator:   And,
+		Criteriums: nil,
+		Criterias: []*Criteria{
+			{
+				Operator:   Or,
+				Criteriums: nil,
+				Criterias: []*Criteria{
+					{
+						Operator:   And,
+						Criteriums: []int{100, 200},
+					},
+					{
+						Operator:   And,
+						Criteriums: []int{300, 400},
+					},
+				},
+			},
+		},
+	}
+
+	matchingSoftware := findMatchingSoftware(criteria, criterionToSoftware)
+	require.ElementsMatch(t, []uint{3, 7}, matchingSoftware)
+}
