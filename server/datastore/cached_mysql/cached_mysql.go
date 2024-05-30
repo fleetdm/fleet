@@ -50,8 +50,11 @@ const (
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
-	mdmConfigAssetKey                  = "MDMConfigAsset:%s:%s"
-	defaultMDMConfigAssetExpiration    = 1 * time.Hour
+	// NOTE: MDM assets are cached using their checksum as well, as it's
+	// important for them to always be fresh if they changed (see cachedi
+	// mplementation below for details)
+	mdmConfigAssetKey               = "MDMConfigAsset:%s:%s"
+	defaultMDMConfigAssetExpiration = 1 * time.Hour
 )
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
@@ -406,6 +409,7 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 
 	cachedAssets := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset)
 	var missingAssets []fleet.MDMAssetName
+	var missingKeys []string
 
 	for _, name := range assetNames {
 		key := fmt.Sprintf(mdmConfigAssetKey, name, latestHashes[name])
@@ -419,6 +423,7 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 		}
 
 		missingAssets = append(missingAssets, name)
+		missingKeys = append(missingKeys, key)
 	}
 
 	if len(missingAssets) == 0 {
@@ -436,6 +441,11 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 		key := fmt.Sprintf(mdmConfigAssetKey, name, latestHashes[name])
 		ds.c.Set(ctx, key, asset, ds.mdmConfigAssetExp)
 		cachedAssets[name] = asset
+	}
+
+	// delete missing keys so they don't linger
+	for _, key := range missingKeys {
+		ds.c.Delete(key)
 	}
 
 	return cachedAssets, nil

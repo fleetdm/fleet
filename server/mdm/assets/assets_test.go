@@ -144,37 +144,6 @@ func TestAPNSTopic(t *testing.T) {
 	require.True(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
 }
 
-//	testBMToken := &nanodep_client.OAuth1Tokens{
-//		ConsumerKey:       "test_consumer",
-//		ConsumerSecret:    "test_secret",
-//		AccessToken:       "test_access_token",
-//		AccessSecret:      "test_access_secret",
-//		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-//	}
-//
-//	rawToken, err := json.Marshal(testBMToken)
-//	require.NoError(t, err)
-//
-//	cert, err := x509.ParseCertificate(block.Bytes)
-//	require.NoError(t, err)
-//
-//	smimeToken := fmt.Sprintf(
-//		"Content-Type: text/plain;charset=UTF-8\r\n"+
-//			"Content-Transfer-Encoding: 7bit\r\n"+
-//			"\r\n%s", rawToken,
-//	)
-//
-//	encryptedToken, err := pkcs7.Encrypt([]byte(smimeToken), []*x509.Certificate{cert})
-//	require.NoError(t, err)
-//
-//	// upload the encrypted token
-//	smimeMessage := fmt.Sprintf(
-//		"Content-Type: application/pkcs7-mime; name=\"smime.p7m\"; smime-type=enveloped-data\r\n"+
-//			"Content-Transfer-Encoding: base64\r\n"+
-//			"Content-Disposition: attachment; filename=\"smime.p7m\"\r\n"+
-//			"Content-Description: S/MIME Encrypted Message\r\n"+
-//			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
-
 func TestABMToken(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
