@@ -267,8 +267,6 @@ const SoftwarePackageCard = ({
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
-  // TODO: truncate with tooltips, left-align when count slides
-
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__main-content`}>
