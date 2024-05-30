@@ -6110,10 +6110,6 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 
 func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	// testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
-	// require.NoError(t, err)
-	// testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
-	// testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	scepDepot, err := ds.NewSCEPDepot()
 	require.NoError(t, err)
 

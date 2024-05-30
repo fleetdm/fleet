@@ -2992,10 +2992,6 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 }
 
 func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.MDMAppleCommander, *NanoMDMStorage) {
-	// testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
-	// require.NoError(t, err)
-	// testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
-	// testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	mdmStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 

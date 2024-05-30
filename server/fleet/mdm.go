@@ -3,7 +3,6 @@ package fleet
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -571,16 +570,19 @@ type MDMConfigAsset struct {
 }
 
 func (m MDMConfigAsset) Clone() (Cloner, error) {
-	return m, nil
+	return m.Copy(), nil
 }
 
-type MDMAssetManager interface {
-	IsAppleAPNsSet() bool
-	IsAppleSCEPSet() bool
-	IsAppleBMSet() bool
-	AppleAPNs() (*tls.Certificate, []byte, []byte, error)
-	AppleSCEP() (*tls.Certificate, []byte, []byte, error)
-	AppleBM() (*tls.Certificate, []byte, []byte, error)
-	MicrosoftWSTEP() (*tls.Certificate, []byte, []byte, error)
-	IsMicrosoftWSTEPSet() bool
+func (m MDMConfigAsset) Copy() *MDMConfigAsset {
+	var clone MDMConfigAsset
+
+	clone.Name = m.Name
+	clone.MD5Checksum = m.MD5Checksum
+
+	if len(m.Value) > 0 {
+		clone.Value = make([]byte, len(m.Value))
+		copy(clone.Value, m.Value)
+	}
+
+	return &clone
 }

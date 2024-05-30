@@ -12,10 +12,6 @@ import (
 
 func setup(t *testing.T) scep_depot.Depot {
 	ds := CreateNamedMySQLDS(t, t.Name())
-	// cert, key, err := apple_mdm.NewSCEPCACertKey()
-	// require.NoError(t, err)
-	// publicKeyPEM := tokenpki.PEMCertificate(cert.Raw)
-	// privateKeyPEM := tokenpki.PEMRSAPrivateKey(key)
 	depot, err := ds.NewSCEPDepot()
 	require.NoError(t, err)
 	return depot
