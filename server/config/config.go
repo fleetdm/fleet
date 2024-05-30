@@ -20,7 +20,6 @@ import (
 
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -454,6 +453,12 @@ type MDMConfig struct {
 	AppleBMKey              string `yaml:"apple_bm_key"`
 	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
 
+	// the following fields hold the PEM-encoded bytes for the certificate
+	// and private key set the first time AppleBM is called
+	appleBMPEMCert  []byte
+	appleBMPEMKey   []byte
+	appleBMRawToken []byte
+
 	// the following fields hold the decrypted, validated Apple BM token set the
 	// first time AppleBM is called.
 	appleBMToken *nanodep_client.OAuth1Tokens
@@ -602,20 +607,6 @@ func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
 }
 
-func (m *MDMConfig) AppleAPNsTopic() (string, error) {
-	apnsCert, _, _, err := m.AppleAPNs()
-	if err != nil {
-		return "", fmt.Errorf("parsing APNs certificates: %w", err)
-	}
-
-	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert.Leaf)
-	if err != nil {
-		return "", fmt.Errorf("extracting topic from APNs certificate: %w", err)
-	}
-
-	return mdmPushCertTopic, nil
-}
-
 // AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
@@ -637,13 +628,14 @@ func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleSCEP, m.appleSCEPPEMCert, m.appleSCEPPEMKey, nil
 }
 
-// DecryptAndValidateABMToken tries to decrypt and do basic validations on the
-// provided encrypted ABM token using the cert/key provided.
-//
-// TODO(roberto): I don't believe this function belongs here, but the proper
-// place is still uncertain until we get to
-// https://github.com/fleetdm/fleet/issues/19180
-func DecryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
+type ParsedAppleBM struct {
+	CertPEM        []byte
+	KeyPEM         []byte
+	EncryptedToken []byte
+	Token          *nanodep_client.OAuth1Tokens
+}
+
+func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
 	bmKey, err := tokenpki.RSAKeyFromPEM(keyPEM)
 	if err != nil {
 		return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
@@ -665,7 +657,7 @@ func DecryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPE
 // AppleBM returns the parsed, validated and decrypted server token for Apple
 // Business Manager. It also parses and validates the Apple BM certificate and
 // private key in the process, in order to decrypt the token.
-func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
+func (m *MDMConfig) AppleBM() (*ParsedAppleBM, error) {
 	if m.appleBMToken == nil {
 		pair := x509KeyPairConfig{
 			m.AppleBMCert,
@@ -681,13 +673,22 @@ func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("Apple BM configuration: %w", err)
 		}
-		jsonTok, err := DecryptAndValidateABMToken(encToken, cert.Leaf, pair.keyBytes)
+		jsonTok, err := decryptAndValidateABMToken(encToken, cert.Leaf, pair.keyBytes)
 		if err != nil {
 			return nil, err
 		}
 		m.appleBMToken = jsonTok
+		m.appleBMPEMCert = pair.certBytes
+		m.appleBMPEMKey = pair.keyBytes
+		m.appleBMRawToken = encToken
 	}
-	return m.appleBMToken, nil
+
+	return &ParsedAppleBM{
+		CertPEM:        m.appleBMPEMCert,
+		KeyPEM:         m.appleBMPEMKey,
+		EncryptedToken: m.appleBMRawToken,
+		Token:          m.appleBMToken,
+	}, nil
 }
 
 func (m *MDMConfig) loadAppleBMEncryptedToken() ([]byte, error) {
@@ -1755,33 +1756,7 @@ func TestConfig() FleetConfig {
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens, wstepCertAndKeyDir string) {
-	tlsCert, err := tls.X509KeyPair(cert, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	parsed, err := x509.ParseCertificate(tlsCert.Certificate[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	tlsCert.Leaf = parsed
-
-	cfg.MDM.AppleAPNsCertBytes = string(cert)
-	cfg.MDM.AppleAPNsKeyBytes = string(key)
-	cfg.MDM.AppleSCEPCertBytes = string(cert)
-	cfg.MDM.AppleSCEPKeyBytes = string(key)
-	cfg.MDM.AppleBMCertBytes = string(cert)
-	cfg.MDM.AppleBMKeyBytes = string(key)
-	cfg.MDM.AppleBMServerTokenBytes = "whatever-will-not-be-accessed"
-
-	cfg.MDM.appleAPNs = &tlsCert
-	cfg.MDM.appleAPNsPEMCert = cert
-	cfg.MDM.appleAPNsPEMKey = key
-	cfg.MDM.appleSCEP = &tlsCert
-	cfg.MDM.appleSCEPPEMCert = cert
-	cfg.MDM.appleSCEPPEMKey = key
-	cfg.MDM.appleBMToken = appleBMToken
+func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 

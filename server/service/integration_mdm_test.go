@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -104,20 +105,19 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
+	fleetCfg := config.TestConfig()
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(s.T(), err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
-
-	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "")
+	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
 
-	mdmStorage, err := s.ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
-	depStorage, err := s.ds.NewMDMAppleDEPStorage(*testBMToken)
+	depStorage, err := s.ds.NewMDMAppleDEPStorage()
 	require.NoError(s.T(), err)
-	scepStorage, err := s.ds.NewSCEPDepot(testCertPEM, testKeyPEM)
+	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
 
 	pushLog := kitlog.NewJSONLogger(os.Stdout)
@@ -131,7 +131,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		pushFactory,
 		NewNanoMDMLogger(pushLog),
 	)
-	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, fleetCfg.MDM)
+	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 	s.withServer.lq = live_query_mock.New(s.T())
 
@@ -216,7 +216,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onProfileJobDone != nil {
 								s.onProfileJobDone()
 							}
-							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger, fleetCfg.MDM)
+							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -300,6 +300,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	appConf.ServerSettings.ServerURL = server.URL
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
+
+	// enable MDM flows
+	s.appleCoreCertsSetup()
+	s.enableABM()
 
 	s.T().Cleanup(fleetdmSrv.Close)
 }
@@ -660,14 +664,21 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 	return b.Bytes()
 }
 
-func setupExpectedCAProfile(t *testing.T, cfg config.MDMConfig) []byte {
-	cert, _, _, err := cfg.AppleSCEP()
+func setupExpectedCAProfile(t *testing.T, ds *mysql.Datastore) []byte {
+	assets, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+	})
 	require.NoError(t, err)
+
+	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE", block.Type)
+
 	var b bytes.Buffer
 	params := mobileconfig.FleetCARootTemplateOptions{
 		PayloadName:       servermdm.FleetCAConfigProfileName,
 		PayloadIdentifier: mobileconfig.FleetCARootConfigPayloadIdentifier,
-		Certificate:       base64.StdEncoding.EncodeToString(cert.Certificate[0]),
+		Certificate:       base64.StdEncoding.EncodeToString(block.Bytes),
 	}
 	err = mobileconfig.FleetCARootTemplate.Execute(&b, params)
 	require.NoError(t, err)
@@ -918,6 +929,17 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
 	ctx := context.Background()
 
+	// ensure we leave everything in a clean state for other tests
+	t.Cleanup(s.appleCoreCertsSetup)
+
+	// Delete APNS cert, should soft delete all certs and keys created in this test
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, assets)
+
 	// trying to upload a certificate without generating a private key first is not allowed
 	s.uploadAPNSCert([]byte("-----BEGIN CERTIFICATE-----\nZm9vCg==\n-----END CERTIFICATE-----"), http.StatusBadRequest, "Please generate a private key first.")
 
@@ -928,69 +950,8 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	require.Len(t, errResp.Errors, 1)
 	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
 
-	// Successful request
-	resp := getMDMAppleCSRResponse{}
-	s.SucceedNextCSRRequest()
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
-	require.NotNil(t, resp.CSR)
-	block, _ := pem.Decode(resp.CSR)
-	require.NotNil(t, block)
-	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
-
-	// Check that we created the right assets
-	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
-	require.NoError(t, err)
-	require.Len(t, originalAssets, 3)
-
-	resp = getMDMAppleCSRResponse{}
-	s.SucceedNextCSRRequest()
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
-	require.NotNil(t, resp.CSR)
-	block, _ = pem.Decode(resp.CSR)
-	require.NotNil(t, block)
-	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
-
-	// Check that the assets stayed the same in the subsequent call
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
-	require.NoError(t, err)
-	require.Equal(t, originalAssets, assets)
-
 	// Invalid APNS cert upload attempt
 	s.uploadAPNSCert([]byte("invalid-cert"), http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
-
-	// Successfully upload an APNS cert
-	csr, err := x509.ParseCertificateRequest(block.Bytes)
-	require.NoError(t, err)
-
-	certTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(12345678),
-		Subject:      csr.Subject,
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}
-
-	mockAppleSigner, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
-	require.NoError(t, err)
-	mockAppleCert, err := x509.ParseCertificate(mockAppleSigner.Certificate[0])
-	require.NoError(t, err)
-	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, mockAppleCert, csr.PublicKey, mockAppleSigner.PrivateKey)
-	require.NoError(t, err)
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-	s.uploadAPNSCert(certPEM, http.StatusAccepted, "")
-
-	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
-	require.NoError(t, err)
-	require.Len(t, assets, 4)
-
-	// Delete APNS cert, should soft delete all certs and keys created in this test
-	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
-
-	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
-	var nfe fleet.NotFoundError
-	require.ErrorAs(t, err, &nfe)
-	require.Nil(t, assets)
 }
 
 func (s *integrationMDMTestSuite) uploadAPNSCert(pemBytes []byte, expectedStatus int, wantErr string) {
@@ -1482,9 +1443,15 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
 	// add an encryption key for the host
-	cert, _, _, err := s.fleetCfg.MDM.AppleSCEP()
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+	})
 	require.NoError(t, err)
-	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+
+	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	require.NotNil(t, block)
+
+	parsed, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 	recoveryKey := "AAA-BBB-CCC"
 	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{parsed})
@@ -4185,14 +4152,6 @@ func (s *integrationMDMTestSuite) uploadEULA(
 	}
 }
 
-var testBMToken = &nanodep_client.OAuth1Tokens{
-	ConsumerKey:       "test_consumer",
-	ConsumerSecret:    "test_secret",
-	AccessToken:       "test_access_token",
-	AccessSecret:      "test_access_secret",
-	AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-}
-
 // TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	t := s.T()
@@ -4897,7 +4856,13 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 		p7, err := pkcs7.Parse(rawProfile)
 		require.NoError(t, err)
 		rootCA := x509.NewCertPool()
-		require.True(t, rootCA.AppendCertsFromPEM([]byte(s.fleetCfg.MDM.AppleSCEPCertBytes)))
+
+		assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+			fleet.MDMAssetCACert,
+		})
+		require.NoError(t, err)
+
+		require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
 		require.NoError(t, p7.VerifyWithChain(rootCA))
 		rawProfile = p7.Content
 	}
@@ -8694,10 +8659,51 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 
 func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	t := s.T()
+	ctx := context.Background()
+
+	// ensure enable ABM again for other tests
+	t.Cleanup(s.enableABM)
+
+	// grab the current public key
+	var abmResp generateABMKeyPairResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &abmResp)
+	require.Nil(t, abmResp.Err)
+	require.NotEmpty(t, abmResp.PublicKey)
+
+	// disable ABM
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/abm_token", nil, http.StatusNoContent)
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+		fleet.MDMAssetABMKey,
+		fleet.MDMAssetABMToken,
+	})
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, assets)
 
 	// try to upload a token without a keypair
 	s.uploadABMToken([]byte("foo"), http.StatusBadRequest, "Please generate a keypair first.")
 
+	// enable ABM again, creates a new keypair because the previous one was deleted
+	var newABMResp generateABMKeyPairResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &newABMResp)
+	require.Nil(t, newABMResp.Err)
+	require.NotEmpty(t, newABMResp.PublicKey)
+	block, _ := pem.Decode(newABMResp.PublicKey)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE", block.Type)
+	require.NotEqual(t, abmResp.PublicKey, newABMResp.PublicKey)
+
+	// as long as the certs are not deleted, we should return the same values to support renewing the token
+	var renewABMResp generateABMKeyPairResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &renewABMResp)
+	require.Nil(t, renewABMResp.Err)
+	require.NotEmpty(t, renewABMResp.PublicKey)
+	require.Equal(t, renewABMResp.PublicKey, newABMResp.PublicKey)
+}
+
+func (s *integrationMDMTestSuite) enableABM() {
+	t := s.T()
 	var abmResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &abmResp)
 	require.Nil(t, abmResp.Err)
@@ -8753,34 +8759,71 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	require.Len(t, assets, 3)
 	require.Equal(t, smimeMessage, string(assets[fleet.MDMAssetABMToken].Value))
 	require.Equal(t, abmResp.PublicKey, assets[fleet.MDMAssetABMCert].Value)
+}
 
-	// disable ABM
-	s.Do("DELETE", "/api/latest/fleet/mdm/apple/abm_token", nil, http.StatusNoContent)
-	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMToken,
-	})
-	var nfe fleet.NotFoundError
-	require.ErrorAs(t, err, &nfe)
-	require.Nil(t, assets)
+func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
+	t := s.T()
+	ctx := context.Background()
 
-	// enable ABM again, creates a new keypair because the previous one was deleted
-	var newABMResp generateABMKeyPairResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &newABMResp)
-	require.Nil(t, newABMResp.Err)
-	require.NotEmpty(t, newABMResp.PublicKey)
-	block, _ = pem.Decode(newABMResp.PublicKey)
+	// Successful request
+	resp := getMDMAppleCSRResponse{}
+	s.SucceedNextCSRRequest()
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
+	require.NotNil(t, resp.CSR)
+	block, _ := pem.Decode(resp.CSR)
 	require.NotNil(t, block)
-	require.Equal(t, "CERTIFICATE", block.Type)
-	require.NotEqual(t, abmResp.PublicKey, newABMResp.PublicKey)
+	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
 
-	// as long as the certs are not deleted, we should return the same values to support renewing the token
-	var renewABMResp generateABMKeyPairResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &renewABMResp)
-	require.Nil(t, renewABMResp.Err)
-	require.NotEmpty(t, renewABMResp.PublicKey)
-	require.Equal(t, renewABMResp.PublicKey, newABMResp.PublicKey)
+	// Check that we created the right assets
+	originalAssets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	require.NoError(t, err)
+	require.Len(t, originalAssets, 3)
+
+	resp = getMDMAppleCSRResponse{}
+	s.SucceedNextCSRRequest()
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusOK, &resp)
+	require.NotNil(t, resp.CSR)
+	block, _ = pem.Decode(resp.CSR)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE REQUEST", block.Type)
+
+	// Check that the assets stayed the same in the subsequent call
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey})
+	require.NoError(t, err)
+	require.Equal(t, originalAssets, assets)
+
+	// Successfully upload an APNS cert
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	require.NoError(t, err)
+
+	certTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(12345678),
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		Subject: pkix.Name{
+			CommonName: "FleetDM",
+			ExtraNames: []pkix.AttributeTypeAndValue{
+				{
+					Type:  asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1},
+					Value: "com.apple.mgmt.Example",
+				},
+			},
+		},
+	}
+
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(s.T(), err)
+	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, testCert, csr.PublicKey, testKey)
+	require.NoError(t, err)
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	s.uploadAPNSCert(certPEM, http.StatusAccepted, "")
+
+	assets, err = s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetAPNSCert})
+	require.NoError(t, err)
+	require.Len(t, assets, 4)
 }
 
 func (s *integrationMDMTestSuite) uploadABMToken(encryptedToken []byte, expectedStatus int, wantErr string) {

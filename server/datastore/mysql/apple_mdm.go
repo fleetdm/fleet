@@ -52,7 +52,7 @@ INSERT INTO
 			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
-			case isDuplicate(err):
+			case IsDuplicate(err):
 				return ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
 			default:
 				return ctxerr.Wrap(ctx, err, "creating new apple mdm config profile")
@@ -2769,7 +2769,7 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
 		}
 		return ctxerr.Wrap(ctx, err, "create bootstrap package")
@@ -2796,7 +2796,7 @@ WHERE team_id = 0
 `
 		_, err := tx.ExecContext(ctx, insertStmt, toTeamID, uuid.New().String())
 		if err != nil {
-			if isDuplicate(err) {
+			if IsDuplicate(err) {
 				return ctxerr.Wrap(ctx, &existsError{
 					ResourceType: "BootstrapPackage",
 					TeamID:       &toTeamID,
@@ -3709,7 +3709,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
-			case isDuplicate(err):
+			case IsDuplicate(err):
 				return ctxerr.Wrap(ctx, formatErrorDuplicateDeclaration(err, declaration))
 			default:
 				return ctxerr.Wrap(ctx, err, "creating new apple mdm declaration")
@@ -4167,14 +4167,10 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
 	stmt := `
-INSERT INTO
-    mdm_config_assets (
-		name,
-		value
-	)
+INSERT INTO mdm_config_assets
+  (name, value, md5_checksum)
 VALUES
-     %s
-	`
+  %s`
 
 	var args []any
 	var insertVals strings.Builder
@@ -4184,8 +4180,10 @@ VALUES
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
 		}
-		insertVals.WriteString(`(?, ?),`)
-		args = append(args, a.Name, encryptedVal)
+
+		hexChecksum := md5ChecksumBytes(encryptedVal)
+		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
+		args = append(args, a.Name, encryptedVal, hexChecksum)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -4235,6 +4233,42 @@ WHERE
 		}
 
 		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal}
+	}
+
+	if len(res) < len(assetNames) {
+		return assetMap, ErrPartialResult
+	}
+
+	return assetMap, nil
+}
+
+func (ds *Datastore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+	if len(assetNames) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT name, HEX(md5_checksum) as md5_checksum
+FROM mdm_config_assets
+WHERE name IN (?) AND deletion_uuid = ''`
+
+	stmt, args, err := sqlx.In(stmt, assetNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
+	}
+
+	var res []fleet.MDMConfigAsset
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config checksums by name")
+	}
+
+	if len(res) == 0 {
+		return nil, notFound("MDMConfigAsset")
+	}
+
+	assetMap := make(map[fleet.MDMAssetName]string, len(res))
+	for _, asset := range res {
+		assetMap[asset.Name] = asset.MD5Checksum
 	}
 
 	if len(res) < len(assetNames) {

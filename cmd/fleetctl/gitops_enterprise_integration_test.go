@@ -51,14 +51,22 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
+	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
 
-	mdmStorage, err := s.ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetAPNSCert, Value: testCertPEM},
+		{Name: fleet.MDMAssetAPNSKey, Value: testKeyPEM},
+		{Name: fleet.MDMAssetCACert, Value: testCertPEM},
+		{Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+	})
 	require.NoError(s.T(), err)
-	depStorage, err := s.ds.NewMDMAppleDEPStorage(*testBMToken)
+
+	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
-	scepStorage, err := s.ds.NewSCEPDepot(testCertPEM, testKeyPEM)
+	depStorage, err := s.ds.NewMDMAppleDEPStorage()
+	require.NoError(s.T(), err)
+	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 

@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
@@ -61,23 +62,18 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 		return nil, err
 	}
 
-	// if there is no apple mdm config, fail with a 404
-	if !svc.config.MDM.IsAppleAPNsSet() {
-		return nil, newNotFoundError()
-	}
-
-	apns, _, _, err := svc.config.MDM.AppleAPNs()
+	apns, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetAPNSCert)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "parse certificate")
 	}
 
 	appleMDM := &fleet.AppleMDM{
-		CommonName: apns.Leaf.Subject.CommonName,
-		Issuer:     apns.Leaf.Issuer.CommonName,
-		RenewDate:  apns.Leaf.NotAfter,
+		CommonName: apns.Subject.CommonName,
+		Issuer:     apns.Issuer.CommonName,
+		RenewDate:  apns.NotAfter,
 	}
-	if apns.Leaf.SerialNumber != nil {
-		appleMDM.SerialNumber = apns.Leaf.SerialNumber.String()
+	if apns.SerialNumber != nil {
+		appleMDM.SerialNumber = apns.SerialNumber.String()
 	}
 
 	return appleMDM, nil
@@ -2333,13 +2329,22 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	}
 
 	// Save to DB
-	return ctxerr.Wrap(
-		ctx,
-		svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-			{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
-		}),
-		"writing apns cert to db",
-	)
+	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "writing apns cert to db")
+	}
+
+	// flip the app config flag
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	appCfg.MDM.EnabledAndConfigured = true
+
+	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2369,10 +2374,23 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 		return err
 	}
 
-	return ctxerr.Wrap(ctx, svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+	err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetAPNSCert,
 		fleet.MDMAssetAPNSKey,
 		fleet.MDMAssetCACert,
 		fleet.MDMAssetCAKey,
-	}), "deleting apple mdm assets")
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting apple mdm assets")
+	}
+
+	// flip the app config flag
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	appCfg.MDM.EnabledAndConfigured = false
+
+	return svc.ds.SaveAppConfig(ctx, appCfg)
 }

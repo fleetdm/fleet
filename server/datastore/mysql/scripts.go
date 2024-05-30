@@ -298,7 +298,7 @@ VALUES
 	res, err := tx.ExecContext(ctx, insertStmt,
 		script.TeamID, globalOrTeamID, script.Name, scriptContentsID)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			// name already exists for this team/global
 			err = alreadyExists("Script", script.Name)
 		} else if isChildForeignKeyError(err) {
@@ -331,7 +331,11 @@ ON DUPLICATE KEY UPDATE
 }
 
 func md5ChecksumScriptContent(s string) string {
-	rawChecksum := md5.Sum([]byte(s)) //nolint:gosec
+	return md5ChecksumBytes([]byte(s))
+}
+
+func md5ChecksumBytes(b []byte) string {
+	rawChecksum := md5.Sum(b) //nolint:gosec
 	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 

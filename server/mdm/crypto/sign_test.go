@@ -1,46 +1,56 @@
-package mobileconfig
+package mdmcrypto
 
 import (
+	"context"
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSign(t *testing.T) {
 	tests := []struct {
 		name        string
-		config      config.MDMConfig
+		cert        []byte
+		key         []byte
 		profile     []byte
 		expectError bool
 	}{
 		{
 			name:        "SCEP not set",
-			config:      config.MDMConfig{},
 			profile:     []byte("profile data"),
 			expectError: true,
 		},
 		{
 			name:        "Error with invalid certificate",
-			config:      config.MDMConfig{AppleSCEPCertBytes: "foo", AppleSCEPKeyBytes: "bar"},
+			cert:        []byte("foo"),
+			key:         []byte("bar"),
 			profile:     []byte("profile data"),
 			expectError: true,
 		},
 		{
-			name: "Successful signing",
-			config: config.MDMConfig{
-				AppleSCEPCertBytes: string(testCert),
-				AppleSCEPKeyBytes:  string(testKey),
-			},
+			name:        "Successful signing",
+			cert:        testCert,
+			key:         testKey,
 			profile:     []byte("profile data"),
 			expectError: false,
 		},
 	}
 
+	ds := new(mdmmock.MDMAppleStore)
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := Sign(tc.profile, tc.config)
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				require.ElementsMatch(t, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, assetNames)
+				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+					fleet.MDMAssetCACert: {Value: tc.cert},
+					fleet.MDMAssetCAKey:  {Value: tc.key},
+				}, nil
+			}
+			result, err := Sign(context.Background(), tc.profile, ds)
 			if tc.expectError {
 				require.Error(t, err)
 			} else {

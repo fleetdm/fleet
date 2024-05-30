@@ -36,7 +36,13 @@ import (
 func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
 	t := s.T()
 	rootCA := x509.NewCertPool()
-	require.True(t, rootCA.AppendCertsFromPEM([]byte(s.fleetCfg.MDM.AppleSCEPCertBytes)))
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+	})
+	require.NoError(t, err)
+
+	require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
 
 	// verify that all the profiles were signed usign the SCEP certificate,
 	// and grab their contents
@@ -123,7 +129,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
 	s.signedProfilesMatch(
-		append(wantGlobalProfiles, setupExpectedCAProfile(t, s.fleetCfg.MDM)),
+		append(wantGlobalProfiles, setupExpectedCAProfile(t, s.ds)),
 		installs,
 	)
 	require.Empty(t, removes)
@@ -389,7 +395,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 	initialExpectedProfiles := append(
 		testProfiles,
 		setupExpectedFleetdProfile(t, s.server.URL, enrollSecret, nil),
-		setupExpectedCAProfile(t, s.fleetCfg.MDM),
+		setupExpectedCAProfile(t, s.ds),
 	)
 
 	h, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -4013,7 +4019,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	if len(secrets) == 0 {
 		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
 	}
-	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, s.fleetCfg.MDM))
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
 
 	// turn on disk encryption and os updates
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -4091,7 +4097,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 
-	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, s.fleetCfg.MDM))
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)

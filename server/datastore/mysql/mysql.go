@@ -162,8 +162,8 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot.Depot, error) {
-	return newSCEPDepot(ds.primary.DB, caCertPEM, caKeyPEM)
+func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
+	return newSCEPDepot(ds.primary.DB, ds)
 }
 
 type txFn func(tx sqlx.ExtContext) error
@@ -1284,7 +1284,7 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 			// this does not exist yet, try to insert it
 			res, err := ds.writer(ctx).ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
 			if err != nil {
-				if isDuplicate(err) {
+				if IsDuplicate(err) {
 					// it might've been created between the select and the insert, read
 					// again this time from the primary database connection.
 					id, err := readID(ds.writer(ctx))
