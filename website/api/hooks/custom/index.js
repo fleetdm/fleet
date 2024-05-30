@@ -280,14 +280,8 @@ will be disabled and/or hidden in the UI.
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
 
-              // TODO: is this the best palce to set these?
-              res.locals.fleetUseStatus = (typeof req.me.getStartedQuestionnaireAnswers !== 'undefined' && typeof req.me.getStartedQuestionnaireAnswers['have-you-ever-used-fleet'] !== 'undefined' && typeof req.me.getStartedQuestionnaireAnswers['have-you-ever-used-fleet']['fleetUseStatus'] !== undefined) ? req.me.getStartedQuestionnaireAnswers['have-you-ever-used-fleet'].fleetUseStatus : undefined;
-              res.locals.triedFleetAndWantTo = (typeof req.me.getStartedQuestionnaireAnswers !== 'undefined' && typeof req.me.getStartedQuestionnaireAnswers['what-did-you-think'] !== 'undefined' && typeof req.me.getStartedQuestionnaireAnswers['what-did-you-think']['whatDidYouThink'] !== 'undefined') ? req.me.getStartedQuestionnaireAnswers['what-did-you-think']['whatDidYouThink'] : undefined;
-
-              res.locals.numHosts = (typeof req.me.getStartedQuestionnaireAnswers !== 'undefined' && typeof req.me.getStartedQuestionnaireAnswers['how-many-hosts'] !== 'undefined' && typeof req.me.getStartedQuestionnaireAnswers['how-many-hosts']['numberOfHosts'] !== 'undefined') ? req.me.getStartedQuestionnaireAnswers['how-many-hosts']['numberOfHosts'] : undefined;
-
-              res.locals.triedDeployingAndWantTo = (typeof req.me.getStartedQuestionnaireAnswers !== 'undefined' && typeof req.me.getStartedQuestionnaireAnswers['how-was-your-deployment'] !== 'undefined' && typeof req.me.getStartedQuestionnaireAnswers['how-was-your-deployment']['howWasYourDeployment'] !== 'undefined') ? req.me.getStartedQuestionnaireAnswers['how-was-your-deployment']['howWasYourDeployment'] : undefined;
-
+              // TODO: is this the best place to set these?
+              res.locals.showStartCta = true;
             }//ﬁ
 
             return next();
