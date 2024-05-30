@@ -2,26 +2,26 @@
 <%if(me && showStartCta){%>
 
   <div purpose="continue-banner" class="d-flex justify-content-end">
-    <div purpose="banner-body" class="d-flex flex-row align-items-center invisible">
-      <div purpose="banner-close-button">&times;</div>
+    <div purpose="banner-body" class="d-flex flex-row align-items-center invisible <%- collapseStartCta ? 'collapsed' : ''%>">
       <div purpose="banner-image">
       </div>
       <div purpose="banner-text" class="d-flex flex-column justify-content-center">
-        <% if(['1 - Unaware', '2 - Aware',].includes(me.psychologicalStage)) { %>
-            <p>Stage 1</p>
-        <% } else if(me.psychologicalStage === '3 - Intrigued') {%>
-            <p></p>
-        <% } else if (me.psychologicalStage === '4 - Has use case') {%>
-            <p></p>
-        <% } else if (me.psychologicalStage === '5 - Personally confident') {%>
-            <p></p>
+        <% if(['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) { %>
+          <strong>Tried Fleet yet?</strong>
+          <p>Get started with Fleet</p>
+        <% } else if(['4 - Has use case', '5 - Personally confident'].includes(me.psychologicalStage)) { %>
+          <strong>Feeling confident?</strong>
+          <p>Get set up with Fleet</p>
         <% } else if (me.psychologicalStage === '6 - Has team buy-in') {%>
-            <p></p>
+          <strong>Talk to the team</strong>
+          <p>Let’s get you set up!</p>
         <% } %>
-        <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>
+        <a purpose="continue-button" class="btn btn-primary" purpose="animated-arrow-btn-red" href="/start">Continue</a>
       </div>
-      <div>
       <a purpose="continue-chevron" href="/start"> <img alt="continue" src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
+      <div>
+
+        <div purpose="banner-close-button">&times;</div>
       </div>
     </div>
 
@@ -30,9 +30,17 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // Toggle 'collapsed' on banner body when close button is clicked
-      $('[purpose="banner-close-button"]').click(function(event) {
+      $('[purpose="banner-close-button"]').click(async function(event) {
           event.stopPropagation(); // Prevent the event from bubbling up to the banner body
-          $('[purpose="banner-body"]').toggleClass('collapsed');
+          Cloud.dismissStartCta().exec(function (err, result) {
+            if (err) {
+              // Handle error
+            } else {
+              // Handle success
+            }
+          });
+          $('[purpose="banner-body"]').addClass('collapsed');
+
       });
 
       // Toggle 'collapsed' on banner body when it is clicked, only if it has the class

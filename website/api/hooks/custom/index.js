@@ -278,10 +278,17 @@ will be disabled and/or hidden in the UI.
 
               // Include information about the primary buying situation
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
-              res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
-
               // TODO: is this the best place to set these?
-              res.locals.showStartCta = true;
+              res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
+              if(req.session.dismissStartCtaUntil && req.session.dismissStartCtaUntil < Date.now()) {
+                console.log('CTA visible');
+                // res.locals.showStartCta = false;
+                res.locals.collapseStartCta = true;
+              } else {
+                console.log('CTA hidden');
+                res.locals.collapseStartCta = req.session.collapseStartCta || false;
+                res.locals.showStartCta = true;
+              }
             }//ﬁ
 
             return next();

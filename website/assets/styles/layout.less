@@ -43,7 +43,7 @@ html, body {
   z-index: 199;
   position: fixed;
   bottom: 32px;
-  right: 32px;
+  left: 32px;
   [purpose='banner-body'].invisible {
     transform: translateY(200px);
   }
@@ -141,7 +141,9 @@ html, body {
     box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
     width: 100px;
     height: 100px;
-
+    &.invisible {
+      transform: translateY(200px);
+    }
   }
 }
 

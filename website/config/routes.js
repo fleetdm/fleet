@@ -581,4 +581,5 @@ module.exports.routes = {
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
   'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
   'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },
+  'POST /api/v1/dismiss-start-cta': { action: 'dismiss-start-cta' },
 };
