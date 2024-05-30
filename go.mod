@@ -65,7 +65,7 @@ require (
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.0.1
+	github.com/macadmins/osquery-extension v1.1.2
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
@@ -328,3 +328,5 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/macadmins/osquery-extension => github.com/mostlikelee/osquery-extension v0.0.0-20240530002426-7785d6274f31
