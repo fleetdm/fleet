@@ -48,7 +48,7 @@ const SoftwareSelfService = ({
   router: InjectedRouter;
 }) => {
   // TOOD: loading state for fetching?
-  const { data, isLoading, isError, isFetching, refetch } = useQuery<
+  const { data, isLoading, isError, refetch } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
     IGetDeviceSoftwareResponse,
@@ -84,7 +84,6 @@ const SoftwareSelfService = ({
   // available results)?
   const isEmpty = !data?.software.length && !data?.meta.has_previous_results;
 
-  // TODO: truncate name and version with tooltip
   return (
     <Card
       borderRadiusSize="xxlarge"
