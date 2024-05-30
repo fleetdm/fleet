@@ -276,7 +276,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// SMTPSettings used to be a non-pointer on previous iterations,
 		// so if current SMTPSettings are not present (with empty values),
 		// then this is a bug, let's log an error.
-		level.Error(svc.logger).Log("smtp_settings are not present")
+		level.Error(svc.logger).Log("msg", "smtp_settings are not present")
 	}
 
 	oldAgentOptions := ""

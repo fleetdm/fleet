@@ -325,6 +325,10 @@ type Datastore interface {
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
 
+	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
+	// updated in the given `interval`).
+	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
+
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint, platform string) (AggregatedMDMStatus, time.Time, error)

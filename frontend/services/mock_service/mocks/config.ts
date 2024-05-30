@@ -23,6 +23,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     // expensive data operations
     "targets?query={*}": RESPONSES.hosts,
     // "SchedulableQueries" to be used in developing frontend for #7765
+    "hosts/12345": RESPONSES.hostDetailsiOS,
     queries: RESPONSES.globalQueries,
     "queries/1": RESPONSES.globalQuery1,
     "queries/2": RESPONSES.globalQuery2,

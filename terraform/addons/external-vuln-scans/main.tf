@@ -16,6 +16,7 @@ locals {
     for k, v in merge(var.fleet_config.extra_secrets, {
       FLEET_MYSQL_PASSWORD              = var.fleet_config.database.password_secret_arn
       FLEET_MYSQL_READ_REPLICA_PASSWORD = var.fleet_config.database.password_secret_arn
+      FLEET_SERVER_PRIVATE_KEY          = var.fleet_server_private_key_secret_arn
       }) : {
       name      = k
       valueFrom = v
@@ -25,7 +26,7 @@ locals {
     repositoryCredentials = {
       credentialsParameter = var.fleet_config.repository_credentials
     }
-  } : {}
+  } : null
 }
 
 resource "aws_ecs_service" "fleet" {

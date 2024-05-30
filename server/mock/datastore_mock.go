@@ -239,6 +239,8 @@ type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, erro
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
 
+type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
+
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
 type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
@@ -1283,6 +1285,9 @@ type DataStore struct {
 
 	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
 	GetHostMDMCheckinInfoFuncInvoked bool
+
+	ListIOSAndIPadOSToRefetchFunc        ListIOSAndIPadOSToRefetchFunc
+	ListIOSAndIPadOSToRefetchFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
@@ -3126,6 +3131,13 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	s.GetHostMDMCheckinInfoFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error) {
+	s.mu.Lock()
+	s.ListIOSAndIPadOSToRefetchFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval)
 }
 
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {

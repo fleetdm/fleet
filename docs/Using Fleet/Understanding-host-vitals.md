@@ -32,7 +32,7 @@ SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = '
 
 ## disk_encryption_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo
 
 - Query:
 ```sql
@@ -57,7 +57,7 @@ WITH encrypted(enabled) AS (
 
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, tuxedo
 
 - Query:
 ```sql
@@ -235,7 +235,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, tuxedo
 
 - Query:
 ```sql
@@ -345,7 +345,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, tuxedo
 
 - Query:
 ```sql
@@ -470,7 +470,7 @@ FROM chrome_extensions
 
 ## software_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo
 
 - Query:
 ```sql
@@ -662,7 +662,7 @@ FROM homebrew_packages;
 
 ## software_vscode_extensions
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows, tuxedo
 
 - Discovery query:
 ```sql
