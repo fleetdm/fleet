@@ -294,7 +294,7 @@ module.exports.routes = {
     action: 'view-transparency',
     locals: {
       showContactFormCta: true,
-      pageDescriptionForMeta: '',
+      pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
       pageTitleForMeta: 'Better with Fleet | Fleet'
     }
   },
