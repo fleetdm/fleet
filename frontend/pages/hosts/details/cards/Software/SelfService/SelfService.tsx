@@ -18,7 +18,7 @@ import Spinner from "components/Spinner";
 
 import Pagination from "pages/ManageControlsPage/components/Pagination";
 
-import { parseHostSoftwareQueryParams } from "../Software";
+import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import SelfServiceItem from "./SelfServiceItem";
 
 const baseClass = "software-self-service";
