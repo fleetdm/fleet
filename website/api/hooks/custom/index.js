@@ -278,13 +278,15 @@ will be disabled and/or hidden in the UI.
 
               // Include information about the primary buying situation
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
-              // TODO: is this the best place to set these?
-              res.locals.showStartCta = true; // TODO why was I setting this?
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
-              if(req.session.dismissStartCtaUntil && req.session.dismissStartCtaUntil < Date.now()) {
+
+              // Determine if this user should see the CTA to bring them to the /start questionnaire using the user's last submitted questionnaire answer.
+              res.locals.showStartCta = !['how-many-hosts','will-you-be-self-hosting','managed-cloud-for-growing-deployments','self-hosted-deploy', 'whats-left-to-get-you-set-up'].includes(req.me.lastSubmittedGetStartedQuestionnaireStep); // Dont show the CTA if the user has completed the form (AFAWCT)
+              // If an expandCtaAt timestamp is set in the user's sesssion, check the value to see if we should expand the CTA.
+              if(req.session.expandCtaAt && req.session.expandCtaAt > Date.now()) {
                 res.locals.collapseStartCta = true;
               } else {
-                res.locals.collapseStartCta = req.session.collapseStartCta || false;
+                res.locals.collapseStartCta = false;
               }
             }//ﬁ
 
