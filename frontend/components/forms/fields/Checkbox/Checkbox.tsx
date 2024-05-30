@@ -93,7 +93,7 @@ const Checkbox = (props: ICheckboxProps) => {
             <span className={`${baseClass}__label-tooltip tooltip`}>
               <TooltipWrapper
                 tipContent={tooltipContent}
-                clickable={false} // Mimic FormField behavior to not block UI behind tooltip
+                clickable={false} // Not block form behind tooltip
               >
                 {children}
               </TooltipWrapper>
