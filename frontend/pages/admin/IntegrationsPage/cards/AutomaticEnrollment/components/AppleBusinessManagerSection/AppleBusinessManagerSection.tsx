@@ -20,7 +20,7 @@ import Spinner from "components/Spinner/Spinner";
 import SectionHeader from "components/SectionHeader";
 
 import EditTeamModal from "../EditTeamModal";
-import WindowsAutomaticEnrollmentCard from "./components/WindowsAutomaticEnrollmentCard/WindowsAutomaticEnrollmentCard";
+import WindowsAutomaticEnrollmentCard from "../MdmPlatformsSection/components/WindowsAutomaticEnrollmentCard";
 
 const baseClass = "apple-business-manager-section";
 
