@@ -22,7 +22,6 @@
       </div>
       <a purpose="continue-chevron" href="/start"> <img alt="continue" src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
       <div class="d-flex flex-column align-self-start">
-
         <div purpose="banner-close-button">&times;</div>
       </div>
     </div>
@@ -33,22 +32,23 @@
     document.addEventListener('DOMContentLoaded', () => {
       // Toggle 'collapsed' on banner body when close button is clicked
       $('[purpose="banner-close-button"]').click(async function(event) {
-          event.stopPropagation(); // Prevent the event from bubbling up to the banner body
-          Cloud.dismissStartCta().exec();
-          $('[purpose="banner-body"]').addClass('collapsed');
+        event.stopPropagation(); // Prevent the event from triggering the event listener that removes the collapsed class from running.
+        Cloud.updateStartCtaVisibility().exec();
+        $('[purpose="banner-body"]').addClass('collapsed');
 
       });
 
-      // Toggle 'collapsed' on banner body when it is clicked, only if it has the class
+      // Toggle 'collapsed' on banner body when it is clicked (if it has the class)
       $('[purpose="banner-body"]').click(function() {
-          if ($(this).hasClass('collapsed')) {
-              $(this).toggleClass('collapsed');
-          }
+        if ($(this).hasClass('collapsed')) {
+          $(this).removeClass('collapsed');
+        }
       });
 
       if(SAILS_LOCALS.isHomepage){
-        var lastScrollTop = 0;
-        var banner = document.querySelector('[purpose="banner-body"]');
+        // If this is on the Fleet homepage, remove the invisible class after the user scrolls the height of their viewport.
+        let lastScrollTop = 0;
+        let banner = document.querySelector('[purpose="banner-body"]');
         window.addEventListener('scroll', windowScrolled);
         function windowScrolled() {
           let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -59,7 +59,7 @@
           }
         }
       } else {
-        // Toggle 'invisible' class on elements with purpose="continue" 1 second after page loads
+        // OTehrwise, remove the 'invisible' class 1 second after page loads
         setTimeout(() => {
           $('[purpose="banner-body"]').toggleClass('invisible');
         }, 1000);
