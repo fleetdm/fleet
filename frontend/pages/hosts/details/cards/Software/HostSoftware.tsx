@@ -287,9 +287,9 @@ const HostSoftware = ({
 
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
+      paddingSize="xxlarge"
       includeShadow
-      largePadding
       className={baseClass}
     >
       <p className="card__header">Software</p>
