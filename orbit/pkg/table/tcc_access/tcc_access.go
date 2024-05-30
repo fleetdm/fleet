@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -24,8 +23,10 @@ var (
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
+		// added here
 		table.TextColumn("source"),
-		table.TextColumn("uid"),
+		table.IntegerColumn("uid"),
+		// derived from a TCC.db
 		table.TextColumn("service"),
 		table.TextColumn("client"),
 		table.IntegerColumn("client_type"),
@@ -42,48 +43,12 @@ func Columns() []table.ColumnDefinition {
 // Constraints for generating can be retrieved from the queryContext.
 
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	// get all human usernames
-	// cmd := exec.Command("dscl", ".", "list", "/Users", "|", "grep", "-v", "-e", "'^_'", "-e", "'daemon'", "-e", "'root'", "-e", "'nobody'")
-	// log.Info().Msgf("\ncommand to run: %v\n", cmd.String())
-
-	// 2 commands piped together in Go
-
-	// getUserNames := exec.Command("dscl", ".", "list", "/Users")
-	// filterHumans := exec.Command("grep", "-v", "-e", "'^_'", "-e", "'daemon'", "-e", "'root'", "-e", "'nobody'")
-	// log.Info().Msgf("\nfilter command: %v\n", filterHumans.String())
-
-	// pipe, err := getUserNames.StdoutPipe()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("generate failed: %w", err)
-	// }
-	// filterHumans.Stdin = pipe
-
-	// getUserNames.Start()
-	// out, err := filterHumans.Output()
-	// pipe.Close()
-
-	// if err != nil {
-	// 	return nil, fmt.Errorf("generate failed: %w", err)
-	// }
-
-	// // out, err := cmd.Output()
-	// log.Info().Msgf("\nraw usernames output: %v\n", out)
-	// usernames := strings.Split(string(out[:]), "\n")
-
-	// var out bytes.Buffer
-	// var stderr bytes.Buffer
-	// cmd.Stdout = &out
-	// cmd.Stderr = &stderr
-	// err := cmd.Run()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Generate failed at `cmd.Run()` to get usernames:"+stderr.String()+":%w", err)
-	// }
-	// log.Info().Msgf("\nraw command out: %v\n", out.Bytes())
-	// usernames := strings.Split(string(out.Bytes()[:]), "\n")
-
-	// parse usernames in Go
+	// get all usernames on the mac
 	cmd := exec.Command("dscl", ".", "list", "/Users")
 	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
 	allUsernames := strings.Split(string(out[:]), "\n")
 	var usernames []string
 	for _, username := range allUsernames {
@@ -92,24 +57,17 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		}
 	}
 
-	log.Info().Msgf("\nusernames, split: %v\n", usernames)
-
-	if err != nil {
-		return nil, err
-	}
-
+	// build rows for every user-level TCC.db
 	var rows []map[string]string
-
 	for _, username := range usernames {
-		log.Info().Msgf("\nusername to get rows: %v\n", username)
 		uRs, err := getTCCAccessRows(username)
-		log.Info().Msgf("\nuser rows: %v\n", uRs)
 		if err != nil {
 			return nil, err
 		}
 		rows = append(rows, uRs...)
 	}
 
+	// and for the system-level TCC.db
 	sRs, err := getTCCAccessRows("")
 	if err != nil {
 		return nil, err
@@ -122,6 +80,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 func getTCCAccessRows(username string) ([]map[string]string, error) {
 	// avoids additional C compilation requirements that would be introduced by using
 	// https://github.com/mattn/go-sqlite3
+
 	dbPath := tccPathCommon
 	if username != "" {
 		dbPath = "/Users/" + username + tccPathCommon
