@@ -1049,13 +1049,13 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | In    | Description   |
 | ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| organization_information          | object  | body  | See [the `organization_information` object](#organization_information-object) |
-| server_settings         | object  | body    | See [the `server_settings` object](#server_settings-object) |
-| smtp_settings         | object  | body    | See [the `smtp_settings` object](#smtp_settings-object) |
-| sso_settings         | object  | body    | See [the `sso_settings` object](#sso_settings-object) |
+| organization_information          | object  | body  | See [the organization_information object](#organization-information-object) |
+| server_settings         | object  | body    | See [the server_settings object](#server-settings-object) |
+| smtp_settings         | object  | body    | See [the smtp_settings object](#smtp-settings-object) |
+| sso_settings         | object  | body    | See [the sso_settings object](#sso-settings-object) |
 | agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| fleet_desktop         | object  | body    | See [the `fleet_desktop` object](#fleet_desktop-object) |
-| webhook_settings      | object  | body    | See [the `webhook_settings` object](#fleet_desktop-object) |
+| fleet_desktop         | object  | body    | See [the fleet_desktop object](#fleet-desktop-object) |
+| webhook_settings      | object  | body    | See [the webhook_settings object](#fleet-desktop-object) |
 | enable_software_vulnerabilities   | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
 | enable_failing_policies           | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | url                               | string  | body  | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
@@ -1088,9 +1088,7 @@ Modifies the Fleet's configuration with the supplied information.
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
 
-                                                                                                                                                                         |
-
-#### `organization_information` object
+#### organization_information object
 
 
 | Name                              | Type    | Description   |
@@ -1100,7 +1098,7 @@ Modifies the Fleet's configuration with the supplied information.
 | org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
 | contact_url                       | string  | A URL that can be used by end users to contact the organization.                                                                                          |
 
-#### `server_settings` object
+#### server_settings object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1108,7 +1106,7 @@ Modifies the Fleet's configuration with the supplied information.
 | live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                                                                                                   |
 | query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
 
-#### `smtp_settings` object
+#### smtp_settings object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1125,7 +1123,7 @@ Modifies the Fleet's configuration with the supplied information.
 | verify_ssl_certs                  | boolean | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
 | enabled_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
 
-#### `sso_settings` object
+#### sso_settings object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1136,7 +1134,7 @@ Modifies the Fleet's configuration with the supplied information.
 | metadata                          | string  | Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
 
-#### `host_expiry_settings` object
+#### host_expiry_settings object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1144,13 +1142,13 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_window                | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 
 
-#### `fleet_desktop` object
+#### fleet_desktop object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
 
-#### `webhook_settings` object
+#### webhook_settings object
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
