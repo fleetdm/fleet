@@ -1,10 +1,11 @@
-import React, { useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
 import { IMdmApple } from "interfaces/mdm";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
@@ -13,9 +14,10 @@ import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
 import Button from "components/buttons/Button/Button";
-import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection/AppleBusinessManagerSection";
-import IdpSection from "./components/IdpSection/IdpSection";
 
+import MdmPlatformsSection from "./components/MdmPlatformsSection/MdmPlatformsSection";
+import DefaultTeamSection from "./components/DefaultTeamSection/DefaultTeamSection";
+import IdpSection from "./components/IdpSection/IdpSection";
 import EulaSection from "./components/EulaSection/EulaSection";
 
 const baseClass = "automatic-enrollment";
@@ -68,8 +70,13 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <AppleBusinessManagerSection router={router} />
+        <MdmPlatformsSection router={router} />
       </div>
+      {!!config?.mdm.apple_bm_enabled_and_configured && (
+        <div className={`${baseClass}__section`}>
+          <DefaultTeamSection />
+        </div>
+      )}
       <div className={`${baseClass}__section`}>
         <IdpSection />
       </div>
