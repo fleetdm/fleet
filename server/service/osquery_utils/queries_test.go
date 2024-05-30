@@ -66,7 +66,6 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "fd7a:115c:a1e0::d401:6637", host.PrimaryIP)
 	assert.Equal(t, "b2:a2:e4:62:0f:1e", host.PrimaryMac)
-
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
@@ -305,7 +304,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_chrome", "scheduled_query_stats")
+	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_chrome", "scheduled_query_stats", "software_macos_firefox")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1933,4 +1932,15 @@ func TestIngestNetworkInterface(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateSQLForAllExists(t *testing.T) {
+	query1 := "SELECT 1 WHERE foo = bar"
+	query2 := "SELECT 1 WHERE baz = qux"
+
+	sql := generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
+
+	sql = generateSQLForAllExists()
+	require.Equal(t, "SELECT 0 LIMIT 0", sql)
 }
