@@ -43,14 +43,56 @@ func Columns() []table.ColumnDefinition {
 
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	// get all human usernames
-	cmd := exec.Command("dscl", ".", "list", "/Users", "|", "grep", "-v", "-e", "'^_'", "-e", "'daemon'", "-e", "'root'", "-e", "'nobody'")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("generate failed: %w", err)
-	}
-	usernames := strings.Split(string(out[:]), "\n")
+	// cmd := exec.Command("dscl", ".", "list", "/Users", "|", "grep", "-v", "-e", "'^_'", "-e", "'daemon'", "-e", "'root'", "-e", "'nobody'")
+	// log.Info().Msgf("\ncommand to run: %v\n", cmd.String())
 
-	log.Info().Msgf("\nusernames: %v\n", usernames)
+	// 2 commands piped together in Go
+
+	// getUserNames := exec.Command("dscl", ".", "list", "/Users")
+	// filterHumans := exec.Command("grep", "-v", "-e", "'^_'", "-e", "'daemon'", "-e", "'root'", "-e", "'nobody'")
+	// log.Info().Msgf("\nfilter command: %v\n", filterHumans.String())
+
+	// pipe, err := getUserNames.StdoutPipe()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("generate failed: %w", err)
+	// }
+	// filterHumans.Stdin = pipe
+
+	// getUserNames.Start()
+	// out, err := filterHumans.Output()
+	// pipe.Close()
+
+	// if err != nil {
+	// 	return nil, fmt.Errorf("generate failed: %w", err)
+	// }
+
+	// // out, err := cmd.Output()
+	// log.Info().Msgf("\nraw usernames output: %v\n", out)
+	// usernames := strings.Split(string(out[:]), "\n")
+
+	// var out bytes.Buffer
+	// var stderr bytes.Buffer
+	// cmd.Stdout = &out
+	// cmd.Stderr = &stderr
+	// err := cmd.Run()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Generate failed at `cmd.Run()` to get usernames:"+stderr.String()+":%w", err)
+	// }
+	// log.Info().Msgf("\nraw command out: %v\n", out.Bytes())
+	// usernames := strings.Split(string(out.Bytes()[:]), "\n")
+
+	// parse usernames in Go
+	cmd := exec.Command("dscl", ".", "list", "/Users")
+	out, err := cmd.Output()
+	allUsernames := strings.Split(string(out[:]), "\n")
+	var usernames []string
+	for _, username := range allUsernames {
+		if !strings.HasPrefix(username, "_") && username != "nobody" && username != "root" && username != "daemon" {
+			usernames = append(usernames, username)
+		}
+	}
+
+	log.Info().Msgf("\nusernames, split: %v\n", usernames)
 
 	if err != nil {
 		return nil, err
