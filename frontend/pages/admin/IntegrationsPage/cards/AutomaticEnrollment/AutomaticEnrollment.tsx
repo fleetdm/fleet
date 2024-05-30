@@ -29,7 +29,7 @@ interface IAutomaticEnrollment {
 const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
   const { config, isPremiumTier } = useContext(AppContext);
 
-  const { isLoading: isLoadingMdmApple, error: errorMdmApple } = useQuery<
+  const { isLoading: isLoadingAPNInfo, error: errorAPNInfo } = useQuery<
     IMdmApple,
     AxiosError
   >(["appleAPNInfo"], () => mdmAppleAPI.getAppleAPNInfo(), {
@@ -44,7 +44,7 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
 
   if (!isPremiumTier) return <PremiumFeatureMessage />;
 
-  if (isLoadingMdmApple) {
+  if (isLoadingAPNInfo) {
     return (
       <div className={baseClass}>
         <Spinner />
@@ -52,7 +52,7 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
     );
   }
 
-  if (errorMdmApple?.status === 404) {
+  if (errorAPNInfo?.status === 404) {
     return (
       <EmptyTable
         header="Automatic enrollment for macOS hosts"
@@ -63,7 +63,7 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
     );
   }
 
-  if (errorMdmApple) {
+  if (errorAPNInfo) {
     return <DataError />;
   }
 

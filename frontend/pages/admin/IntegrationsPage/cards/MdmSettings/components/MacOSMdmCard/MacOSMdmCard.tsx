@@ -65,9 +65,10 @@ const MacOSMdmCard = ({
   turnOnMacOSMdm,
   viewDetails,
 }: IMacOSMdmCardProps) => {
-  // The API returns a 404 error if APNS is not configured yet. If there is any
-  // other error we will show the DataError component.
-  const showError = errorData !== null && errorData.status !== 404;
+  // The API returns an error if MDM is turned off or APNS is not configured yet.
+  // If there is any other error we will show the DataError component.
+  const showError =
+    errorData !== null && errorData.status !== 404 && errorData.status !== 400;
 
   if (showError) {
     return <DataError />;

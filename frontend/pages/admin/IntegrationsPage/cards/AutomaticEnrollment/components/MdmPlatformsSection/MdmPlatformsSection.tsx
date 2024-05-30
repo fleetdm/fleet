@@ -69,19 +69,16 @@ const MdmPlatformsSection = ({ router }: IMdmPlatformsSectionProps) => {
     return <DataError />;
   }
 
-  if (errorMdmAppleBm) {
-    // TODO: other error handling?
-    return <DataError />;
-  }
-
-  console.log("config", config);
-
   return (
     <div className={baseClass}>
       <SectionHeader title="Apple Business Manager" />
       <AppleAutomaticEnrollmentCard
         viewDetails={navigateToAppleAutomaticEnrollment}
-        turnOn={!mdmAppleBm ? navigateToApplePushCertSetup : undefined}
+        turnOn={
+          !config?.mdm.enabled_and_configured
+            ? navigateToApplePushCertSetup
+            : undefined
+        }
         configured={!!config?.mdm.apple_bm_enabled_and_configured}
       />
       <WindowsAutomaticEnrollmentCard
