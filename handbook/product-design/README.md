@@ -1,17 +1,14 @@
-# Product design
+# Product Design
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
-| Role                            | Contributor(s)           |
-|:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
+| Role                             | Contributor(s)           |
+|:---------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Product Design           | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
-| Head of Design                   | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Product Designer                | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_, [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
-| Developer                        | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-
+| Product Designer                 | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 ## Contact us
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in `#help-design`.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
@@ -22,7 +19,7 @@ The Product Design department is responsible for reviewing and collecting feedba
 - Once your designs are reviewed and approved, change the status on the cover page of the relevant Figma file and move the issue to the "Settled" column.
 - After each release (every 3 weeks) make sure you change the status on the cover page of the relevant Figma files that you worked on during the sprint to "Released".
 
->**Questions and missing information:** Take a screenshot of the area in Figma and start a thread in the [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5) Slack channel and paste in the screenshot. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred.
+>**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred.
 >
 >For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
 
@@ -52,7 +49,8 @@ When starting a new draft:
     -  **Ready.** Use this page to communicate designs reviews and development.
     -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
 - If the story requires API changes, open a draft PR with the proposed API design.
-
+    - These draft PRs are not actually merged, since they're often created weeks ahead of implementation and can artificially affect our PR open time KPI. Instead, once the documentation changes are ready for final review, the designer closes the draft PR and opens a fresh PR from the same branch.
+      
 ### Schedule a design review
 - Prepare your draft in the user story issue.
 - Prepare the agenda for your design review meeting, which should be an empty document other than the proposed changes you will present.
@@ -85,8 +83,8 @@ You'll know it's time for expedited drafting when:
 - A user story on the drafting board won't reach "Settled" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
 What happens during expedited drafting?
-1. If the user story wasn't "Settled" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5). Decision to allow the user story to make it into the sprint is up to the release DRI.
-2. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in #help-product-design. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+1. If the user story wasn't "Settled" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in `#g-mdm` or `#g-endpoint-ops`. Decision to allow the user story to make it into the sprint is up to the release DRI.
+2. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in `#g-mdm` or `#g-endpoint-ops`. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 3. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 4. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 
@@ -160,18 +158,6 @@ The following highlights should be considered when deciding if we promote a feat
   explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
 - The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-### Maintain current versions
-Fleet's product depends on the capabilities of other platforms.
-
-Every week, a member of the product team looks up whether there is:
-1. a new major or minor version of [macOS](https://support.apple.com/en-us/HT201260)
-2. a new major or minor version of [CIS Benchmarks Windows 10 Enterprise](https://workbench.cisecurity.org/community/2/benchmarks?q=windows+10+enterprise&status=&sortBy=version&type=desc)
-3. a new major or minor version of [CIS Benchmarks macOS 13 Ventura](https://workbench.cisecurity.org/community/20/benchmarks?q=macos+13.0+Ventura&status=&sortBy=version&type=desc)
-4. a release of CIS Benchmarks for [macOS 14 Sonoma](https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
-5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
-
-The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0). If there are any changes, the DRI sends an update in the [#help-product-design Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5).
-
 ### View Fleet usage statistics
 In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
 
@@ -190,7 +176,7 @@ Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7
 The following stubs are included only to make links backward compatible.
 
 ##### Maintenance
-Please see [handbook/product#maintain-current-versions](https://fleetdm.com/handbook/product#maintain-current-versions)
+Please see [handbook/product-design#rituals](https://fleetdm.com/handbook/product-design#rituals)
 
 ##### New CIS benchmarks
 Please see [handbook/product#submit-a-new-cis-benchmark-set-for-certification](https://fleetdm.com/handbook/product#submit-a-new-cis-benchmark-set-for-certification)

@@ -7,6 +7,7 @@
         "redhat.vscode-yaml",
         "dbaeumer.vscode-eslint",
         "firefox-devtools.vscode-firefox-debug",
-        "editorconfig.editorconfig"
+        "editorconfig.editorconfig",
+        "timonwong.shellcheck"
     ]
 }

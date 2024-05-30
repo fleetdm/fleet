@@ -10,6 +10,8 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
+import { getTableColumnsFromSql } from "utilities/helpers";
+import { SUPPORT_LINK } from "utilities/constants";
 import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -93,15 +95,18 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
+      const tableColumns = getTableColumnsFromSql(lastEditedQueryBody);
+
       const newResultsColumnConfigs = generateColumnConfigsFromRows(
-        queryResults
+        queryResults,
+        tableColumns
       );
       // Update tableHeaders if new headers are found
       if (newResultsColumnConfigs !== resultsColumnConfigs) {
         setResultsColumnConfigs(newResultsColumnConfigs);
       }
     }
-  }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
+  }, [queryResults, lastEditedQueryBody]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
     if (errorColumnConfigs?.length === 0 && !!errors?.length) {
@@ -259,13 +264,7 @@ const QueryResults = ({
       {isQueryClipped && (
         <InfoBanner
           color="yellow"
-          cta={
-            <CustomLink
-              url="https://www.fleetdm.com/support"
-              text="Get help"
-              newTab
-            />
-          }
+          cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
         >
           <div>
             <b>Results clipped.</b> A sample of this query&apos;s results and

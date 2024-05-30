@@ -29,6 +29,18 @@
         }
       }
 
+      &--disabled {
+        &::after {
+          @include disabled-checkbox;
+        }
+
+        &:hover {
+          &::after {
+            @include disabled-checkbox;
+          }
+        }
+      }
+
       &::before {
         @include position(absolute, 50% null null 50%);
         transform: rotate(45deg);
@@ -41,13 +53,14 @@
         border-top: 0;
         border-left: 0;
         content: "";
+        z-index: 9;
       }
     }
   }
 
   &__tick {
     @include size(20px);
-    @include position(absolute, 0 null null 0);
+    position: absolute;
     display: inline-block;
     cursor: pointer;
 
@@ -73,6 +86,14 @@
         background-color: $ui-fleet-black-25;
       }
       cursor: default;
+    }
+
+    &--small {
+      @include size(16px);
+
+      &::after {
+        @include size(16px);
+      }
     }
 
     &--indeterminate {
@@ -109,6 +130,10 @@
     padding-left: $pad-small;
     display: inline-block;
     vertical-align: top;
+
+    &--disabled {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &__label-tooltip {

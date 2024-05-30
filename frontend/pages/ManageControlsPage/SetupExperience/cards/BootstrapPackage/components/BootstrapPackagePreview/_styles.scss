@@ -6,7 +6,9 @@
   font-size: $x-small;
 
   h2 {
-    font-size: $x-small; // needed to override global h2 style
+    margin: 0;
+    font-size: $small;
+    font-weight: normal;
   }
 
   &__preview-img {

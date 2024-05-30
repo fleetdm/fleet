@@ -70,6 +70,7 @@ module "main" {
   }
   rds_config = {
     name                = local.customer
+    engine_version      = "8.0.mysql_aurora.3.05.2"
     snapshot_identifier = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
     db_parameters = {
       # 8mb up from 262144 (256k) default
@@ -318,7 +319,7 @@ module "monitoring" {
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id
     # Format of https://pkg.go.dev/time#ParseDuration
-    delay_tolerance = "2h"
+    delay_tolerance = "4h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
     run_interval = "1 hour"
   }
@@ -395,12 +396,6 @@ module "ses" {
   source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=tf-mod-addon-ses-v1.0.0"
   zone_id = aws_route53_zone.main.zone_id
   domain  = "dogfood.fleetdm.com"
-}
-
-module "waf" {
-  source = "github.com/fleetdm/fleet//terraform/addons/waf-alb?ref=tf-mod-addon-waf-alb-v1.0.0"
-  name   = local.customer
-  lb_arn = module.main.byo-vpc.byo-db.alb.lb_arn
 }
 
 # module "saml_auth_proxy" {

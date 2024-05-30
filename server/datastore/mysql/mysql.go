@@ -792,6 +792,13 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fl
 		}
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
+		if opts.TestSecondaryOrderKey != "" {
+			direction := "ASC"
+			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
+				direction = "DESC"
+			}
+			sql += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.TestSecondaryOrderKey), direction)
+		}
 	}
 	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
 	// that an unbounded query with many results doesn't consume too much memory
@@ -971,7 +978,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -988,6 +995,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
@@ -1177,7 +1185,15 @@ func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
 	// using the writer even when doing a read to get the data from the main db node
 	err := ds.writer(ctx).GetContext(ctx, &status, "show engine innodb status")
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "Getting innodb status")
+		// To read innodb tables, DB user must have PROCESS privilege
+		// This can be set by DB admin like: GRANT PROCESS,SELECT ON *.* TO 'fleet'@'%';
+		if isMySQLAccessDenied(err) {
+			return "", &accessDeniedError{
+				Message:     "getting innodb status: DB user must have global PROCESS and SELECT privilege",
+				InternalErr: err,
+			}
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting innodb status")
 	}
 	return status.Status, nil
 }
@@ -1280,4 +1296,58 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 		return 0, ctxerr.Wrap(ctx, err, "get id from reader")
 	}
 	return id, nil
+}
+
+// batchProcessDB abstracts the batch processing logic, for a given payload:
+//
+// - generateValueArgs will get called for each item, the expected return values are:
+//   - a string containing the placeholders for each item in the batch
+//   - a slice of arguments containing one item for each placeholder
+//
+// - executeBatch will get called on each batch to perform the operation in the db
+//
+// TODO(roberto): use this function in all the functions where we do ad-hoc
+// batch processing.
+func batchProcessDB[T any](
+	payload []T,
+	batchSize int,
+	generateValueArgs func(T) (string, []any),
+	executeBatch func(string, []any) error,
+) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	var (
+		args       []any
+		sb         strings.Builder
+		batchCount int
+	)
+
+	resetBatch := func() {
+		batchCount = 0
+		args = args[:0]
+		sb.Reset()
+	}
+
+	for _, item := range payload {
+		valuePart, itemArgs := generateValueArgs(item)
+		args = append(args, itemArgs...)
+		sb.WriteString(valuePart)
+		batchCount++
+
+		if batchCount >= batchSize {
+			if err := executeBatch(sb.String(), args); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+	}
+
+	if batchCount > 0 {
+		if err := executeBatch(sb.String(), args); err != nil {
+			return err
+		}
+	}
+	return nil
 }

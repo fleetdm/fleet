@@ -23,6 +23,7 @@ import hostsAPI, {
   ILoadHostsResponse,
   ISortOption,
   MacSettingsStatusQueryParam,
+  HOSTS_QUERY_PARAMS,
 } from "services/entities/hosts";
 import hostCountAPI, {
   IHostsCountQueryKey,
@@ -45,10 +46,15 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
+import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
-import { ITeam } from "interfaces/team";
+import {
+  isValidSoftwareInstallStatus,
+  SoftwareInstallStatus,
+} from "interfaces/software";
+import { API_NO_TEAM_ID, ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   DiskEncryptionStatus,
@@ -111,7 +117,7 @@ interface IManageHostsProps {
   router: InjectedRouter;
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  location: any; // no type in react-router v3
+  location: any; // no type in react-router v3 TODO: Improve this type
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -137,6 +143,9 @@ const ManageHostsPage = ({
     isFreeTier,
     isSandboxMode,
     setFilteredHostsPath,
+    setFilteredPoliciesPath,
+    setFilteredQueriesPath,
+    setFilteredSoftwarePath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -158,6 +167,11 @@ const ManageHostsPage = ({
     router,
     includeAllTeams: true,
     includeNoTeam: true,
+    overrideParamsOnTeamChange: {
+      // remove the software status filter when selecting all teams or no team
+      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
+        !newTeamId || newTeamId < 1,
+    },
   });
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
@@ -228,6 +242,11 @@ const ManageHostsPage = ({
     queryParams?.software_title_id !== undefined
       ? parseInt(queryParams.software_title_id, 10)
       : undefined;
+  const softwareStatus = isValidSoftwareInstallStatus(
+    queryParams?.[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]
+  )
+    ? (queryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] as SoftwareInstallStatus)
+    : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
@@ -376,6 +395,7 @@ const ManageHostsPage = ({
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        softwareStatus,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -419,6 +439,7 @@ const ManageHostsPage = ({
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        softwareStatus,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -513,10 +534,10 @@ const ManageHostsPage = ({
   useEffect(() => {
     if (
       location.search.match(
-        /software_id|software_version_id|software_title_id/gi
+        /software_id|software_version_id|software_title_id|software_status/gi
       )
     ) {
-      // regex matches any of "software_id", "software_version_id", or "software_title_id"
+      // regex matches any of "software_id", "software_version_id", "software_title_id", or "software_status"
       // so we don't set the filtered hosts path in those cases
       return;
     }
@@ -708,6 +729,25 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleSoftwareInstallStatausChange = (
+    newStatus: SoftwareInstallStatus
+  ) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: {
+          ...queryParams,
+          [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: newStatus,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
   const onAddLabelClick = () => {
     router.push(`${PATHS.NEW_LABEL}`);
   };
@@ -811,6 +851,10 @@ const ManageHostsPage = ({
         newQueryParams.software_version_id = softwareVersionId;
       } else if (softwareTitleId) {
         newQueryParams.software_title_id = softwareTitleId;
+        if (softwareStatus && teamIdForApi && teamIdForApi > 0) {
+          // software_status is only valid when software_title_id is present and a team is selected
+          newQueryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] = softwareStatus;
+        }
       } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
       } else if (mdmEnrollmentStatus) {
@@ -860,6 +904,7 @@ const ManageHostsPage = ({
       softwareId,
       softwareVersionId,
       softwareTitleId,
+      softwareStatus,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
@@ -886,6 +931,11 @@ const ManageHostsPage = ({
       // tableQueryData)
       handleTeamChange(teamId);
       handleResetPageIndex();
+      // Must clear other page paths or the team might accidentally switch
+      // When navigating from host details
+      setFilteredSoftwarePath("");
+      setFilteredQueriesPath("");
+      setFilteredPoliciesPath("");
     },
     [handleTeamChange]
   );
@@ -1015,7 +1065,11 @@ const ManageHostsPage = ({
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
-      renderFlash("error", "Could not delete label. Please try again.");
+      if (getErrorReason(error).includes("built-in")) {
+        renderFlash("error", "Built-in labels can’t be modified or deleted.");
+      } else {
+        renderFlash("error", "Could not delete label. Please try again.");
+      }
     } finally {
       setIsUpdatingLabel(false);
     }
@@ -1049,6 +1103,7 @@ const ManageHostsPage = ({
           softwareId,
           softwareTitleId,
           softwareVersionId,
+          softwareStatus,
           osName,
           osVersionId,
           osVersion,
@@ -1089,12 +1144,10 @@ const ManageHostsPage = ({
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
 
-    const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
-
     try {
       await (isAllMatchingHostsSelected
         ? hostsAPI.destroyByFilter({
-            teamId,
+            teamId: teamIdForApi,
             query: searchQuery,
             status,
             labelId: selectedLabel?.id,
@@ -1103,6 +1156,7 @@ const ManageHostsPage = ({
             softwareId,
             softwareTitleId,
             softwareVersionId,
+            softwareStatus,
             osName,
             osVersionId,
             osVersion,
@@ -1314,6 +1368,7 @@ const ManageHostsPage = ({
       softwareId,
       softwareTitleId,
       softwareVersionId,
+      softwareStatus,
       status,
       mdmId,
       mdmEnrollmentStatus,
@@ -1451,7 +1506,8 @@ const ManageHostsPage = ({
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
         } else if (canEnrollHosts) {
           emptyHosts.header = "Add your hosts to Fleet";
-          emptyHosts.info = "Generate an installer to add your own hosts.";
+          emptyHosts.info =
+            "Generate Fleet's agent (fleetd) to add your own hosts.";
           emptyHosts.primaryButton = (
             <Button variant="brand" onClick={toggleAddHostsModal} type="button">
               Add hosts
@@ -1515,6 +1571,7 @@ const ManageHostsPage = ({
       softwareId ||
       softwareTitleId ||
       softwareVersionId ||
+      softwareStatus ||
       osName ||
       osVersionId ||
       osVersion ||
@@ -1653,6 +1710,7 @@ const ManageHostsPage = ({
               softwareId,
               softwareTitleId,
               softwareVersionId,
+              softwareStatus,
               mdmId,
               mdmEnrollmentStatus,
               lowDiskSpaceHosts,
@@ -1684,6 +1742,9 @@ const ManageHostsPage = ({
               handleChangeBootstrapPackageStatusFilter
             }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
+            onChangeSoftwareInstallStatusFilter={
+              handleSoftwareInstallStatausChange
+            }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
             isSandboxMode={isSandboxMode}

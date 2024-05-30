@@ -91,17 +91,16 @@ type DEPService struct {
 // getDefaultProfile returns a godep.Profile with default values set.
 func (d *DEPService) getDefaultProfile() *godep.Profile {
 	return &godep.Profile{
-		ProfileName:           "FleetDM default enrollment profile",
-		AllowPairing:          true,
-		AutoAdvanceSetup:      false,
-		AwaitDeviceConfigured: false,
-		IsSupervised:          false,
-		IsMultiUser:           false,
-		IsMandatory:           false,
-		IsMDMRemovable:        true,
-		Language:              "en",
-		OrgMagic:              "1",
-		Region:                "US",
+		ProfileName:      "FleetDM default enrollment profile",
+		AllowPairing:     true,
+		AutoAdvanceSetup: false,
+		IsSupervised:     false,
+		IsMultiUser:      false,
+		IsMandatory:      false,
+		IsMDMRemovable:   true,
+		Language:         "en",
+		OrgMagic:         "1",
+		Region:           "US",
 		SkipSetupItems: []string{
 			"Accessibility",
 			"Appearance",
@@ -207,6 +206,10 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
 	// to get a token without SSO enabled
 	jsonProf.URL = jsonProf.ConfigurationWebURL
+	// always set await_device_configured to true - it will be released either
+	// automatically by Fleet or manually by the user if
+	// enable_release_device_manually is true.
+	jsonProf.AwaitDeviceConfigured = true
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
 	res, err := depClient.DefineProfile(ctx, DEPName, &jsonProf)

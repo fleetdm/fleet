@@ -18,6 +18,9 @@
     "uuid": "",
     "platform": "",
     "osquery_version": "",
+    "orbit_version": null,
+    "fleet_desktop_version": null,
+    "scripts_enabled": null,
     "os_version": "",
     "build": "",
     "platform_like": "",
@@ -76,7 +79,8 @@
         "team_id": 1,
         "updated_at": "0001-01-01T00:00:00Z",
         "created_at": "0001-01-01T00:00:00Z",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": true
       },
       {
         "id": 2,
@@ -91,7 +95,8 @@
         "team_id": null,
         "updated_at": "0001-01-01T00:00:00Z",
         "created_at": "0001-01-01T00:00:00Z",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false
       }
     ],
     "status": "offline",

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { IConfig, IConfigFormData } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -13,9 +13,14 @@ import {
   DEFAULT_TRANSPARENCY_URL,
   IAppConfigFormProps,
   IFormField,
-  IAppConfigFormErrors,
 } from "../constants";
 
+interface IFleetDesktopFormData {
+  transparencyUrl: string;
+}
+interface IFleetDesktopFormErrors {
+  transparency_url?: string | null;
+}
 const baseClass = "app-config-form";
 
 const FleetDesktop = ({
@@ -24,16 +29,14 @@ const FleetDesktop = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<
-    Pick<IConfigFormData, "transparencyUrl">
-  >({
+  const [formData, setFormData] = useState<IFleetDesktopFormData>({
     transparencyUrl:
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
   });
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
 
-  const handleInputChange = ({ value }: IFormField) => {
+  const onInputChange = ({ value }: IFormField) => {
     setFormData({ transparencyUrl: value.toString() });
     setFormErrors({});
   };
@@ -41,7 +44,7 @@ const FleetDesktop = ({
   const validateForm = () => {
     const { transparencyUrl } = formData;
 
-    const errors: IAppConfigFormErrors = {};
+    const errors: IFleetDesktopFormErrors = {};
     if (transparencyUrl && !validUrl({ url: transparencyUrl })) {
       errors.transparency_url = `${transparencyUrl} is not a valid URL`;
     }
@@ -52,7 +55,7 @@ const FleetDesktop = ({
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const formDataForAPI: Pick<IConfig, "fleet_desktop"> = {
+    const formDataForAPI = {
       fleet_desktop: {
         transparency_url: formData.transparencyUrl,
       },
@@ -72,7 +75,7 @@ const FleetDesktop = ({
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Custom transparency URL"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="transparency_url"
             value={formData.transparencyUrl}
             parseTarget

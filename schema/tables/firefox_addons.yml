@@ -1,14 +1,16 @@
 name: firefox_addons
 description: Firefox browser [add-ons](https://addons.mozilla.org/en-US/firefox/) (plugins).
-examples: >-
+examples: |-
+  ```
+  SELECT * FROM users CROSS JOIN firefox_addons USING (uid);
+  ```
+
   See Firefox extensions by user as well as information about their creator and
   automatic update status.
 
   ```
-
   SELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';
-
   ```
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
 columns:
   - name: uid
-    requires_user_context: true

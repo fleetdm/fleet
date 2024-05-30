@@ -1,4 +1,8 @@
 name: chrome_extension_content_scripts
 columns:
   - name: uid
-    requires_user_context: true
+examples: |-
+  ```
+  SELECT * FROM users CROSS JOIN chrome_extension_content_scripts USING (uid);
+  ```
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

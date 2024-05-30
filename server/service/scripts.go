@@ -202,6 +202,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptDisabledErrMsg), http.StatusUnprocessableEntity)
 	}
 
+	// If scripts are disabled (according to the last detail query), we return an error.
+	// host.ScriptsEnabled may be nil for older orbit versions.
+	if host.ScriptsEnabled != nil && !*host.ScriptsEnabled {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptsOrbitDisabledErrMsg), http.StatusUnprocessableEntity)
+	}
+
 	maxPending := maxPendingScripts
 
 	// authorize with the host's team and the script id provided, as both affect
@@ -517,7 +524,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		teamName = &tm.Name
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedScript{
@@ -575,7 +582,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 		teamName = &tm.Name
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedScript{
@@ -858,10 +865,11 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return ctxerr.Wrap(ctx, err, "batch saving scripts")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
-		TeamID:   teamID,
-		TeamName: teamName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
+			TeamID:   teamID,
+			TeamName: teamName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
 	}
 	return nil

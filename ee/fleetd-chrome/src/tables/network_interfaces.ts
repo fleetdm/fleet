@@ -11,7 +11,8 @@ export default class TableNetworkInterfaces extends Table {
         warnings: [
           {
             column: "mac",
-            error_message: "chrome.enterprise API is not available for network details",
+            error_message:
+              "chrome.enterprise API is not available for network details",
           },
         ],
       };

@@ -7,11 +7,17 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 )
 
 const (
 	MDMPlatformApple     = "apple"
 	MDMPlatformMicrosoft = "microsoft"
+
+	MDMAppleDeclarationUUIDPrefix = "d"
+	MDMAppleProfileUUIDPrefix     = "a"
+	MDMWindowsProfileUUIDPrefix   = "w"
 )
 
 type AppleMDM struct {
@@ -165,6 +171,8 @@ type CommandEnqueueResult struct {
 	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 	// Platform is the platform of the hosts targeted by the command.
+	// Current possible values are "darwin" or "windows".
+	// Here "darwin" means "Apple" devices (iOS/iPadOS/macOS).
 	Platform string `json:"platform"`
 }
 
@@ -302,12 +310,8 @@ type MDMDeliveryStatus string
 //     command failed to enqueue in ReconcileProfile (it resets the status to
 //     NULL). A failure in the asynchronous actual response of the MDM command
 //     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
-//     the failed state being applied and no retry. We should probably support
-//     some retries for such failures, and determine a maximum number of retries
-//     before giving up (either as a count of attempts - which would require
-//     storing somewhere - or as a time period, which we could determine based on
-//     the timestamps, e.g. time since created_at, if we added them to
-//     host_mdm_apple_profiles).
+//     a retry of mdm.MaxProfileRetries times and if it still reports as failed
+//     it will be set to failed permanently.
 //
 //   - verified: the MDM command was successfully applied, and Fleet has
 //     independently verified the status. This is a terminal state.
@@ -413,6 +417,24 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 	}
 }
 
+func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfigProfilePayload {
+	var tid *uint
+	if decl.TeamID != nil && *decl.TeamID > 0 {
+		tid = decl.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID: decl.DeclarationUUID,
+		TeamID:      tid,
+		Name:        decl.Name,
+		Identifier:  decl.Identifier,
+		Platform:    "darwin",
+		Checksum:    []byte(decl.Checksum),
+		CreatedAt:   decl.CreatedAt,
+		UploadedAt:  decl.UploadedAt,
+		Labels:      decl.Labels,
+	}
+}
+
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
@@ -514,3 +536,42 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 
 	return len(pathLabelCounts) == 0
 }
+
+// MDMPlatform returns "darwin" or "windows" as MDM platforms
+// derived from a host's platform (hosts.platform field).
+//
+// Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
+// to keep backwards compatibility throughout the app).
+func MDMPlatform(hostPlatform string) string {
+	switch hostPlatform {
+	case "darwin", "ios", "ipados":
+		return "darwin"
+	case "windows":
+		return "windows"
+	}
+	return ""
+}
+
+// MDMSupported returns whether MDM is supported for a given host platform.
+func MDMSupported(hostPlatform string) bool {
+	return MDMPlatform(hostPlatform) != ""
+}
+
+// FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
+// if the profile target's platform is ios/ipados.
+func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
+	i := 0
+	for _, profilePayload := range profiles {
+		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
+			(profilePayload.ProfileName == mdm_types.FleetdConfigProfileName ||
+				profilePayload.ProfileName == mdm_types.FleetFileVaultProfileName) {
+			continue
+		}
+		profiles[i] = profilePayload
+		i++
+	}
+	return profiles[:i]
+}
+
+// RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
+const RefetchCommandUUIDPrefix = "REFETCH-"

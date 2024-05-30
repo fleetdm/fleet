@@ -33,6 +33,7 @@ class InputField extends Component {
     ]).isRequired,
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.string,
+    labelTooltipPosition: PropTypes.string,
     helpText: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.arrayOf(PropTypes.string),
@@ -55,6 +56,7 @@ class InputField extends Component {
     value: "",
     parseTarget: false,
     tooltip: "",
+    labelTooltipPosition: "",
     helpText: "",
     enableCopy: false,
     ignore1password: false,
@@ -118,12 +120,17 @@ class InputField extends Component {
       [`${baseClass}__textarea`]: type === "textarea",
     });
 
+    const inputWrapperClasses = classnames(inputWrapperClass, {
+      [`input-field--disabled`]: disabled,
+    });
+
     const formFieldProps = pick(this.props, [
       "helpText",
       "label",
       "error",
       "name",
       "tooltip",
+      "labelTooltipPosition",
     ]);
 
     const copyValue = (e) => {
@@ -141,7 +148,7 @@ class InputField extends Component {
         <FormField
           {...formFieldProps}
           type="textarea"
-          className={inputWrapperClass}
+          className={inputWrapperClasses}
         >
           <textarea
             name={name}
@@ -166,7 +173,11 @@ class InputField extends Component {
     });
 
     return (
-      <FormField {...formFieldProps} type="input" className={inputWrapperClass}>
+      <FormField
+        {...formFieldProps}
+        type="input"
+        className={inputWrapperClasses}
+      >
         <div className={inputContainerClasses}>
           <input
             disabled={disabled}

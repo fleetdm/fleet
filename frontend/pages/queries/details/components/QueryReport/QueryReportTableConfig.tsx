@@ -9,10 +9,12 @@ import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColu
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import {
+  getSortTypeFromColumnType,
   getUniqueColumnNamesFromRows,
   humanHostLastSeen,
   internallyTruncateText,
 } from "utilities/helpers";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
 
 type IQueryReportTableColumnConfig = Column<IWebSocketData>;
@@ -40,7 +42,8 @@ const _unshiftHostname = (headers: IQueryReportTableColumnConfig[]) => {
 };
 
 const generateReportColumnConfigsFromResults = (
-  results: IWebSocketData[]
+  results: IWebSocketData[],
+  tableColumns?: IQueryTableColumn[] | []
 ): IQueryReportTableColumnConfig[] => {
   /* Results include an array of objects, each representing a table row
   Each key value pair in an object represents a column name and value
@@ -79,7 +82,7 @@ const generateReportColumnConfigsFromResults = (
         Filter: DefaultColumnFilter, // Component hides filter for last_fetched
         filterType: "text",
         disableSortBy: false,
-        sortType: "caseInsensitive",
+        sortType: getSortTypeFromColumnType(key, tableColumns),
       };
     }
   );

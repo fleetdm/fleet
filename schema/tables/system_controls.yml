@@ -1,13 +1,11 @@
 name: system_controls
-examples: >-
+examples: |-
   See if IP forwarding is enabled (value=1) or not (current_value=0). This table
   provides access to a large quantity of low-level settings and is ideal to
   build policies.
 
   ```
-
   SELECT current_value, name FROM system_controls WHERE name='net.inet.ip.forwarding';
-
   ```
 columns:
   - name: field_name

@@ -9,13 +9,11 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
-    skipGithubRequests: { type: 'boolean', description: 'Whether to minimize requests to the GitHub API which usually can be skipped during local development, such as requests used for fetching GitHub avatar URLs'},
     githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
 
-  fn: async function ({ dry, skipGithubRequests, githubAccessToken }) {
-
+  fn: async function ({ dry, githubAccessToken }) {
     let path = require('path');
     let YAML = require('yaml');
 
@@ -27,17 +25,15 @@ module.exports = {
     let rootRelativeUrlPathsSeen = [];
     let baseHeadersForGithubRequests;
     let osqueryTables = [];
-    if(!skipGithubRequests){
+    if(githubAccessToken) {// If a github token was provided, set headers for requests to GitHub.
       baseHeadersForGithubRequests = {
         'User-Agent': 'Fleet-Standard-Query-Library',
         'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `token ${githubAccessToken}`,
       };
-
-      if(githubAccessToken) {
-        // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
-        baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
-      }
-    }
+    } else {
+      sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag. \n Note: This script can take up to 30s to run.');
+    }//ﬁ
 
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
@@ -119,34 +115,14 @@ module.exports = {
 
         let githubDataByUsername = {};
 
-        if(skipGithubRequests) {// If the --skipGithubRequests flag was provided, we'll skip querying GitHubs API
-          sails.log('Skipping GitHub API requests for contributer profiles.\nNOTE: The contributors in the standard query library will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
-          // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
-          for (let query of queries) {
-            let usernames = query.contributors.split(',');
-            let contributorProfiles = [];
-            for (let username of usernames) {
-              contributorProfiles.push({
-                name: username,
-                handle: username,
-                avatarUrl: 'https://placekitten.com/200/200',
-                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
-              });
-            }
-            query.contributors = contributorProfiles;
-          }
-        } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
-
+        // If a GitHub access token was provided, validate all users listed in the standard query library YAML.
+        if(githubAccessToken) {
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
               headers: baseHeadersForGithubRequests,
-            }).catch((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
-              if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
-                throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
-              } else {// If the error was not because of the user's API rate limit, we'll display the full error
-                throw err;
-              }
+            }).intercept((err)=>{
+              return new Error(`When validating users in standard-query-library.yml, an error when a request was sent to GitHub get the information about a user (username: ${username}). Error: ${err.stack}`);
             });
           });//∞
           // Now expand queries with relevant profile data for the contributors.
@@ -163,7 +139,21 @@ module.exports = {
             }
             query.contributors = contributorProfiles;
           }
-        }
+        } else {// Otherwise, use the Github username as contributor's names and handles and use fake profile pictures.
+          for (let query of queries) {
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: username,
+                handle: username,
+                avatarUrl: 'https://placekitten.com/200/200',
+                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
+        }//ﬁ
 
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
@@ -205,6 +195,10 @@ module.exports = {
 
             // If this page is in the docs/contributing/ folder, skip it.
             if(sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'contributing/')){
+              continue;
+            }
+            // Skip pages in folders starting with an underscore character.
+            if(sectionRepoPath === 'docs/' &&  _.startsWith(pageRelSourcePath.split(/\//).slice(-2)[0], '_')){
               continue;
             }
             let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
@@ -700,52 +694,50 @@ module.exports = {
             }
 
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
-            for(let column of table.columns) {
-              if(!column.hidden) { // If the column is hidden, we won't add it to the final table.
-                // Create an object for this column to add to the osqueryTables config.
-                let columnInfoForQueryReports = {
-                  name: column.name
-                };
-                let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
-                if(column.description) {
-                  columnDescriptionForTable = column.description;
-                  // Convert the markdown description for this table into HTML for tooltips on /try-fleet/explore-data/* pages
-                  columnInfoForQueryReports.description = await sails.helpers.strings.toHtml.with({mdString: column.description, addIdsToHeadings: false});
-                }
-                tableInfoForQueryReports.columns.push(columnInfoForQueryReports);
-                // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
-                columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
-
-                keywordsForSyntaxHighlighting.push(column.name);
-                if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
-                  columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
-                }
-                if(column.requires_user_context) { // If a column has `"requires_user_context": true`, we'll add a note to the description that will be added to the table
-                  columnDescriptionForTable += '<br> **Defaults to root** &nbsp;&nbsp;[Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table?utm_source=fleetdm.com&utm_content=table-'+encodeURIComponent(table.name)+')';
-                }
-                if(column.platforms) { // If a column has an array of platforms, we'll add a note to the final column description
-
-                  let platformString = '<br> **Only available on ';// start building a string to add to the column's description
-
-                  if(column.platforms.length > 3) {// FUTURE: add support for more than three platform values in columns.
-                    throw new Error('Support for more than three platforms has not been implemented yet.');
-                  }
-
-                  if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
-                    // If there are three, we'll add a string with an oxford comma. e.g., "On macOS, Windows, and Linux"
-                    platformString += `${column.platforms[0]}, ${column.platforms[1]}, and ${column.platforms[2]}`;
-                  } else if(column.platforms.length === 2) {
-                    // If there are two values in the platforms array, it will be formated as "[Platform 1] and [Platform 2]"
-                    platformString += `${column.platforms[0]} and ${column.platforms[1]}`;
-                  } else {
-                    // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
-                    platformString += column.platforms[0];
-                  }
-                  platformString += '** ';
-                  columnDescriptionForTable += platformString; // Add the platform string to the column's description.
-                }
-                tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';
+            for(let column of _.sortBy(table.columns, 'name')) {
+              // Create an object for this column to add to the osqueryTables config.
+              let columnInfoForQueryReports = {
+                name: column.name
+              };
+              let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
+              if(column.description) {
+                columnDescriptionForTable = column.description;
+                // Convert the markdown description for this table into HTML for tooltips on /try-fleet/explore-data/* pages
+                columnInfoForQueryReports.description = await sails.helpers.strings.toHtml.with({mdString: column.description, addIdsToHeadings: false});
               }
+              tableInfoForQueryReports.columns.push(columnInfoForQueryReports);
+              // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
+              columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
+
+              keywordsForSyntaxHighlighting.push(column.name);
+              if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
+                columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
+              }
+              if(column.hidden) { // If a column has `"hidden": true`, we'll add a note to the description that will be added to the table
+                columnDescriptionForTable += '<br> **Not returned in `SELECT * FROM '+table.name+'`.**';
+              }
+              if(column.platforms) { // If a column has an array of platforms, we'll add a note to the final column description
+
+                let platformString = '<br> **Only available on ';// start building a string to add to the column's description
+
+                if(column.platforms.length > 3) {// FUTURE: add support for more than three platform values in columns.
+                  throw new Error('Support for more than three platforms in columns has not been implemented yet. If this column is supported on all platforms, you can omit the platforms array entirely.');
+                }
+
+                if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
+                  // If there are three, we'll add a string with an oxford comma. e.g., "On macOS, Windows, and Linux"
+                  platformString += `${column.platforms[0]}, ${column.platforms[1]}, and ${column.platforms[2]}`;
+                } else if(column.platforms.length === 2) {
+                  // If there are two values in the platforms array, it will be formated as "[Platform 1] and [Platform 2]"
+                  platformString += `${column.platforms[0]} and ${column.platforms[1]}`;
+                } else {
+                  // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
+                  platformString += column.platforms[0];
+                }
+                platformString += '** ';
+                columnDescriptionForTable += platformString; // Add the platform string to the column's description.
+              }
+              tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';
             }
             if(table.examples) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
               tableMdString += '\n### Example\n\n'+table.examples+'\n';
@@ -1010,16 +1002,14 @@ module.exports = {
               if (!KNOWN_AUTOMATABLE_FREQUENCIES.includes(ritual.frequency)) {
                 throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. Invalid ritual: "${ritual.task}" indicates frequency "${ritual.frequency}", but that isn't supported with automations turned on.  Supported frequencies: ${KNOWN_AUTOMATABLE_FREQUENCIES}`);
               }
-              if(!skipGithubRequests){ // If the ritual has an autoIssue value, we'll validate that the DRI value is a GitHub username.
+              if(githubAccessToken){ // If the ritual has an autoIssue value, we'll validate that the DRI value is a GitHub username.
                 await sails.helpers.http.get.with({
                   url: 'https://api.github.com/users/' + encodeURIComponent(ritual.dri),
                   headers: baseHeadersForGithubRequests
-                }).intercept((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
-                  if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
-                    return new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
-                  } else if(err.raw.statusCode === 404) {// If the GitHub API responds with a 404, we'll throw an error with a message about the invalid GitHub username.
+                }).intercept((err)=>{
+                  if(err.raw.statusCode === 404) {// If the GitHub API responds with a 404, we'll throw an error with a message about the invalid GitHub username.
                     return new Error(`Could not build rituals from ${ritualsYamlFilePath}. The DRI value of a ritual (${ritual.task}) contains an invalid GitHub username (${ritual.dri}). To resolve, make sure the DRI value for this ritual is a valid GitHub username.`);
-                  } else {// If the error was not a 404 and not because of the user's API rate limit, we'll display the full error
+                  } else {// If the error was not a 404, we'll display the full error
                     return err;
                   }
                 });
@@ -1056,8 +1046,8 @@ module.exports = {
           rituals[relativeRepoPathForThisRitualsFile] = ritualsFromRitualTableYaml;
 
         }//∞
-        // Validate all GitHub labels used in all ritual yaml files. Note: We check these here to minimize requests to the GitHub API. We'll send requests to get all existing labels in the Fleet repo, and will throw an error if a label in a rituals YAML file does not exist in the repo.
-        if(!skipGithubRequests){
+        if(githubAccessToken) {
+        // Validate all GitHub labels used in all ritual yaml files. Note: We check these here to minimize requests to the GitHub API.
           for(let repo in githubLabelsToCheck){
             let allExistingLabelsInSpecifiedRepo = [];
             let pageOfResultsReturned = 0;
@@ -1081,7 +1071,7 @@ module.exports = {
               }
             });//∞
           }
-        }
+        }//ﬁ
 
         // Add the rituals dictionary to builtStaticContent.rituals
         builtStaticContent.rituals = rituals;

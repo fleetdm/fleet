@@ -1,0 +1,18 @@
+.software-install-details {
+  .modal__content {
+    margin-top: $pad-xlarge;
+  }
+  &__status-message {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    margin: 0;
+  }
+  &__script-output {
+    padding-top: $pad-xlarge;
+    .textarea {
+      margin-top: $pad-medium;
+      overflow-wrap: break-word;
+    }
+  }
+}

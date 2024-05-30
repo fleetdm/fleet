@@ -14,7 +14,8 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
     text: "Verified",
     iconName: "success",
     tooltipText:
-      "These hosts applied all OS settings. Fleet verified with osquery.",
+      "These hosts applied all OS settings. Fleet verified with osquery. " +
+      "Declaration profiles are verified with DDM.",
   },
   {
     value: "verifying",

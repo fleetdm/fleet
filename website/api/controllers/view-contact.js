@@ -31,7 +31,9 @@ module.exports = {
       formToShow = 'contact';
     }
     // Respond with view.
-    return {formToShow};
+    return {
+      formToShow,
+    };
 
   }
 

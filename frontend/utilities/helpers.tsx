@@ -2,6 +2,7 @@ import React from "react";
 import {
   isEmpty,
   flatMap,
+  find,
   omit,
   pick,
   size,
@@ -18,6 +19,8 @@ import {
   intlFormat,
   intervalToDuration,
   isAfter,
+  isBefore,
+  addDays,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -25,6 +28,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -39,6 +43,8 @@ import { UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
+import { checkTable } from "utilities/sql_tools";
+import { osqueryTables } from "utilities/osquery_tables";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -47,9 +53,11 @@ import {
   DEFAULT_GRAVATAR_LINK_DARK_FALLBACK,
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
+  isPlatformLabelNameFromAPI,
 } from "utilities/constants";
-import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
+import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { IActivityDetails } from "interfaces/activity";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -216,10 +224,14 @@ export const formatFloatAsPercentage = (float?: number): string => {
 
 const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: ILabel) => {
+    let labelType = "custom";
+    if (isPlatformLabelNameFromAPI(label.display_text)) {
+      labelType = PLATFORM_LABEL_DISPLAY_TYPES[label.display_text];
+    }
     return {
       ...label,
       slug: labelSlug(label),
-      type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      type: labelType,
       target_type: "labels",
     };
   });
@@ -662,8 +674,17 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 };
 
-export const licenseExpirationWarning = (expiration: string): boolean => {
+export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
+};
+
+export const willExpireWithinXDays = (
+  expiration: string,
+  x: number
+): boolean => {
+  const xDaysFromNow = addDays(new Date(), x);
+
+  return isAfter(xDaysFromNow, new Date(expiration));
 };
 
 export const readableDate = (date: string) => {
@@ -677,7 +698,7 @@ export const readableDate = (date: string) => {
 };
 
 export const getPerformanceImpactDescription = (
-  scheduledQueryStats: IScheduledQueryStats
+  scheduledQueryStats: ISchedulableQueryStats
 ) => {
   if (
     !scheduledQueryStats.total_executions ||
@@ -793,6 +814,9 @@ export const normalizeEmptyValues = (
   );
 };
 
+export const wait = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
 export const wrapFleetHelper = (
   helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
@@ -849,8 +873,13 @@ export const getSoftwareBundleTooltipJSX = (bundle: string) => (
 );
 
 export const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  queryByHostRoute: (hostId?: number | null, teamId?: number | null) => {
+    const queryString = buildQueryStringFromParams({
+      host_id: hostId || undefined,
+      team_id: teamId,
+    });
+
+    return queryString && `?${queryString}`;
   },
 };
 
@@ -887,6 +916,40 @@ export const getUniqueColumnNamesFromRows = <
 // can allow additional dropdown value types in the future
 type DropdownOptionValue = IDropdownOption["value"];
 
+/** Generates the column schema for a sql query */
+export const getTableColumnsFromSql = (
+  sql: string
+): IQueryTableColumn[] | [] => {
+  const tableNames = (sql && checkTable(sql).tables) || [];
+
+  let sqlColumns: IQueryTableColumn[] | [] = [];
+  tableNames.forEach((tableName: string) => {
+    const tableColumns =
+      find(osqueryTables, { name: tableName })?.columns || [];
+    sqlColumns = [...sqlColumns, ...tableColumns];
+  });
+  // TODO: Edge case of tables sharing column names with different typing not considered
+
+  return sqlColumns;
+};
+
+/** Sorts sql results numerical columns correctly while perserving case insensitive sort for text columns */
+export const getSortTypeFromColumnType = (
+  colName: string | number | symbol,
+  tableColumns?: IQueryTableColumn[] | []
+) => {
+  if (typeof colName === "string") {
+    const numberTypes = ["integer", "bigint", "unsigned_bigint", "double"];
+
+    const type = find(tableColumns, { name: colName })?.type;
+
+    if (type && numberTypes.includes(type)) {
+      return "alphanumeric";
+    }
+  }
+  return "caseInsensitive";
+};
+
 export function getCustomDropdownOptions(
   defaultOptions: IDropdownOption[],
   customValue: DropdownOptionValue,
@@ -918,6 +981,8 @@ export default {
   generateRole,
   generateTeam,
   getUniqueColumnNamesFromRows,
+  getTableColumnsFromSql,
+  getSortTypeFromColumnType,
   getCustomDropdownOptions,
   greyCell,
   humanHostLastSeen,
@@ -930,7 +995,8 @@ export default {
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,
-  licenseExpirationWarning,
+  hasLicenseExpired,
+  willExpireWithinXDays,
   readableDate,
   secondsToHms,
   secondsToDhms,
@@ -938,6 +1004,7 @@ export default {
   setupData,
   syntaxHighlight,
   normalizeEmptyValues,
+  wait,
   wrapFleetHelper,
   TAGGED_TEMPLATES,
 };

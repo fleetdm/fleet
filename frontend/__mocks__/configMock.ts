@@ -14,6 +14,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     deferred_save_host: false,
     query_reports_disabled: false,
     scripts_disabled: false,
+    ai_features_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,
@@ -46,6 +47,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     host_expiry_enabled: false,
     host_expiry_window: 0,
   },
+  activity_expiry_settings: {
+    activity_expiry_enabled: true,
+    activity_expiry_window: 90,
+  },
   agent_options: "",
   license: {
     tier: "free",
@@ -72,10 +77,15 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       destination_url: "https://server.com",
       host_batch_size: 1000,
     },
+    activities_webhook: {
+      enable_activities_webhook: true,
+      destination_url: "https://server.com",
+    },
   },
   integrations: {
     jira: [],
     zendesk: [],
+    google_calendar: [],
   },
   logging: {
     debug: false,
@@ -145,6 +155,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       bootstrap_package: "",
       enable_end_user_authentication: false,
       macos_setup_assistant: null,
+      enable_release_device_manually: false,
     },
     macos_migration: {
       enable: false,

@@ -1,2 +1,0 @@
-- Fixed issue where getting host details failed when attempting to read the host's bitlocker status
-  from the datastore.
