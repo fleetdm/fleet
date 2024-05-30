@@ -5,7 +5,6 @@ package table
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
@@ -72,7 +71,7 @@ func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		table.NewPlugin(
 			"sofa_security_release_info", sofa.SofaSecurityReleaseInfoColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-				return sofa.SofaSecurityReleaseInfoGenerate(ctx, queryContext, opts.Socket, sofa.WithUserAgent("Fleet/"+build.Version))
+				return sofa.SofaSecurityReleaseInfoGenerate(ctx, queryContext, opts.Socket, sofa.WithUserAgent("fleetd"))
 			},
 		),
 		table.NewPlugin(
