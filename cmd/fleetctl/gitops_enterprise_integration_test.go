@@ -51,8 +51,16 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
+	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
+
+	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetAPNSCert, Value: testCertPEM},
+		{Name: fleet.MDMAssetAPNSKey, Value: testKeyPEM},
+		{Name: fleet.MDMAssetCACert, Value: testCertPEM},
+		{Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+	})
+	require.NoError(s.T(), err)
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)

@@ -53,8 +53,11 @@ const (
 	// NOTE: MDM assets are cached using their checksum as well, as it's
 	// important for them to always be fresh if they changed (see cachedi
 	// mplementation below for details)
-	mdmConfigAssetKey               = "MDMConfigAsset:%s:%s"
-	defaultMDMConfigAssetExpiration = 1 * time.Hour
+	mdmConfigAssetKey = "MDMConfigAsset:%s:%s"
+	// NOTE: given how mdmConfigAssetKey works, it means that once an asset
+	// changes, it'll linger for this amount of time. The curent
+	// implementation assumes infrequent asset changes.
+	defaultMDMConfigAssetExpiration = 15 * time.Minute
 )
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
@@ -441,11 +444,6 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 		key := fmt.Sprintf(mdmConfigAssetKey, name, latestHashes[name])
 		ds.c.Set(ctx, key, asset, ds.mdmConfigAssetExp)
 		cachedAssets[name] = asset
-	}
-
-	// delete missing keys so they don't linger
-	for _, key := range missingKeys {
-		ds.c.Delete(key)
 	}
 
 	return cachedAssets, nil

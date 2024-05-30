@@ -573,7 +573,7 @@ func (m MDMConfigAsset) Clone() (Cloner, error) {
 	return m.Copy(), nil
 }
 
-func (m MDMConfigAsset) Copy() *MDMConfigAsset {
+func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	var clone MDMConfigAsset
 
 	clone.Name = m.Name
@@ -584,5 +584,5 @@ func (m MDMConfigAsset) Copy() *MDMConfigAsset {
 		copy(clone.Value, m.Value)
 	}
 
-	return &clone
+	return clone
 }

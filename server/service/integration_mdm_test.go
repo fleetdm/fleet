@@ -48,6 +48,7 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
@@ -105,6 +106,11 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 
 	fleetCfg := config.TestConfig()
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(s.T(), err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
@@ -4144,14 +4150,6 @@ func (s *integrationMDMTestSuite) uploadEULA(
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)
 	}
-}
-
-var testBMToken = &nanodep_client.OAuth1Tokens{
-	ConsumerKey:       "test_consumer",
-	ConsumerSecret:    "test_secret",
-	AccessToken:       "test_access_token",
-	AccessSecret:      "test_access_secret",
-	AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
 }
 
 // TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md

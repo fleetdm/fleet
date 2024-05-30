@@ -507,6 +507,19 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 }
 
 func SetTestABMAssets(t testing.TB, ds *Datastore) {
+	certPEM, keyPEM, tokenBytes, err := GenerateTestABMAssets(t)
+	require.NoError(t, err)
+	assets := []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetABMCert, Value: certPEM},
+		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
+		{Name: fleet.MDMAssetABMToken, Value: tokenBytes},
+	}
+
+	err = ds.InsertMDMConfigAssets(context.Background(), assets)
+	require.NoError(t, err)
+}
+
+func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
 	certPEM, keyPEM, err := GenerateTestCertBytes()
 	require.NoError(t, err)
 
@@ -543,14 +556,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 			"Content-Description: S/MIME Encrypted Message\r\n"+
 			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
 
-	assets := []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetABMCert, Value: certPEM},
-		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
-		{Name: fleet.MDMAssetABMToken, Value: []byte(tokenBytes)},
-	}
-
-	err = ds.InsertMDMConfigAssets(context.Background(), assets)
-	require.NoError(t, err)
+	return certPEM, keyPEM, []byte(tokenBytes), nil
 }
 
 // TODO: move to mdmcrypto?

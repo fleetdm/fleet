@@ -1756,7 +1756,7 @@ func TestConfig() FleetConfig {
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens, wstepCertAndKeyDir string) {
+func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 

@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
@@ -2003,6 +2007,28 @@ func TestGetAppleMDM(t *testing.T) {
 }
 
 func TestGetAppleBM(t *testing.T) {
+	depStorage := new(nanodep_mock.Storage)
+	depSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/account":
+			_, _ = w.Write([]byte(`{"admin_id": "abc", "org_name": "test_org"}`))
+		}
+	}))
+	t.Cleanup(depSrv.Close)
+
+	depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
+	}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
+		return nil
+	}
+
 	t.Run("free license", func(t *testing.T) {
 		runServerWithMockedDS(t)
 
@@ -2013,9 +2039,13 @@ func TestGetAppleBM(t *testing.T) {
 	})
 
 	t.Run("premium license", func(t *testing.T) {
-		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 
-		expected := `No Apple Business Manager server token found`
+		expected := `Apple ID:         	abc
+Organization name:	test_org
+MDM server URL:   	/mdm/apple/mdm
+Renew date:       	January 1, 2999
+Default team:     	No team`
 		assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple_bm"}), expected)
 	})
 }
