@@ -465,13 +465,49 @@ spec:
 func TestGetProfilesContents(t *testing.T) {
 	tempDir := t.TempDir()
 	darwinProfile := mobileconfigForTest("bar", "I")
+	darwinProfileWithFooEnv := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>bar</string>
+	<key>PayloadIdentifier</key>
+	<string>123</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>123</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>someConfig</key>
+	<integer>$FOO</integer>
+</dict>
+</plist>`
 	windowsProfile := syncMLForTest("./some/path")
+	windowsProfileWithBarEnv := `<Add>
+  <Item>
+    <Target>
+      <LocURI>./some/path</LocURI>
+    </Target>
+  </Item>
+</Add>
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>${BAR}/some/path</LocURI>
+    </Target>
+  </Item>
+</Replace>`
 
 	tests := []struct {
 		name        string
 		baseDir     string
 		setupFiles  [][2]string
 		labels      []string
+		environment map[string]string
+		expandEnv   bool
 		expectError bool
 		want        []fleet.MDMProfileBatchPayload
 	}{
@@ -542,18 +578,94 @@ func TestGetProfilesContents(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name:    "with environment variables",
+			baseDir: tempDir,
+			setupFiles: [][2]string{
+				{"bar.mobileconfig", darwinProfileWithFooEnv},
+				{"foo.xml", windowsProfileWithBarEnv},
+			},
+			environment: map[string]string{"FOO": "42", "BAR": "24"},
+			expandEnv:   true,
+			expectError: false,
+			want: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "bar",
+					Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>bar</string>
+	<key>PayloadIdentifier</key>
+	<string>123</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>123</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>someConfig</key>
+	<integer>42</integer>
+</dict>
+</plist>`),
+				},
+				{
+					Name: "foo",
+					Contents: []byte(`<Add>
+  <Item>
+    <Target>
+      <LocURI>./some/path</LocURI>
+    </Target>
+  </Item>
+</Add>
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>24/some/path</LocURI>
+    </Target>
+  </Item>
+</Replace>`),
+				},
+			},
+		},
+		{
+			name:    "with environment variables but not set",
+			baseDir: tempDir,
+			setupFiles: [][2]string{
+				{"bar.mobileconfig", darwinProfileWithFooEnv},
+				{"foo.xml", windowsProfileWithBarEnv},
+			},
+			environment: map[string]string{},
+			expandEnv:   true,
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.expandEnv {
+				if len(tt.environment) > 0 {
+					for k, v := range tt.environment {
+						os.Setenv(k, v)
+					}
+					t.Cleanup(func() {
+						for k := range tt.environment {
+							os.Unsetenv(k)
+						}
+					})
+				}
+			}
 			paths := []fleet.MDMProfileSpec{}
 			for _, fileSpec := range tt.setupFiles {
 				filePath := filepath.Join(tempDir, fileSpec[0])
-				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0644))
+				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0o644))
 				paths = append(paths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
 			}
 
-			profileContents, err := getProfilesContents(tt.baseDir, paths)
+			profileContents, err := getProfilesContents(tt.baseDir, paths, tt.expandEnv)
 
 			if tt.expectError {
 				require.Error(t, err)

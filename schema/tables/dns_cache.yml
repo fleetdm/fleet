@@ -1,15 +1,12 @@
 name: dns_cache
-examples: >-
+examples: |-
   An integral part of incident response is understanding all systems that may have been compromised. To help with this, a query like the following will return positive for a system that has resolved a domain that contains `baddomain`. It's important to note that a system will only cache the DNS mapping for a limited time - see Notes below for further information. 
   
   ```
-     
-   SELECT name, type FROM dns_cache WHERE name LIKE '%baddomain%';
-
+  SELECT name, type FROM dns_cache WHERE name LIKE '%baddomain%';
   ```
-
     
-notes: >-
+notes: |-
 
   This table pulls from the local system's DNS cache. By default, the local DNS cache entry for a domain will be removed once the TTL for the domain has expired. For instance, osquery.io has a TTL of 60 seconds. When this domain has been resolved on a local Windows system, the DNS mapping will expire in 60 seconds from the resolution time - so `SELECT * FROM dns_cache WHERE name = 'osquery.io'` will only return results during that 60 second window.
 

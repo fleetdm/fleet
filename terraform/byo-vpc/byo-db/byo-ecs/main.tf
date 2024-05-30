@@ -103,6 +103,10 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
             valueFrom = var.fleet_config.database.password_secret_arn
+          },
+          {
+            name      = "FLEET_SERVER_PRIVATE_KEY"
+            valueFrom = aws_secretsmanager_secret.fleet_server_private_key.arn
           }
         ], local.secrets)
         environment = concat([
@@ -238,4 +242,23 @@ resource "aws_security_group" "main" {
     protocol    = "TCP"
     cidr_blocks = ["10.0.0.0/8"]
   }
+}
+
+resource "random_password" "fleet_server_private_key" {
+  length  = 32
+  special = true
+}
+
+resource "aws_secretsmanager_secret" "fleet_server_private_key" {
+  name = var.fleet_config.private_key_secret_name
+
+  recovery_window_in_days = "0"
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "fleet_server_private_key" {
+  secret_id     = aws_secretsmanager_secret.fleet_server_private_key.id
+  secret_string = random_password.fleet_server_private_key.result
 }

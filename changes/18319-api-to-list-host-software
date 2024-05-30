@@ -1,1 +1,0 @@
-* Added the `GET /api/v1/fleet/hosts/{id}/software` (and corresponding token-authenticated endpoint for the "My device" page) to list the installed (and available for install) software for the host.

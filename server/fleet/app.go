@@ -705,6 +705,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 type WebhookSettings struct {
+	ActivitiesWebhook      ActivitiesWebhookSettings      `json:"activities_webhook"`
 	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 	VulnerabilitiesWebhook VulnerabilitiesWebhookSettings `json:"vulnerabilities_webhook"`
@@ -712,6 +713,11 @@ type WebhookSettings struct {
 	//
 	// This value currently configures both the host status and failing policies webhooks.
 	Interval Duration `json:"interval"`
+}
+
+type ActivitiesWebhookSettings struct {
+	Enable         bool   `json:"enable_activities_webhook"`
+	DestinationURL string `json:"destination_url"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -1047,6 +1053,16 @@ type ApplySpecOptions struct {
 type ApplyTeamSpecOptions struct {
 	ApplySpecOptions
 	DryRunAssumptions *TeamSpecsDryRunAssumptions
+}
+
+// ApplyClientSpecOptions embeds a ApplySpecOptions and adds additional client
+// side configuration.
+type ApplyClientSpecOptions struct {
+	ApplySpecOptions
+
+	// ExpandEnvConfigProfiles enables expansion of environment variables in
+	// configuration profiles.
+	ExpandEnvConfigProfiles bool
 }
 
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's

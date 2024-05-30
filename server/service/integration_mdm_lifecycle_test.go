@@ -651,25 +651,25 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles},
 		http.StatusNoContent,
 	)
+
+	ackAllCommands := func(device *mdmtest.TestAppleMDMClient) {
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
 	// ack all commands to install profiles
-	cmd, err := manualEnrolledDevice.Idle()
+	ackAllCommands(manualEnrolledDevice)
+	ackAllCommands(automaticEnrolledDevice)
+	ackAllCommands(automaticEnrolledDeviceWithRef)
+
+	// simulate a device with two certificates by re-enrolling one of them
+	err = manualEnrolledDevice.Enroll()
 	require.NoError(t, err)
-	for cmd != nil {
-		cmd, err = manualEnrolledDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-	cmd, err = automaticEnrolledDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		cmd, err = automaticEnrolledDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-	cmd, err = automaticEnrolledDeviceWithRef.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		cmd, err = automaticEnrolledDeviceWithRef.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
+	ackAllCommands(manualEnrolledDevice)
 
 	cert, key, err := generateCertWithAPNsTopic()
 	require.NoError(t, err)
@@ -680,7 +680,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// run without expired certs, no command enqueued
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
-	cmd, err = manualEnrolledDevice.Idle()
+	cmd, err := manualEnrolledDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 

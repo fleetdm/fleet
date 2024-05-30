@@ -1138,4 +1138,56 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
     });
   });
+
+  describe("Does not render dropdown for certain platforms", () => {
+    it("does not render dropdown for iOS", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus={"unlocked"}
+          hostScriptsEnabled={false}
+        />
+      );
+
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+    });
+
+    it("does not render dropdown for iPadOS", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ipados"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus={"unlocked"}
+          hostScriptsEnabled={false}
+        />
+      );
+
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+    });
+  });
 });
