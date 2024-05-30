@@ -510,20 +510,23 @@ func testIsEnrollSecretAvailable(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tt := range tests {
-		// Check if enroll secret is available
-		available, err := ds.IsEnrollSecretAvailable(ctx, tt.secret, true, nil)
-		require.NoError(t, err)
-		require.Equal(t, tt.newResult, available)
-		available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, nil)
-		require.NoError(t, err)
-		require.Equal(t, tt.globalResult, available)
-		available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, &team1.ID)
-		require.NoError(t, err)
-		require.Equal(t, tt.teamResult, available)
-		available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, &team2.ID)
-		require.NoError(t, err)
-		require.Equal(t, tt.otherTeamResult, available)
-
+		t.Run(
+			tt.secret, func(t *testing.T) {
+				// Check if enroll secret is available
+				available, err := ds.IsEnrollSecretAvailable(ctx, tt.secret, true, nil)
+				require.NoError(t, err)
+				require.Equal(t, tt.newResult, available)
+				available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, nil)
+				require.NoError(t, err)
+				require.Equal(t, tt.globalResult, available)
+				available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, &team1.ID)
+				require.NoError(t, err)
+				require.Equal(t, tt.teamResult, available)
+				available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, &team2.ID)
+				require.NoError(t, err)
+				require.Equal(t, tt.otherTeamResult, available)
+			},
+		)
 	}
 
 }
