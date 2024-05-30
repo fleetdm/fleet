@@ -329,4 +329,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/macadmins/osquery-extension => github.com/mostlikelee/osquery-extension v0.0.0-20240530002426-7785d6274f31
+replace github.com/macadmins/osquery-extension => github.com/mostlikelee/osquery-extension v0.0.0-20240530152220-6fe33e03c016

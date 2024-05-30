@@ -77,7 +77,7 @@ func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		table.NewPlugin(
 			"sofa_unpatched_cves", sofa.SofaUnpatchedCVEsColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.Socket)
+				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.Socket, sofa.WithUserAgent("fleetd"))
 			},
 		),
 
