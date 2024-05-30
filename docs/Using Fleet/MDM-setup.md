@@ -121,7 +121,7 @@ fleetctl generate mdm-apple --email <email> --org <org>
 
 ### Step 3: configure Fleet with the generated files
 
-Restart the Fleet server with the contents of the APNs certificate in following environment variable:
+Restart the Fleet server with the contents of the APNs certificate in the following environment variable:
 * [FLEET_MDM_APPLE_APNS_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes)
 
 ### Step 4: confirm that Fleet is set up correctly
