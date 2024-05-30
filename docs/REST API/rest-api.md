@@ -835,7 +835,8 @@ None.
     "server_url": "https://localhost:8080",
     "live_query_disabled": false,
     "query_reports_disabled": false,
-    "enable_analytics": true
+    "enable_analytics": true,
+    "ai_features_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -1060,6 +1061,7 @@ Modifies the Fleet's configuration with the supplied information.
 | server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
 | live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
 | query_reports_disabled            | boolean | body  | _Server settings_. Whether query report capabilities are disabled.                                                                                                                   |
+| ai_features_disabled              | boolean | body  | _Server settings_. Whether AI features are disabled. |
 | enable_smtp                       | boolean | body  | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
 | sender_address                    | string  | body  | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
 | server                            | string  | body  | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
@@ -1164,7 +1166,8 @@ Note that when making changes to the `integrations` object, all integrations mus
   "server_settings": {
     "server_url": "https://localhost:8080",
     "live_query_disabled": false,
-    "query_reports_disabled": false
+    "query_reports_disabled": false,
+    "ai_features_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": true,
