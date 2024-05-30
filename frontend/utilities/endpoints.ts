@@ -75,8 +75,8 @@ export default {
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
   // MDM endpoints
-  MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
+  MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,

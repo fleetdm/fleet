@@ -11,7 +11,7 @@ org_info:
   contact_url: https://fleetdm.com/company/contact
   org_logo_url: ""
   org_logo_url_light_background: ""
-  org_name: Fleet Device Management
+  org_name: $ORG_NAME
 smtp_settings:
   authentication_method: authmethod_plain
   authentication_type: authtype_username_password

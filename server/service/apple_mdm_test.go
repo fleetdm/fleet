@@ -862,7 +862,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 					ep = []fleet.HostMDMProfile{}
 				default:
 					for _, p := range *c.expected {
-						ep = append(ep, p.ToHostMDMProfile())
+						ep = append(ep, p.ToHostMDMProfile(gotHost.Platform))
 					}
 				}
 				require.Equal(t, gotHost.MDM.Profiles, &ep)
@@ -873,7 +873,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			require.NotNil(t, gotHost.MDM.Profiles)
 			ep := make([]fleet.HostMDMProfile, 0, len(*gotHost.MDM.Profiles))
 			for _, p := range *c.expected {
-				ep = append(ep, p.ToHostMDMProfile())
+				ep = append(ep, p.ToHostMDMProfile(gotHost.Platform))
 			}
 			require.ElementsMatch(t, ep, *gotHost.MDM.Profiles)
 		})
@@ -893,7 +893,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 
 	ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
-		return &fleet.HostMDMCheckinInfo{}, nil
+		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
 	}
 
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
@@ -1223,6 +1223,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 			InstalledFromDEP:   true,
 			TeamID:             wantTeamID,
 			DEPAssignedToFleet: true,
+			Platform:           "darwin",
 		}, nil
 	}
 
@@ -1284,6 +1285,7 @@ func TestMDMCheckout(t *testing.T) {
 			HardwareSerial:   serial,
 			DisplayName:      displayName,
 			InstalledFromDEP: installedFromDEP,
+			Platform:         "darwin",
 		}, nil
 	}
 
@@ -3131,4 +3133,77 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
+	ctx := context.Background()
+	hostID := uint(42)
+	hostUUID := "ABC-DEF-GHI"
+	commandUUID := "REFETCH-COMMAND-UUID"
+
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:   hostID,
+			UUID: hostUUID,
+		}, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		require.Equal(t, "Work iPad", host.ComputerName)
+		require.Equal(t, "Work iPad", host.Hostname)
+		require.Equal(t, "iPadOS 17.5.1", host.OSVersion)
+		require.Equal(t, "ff:ff:ff:ff:ff:ff", host.PrimaryMac)
+		require.Equal(t, "iPad13,18", host.HardwareModel)
+		require.WithinDuration(t, time.Now(), host.DetailUpdatedAt, 1*time.Minute)
+		return nil
+	}
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+		require.Equal(t, hostID, hostID)
+		require.NotZero(t, 51, int64(gigsAvailable))
+		require.NotZero(t, 79, int64(percentAvailable))
+		require.NotZero(t, 64, int64(gigsTotal))
+		return nil
+	}
+
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Raw: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>CommandUUID</key>
+        <string>REFETCH-fd23f8ac-1c50-41c7-a5bb-f13633c9ea97</string>
+        <key>QueryResponses</key>
+        <dict>
+                <key>AvailableDeviceCapacity</key>
+                <real>51.260395520000003</real>
+                <key>DeviceCapacity</key>
+                <real>64</real>
+                <key>DeviceName</key>
+                <string>Work iPad</string>
+                <key>OSVersion</key>
+                <string>17.5.1</string>
+                <key>ProductName</key>
+                <string>iPad13,18</string>
+                <key>WiFiMAC</key>
+                <string>ff:ff:ff:ff:ff:ff</string>
+        </dict>
+        <key>Status</key>
+        <string>Acknowledged</string>
+        <key>UDID</key>
+        <string>FFFFFFFF-FFFFFFFFFFFFFFFF</string>
+</dict>
+</plist>`),
+		},
+	)
+	require.NoError(t, err)
+
+	require.True(t, ds.UpdateHostFuncInvoked)
+	require.True(t, ds.HostByIdentifierFuncInvoked)
+	require.True(t, ds.SetOrUpdateHostDisksSpaceFuncInvoked)
 }

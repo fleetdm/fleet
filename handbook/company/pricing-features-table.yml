@@ -39,7 +39,6 @@
   tier: Premium
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
-  comingSoonOn: 2024-04-30
 #
 #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
 #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
@@ -839,7 +838,7 @@
   usualDepartment: Security
   tier: Premium
   demos:
-    - description: See a list of all vulneribilities across your hosts. Coming soon (2024-03-31)
+    - description: See a list of all vulnerabilities across your hosts.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15919
     - description: AI generated CVSS v4 context. Coming soon (2024-12-31).
   waysToUse:

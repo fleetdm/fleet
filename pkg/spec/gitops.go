@@ -58,7 +58,7 @@ type GitOps struct {
 	Software []*fleet.TeamSpecSoftware
 }
 
-// GitOpsFromBytes parses a GitOps yaml file.
+// GitOpsFromFile parses a GitOps yaml file.
 func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	b, err := os.ReadFile(filePath)
 	if err != nil {

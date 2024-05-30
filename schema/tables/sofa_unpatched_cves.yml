@@ -1,6 +1,6 @@
 name: sofa_unpatched_cves
 notes: |-
-  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+  This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 
   - By default this table will return all unpatched vulnerability data for the running operating system.
 

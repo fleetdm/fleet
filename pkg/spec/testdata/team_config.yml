@@ -20,7 +20,7 @@ policies:
   - path: ./top.policies.yml
   - path: ./top.policies2.yml
   - path: ./empty.yml
-  - name: 😊😊 Failing policy
+  - name: 😊😊 Failing $POLICY
     platform: linux
     description: This policy should always fail.
     resolution: There is no resolution for this policy.
