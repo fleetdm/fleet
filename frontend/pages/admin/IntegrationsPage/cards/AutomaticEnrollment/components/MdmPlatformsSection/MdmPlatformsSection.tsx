@@ -13,7 +13,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner/Spinner";
 import SectionHeader from "components/SectionHeader";
 
-import WindowsAutomaticEnrollmentCard from "./components/WindowsAutomaticEnrollmentCard/WindowsAutomaticEnrollmentCard";
+import WindowsAutomaticEnrollmentCard from "./components/WindowsAutomaticEnrollmentCard";
 import AppleAutomaticEnrollmentCard from "./components/AppleAutomaticEnrollmentCard";
 
 const baseClass = "mdm-platforms-section";
