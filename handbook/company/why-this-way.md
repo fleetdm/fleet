@@ -8,6 +8,9 @@ Any past decision is open to questioning in a future iteration, as long as you a
 
 Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/234d3072-96eb-43b7-8b9e-b97af17ef72e">
+
+
 ## Why open source?
 Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
 
@@ -48,9 +51,12 @@ There are three reasons for visiting [the docs](https://fleetdm.com/docs):
 Everyone [can contribute](https://fleetdm.com/handbook/company#openness) to Fleet's documentation.  Here are a few principles to keep in mind:
  
 - **🚪 Start simple.** It's easier to learn when you aren't overwhelmed.  Good documentation pages and sections start _prescriptive, brief, and clear_; ideally with a short example.  You can always hedge and caveat further down the page. This makes the docs more [accessible and outsider-friendly](https://fleetdm.com/handbook/company#purpose).  For example, notice how [this page gets more complicated as you scroll down](https://sailsjs.com/documentation/reference/blueprint-api/destroy), or how [both](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema) of [these sections](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?seldomused-settings) start simple, with caveats pushed down to the end. 
+- **🪟 Write it once.** Deduplicate content more than you think you need to. Use links instead. Decorate relevant bits of text, don’t put full URLs. Think of SEO: the link text matters.
+- **🚪 Don’t break links.** Whenever practical, maintain a path to documentation. Even if it's an [outdated rough draft](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/).
+- **🔌 Document the rough bits.** Just do it at the bottom of the page/section so that most people can skip over it, but the quick referencer who really needs it can find it. Docs are the requirements. If it doesn’t work as documented, it’s a bug.
+- **🪟 Some people read the docs as text on GitHub.** It’s a small audience and we can’t afford to optimize for this use case. But it’s worth remembering. For example, someone from Iran needed help from Mike in 2013 to access content from sailsjs.com unencrypted when https:// was banned in her country.
 
 <!-- 🔌🚪🪟 -->
-
 
 ## Why the emphasis on training?
 Investing in people and providing generous, prioritized training, especially up front, helps contributors understand what is going on at Fleet. By making training a prerequisite at Fleet, we can:
@@ -117,6 +123,9 @@ The only exceptions are:
    - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
    - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
 3. **GitHub Actions:** Since GitHub requires GitHub Actions to live in dedicated repositories in order to submit them to the marketplace, Fleet uses a separate repo for publishing [GitHub Actions designed for other people to deploy and use (and/or fork)](https://github.com/fleetdm/fleet-mdm-gitops).
+4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
+  - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
+  - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.

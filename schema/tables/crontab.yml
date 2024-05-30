@@ -1,11 +1,9 @@
 name: crontab
-examples: >-
+examples: |-
   List commands scheduled for execution as cron jobs
   
   ```
-  
   SELECT * FROM crontab;
-  
   ```
 columns:
   - name: pid_with_namespace

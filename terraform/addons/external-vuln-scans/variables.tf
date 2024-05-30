@@ -31,6 +31,12 @@ variable "customer_prefix" {
   default = "fleet"
 }
 
+
+variable "fleet_server_private_key_secret_arn" {
+  type        = string
+  description = "The ARN of the secret that stores the Fleet private key"
+}
+
 variable "execution_iam_role_arn" {
   description = "The ARN of the fleet execution role, this is necessary to pass role from ecs events"
 }

@@ -24,25 +24,36 @@ This assumes your fleet module is `main` and is configured with it's default doc
 
  https://github.com/fleetdm/fleet/blob/main/terraform/example/main.tf for details.
 
+Note if you haven't specified defined `local.customer` or customized service names, the default is "fleet" for anywhere that `local.customer` is specified below.
+
 ```
 module "monitoring" {
-  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.1.0"
-  customer_prefix             = local.customer
-  fleet_ecs_service_name      = module.main.byo-vpc.byo-db.byo-ecs.service.name
-  albs                        = [
+  source                 = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.4.0"
+  customer_prefix        = local.customer
+  fleet_ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
+  albs = [
     {
-      name = module.main.byo-vpc.byo-db.alb.lb_dns_name,
-      target_group_name = module.main.byo-vpc.byo-db.alb.target_group_names[0]
+      name                    = module.main.byo-vpc.byo-db.alb.lb_dns_name,
+      target_group_name       = module.main.byo-vpc.byo-db.alb.target_group_names[0]
       target_group_arn_suffix = module.main.byo-vpc.byo-db.alb.target_group_arn_suffixes[0]
-      arn_suffix = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
-      ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
-      min_containers = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
+      arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
+      ecs_service_name        = module.main.byo-vpc.byo-db.byo-ecs.service.name
+      min_containers          = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
+      alert_thresholds = {
+        HTTPCode_ELB_5XX_Count = {
+          period    = 3600
+          threshold = 2
+        },
+        HTTPCode_Target_5XX_Count = {
+          period    = 120
+          threshold = 0
+        }
+      }
     },
   ]
-  # Only publish alerts for items in this map
   sns_topic_arns_map = {
-    alb_httpcode_5xx = [var.sns_topic_arn]
-    cron_monitoring  = [var.sns_topic_arn]
+    alb_httpcode_5xx = [var.slack_topic_arn]
+    cron_monitoring  = [var.slack_topic_arn]
   }
   mysql_cluster_members = module.main.byo-vpc.rds.cluster_members
   # The cloudposse module seems to have a nested list here.
@@ -57,9 +68,10 @@ module "monitoring" {
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id
     # Format of https://pkg.go.dev/time#ParseDuration
-    delay_tolerance            = "2h"
+    delay_tolerance = "4h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
-    run_interval               = "1 hour"
+    run_interval          = "1 hour"
+    log_retention_in_days = 365
   }
 }
 ```
@@ -138,7 +150,7 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_acm_certificate_arn"></a> [acm\_certificate\_arn](#input\_acm\_certificate\_arn) | n/a | `string` | `null` | no |
-| <a name="input_albs"></a> [albs](#input\_albs) | n/a | <pre>list(object({<br>    name                    = string<br>    arn_suffix              = string<br>    target_group_name       = string<br>    target_group_arn_suffix = string<br>    min_containers          = optional(string, 1)<br>    ecs_service_name        = string<br>  }))</pre> | `[]` | no |
+| <a name="input_albs"></a> [albs](#input\_albs) | n/a | <pre>list(object({<br>    name                    = string<br>    arn_suffix              = string<br>    target_group_name       = string<br>    target_group_arn_suffix = string<br>    min_containers          = optional(string, 1)<br>    ecs_service_name        = string<br>    alert_thresholds = optional(<br>      object({<br>        HTTPCode_ELB_5XX_Count = object({<br>          period    = number<br>          threshold = number<br>        })<br>        HTTPCode_Target_5XX_Count = object({<br>          period    = number<br>          threshold = number<br>        })<br>      }),<br>      {<br>        HTTPCode_ELB_5XX_Count = {<br>          period    = 120<br>          threshold = 0<br>        },<br>        HTTPCode_Target_5XX_Count = {<br>          period    = 120<br>          threshold = 0<br>        }<br>      }<br>    )<br>  }))</pre> | `[]` | no |
 | <a name="input_cron_monitoring"></a> [cron\_monitoring](#input\_cron\_monitoring) | n/a | <pre>object({<br>    mysql_host                 = string<br>    mysql_database             = string<br>    mysql_user                 = string<br>    mysql_password_secret_name = string<br>    vpc_id                     = string<br>    subnet_ids                 = list(string)<br>    rds_security_group_id      = string<br>    delay_tolerance            = string<br>    run_interval               = string<br>    log_retention_in_days      = optional(number, 7)<br>  })</pre> | `null` | no |
 | <a name="input_customer_prefix"></a> [customer\_prefix](#input\_customer\_prefix) | n/a | `string` | `"fleet"` | no |
 | <a name="input_default_sns_topic_arns"></a> [default\_sns\_topic\_arns](#input\_default\_sns\_topic\_arns) | n/a | `list(string)` | `[]` | no |

@@ -1,4 +1,7 @@
-import { ProfileOperationType } from "interfaces/mdm";
+import {
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  ProfileOperationType,
+} from "interfaces/mdm";
 
 import { IconNames } from "components/icons";
 import {
@@ -8,6 +11,10 @@ import {
 
 import { OsSettingsTableStatusValue } from "../OSSettingsTableConfig";
 import TooltipInnerContentActionRequired from "./components/Tooltip/ActionRequired";
+
+export const isDiskEncryptionProfile = (profileName: string) => {
+  return profileName === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME;
+};
 
 export type ProfileDisplayOption = {
   statusText: string;

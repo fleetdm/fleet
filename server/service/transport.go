@@ -186,7 +186,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		PerPage:        uint(perPage),
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
-		MatchQuery:     query,
+		MatchQuery:     strings.TrimSpace(query),
 		After:          afterString,
 	}, nil
 }
@@ -292,6 +292,30 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		sid := uint(id)
 		hopt.SoftwareTitleIDFilter = &sid
+	}
+
+	softwareStatus := fleet.SoftwareInstallerStatus(strings.ToLower(r.URL.Query().Get("software_status")))
+	if softwareStatus != "" {
+		if !softwareStatus.IsValid() {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid software_status: %s", softwareStatus)),
+			)
+		}
+		if hopt.SoftwareTitleIDFilter == nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Missing software_title_id (it must be present when software_status is specified)",
+				),
+			)
+		}
+		if hopt.TeamFilter == nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Missing team_id (it must be present when software_status is specified)",
+				),
+			)
+		}
+		hopt.SoftwareStatusFilter = &softwareStatus
 	}
 
 	osID := r.URL.Query().Get("os_id")

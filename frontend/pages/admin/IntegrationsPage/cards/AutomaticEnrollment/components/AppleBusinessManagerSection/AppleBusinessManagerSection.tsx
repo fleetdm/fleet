@@ -130,7 +130,7 @@ const AppleBusinessManagerSection = ({
           <span className={`${baseClass}__400-error-info`}>
             See our{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm"
+              url="https://fleetdm.com/learn-more-about/setup-abm"
               text="ABM documentation"
               newTab
             />{" "}
@@ -201,10 +201,7 @@ const AppleBusinessManagerSection = ({
         </div>
         <div className={`${baseClass}__section-information`}>
           <h4>
-            <TooltipWrapper
-              position="top-start"
-              tipContent="macOS hosts will be added to this team when they’re first unboxed."
-            >
+            <TooltipWrapper tipContent="macOS hosts will be added to this team when they’re first unboxed.">
               Team
             </TooltipWrapper>
           </h4>

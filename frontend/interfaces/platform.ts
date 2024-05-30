@@ -65,6 +65,7 @@ export const HOST_LINUX_PLATFORMS = [
   "manjaro",
   "opensuse-leap",
   "opensuse-tumbleweed",
+  "tuxedo",
 ] as const;
 
 /**

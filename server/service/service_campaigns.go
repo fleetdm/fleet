@@ -273,7 +273,7 @@ func (svc Service) addLiveQueryActivity(
 			activityData.Stats = &q.AggregatedStats
 		}
 	}
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		activityData,

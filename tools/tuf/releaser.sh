@@ -58,17 +58,35 @@ setup () {
     cp -r "$KEYS_SOURCE_DIRECTORY" "$KEYS_DIRECTORY"
 
     if ! aws sts get-caller-identity &> /dev/null; then
+        prompt "You need to login to AWS using the cli, press any key to continue..."
         aws sso login
         prompt "AWS SSO login was successful, press any key to continue..."
     fi
 
-    GITHUB_TOKEN=$(op read "op://$GITHUB_TOKEN_1PASSWORD_PATH")
+    # GITHUB_TOKEN is only necessary when releasing to edge.
+    if [[ -n $GITHUB_TOKEN_1PASSWORD_PATH ]]; then
+        GITHUB_TOKEN=$(op read "op://$GITHUB_TOKEN_1PASSWORD_PATH")
+    fi
 
-    # These need to be exported for use by `fleetctl updates` commands.
-    FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
-    export FLEET_TARGETS_PASSPHRASE
-    FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
-    export FLEET_SNAPSHOT_PASSPHRASE
+    # We only need to be logged in to github when releasing to edge.
+    if [[ $ACTION == "release-to-edge" ]]; then
+        if ! gh auth status >/dev/null 2>&1; then
+            prompt "You need to login to Github using the cli, press any key to continue..."
+            gh auth login
+            prompt "Github login was successful, press any key to continue..."
+        fi
+    fi
+
+    #
+    # Passphrases need to be exported for use by `fleetctl updates` commands.
+    #
+
+    if [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable"  ]]; then
+        FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_TARGETS_PASSPHRASE
+        FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
+        export FLEET_SNAPSHOT_PASSPHRASE
+    fi
     FLEET_TIMESTAMP_PASSPHRASE=$(op read "op://$TIMESTAMP_PASSPHRASE_1PASSWORD_PATH")
     export FLEET_TIMESTAMP_PASSPHRASE
 
@@ -87,10 +105,11 @@ promote_component_edge_to_stable () {
     component_name=$1
     component_version=$2
 
-    version_parts=("${component_version//./ }")
+    IFS='.' read -r -a version_parts <<< "$component_version"
     major=${version_parts[0]}  
     minor=${version_parts[1]}  
 
+    pushd "$TUF_DIRECTORY"
     case $component_name in
         orbit)
             fleetctl updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/macos/edge/orbit" --platform macos --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
@@ -112,6 +131,7 @@ promote_component_edge_to_stable () {
             exit 1
             ;;
     esac
+    popd
 }
 
 promote_edge_to_stable () {
@@ -143,8 +163,9 @@ release_fleetd_to_edge () {
         git add .github/workflows/generate-desktop-targets.yml "$ORBIT_CHANGELOG"
         git commit -m "Release fleetd $VERSION"
         git push origin "$BRANCH_NAME"
-        open "https://github.com/fleetdm/fleet/pull/new/$BRANCH_NAME"
-        prompt "Press any key to continue after the PR is created..."
+        prompt "A PR will be created, press any key to continue..."
+        gh pr create -f -B main -t "Release fleetd $VERSION"
+        prompt "Press any key to continue after the PR is created and you have made all the necessary edits to it..."
         prompt "A 'git tag' will be created to trigger a Github Action to build orbit, press any key to continue..."
         git tag "$ORBIT_TAG"
         git push origin "$ORBIT_TAG"
@@ -213,6 +234,12 @@ release_to_edge () {
         echo "Unsupported component: $COMPONENT"
         exit 1
     fi
+}
+
+update_timestamp () {
+    pushd "$TUF_DIRECTORY"
+    fleetctl updates timestamp
+    popd
 }
 
 push_to_remote () {
@@ -297,6 +324,8 @@ if [[ $ACTION == "release-to-edge" ]]; then
     release_to_edge
 elif [[ $ACTION == "promote-edge-to-stable" ]]; then
     promote_edge_to_stable
+elif [[ $ACTION == "update-timestamp" ]]; then
+    update_timestamp
 else
     echo "Unsupported action: $ACTION"
     exit 1

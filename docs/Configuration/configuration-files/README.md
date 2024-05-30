@@ -234,6 +234,12 @@ spec:
     secrets:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+    webhook_settings:
+      host_status_webhook:
+        days_count: 0
+        destination_url: ""
+        enable_host_status_webhook: false
+        host_percentage: 0
     host_expiry_settings: 
       host_expiry_enabled: true 
       host_expiry_window: 14
@@ -439,7 +445,7 @@ spec:
     cpe_database_url: ""
     cpe_translations_url: ""
     cve_feed_prefix_url: ""
-    current_instance_checks: "auto"
+    disable_schedule: false
     disable_data_sync: false
     recent_vulnerability_max_age: 30d
     disable_win_os_vulnerabilities: false

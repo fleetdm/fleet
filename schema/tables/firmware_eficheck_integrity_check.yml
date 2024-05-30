@@ -6,14 +6,14 @@ columns:
   - name: chip
     type: text
     required: false
-    description: |
+    description: |-
       Contains the chip type, values are "apple", "intel-t1" and "intel-t2".
       If chip type is "apple" or "intel-t2" then no eficheck integrity check is executed.
   - name: output
     type: text
     required: false
-    description: |
+    description: |-
       Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.
       This value is only valid when chip is "intel-t1".
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false

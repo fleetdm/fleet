@@ -96,6 +96,20 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 		if appCfg.ServerSettings.ScriptsDisabled {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock host because running scripts is disabled in organization settings."))
 		}
+		hostOrbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+		switch {
+		case err != nil:
+			// If not found, then do nothing. We do not know if this host has scripts enabled or not
+			if !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "get host orbit info")
+			}
+		case hostOrbitInfo.ScriptsEnabled != nil && !*hostOrbitInfo.ScriptsEnabled:
+			return ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError(
+					"host_id", "Couldn't lock host. To lock, deploy the fleetd agent with --enable-scripts and refetch host vitals.",
+				),
+			)
+		}
 
 	default:
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
@@ -165,6 +179,20 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		}
 		if appCfg.ServerSettings.ScriptsDisabled {
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't unlock host because running scripts is disabled in organization settings."))
+		}
+		hostOrbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+		switch {
+		case err != nil:
+			// If not found, then do nothing. We do not know if this host has scripts enabled or not
+			if !fleet.IsNotFound(err) {
+				return "", ctxerr.Wrap(ctx, err, "get host orbit info")
+			}
+		case hostOrbitInfo.ScriptsEnabled != nil && !*hostOrbitInfo.ScriptsEnabled:
+			return "", ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError(
+					"host_id", "Couldn't unlock host. To unlock, deploy the fleetd agent with --enable-scripts and refetch host vitals.",
+				),
+			)
 		}
 
 	default:
@@ -248,6 +276,20 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 		if appCfg.ServerSettings.ScriptsDisabled {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe host because running scripts is disabled in organization settings."))
 		}
+		hostOrbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+		switch {
+		case err != nil:
+			// If not found, then do nothing. We do not know if this host has scripts enabled or not
+			if !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "get host orbit info")
+			}
+		case hostOrbitInfo.ScriptsEnabled != nil && !*hostOrbitInfo.ScriptsEnabled:
+			return ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError(
+					"host_id", "Couldn't wipe host. To wipe, deploy the fleetd agent with --enable-scripts and refetch host vitals.",
+				),
+			)
+		}
 
 	default:
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
@@ -301,7 +343,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 			return ctxerr.Wrap(ctx, err, "enqueuing lock request for darwin")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			vc.User,
 			fleet.ActivityTypeLockedHost{
@@ -335,7 +377,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		return err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		vc.User,
 		fleet.ActivityTypeLockedHost{
@@ -385,7 +427,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 		}
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		vc.User,
 		fleet.ActivityTypeUnlockedHost{
@@ -440,7 +482,7 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 		}
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		vc.User,
 		fleet.ActivityTypeWipedHost{

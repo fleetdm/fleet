@@ -161,15 +161,6 @@ type EnrolledAPIResult struct {
 // EnrolledAPIResults is a map of enrollments to a per-enrollment API result.
 type EnrolledAPIResults map[string]*EnrolledAPIResult
 
-// MDMAppleHostDetails represents the device identifiers used to ingest an MDM device as a Fleet
-// host pending enrollment.
-// See also https://developer.apple.com/documentation/devicemanagement/authenticaterequest.
-type MDMAppleHostDetails struct {
-	SerialNumber string
-	UDID         string
-	Model        string
-}
-
 type MDMAppleCommandTimeoutError struct{}
 
 func (e MDMAppleCommandTimeoutError) Error() string {
@@ -264,7 +255,7 @@ type HostMDMAppleProfile struct {
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
-func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
+func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 	return HostMDMProfile{
 		HostUUID:      p.HostUUID,
 		ProfileUUID:   p.ProfileUUID,
@@ -273,7 +264,7 @@ func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 		Status:        p.Status,
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
-		Platform:      "darwin",
+		Platform:      platform,
 	}
 }
 
@@ -301,11 +292,18 @@ type MDMAppleProfilePayload struct {
 	ProfileIdentifier string             `db:"profile_identifier"`
 	ProfileName       string             `db:"profile_name"`
 	HostUUID          string             `db:"host_uuid"`
+	HostPlatform      string             `db:"host_platform"`
 	Checksum          []byte             `db:"checksum"`
 	Status            *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType     MDMOperationType   `db:"operation_type"`
 	Detail            string             `db:"detail"`
 	CommandUUID       string             `db:"command_uuid"`
+}
+
+// FailedToInstallOnHost indicates whether this profile failed to be installed on the host (and
+// therefore is not, as far as Fleet knows, currently on the host).
+func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
+	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -451,8 +449,6 @@ const (
 	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
 )
 
-const MDMAppleDeclarationUUIDPrefix = "d"
-
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly
@@ -597,7 +593,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 
 	// Check against types we don't allow
 	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. OS updates coming soon!")
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
 	}
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
@@ -818,4 +814,24 @@ type MDMAppleDDMStatusErrorReason struct {
 	// Details is a dictionary that contains further details about this
 	// error.
 	Details map[string]any `json:"Details"`
+}
+
+// MDMAppleDDMActivationPayload represents the payload of an activation declaration.
+//
+// https://developer.apple.com/documentation/devicemanagement/activationsimple
+type MDMAppleDDMActivationPayload struct {
+	Predicate              string   `json:"Predicate"`
+	StandardConfigurations []string `json:"StandardConfigurations"`
+}
+
+// MDMAppleDDMActivation represents the declaration of an activation. It combines the base
+// declaation with the activation payload.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationbase
+// https://developer.apple.com/documentation/devicemanagement/activationsimple
+type MDMAppleDDMActivation struct {
+	Identifier  string                       `json:"Identifier"`
+	Payload     MDMAppleDDMActivationPayload `json:"Payload"`
+	ServerToken string                       `json:"ServerToken"`
+	Type        string                       `json:"Type"` // "com.apple.activation.simple"
 }

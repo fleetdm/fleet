@@ -1,4 +1,4 @@
-name: "💻🐣Workstations (canary)"
+name: "💻🐣 Workstations (canary)"
 team_settings:
   features:
     enable_host_users: true
@@ -8,6 +8,10 @@ team_settings:
     host_expiry_window: 0
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET
+  integrations:
+    google_calendar:
+      enable_calendar_events: true
+      webhook_url: $DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
     decorators:
@@ -52,6 +56,11 @@ agent_options:
                 - indirect_object_identifier
                 - indirect_object_identifier_type
                 - last_modified
+  update_channels:
+    # We want to use these hosts to smoke test edge releases.
+    osqueryd: edge
+    orbit: edge
+    desktop: edge
 controls:
   enable_disk_encryption: true
   macos_settings:
@@ -77,13 +86,14 @@ controls:
       - path: ../lib/configuration-profiles/macos-password.mobileconfig
       - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
+      - path: ../lib/configuration-profiles/passcode-settings-ddm.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-03-15"
-    minimum_version: "14.4"
+    deadline: "2024-05-31"
+    minimum_version: "14.5"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -96,12 +106,14 @@ controls:
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
     - path: ../lib/windows-install-bitdefender.ps1
+    - path: ../lib/windows-enable-ms-defender.ps1
 policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
+  - path: ../lib/collect-fleetd-information.yml
   - path: ../lib/collect-usb-devices.queries.yml
   - path: ../lib/collect-vs-code-extensions.queries.yml
   - path: ../lib/collect-software-permissions-system.queries.yml

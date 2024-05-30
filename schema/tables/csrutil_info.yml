@@ -6,10 +6,10 @@ columns:
   - name: ssv_enabled
     type: integer
     required: false
-    description: |
+    description: |-
       Sealed System Volume is a security feature introduced in macOS 11.0 Big Sur.
       During system installation, a SHA-256 cryptographic hash is calculated for all immutable system files and stored in a Merkle tree which itself is hashed as the Seal. Both are stored in the metadata of the snapshot created of the System volume.
       The seal is verified by the boot loader at startup. macOS will not boot if system files have been tampered with. If validation fails, the user will be instructed to reinstall the operating system.
       During read operations for files located in the Sealed System Volume, a hash is calculated and compared to the value stored in the Merkle tree.
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false

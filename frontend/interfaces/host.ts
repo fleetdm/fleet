@@ -206,7 +206,7 @@ export interface IPackStats {
   type: string;
 }
 
-export interface IHostPolicyQuery {
+export interface IPolicyHostResponse {
   id: number;
   display_name: string;
   query_results?: unknown[];
@@ -269,8 +269,8 @@ export interface IHost {
   uuid: string;
   platform: string;
   osquery_version: string;
-  orbit_version?: string;
-  fleet_desktop_version?: string;
+  orbit_version: string | null;
+  fleet_desktop_version: string | null;
   os_version: string;
   build: string;
   platform_like: string; // TODO: replace with more specific union type
@@ -307,6 +307,7 @@ export interface IHost {
   display_text: string;
   display_name: string;
   target_type?: string;
+  scripts_enabled: boolean | null;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;

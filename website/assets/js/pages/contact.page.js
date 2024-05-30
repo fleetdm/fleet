@@ -31,7 +31,6 @@ parasails.registerPage('contact', {
       lastName: {required: true},
       message: {required: false},
     },
-
     formDataToPrefillForLoggedInUsers: {},
 
     // Server error state for the form
@@ -39,6 +38,9 @@ parasails.registerPage('contact', {
 
     // Success state when form has been submitted
     cloudSuccess: false,
+
+    // For personalizing the message at the top of the contact form for logged-in users.
+    psychologicalStage: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -47,8 +49,15 @@ parasails.registerPage('contact', {
   beforeMount: function() {
     if(this.formToShow === 'contact'){
       this.formToDisplay = this.formToShow;
+    } else if(!this.primaryBuyingSituation){
+      // Default to contact form for users who have no primaryBuyingSituation set.
+      this.formToDisplay = 'contact';
     }
-    if(this.prefillFormDataFromUserRecord){
+    if(this.primaryBuyingSituation){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
+      // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
+      this.formData.primaryBuyingSituation = this.primaryBuyingSituation;
+    }
+    if(this.me){// prefill from database
       this.formDataToPrefillForLoggedInUsers.emailAddress = this.me.emailAddress;
       this.formDataToPrefillForLoggedInUsers.firstName = this.me.firstName;
       this.formDataToPrefillForLoggedInUsers.lastName = this.me.lastName;
@@ -58,12 +67,7 @@ parasails.registerPage('contact', {
         this.formDataToPrefillForLoggedInUsers.primaryBuyingSituation = this.me.primaryBuyingSituation;
       }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
-    }
-    if(window.location.search){
-      window.history.replaceState({}, document.title, '/contact' );
-    }
-    if(this.primaryBuyingSituation){
-      this.formData.primaryBuyingSituation = this.primaryBuyingSituation;// prefill form
+      this.psychologicalStage = this.me.psychologicalStage;
     }
   },
   mounted: async function() {
@@ -84,14 +88,14 @@ parasails.registerPage('contact', {
     submittedTalkToUsForm: async function() {
       this.syncing = true;
       if(this.formData.numberOfHosts > 700){
-        window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`;
+        this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
       } else {
-        window.location = `https://calendly.com/fleetdm/chat?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`;
+        this.goto(`https://calendly.com/fleetdm/chat?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
       }
     },
 
     clickSwitchForms: function(form) {
-      if(this.prefillFormDataFromUserRecord){
+      if(this.me){
         this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
       } else {
         this.formData = {};
