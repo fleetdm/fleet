@@ -46,6 +46,7 @@
     color: $ui-fleet-black-75;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-wrap: nowrap;
   }
 
   &__item-status-action {
