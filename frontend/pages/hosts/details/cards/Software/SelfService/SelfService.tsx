@@ -25,7 +25,7 @@ const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
 const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 9, // TODO: confirm page size; dev note says 9 but design depicts 6
+  per_page: 9,
   order_key: "name",
   order_direction: "asc",
   query: "",

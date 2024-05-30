@@ -1,4 +1,9 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useState,
+} from "react";
 
 import FileSaver from "file-saver";
 
@@ -28,6 +33,44 @@ import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
 
 const baseClass = "software-package-card";
+
+/** TODO: pull this hook and SoftwareName component out. We could use this other places */
+
+function useTruncatedElement(ref: any) {
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (element) {
+      const { scrollWidth, clientWidth } = element;
+      setIsTruncated(scrollWidth > clientWidth);
+    }
+  }, [ref]);
+
+  return isTruncated;
+}
+
+interface ISoftwareNameProps {
+  name: string;
+}
+
+const SoftwareName = ({ name }: ISoftwareNameProps) => {
+  const titleRef = React.useRef<HTMLDivElement>(null);
+  const isTruncated = useTruncatedElement(titleRef);
+
+  return (
+    <TooltipWrapper
+      tipContent={name}
+      position="top"
+      underline={false}
+      disableTooltip={!isTruncated}
+    >
+      <div ref={titleRef} className={`${baseClass}__title`}>
+        {name}
+      </div>
+    </TooltipWrapper>
+  );
+};
 
 interface IStatusDisplayOption {
   displayName: string;
@@ -170,7 +213,6 @@ const SoftwarePackageCard = ({
     isTeamAdmin,
     isTeamMaintainer,
   } = useContext(AppContext);
-
   const { renderFlash } = useContext(NotificationContext);
 
   const [showAdvancedOptionsModal, setShowAdvancedOptionsModal] = useState(
@@ -235,9 +277,7 @@ const SoftwarePackageCard = ({
         <div className={`${baseClass}__main-info`}>
           <Graphic name="file-pkg" />
           <div className={`${baseClass}__info`}>
-            <span className={`${baseClass}__title`}>
-              {softwarePackage.name}
-            </span>
+            <SoftwareName name={softwarePackage.name} />
             <span className={`${baseClass}__details`}>
               <span>Version {softwarePackage.version} &bull; </span>
               <TooltipWrapper
