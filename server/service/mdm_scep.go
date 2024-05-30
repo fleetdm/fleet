@@ -3,13 +3,11 @@ package service
 import (
 	"context"
 	"crypto/rsa"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 
@@ -36,11 +34,11 @@ func (svc *service) GetCACaps(ctx context.Context) ([]byte, error) {
 }
 
 func (svc *service) GetCACert(ctx context.Context, _ string) ([]byte, int, error) {
-	cert, _, err := svc.getKeypair(ctx)
+	cert, err := assets.CAKeyPair(ctx, svc.ds)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "parsing SCEP certificate")
 	}
-	return cert.Raw, 1, nil
+	return cert.Leaf.Raw, 1, nil
 }
 
 func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, error) {
@@ -52,12 +50,17 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		return nil, err
 	}
 
-	cert, key, err := svc.getKeypair(ctx)
+	cert, err := assets.CAKeyPair(ctx, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "parsing SCEP certificate")
 	}
 
-	if err := msg.DecryptPKIEnvelope(cert, key); err != nil {
+	pk, ok := cert.PrivateKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("private key not in RSA format")
+	}
+
+	if err := msg.DecryptPKIEnvelope(cert.Leaf, pk); err != nil {
 		return nil, err
 	}
 
@@ -67,41 +70,16 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 	if err != nil {
 		svc.debugLogger.Log("msg", "failed to sign CSR", "err", err)
-		certRep, err := msg.Fail(cert, key, scep.BadRequest)
+		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
 		return certRep.Raw, err
 	}
 
-	certRep, err := msg.Success(cert, key, crt)
+	certRep, err := msg.Success(cert.Leaf, pk, crt)
 	return certRep.Raw, err
 }
 
 func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {
 	return nil, errors.New("not implemented")
-}
-
-func (svc *service) getKeypair(ctx context.Context) (*x509.Certificate, *rsa.PrivateKey, error) {
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
-	if err != nil {
-		return nil, nil, fmt.Errorf("getting assets from database: %w", err)
-	}
-
-	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetCACert].Value, assets[fleet.MDMAssetCAKey].Value)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parsing keypair: %w", err)
-	}
-
-	parsed, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		return nil, nil, fmt.Errorf("parse leaf certificate: %w", err)
-	}
-
-	pk, ok := cert.PrivateKey.(*rsa.PrivateKey)
-	if !ok {
-		return nil, nil, errors.New("private key not in RSA format")
-	}
-
-	return parsed, pk, nil
-
 }
 
 // NewService creates a new scep service

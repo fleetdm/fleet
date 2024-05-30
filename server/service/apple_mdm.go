@@ -31,6 +31,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -3161,24 +3162,7 @@ func RenewSCEPCertificates(
 		return ctxerr.Wrap(ctx, err, "getting host cert associations")
 	}
 
-	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetAPNSCert,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "loading existing assets from the database")
-	}
-
-	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
-	if block == nil || block.Type != "CERTIFICATE" {
-		return ctxerr.Wrap(ctx, err, "decoding PEM data")
-	}
-
-	apnsCert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing APNs certificate")
-	}
-
-	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert)
+	mdmPushCertTopic, err := assets.APNSTopic(ctx, ds)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
 	}
@@ -3605,7 +3589,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return err
 	}
 
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+	pair, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMCert,
 		fleet.MDMAssetABMKey,
 	})
@@ -3624,7 +3608,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return ctxerr.Wrap(ctx, err, "reading token bytes")
 	}
 
-	derCert, _ := pem.Decode(assets[fleet.MDMAssetABMCert].Value)
+	derCert, _ := pem.Decode(pair[fleet.MDMAssetABMCert].Value)
 	if derCert == nil {
 		return ctxerr.Wrap(ctx, err, "ABM certificate in the database cannot be parsed")
 	}
@@ -3634,7 +3618,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return ctxerr.Wrap(ctx, err, "parsing ABM certificate")
 	}
 
-	if _, err := config.DecryptAndValidateABMToken(tokenBytes, cert, assets[fleet.MDMAssetABMKey].Value); err != nil {
+	if _, err := assets.DecryptAndValidateABMToken(tokenBytes, cert, pair[fleet.MDMAssetABMKey].Value); err != nil {
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
 			InternalErr: err,

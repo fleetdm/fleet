@@ -3,13 +3,13 @@ package mysql
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
+	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -47,20 +47,12 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 // Always returns "0" as stale token because fleet.Datastore always returns a valid push certificate.
 func (s *NanoMDMStorage) RetrievePushCert(
 	ctx context.Context, topic string,
-) (cert *tls.Certificate, staleToken string, err error) {
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetAPNSCert,
-		fleet.MDMAssetAPNSKey,
-	})
+) (*tls.Certificate, string, error) {
+	cert, err := assets.APNSKeyPair(ctx, s.ds)
 	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "loading SCEP cert from the database")
+		return nil, "", ctxerr.Wrap(ctx, err, "loading push certificate")
 	}
-
-	tlsCert, err := tls.X509KeyPair(assets[fleet.MDMAssetAPNSCert].Value, assets[fleet.MDMAssetAPNSKey].Value)
-	if err != nil {
-		return nil, "", err
-	}
-	return &tlsCert, "0", nil
+	return cert, "0", nil
 }
 
 // IsPushCertStale partially implements nanomdm_storage.PushCertStore.
@@ -166,32 +158,9 @@ type NanoDEPStorage struct {
 
 // RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
 func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetABMKey,
-		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMToken,
-	})
+	token, err := assets.ABMToken(ctx, s.ds)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading ABM assets from the database")
-	}
-
-	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetABMCert].Value, assets[fleet.MDMAssetABMKey].Value)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing ABM keypair")
-	}
-
-	leaf, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing ABM certificate")
-	}
-
-	token, err := config.DecryptAndValidateABMToken(
-		assets[fleet.MDMAssetABMToken].Value,
-		leaf,
-		assets[fleet.MDMAssetABMKey].Value,
-	)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("retrieving token in nano dep storage: %w", err)
 	}
 
 	return token, nil

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -25,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -2125,25 +2125,11 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		}
 
 		// use Apple's SCEP certificate for decrypting
-		assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-			fleet.MDMAssetCACert,
-			fleet.MDMAssetCAKey,
-		})
+		cert, err := assets.CAKeyPair(ctx, svc.ds)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 		}
-
-		cert, err := tls.X509KeyPair(assets[fleet.MDMAssetCACert].Value, assets[fleet.MDMAssetCAKey].Value)
-		if err != nil {
-			return nil, fmt.Errorf("parse key pair: %w", err)
-		}
-
-		parsed, err := x509.ParseCertificate(cert.Certificate[0])
-		if err != nil {
-			return nil, fmt.Errorf("parse leaf certificate: %w", err)
-		}
-		cert.Leaf = parsed
-		decryptCert = &cert
+		decryptCert = cert
 	}
 
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)

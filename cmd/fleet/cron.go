@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -925,24 +924,10 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetCACert,
-		fleet.MDMAssetCAKey,
-	})
+	cert, err := assets.CAKeyPair(ctx, ds)
 	if err != nil {
-		logger.Log("err", "unable to load SCEP assets from the database", "details", err)
-		return ctxerr.Wrap(ctx, err, "loading SCEP keypair from the database")
-	}
-	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetCACert].Value, assets[fleet.MDMAssetCAKey].Value)
-	if err != nil {
-		logger.Log("err", "unable to parse SCEP keypair", "details", err)
+		logger.Log("err", "unable to get CA keypair", "details", err)
 		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
-	}
-
-	leaf, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		logger.Log("err", "unable to parse SCEP certificate", "details", err)
-		return ctxerr.Wrap(ctx, err, "parsing SCEP certificate")
 	}
 
 	decryptable := []uint{}
@@ -952,7 +937,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}

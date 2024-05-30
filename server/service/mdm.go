@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
@@ -61,19 +62,7 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 		return nil, err
 	}
 
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetAPNSCert,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
-	}
-
-	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
-	if block == nil || block.Type != "CERTIFICATE" {
-		return nil, ctxerr.Wrap(ctx, err, "decoding PEM data")
-	}
-
-	apns, err := x509.ParseCertificate(block.Bytes)
+	apns, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetAPNSCert)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "parse certificate")
 	}

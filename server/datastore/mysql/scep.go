@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	_ "embed"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 )
 
@@ -39,19 +39,9 @@ func newSCEPDepot(db *sql.DB, ds fleet.Datastore) (*SCEPDepot, error) {
 // CA returns the CA's certificate and private key.
 func (d *SCEPDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 	// TODO(roberto): nano interfaces doesn't receive a context for this method.
-	assets, err := d.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	cert, err := assets.CAKeyPair(context.Background(), d.ds)
 	if err != nil {
-		return nil, nil, fmt.Errorf("getting assets from database: %w", err)
-	}
-
-	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetCACert].Value, assets[fleet.MDMAssetCAKey].Value)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parsing keypair: %w", err)
-	}
-
-	parsed, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		return nil, nil, fmt.Errorf("parse leaf certificate: %w", err)
+		return nil, nil, fmt.Errorf("getting assets: %w", err)
 	}
 
 	pk, ok := cert.PrivateKey.(*rsa.PrivateKey)
@@ -59,7 +49,7 @@ func (d *SCEPDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 		return nil, nil, errors.New("private key not in RSA format")
 	}
 
-	return []*x509.Certificate{parsed}, pk, nil
+	return []*x509.Certificate{cert.Leaf}, pk, nil
 }
 
 // Serial allocates and returns a new (increasing) serial number.
