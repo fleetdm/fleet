@@ -1054,43 +1054,18 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | In    | Description   |
 | ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| organization_information          | object  | body  | See [the organization_information object](#organization-information-object) |
-| server_settings         | object  | body    | See [the server_settings object](#server-settings-object) |
-| smtp_settings         | object  | body    | See [the smtp_settings object](#smtp-settings-object) |
-| sso_settings         | object  | body    | See [the sso_settings object](#sso-settings-object) |
-| activity_expiry_enabled           | boolean | body  | _Activity expiry settings_. When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.                                                          |
-| activity_expiry_window            | integer | body  | _Activity expiry settings_. The number of days to retain activity records, if activity expiry is enabled.   |
+| organization_information          | object  | body  | See [organization_information object](#organization-information-object). |
+| server_settings         | object  | body    | See [server_settings object](#server-settings-object). |
+| smtp_settings         | object  | body    | See [smtp_settings object](#smtp-settings-object). |
+| sso_settings         | object  | body    | See [sso_settings object](#sso-settings-object). |
+| host_expiry_settings         | object  | body    | See [host_expiry_settings object](#host-expiry-settings-object). |
+| activity_expiry_settings         | object  | body    | See [activity_expiry_settings object](#activity-expiry-settings-object). |
 | agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| fleet_desktop         | object  | body    | See [the fleet_desktop object](#fleet-desktop-object) |
-| webhook_settings      | object  | body    | See [the webhook_settings object](#fleet-desktop-object) |
-| enable_software_vulnerabilities   | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies           | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
-| url                               | string  | body  | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
-| username                          | string  | body  | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
-| api_token                         | string  | body  | _integrations.jira[] settings_. The API token of the Jira username to use for this Jira integration. |
-| project_key                       | string  | body  | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
-| enable_software_vulnerabilities   | boolean | body  | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies           | boolean | body  | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
-| url                               | string  | body  | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
-| email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
-| api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
-| group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
-| domain                            | string  | body  | _integrations.google_calendar[] settings_. The domain for the Google Workspace service account to be used for this calendar integration. |
-| api_key_json                       | object  | body  | _integrations.google_calendar[] settings_. The private key JSON downloaded when generating the service account API key to be used for this calendar integration. |
-| apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
-| windows_enabled_and_configured    | boolean | body  | _mdm settings_. Enables Windows MDM support. |
-| minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
-| deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
-| deadline_days                     | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows. **Requires Fleet Premium license** |
-| grace_period_days                 | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates. **Requires Fleet Premium license** |
-| enable                          | boolean  | body  | _mdm.macos_migration settings_. Whether to enable the end user migration workflow for devices migrating from your old MDM solution. **Requires Fleet Premium license** |
-| mode                          | string  | body  | _mdm.macos_migration settings_. The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. **Requires Fleet Premium license** |
-| webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
-| custom_settings                   | list    | body  | _mdm.macos_settings settings_. macOS hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
-| enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
-| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
+| fleet_desktop         | object  | body    | See [fleet_desktop object](#fleet-desktop-object). |
+| webhook_settings      | object  | body    | See [webhook_settings object](#webhook-settings-object). |
+| integrations                      | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations object](#integrations-object) for details. |
+| mdm_settings      | object  | body    | See [mdm_settings object](#mdm-settings-object). |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
-| enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1148,32 +1123,204 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_enabled               | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window                | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 
+#### activity_expiry_settings object
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| activity_expiry_enabled           | boolean | _Activity expiry settings_. When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.                                                          |
+| activity_expiry_window            | integer | _Activity expiry settings_. The number of days to retain activity records, if activity expiry is enabled.   |
+
 
 #### fleet_desktop object
 
+_Available in Fleet Premium._
+
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
+| transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.                                                      |
 
 #### webhook_settings object
 
+Contains the following webhook settings: 
++ [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook)
++ [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook)
++ [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook)
+
+
+##### webhook_settings.host_status_webhook
+
+`webhook_settings.host_status_webhook` is an object with the following structure:
+
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_status_webhook        | boolean | body  | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
-| destination_url                   | string  | body  | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
-| host_percentage                   | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
-| days_count                        | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
-| enable_failing_policies_webhook   | boolean | body  | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
-| destination_url                   | string  | body  | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| policy_ids                        | array   | body  | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size                   | integer | body  | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| enable_vulnerabilities_webhook    | boolean | body  | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
-| destination_url                   | string  | body  | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| host_batch_size                   | integer | body  | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+| enable_host_status_webhook        | boolean | Whether or not the host status webhook is enabled.                                                                 |
+| destination_url                   | string  | The URL to deliver the webhook request to.                                                     |
+| host_percentage                   | integer | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count                        | integer | The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+
+<br/>
+
+##### webhook_settings.failing_policies_webhook
+
+`webhook_settings.failing_policies_webhook` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_failing_policies_webhook   | boolean | Whether or not the failing policies webhook is enabled. |
+| destination_url                   | string  | The URL to deliver the webhook requests to.                                                     |
+| policy_ids                        | array   | List of policy IDs to enable failing policies webhook.                                                              |
+| host_batch_size                   | integer | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+
+<br/>
+
+##### webhook_settings.vulnerabilities_webhook
+
+`webhook_settings.vulnerabilities_webhook` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_vulnerabilities_webhook    | boolean | Whether or not the vulnerabilities webhook is enabled. |
+| destination_url                   | string  | The URL to deliver the webhook requests to.                                                     |
+| host_batch_size                   | integer | Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+
+#### integrations object
+
+Contains the following arrays of integration settings: 
++ [`integrations.jira`](#integrations-jira)
++ [`integrations.zendesk`](#integrations-zendesk)
++ [`integrations.google_calendar`](#integrations-google-calendar)
+
+> Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+
+##### integrations.jira
+
+`integrations.jira` is an array of objects with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_software_vulnerabilities   | boolean | Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_failing_policies           | boolean | Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| url                               | string  | The URL of the Jira server to integrate with. |
+| username                          | string  | The Jira username to use for this Jira integration. |
+| api_token                         | string  | The API token of the Jira username to use for this Jira integration. |
+| project_key                       | string  | The Jira project key to use for this integration. Jira tickets will be created in this project. |
+
+<br/>
+
+##### integrations.zendesk
+
+`integrations.zendesk` is an array of objects with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_software_vulnerabilities   | boolean | Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_failing_policies           | boolean | Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| url                               | string  | The URL of the Zendesk server to integrate with. |
+| email                             | string  | The Zendesk user email to use for this Zendesk integration. |
+| api_token                         | string  | The Zendesk API token to use for this Zendesk integration. |
+| group_id                          | integer | The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+
+<br/>
+
+##### integrations.google_calendar
+
+`integrations.google_calendar` is an array of objects with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| domain                            | string  | The domain for the Google Workspace service account to be used for this calendar integration. |
+| api_key_json                      | object  | The private key JSON downloaded when generating the service account API key to be used for this calendar integration. |
 
 
+#### mdm_settings object
 
-Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| apple_bm_default_team             | string  | The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
+| windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
+
+
+#### mdm object
+
+Contains the following MDM settings: 
++ [`mdm.macos_updates`](#mdm-macos-updates)
++ [`mdm.windows_updates`](#mdm-windows-updates)
++ [`mdm.macos_migration`](#mdm-macos-migration)
++ [`mdm.macos_setup`](#mdm-macos-setup)
++ [`mdm.macos_settings`](#mdm-macos-settings)
++ [`mdm.windows_settings`](#mdm-windows-settings)
+
+##### mdm.macos_updates
+
+_Available in Fleet Premium._
+
+`mdm.macos_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.windows_updates
+
+_Available in Fleet Premium._
+
+`mdm.windows_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| deadline_days                     | integer | Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows. |
+| grace_period_days                 | integer | Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates. |
+
+<br/>
+
+##### mdm.macos_migration
+
+_Available in Fleet Premium._
+
+`mdm.macos_migration` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable                          | boolean  | Whether to enable the end user migration workflow for devices migrating from your old MDM solution. |
+| mode                          | string  | The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. |
+| webhook_url                          | string  | The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. |
+
+<br/>
+
+##### mdm.macos_setup
+
+_Available in Fleet Premium._
+
+`mdm.macos_setup` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_end_user_authentication            | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). |
+
+<br/>
+
+##### mdm.macos_settings
+
+`mdm.macos_settings` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                   | list    | _mdm.macos_settings settings_. macOS hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
+| enable_disk_encryption            | boolean | _mdm.macos_settings settings_. _Available in Fleet Premium._ Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. |
+
+<br/>
+
+##### mdm.windows_settings
+
+`mdm.windows_settings` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| custom_settings                   | list    | Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
+
 
 #### Example
 
