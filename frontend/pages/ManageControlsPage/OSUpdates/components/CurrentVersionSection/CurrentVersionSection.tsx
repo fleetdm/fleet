@@ -55,18 +55,19 @@ const CurrentVersionSection = ({
     );
   };
 
-  if (!data) {
-    return null;
-  }
-
   const renderTable = () => {
     if (isError) {
       return (
         <DataError
+          className={`${baseClass}__error`}
           description="Refresh the page to try again."
           excludeIssueLink
         />
       );
+    }
+
+    if (!data) {
+      return null;
     }
 
     if (!data.os_versions) {

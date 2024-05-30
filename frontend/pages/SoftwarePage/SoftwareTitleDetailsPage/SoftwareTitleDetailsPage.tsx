@@ -6,6 +6,8 @@ import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
+import paths from "router/paths";
+
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
@@ -16,6 +18,8 @@ import softwareAPI, {
   ISoftwareTitleResponse,
   IGetSoftwareTitleQueryKey,
 } from "services/entities/software";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -25,6 +29,7 @@ import Card from "components/Card";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
+import SoftwarePackageCard from "./SoftwarePackageCard";
 
 const baseClass = "software-title-details-page";
 
@@ -43,7 +48,13 @@ const SoftwareTitleDetailsPage = ({
   routeParams,
   location,
 }: ISoftwareTitleDetailsPageProps) => {
-  const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isOnGlobalTeam,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isTeamObserver,
+  } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   // TODO: handle non integer values
@@ -65,6 +76,7 @@ const SoftwareTitleDetailsPage = ({
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
     isError: isSoftwareTitleError,
+    refetch: refetchSoftwareTitle,
   } = useQuery<
     ISoftwareTitleResponse,
     AxiosError,
@@ -74,7 +86,8 @@ const SoftwareTitleDetailsPage = ({
     [{ scope: "softwareById", softwareId, teamId: teamIdForApi }],
     ({ queryKey }) => softwareAPI.getSoftwareTitle(queryKey[0]),
     {
-      refetchOnWindowFocus: false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
       select: (data) => data.software_title,
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {
@@ -84,12 +97,34 @@ const SoftwareTitleDetailsPage = ({
     }
   );
 
+  const onDeleteInstaller = useCallback(() => {
+    if (softwareTitle?.versions?.length) {
+      refetchSoftwareTitle();
+      return;
+    }
+    // redirect to software titles page if no versions are available
+    if (teamIdForApi && teamIdForApi > 0) {
+      router.push(paths.SOFTWARE_TITLES.concat(`?team_id=${teamIdForApi}`));
+    } else {
+      router.push(paths.SOFTWARE_TITLES);
+    }
+  }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
     },
     [handleTeamChange]
   );
+
+  const hasPermission = Boolean(
+    isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
+  );
+  const hasSoftwarePackage = softwareTitle && softwareTitle.software_package;
+  const showPackageCard =
+    currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
+    hasPermission &&
+    hasSoftwarePackage;
 
   const renderContent = () => {
     if (isSoftwareTitleLoading) {
@@ -130,6 +165,16 @@ const SoftwareTitleDetailsPage = ({
               name={softwareTitle.name}
               source={softwareTitle.source}
             />
+            {showPackageCard &&
+              softwareTitle.software_package &&
+              currentTeamId && (
+                <SoftwarePackageCard
+                  softwarePackage={softwareTitle.software_package}
+                  softwareId={softwareId}
+                  teamId={currentTeamId}
+                  onDelete={onDeleteInstaller}
+                />
+              )}
             <Card
               borderRadiusSize="large"
               includeShadow

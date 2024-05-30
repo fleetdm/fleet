@@ -7,10 +7,7 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import {
-  GITHUB_NEW_ISSUE_LINK,
-  EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS,
-} from "utilities/constants";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -172,7 +169,7 @@ const SoftwareVulnerabilitiesTable = ({
 
   const handleRowSelect = (row: IRowProps) => {
     const hostsByVulnerabilityParams = {
-      cve: row.original.cve,
+      vulnerability: row.original.cve,
       team_id: teamId,
     };
 
@@ -187,7 +184,7 @@ const SoftwareVulnerabilitiesTable = ({
     const count = data?.count;
     if (!data?.vulnerabilities || !count) return "";
 
-    return count === 1 ? `${count} vulnerability` : `${count} vulnerabilities`;
+    return count === 1 ? `${count} item` : `${count} items`;
   };
 
   const getLastUpdatedText = () => {
@@ -195,7 +192,7 @@ const SoftwareVulnerabilitiesTable = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve={"vulnerabilities"}
+        whatToRetrieve="vulnerabilities"
       />
     );
   };
@@ -227,12 +224,34 @@ const SoftwareVulnerabilitiesTable = ({
     );
   };
 
+  const getExploitedVulnerabiltiesDropdownOptions = () => {
+    const disabledTooltipContent = "Available in Fleet Premium.";
+
+    return [
+      {
+        disabled: false,
+        label: "All vulnerabilities",
+        value: false,
+        helpText: "All vulnerabilities detected on your hosts.",
+      },
+      {
+        disabled: !isPremiumTier,
+        label: "Exploited vulnerabilities",
+        value: true,
+        helpText:
+          "Vulnerabilities that have been actively exploited in the wild.",
+        tooltipContent: !isPremiumTier && disabledTooltipContent,
+      },
+    ];
+  };
+
+  // Exploited vulnerabilities is a premium feature
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <Dropdown
         value={showExploitedVulnerabilitiesOnly}
         className={`${baseClass}__exploited-vulnerabilities-dropdown`}
-        options={EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS}
+        options={getExploitedVulnerabiltiesDropdownOptions()}
         searchable={false}
         onChange={handleExploitedVulnFilterDropdownChange}
         tableFilterDropdown
@@ -248,11 +267,7 @@ const SoftwareVulnerabilitiesTable = ({
         isLoading={isLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
-          <EmptySoftwareTable
-            isSoftwareDisabled={!isSoftwareEnabled}
-            isSandboxMode={isSandboxMode}
-            noSandboxHosts={noSandboxHosts}
-          />
+          <EmptySoftwareTable isSoftwareDisabled={!isSoftwareEnabled} />
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}

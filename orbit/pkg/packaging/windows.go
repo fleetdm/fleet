@@ -222,7 +222,7 @@ func checkWine(wineChecked bool) error {
 		cmd := exec.Command(wix.WineCmd, "--version")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf(
-				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://github.com/fleetdm/fleet/blob/fleet-v4.44.0/scripts/macos-install-wine.sh %w",
+				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine %w",
 				wix.WineCmd, err,
 			)
 		}
@@ -385,10 +385,19 @@ func createVersionInfo(vParts []string, manifestPath string) (*goversioninfo.Ver
 // SanitizeVersion returns the version parts (Major, Minor, Patch and Build), filling the Build part
 // with '0' if missing. Will error out if the version string is missing the Major, Minor or
 // Patch part(s).
+// It supports the version with a pre-release part (e.g. 1.2.3-1) and returns it as the Build number.
 func SanitizeVersion(version string) ([]string, error) {
 	vParts := strings.Split(version, ".")
 	if len(vParts) < 3 {
 		return nil, errors.New("invalid version string")
+	}
+	if len(vParts) == 3 && strings.Contains(vParts[2], "-") {
+		parts := strings.SplitN(vParts[2], "-", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return nil, fmt.Errorf("invalid patch and pre-release version: %s", vParts[2])
+		}
+		patch, preRelease := parts[0], parts[1]
+		vParts = []string{vParts[0], vParts[1], patch, preRelease}
 	}
 
 	if len(vParts) < 4 {
@@ -465,7 +474,7 @@ func downloadAndExtractZip(client *http.Client, urlPath string, destPath string)
 	}
 	defer zipReader.Close()
 
-	err = os.MkdirAll(filepath.Dir(destPath), 0755)
+	err = os.MkdirAll(filepath.Dir(destPath), 0o755)
 	if err != nil {
 		return fmt.Errorf("could not create directory %s: %w", filepath.Dir(destPath), err)
 	}
@@ -479,7 +488,6 @@ func downloadAndExtractZip(client *http.Client, urlPath string, destPath string)
 	}
 
 	return nil
-
 }
 
 func extractZipFile(archiveReader *zip.File, destPath string) error {
@@ -506,13 +514,13 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 
 	// Check if the file to extract is just a directory
 	if archiveReader.FileInfo().IsDir() {
-		err = os.MkdirAll(finalPath, 0755)
+		err = os.MkdirAll(finalPath, 0o755)
 		if err != nil {
 			return fmt.Errorf("could not create directory %s: %w", finalPath, err)
 		}
 	} else {
 		// Create all needed directories
-		if os.MkdirAll(filepath.Dir(finalPath), 0755) != nil {
+		if os.MkdirAll(filepath.Dir(finalPath), 0o755) != nil {
 			return fmt.Errorf("could not create directory %s: %w", filepath.Dir(finalPath), err)
 		}
 

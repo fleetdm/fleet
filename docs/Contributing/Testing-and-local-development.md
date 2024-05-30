@@ -69,7 +69,7 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
@@ -77,6 +77,8 @@ Make sure it is available in your `PATH`. To execute the basic unit and integrat
 ```sh
 REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
+
+The integration tests in the `server/service` package can generate a lot of logs mixed with the test results output. To make it easier to identify a failing test in this package, you can set the `FLEET_INTEGRATION_TESTS_DISABLE_LOG=1` environment variable so that logging is disabled.
 
 Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
 
@@ -511,9 +513,9 @@ To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/g
 
 #### Private key, certificate, and encrypted token
 
-First ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
+First ask @lukeheath to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
 
-Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
+Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
 
 ### APNs and SCEP setup
 
@@ -527,6 +529,34 @@ Note that:
 2. You must be logged in to Fleet as a global admin. See [Building Fleet](./Building-Fleet.md) for details on getting Fleet setup locally.
 3. To login into https://identity.apple.com/pushcert you can use your ABM account generated in the previous step.
 4. Save all the certificates and keys in a safe place.
+
+Internally, the certificates are generated using this flow. Note that the fleet sails API base url can be changed using the `TEST_FLEETDM_API_URL` environment variable.
+
+```mermaid
+sequenceDiagram
+    participant user as user email
+    participant fleetctl as fleetctl
+    participant server as fleet server
+    participant fleetdm as fleetdm.com sails app
+    participant apple as identity.apple.com
+    link apple: PushCert @ https://identity.apple.com/pushcert
+
+    note over fleetctl: fleetctl login
+    fleetctl->>+server: login
+    server-->>-fleetctl: token
+    note over fleetctl: fleetctl generate mdm_apple
+    fleetctl->>+server: generate certificates
+    server->>server: generate self-signed SCEP cert & key
+    server->>server: generate APNs key
+    server->>server: generate APNs CSR
+    server-)+fleetdm: request vendor signature on APNs CSR
+    server-->>-fleetctl: SCEP cert, SCEP key, APNs key
+    note over fleetdm: calls /ee/tools/mdm/cert
+    fleetdm--)-user: vendor-signed APNs CSR
+    user->>+apple: vendor-signed APNs CSR
+    note right of apple: managed through web ui
+    apple-->>-user: Apple-signed APNs certificate
+```
 
 Another option, if for some reason, generating the certificates and keys fails or you don't have a supported email address handy is to use `openssl` to generate your SCEP key pair:
 

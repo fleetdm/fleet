@@ -1,13 +1,11 @@
 name: etc_hosts
-examples: >-
+examples: |-
   Identify host"name"s pointed to IP addresses using the hosts file. This
   technique is often abused by malware, but can also indicate services that do
   not have proper DNS configuration to be reached from workstations.
 
   ```
-
   SELECT * FROM etc_hosts WHERE address!='127.0.0.1' AND address!='::1' AND address!='255.255.255.255';
-
   ```
 columns:
   - name: pid_with_namespace

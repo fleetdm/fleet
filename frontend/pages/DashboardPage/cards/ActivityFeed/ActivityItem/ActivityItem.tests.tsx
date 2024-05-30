@@ -1165,4 +1165,17 @@ describe("Activity Feed", () => {
       screen.getByText("deleted multiple queries", { exact: false })
     ).toBeInTheDocument();
   });
+  // test for wipe activity
+  it("renders a 'wiped_host' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.WipedHost,
+      details: {
+        host_display_name: "Foo Host",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("wiped", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
+  });
 });

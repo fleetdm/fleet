@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -61,11 +63,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
 
-		is          fleet.InstallerStore
-		mdmStorage  fleet.MDMAppleStore
-		mdmPusher   nanomdm_push.Pusher
-		ssoStore    sso.SessionStore
-		profMatcher fleet.ProfileMatcher
+		is                   fleet.InstallerStore
+		mdmStorage           fleet.MDMAppleStore
+		mdmPusher            nanomdm_push.Pusher
+		ssoStore             sso.SessionStore
+		profMatcher          fleet.ProfileMatcher
+		softwareInstallStore fleet.SoftwareInstallerStore
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -105,6 +108,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].UseMailService {
 			mailer, err = mail.NewService(config.TestConfig())
 			require.NoError(t, err)
+		}
+		if opts[0].SoftwareInstallStore != nil {
+			softwareInstallStore = opts[0].SoftwareInstallStore
 		}
 
 		// allow to explicitly set installer store to nil
@@ -173,6 +179,15 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		panic(err)
 	}
 	if lic.IsPremium() {
+		if softwareInstallStore == nil {
+			// default to file-based
+			dir := t.TempDir()
+			store, err := filesystem.NewSoftwareInstallerStore(dir)
+			if err != nil {
+				panic(err)
+			}
+			softwareInstallStore = store
+		}
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
@@ -181,10 +196,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			mailer,
 			c,
 			depStorage,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
+			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, fleetConfig.MDM),
 			"",
 			ssoStore,
 			profMatcher,
+			softwareInstallStore,
 		)
 		if err != nil {
 			panic(err)
@@ -202,14 +218,21 @@ func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryRes
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
+	// Map iteration is random so we sort and iterate using the testUsers keys.
+	var keys []string
+	for key := range testUsers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
 	userID := uint(1)
-	for _, u := range testUsers {
+	for _, key := range keys {
+		u := testUsers[key]
 		role := fleet.RoleObserver
 		if strings.Contains(u.Email, "admin") {
 			role = fleet.RoleAdmin
 		}
 		user := &fleet.User{
-			ID:         userID,
+			ID:         userID, // We need to set this in case ds is a mocked Datastore.
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
 			GlobalRole: &role,
@@ -267,29 +290,30 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
-	Logger              kitlog.Logger
-	License             *fleet.LicenseInfo
-	SkipCreateTestUsers bool
-	Rs                  fleet.QueryResultStore
-	Lq                  fleet.LiveQueryStore
-	Pool                fleet.RedisPool
-	FailingPolicySet    fleet.FailingPolicySet
-	Clock               clock.Clock
-	Task                *async.Task
-	EnrollHostLimiter   fleet.EnrollHostLimiter
-	Is                  fleet.InstallerStore
-	FleetConfig         *config.FleetConfig
-	MDMStorage          fleet.MDMAppleStore
-	DEPStorage          nanodep_storage.AllDEPStorage
-	SCEPStorage         scep_depot.Depot
-	MDMPusher           nanomdm_push.Pusher
-	HTTPServerConfig    *http.Server
-	StartCronSchedules  []TestNewScheduleFunc
-	UseMailService      bool
-	APNSTopic           string
-	ProfileMatcher      fleet.ProfileMatcher
-	EnableCachedDS      bool
-	NoCacheDatastore    bool
+	Logger               kitlog.Logger
+	License              *fleet.LicenseInfo
+	SkipCreateTestUsers  bool
+	Rs                   fleet.QueryResultStore
+	Lq                   fleet.LiveQueryStore
+	Pool                 fleet.RedisPool
+	FailingPolicySet     fleet.FailingPolicySet
+	Clock                clock.Clock
+	Task                 *async.Task
+	EnrollHostLimiter    fleet.EnrollHostLimiter
+	Is                   fleet.InstallerStore
+	FleetConfig          *config.FleetConfig
+	MDMStorage           fleet.MDMAppleStore
+	DEPStorage           nanodep_storage.AllDEPStorage
+	SCEPStorage          scep_depot.Depot
+	MDMPusher            nanomdm_push.Pusher
+	HTTPServerConfig     *http.Server
+	StartCronSchedules   []TestNewScheduleFunc
+	UseMailService       bool
+	APNSTopic            string
+	ProfileMatcher       fleet.ProfileMatcher
+	EnableCachedDS       bool
+	NoCacheDatastore     bool
+	SoftwareInstallStore fleet.SoftwareInstallerStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -327,6 +351,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
+		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, cfg.MDM)
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
@@ -334,18 +359,20 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 				mdmStorage,
 				scepStorage,
 				logger,
-				&MDMAppleCheckinAndCommandService{
-					ds:        ds,
-					commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
-					logger:    kitlog.NewNopLogger(),
+				NewMDMAppleCheckinAndCommandService(ds, commander, logger),
+				&MDMAppleDDMService{
+					ds:     ds,
+					logger: logger,
 				},
 			)
 			require.NoError(t, err)
 		}
 	}
 
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
+	debugHandler := MakeDebugHandler(svc, cfg, logger, nil, ds)
+	rootMux.Handle("/debug/", debugHandler)
 
 	server := httptest.NewUnstartedServer(rootMux)
 	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)
@@ -607,45 +634,78 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
+		{"GET", "/api/latest/fleet/mdm/profiles/summary", false, false},
+		{"GET", "/api/latest/fleet/configuration_profiles/summary", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
+		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
 		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key", false, false},
+		{"GET", "/api/latest/fleet/hosts/1/encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/hosts/1/profiles", false, true},
+		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
+		{"POST", "/api/latest/fleet/disk_encryption", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple", false, false},
+		{"GET", "/api/latest/fleet/apns", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
 		{"GET", apple_mdm.InstallerPath + "?token=test", false, false},
-		{"GET", "/api/latest/fleet/mdm/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/setup/eula/token", false, false},
-		{"GET", "/api/latest/fleet/mdm/setup/eula/metadata", false, false},
+		{"GET", "/api/latest/fleet/mdm/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
+		{"GET", "/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
+		{"DELETE", "/api/latest/fleet/mdm/setup/eula/token", false, true},
+		{"DELETE", "/api/latest/fleet/setup_experience/eula/token", false, true},
+		{"GET", "/api/latest/fleet/mdm/setup/eula/metadata", false, true},
+		{"GET", "/api/latest/fleet/setup_experience/eula/metadata", false, true},
 		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", false, false},
-		// TODO: this endpoint accepts multipart/form data that gets
-		// parsed before the MDM check, we need to refactor this
-		// function to return more information to the caller, or find a
-		// better way to test these endpoints.
-		// {"POST", "/api/latest/fleet/mdm/setup/eula"},
 		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"GET", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"POST", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		{"DELETE", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
+		{"POST", "/api/latest/fleet/commands/run", false, false},
 		{"GET", "/api/latest/fleet/mdm/commandresults", false, false},
+		{"GET", "/api/latest/fleet/commands/results", false, false},
 		{"GET", "/api/latest/fleet/mdm/commands", false, false},
+		{"GET", "/api/latest/fleet/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
+		{"GET", "/api/latest/fleet/disk_encryption", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
+		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
-		// TODO: this endpoint accepts multipart/form data that gets
+		{"DELETE", "/api/latest/fleet/configuration_profiles/1", false, false},
+		// TODO: those endpoints accept multipart/form data that gets
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
 		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		//{"POST", "/api/latest/fleet/configuration_profiles", false, false},
+		//{"POST", "/api/latest/fleet/mdm/setup/eula"},
+		//{"POST", "/api/latest/fleet/setup_experience/eula"},
+		//{"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
+		//{"POST", "/api/latest/fleet/bootstrap", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
+		{"GET", "/api/latest/fleet/configuration_profiles", false, false},
+		{"GET", "/api/latest/fleet/mdm/manual_enrollment_profile", false, true},
+		{"GET", "/api/latest/fleet/enrollment_profiles/manual", false, true},
+		{"GET", "/api/latest/fleet/mdm/bootstrap/1/metadata", false, true},
+		{"GET", "/api/latest/fleet/bootstrap/1/metadata", false, true},
+		{"DELETE", "/api/latest/fleet/mdm/bootstrap/1", false, true},
+		{"DELETE", "/api/latest/fleet/bootstrap/1", false, true},
+		{"GET", "/api/latest/fleet/mdm/bootstrap?token=1", false, true},
+		{"GET", "/api/latest/fleet/bootstrap?token=1", false, true},
+		{"GET", "/api/latest/fleet/mdm/bootstrap/summary", false, true},
+		{"GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", false, true},
+		{"GET", "/api/latest/fleet/bootstrap/summary", false, true},
+		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
+		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 	}
 }
 

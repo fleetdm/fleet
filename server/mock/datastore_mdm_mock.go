@@ -56,6 +56,8 @@ type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, err
 
 type EnqueueDeviceLockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error
 
+type EnqueueDeviceWipeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
+
 type MDMAppleStore struct {
 	StoreAuthenticateFunc        StoreAuthenticateFunc
 	StoreAuthenticateFuncInvoked bool
@@ -119,6 +121,9 @@ type MDMAppleStore struct {
 
 	EnqueueDeviceLockCommandFunc        EnqueueDeviceLockCommandFunc
 	EnqueueDeviceLockCommandFuncInvoked bool
+
+	EnqueueDeviceWipeCommandFunc        EnqueueDeviceWipeCommandFunc
+	EnqueueDeviceWipeCommandFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -268,4 +273,11 @@ func (fs *MDMAppleStore) EnqueueDeviceLockCommand(ctx context.Context, host *fle
 	fs.EnqueueDeviceLockCommandFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.EnqueueDeviceLockCommandFunc(ctx, host, cmd, pin)
+}
+
+func (fs *MDMAppleStore) EnqueueDeviceWipeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
+	fs.mu.Lock()
+	fs.EnqueueDeviceWipeCommandFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnqueueDeviceWipeCommandFunc(ctx, host, cmd)
 }

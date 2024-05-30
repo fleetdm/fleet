@@ -18,6 +18,8 @@ enum ACTIONS {
   SET_CURRENT_TEAM = "SET_CURRENT_TEAM",
   SET_CONFIG = "SET_CONFIG",
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
+  SET_ABM_EXPIRY = "SET_ABM_EXPIRY",
+  SET_APNS_EXPIRY = "SET_APNS_EXPIRY",
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
   SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
@@ -48,6 +50,16 @@ interface ISetCurrentUserAction {
 interface ISetEnrollSecretAction {
   type: ACTIONS.SET_ENROLL_SECRET;
   enrollSecret: IEnrollSecret[];
+}
+
+interface ISetABMExpiryAction {
+  type: ACTIONS.SET_ABM_EXPIRY;
+  abmExpiry: string;
+}
+
+interface ISetAPNsExpiryAction {
+  type: ACTIONS.SET_APNS_EXPIRY;
+  apnsExpiry: string;
 }
 
 interface ISetSandboxExpiryAction {
@@ -85,6 +97,8 @@ type IAction =
   | ISetCurrentTeamAction
   | ISetCurrentUserAction
   | ISetEnrollSecretAction
+  | ISetABMExpiryAction
+  | ISetAPNsExpiryAction
   | ISetSandboxExpiryAction
   | ISetNoSandboxHostsAction
   | ISetFilteredHostsPathAction
@@ -106,7 +120,8 @@ type InitialStateType = {
   isSandboxMode?: boolean;
   isFreeTier?: boolean;
   isPremiumTier?: boolean;
-  isMdmEnabledAndConfigured?: boolean;
+  isMacMdmEnabledAndConfigured?: boolean;
+  isWindowsMdmEnabledAndConfigured?: boolean;
   isGlobalAdmin?: boolean;
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
@@ -122,6 +137,8 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
+  abmExpiry?: string;
+  apnsExpiry?: string;
   sandboxExpiry?: string;
   noSandboxHosts?: boolean;
   filteredHostsPath?: string;
@@ -136,6 +153,8 @@ type InitialStateType = {
   setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
+  setAPNsExpiry: (apnsExpiry: string) => void;
+  setABMExpiry: (abmExpiry: string) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
@@ -156,7 +175,8 @@ export const initialState = {
   isSandboxMode: false,
   isFreeTier: undefined,
   isPremiumTier: undefined,
-  isMdmEnabledAndConfigured: undefined,
+  isMacMdmEnabledAndConfigured: undefined,
+  isWindowsMdmEnabledAndConfigured: undefined,
   isGlobalAdmin: undefined,
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
@@ -181,6 +201,8 @@ export const initialState = {
   setCurrentTeam: () => null,
   setConfig: () => null,
   setEnrollSecret: () => null,
+  setAPNsExpiry: () => null,
+  setABMExpiry: () => null,
   setSandboxExpiry: () => null,
   setNoSandboxHosts: () => null,
   setFilteredHostsPath: () => null,
@@ -212,7 +234,12 @@ const setPermissions = (
     isSandboxMode: permissions.isSandboxMode(config),
     isFreeTier: permissions.isFreeTier(config),
     isPremiumTier: permissions.isPremiumTier(config),
-    isMdmEnabledAndConfigured: permissions.isMdmEnabledAndConfigured(config),
+    isMacMdmEnabledAndConfigured: permissions.isMacMdmEnabledAndConfigured(
+      config
+    ),
+    isWindowsMdmEnabledAndConfigured: permissions.isWindowsMdmEnabledAndConfigured(
+      config
+    ),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
@@ -356,6 +383,8 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
     sandboxExpiry: state.sandboxExpiry,
+    abmExpiry: state.abmExpiry,
+    apnsExpiry: state.apnsExpiry,
     noSandboxHosts: state.noSandboxHosts,
     filteredHostsPath: state.filteredHostsPath,
     filteredSoftwarePath: state.filteredSoftwarePath,
@@ -365,7 +394,8 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
-    isMdmEnabledAndConfigured: state.isMdmEnabledAndConfigured,
+    isMacMdmEnabledAndConfigured: state.isMacMdmEnabledAndConfigured,
+    isWindowsMdmEnabledAndConfigured: state.isWindowsMdmEnabledAndConfigured,
     isGlobalAdmin: state.isGlobalAdmin,
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,
@@ -399,6 +429,12 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     },
     setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
       dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
+    },
+    setABMExpiry: (abmExpiry: string) => {
+      dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
+    },
+    setAPNsExpiry: (apnsExpiry: string) => {
+      dispatch({ type: ACTIONS.SET_APNS_EXPIRY, apnsExpiry });
     },
     setSandboxExpiry: (sandboxExpiry: string) => {
       dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });

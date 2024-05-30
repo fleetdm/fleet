@@ -1,3 +1,4 @@
+import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import Linux from "components/icons/Linux";
 import AcrobatReader from "./AcrobatReader";
 import ChromeApp from "./ChromeApp";
@@ -17,6 +18,13 @@ import Word from "./Word";
 import Zoom from "./Zoom";
 import ChromeOS from "./ChromeOS";
 import LinuxOS from "./LinuxOS";
+import Falcon from "./Falcon";
+
+// Maps all known Linux platforms to the LinuxOS icon
+const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
+  (a, platform) => ({ ...a, [platform]: LinuxOS }),
+  {}
+);
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
@@ -25,6 +33,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
   "google chrome": ChromeApp,
   "microsoft excel": Excel,
+  falcon: Falcon,
   firefox: Firefox,
   package: Package,
   safari: Safari,
@@ -36,7 +45,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   darwin: MacOS,
   windows: WindowsOS,
   chrome: ChromeOS,
-  linux: LinuxOS,
+  ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
@@ -59,6 +68,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   ie_extensions: Extension,
   chocolatey_packages: Package,
   pkg_packages: Package,
+  vscode_extensions: Extension,
 } as const;
 
 export const SOFTWARE_ICON_SIZES: Record<string, string> = {

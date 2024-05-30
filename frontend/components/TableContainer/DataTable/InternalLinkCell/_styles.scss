@@ -1,0 +1,14 @@
+.internal-link-cell {
+
+  &__content {
+    font: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    display: inline-flex;
+
+    &:hover {
+      cursor: pointer;
+      text-decoration: underline;
+    }
+  }
+}

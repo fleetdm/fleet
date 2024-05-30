@@ -46,7 +46,7 @@ class InputFieldWithIcon extends InputField {
         data-has-tooltip={!!tooltip}
       >
         {tooltip && !error ? (
-          <TooltipWrapper position="top-start" tipContent={tooltip}>
+          <TooltipWrapper position="bottom-start" tipContent={tooltip}>
             {label}
           </TooltipWrapper>
         ) : (
@@ -114,25 +114,27 @@ class InputFieldWithIcon extends InputField {
     return (
       <div className={wrapperClasses}>
         {this.props.label && this.renderHeading()}
-        <input
-          id={name}
-          name={name}
-          onChange={onInputChange}
-          onClick={onClick}
-          className={inputClasses}
-          placeholder={placeholder}
-          ref={(r) => {
-            this.input = r;
-          }}
-          tabIndex={tabIndex}
-          type={type}
-          value={value}
-          disabled={disabled}
-          {...inputOptions}
-          data-1p-ignore={ignore1Password}
-        />
-        {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
-        {iconName && <FleetIcon name={iconName} className={iconClasses} />}
+        <div className={`${baseClass}__input-wrapper`}>
+          <input
+            id={name}
+            name={name}
+            onChange={onInputChange}
+            onClick={onClick}
+            className={inputClasses}
+            placeholder={placeholder}
+            ref={(r) => {
+              this.input = r;
+            }}
+            tabIndex={tabIndex}
+            type={type}
+            value={value}
+            disabled={disabled}
+            {...inputOptions}
+            data-1p-ignore={ignore1Password}
+          />
+          {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
+          {iconName && <FleetIcon name={iconName} className={iconClasses} />}
+        </div>
         {renderHelpText()}
       </div>
     );

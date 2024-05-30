@@ -27,7 +27,7 @@ const AddUsersModal = ({
   const [selectedUsers, setSelectedUsers] = useState([]);
 
   const onChangeDropdown = useCallback(
-    (values) => {
+    (values: any) => {
       setSelectedUsers(values);
     },
     [setSelectedUsers]

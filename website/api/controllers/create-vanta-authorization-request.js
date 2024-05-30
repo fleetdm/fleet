@@ -43,6 +43,10 @@ module.exports = {
       description: 'The Fleet instance provided is using a Free license.',
       statusCode: 400,
     },
+    invalidResponseFromFleetInstance: {
+      description: 'The response body from the Fleet API was invalid.',
+      statusCode: 400,
+    },
     nonApiOnlyUser: {
       description: 'The provided API token for this Fleet instance is not associated with an api-only user.',
       statusCode: 400,
@@ -90,6 +94,11 @@ module.exports = {
       return new Error(`When sending a request to a Fleet instance's /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
     });
 
+    // Throw an error if the response from the Fleet instance's /me API endpoint does not contain a user.
+    if(!responseFromFleetInstance.user){
+      throw 'invalidResponseFromFleetInstance';
+    }
+
     // Throw an error if the provided API token is not an API-only user.
     if(!responseFromFleetInstance.user.api_only) {
       throw 'nonApiOnlyUser';
@@ -108,6 +117,12 @@ module.exports = {
     .intercept((error)=>{
       return new Error(`When sending a request to a Fleet instance's /config API endpoint for a Vanta connection, an error occurred: ${error}`);
     });
+
+
+    // Throw an error if the response from the Fleet instance's /config API endpoint does not contain a license.
+    if(!configResponse.license){
+      throw 'invalidResponseFromFleetInstance';
+    }
 
     // If the user's Fleet instance has a free license, we'll throw the 'invalidLicense' exit and let the user know that this is only available for Fleet Premium subscribers.
     if(configResponse.license.tier === 'free') {

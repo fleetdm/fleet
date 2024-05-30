@@ -85,10 +85,22 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			expectedError: "missing status for root command",
 		},
 		{
-			name: "bad xml",
+			name: "bad xml replace",
 			cmd: MDMWindowsCommand{
 				CommandUUID: "foo",
 				RawCommand:  []byte(`<Atomic><Replace><</Atomic>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"foo": {CmdID: CmdID{Value: "foo"}, Data: ptr.String(syncml.CmdStatusAtomicFailed)},
+			},
+			hostUUID:      "host-uuid",
+			expectedError: "XML syntax error",
+		},
+		{
+			name: "bad xml add",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "foo",
+				RawCommand:  []byte(`<Atomic><Add><</Atomic>`),
 			},
 			statuses: map[string]SyncMLCmd{
 				"foo": {CmdID: CmdID{Value: "foo"}, Data: ptr.String(syncml.CmdStatusAtomicFailed)},
@@ -104,11 +116,13 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 				<Atomic>
 					<CmdID>foo</CmdID>
 					<Replace><CmdID>bar</CmdID><Target><LocURI>./Device/Baz</LocURI></Target></Replace>
+					<Add><CmdID>baz</CmdID><Target><LocURI>./Device/Baz</LocURI></Target></Add>
 				</Atomic>`),
 			},
 			statuses: map[string]SyncMLCmd{
 				"foo": {CmdID: CmdID{Value: "foo"}, Data: ptr.String("200")},
 				"bar": {CmdID: CmdID{Value: "bar"}, Data: ptr.String("200")},
+				"baz": {CmdID: CmdID{Value: "baz"}, Data: ptr.String("200")},
 			},
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{
@@ -119,7 +133,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			},
 		},
 		{
-			name: "one operation failed",
+			name: "two operations failed",
 			cmd: MDMWindowsCommand{
 				CommandUUID: "foo",
 				RawCommand: []byte(`
@@ -127,18 +141,20 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 					<CmdID>foo</CmdID>
 					<Replace><CmdID>bar</CmdID><Item><Target><LocURI>./Device/Baz</LocURI></Target></Item></Replace>
 					<Replace><CmdID>baz</CmdID><Item><Target><LocURI>./Bad/Loc</LocURI></Target></Item></Replace>
+					<Add><CmdID>other</CmdID><Item><Target><LocURI>./Bad/Other</LocURI></Target></Item></Add>
 				</Atomic>`),
 			},
 			statuses: map[string]SyncMLCmd{
-				"foo": {CmdID: CmdID{Value: "foo"}, Data: ptr.String(syncml.CmdStatusAtomicFailed)},
-				"bar": {CmdID: CmdID{Value: "bar"}, Data: ptr.String(syncml.CmdStatusOK)},
-				"baz": {CmdID: CmdID{Value: "baz"}, Data: ptr.String(syncml.CmdStatusBadRequest)},
+				"foo":   {CmdID: CmdID{Value: "foo"}, Data: ptr.String(syncml.CmdStatusAtomicFailed)},
+				"bar":   {CmdID: CmdID{Value: "bar"}, Data: ptr.String(syncml.CmdStatusOK)},
+				"baz":   {CmdID: CmdID{Value: "baz"}, Data: ptr.String(syncml.CmdStatusBadRequest)},
+				"other": {CmdID: CmdID{Value: "other"}, Data: ptr.String(syncml.CmdStatusBadRequest)},
 			},
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{
 				HostUUID:    "host-uuid",
 				Status:      &MDMDeliveryFailed,
-				Detail:      "./Device/Baz: status 200, ./Bad/Loc: status 400",
+				Detail:      "./Device/Baz: status 200, ./Bad/Loc: status 400, ./Bad/Other: status 400",
 				CommandUUID: "foo",
 			},
 		},

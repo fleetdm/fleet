@@ -1,4 +1,4 @@
-name: "Workstations (canary)"
+name: "💻🐣 Workstations (canary)"
 team_settings:
   features:
     enable_host_users: true
@@ -8,40 +8,92 @@ team_settings:
     host_expiry_window: 0
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET
+  integrations:
+    google_calendar:
+      enable_calendar_events: true
+      webhook_url: $DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL
 agent_options:
-  path: ../lib/agent-options.yml
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  overrides:
+      platforms:
+        darwin:
+          auto_table_construction:
+            tcc_system:
+              path: /Library/Application Support/com.apple.TCC/TCC.db
+              query: 'select service, client, client_type, auth_value, auth_reason, policy_id, indirect_object_identifier, indirect_object_identifier_type, last_modified from access'
+              columns:
+                - service
+                - client
+                - client_type
+                - auth_value
+                - auth_reason
+                - policy_id
+                - indirect_object_identifier
+                - indirect_object_identifier_type
+                - last_modified
+            tcc_user:
+              path: /Users/%/Library/Application Support/com.apple.TCC/TCC.db
+              query: 'select service, client, client_type, auth_value, auth_reason, policy_id, indirect_object_identifier, indirect_object_identifier_type, last_modified from access'
+              columns:
+                - service
+                - client
+                - client_type
+                - auth_value
+                - auth_reason
+                - policy_id
+                - indirect_object_identifier
+                - indirect_object_identifier_type
+                - last_modified
+  update_channels:
+    # We want to use these hosts to smoke test edge releases.
+    osqueryd: edge
+    orbit: edge
+    desktop: edge
 controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../../mdm_profiles/automatic_updates.mobileconfig
-      - path: ../../mdm_profiles/chrome_enrollment.mobileconfig
-      - path: ../../mdm_profiles/disable_bluetooth_file_sharing.mobileconfig
-      - path: ../../mdm_profiles/disable_content_caching.mobileconfig
-      - path: ../../mdm_profiles/disable_guest_account.mobileconfig
-      - path: ../../mdm_profiles/disable_guest_shares.mobileconfig
-      - path: ../../mdm_profiles/disable_internet_sharing.mobileconfig
-      - path: ../../mdm_profiles/disable_media_sharing.mobileconfig
-      - path: ../../mdm_profiles/disable_safari_safefiles.mobileconfig
-      - path: ../../mdm_profiles/enable_doh.mobileconfig
-      - path: ../../mdm_profiles/enable_firewall_logging.mobileconfig
-      - path: ../../mdm_profiles/enable_gatekeeper.mobileconfig
-      - path: ../../mdm_profiles/enforce_library_validation.mobileconfig
-      - path: ../../mdm_profiles/firewall.mobileconfig
-      - path: ../../mdm_profiles/full_disk_access_for_orbit.mobileconfig
-      - path: ../../mdm_profiles/limit_ad_tracking.mobileconfig
-      - path: ../../mdm_profiles/misc.mobileconfig
-      - path: ../../mdm_profiles/password_policy.mobileconfig
-      - path: ../../mdm_profiles/prevent_autologon.mobileconfig
-      - path: ../../mdm_profiles/secure_terminal_keyboard.mobileconfig
-      - path: ../../mdm_profiles/time_and_date.mobileconfig
+      - path: ../lib/configuration-profiles/macos-automatic-updates.mobileconfig
+      - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
+      - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-content-caching.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-guest-account.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-guest-shares.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-internet-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-media-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-safari-safefiles.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-doh.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-firewall-logging.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-gatekeeper.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enforce-library-validation.mobileconfig
+      - path: ../lib/configuration-profiles/macos-firewall.mobileconfig
+      - path: ../lib/configuration-profiles/macos-full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/configuration-profiles/macos-limit-ad-tracking.mobileconfig
+      - path: ../lib/configuration-profiles/macos-misc.mobileconfig
+      - path: ../lib/configuration-profiles/macos-password.mobileconfig
+      - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
+      - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
+      - path: ../lib/configuration-profiles/passcode-settings-ddm.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2023-12-15"
-    minimum_version: "14.2"
+    deadline: "2024-05-31"
+    minimum_version: "14.5"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -50,19 +102,19 @@ controls:
   scripts:
     - path: ../lib/collect-fleetd-logs.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
+    - path: ../lib/macos-remove-old-nudge.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
+    - path: ../lib/windows-install-bitdefender.ps1
+    - path: ../lib/windows-enable-ms-defender.ps1
 policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
-  - name: chromeOS/macOS - Screenlock enabled
-    query: SELECT 1 FROM screenlock WHERE enabled = 1;
-    critical: false
-    description: ""
-    resolution: ""
-    platform: darwin,chrome
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
+  - path: ../lib/collect-fleetd-information.yml
   - path: ../lib/collect-usb-devices.queries.yml
   - path: ../lib/collect-vs-code-extensions.queries.yml
+  - path: ../lib/collect-software-permissions-system.queries.yml
+  - path: ../lib/collect-software-permissions-user.queries.yml

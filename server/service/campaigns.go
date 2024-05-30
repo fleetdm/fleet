@@ -156,15 +156,15 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		}
 	}
 
-	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "run query")
-	}
-
 	// Metrics are used for total hosts targeted for the activity feed.
 	campaign.Metrics, err = svc.ds.CountHostsInTargets(ctx, filter, targets, time.Now())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
+	}
+
+	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
 
 	return campaign, nil

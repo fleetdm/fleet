@@ -1,30 +1,28 @@
 name: macadmins_unified_log
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.
 
   ```
-  
   SELECT u.category, u.event_message, u.process_id, datetime(u.timestamp, 'unixepoch') AS human_time, p.path, s.signed, s.identifier, s.authority FROM macadmins_unified_log u JOIN processes p ON u.process_id = p.pid JOIN signature s ON p.path = s.path WHERE u.sender_image_path LIKE '%LaunchServices%' AND last = "1m";
-  
   ```
 columns:
   - name: trace_id
     description: The ID of a trace event
     required: false
-    type: string
+    type: text
   - name: event_type
     description: The type of event, this can be logEvent, signpostEvent or stateEvent.
     required: false
-    type: string
+    type: text
   - name: format_string
     description: The format string used to convert variable content into a string for output.
     required: false
-    type: string
+    type: text
   - name: activity_identifier
     description: The identifier of the log activity.
     required: false
@@ -44,15 +42,15 @@ columns:
   - name: sender_image_uuid
     description: The UUID of the library, framework, kernel extension, or mach-o image, that originated the event.
     required: false
-    type: string
+    type: text
   - name: sender_image_path
     description: The full path of the library, framework, kernel extension, or mach-o image, that originated the event.
     required: false
-    type: string
+    type: text
   - name: boot_uuid
     description: The boot UUID of the event.
     required: false
-    type: string
+    type: text
   - name: process_id
     description: Process ID of the process that generated this log item, which can be joined to multiple other tables including a *PID*.
     required: false
@@ -60,7 +58,7 @@ columns:
   - name: process_image_path
     description: The full path of the process that originated the event.
     required: false
-    type: string
+    type: text
   - name: timestamp
     description: Timestamp in [UNIX time format](https://en.wikipedia.org/wiki/Unix_time).
     required: false
@@ -68,7 +66,7 @@ columns:
   - name: event_message
     description: The message of the log entry.
     required: false
-    type: string
+    type: text
   - name: sender_program_counter
     description: The program counter of the library, framework, kernel extension, or mach-o image, that originated the event.
     required: false

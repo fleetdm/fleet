@@ -4,16 +4,21 @@ team_settings:
     - secret: "SampleSecret123"
     - secret: "ABC"
   webhook_settings:
-    failing_policies_webhook:
-      enable_failing_policies_webhook: true
-      destination_url: https://example.tines.com/webhook
-      policy_ids: [1, 2, 3, 4, 5, 6 ,7, 8, 9]
+    host_status_webhook:
+      days_count: 14
+      destination_url: https://example.com/host_status_webhook
+      enable_host_status_webhook: true
+      host_percentage: 25
   features:
     enable_host_users: true
     enable_software_inventory: true
   host_expiry_settings:
     host_expiry_enabled: true
     host_expiry_window: 30
+  integrations:
+    google_calendar:
+      enable_calendar_events: true
+      webhook_url: https://example.com/google_calendar_webhook
 agent_options:
   command_line_flags:
     distributed_denylist_duration: 0
@@ -88,6 +93,7 @@ policies:
     description: This policy should always fail.
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+    calendar_events_enabled: true
   - name: Passing policy
     platform: linux,windows,darwin,chrome
     description: This policy should always pass.

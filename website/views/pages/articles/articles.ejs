@@ -2,19 +2,16 @@
   <div style="max-width: 1200px;" class="container-fluid p-0">
     <div class="mx-auto">
       <div purpose="categories-and-search" class="d-flex flex-lg-row flex-column justify-content-lg-between justify-content-md-center justify-content-start" v-if="isArticlesLandingPage">
-        <div purpose="categories" class="d-flex flex-md-row flex-column justify-content-start">
+        <div purpose="categories" class="d-flex flex-lg-row flex-column justify-content-start">
           <div purpose="category-filter" :class="[ filter === 'all' ? 'selected' : '']" @click="filterBy('all')">All</div>
           <div purpose="category-filter" :class="[ filter === 'engineering' ? 'selected' : '']" @click="filterBy('engineering')">Engineering</div>
           <div purpose="category-filter" :class="[ filter === 'security' ? 'selected' : '']" @click="filterBy('security')">Security</div>
           <div purpose="category-filter" :class="[ filter === 'announcements' ? 'selected' : '']" @click="filterBy('announcements')">Announcements</div>
           <div purpose="category-filter" :class="[ filter === 'guides' ? 'selected' : '']" @click="filterBy('guides')">Guides</div>
+          <div purpose="category-filter" :class="[ filter === 'success stories' ? 'selected' : '']" @click="filterBy('success stories')">Success stories</div>
           <div purpose="category-filter" :class="[ filter === 'podcasts' ? 'selected' : '']" @click="filterBy('podcasts')">Podcasts</div>
           <div purpose="category-filter" :class="[ filter === 'releases' ? 'selected' : '']" @click="filterBy('releases')">Releases</div>
         </div>
-<!--         <div purpose="search" class="p-2 mt-3 mt-lg-0 d-flex flex-row">
-          <img class="search" alt="search" src="/images/icon-search-16x16@2x.png">
-          <input class="ml-3 border-0" placeholder="Search">
-        </div> -->
       </div>
       <div purpose="category-title" v-else>
         <h1>{{articleCategory}}</h1>

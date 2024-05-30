@@ -46,8 +46,7 @@ INSERT INTO nano_cert_auth_associations (id, sha256, cert_not_valid_after) VALUE
 ON DUPLICATE KEY
 UPDATE
 	sha256 = VALUES(sha256),
-	cert_not_valid_after = VALUES(cert_not_valid_after),
-	renew_command_uuid = NULL;`,
+	cert_not_valid_after = VALUES(cert_not_valid_after)`,
 		r.ID,
 		strings.ToLower(hash),
 		certNotValidAfter,

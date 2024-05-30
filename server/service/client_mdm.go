@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -158,30 +157,6 @@ func (c *Client) ValidateBootstrapPackageFromURL(url string) (*fleet.MDMAppleBoo
 	return downloadRemoteMacosBootstrapPackage(url)
 }
 
-func extractFilenameFromPath(p string) string {
-	u, err := url.Parse(p)
-	if err != nil {
-		return ""
-	}
-
-	invalid := map[string]struct{}{
-		"":  {},
-		".": {},
-		"/": {},
-	}
-
-	b := path.Base(u.Path)
-	if _, ok := invalid[b]; ok {
-		return ""
-	}
-
-	if _, ok := invalid[path.Ext(b)]; ok {
-		return b + ".pkg"
-	}
-
-	return b
-}
-
 func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstrapPackage, error) {
 	resp, err := http.Get(pkgURL) // nolint:gosec // we want this URL to be provided by the user. It will run on their machine.
 	if err != nil {
@@ -205,7 +180,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 
 	// if it fails, try to extract it from the URL
 	if filename == "" {
-		filename = extractFilenameFromPath(pkgURL)
+		filename = file.ExtractFilenameFromURLPath(pkgURL, "pkg")
 	}
 
 	// if all else fails, use a default name
@@ -312,7 +287,7 @@ func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform st
 	case "windows":
 		prepareFn = c.prepareWindowsMDMCommand
 	default:
-		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or macOS hosts.", forPlatform)
+		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or Apple hosts.", forPlatform)
 	}
 
 	rawCmd, err := prepareFn(rawCmd)
@@ -387,4 +362,12 @@ func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
 		return "", fmt.Errorf("lock host request: %w", err)
 	}
 	return response.UnlockPIN, nil
+}
+
+func (c *Client) MDMWipeHost(hostID uint) error {
+	var response wipeHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
+		return fmt.Errorf("wipe host request: %w", err)
+	}
+	return nil
 }

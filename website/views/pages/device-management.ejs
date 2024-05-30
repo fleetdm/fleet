@@ -1,4 +1,4 @@
-<div id="device-management" v-cloak>
+<div id="device-management-page" v-cloak>
   <div purpose="page-container">
     <div purpose="page-content" class="mx-auto">
       <div purpose="hero">
@@ -18,8 +18,8 @@
             <strong>“Zero” trust, fewer tickets</strong>
             <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
             <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
-              <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-              <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
+              <a purpose="cta-button" href="/register">Start now</a>
+              <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
             </div>
           </div>
         </div>
@@ -28,19 +28,26 @@
         <div purpose="testimonial-quote">
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p>We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.</p>
+            <p>
+              <% if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
+              <% } else if (['eo-it'].includes(primaryBuyingSituation)) { %>This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
+              <% } else { %>We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.
+              <% } %>
+            </p>
           </div>
-          <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
-            <div purpose="quote-image"><img src="/images/testimonial-kenny-botelho-48x48@2x.jpg" alt="Kenny Botelho"></div>
+          <a href="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>" target="_blank">
+          <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
+            <div purpose="quote-image"><img src="/images/<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'testimonial-author-nico-waisman-48x48@2x.png' : ['eo-it'].includes(primaryBuyingSituation) ? 'testimonial-author-eric-tan-99x99@2x.png' : 'testimonial-author-kenny-botelho-48x48@2x.png'%>" alt="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'Nico Waisman' : ['eo-it'].includes(primaryBuyingSituation) ? 'Eric Tan' : 'Kenny Botelho'%>"></div>
             <div class="d-flex flex-column">
-              <p purpose="name">Kenny Botelho</p>
-              <p purpose="title">Lead Client Platform Engineer</p>
+              <p purpose="name"><%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'Nico Waisman' : ['eo-it'].includes(primaryBuyingSituation) ? 'Eric Tan' : 'Kenny Botelho'%></p>
+              <p purpose="title"><%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'CISO of Lyft' : ['eo-it'].includes(primaryBuyingSituation) ? 'CIO & Chief Security Officer at Flock Safety' : 'Client Platform Engineer at gaming company'%></p>
             </div>
           </div>
+          </a>
         </div>
       </div>
-
-
+      <logo-carousel></logo-carousel>
+      <%-  partial('../partials/calendar-banner.partial.ejs') %>
       <%/* Your last MDM migration section */%>
       <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center mb-0">
@@ -162,7 +169,7 @@
             <div purpose="checklist" class="flex-column d-flex">
               <p>Use a git repo as the source of truth to reduce errors (submitting the wrong patch, configuration setting etc)</p>
               <p>Every change to a policy or security control is tracked and auditable in Fleet’s history, or via the repo commit log</p>
-              <p>Instantly reveal failed patches and broken settings with osquery to shorten the feedback loop and avoid tickets.</p>
+              <p>Instantly reveal failed patches and broken settings with osquery to shorten the feedback loop and uncover problems sooner.</p>
             </div>
           </div>
           <div purpose="feature-image" class="right">
@@ -195,7 +202,7 @@
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
         <h4>Who else uses Fleet?</h4>
-        <h2>Empowering IT teams</h2>
+        <h2>Empowering <%= ['vm', 'eo-security'].includes(primaryBuyingSituation) ? 'security and IT' : 'IT' %> teams, globally</h2>
       </div>
     </div>
 
@@ -206,13 +213,16 @@
         <h4>Device management (MDM)</h4>
         <h2>Manage everything in one place</h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-          <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
+          <a purpose="cta-button" href="/register">Start now</a>
+          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
         </div>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

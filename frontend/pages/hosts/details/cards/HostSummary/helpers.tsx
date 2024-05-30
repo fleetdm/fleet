@@ -30,14 +30,28 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   unlocking: {
     title: "UNLOCK PENDING",
     tagType: "warning",
-    generateTooltip: (platform) =>
+    generateTooltip: () =>
       "Host will unlock when it comes online.  If the host is online, it will unlock the next time it checks in to Fleet.",
   },
   locking: {
     title: "LOCK PENDING",
     tagType: "warning",
-    generateTooltip: (platform) =>
+    generateTooltip: () =>
       "Host will lock when it comes online.  If the host is online, it will lock the next time it checks in to Fleet.",
+  },
+  wiped: {
+    title: "WIPED",
+    tagType: "error",
+    generateTooltip: (platform) =>
+      platform === "darwin"
+        ? "Host is wiped. To prevent the host from automatically reenrolling to Fleet, first release the host from Apple Business Manager and then delete the host in Fleet."
+        : "Host is wiped.",
+  },
+  wiping: {
+    title: "WIPE PENDING",
+    tagType: "error",
+    generateTooltip: () =>
+      "Host will wipe when it comes online. If the host is online, it will wipe the next time it checks in to Fleet.",
   },
 };
 
@@ -64,6 +78,16 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
   locked: (
     <>
       You can&apos;t fetch data from <br /> a locked host.
+    </>
+  ),
+  wiping: (
+    <>
+      You can&apos;t fetch data from <br /> a wiping host.
+    </>
+  ),
+  wiped: (
+    <>
+      You can&apos;t fetch data from <br /> a wiped host.
     </>
   ),
 } as const;

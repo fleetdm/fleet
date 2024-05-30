@@ -12,7 +12,7 @@ import Icon from "components/Icon/Icon";
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
-import TableContainerUtils from "./TableContainerUtils";
+import TableContainerUtils from "./utilities/TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
@@ -21,10 +21,6 @@ export interface ITableQueryData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
-  /**  Only used for showing inherited policies table */
-  showInheritedTable?: boolean;
-  /** Only used for sort/query changes to inherited policies table */
-  editingInheritedTable?: boolean;
 }
 interface IRowProps extends Row {
   original: {
@@ -34,7 +30,7 @@ interface IRowProps extends Row {
   };
 }
 
-interface ITableContainerProps {
+interface ITableContainerProps<T = any> {
   columnConfigs: any; // TODO: Figure out type
   data: any; // TODO: Figure out type
   isLoading: boolean;
@@ -68,9 +64,14 @@ interface ITableContainerProps {
   primarySelectAction?: IActionButtonProps;
   /** Secondary button/s after selecting a row */
   secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
+  /**
+   * @deprecated please use renderCount instead
+   * */
   filteredCount?: number;
   searchToolTipText?: string;
+  // TODO - consolidate this functionality within `filters`
   searchQueryColumn?: string;
+  // TODO - consolidate this functionality within `filters`
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
   /** Used to set URL to correct path and include page query param */
@@ -87,13 +88,20 @@ interface ITableContainerProps {
   customControl?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
-  /** Use for clientside filtering: Use key global for filtering on any column, or use column id as key */
+  /** This is called when you click on a row. This was added as `onSelectSingleRow`
+   * only work if `disableMultiRowSelect` is also set to `true`. TODO: figure out
+   * if we want to keep this
+   */
+  onClickRow?: (row: T) => void;
+  /** Use for clientside filtering: Use key global for filtering on any column, or use column id as
+   * key */
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
+  show0Count?: boolean;
 }
 
 const baseClass = "table-container";
@@ -101,7 +109,7 @@ const baseClass = "table-container";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
-const TableContainer = ({
+const TableContainer = <T,>({
   columnConfigs,
   data,
   filters,
@@ -144,12 +152,14 @@ const TableContainer = ({
   customControl,
   stackControls,
   onSelectSingleRow,
+  onClickRow,
   renderCount,
   renderFooter,
   setExportRows,
   resetPageIndex,
   disableTableHeader,
-}: ITableContainerProps): JSX.Element => {
+  show0Count,
+}: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
@@ -186,7 +196,7 @@ const TableContainer = ({
   );
 
   const onSearchQueryChange = (value: string) => {
-    setSearchQuery(value);
+    setSearchQuery(value.trim());
   };
 
   const hasPageIndexChangedRef = useRef(false);
@@ -206,10 +216,6 @@ const TableContainer = ({
       onPaginationChange(0);
     }
   }, [resetPageIndex, pageIndex, isClientSidePagination]);
-
-  const onResultsCountChange = useCallback((resultsCount: number) => {
-    setClientFilterCount(resultsCount);
-  }, []);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -314,7 +320,7 @@ const TableContainer = ({
               )}
               {!renderCount &&
               !disableCount &&
-              (isMultiColumnFilter || displayCount()) ? (
+              (isMultiColumnFilter || displayCount() || show0Count) ? (
                 <div
                   className={`${baseClass}__results-count ${
                     stackControls ? "stack-table-controls" : ""
@@ -323,7 +329,8 @@ const TableContainer = ({
                 >
                   {TableContainerUtils.generateResultsCountText(
                     resultsTitle,
-                    displayCount()
+                    displayCount(),
+                    show0Count
                   )}
                   {resultsHtml}
                 </div>
@@ -437,7 +444,8 @@ const TableContainer = ({
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
-                onResultsCountChange={onResultsCountChange}
+                onClickRow={onClickRow}
+                onResultsCountChange={setClientFilterCount}
                 isClientSidePagination={isClientSidePagination}
                 onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter={isClientSideFilter}

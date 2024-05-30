@@ -151,8 +151,9 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
   destination = "extended_s3"
 
   extended_s3_configuration {
-    role_arn   = aws_iam_role.firehose-results.arn
-    bucket_arn = aws_s3_bucket.osquery-results.arn
+    compression_format = var.compression_format
+    role_arn           = aws_iam_role.firehose-results.arn
+    bucket_arn         = aws_s3_bucket.osquery-results.arn
   }
 }
 
@@ -161,8 +162,9 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
   destination = "extended_s3"
 
   extended_s3_configuration {
-    role_arn   = aws_iam_role.firehose-status.arn
-    bucket_arn = aws_s3_bucket.osquery-status.arn
+    compression_format = var.compression_format
+    role_arn           = aws_iam_role.firehose-status.arn
+    bucket_arn         = aws_s3_bucket.osquery-status.arn
   }
 }
 

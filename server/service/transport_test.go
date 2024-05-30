@@ -158,7 +158,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887",
+				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -189,6 +189,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				MunkiIssueIDFilter:                ptr.Uint(7),
 				LowDiskSpaceFilter:                ptr.Int(99),
 				VulnerabilityFilter:               ptr.String("CVE-2023-42887"),
+				PopulatePolicies:                  true,
 			},
 		},
 		"policy_id and policy_response params (for coverage)": {
@@ -335,6 +336,10 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"invalid combination software_id and software_version_id": {
 			url:          "/foo?software_id=1&software_version_id=2",
 			errorMessage: "The combination of software_id and software_version_id is not allowed",
+		},
+		"invalid populate_policies": {
+			url:          "/foo?populate_policies=foo",
+			errorMessage: "populate_policies",
 		},
 	}
 

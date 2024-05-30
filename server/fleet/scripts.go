@@ -26,13 +26,15 @@ type Script struct {
 	// UpdatedAt serves as the "uploaded at" timestamp, since it is updated each
 	// time the script record gets updated.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// ScriptContentID is the ID of the script contents, which are stored separately from the Script.
+	ScriptContentID uint `json:"-" db:"script_content_id"`
 }
 
 func (s Script) AuthzType() string {
 	return "script"
 }
 
-func (s *Script) Validate() error {
+func (s *Script) ValidateNewScript() error {
 	if s.Name == "" {
 		return errors.New("The file name must not be empty.")
 	}
@@ -40,7 +42,8 @@ func (s *Script) Validate() error {
 		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
 	}
 
-	if err := ValidateHostScriptContents(s.ScriptContents); err != nil {
+	// validate the script contents as if it were alreay a saved script
+	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
 	}
 
@@ -132,15 +135,58 @@ func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *ti
 }
 
 type HostScriptRequestPayload struct {
-	HostID         uint   `json:"host_id"`
-	ScriptID       *uint  `json:"script_id"`
-	ScriptContents string `json:"script_contents"`
+	HostID          uint   `json:"host_id"`
+	ScriptID        *uint  `json:"script_id"`
+	ScriptContents  string `json:"script_contents"`
+	ScriptContentID uint   `json:"-"`
+	ScriptName      string `json:"script_name"`
+	TeamID          uint   `json:"team_id,omitempty"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
 	// SyncRequest is filled automatically based on the endpoint used to create
 	// the execution request (synchronous or asynchronous).
 	SyncRequest bool `json:"-"`
+}
+
+func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
+	if r.ScriptContents == "" && r.ScriptID == nil && r.ScriptName == "" {
+		if waitForResult <= 0 {
+			return NewInvalidArgumentError("script", `Script contents must not be empty.`)
+		}
+		return NewInvalidArgumentError("script", `One of 'script_id', 'script_contents', or 'script_name' is required.`)
+	}
+
+	if r.ScriptID != nil {
+		switch {
+		case r.ScriptContents != "":
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_contents' is allowed.`)
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_name' is allowed.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'team_id' is allowed.`)
+		}
+	}
+	if r.ScriptContents != "" {
+		switch {
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'script_name' is allowed.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
+		}
+	}
+	//
+	// TODO: script_name and team_id are only allowed for synchronous requests; they probably should be allowed for asynchronous requests too, but we need to get a product decision on this
+	if waitForResult <= 0 {
+		switch {
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_name", `Only synchronous script execution requests can use the 'script_name' parameter.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("team_id", `Only synchronous script execution requests can use the 'team_id' parameter.`)
+		}
+	}
+
+	return nil
 }
 
 type HostScriptResultPayload struct {
@@ -191,7 +237,7 @@ type HostScriptResult struct {
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" db:"-"`
+	TeamID *uint `json:"team_id" db:"-"` // TODO: should we omit this from the json result?
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -245,26 +291,52 @@ func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
 	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
-const MaxScriptRuneLen = 10000
+const (
+	SavedScriptMaxRuneLen   = 500000
+	UnsavedScriptMaxRuneLen = 10000
+)
 
 // anchored, so that it matches to the end of the line
-var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
+var scriptHashbangValidation = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
+var ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
 
-func ValidateHostScriptContents(s string) error {
+// ValidateShebang validates if we support a script, and whether we
+// can execute it directly, or need to pass it to a shell interpreter.
+func ValidateShebang(s string) (directExecute bool, err error) {
+	if strings.HasPrefix(s, "#!") {
+		// read the first line in a portable way
+		s := bufio.NewScanner(strings.NewReader(s))
+		// if a hashbang is present, it can only be `/bin/sh` or `(/usr)/bin/zsh` for now
+		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
+			return false, ErrUnsupportedInterpreter
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	if s == "" {
 		return errors.New("Script contents must not be empty.")
 	}
 
+	maxLen := SavedScriptMaxRuneLen
+	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+	if !isSavedScript {
+		maxLen = UnsavedScriptMaxRuneLen
+		maxLenErrMsg = RunScripUnsavedMaxLenErrMsg
+	}
+
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
-	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+	if len(s) > utf8.UTFMax*maxLen {
+		return errors.New(maxLenErrMsg)
 	}
 
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
-	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+	if utf8.RuneCountInString(s) > maxLen {
+		return errors.New(maxLenErrMsg)
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we
@@ -274,13 +346,8 @@ func ValidateHostScriptContents(s string) error {
 		return errors.New("Wrong data format. Only plain text allowed.")
 	}
 
-	if strings.HasPrefix(s, "#!") {
-		// read the first line in a portable way
-		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` for now
-		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return errors.New(`Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`)
-		}
+	if _, err := ValidateShebang(s); err != nil {
+		return err
 	}
 
 	return nil
@@ -289,6 +356,13 @@ func ValidateHostScriptContents(s string) error {
 type ScriptPayload struct {
 	Name           string `json:"name"`
 	ScriptContents []byte `json:"script_contents"`
+}
+
+type SoftwareInstallerPayload struct {
+	URL               string `json:"url"`
+	PreInstallQuery   string `json:"pre_install_query"`
+	InstallScript     string `json:"install_script"`
+	PostInstallScript string `json:"post_install_script"`
 }
 
 type HostLockWipeStatus struct {
@@ -312,7 +386,12 @@ type HostLockWipeStatus struct {
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 
-	// TODO: add wipe status when implementing the Wipe story.
+	// macOS and Windows use MDM commands for Wipe
+	WipeMDMCommand       *MDMCommand
+	WipeMDMCommandResult *MDMCommandResult
+
+	// Linux uses a script for Wipe
+	WipeScript *HostScriptResult
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {
@@ -334,8 +413,12 @@ func (s HostLockWipeStatus) IsPendingUnlock() bool {
 }
 
 func (s HostLockWipeStatus) IsPendingWipe() bool {
-	// TODO(mna): implement when addressing Wipe story, for now wipe is never pending
-	return false
+	if s.HostFleetPlatform == "linux" {
+		// pending wipe if script execution request is queued but no result yet
+		return s.WipeScript != nil && s.WipeScript.ExitCode == nil
+	}
+	// pending wipe if an MDM command is queued but no result received yet
+	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
 }
 
 func (s HostLockWipeStatus) IsLocked() bool {
@@ -359,6 +442,20 @@ func (s HostLockWipeStatus) IsUnlocked() bool {
 }
 
 func (s HostLockWipeStatus) IsWiped() bool {
-	// TODO(mna): implement when addressing Wipe story, for now never wiped
-	return false
+	switch s.HostFleetPlatform {
+	case "linux":
+		// wiped if script was sent and succeeded
+		return s.WipeScript != nil && s.WipeScript.ExitCode != nil &&
+			*s.WipeScript.ExitCode == 0
+	case "windows":
+		// wiped if an MDM command was sent and succeeded
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			strings.HasPrefix(s.WipeMDMCommandResult.Status, "2")
+	case "darwin":
+		// wiped if an MDM command was sent and succeeded
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	default:
+		return false
+	}
 }

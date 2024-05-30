@@ -1,11 +1,9 @@
 name: device_firmware
-examples: >-
+examples: |-
   Identify the firmware version of hardware on a Mac, such as the SSD controller
   in this case. Older versions might indicate a problem with software updates,
   and this information can be useful when troubleshooting various issues.
 
   ```
-
   SELECT * FROM device_firmware WHERE device='AppleANS3NVMeController';
-
   ```

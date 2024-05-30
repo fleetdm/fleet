@@ -1,12 +1,12 @@
 name: browser_plugins
 hidden: true
-examples: >-
+examples: |-
   See classic browser plugins (C/NPAPI) installed by users. These plugins have
   been deprecated for a long time, so this query will usually not return
   anything.
 
   ```
-
-  SELECT bp.name, bp.identifier, bp.version FROM browser_plugins bp JOIN users u on bp.uid = u.uid ;
-
+  SELECT * FROM users CROSS JOIN browser_plugins USING (uid);
   ```
+
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

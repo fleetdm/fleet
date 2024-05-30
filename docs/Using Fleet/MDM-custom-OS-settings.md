@@ -32,7 +32,7 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 * Pending: hosts that will receive MDM commands to install configuration profiles when the hosts come online.
 
-* Failed: hosts that failed to install configuration profiles.
+* Failed: hosts that failed to install configuration profiles. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
 In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
 

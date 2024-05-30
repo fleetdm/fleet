@@ -9,20 +9,33 @@
   // grid layout styles for the host details page
   &__details-panel {
     display: grid;
-    gap: $pad-medium
+    gap: $pad-medium;
   }
 
   @media screen and (min-width: $break-md) {
-    &__details-panel {
+    &__details-panel.react-tabs__tab-panel--selected {
+      // Must be selected to show grid
       grid-template-columns: 1fr 1fr;
       grid-template-areas:
         "about about"
         "activity agent-options"
         "activity labels"
         "users users";
+      grid-auto-flow: column;
     }
 
-    .about {
+    // Note: CSS for labels card spans the whole grid for iOS and iPadOS
+    // because activity card is missing
+    &__details-panel--ios-grid.react-tabs__tab-panel--selected {
+      // Must be selected to show grid
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "about"
+        "labels";
+      grid-auto-flow: column;
+    }
+
+    .about-card {
       grid-area: about;
     }
 
@@ -30,7 +43,7 @@
       grid-area: activity;
     }
 
-    .agent-options {
+    .agent-options-card {
       grid-area: agent-options;
     }
 
@@ -38,13 +51,13 @@
       grid-area: labels;
     }
 
-    .section--users {
+    .users-card {
       grid-area: users;
     }
   }
 
-  .about,
-  .osquery {
+  .about-card,
+  .agent-options-card {
     .info {
       &__item {
         &--about {
@@ -66,6 +79,11 @@
       }
     }
   }
+
+  .munki-issues-card {
+    margin-top: $pad-medium;
+  }
+
   .button img {
     transform: scale(0.5);
   }
@@ -91,6 +109,4 @@
       width: auto;
     }
   }
-
-
 }

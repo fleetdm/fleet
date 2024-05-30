@@ -28,7 +28,9 @@ import (
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -350,6 +352,7 @@ the way that the Fleet server works.
 					AccessKeyID:      config.Firehose.AccessKeyID,
 					SecretAccessKey:  config.Firehose.SecretAccessKey,
 					StsAssumeRoleArn: config.Firehose.StsAssumeRoleArn,
+					StsExternalID:    config.Firehose.StsExternalID,
 				},
 				Kinesis: logging.KinesisConfig{
 					Region:           config.Kinesis.Region,
@@ -357,12 +360,14 @@ the way that the Fleet server works.
 					AccessKeyID:      config.Kinesis.AccessKeyID,
 					SecretAccessKey:  config.Kinesis.SecretAccessKey,
 					StsAssumeRoleArn: config.Kinesis.StsAssumeRoleArn,
+					StsExternalID:    config.Kinesis.StsExternalID,
 				},
 				Lambda: logging.LambdaConfig{
 					Region:           config.Lambda.Region,
 					AccessKeyID:      config.Lambda.AccessKeyID,
 					SecretAccessKey:  config.Lambda.SecretAccessKey,
 					StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
+					StsExternalID:    config.Lambda.StsExternalID,
 				},
 				PubSub: logging.PubSubConfig{
 					Project: config.PubSub.Project,
@@ -462,6 +467,7 @@ the way that the Fleet server works.
 				mdmStorage                  *mysql.NanoMDMStorage
 				mdmPushService              push.Pusher
 				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
+				ddmService                  *service.MDMAppleDDMService
 				mdmPushCertTopic            string
 			)
 
@@ -544,8 +550,9 @@ the way that the Fleet server works.
 				} else {
 					mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 				}
-				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+				ddmService = service.NewMDMAppleDDMService(ds, logger)
 				appCfg.MDM.EnabledAndConfigured = true
 			}
 
@@ -623,10 +630,32 @@ the way that the Fleet server works.
 				initFatal(err, "initializing service")
 			}
 
+			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
 				var profileMatcher fleet.ProfileMatcher
 				if appCfg.MDM.EnabledAndConfigured {
 					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
+				}
+				if config.S3.Bucket != "" {
+					store, err := s3.NewSoftwareInstallerStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 software installer store")
+					}
+					softwareInstallStore = store
+					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.Bucket)
+				} else {
+					installerDir := os.TempDir()
+					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
+						installerDir = dir
+					}
+					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
+					if err != nil {
+						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
+						softwareInstallStore = fleet.FailingSoftwareInstallerStore{}
+					} else {
+						softwareInstallStore = store
+						level.Info(logger).Log("msg", "using local filesystem software installer store, this is not suitable for production use", "directory", installerDir)
+					}
 				}
 
 				svc, err = eeservice.NewService(
@@ -637,10 +666,11 @@ the way that the Fleet server works.
 					mailService,
 					clock.C,
 					depStorage,
-					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
 					mdmPushCertTopic,
 					ssoSessionStore,
 					profileMatcher,
+					softwareInstallStore,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -694,10 +724,10 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					var commander *apple_mdm.MDMAppleCommander
 					if appCfg.MDM.EnabledAndConfigured {
-						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 					}
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore,
 					)
 				},
 			); err != nil {
@@ -710,15 +740,22 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register stats schedule")
 			}
 
-			if !config.Vulnerabilities.DisableSchedule {
+			vulnerabilityScheduleDisabled := false
+			if config.Vulnerabilities.DisableSchedule {
+				vulnerabilityScheduleDisabled = true
+				level.Info(logger).Log("msg", "vulnerabilities schedule disabled via vulnerabilities.disable_schedule")
+			}
+			if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
+				level.Info(logger).Log("msg", "vulnerabilities schedule disabled via vulnerabilities.current_instance_checks")
+				vulnerabilityScheduleDisabled = true
+			}
+			if !vulnerabilityScheduleDisabled {
 				// vuln processing by default is run by internal cron mechanism
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 				}); err != nil {
 					initFatal(err, "failed to register vulnerabilities schedule")
 				}
-			} else {
-				level.Info(logger).Log("msg", "vulnerabilities schedule disabled")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
@@ -730,7 +767,7 @@ the way that the Fleet server works.
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				var commander *apple_mdm.MDMAppleCommander
 				if appCfg.MDM.EnabledAndConfigured {
-					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
 				}
 				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
@@ -751,12 +788,22 @@ the way that the Fleet server works.
 						ctx,
 						instanceID,
 						ds,
-						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
 						logger,
 						config.Logging.Debug,
+						config.MDM,
 					)
 				}); err != nil {
 					initFatal(err, "failed to register mdm_apple_profile_manager schedule")
+				}
+			}
+
+			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured {
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
+					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
 			}
 
@@ -765,6 +812,16 @@ the way that the Fleet server works.
 					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)
 				}); err != nil {
 					initFatal(err, "failed to register activities streaming schedule")
+				}
+			}
+
+			if license.IsPremium() {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, 5*time.Minute, logger)
+					},
+				); err != nil {
+					initFatal(err, "failed to register calendar schedule")
 				}
 			}
 
@@ -870,6 +927,7 @@ the way that the Fleet server works.
 					scepStorage,
 					logger,
 					mdmCheckinAndCommandService,
+					ddmService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

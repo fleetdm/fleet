@@ -16,6 +16,7 @@ import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
+import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
 
 const baseClass = "activity-item";
 
@@ -486,7 +487,7 @@ const TAGGED_TEMPLATES = {
 
     const activityType = lowerCase(activity.type).replace(" saved", "");
 
-    return !entityName ? (
+    return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
     ) : (
       <>
@@ -624,7 +625,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         ran {formatScriptNameForActivityItem(script_name)} on{" "}
-        {host_display_name}.{" "}
+        <b>{host_display_name}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
@@ -752,6 +753,141 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         unlocked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  wipedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        wiped <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        added declaration (DDM) profile <b>
+          {activity.details?.profile_name}
+        </b>{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        removed declaration (DDM) profile{" "}
+        <b>{activity.details?.profile_name}</b> from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited declaration (DDM) profiles{" "}
+        <b>{activity.details?.profile_name}</b> for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+
+  resentConfigProfile: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.profile_name} configuration profile to{" "}
+        {activity.details?.host_display_name}.
+      </>
+    );
+  },
+  addedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        added <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) software to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  deletedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) software from{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  installedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+
+    console.log("onDetailsClick", onDetailsClick);
+
+    const {
+      host_display_name: hostName,
+      software_title: title,
+      status,
+      install_uuid,
+    } = details;
+
+    return (
+      <>
+        {" "}
+        {getSoftwareInstallStatusPredicate(status)} <b>{title}</b> software on{" "}
+        <b>{hostName}</b>.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.InstalledSoftware, { install_uuid })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
       </>
     );
   },
@@ -907,6 +1043,37 @@ const getDetail = (
     case ActivityType.UnlockedHost: {
       return TAGGED_TEMPLATES.unlockedHost(activity);
     }
+    case ActivityType.WipedHost: {
+      return TAGGED_TEMPLATES.wipedHost(activity);
+    }
+    case ActivityType.CreatedDeclarationProfile: {
+      return TAGGED_TEMPLATES.createdDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.DeletedDeclarationProfile: {
+      return TAGGED_TEMPLATES.deletedDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.EditedDeclarationProfile: {
+      return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
+    }
+    case ActivityType.ResentConfigurationProfile: {
+      return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.AddedSoftware: {
+      return TAGGED_TEMPLATES.addedSoftware(activity);
+    }
+    case ActivityType.DeletedSoftware: {
+      return TAGGED_TEMPLATES.deletedSoftware(activity);
+    }
+    case ActivityType.InstalledSoftware: {
+      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }

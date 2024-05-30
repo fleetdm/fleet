@@ -1,0 +1,41 @@
+<div id="contact" v-cloak>
+  <div class="container-fluid pt-5 pb-5">
+    <h1 class="text-center">Get in touch</h1>
+    <div style="max-width:  650px;" class="mx-auto" v-if="!cloudSuccess">
+      <p class="text-center">Have a question for us?  Maybe some feedback?  We love talking to users about NEW_APP_NAME, and we're happy to answer questions about our pricing, roadmap, or business solutions.  Send us a note and we'll get back to you as soon as possible.</p>
+      <hr/>
+      <ajax-form action="deliverContactFormMessage" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()">
+        <div class="form-group">
+          <label for="full-name">Name</label>
+          <input class="form-control" id="full-name" name="full-name" type="text"  :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName" placeholder="Sturgis P. Sturgeon" autocomplete="name" focus-first>
+          <div class="invalid-feedback" v-if="formErrors.fullName">Please let us know what to call you.</div>
+        </div>
+        <div class="form-group">
+          <label for="email-address">Email address</label>
+          <input class="form-control" id="email-address" name="email-address" type="email"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="sturgeon@example.com" autocomplete="email">
+          <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid email address.</div>
+        </div>
+        <div class="form-group">
+          <label for="topic">Topic</label>
+          <input class="form-control" id="topic" name="topic" type="text"  :class="[formErrors.topic ? 'is-invalid' : '']" v-model.trim="formData.topic" placeholder="Pricing question" autocomplete="none">
+          <div class="invalid-feedback" v-if="formErrors.topic">Please choose a topic for your message.</div>
+        </div>
+        <div class="form-group">
+          <label for="message">Message</label>
+          <textarea class="form-control" id="message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" placeholder="What is the difference between the &quot;Individual&quot; plan and the &quot;Professional&quot; plan?" autocomplete="none"></textarea>
+          <div class="invalid-feedback" v-if="formErrors.message">Message cannot be empty.</div>
+        </div>
+        <cloud-error v-if="cloudError"></cloud-error>
+        <div class="form-group">
+          <ajax-button type="submit" :syncing="syncing" class="btn btn-dark btn-lg btn-block">Send message</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+    <div style="max-width: 450px;" class="mx-auto text-center" v-else>
+      <p class="text-center">Thanks for reaching out!</p>
+      <hr/>
+      <p>We have received your message, and someone from our team will get back to you soon.</p>
+    </div>
+  </div>
+</div>
+<%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

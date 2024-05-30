@@ -38,4 +38,34 @@ func TestRetryDo(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, max, count)
 	})
+
+	t.Run("with backoff", func(t *testing.T) {
+		count := 0
+		max := 4
+		start := time.Now()
+		err := Do(func() error {
+			switch count {
+			case 0:
+				require.WithinDuration(t, start, time.Now(), 1*time.Millisecond)
+			case 1:
+				require.WithinDuration(t, start.Add(50*time.Millisecond), time.Now(), 10*time.Millisecond)
+			case 2:
+				require.WithinDuration(t, start.Add((50+100)*time.Millisecond), time.Now(), 10*time.Millisecond)
+			case 3:
+				require.WithinDuration(t, start.Add((50+100+200)*time.Millisecond), time.Now(), 10*time.Millisecond)
+			}
+			count++
+			if count != max {
+				return errTest
+			}
+			return nil
+		},
+			WithInterval(50*time.Millisecond),
+			WithBackoffMultiplier(2),
+			WithMaxAttempts(4),
+		)
+
+		require.NoError(t, err)
+		require.Equal(t, max, count)
+	})
 }

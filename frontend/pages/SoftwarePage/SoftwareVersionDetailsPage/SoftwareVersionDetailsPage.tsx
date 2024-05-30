@@ -21,6 +21,8 @@ import hostsCountAPI, {
 import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
@@ -77,7 +79,8 @@ const SoftwareVersionDetailsPage = ({
     [{ scope: "softwareVersion", versionId, teamId: teamIdForApi }],
     ({ queryKey }) => softwareAPI.getSoftwareVersion(queryKey[0]),
     {
-      refetchOnWindowFocus: false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
       select: (data) => data.software,
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {

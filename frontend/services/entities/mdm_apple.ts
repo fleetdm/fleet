@@ -4,8 +4,8 @@ import endpoints from "utilities/endpoints";
 
 export default {
   getAppleAPNInfo: () => {
-    const { MDM_APPLE } = endpoints;
-    const path = MDM_APPLE;
+    const { MDM_APPLE_PNS } = endpoints;
+    const path = MDM_APPLE_PNS;
     return sendRequest("GET", path);
   },
 };

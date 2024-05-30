@@ -37,30 +37,6 @@
       display: flex;
       flex-direction: row;
     }
-
-    .info {
-      &__header {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: $bold;
-        font-size: $x-small;
-        text-align: left;
-      }
-
-      &__data {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: normal;
-        font-size: $x-small;
-        text-align: left;
-        margin-top: 10px;
-      }
-    }
-  }
-
-  &__action-button-container {
-    display: flex;
-    align-items: center;
   }
 
   &__device_mapping {
@@ -87,11 +63,7 @@
     }
   }
 
-  .section--policies
-    .data-table-block
-    .data-table__table
-    thead
-    .response__header {
+  .policies-card .data-table-block .data-table__table thead .response__header {
     width: $col-md;
   }
 }

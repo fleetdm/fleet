@@ -313,11 +313,12 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
-		"app_config_json":         true,
-		"migration_status_tables": true,
-		"osquery_options":         true,
-		"mdm_delivery_status":     true,
-		"mdm_operation_types":     true,
+		"app_config_json":                  true,
+		"migration_status_tables":          true,
+		"osquery_options":                  true,
+		"mdm_delivery_status":              true,
+		"mdm_operation_types":              true,
+		"mdm_apple_declaration_categories": true,
 	}
 	ctx := context.Background()
 
@@ -444,7 +445,7 @@ func InsertWindowsProfileForTest(t *testing.T, ds *Datastore, teamID uint) strin
 	profUUID := "w" + uuid.NewString()
 	prof := generateDummyWindowsProfile(profUUID)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, ?, ?, ?);`
+		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP);`
 		_, err := q.ExecContext(context.Background(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", profUUID), prof)
 		return err
 	})
@@ -465,4 +466,24 @@ func GetAggregatedStats(ctx context.Context, ds *Datastore, aggregate fleet.Aggr
 	`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, id, aggregate)
 	return result, err
+}
+
+// SetOrderedCreatedAtTimestamps enforces an ordered sequence of created_at
+// timestamps in a database table. This can be useful in tests instead of
+// adding time.Sleep calls to just force specific ordered timestamps for the
+// test entries of interest, and it doesn't slow down the unit test.
+//
+// The first timestamp will be after afterTime, and each provided key will have
+// a timestamp incremented by 1s.
+func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.Time, table, keyCol string, keys ...any) time.Time {
+	now := afterTime
+	for i := 0; i < len(keys); i++ {
+		now = afterTime.Add(time.Second)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(),
+				fmt.Sprintf(`UPDATE %s SET created_at=? WHERE %s=?`, table, keyCol), now, keys[i])
+			return err
+		})
+	}
+	return now
 }

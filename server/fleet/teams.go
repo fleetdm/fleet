@@ -120,6 +120,9 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if !x.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	*t = Team{
 		ID:          x.ID,
 		CreatedAt:   x.CreatedAt,
@@ -138,17 +141,31 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 
 type TeamConfig struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions       *json.RawMessage      `json:"agent_options,omitempty"`
-	HostExpirySettings HostExpirySettings    `json:"host_expiry_settings"`
-	WebhookSettings    TeamWebhookSettings   `json:"webhook_settings"`
-	Integrations       TeamIntegrations      `json:"integrations"`
-	Features           Features              `json:"features"`
-	MDM                TeamMDM               `json:"mdm"`
-	Scripts            optjson.Slice[string] `json:"scripts,omitempty"`
+	AgentOptions       *json.RawMessage                `json:"agent_options,omitempty"`
+	HostExpirySettings HostExpirySettings              `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings             `json:"webhook_settings"`
+	Integrations       TeamIntegrations                `json:"integrations"`
+	Features           Features                        `json:"features"`
+	MDM                TeamMDM                         `json:"mdm"`
+	Scripts            optjson.Slice[string]           `json:"scripts,omitempty"`
+	Software           optjson.Slice[TeamSpecSoftware] `json:"software,omitempty"`
 }
 
 type TeamWebhookSettings struct {
+	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
+	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+}
+
+type TeamSpecSoftwareAsset struct {
+	Path string `json:"path"`
+}
+
+type TeamSpecSoftware struct {
+	URL               string                `json:"url"`
+	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
 }
 
 type TeamMDM struct {
@@ -239,6 +256,10 @@ func (t *TeamConfig) Scan(val interface{}) error {
 
 // Value implements the sql.Valuer interface
 func (t TeamConfig) Value() (driver.Value, error) {
+	// force-save as the default `false` value if not set
+	if !t.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		t.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	return json.Marshal(t)
 }
 
@@ -395,12 +416,31 @@ type TeamSpec struct {
 	// If the agent_options key is present but empty in the YAML, will be set to
 	// "null" (JSON null). Otherwise, if the key is present and set, it will be
 	// set to the agent options JSON object.
-	AgentOptions       json.RawMessage       `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
-	HostExpirySettings *HostExpirySettings   `json:"host_expiry_settings,omitempty"`
-	Secrets            []EnrollSecret        `json:"secrets,omitempty"`
-	Features           *json.RawMessage      `json:"features"`
-	MDM                TeamSpecMDM           `json:"mdm"`
-	Scripts            optjson.Slice[string] `json:"scripts"`
+	AgentOptions       json.RawMessage                 `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+	HostExpirySettings *HostExpirySettings             `json:"host_expiry_settings,omitempty"`
+	Secrets            []EnrollSecret                  `json:"secrets,omitempty"`
+	Features           *json.RawMessage                `json:"features"`
+	MDM                TeamSpecMDM                     `json:"mdm"`
+	Scripts            optjson.Slice[string]           `json:"scripts"`
+	WebhookSettings    TeamSpecWebhookSettings         `json:"webhook_settings"`
+	Integrations       TeamSpecIntegrations            `json:"integrations"`
+	Software           optjson.Slice[TeamSpecSoftware] `json:"software,omitempty"`
+}
+
+type TeamSpecWebhookSettings struct {
+	HostStatusWebhook *HostStatusWebhookSettings `json:"host_status_webhook"`
+}
+
+// TeamSpecIntegrations contains the configuration for external services'
+// integrations for a specific team.
+type TeamSpecIntegrations struct {
+	// If value is nil, we don't want to change the existing value.
+	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
+}
+
+// TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
+type TeamSpecsDryRunAssumptions struct {
+	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -430,6 +470,17 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+
+	var webhookSettings TeamSpecWebhookSettings
+	if t.Config.WebhookSettings.HostStatusWebhook != nil {
+		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
+
+	var integrations TeamSpecIntegrations
+	if t.Config.Integrations.GoogleCalendar != nil {
+		integrations.GoogleCalendar = t.Config.Integrations.GoogleCalendar
+	}
+
 	return &TeamSpec{
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
@@ -437,5 +488,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		Secrets:            secrets,
 		MDM:                mdmSpec,
 		HostExpirySettings: &t.Config.HostExpirySettings,
+		WebhookSettings:    webhookSettings,
+		Integrations:       integrations,
 	}, nil
 }

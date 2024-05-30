@@ -91,7 +91,11 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
       await usersAPI.update(currentUser.id, updated);
       let accountUpdatedFlashMessage = "Account updated";
       if (updated.email) {
-        accountUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${updated.email}`;
+        // always present, this for typing
+        const senderAddressMessage = config?.smtp_settings?.sender_address
+          ? ` from ${config?.smtp_settings?.sender_address}`
+          : "";
+        accountUpdatedFlashMessage += `: A confirmation email was sent${senderAddressMessage} to ${updated.email}`;
         setPendingEmail(updated.email);
       }
 

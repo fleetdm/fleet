@@ -283,6 +283,17 @@ func TestHostRunScript(t *testing.T) {
 					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: nonExistingHost.ID, ScriptContents: "abc"}, 0)
 					checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 				}
+
+				// test auth for run sync saved script by name
+				if tt.scriptID != nil {
+					ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
+						return *tt.scriptID, nil
+					}
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: 1}, 1)
+					checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: teamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: 1}, 1)
+					checkAuthErr(t, tt.shouldFailTeamWrite, err)
+				}
 			})
 		}
 	})
@@ -294,14 +305,17 @@ func TestHostRunScript(t *testing.T) {
 			wantErr string
 		}{
 			{"empty script", "", "Script contents must not be empty."},
-			{"overly long script", strings.Repeat("a", 10001), "Script is too large."},
+			{"overly long script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1), "Script is too large."},
+			{"large script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen), ""},
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
-			{"valid with hashbang", "#!/bin/sh\necho 'a'", ""},
+			{"valid with posix hashbang", "#!/bin/sh\necho 'a'", ""},
+			{"valid with usr zsh hashbang", "#!/usr/bin/zsh\necho 'a'", ""},
+			{"valid with zsh hashbang", "#!/bin/zsh\necho 'a'", ""},
+			{"valid with zsh hashbang and arguments", "#!/bin/zsh -x\necho 'a'", ""},
 			{"valid with hashbang and spacing", "#! /bin/sh  \necho 'a'", ""},
 			{"valid with hashbang and Windows newline", "#! /bin/sh  \r\necho 'a'", ""},
 			{"invalid hashbang", "#!/bin/bash\necho 'a'", "Interpreter not supported."},
-			{"invalid hashbang suffix", "#!/bin/sh -n\necho 'a'", "Interpreter not supported."},
 		}
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
@@ -513,7 +527,9 @@ func TestSavedScripts(t *testing.T) {
 	ds.ListScriptsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
 		return nil, &fleet.PaginationMetadata{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {

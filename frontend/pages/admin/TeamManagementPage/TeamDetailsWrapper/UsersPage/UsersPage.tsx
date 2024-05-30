@@ -217,9 +217,12 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       inviteAPI
         .create(requestData)
         .then(() => {
+          const senderAddressMessage = config?.smtp_settings?.sender_address
+            ? ` from ${config?.smtp_settings?.sender_address}`
+            : "";
           renderFlash(
             "success",
-            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
+            `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
           );
           refetchUsers();
           toggleCreateUserModal();

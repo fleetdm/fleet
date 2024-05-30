@@ -90,7 +90,7 @@ const generateTableConfig = (
       accessor: "cvss_score",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
+        const titleWithTooltip = (
           <TooltipWrapper
             tipContent={
               <>
@@ -105,7 +105,7 @@ const generateTableConfig = (
         return (
           <>
             <HeaderCell
-              value={titleWithToolTip}
+              value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
             {isSandboxMode && <PremiumFeatureIconWithTooltip />}
@@ -121,7 +121,7 @@ const generateTableConfig = (
       accessor: "epss_probability",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
+        const titleWithTooltip = (
           <TooltipWrapper
             className="epss_probability"
             tipContent={
@@ -138,7 +138,7 @@ const generateTableConfig = (
         return (
           <>
             <HeaderCell
-              value={titleWithToolTip}
+              value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
             {isSandboxMode && <PremiumFeatureIconWithTooltip />}
@@ -157,7 +157,7 @@ const generateTableConfig = (
       accessor: "cve_published",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
+        const titleWithTooltip = (
           <TooltipWrapper
             tipContent={
               <>
@@ -172,7 +172,7 @@ const generateTableConfig = (
         return (
           <>
             <HeaderCell
-              value={titleWithToolTip}
+              value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
             {isSandboxMode && <PremiumFeatureIconWithTooltip />}
@@ -194,10 +194,19 @@ const generateTableConfig = (
       accessor: "created_at",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
+        const titleWithTooltip = (
+          <TooltipWrapper
+            tipContent={
+              <>The date this vulnerability first appeared on a host.</>
+            }
+          >
+            Detected
+          </TooltipWrapper>
+        );
         return (
           <>
             <HeaderCell
-              value="Detected"
+              value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
             {isSandboxMode && <PremiumFeatureIconWithTooltip />}

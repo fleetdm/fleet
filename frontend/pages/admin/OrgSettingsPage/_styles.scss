@@ -71,6 +71,10 @@
             }
           }
         }
+        .button--inverse {
+          // compensate for button's padding
+          margin-left: -$pad-small;
+        }
       }
 
       &__section-description {
@@ -94,20 +98,8 @@
         margin-bottom: $pad-medium;
       }
 
-      &__host-status-webhook-preview-modal {
-        .flex-end {
-          margin-top: 20px;
-          display: flex;
-          justify-content: flex-end;
-        }
-      }
-
       &__disabled-usage-statistics-checkbox {
         @include disabled;
-      }
-
-      .component__tooltip-wrapper {
-        margin-bottom: $pad-xsmall;
       }
     }
   }

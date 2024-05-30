@@ -82,6 +82,28 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+
+	// set this in tests to simulate an error at various stages in the
+	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
+	// will be in the insert/upsert stage, "delete" for deletion, "select" to load
+	// existing ones, "reselect" to reload existing ones after insert, and "labels"
+	// to simulate an error in batch setting the profile label associations.
+	// "inselect", "inreselect", "indelete", etc. can also be used to fail the
+	// sqlx.In before the corresponding statement.
+	//
+	//	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
+	testBatchSetMDMAppleProfilesErr string
+
+	// set this in tests to simulate an error at various stages in the
+	// batchSetMDMWindowsProfilesDB execution: if the string starts with "insert",
+	// it will be in the insert/upsert stage, "delete" for deletion, "select" to
+	// load existing ones, "reselect" to reload existing ones after insert, and
+	// "labels" to simulate an error in batch setting the profile label
+	// associations. "inselect", "inreselect", "indelete", etc. can also be used to
+	// fail the sqlx.In before the corresponding statement.
+	//
+	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
+	testBatchSetMDMWindowsProfilesErr string
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -225,8 +247,13 @@ func withRetryTxx(ctx context.Context, db *sqlx.DB, fn txFn, logger log.Logger) 
 		return nil
 	}
 
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 5 * time.Second
+	expBo := backoff.NewExponentialBackOff()
+	// MySQL innodb_lock_wait_timeout default is 50 seconds, so transaction can be waiting for a lock for several seconds.
+	// Setting a higher MaxElapsedTime to increase probability that transaction will be retried.
+	// This will reduce the number of retryable 'Deadlock found' errors. However, with a loaded DB, we will still see
+	// 'Context cancelled' errors when the server drops long-lasting connections.
+	expBo.MaxElapsedTime = 1 * time.Minute
+	bo := backoff.WithMaxRetries(expBo, 5)
 	return backoff.Retry(operation, bo)
 }
 
@@ -333,8 +360,13 @@ func (ds *Datastore) writeChanLoop() {
 		case *fleet.Host:
 			item.errCh <- ds.UpdateHost(item.ctx, actualItem)
 		case hostXUpdatedAt:
-			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
-			_, err := ds.writer(item.ctx).ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			err := ds.withRetryTxx(
+				item.ctx, func(tx sqlx.ExtContext) error {
+					query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
+					_, err := tx.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+					return err
+				},
+			)
 			item.errCh <- ctxerr.Wrap(item.ctx, err, "updating hosts label updated at")
 		}
 	}
@@ -760,6 +792,13 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fl
 		}
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
+		if opts.TestSecondaryOrderKey != "" {
+			direction := "ASC"
+			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
+				direction = "DESC"
+			}
+			sql += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.TestSecondaryOrderKey), direction)
+		}
 	}
 	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
 	// that an unbounded query with many results doesn't consume too much memory
@@ -857,6 +896,14 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
+	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
+}
+
+func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
+	filter fleet.TeamFilter, globalSqlFilter string, teamIDSqlFilter string,
+) string {
 	if filter.User == nil {
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
@@ -865,9 +912,9 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 		return "FALSE"
 	}
 
-	defaultAllowClause := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	defaultAllowClause := globalSqlFilter
 	if filter.TeamID != nil {
-		defaultAllowClause = fmt.Sprintf("%s.team_id = %d", filterTableAlias, *filter.TeamID)
+		defaultAllowClause = fmt.Sprintf("%s = %d", teamIDSqlFilter, *filter.TeamID)
 	}
 
 	if filter.User.GlobalRole != nil {
@@ -912,7 +959,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 		return "FALSE"
 	}
 
-	return fmt.Sprintf("%s.team_id IN (%s)", filterTableAlias, strings.Join(idStrs, ","))
+	return fmt.Sprintf("%s IN (%s)", teamIDSqlFilter, strings.Join(idStrs, ","))
 }
 
 // whereFilterTeams returns the appropriate condition to use in the WHERE
@@ -931,7 +978,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -948,6 +995,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
@@ -1137,7 +1185,15 @@ func (ds *Datastore) InnoDBStatus(ctx context.Context) (string, error) {
 	// using the writer even when doing a read to get the data from the main db node
 	err := ds.writer(ctx).GetContext(ctx, &status, "show engine innodb status")
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "Getting innodb status")
+		// To read innodb tables, DB user must have PROCESS privilege
+		// This can be set by DB admin like: GRANT PROCESS,SELECT ON *.* TO 'fleet'@'%';
+		if isMySQLAccessDenied(err) {
+			return "", &accessDeniedError{
+				Message:     "getting innodb status: DB user must have global PROCESS and SELECT privilege",
+				InternalErr: err,
+			}
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting innodb status")
 	}
 	return status.Status, nil
 }
@@ -1188,8 +1244,6 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// time of the Exec call, and the result simply returns the integers it
 	// already holds:
 	// https://github.com/go-sql-driver/mysql/blob/bcc459a906419e2890a50fc2c99ea6dd927a88f2/result.go
-	//
-	// TODO(mna): would that work on mariadb too?
 
 	lastID, _ := res.LastInsertId()
 	aff, _ := res.RowsAffected()
@@ -1242,4 +1296,58 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 		return 0, ctxerr.Wrap(ctx, err, "get id from reader")
 	}
 	return id, nil
+}
+
+// batchProcessDB abstracts the batch processing logic, for a given payload:
+//
+// - generateValueArgs will get called for each item, the expected return values are:
+//   - a string containing the placeholders for each item in the batch
+//   - a slice of arguments containing one item for each placeholder
+//
+// - executeBatch will get called on each batch to perform the operation in the db
+//
+// TODO(roberto): use this function in all the functions where we do ad-hoc
+// batch processing.
+func batchProcessDB[T any](
+	payload []T,
+	batchSize int,
+	generateValueArgs func(T) (string, []any),
+	executeBatch func(string, []any) error,
+) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	var (
+		args       []any
+		sb         strings.Builder
+		batchCount int
+	)
+
+	resetBatch := func() {
+		batchCount = 0
+		args = args[:0]
+		sb.Reset()
+	}
+
+	for _, item := range payload {
+		valuePart, itemArgs := generateValueArgs(item)
+		args = append(args, itemArgs...)
+		sb.WriteString(valuePart)
+		batchCount++
+
+		if batchCount >= batchSize {
+			if err := executeBatch(sb.String(), args); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+	}
+
+	if batchCount > 0 {
+		if err := executeBatch(sb.String(), args); err != nil {
+			return err
+		}
+	}
+	return nil
 }

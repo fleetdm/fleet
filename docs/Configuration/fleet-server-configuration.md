@@ -203,7 +203,7 @@ The maximum open connections to the database.
   ```
 
 - Note: Fleet server uses SQL prepared statements, and the default setting of MySQL DB server's [max_prepared_stmt_count](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_prepared_stmt_count)
-may need to be adjusted for large deployments. This setting should be greater than or equal to:
+  may need to be adjusted for large deployments. This setting should be greater than or equal to:
 ```
 FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
 ```
@@ -522,8 +522,7 @@ The maximum time a Redis connection may stay idle. A value of 0 means no limit.
 ##### redis_conn_wait_timeout
 
 The maximum time to wait for a Redis connection if the max_open_conns
-limit is reached. A value of 0 means no wait. This is ignored if Redis is not
-running in cluster mode.
+limit is reached. A value of 0 means no wait.
 
 - Default value: 0
 - Environment variable: `FLEET_REDIS_CONN_WAIT_TIMEOUT`
@@ -665,8 +664,8 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 ##### server_websockets_allow_unsafe_origin
 
 Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
-the Origin header may not reflect the client's true origin. In this case, you might need to 
-disable the origin header (by setting this configuration to `true`) 
+the Origin header may not reflect the client's true origin. In this case, you might need to
+disable the origin header (by setting this configuration to `true`)
 check or configure your reverse proxy to forward the correct Origin header.
 
 Setting to true will disable the origin check.
@@ -898,7 +897,7 @@ This flag can be used to control load on the database in scenarios in which many
 
 ##### osquery_label_update_interval
 
-The interval at which Fleet will ask osquery agents to update their results for label queries.
+The interval at which Fleet will ask Fleet's agent (fleetd) to update results for label queries.
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -916,7 +915,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_policy_update_interval
 
-The interval at which Fleet will ask osquery agents to update their results for policy queries.
+The interval at which Fleet will ask Fleet's agent (fleetd) to update results for policy queries.
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -934,7 +933,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_detail_update_interval
 
-The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
+The interval at which Fleet will ask Fleet's agent (fleetd) to update host details (such as uptime, hostname, network interfaces, etc.)
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -1017,7 +1016,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
     enable_async_host_processing: true
   ```
 
- > Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
+> Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
 
 ##### osquery_async_host_collect_interval
 
@@ -1153,9 +1152,9 @@ osquery:
   status_log_plugin: firehose
   result_log_plugin: firehose
 ```
-#### External Activity Audit Logging
+#### External activity audit logging
 
-> Applies only to Fleet Premium. Acitivity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+> Applies only to Fleet Premium. Activity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
 Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
@@ -1431,7 +1430,7 @@ AWS secret access key to use for Firehose authentication.
   firehose:
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
-
+Optional unique identifier that can be used by the principal assuming the role to assert its identity.
 ##### firehose_sts_assume_role_arn
 
 This flag only has effect if one of the following is true:
@@ -1446,6 +1445,23 @@ AWS STS role ARN to use for Firehose authentication.
   ```yaml
   firehose:
     sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  ```
+
+##### firehose_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Firehose authentication. This is typically used in 
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_FIREHOSE_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  firehose:
+    sts_external_id: your_unique_id
   ```
 
 ##### firehose_status_stream
@@ -1520,6 +1536,7 @@ firehose:
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  sts_external_id: your_unique_id
   status_stream: osquery_status
   result_stream: osquery_result
 ```
@@ -1595,6 +1612,23 @@ AWS STS role ARN to use for Kinesis authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
   ```
 
+##### kinesis_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Kinesis authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_KINESIS_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  kinesis:
+    sts_external_id: your_unique_id
+  ```
+
 ##### kinesis_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
@@ -1666,6 +1700,7 @@ kinesis:
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  sts_external_id: your_unique_id
   status_stream: osquery_status
   result_stream: osquery_result
 ```
@@ -1739,6 +1774,23 @@ AWS STS role ARN to use for Lambda authentication.
   ```yaml
   lambda:
     sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
+  ```
+
+##### lambda_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Lambda authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  lambda:
+    sts_external_id: your_unique_id
   ```
 
 ##### lambda_status_function
@@ -1908,9 +1960,7 @@ pubsub:
   project: my-gcp-project
   result_topic: osquery_result
   status_topic: osquery_status
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-  status_function: statusFunction
-  result_function: resultFunction
+  add_attributes: true
 ```
 
 #### Kafka REST Proxy logging
@@ -2103,6 +2153,22 @@ AWS STS role ARN to use for SES authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
+##### ses_sts_external_id
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS STS External ID to use for SES authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+
+- Default value: none
+- Environment variable: `FLEET_SES_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  ses:
+    sts_external_id: your_unique_id
+  ```
+
 ##### ses_source_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
@@ -2119,23 +2185,23 @@ for the email address specified in the Source parameter of SendRawEmail.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
-#### S3 file carving backend
+#### S3
 
 ##### s3_bucket
 
-Name of the S3 bucket to use to store file carves.
+Name of the S3 bucket for storing software and file carves.
 
 - Default value: none
 - Environment variable: `FLEET_S3_BUCKET`
 - Config file format:
   ```yaml
   s3:
-    bucket: some-carve-bucket
+    bucket: some-bucket
   ```
 
 ##### s3_prefix
 
-Prefix to prepend to carve objects.
+Prefix to prepend to software and file carves.
 
 All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
 
@@ -2144,7 +2210,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 - Config file format:
   ```yaml
   s3:
-    prefix: carves-go-here/
+    prefix: prefix-here/
   ```
 
 ##### s3_access_key_id
@@ -2186,6 +2252,19 @@ AWS STS role ARN to use for S3 authentication.
   ```yaml
   s3:
     sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### s3_sts_external_id
+
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_S3_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  s3:
+    sts_external_id: your_unique_id
   ```
 
 ##### s3_endpoint_url
@@ -2248,8 +2327,8 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 
 ```yaml
 s3:
-  bucket: some-carve-bucket
-  prefix: carves-go-here/
+  bucket: some-bucket
+  prefix: prefix-here/
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
@@ -2276,7 +2355,7 @@ If set then `fleet serve` will run even if there are database migrations missing
 
 The path specified needs to exist and Fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
-When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
+When `disable_schedule` is set to `false` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
 - Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
@@ -2346,21 +2425,11 @@ When not defined, Fleet downloads CVE information from the nvd.nist.gov host usi
     cve_feed_prefix_url: ""
   ```
 
-##### current_instance_checks
-
-When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
-
-- Default value: `auto`
-- Environment variable: `FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS`
-- Config file format:
-  ```yaml
-  vulnerabilities:
-    current_instance_checks: yes
-  ```
-
 ##### disable_schedule
 
-To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to `true` and one of them set to `false`.
+
+Similarly, to externally manage running vulnerability processing, set the value to `true` for all Fleet instances and then run `fleet vuln_processing` using external
 tools like crontab.
 
 - Default value: `false`
@@ -2488,8 +2557,8 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
 
 If `basic_auth.username` is not set, then:
-  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
-  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
+- If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+- If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2505,8 +2574,8 @@ If `basic_auth.username` is not set, then:
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
 
 If `basic_auth.password` is not set, then:
-  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
-  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
+- If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+- If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2564,7 +2633,7 @@ stored in your database.
 
 ##### packaging_s3_bucket
 
-This is the name of the S3 bucket to store pre-built Fleetd installers.
+This is the name of the S3 bucket to store pre-built Fleet agent (fleetd) installers.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_BUCKET`
@@ -2631,6 +2700,20 @@ This is the AWS STS role ARN for S3 authentication.
   packaging:
     s3:
       sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### packaging_s3_sts_external_id
+
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  packaging:
+    s3:
+      sts_external_id: your_unique_id
   ```
 
 ##### packaging_s3_endpoint_url
@@ -2759,7 +2842,7 @@ The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An
       -----END CERTIFICATE-----
   ```
 
-The SCEP certificate/key pair [generated by Fleet](https://fleetdm.com/docs/using-fleet/MDM-setup#step-1-generate-the-required-files) expires every 10 years. It's recommended to never change these unless they were compromised. 
+The SCEP certificate/key pair [generated by Fleet](https://fleetdm.com/docs/using-fleet/MDM-setup#step-1-generate-the-required-files) expires every 10 years. It's recommended to never change these unless they were compromised.
 
 If your certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on and the keys are [reset by the end user](https://fleetdm.com/docs/using-fleet/MDM-migration-guide#how-to-turn-on-disk-encryption).
 
@@ -2877,7 +2960,7 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
 - Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES`
-- Config file format: 
+- Config file format:
   ```
   mdm:
    windows_wstep_identity_cert_bytes: |
@@ -2892,8 +2975,8 @@ If your WSTEP certificate/key pair was compromised and you change the pair, the 
 
 The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 - Default value: ""
-- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES` 
-- Config file format:  
+- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES`
+- Config file format:
   ```
   mdm:
     windows_wstep_identity_key_bytes: |

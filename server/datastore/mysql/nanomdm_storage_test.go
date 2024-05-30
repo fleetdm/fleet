@@ -78,7 +78,7 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 		},
 	}, res)
 
-	status, err := ds.GetHostLockWipeStatus(ctx, host.ID, "darwin")
+	status, err := ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
 	require.Equal(t, "cmd-uuid", status.LockMDMCommand.CommandUUID)
 	require.Equal(t, "123456", status.UnlockPIN)
