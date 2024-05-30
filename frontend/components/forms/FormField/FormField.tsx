@@ -51,6 +51,7 @@ const FormField = ({
             <TooltipWrapper
               tipContent={tooltip}
               position={labelTooltipPosition}
+              clickable={false} // Not block UI behind tooltip
             >
               {label as string}
             </TooltipWrapper>
