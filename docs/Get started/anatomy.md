@@ -32,7 +32,8 @@ A team is a group of hosts. Use teams to segment your hosts into groups that ref
 A query in Fleet refers to an osquery query. Osquery uses basic SQL commands to request data from hosts. Use queries to manage, monitor, and identify threats on your devices. [Docs](https://fleetdm.com/docs/using-fleet/fleet-ui).
 
 ## Policy
-A policy is a specific “yes” or “no” query. Use policies to manage security compliance in your organization.
+A policy is a specific “yes” or “no” query. Use policies to manage security compliance in your
+organization. [Docs](https://fleetdm.com/docs/using-fleet/fleet-ui).
 
 ## Host vitals
 Host vitals are the hard-coded queries Fleet uses to populate device details.
