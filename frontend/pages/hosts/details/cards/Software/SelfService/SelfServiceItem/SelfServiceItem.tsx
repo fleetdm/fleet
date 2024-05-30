@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useContext, useEffect, useRef } from "react";
 import ReactTooltip from "react-tooltip";
 
 import {
@@ -8,6 +8,7 @@ import {
 } from "interfaces/software";
 import deviceApi from "services/entities/device_user";
 import { dateAgo } from "utilities/date_format";
+import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
 import Button from "components/buttons/Button";
@@ -123,6 +124,8 @@ const InstallerStatusAction = ({
   software: { id, status, last_install },
   onInstall,
 }: IInstallerStatusActionProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+
   // localStatus is used to track the status of the any user-initiated install action
   const [localStatus, setLocalStatus] = React.useState<
     SoftwareInstallStatus | undefined
@@ -147,26 +150,17 @@ const InstallerStatusAction = ({
   const onClick = useCallback(async () => {
     setLocalStatus("pending");
     try {
-      // TODO: confirm specs for response handling
-      const resp = await deviceApi.installSelfServiceSoftware(deviceToken, id);
-      console.log("resp", resp);
+      await deviceApi.installSelfServiceSoftware(deviceToken, id);
       if (isMountedRef.current) {
-        console.log("Component is mounted, refetching data...");
         onInstall();
-      } else {
-        console.log("Component is unmounted, skipping refetch...");
       }
     } catch (error) {
-      // TODO: confirm specs for error handling
-      console.log("error", error);
+      renderFlash("error", "Couldn't install. Please try again.");
       if (isMountedRef.current) {
         setLocalStatus("failed");
       }
-    } finally {
-      // TODO: anything else to do here? maybe something subject to isMountedRef.current check?
-      console.log("finally");
     }
-  }, [deviceToken, id, onInstall]);
+  }, [deviceToken, id, onInstall, renderFlash]);
 
   return (
     <div className={`${baseClass}__item-status-action`}>
