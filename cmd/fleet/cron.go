@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -905,7 +907,14 @@ func verifyDiskEncryptionKeys(
 	ds fleet.Datastore,
 	config *config.FleetConfig,
 ) error {
-	if !config.MDM.IsAppleSCEPSet() {
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		logger.Log("err", "unable to get app config", "details", err)
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
 		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
@@ -916,10 +925,24 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	cert, _, _, err := config.MDM.AppleSCEP()
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+		fleet.MDMAssetCAKey,
+	})
 	if err != nil {
-		logger.Log("err", "unable to get SCEP keypair to decrypt keys", "details", err)
-		return err
+		logger.Log("err", "unable to load SCEP assets from the database", "details", err)
+		return ctxerr.Wrap(ctx, err, "loading SCEP keypair from the database")
+	}
+	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetCACert].Value, assets[fleet.MDMAssetCAKey].Value)
+	if err != nil {
+		logger.Log("err", "unable to parse SCEP keypair", "details", err)
+		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
+	}
+
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		logger.Log("err", "unable to parse SCEP certificate", "details", err)
+		return ctxerr.Wrap(ctx, err, "parsing SCEP certificate")
 	}
 
 	decryptable := []uint{}
@@ -929,7 +952,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, leaf, cert.PrivateKey); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}
@@ -1012,11 +1035,24 @@ func newAppleMDMDEPProfileAssigner(
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger)
+	var fleetSyncer *apple_mdm.DEPService
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+
+			if !appCfg.MDM.AppleBMEnabledAndConfigured {
+				return nil
+			}
+
+			if fleetSyncer == nil {
+				fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
+			}
+
 			return fleetSyncer.RunAssigner(ctx)
 		}),
 	)
@@ -1030,8 +1066,6 @@ func newMDMProfileManager(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
-	loggingDebug bool,
-	cfg config.MDMConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -1046,7 +1080,7 @@ func newMDMProfileManager(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger, cfg)
+			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)

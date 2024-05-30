@@ -1763,32 +1763,6 @@ func TestConfig() FleetConfig {
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
 func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens, wstepCertAndKeyDir string) {
-	tlsCert, err := tls.X509KeyPair(cert, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	parsed, err := x509.ParseCertificate(tlsCert.Certificate[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	tlsCert.Leaf = parsed
-
-	cfg.MDM.AppleAPNsCertBytes = string(cert)
-	cfg.MDM.AppleAPNsKeyBytes = string(key)
-	cfg.MDM.AppleSCEPCertBytes = string(cert)
-	cfg.MDM.AppleSCEPKeyBytes = string(key)
-	cfg.MDM.AppleBMCertBytes = string(cert)
-	cfg.MDM.AppleBMKeyBytes = string(key)
-	cfg.MDM.AppleBMServerTokenBytes = "whatever-will-not-be-accessed"
-
-	cfg.MDM.appleAPNs = &tlsCert
-	cfg.MDM.appleAPNsPEMCert = cert
-	cfg.MDM.appleAPNsPEMKey = key
-	cfg.MDM.appleSCEP = &tlsCert
-	cfg.MDM.appleSCEPPEMCert = cert
-	cfg.MDM.appleSCEPPEMKey = key
-	cfg.MDM.appleBMToken = appleBMToken
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 

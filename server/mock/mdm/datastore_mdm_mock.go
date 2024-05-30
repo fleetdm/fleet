@@ -54,6 +54,8 @@ type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- interface{
 
 type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, error)
 
+type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
+
 type EnqueueDeviceLockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error
 
 type EnqueueDeviceWipeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
@@ -118,6 +120,9 @@ type MDMAppleStore struct {
 
 	RetrieveTokenUpdateTallyFunc        RetrieveTokenUpdateTallyFunc
 	RetrieveTokenUpdateTallyFuncInvoked bool
+
+	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
+	GetAllMDMConfigAssetsByNameFuncInvoked bool
 
 	EnqueueDeviceLockCommandFunc        EnqueueDeviceLockCommandFunc
 	EnqueueDeviceLockCommandFuncInvoked bool
@@ -266,6 +271,13 @@ func (fs *MDMAppleStore) RetrieveTokenUpdateTally(ctx context.Context, id string
 	fs.RetrieveTokenUpdateTallyFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.RetrieveTokenUpdateTallyFunc(ctx, id)
+}
+
+func (fs *MDMAppleStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	fs.mu.Lock()
+	fs.GetAllMDMConfigAssetsByNameFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames)
 }
 
 func (fs *MDMAppleStore) EnqueueDeviceLockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {

@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -32,6 +31,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
@@ -1334,22 +1334,53 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
 
+	topic, err := svc.mdmPushCertTopic(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
+	}
+
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		enrollURL,
 		svc.config.MDM.AppleSCEPChallenge,
-		svc.mdmPushCertTopic,
+		topic,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating enrollment profile")
 	}
 
-	signed, err := mobileconfig.Sign(enrollmentProf, svc.config.MDM)
+	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
 	return signed, nil
+}
+
+func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading SCEP keypair from the database")
+	}
+
+	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return "", ctxerr.Wrap(ctx, err, "decoding PEM data")
+	}
+
+	apnsCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parsing APNs certificate")
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
+	}
+
+	return mdmPushCertTopic, nil
 }
 
 type mdmAppleCommandRemoveEnrollmentProfileRequest struct {
@@ -2709,7 +2740,7 @@ func mdmAppleDeliveryStatusFromCommandStatus(cmdStatus string) *fleet.MDMDeliver
 // This profile will be installed to all hosts in the team (or "no team",) but it
 // will only be used by hosts that have a fleetd installation without an enroll
 // secret and fleet URL (mainly DEP enrolled hosts).
-func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, signingCert *tls.Certificate) error {
+func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, signingCertDER []byte) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -2719,7 +2750,7 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.
 	params := mobileconfig.FleetCARootTemplateOptions{
 		PayloadIdentifier: mobileconfig.FleetCARootConfigPayloadIdentifier,
 		PayloadName:       mdm_types.FleetCAConfigProfileName,
-		Certificate:       base64.StdEncoding.EncodeToString(signingCert.Certificate[0]),
+		Certificate:       base64.StdEncoding.EncodeToString(signingCertDER),
 	}
 
 	if err := mobileconfig.FleetCARootTemplate.Execute(&rootCAProfContents, params); err != nil {
@@ -2827,7 +2858,6 @@ func ReconcileAppleProfiles(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
-	cfg config.MDMConfig,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2837,16 +2867,19 @@ func ReconcileAppleProfiles(
 		return nil
 	}
 
-	if !cfg.IsAppleSCEPSet() {
-		return ctxerr.New(ctx, "SCEP configuration is required")
-	}
-
-	signingCert, _, _, err := cfg.AppleSCEP()
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting Apple SCEP keypair")
+		return ctxerr.Wrap(ctx, err, "getting Apple SCEP")
 	}
 
-	if err := ensureFleetProfiles(ctx, ds, logger, signingCert); err != nil {
+	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return ctxerr.Wrap(ctx, err, "failed to decode PEM block from SCEP certificate")
+	}
+
+	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes); err != nil {
 		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
 
@@ -3108,7 +3141,11 @@ func RenewSCEPCertificates(
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 ) error {
-	if !config.MDM.IsAppleSCEPSet() {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("reading app config: %w", err)
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
 		logger.Log("inf", "skipping renewal of macOS SCEP certificates as MDM is not fully configured")
 		return nil
 	}
@@ -3124,11 +3161,6 @@ func RenewSCEPCertificates(
 		return ctxerr.Wrap(ctx, err, "getting host cert associations")
 	}
 
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting AppConfig")
-	}
-
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetAPNSCert,
 	})
@@ -3136,7 +3168,12 @@ func RenewSCEPCertificates(
 		return ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 	}
 
-	apnsCert, err := x509.ParseCertificate(assets[fleet.MDMAssetAPNSCert].Value)
+	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return ctxerr.Wrap(ctx, err, "decoding PEM data")
+	}
+
+	apnsCert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing APNs certificate")
 	}

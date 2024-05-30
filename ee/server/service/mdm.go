@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -18,30 +20,28 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
 		return nil, err
-	}
-
-	// if there is no apple bm config, fail with a 404
-	if !svc.config.MDM.IsAppleBMSet() {
-		return nil, notFoundError{}
 	}
 
 	appCfg, err := svc.AppConfigObfuscated(ctx)
@@ -52,8 +52,24 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err != nil {
 		return nil, err
 	}
-	appleBMAssets, err := svc.config.MDM.AppleBM()
+
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetABMKey,
+		fleet.MDMAssetABMCert,
+		fleet.MDMAssetABMToken,
+	})
 	if err != nil {
+		if errors.Is(err, mysql.ErrPartialResult) {
+			_, hasABMKey := assets[fleet.MDMAssetABMKey]
+			_, hasABMCert := assets[fleet.MDMAssetABMCert]
+			_, hasABMToken := assets[fleet.MDMAssetABMToken]
+
+			// to preserve existing behavior, if the ABM setup is
+			// incomplete, return a not found error
+			if hasABMKey && hasABMCert && !hasABMToken {
+				return nil, notFoundError{}
+			}
+		}
 		return nil, err
 	}
 
@@ -62,8 +78,27 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, err
 	}
 
+	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetABMCert].Value, assets[fleet.MDMAssetABMKey].Value)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing ABM keypair")
+	}
+
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing ABM certificate")
+	}
+
+	token, err := config.DecryptAndValidateABMToken(
+		assets[fleet.MDMAssetABMToken].Value,
+		leaf,
+		assets[fleet.MDMAssetABMKey].Value,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	// fill the rest of the AppleBM fields
-	appleBM.RenewDate = appleBMAssets.Token.AccessTokenExpiry
+	appleBM.RenewDate = token.AccessTokenExpiry
 	appleBM.DefaultTeam = appCfg.MDM.AppleBMDefaultTeam
 	appleBM.MDMServerURL = mdmServerURL
 
@@ -1154,11 +1189,16 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	topic, err := svc.mdmPushCertTopic(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
+	}
+
 	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
 		svc.config.MDM.AppleSCEPChallenge,
-		svc.mdmPushCertTopic,
+		topic,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -1171,4 +1211,30 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 	// Per @marko-lisica, we can add a parameter like `signed=true` if the
 	// need arises.
 	return mobileConfig, nil
+}
+
+func (svc *Service) mdmPushCertTopic(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading SCEP keypair from the database")
+	}
+
+	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return "", ctxerr.Wrap(ctx, err, "decoding PEM data")
+	}
+
+	apnsCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parsing APNs certificate")
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
+	}
+
+	return mdmPushCertTopic, nil
 }

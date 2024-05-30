@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -45,7 +44,7 @@ func TestAppleMDM(t *testing.T) {
 	// call TruncateTables immediately as a DB migation may have created jobs
 	mysql.TruncateTables(t, ds)
 
-	mdmStorage, err := ds.NewMDMAppleMDMStorage([]byte("test"), []byte("test"))
+	mdmStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
 	// nopLog := kitlog.NewNopLogger()
@@ -152,7 +151,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -185,7 +184,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -222,7 +221,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -263,7 +262,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -314,7 +313,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -366,7 +365,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -403,7 +402,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -445,7 +444,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -500,7 +499,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
@@ -536,7 +535,7 @@ func TestAppleMDM(t *testing.T) {
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
 			Log:       nopLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}, config.MDMConfig{}),
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)

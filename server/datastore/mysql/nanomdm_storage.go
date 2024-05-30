@@ -3,9 +3,11 @@ package mysql
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -20,36 +22,41 @@ import (
 type NanoMDMStorage struct {
 	*nanomdm_mysql.MySQLStorage
 
-	db          *sqlx.DB
-	logger      log.Logger
-	pushCertPEM []byte
-	pushKeyPEM  []byte
+	db     *sqlx.DB
+	logger log.Logger
+	ds     fleet.Datastore
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte) (*NanoMDMStorage, error) {
+func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	if err != nil {
 		return nil, err
 	}
 	return &NanoMDMStorage{
 		MySQLStorage: s,
-		pushCertPEM:  pushCertPEM,
-		pushKeyPEM:   pushKeyPEM,
 		db:           ds.primary,
 		logger:       ds.logger,
+		ds:           ds,
 	}, nil
 }
 
 // RetrievePushCert partially implements nanomdm_storage.PushCertStore.
 //
-// Always returns "0" as stale token because we are not storing the APNS in MySQL storage,
-// and instead loading them at startup, thus the APNS will never be considered stale.
+// Always returns "0" as stale token because fleet.Datastore always returns a valid push certificate.
 func (s *NanoMDMStorage) RetrievePushCert(
 	ctx context.Context, topic string,
 ) (cert *tls.Certificate, staleToken string, err error) {
-	tlsCert, err := tls.X509KeyPair(s.pushCertPEM, s.pushKeyPEM)
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetAPNSCert,
+		fleet.MDMAssetAPNSKey,
+	})
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "loading SCEP cert from the database")
+	}
+
+	tlsCert, err := tls.X509KeyPair(assets[fleet.MDMAssetAPNSCert].Value, assets[fleet.MDMAssetAPNSKey].Value)
 	if err != nil {
 		return nil, "", err
 	}
@@ -58,20 +65,14 @@ func (s *NanoMDMStorage) RetrievePushCert(
 
 // IsPushCertStale partially implements nanomdm_storage.PushCertStore.
 //
-// Given that we are not storing the APNS certificate in MySQL storage, and instead loading
-// them at startup (as env variables), the APNS will never be considered stale.
-//
-// TODO(lucas): Revisit solution to support changing the APNS.
+// Always returns `false` because the underlying datastore implementation makes sure that the token is always fresh.
 func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken string) (bool, error) {
 	return false, nil
 }
 
 // StorePushCert partially implements nanomdm_storage.PushCertStore.
-//
-// Leaving this unimplemented as APNS certificate and key are not stored in MySQL storage,
-// instead they are loaded to memory at startup.
 func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
-	return errors.New("unimplemented")
+	return errors.New("please use fleet.Datastore to manage MDM assets")
 }
 
 // EnqueueDeviceLockCommand enqueues a DeviceLock command for the given host.
@@ -138,9 +139,13 @@ func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fle
 	}, s.logger)
 }
 
+func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	return s.ds.GetAllMDMConfigAssetsByName(ctx, assetNames)
+}
+
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleDEPStorage(tok nanodep_client.OAuth1Tokens) (*NanoDEPStorage, error) {
+func (ds *Datastore) NewMDMAppleDEPStorage() (*NanoDEPStorage, error) {
 	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.primary.DB))
 	if err != nil {
 		return nil, err
@@ -148,31 +153,53 @@ func (ds *Datastore) NewMDMAppleDEPStorage(tok nanodep_client.OAuth1Tokens) (*Na
 
 	return &NanoDEPStorage{
 		MySQLStorage: s,
-		tokens:       tok,
+		ds:           ds,
 	}, nil
 }
 
 // NanoDEPStorage wraps a *nanodep_mysql.MySQLStorage and overrides functionality to load
-// DEP auth tokens from memory.
+// DEP auth tokens from the tables managed by Fleet.
 type NanoDEPStorage struct {
 	*nanodep_mysql.MySQLStorage
-
-	tokens nanodep_client.OAuth1Tokens
+	ds fleet.Datastore
 }
 
 // RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
-//
-// RetrieveAuthTokens returns the DEP auth tokens stored in memory.
 func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
-	return &s.tokens, nil
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetABMKey,
+		fleet.MDMAssetABMCert,
+		fleet.MDMAssetABMToken,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading ABM assets from the database")
+	}
+
+	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetABMCert].Value, assets[fleet.MDMAssetABMKey].Value)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing ABM keypair")
+	}
+
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing ABM certificate")
+	}
+
+	token, err := config.DecryptAndValidateABMToken(
+		assets[fleet.MDMAssetABMToken].Value,
+		leaf,
+		assets[fleet.MDMAssetABMKey].Value,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
 }
 
 // StoreAuthTokens partially implements nanodep.AuthTokensStorer.
-//
-// Leaving this unimplemented as DEP auth tokens are not stored in MySQL storage,
-// instead they are loaded to memory at startup.
 func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *nanodep_client.OAuth1Tokens) error {
-	return errors.New("unimplemented")
+	return errors.New("please use fleet.Datastore to manage MDM assets")
 }
 
 func enqueueCommandDB(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Command) error {

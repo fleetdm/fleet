@@ -135,11 +135,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 	}
 
-	mdmPushCertTopic := ""
-	if len(opts) > 0 && opts[0].APNSTopic != "" {
-		mdmPushCertTopic = opts[0].APNSTopic
-	}
-
 	var wstepManager microsoft_mdm.CertManager
 	if fleetConfig.MDM.WindowsWSTEPIdentityCert != "" && fleetConfig.MDM.WindowsWSTEPIdentityKey != "" {
 		rawCert, err := os.ReadFile(fleetConfig.MDM.WindowsWSTEPIdentityCert)
@@ -171,7 +166,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage,
 		mdmStorage,
 		mdmPusher,
-		mdmPushCertTopic,
 		cronSchedulesService,
 		wstepManager,
 	)
@@ -196,8 +190,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			mailer,
 			c,
 			depStorage,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, fleetConfig.MDM),
-			"",
+			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 			ssoStore,
 			profMatcher,
 			softwareInstallStore,
@@ -351,7 +344,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
-		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, cfg.MDM)
+		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,

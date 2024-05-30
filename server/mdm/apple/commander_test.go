@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
-	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	svcmock "github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
@@ -23,7 +22,7 @@ import (
 
 func TestMDMAppleCommander(t *testing.T) {
 	ctx := context.Background()
-	mdmStorage := &mock.MDMAppleStore{}
+	mdmStorage := &mdmmock.MDMAppleStore{}
 	pushFactory, _ := newMockAPNSPushProviderFactory()
 	pusher := nanomdm_pushsvc.New(
 		mdmStorage,
@@ -31,10 +30,7 @@ func TestMDMAppleCommander(t *testing.T) {
 		pushFactory,
 		stdlogfmt.New(),
 	)
-	cmdr := NewMDMAppleCommander(mdmStorage, pusher, config.MDMConfig{
-		AppleSCEPCert: "../../service/testdata/server.pem",
-		AppleSCEPKey:  "../../service/testdata/server.key",
-	})
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
 
 	// TODO(roberto): there's a data race in the mock when more
 	// than one host ID is provided because the pusher uses one

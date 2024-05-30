@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -158,7 +159,7 @@ func TestMDMRunCommand(t *testing.T) {
 
 	for _, lic := range []string{fleet.TierFree, fleet.TierPremium} {
 		t.Run(lic, func(t *testing.T) {
-			enqueuer := new(mock.MDMAppleStore)
+			enqueuer := new(mdmmock.MDMAppleStore)
 			license := &fleet.LicenseInfo{Tier: lic, Expiration: time.Now().Add(24 * time.Hour)}
 
 			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
@@ -1203,7 +1204,7 @@ func writeTmpMobileconfig(t *testing.T, name string) string {
 
 // sets up the test server with the mock datastore and returns the mock datastore
 func setupTestServer(t *testing.T) *mock.Store {
-	enqueuer := new(mock.MDMAppleStore)
+	enqueuer := new(mdmmock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	enqueuer.EnqueueDeviceLockCommandFunc = func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {

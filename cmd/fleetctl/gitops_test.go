@@ -17,6 +17,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -263,7 +264,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	// License is not needed because we are not using any premium features in our config.
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			MDMStorage:  new(mock.MDMAppleStore),
+			MDMStorage:  new(mdmmock.MDMAppleStore),
 			MDMPusher:   mockPusher{},
 			FleetConfig: &fleetCfg,
 		},
@@ -424,7 +425,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
 			License:          license,
-			MDMStorage:       new(mock.MDMAppleStore),
+			MDMStorage:       new(mdmmock.MDMAppleStore),
 			MDMPusher:        mockPusher{},
 			FleetConfig:      &fleetCfg,
 			NoCacheDatastore: true,
@@ -993,7 +994,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			MDMStorage:       new(mock.MDMAppleStore),
+			MDMStorage:       new(mdmmock.MDMAppleStore),
 			MDMPusher:        mockPusher{},
 			FleetConfig:      &fleetCfg,
 			License:          license,

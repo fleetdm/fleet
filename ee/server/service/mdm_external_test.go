@@ -62,7 +62,6 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		depStorage,
 		nil,
 		nil,
-		"",
 		nil,
 		nil,
 	)
@@ -78,7 +77,6 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		clock.C,
 		depStorage,
 		nil,
-		"",
 		nil,
 		nil,
 		nil,

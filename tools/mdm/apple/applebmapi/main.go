@@ -66,7 +66,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	depStorage, err := mds.NewMDMAppleDEPStorage(jsonTok)
+	depStorage, err := mds.NewMDMAppleDEPStorage()
 	if err != nil {
 		log.Fatal(err)
 	}

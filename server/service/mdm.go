@@ -68,7 +68,12 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 		return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 	}
 
-	apns, err := x509.ParseCertificate(assets[fleet.MDMAssetAPNSCert].Value)
+	block, _ := pem.Decode(assets[fleet.MDMAssetAPNSCert].Value)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, ctxerr.Wrap(ctx, err, "decoding PEM data")
+	}
+
+	apns, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "parse certificate")
 	}

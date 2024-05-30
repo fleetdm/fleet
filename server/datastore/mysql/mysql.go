@@ -162,8 +162,8 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot.Depot, error) {
-	return newSCEPDepot(ds.primary.DB, caCertPEM, caKeyPEM)
+func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
+	return newSCEPDepot(ds.primary.DB, ds)
 }
 
 type txFn func(tx sqlx.ExtContext) error

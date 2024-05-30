@@ -24,7 +24,6 @@ type Service struct {
 	authz                *authz.Authorizer
 	depStorage           storage.AllDEPStorage
 	mdmAppleCommander    fleet.MDMAppleCommandIssuer
-	mdmPushCertTopic     string
 	ssoSessionStore      sso.SessionStore
 	depService           *apple_mdm.DEPService
 	profileMatcher       fleet.ProfileMatcher
@@ -40,7 +39,6 @@ func NewService(
 	c clock.Clock,
 	depStorage storage.AllDEPStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
-	mdmPushCertTopic string,
 	sso sso.SessionStore,
 	profileMatcher fleet.ProfileMatcher,
 	softwareInstallStore fleet.SoftwareInstallerStore,
@@ -59,7 +57,6 @@ func NewService(
 		authz:                authorizer,
 		depStorage:           depStorage,
 		mdmAppleCommander:    mdmAppleCommander,
-		mdmPushCertTopic:     mdmPushCertTopic,
 		ssoSessionStore:      sso,
 		depService:           apple_mdm.NewDEPService(ds, depStorage, logger),
 		profileMatcher:       profileMatcher,

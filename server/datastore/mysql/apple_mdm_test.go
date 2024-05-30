@@ -14,13 +14,11 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -2994,14 +2992,14 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 }
 
 func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.MDMAppleCommander, *NanoMDMStorage) {
-	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
-	require.NoError(t, err)
-	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
-	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
-	mdmStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	// testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	// require.NoError(t, err)
+	// testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	// testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	mdmStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
-	return apple_mdm.NewMDMAppleCommander(mdmStorage, pusherFunc(okPusherFunc), config.MDMConfig{}), mdmStorage
+	return apple_mdm.NewMDMAppleCommander(mdmStorage, pusherFunc(okPusherFunc)), mdmStorage
 }
 
 func okPusherFunc(ctx context.Context, ids []string) (map[string]*push.Response, error) {
@@ -4564,7 +4562,7 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	// default state
 	checkLockWipeState(t, status, true, false, false, false, false, false)
 
-	appleStore, err := ds.NewMDMAppleMDMStorage(nil, nil)
+	appleStore, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
 	// record a request to lock the host
