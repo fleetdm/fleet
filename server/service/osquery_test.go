@@ -1050,6 +1050,7 @@ func TestGetMostRecentResults(t *testing.T) {
 }
 
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
+	t.Helper()
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
@@ -1060,6 +1061,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "kubequery_info":             {},
 		hostDetailQueryPrefix + "orbit_info":                 {},
 		hostDetailQueryPrefix + "software_vscode_extensions": {},
+		hostDetailQueryPrefix + "software_macos_firefox":     {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -3645,6 +3647,31 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 	someRow := map[string]string{
 		"1": "1",
 	}
+	appToOverride := map[string]string{
+		"name":              "OverrideMe.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.overrideme",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "OverrideMe",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/override/path",
+	}
+
+	appThatOverrides := map[string]string{
+		"name":              "OverrideMeSuccess.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.overrideme",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "OverrideMe",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/override/path",
+	}
 
 	for _, tc := range []struct {
 		name string
@@ -3652,6 +3679,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		resultsIn  fleet.OsqueryDistributedQueryResults
 		statusesIn map[string]fleet.OsqueryStatus
 		messagesIn map[string]string
+		overrides  map[string]osquery_utils.DetailQuery
 
 		resultsOut fleet.OsqueryDistributedQueryResults
 	}{
@@ -3835,10 +3863,41 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "override works",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":      fleet.StatusOK,
+				hostDetailQueryPrefix + "software_overrideMe": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					appToOverride,
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_overrideMe": []map[string]string{
+					appThatOverrides,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					appThatOverrides,
+				},
+			},
+			overrides: map[string]osquery_utils.DetailQuery{
+				"overrideMe": {
+					SoftwareOverrideMatch: func(row map[string]string) bool {
+						return row["name"] == "OverrideMe.app"
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, log.NewNopLogger())
+			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
 			require.Equal(t, tc.resultsOut, tc.resultsIn)
 		})
 	}

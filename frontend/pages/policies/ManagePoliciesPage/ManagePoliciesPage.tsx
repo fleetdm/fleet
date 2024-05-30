@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { isEqual } from "lodash";
 
-import { getNextLocationPath } from "utilities/helpers";
+import { getNextLocationPath, wait } from "utilities/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -123,17 +123,18 @@ const ManagePolicyPage = ({
     },
   });
 
-  const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
-  const [
-    updatingPolicyEnabledCalendarEvents,
-    setUpdatingPolicyEnabledCalendarEvents,
-  ] = useState(false);
+  const [isUpdatingCalendarEvents, setIsUpdatingCalendarEvents] = useState(
+    false
+  );
+  const [isUpdatingOtherWorkflows, setIsUpdatingOtherWorkflows] = useState(
+    false
+  );
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
-  const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
+  const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
@@ -435,11 +436,11 @@ const ManagePolicyPage = ({
     }
   };
 
-  const handleUpdateOtherWorkflows = async (requestBody: {
+  const onUpdateOtherWorkflows = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
     integrations: IZendeskJiraIntegrations;
   }) => {
-    setIsUpdatingAutomations(true);
+    setIsUpdatingOtherWorkflows(true);
     try {
       await (isAnyTeamSelected
         ? teamsAPI.update(requestBody, teamIdForApi)
@@ -452,16 +453,13 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleOtherWorkflowsModal();
-      setIsUpdatingAutomations(false);
-      refetchConfig();
-      isAnyTeamSelected && refetchTeamConfig();
+      setIsUpdatingOtherWorkflows(false);
+      isAnyTeamSelected ? refetchTeamConfig() : refetchConfig();
     }
   };
 
-  const updatePolicyEnabledCalendarEvents = async (
-    formData: ICalendarEventsFormData
-  ) => {
-    setUpdatingPolicyEnabledCalendarEvents(true);
+  const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
+    setIsUpdatingCalendarEvents(true);
 
     try {
       // update team config if either field has been changed
@@ -510,6 +508,10 @@ const ManagePolicyPage = ({
       );
 
       await Promise.all(responses);
+      await wait(100); // Wait 100ms to avoid race conditions with refetch
+      await refetchTeamPolicies();
+      await refetchTeamConfig();
+
       renderFlash("success", "Successfully updated policy automations.");
     } catch {
       renderFlash(
@@ -518,9 +520,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleCalendarEventsModal();
-      setUpdatingPolicyEnabledCalendarEvents(false);
-      refetchTeamPolicies();
-      refetchTeamConfig();
+      setIsUpdatingCalendarEvents(false);
     }
   };
 
@@ -781,9 +781,9 @@ const ManagePolicyPage = ({
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
             availablePolicies={policiesAvailableToAutomate}
-            isUpdatingAutomations={isUpdatingAutomations}
+            isUpdating={isUpdatingOtherWorkflows}
             onExit={toggleOtherWorkflowsModal}
-            handleSubmit={handleUpdateOtherWorkflows}
+            onSubmit={onUpdateOtherWorkflows}
           />
         )}
         {showAddPolicyModal && (
@@ -804,9 +804,7 @@ const ManagePolicyPage = ({
         {showCalendarEventsModal && (
           <CalendarEventsModal
             onExit={toggleCalendarEventsModal}
-            updatePolicyEnabledCalendarEvents={
-              updatePolicyEnabledCalendarEvents
-            }
+            onSubmit={onUpdateCalendarEvents}
             configured={isCalEventsConfigured}
             enabled={
               teamConfig?.integrations.google_calendar
@@ -814,7 +812,7 @@ const ManagePolicyPage = ({
             }
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={policiesAvailableToAutomate}
-            isUpdating={updatingPolicyEnabledCalendarEvents}
+            isUpdating={isUpdatingCalendarEvents}
           />
         )}
       </div>

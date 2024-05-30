@@ -18,6 +18,8 @@ import useDeepEffect from "hooks/useDeepEffect";
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
+import mdmAppleBMAPI from "services/entities/mdm_apple_bm";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { ErrorBoundary } from "react-error-boundary";
 // @ts-ignore
@@ -61,6 +63,8 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setCurrentUser,
     setConfig,
     setEnrollSecret,
+    setABMExpiry,
+    setAPNsExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
   } = useContext(AppContext);
@@ -76,6 +80,15 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         const hostCount = await hostCountAPI.load({});
         const noSandboxHosts = hostCount.count === 0;
         setNoSandboxHosts(noSandboxHosts);
+      }
+
+      if (configResponse.mdm.apple_bm_enabled_and_configured) {
+        const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
+        setABMExpiry(abmInfo.renew_date);
+      }
+      if (configResponse.mdm.apple_bm_enabled_and_configured) {
+        const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
+        setAPNsExpiry(apnsInfo.renew_date);
       }
       setConfig(configResponse);
     } catch (error) {

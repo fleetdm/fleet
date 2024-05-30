@@ -12,6 +12,7 @@ interface ICustomLinkProps {
   /** Icon wraps on new line with last word */
   multiline?: boolean;
   iconColor?: Colors;
+  color?: "core-fleet-blue" | "core-fleet-black";
 }
 
 const baseClass = "custom-link";
@@ -23,8 +24,11 @@ const CustomLink = ({
   newTab = false,
   multiline = false,
   iconColor = "core-fleet-blue",
+  color = "core-fleet-blue",
 }: ICustomLinkProps): JSX.Element => {
-  const customLinkClass = classnames(baseClass, className);
+  const customLinkClass = classnames(baseClass, className, {
+    [`${baseClass}--black`]: color === "core-fleet-black",
+  });
 
   const target = newTab ? "_blank" : "";
 

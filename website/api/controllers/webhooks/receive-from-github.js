@@ -483,12 +483,14 @@ module.exports = {
             // curl -d "frozen=true&user_name=Scooby Doo&unblocked_prs=[3]" -X POST https://www.mergefreeze.com/api/branches/mergefreeze/core/master/?access_token=[Your access token]
             // ```
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
-              user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
-            });
-            // Update the Platform record to have the current unfrozen PR numbers
-            await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
+
+            // FUTURE: reenable these requests when the bug that causes API requests to unfreeze the entire repo is resolved.
+            // await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+            //   user_name: 'fleet-release',//eslint-disable-line camelcase
+            //   unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+            // });
+            // // Update the Platform record to have the current unfrozen PR numbers
+            // await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
           }//ﬁ
 
         } else {
@@ -501,12 +503,13 @@ module.exports = {
             sails.log.verbose('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
 
             // [?] See explanation above.
-            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
-              user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
-            });
-            // Update the Platform record to have the current unfrozen PR numbers
-            await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
+            // FUTURE: reenable these requests when the bug that causes API requests to unfreeze the entire repo is resolved.
+            // await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+            //   user_name: 'fleet-release',//eslint-disable-line camelcase
+            //   unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+            // });
+            // // Update the Platform record to have the current unfrozen PR numbers
+            // await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
           }//ﬁ
 
           // Is this in use?

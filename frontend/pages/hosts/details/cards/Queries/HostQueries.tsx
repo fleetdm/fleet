@@ -130,7 +130,7 @@ const HostQueries = ({
           emptyComponent={() => <></>}
           disablePagination
           disableCount
-          disableMultiRowSelect
+          disableMultiRowSelect={!queryReportsDisabled} // Removes hover/click state if reports are disabled
           isLoading={false} // loading state handled at parent level
           onSelectSingleRow={onSelectSingleRow}
         />
