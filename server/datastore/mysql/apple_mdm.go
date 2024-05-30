@@ -4248,7 +4248,7 @@ func (ds *Datastore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames
 	}
 
 	stmt := `
-SELECT HEX(md5_checksum) as md5_checksum
+SELECT name, HEX(md5_checksum) as md5_checksum
 FROM mdm_config_assets
 WHERE name IN (?) AND deletion_uuid = ''`
 

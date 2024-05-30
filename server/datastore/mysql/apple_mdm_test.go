@@ -5509,7 +5509,6 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	for _, a := range assets {
 		wantAssets[a.Name] = a
 	}
-
 	err := ds.InsertMDMConfigAssets(ctx, assets)
 	require.NoError(t, err)
 
@@ -5517,16 +5516,31 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, wantAssets, a)
 
+	h, err := ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
+	require.Len(t, h, 2)
+	require.NotEmpty(t, h[fleet.MDMAssetCACert])
+	require.NotEmpty(t, h[fleet.MDMAssetCAKey])
+
 	// try to fetch an asset that doesn't exist
 	var nfe fleet.NotFoundError
 	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
 
+	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, h)
+
 	// try to fetch a mix of assets that exist and doesn't exist
 	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
 	require.ErrorIs(t, err, ErrPartialResult)
 	require.Len(t, a, 1)
+
+	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
+	require.ErrorIs(t, err, ErrPartialResult)
+	require.Len(t, h, 1)
+	require.NotEmpty(t, h[fleet.MDMAssetCACert])
 
 	// Soft delete the assets
 
@@ -5536,6 +5550,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, a)
+
+	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, h)
 
 	// Verify that they're still in the DB. Values should be encrypted.
 
