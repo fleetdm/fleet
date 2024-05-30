@@ -251,8 +251,6 @@ func (svc *Service) RunLiveQueryDeadline(
 	counterMutex := sync.Mutex{}
 	respondedHostIDs := make(map[uint]struct{})
 
-	fmt.Printf("VICTOR RunLiveQueryDeadline\n")
-
 	for _, queryID := range queryIDs {
 		queryID := queryID
 		wg.Add(1)
@@ -279,8 +277,6 @@ func (svc *Service) RunLiveQueryDeadline(
 			}
 			queryID = campaign.QueryID
 
-			fmt.Printf("VICTOR created compaign\n")
-
 			// We do not want to use the outer `ctx` directly because we want to cleanup the campaign
 			// even if the outer `ctx` is canceled (e.g. a client terminating the connection).
 			// Also, we make sure stats and activity DB operations don't get killed after we return results.
@@ -299,7 +295,6 @@ func (svc *Service) RunLiveQueryDeadline(
 				}
 			}()
 
-			fmt.Printf("VICTOR campaign is %#v\n", campaign)
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			if err != nil {
 				level.Error(svc.logger).Log(
@@ -309,7 +304,6 @@ func (svc *Service) RunLiveQueryDeadline(
 				return
 			}
 			defer cancelFunc()
-			fmt.Printf("VICTOR got campaign reader\n")
 
 			var results []fleet.QueryResult
 			timeout := time.After(deadline)
