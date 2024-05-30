@@ -1,6 +1,31 @@
 <div id="transparency" v-cloak>
 
   <div style="max-width: 1008px;" class="container-fluid d-flex flex-column justify-content-center align-items-center px-3 px-md-4 pt-3 pt-lg-5 pb-5 mx-auto my-5">
+    <% if(typeof showShareWithItTeam !== 'undefined' && showShareWithItTeam) {%>
+      <div purpose="hero-text">
+      <h1>Does IT interrupt your day?</h1>
+      <p>Fleet is dedicated to making IT and security less annoying, while maintaining privacy, transparency, and trust for end users.</p>
+      </div>
+      <div purpose="calendar-feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
+        <div purpose="calendar-feature-text" class="d-flex flex-column">
+          <h2>"This is a terrible time to mess with my computer."</h2>
+          <p>Install updates and force restarts when your users’ computers are actually free.</p>
+          <div purpose="calendar-checklist" class="flex-column d-flex">
+            <p>No more annoying time wastes and notifications</p>
+            <p>No more restarts blocking you from important meetings</p>
+          </div>
+          <a purpose="contact-button" class="btn btn-primary" href="/contact">
+            Share with your IT team
+          </a>
+        </div>
+        <div purpose="feature-video">
+          <video autoplay loop muted playsinline purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
+        </div>
+      </div>
+      <div purpose="logos" class="mx-auto">
+        <logo-carousel></logo-carousel>
+      </div>
+    <% } %>
     <div class="container-fluid d-flex flex-column text-center justify-content-center align-items-center pb-5 mb-3 mx-auto">
       <h3 class="pb-3">What personal information can Fleet see?</h3>
       <p class="m-0">End users deserve to know what their employer can see on their laptops and the systems they manage.</p>
