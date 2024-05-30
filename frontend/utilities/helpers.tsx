@@ -19,6 +19,8 @@ import {
   intlFormat,
   intervalToDuration,
   isAfter,
+  isBefore,
+  addDays,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -55,6 +57,7 @@ import {
 } from "utilities/constants";
 import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { IActivityDetails } from "interfaces/activity";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -671,8 +674,17 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 };
 
-export const licenseExpirationWarning = (expiration: string): boolean => {
+export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
+};
+
+export const willExpireWithinXDays = (
+  expiration: string,
+  x: number
+): boolean => {
+  const xDaysFromNow = addDays(new Date(), x);
+
+  return isAfter(xDaysFromNow, new Date(expiration));
 };
 
 export const readableDate = (date: string) => {
@@ -801,6 +813,9 @@ export const normalizeEmptyValues = (
     {}
   );
 };
+
+export const wait = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export const wrapFleetHelper = (
   helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
@@ -980,7 +995,8 @@ export default {
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,
-  licenseExpirationWarning,
+  hasLicenseExpired,
+  willExpireWithinXDays,
   readableDate,
   secondsToHms,
   secondsToDhms,
@@ -988,6 +1004,7 @@ export default {
   setupData,
   syntaxHighlight,
   normalizeEmptyValues,
+  wait,
   wrapFleetHelper,
   TAGGED_TEMPLATES,
 };

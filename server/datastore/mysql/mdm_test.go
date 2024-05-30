@@ -6122,6 +6122,31 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	nanoStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
 	require.NoError(t, err)
 
+	addCert := func(notAfter time.Time, h *fleet.Host) {
+		serial, err := scepDepot.Serial()
+		require.NoError(t, err)
+		cert := &x509.Certificate{
+			SerialNumber: serial,
+			Subject: pkix.Name{
+				CommonName: "FleetDM Identity",
+			},
+			NotAfter: notAfter,
+			// use a random value, just to make sure they're
+			// different from each other, we don't care about the
+			// DER contents here
+			Raw: []byte(uuid.NewString()),
+		}
+		err = scepDepot.Put(cert.Subject.CommonName, cert)
+		require.NoError(t, err)
+		req := mdm.Request{
+			EnrollID: &mdm.EnrollID{ID: h.UUID},
+			Context:  ctx,
+		}
+		certHash := certauth.HashCert(cert)
+		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
+		require.NoError(t, err)
+	}
+
 	var i int
 	setHost := func(notAfter time.Time) *fleet.Host {
 		i++
@@ -6135,28 +6160,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// create a cert + association
-		serial, err := scepDepot.Serial()
-		require.NoError(t, err)
-		cert := &x509.Certificate{
-			SerialNumber: serial,
-			Subject: pkix.Name{
-				CommonName: "FleetDM Identity",
-			},
-			NotAfter: notAfter,
-			// use the host UUID, just to make sure they're
-			// different from each other, we don't care about the
-			// DER contents here
-			Raw: []byte(h.UUID),
-		}
-		err = scepDepot.Put(cert.Subject.CommonName, cert)
-		require.NoError(t, err)
-		req := mdm.Request{
-			EnrollID: &mdm.EnrollID{ID: h.UUID},
-			Context:  ctx,
-		}
-		certHash := certauth.HashCert(cert)
-		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
-		require.NoError(t, err)
+		addCert(notAfter, h)
 		nanoEnroll(t, ds, h, false)
 		return h
 	}
@@ -6199,6 +6203,38 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	require.Equal(t, h3.UUID, assocs[2].HostUUID)
 	require.Equal(t, h4.UUID, assocs[3].HostUUID)
 
+	// add a new host with a very old expiriy so it shows first, verify
+	// that it's present before deleting it.
+	h5 := setHost(time.Now().AddDate(-2, -1, 0))
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 5)
+	require.Equal(t, h5.UUID, assocs[0].HostUUID)
+	require.Equal(t, h1.UUID, assocs[1].HostUUID)
+	require.Equal(t, h2.UUID, assocs[2].HostUUID)
+	require.Equal(t, h3.UUID, assocs[3].HostUUID)
+	require.Equal(t, h4.UUID, assocs[4].HostUUID)
+
+	// delete the host and verify that things work as expected
+	// see https://github.com/fleetdm/fleet/issues/19149
+	require.NoError(t, ds.DeleteHost(ctx, h5.ID))
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 4)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+
+	// add a second expired cert to one of the hosts
+	addCert(time.Now().AddDate(-1, -1, 0), h1)
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.Len(t, assocs, 4)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+
 	checkSCEPRenew := func(assoc fleet.SCEPIdentityAssociation, want *string) {
 		var got *string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -6206,8 +6242,9 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 				ctx,
 				q,
 				&got,
-				`SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ?`,
+				`SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ? AND sha256 = ?`,
 				assoc.HostUUID,
+				assoc.SHA256,
 			)
 		})
 		require.EqualValues(t, want, got)

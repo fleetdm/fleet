@@ -3,6 +3,7 @@ import {
   IWebhookHostStatus,
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
+  IWebhookActivities,
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
 
@@ -187,6 +188,7 @@ export interface IWebhookSettings {
   failing_policies_webhook: IWebhookFailingPolicies;
   host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
+  activities_webhook: IWebhookActivities;
 }
 
 export type IAutomationsConfig = Pick<

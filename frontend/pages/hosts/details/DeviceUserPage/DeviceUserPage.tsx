@@ -44,6 +44,7 @@ import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import OSSettingsModal from "../OSSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 
 const baseClass = "device-user";
 
@@ -69,7 +70,7 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
-  const queryParams = location.query;
+
   const { renderFlash } = useContext(NotificationContext);
 
   const [isPremiumTier, setIsPremiumTier] = useState(false);
@@ -332,9 +333,17 @@ const DeviceUserPage = ({
     const findSelectedTab = (pathname: string) =>
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
 
+    // TODO: This is a temporary fix that conditionally shows the new software tab depending on
+    // whether software items returned in the device details response (legacy endpoint).
+    // If the tab is selected, we call the new host software endpoint and display those results.
+    // Software in the legacy response is only being used as a proxy for `iseSoftwareEnabled`.
+    // Ideally we should be checking the config for whether software is enabled to show/hide the tab,
+    // but it isn't available via device token authenticated API. And we need better specified empty states.
+    const isSoftwareEnabled = !!host?.software.length;
+
     return (
       <div className="core-wrapper">
-        {isLoadingHost ? (
+        {!host || isLoadingHost ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>
@@ -374,7 +383,7 @@ const DeviceUserPage = ({
               mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
-              renderActionButtons={renderActionButtons}
+              renderActionDropdown={renderActionButtons}
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
@@ -385,7 +394,7 @@ const DeviceUserPage = ({
               >
                 <TabList>
                   <Tab>Details</Tab>
-                  <Tab>Software</Tab>
+                  {isSoftwareEnabled && <Tab>Software</Tab>}
                   {isPremiumTier && (
                     <Tab>
                       <div>
@@ -404,19 +413,21 @@ const DeviceUserPage = ({
                     munki={deviceMacAdminsData?.munki}
                   />
                 </TabPanel>
-                <TabPanel>
-                  <SoftwareCard
-                    router={router}
-                    isLoading={isLoadingHost}
-                    software={host?.software ?? []}
-                    deviceUser
-                    pathname={location.pathname}
-                    pathPrefix={PATHS.DEVICE_USER_DETAILS_SOFTWARE(
-                      deviceAuthToken
-                    )}
-                    queryParams={queryParams}
-                  />
-                </TabPanel>
+                {isSoftwareEnabled && (
+                  <TabPanel>
+                    <SoftwareCard
+                      id={deviceAuthToken}
+                      isFleetdHost={!!host.orbit_version}
+                      router={router}
+                      pathname={location.pathname}
+                      queryParams={parseHostSoftwareQueryParams(location.query)}
+                      isMyDevicePage
+                      hostTeamId={host.team_id || 0}
+                      hostPlatform={host?.platform || ""}
+                      isSoftwareEnabled={isSoftwareEnabled}
+                    />
+                  </TabPanel>
+                )}
                 {isPremiumTier && (
                   <TabPanel>
                     <PoliciesCard
@@ -424,6 +435,7 @@ const DeviceUserPage = ({
                       isLoading={isLoadingHost}
                       deviceUser
                       togglePolicyDetailsModal={togglePolicyDetailsModal}
+                      hostPlatform={host?.platform || ""}
                     />
                   </TabPanel>
                 )}

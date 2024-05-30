@@ -63,6 +63,10 @@
 			"databases_path": "/some/path"
 		},
 		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": false,
+				"destination_url": ""
+			},
 			"host_status_webhook": {
 				"enable_host_status_webhook": false,
 				"destination_url": "",

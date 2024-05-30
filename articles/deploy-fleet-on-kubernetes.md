@@ -1,6 +1,10 @@
 # Deploy Fleet on Kubernetes
 
+> **This article was archived on May 16, 2024,** and may be outdated. Check out [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for our recommended deployment method.
+
 ![Deploy Fleet on Kubernetes](../website/assets/images/articles/deploy-fleet-on-kubernetes-800x450@2x.png)
+
+> Updated on May 10, 2022, by [Kelvin Oghenerhoro Omereshone](https://github.com/DominusKelvin).
 
 In this guide, we will focus on deploying Fleet only on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
 
@@ -194,7 +198,7 @@ Once you have the public IP address for the load balancer, create an A record in
 <meta name="articleTitle" value="Deploy Fleet on Kubernetes">
 <meta name="authorGitHubUsername" value="marpaia">
 <meta name="authorFullName" value="Mike Arpaia">
-<meta name="publishedOn" value="2022-05-10">
+<meta name="publishedOn" value="2017-11-18">
 <meta name="category" value="guides">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-kubernetes-800x450@2x.png">
 <meta name="description" value="Learn how to deploy Fleet on Kubernetes.">

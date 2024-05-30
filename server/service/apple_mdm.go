@@ -383,12 +383,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
-		TeamID:            actTeamID,
-		TeamName:          actTeamName,
-		ProfileName:       newCP.Name,
-		ProfileIdentifier: newCP.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
+			TeamID:            actTeamID,
+			TeamName:          actTeamName,
+			ProfileName:       newCP.Name,
+			ProfileIdentifier: newCP.Identifier,
+		}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple config profile")
 	}
 
@@ -469,12 +470,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: decl.Name,
-		Identifier:  decl.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedDeclarationProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: decl.Name,
+			Identifier:  decl.Identifier,
+		}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple declaration")
 	}
 
@@ -771,12 +773,13 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:            actTeamID,
-		TeamName:          actTeamName,
-		ProfileName:       cp.Name,
-		ProfileIdentifier: cp.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
+			TeamID:            actTeamID,
+			TeamName:          actTeamName,
+			ProfileName:       cp.Name,
+			ProfileIdentifier: cp.Identifier,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
 	}
 
@@ -850,12 +853,13 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: decl.Name,
-		Identifier:  decl.Identifier,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedDeclarationProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: decl.Name,
+			Identifier:  decl.Identifier,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple declaration")
 	}
 
@@ -1404,18 +1408,19 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
-		HostSerial:       h.HardwareSerial,
-		HostDisplayName:  h.DisplayName(),
-		InstalledFromDEP: info.InstalledFromDEP,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+			HostSerial:       h.HardwareSerial,
+			HostDisplayName:  h.DisplayName(),
+			InstalledFromDEP: info.InstalledFromDEP,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
-	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID)
+	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID, info.Platform)
 }
 
-func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string) error {
+func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string, platform string) error {
 	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer func() {
@@ -1444,7 +1449,7 @@ func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context
 			mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 			err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 				Action:   mdmlifecycle.HostActionTurnOff,
-				Platform: "darwin",
+				Platform: platform,
 				UUID:     deviceID,
 			})
 			if err != nil {
@@ -1820,10 +1825,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 	}
 	return nil
@@ -1955,7 +1961,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
 		}
@@ -2494,9 +2500,23 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		return nil
 	}
 
+	// iPhones and iPads send ProductName but not Model/ModelName,
+	// thus we use this field as the device's Model (which is required on lifecycle stages).
+	platform := "darwin"
+	iPhone := strings.HasPrefix(m.ProductName, "iPhone")
+	iPad := strings.HasPrefix(m.ProductName, "iPad")
+	if iPhone || iPad {
+		m.Model = m.ProductName
+		if iPhone {
+			platform = "ios"
+		} else {
+			platform = "ipados"
+		}
+	}
+
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:         mdmlifecycle.HostActionReset,
-		Platform:       "darwin",
+		Platform:       platform,
 		UUID:           m.UDID,
 		HardwareSerial: m.SerialNumber,
 		HardwareModel:  m.Model,
@@ -2511,12 +2531,14 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 	}
 
-	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
-		HostSerial:       updatedInfo.HardwareSerial,
-		HostDisplayName:  updatedInfo.DisplayName,
-		InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
-		MDMPlatform:      fleet.MDMPlatformApple,
-	})
+	return newActivity(
+		r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
+			HostSerial:       updatedInfo.HardwareSerial,
+			HostDisplayName:  updatedInfo.DisplayName,
+			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
+			MDMPlatform:      fleet.MDMPlatformApple,
+		}, svc.ds, svc.logger,
+	)
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.
@@ -2538,7 +2560,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:          mdmlifecycle.HostActionTurnOn,
-		Platform:        "darwin",
+		Platform:        info.Platform,
 		UUID:            r.ID,
 		EnrollReference: r.Params[mobileconfig.FleetEnrollReferenceKey],
 	})
@@ -2559,18 +2581,20 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:   mdmlifecycle.HostActionTurnOff,
-		Platform: "darwin",
+		Platform: info.Platform,
 		UUID:     r.ID,
 	})
 	if err != nil {
 		return err
 	}
 
-	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
-		HostSerial:       info.HardwareSerial,
-		HostDisplayName:  info.DisplayName,
-		InstalledFromDEP: info.InstalledFromDEP,
-	})
+	return newActivity(
+		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
+			HostSerial:       info.HardwareSerial,
+			HostDisplayName:  info.DisplayName,
+			InstalledFromDEP: info.InstalledFromDEP,
+		}, svc.ds, svc.logger,
+	)
 }
 
 // SetBootstrapToken handles MDM [SetBootstrapToken][1] requests.
@@ -2627,6 +2651,48 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 		}
 
+		return nil, nil
+	}
+
+	// Check if this is a result of a "refetch" command sent to iPhones/iPads
+	// to fetch their device information periodically.
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCommandUUIDPrefix) {
+		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.UDID)
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to get host by identifier")
+		}
+		var deviceInformationResponse struct {
+			QueryResponses map[string]interface{} `plist:"QueryResponses"`
+		}
+		if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to unmarshal device information command result")
+		}
+		deviceName := deviceInformationResponse.QueryResponses["DeviceName"].(string)
+		deviceCapacity := deviceInformationResponse.QueryResponses["DeviceCapacity"].(float64)
+		availableDeviceCapacity := deviceInformationResponse.QueryResponses["AvailableDeviceCapacity"].(float64)
+		osVersion := deviceInformationResponse.QueryResponses["OSVersion"].(string)
+		wifiMac := deviceInformationResponse.QueryResponses["WiFiMAC"].(string)
+		productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
+		host.ComputerName = deviceName
+		host.Hostname = deviceName
+		host.GigsDiskSpaceAvailable = availableDeviceCapacity
+		host.GigsTotalDiskSpace = deviceCapacity
+		var osVersionPrefix string
+		if strings.HasPrefix(productName, "iPhone") {
+			osVersionPrefix = "iOS "
+		} else { // iPad
+			osVersionPrefix = "iPadOS "
+		}
+		host.OSVersion = osVersionPrefix + osVersion
+		host.PrimaryMac = wifiMac
+		host.HardwareModel = productName
+		host.DetailUpdatedAt = time.Now()
+		if err := svc.ds.UpdateHost(r.Context, host); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host")
+		}
+		if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity, deviceCapacity); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+		}
 		return nil, nil
 	}
 
@@ -2852,6 +2918,10 @@ func ReconcileAppleProfiles(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
+
+	// Exclude macOS only profiles from iPhones/iPads.
+	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
+
 	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
@@ -2989,7 +3059,7 @@ func ReconcileAppleProfiles(
 	// response from the device before we set its status as 'pending'
 	//
 	// We'll do another pass at the end to revert any changes for failed
-	// delivieries.
+	// deliveries.
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
@@ -3160,7 +3230,19 @@ func RenewSCEPCertificates(
 
 		cmdUUID := uuid.NewString()
 		var uuids []string
+		duplicateUUIDCheck := map[string]struct{}{}
 		for _, assoc := range assocsWithoutRefs {
+			// this should never happen if our DB logic is on point.
+			// This sanity check is in place to prevent issues like
+			// https://github.com/fleetdm/fleet/issues/19311 where a
+			// single duplicated UUID prevents _all_ the commands from
+			// being enqueued.
+			if _, ok := duplicateUUIDCheck[assoc.HostUUID]; ok {
+				logger.Log("inf", "duplicated host UUID while renewing associations", "host_uuid", assoc.HostUUID)
+				continue
+			}
+
+			duplicateUUIDCheck[assoc.HostUUID] = struct{}{}
 			uuids = append(uuids, assoc.HostUUID)
 			assoc.RenewCommandUUID = cmdUUID
 		}
@@ -3334,7 +3416,7 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
 	references := strings.TrimSuffix(parts[2], ".activation")
 
-	// ensure the declaration for the requested activation stil exists
+	// ensure the declaration for the requested activation still exists
 	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, references, hostUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {

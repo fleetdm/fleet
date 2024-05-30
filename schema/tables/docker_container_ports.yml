@@ -1,10 +1,8 @@
 name: docker_container_ports
-examples: >-
+examples: |-
   Identify the ports exposed at the host level and see which containers they
   redirect traffic to.
 
   ```
-
   SELECT dc.name, dp.type, dp.port, dp.host_ip, dp.host_port FROM docker_container_ports dp JOIN docker_containers dc ON dp.id=dc.id WHERE dp.host_port !='0';
-
   ```

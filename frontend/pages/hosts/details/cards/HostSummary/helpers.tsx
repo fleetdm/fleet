@@ -30,13 +30,13 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   unlocking: {
     title: "UNLOCK PENDING",
     tagType: "warning",
-    generateTooltip: (platform) =>
+    generateTooltip: () =>
       "Host will unlock when it comes online.  If the host is online, it will unlock the next time it checks in to Fleet.",
   },
   locking: {
     title: "LOCK PENDING",
     tagType: "warning",
-    generateTooltip: (platform) =>
+    generateTooltip: () =>
       "Host will lock when it comes online.  If the host is online, it will lock the next time it checks in to Fleet.",
   },
   wiped: {

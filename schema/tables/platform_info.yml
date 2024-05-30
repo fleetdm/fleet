@@ -1,9 +1,7 @@
 name: platform_info
-examples: >-
+examples: |-
   See version information about the boot system, such as iBoot on Apple Silicon
   
   ```
-  
   SELECT version FROM platform_info;
-  
   ```

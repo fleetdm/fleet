@@ -18,7 +18,7 @@ Due to Terraform issues, this code requires 3 applies "from scratch":
 6. `terraform apply`
 7. If enabling mdm do the following:
  - Record the KMS key from step 5 output.
- - Use `fleetctl` to obtain all of the mdm certs.  Use https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns and https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm for reference.
+ - Use `fleetctl` to obtain all of the mdm certs.  Use https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns and https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm for reference.
  - Place the certificates in the `resources` folder with the following names based upon their function:
 ```
 scep.crt

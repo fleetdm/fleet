@@ -277,6 +277,17 @@ func mapDpkgInfoTest(i oval_input.DpkgInfoTestXML) (int, *oval_parsed.DpkgInfoTe
 	return id, &tst, nil
 }
 
+func mapUnixUnameTest(i oval_input.UnixUnameTestXML) (int, *oval_parsed.UnixUnameTest, error) {
+	id, err := extractId(i.Id)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	tst := oval_parsed.UnixUnameTest{}
+
+	return id, &tst, nil
+}
+
 // mapDpkgInfoState maps a DpkgInfoStateXML into an EVR string. The state of an object defines
 // the different information that can be used to evaluate the specified DPKG package. All Ubuntu
 // OVAL definitions seem to only use Evr strings to define object state, that's why only Evr support
@@ -295,4 +306,25 @@ func mapDpkgInfoState(sta oval_input.DpkgInfoStateXML) (*oval_parsed.ObjectState
 
 	r := oval_parsed.NewObjectStateEvrString(sta.Evr.Op, sta.Evr.Value)
 	return &r, nil
+}
+
+func mapUnameState(sta oval_input.UnixUnameStateXML) *oval_parsed.ObjectStateString {
+	r := oval_parsed.NewObjectStateString(sta.OSRelease.Op, sta.OSRelease.Value)
+	return &r
+}
+
+func mapVariableTest(i oval_input.VariableTestXML) (int, *oval_parsed.UnixUnameTest, error) {
+	id, err := extractId(i.Id)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	tst := oval_parsed.UnixUnameTest{}
+
+	return id, &tst, nil
+}
+
+func mapVariableState(sta oval_input.VariableStateXML) *oval_parsed.ObjectStateString {
+	r := oval_parsed.NewObjectStateString(sta.Value.Op, sta.Value.Value)
+	return &r
 }

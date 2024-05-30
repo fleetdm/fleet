@@ -1,9 +1,7 @@
 name: sip_config
-examples: >-
+examples: |-
   View the status of System Integrity Protection.
   
   ```
-  
   SELECT config_flag, enabled FROM sip_config WHERE config_flag='sip';
-  
   ```

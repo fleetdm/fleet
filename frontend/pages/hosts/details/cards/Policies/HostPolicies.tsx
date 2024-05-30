@@ -1,9 +1,11 @@
 import React from "react";
 
 import { IHostPolicy } from "interfaces/policy";
+import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
+import CustomLink from "components/CustomLink";
 
 import {
   generatePolicyTableHeaders,
@@ -18,6 +20,7 @@ interface IPoliciesProps {
   isLoading: boolean;
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
+  hostPlatform: string;
 }
 
 const Policies = ({
@@ -25,16 +28,34 @@ const Policies = ({
   isLoading,
   deviceUser,
   togglePolicyDetailsModal,
+  hostPlatform,
 }: IPoliciesProps): JSX.Element => {
-  if (policies.length === 0) {
-    return (
-      <Card
-        borderRadiusSize="large"
-        includeShadow
-        largePadding
-        className={baseClass}
-      >
-        <p className="card__header">Policies</p>
+  const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
+  if (deviceUser) {
+    // Remove view all hosts link
+    tableHeaders.pop();
+  }
+  const failingResponses: IHostPolicy[] =
+    policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
+
+  const renderHostPolicies = () => {
+    if (hostPlatform === "ios" || hostPlatform === "ipados") {
+      return (
+        <EmptyTable
+          header={<>Policies are not supported for this host</>}
+          info={
+            <>
+              Interested in detecting device health issues on{" "}
+              {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
+    if (policies.length === 0) {
+      return (
         <EmptyTable
           header={
             <>
@@ -50,17 +71,30 @@ const Policies = ({
             </>
           }
         />
-      </Card>
-    );
-  }
+      );
+    }
 
-  const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
-  if (deviceUser) {
-    // Remove view all hosts link
-    tableHeaders.pop();
-  }
-  const failingResponses: IHostPolicy[] =
-    policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
+    return (
+      <>
+        {failingResponses?.length > 0 && (
+          <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
+        )}
+        <TableContainer
+          columnConfigs={tableHeaders}
+          data={generatePolicyDataSet(policies)}
+          isLoading={isLoading}
+          manualSortBy
+          resultsTitle="policy items"
+          emptyComponent={() => <></>}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          disablePagination
+          disableCount
+          disableMultiRowSelect
+        />
+      </>
+    );
+  };
 
   return (
     <Card
@@ -70,27 +104,7 @@ const Policies = ({
       className={baseClass}
     >
       <p className="card__header">Policies</p>
-
-      {policies.length > 0 && (
-        <>
-          {failingResponses?.length > 0 && (
-            <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
-          )}
-          <TableContainer
-            columnConfigs={tableHeaders}
-            data={generatePolicyDataSet(policies)}
-            isLoading={isLoading}
-            manualSortBy
-            resultsTitle="policy items"
-            emptyComponent={() => <></>}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disablePagination
-            disableCount
-            disableMultiRowSelect
-          />
-        </>
-      )}
+      {renderHostPolicies()}
     </Card>
   );
 };

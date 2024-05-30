@@ -160,26 +160,6 @@ const generateTableHeaders = ({
                       Observers can run this query.
                     </ReactTooltip5>
                   </div>
-
-                  // <>
-                  //   <span
-                  //     className="tooltip-base"
-                  //     data-tip
-                  //     data-for={`observer-can-run-tooltip-${cellProps.row.original.id}`}
-                  //   >
-                  //     <Icon className="query-icon" name="query" size="small" />
-                  //   </span>
-                  //   <ReactTooltip
-                  //     className="observer-can-run-tooltip"
-                  //     place="top"
-                  //     type="dark"
-                  //     effect="solid"
-                  //     id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
-                  //     backgroundColor={COLORS["tooltip-bg"]}
-                  //   >
-                  //     Observers can run this query.
-                  //   </ReactTooltip>
-                  // </>
                 )}
                 {viewingTeamScope &&
                   // inherited

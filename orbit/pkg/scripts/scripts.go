@@ -39,7 +39,7 @@ type Runner struct {
 	// execCmdFn can be set for tests to mock actual execution of the script. If
 	// nil, execCmd will be used, which has a different implementation on Windows
 	// and non-Windows platforms.
-	execCmdFn func(ctx context.Context, scriptPath string) ([]byte, int, error)
+	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
@@ -117,10 +117,10 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 
 	execCmdFn := r.execCmdFn
 	if execCmdFn == nil {
-		execCmdFn = execCmd
+		execCmdFn = ExecCmd
 	}
 	start := time.Now()
-	output, exitCode, execErr := execCmdFn(ctx, scriptFile)
+	output, exitCode, execErr := execCmdFn(ctx, scriptFile, nil)
 	duration := time.Since(start)
 
 	// report the output or the error

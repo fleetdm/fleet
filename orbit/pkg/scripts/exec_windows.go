@@ -8,12 +8,13 @@ import (
 	"path/filepath"
 )
 
-func execCmd(ctx context.Context, scriptPath string) (output []byte, exitCode int, err error) {
+func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byte, exitCode int, err error) {
 	// initialize to -1 in case the process never starts
 	exitCode = -1
 
 	// for Windows, we execute the file with powershell.
 	cmd := exec.CommandContext(ctx, "powershell", "-MTA", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+	cmd.Env = env
 	cmd.Dir = filepath.Dir(scriptPath)
 	output, err = cmd.CombinedOutput()
 	if cmd.ProcessState != nil {

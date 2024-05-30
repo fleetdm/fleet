@@ -4,6 +4,7 @@
  * Also please check the README for how to use the mock service :)
  */
 
+import { createMockIosHostResponse } from "__mocks__/hostMock";
 import { createMockPoliciesResponse } from "__mocks__/policyMock";
 
 const count = {
@@ -10593,7 +10594,7 @@ const globalQuery6 = { query: globalQueries.queries[6] };
 const teamQuery1 = { query: teamQueries.queries[0] };
 const teamQuery2 = { query: teamQueries.queries[1] };
 const teamPolicy1 = createMockPoliciesResponse();
-
+const hostDetailsiOS = createMockIosHostResponse;
 const aiAutofillPolicy = {
   description:
     "The firewall is not enabled, exposing the laptop to potential security threats such as unauthorized access, data breaches, and malware attacks.",
@@ -10618,4 +10619,5 @@ export default {
   teamQuery2,
   aiAutofillPolicy,
   teamPolicy1,
+  hostDetailsiOS,
 };

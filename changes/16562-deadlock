@@ -1,1 +1,0 @@
-Updated MySQL host_operating_system insert statement to reduce table lock time and optimize performance for the common case.
