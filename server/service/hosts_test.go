@@ -1250,6 +1250,13 @@ func TestHostEncryptionKey(t *testing.T) {
 				return nil
 			}
 
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+					fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
+					fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+				}, nil
+			}
+
 			t.Run("allowed users", func(t *testing.T) {
 				for _, u := range tt.allowedUsers {
 					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID)
@@ -1294,6 +1301,12 @@ func TestHostEncryptionKey(t *testing.T) {
 		keyErr := errors.New("key error")
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return nil, keyErr
+		}
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
+				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+			}, nil
 		}
 		_, err = svc.HostEncryptionKey(ctx, 1)
 		require.ErrorIs(t, err, keyErr)
@@ -1344,6 +1357,12 @@ func TestHostEncryptionKey(t *testing.T) {
 				}
 				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 					return nil
+				}
+				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+					return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+						fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
+						fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+					}, nil
 				}
 
 				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
