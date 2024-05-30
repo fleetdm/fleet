@@ -97,6 +97,9 @@ Customer Support and 24/7 on-call Engineers are responsible for the first respon
 The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #g-customer-success Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
 - **First responders:** Robert Fairburn, Kathy Satterlee
 
+### Promptly notify customers and community about P0 events
+CSMs are responsible for coordinating with engineering to deliver information about P0 bugs to Fleet's customers and community members. Once engineering has provided a detailed write up of a P0 event, CSMs will then post this information into affected customer Slack channels as well as community Slack channels.
+
 Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
 - **Escalations (in order):** » Eric Shaw (fleetdm.com) » Zay Hanlon » Luke Heath » Mike McNeil
 
