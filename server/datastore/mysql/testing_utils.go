@@ -507,16 +507,29 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 }
 
 func SetTestABMAssets(t testing.TB, ds *Datastore) {
+	apnsCert, apnsKey, err := GenerateTestCertBytes()
+	require.NoError(t, err)
+
 	certPEM, keyPEM, tokenBytes, err := GenerateTestABMAssets(t)
 	require.NoError(t, err)
 	assets := []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetABMCert, Value: certPEM},
 		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
 		{Name: fleet.MDMAssetABMToken, Value: tokenBytes},
+		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+		{Name: fleet.MDMAssetCACert, Value: certPEM},
+		{Name: fleet.MDMAssetCAKey, Value: keyPEM},
 	}
 
 	err = ds.InsertMDMConfigAssets(context.Background(), assets)
 	require.NoError(t, err)
+
+	appCfg, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = true
+	appCfg.MDM.AppleBMEnabledAndConfigured = true
+	ds.SaveAppConfig(context.Background(), appCfg)
 }
 
 func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {

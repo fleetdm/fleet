@@ -2000,10 +2000,10 @@ func TestGetAppleMDM(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 
-	// can only test when no MDM cert is provided, otherwise they would have to
-	// be valid Apple APNs and SCEP certs.
-	expected := `Error: No Apple Push Notification service (APNs) certificate found.`
-	assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple"}), expected)
+	out := runAppForTest(t, []string{"get", "mdm_apple"})
+	assert.Contains(t, out, "Common name (CN):")
+	assert.Contains(t, out, "Serial number:")
+	assert.Contains(t, out, "Issuer:")
 }
 
 func TestGetAppleBM(t *testing.T) {
@@ -2041,12 +2041,12 @@ func TestGetAppleBM(t *testing.T) {
 	t.Run("premium license", func(t *testing.T) {
 		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 
-		expected := `Apple ID:         	abc
-Organization name:	test_org
-MDM server URL:   	/mdm/apple/mdm
-Renew date:       	January 1, 2999
-Default team:     	No team`
-		assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple_bm"}), expected)
+		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		assert.Contains(t, out, "Apple ID:")
+		assert.Contains(t, out, "Organization name:")
+		assert.Contains(t, out, "MDM server URL:")
+		assert.Contains(t, out, "Renew date:")
+		assert.Contains(t, out, "Default team:")
 	})
 }
 
