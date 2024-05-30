@@ -98,4 +98,8 @@
     display: flex;
     gap: $pad-medium;
   }
+
+  .data-error {
+    margin-top: $pad-xxlarge;
+  }
 }

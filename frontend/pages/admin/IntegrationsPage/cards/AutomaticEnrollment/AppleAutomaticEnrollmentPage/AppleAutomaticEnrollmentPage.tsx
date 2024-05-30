@@ -49,6 +49,7 @@ const AppleAutomaticEnrollmentPage = ({
     () => mdmAppleBmAPI.getAppleBMInfo(),
     {
       refetchOnWindowFocus: false,
+      retry: (tries, error) => error.status !== 404 && tries <= 3,
     }
   );
 
@@ -122,12 +123,12 @@ const AppleAutomaticEnrollmentPage = ({
     return <Spinner />;
   }
 
-  if (errorMdmAppleBm?.status === 404) {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-  }
-
-  if (errorMdmAppleBm) {
-    return <DataError />;
+  if (errorMdmAppleBm && errorMdmAppleBm?.status !== 404) {
+    return (
+      <MainContent className={baseClass}>
+        <DataError />
+      </MainContent>
+    );
   }
 
   return (
