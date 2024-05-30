@@ -570,35 +570,34 @@ the way that the Fleet server works.
 				initFatal(err, "loading app config")
 			}
 
-			_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
+				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names)
+				if err != nil {
+					if fleet.IsNotFound(err) || errors.Is(err, mysql.ErrPartialResult) {
+						return false, nil
+					}
+					return false, err
+				}
+				return true, nil
+			}
+
+			appCfg.MDM.EnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
 				fleet.MDMAssetCACert,
 				fleet.MDMAssetCAKey,
 				fleet.MDMAssetAPNSKey,
 				fleet.MDMAssetAPNSCert,
 			})
 			if err != nil {
-				if fleet.IsNotFound(err) {
-					appCfg.MDM.EnabledAndConfigured = false
-				}
-
 				initFatal(err, "validating MDM assets from database")
-			} else {
-				appCfg.MDM.EnabledAndConfigured = true
 			}
 
-			_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+			appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
 				fleet.MDMAssetABMCert,
 				fleet.MDMAssetABMKey,
 				fleet.MDMAssetABMToken,
 			})
 			if err != nil {
-				if fleet.IsNotFound(err) {
-					appCfg.MDM.AppleBMEnabledAndConfigured = false
-				}
-
 				initFatal(err, "validating MDM ABM assets from database")
-			} else {
-				appCfg.MDM.AppleBMEnabledAndConfigured = true
 			}
 
 			// register the Microsoft MDM services
@@ -619,7 +618,6 @@ the way that the Fleet server works.
 			}
 
 			// save the app config with the updated MDM.Enabled value
-			fmt.Println("ffffffffffffffffffffff app cfg enabled", appCfg.MDM.EnabledAndConfigured)
 			if err := ds.SaveAppConfig(context.Background(), appCfg); err != nil {
 				initFatal(err, "saving app config")
 			}
@@ -677,10 +675,7 @@ the way that the Fleet server works.
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
-				var profileMatcher fleet.ProfileMatcher
-				if appCfg.MDM.EnabledAndConfigured {
-					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
-				}
+				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.Bucket != "" {
 					store, err := s3.NewSoftwareInstallerStore(config.S3)
 					if err != nil {
@@ -766,10 +761,7 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(
 				func() (fleet.CronSchedule, error) {
-					var commander *apple_mdm.MDMAppleCommander
-					if appCfg.MDM.EnabledAndConfigured {
-						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-					}
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
 						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore,
 					)
@@ -809,10 +801,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				var commander *apple_mdm.MDMAppleCommander
-				if appCfg.MDM.EnabledAndConfigured {
-					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-				}
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")

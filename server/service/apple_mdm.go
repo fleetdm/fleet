@@ -3146,12 +3146,12 @@ func RenewSCEPCertificates(
 		return fmt.Errorf("reading app config: %w", err)
 	}
 	if !appConfig.MDM.EnabledAndConfigured {
-		logger.Log("inf", "skipping renewal of macOS SCEP certificates as MDM is not fully configured")
+		level.Debug(logger).Log("msg", "skipping renewal of macOS SCEP certificates as MDM is not fully configured")
 		return nil
 	}
 
 	if commander == nil {
-		logger.Log("inf", "skipping renewal of macOS SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
+		level.Debug(logger).Log("msg", "skipping renewal of macOS SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
 		return nil
 	}
 

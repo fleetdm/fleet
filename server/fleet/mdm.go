@@ -565,8 +565,9 @@ const (
 )
 
 type MDMConfigAsset struct {
-	Name  MDMAssetName `db:"name"`
-	Value []byte       `db:"value"`
+	Name        MDMAssetName `db:"name"`
+	Value       []byte       `db:"value"`
+	MD5Checksum string       `db:"md5_checksum"`
 }
 
 func (m MDMConfigAsset) Clone() (Cloner, error) {

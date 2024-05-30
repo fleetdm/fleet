@@ -4167,14 +4167,10 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
 	stmt := `
-INSERT INTO
-    mdm_config_assets (
-		name,
-		value
-	)
+INSERT INTO mdm_config_assets
+  (name, value, md5_checksum)
 VALUES
-     %s
-	`
+  %s`
 
 	var args []any
 	var insertVals strings.Builder
@@ -4184,8 +4180,10 @@ VALUES
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
 		}
-		insertVals.WriteString(`(?, ?),`)
-		args = append(args, a.Name, encryptedVal)
+
+		hexChecksum := md5ChecksumBytes(encryptedVal)
+		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
+		args = append(args, a.Name, encryptedVal, hexChecksum)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -4235,6 +4233,42 @@ WHERE
 		}
 
 		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal}
+	}
+
+	if len(res) < len(assetNames) {
+		return assetMap, ErrPartialResult
+	}
+
+	return assetMap, nil
+}
+
+func (ds *Datastore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+	if len(assetNames) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT HEX(md5_checksum) as md5_checksum
+FROM mdm_config_assets
+WHERE name IN (?) AND deletion_uuid = ''`
+
+	stmt, args, err := sqlx.In(stmt, assetNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
+	}
+
+	var res []fleet.MDMConfigAsset
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config checksums by name")
+	}
+
+	if len(res) == 0 {
+		return nil, notFound("MDMConfigAsset")
+	}
+
+	assetMap := make(map[fleet.MDMAssetName]string, len(res))
+	for _, asset := range res {
+		assetMap[asset.Name] = asset.MD5Checksum
 	}
 
 	if len(res) < len(assetNames) {

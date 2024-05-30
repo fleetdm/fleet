@@ -1257,6 +1257,13 @@ type Datastore interface {
 	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
 
+	// GetAllMDMConfigAssetsHashes behaves like
+	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
+	// each asset
+	//
+	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
+	GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]string, error)
+
 	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 

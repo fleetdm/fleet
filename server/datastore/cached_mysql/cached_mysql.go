@@ -50,7 +50,7 @@ const (
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
-	mdmConfigAssetKey                  = "MDMConfigAsset:%s"
+	mdmConfigAssetKey                  = "MDMConfigAsset:%s:%s"
 	defaultMDMConfigAssetExpiration    = 1 * time.Hour
 )
 
@@ -180,6 +180,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		teamMDMConfigExp:     defaultTeamMDMConfigExpiration,
 		queryByNameExp:       defaultQueryByNameExpiration,
 		queryResultsCountExp: defaultQueryResultsCountExpiration,
+		mdmConfigAssetExp:    defaultMDMConfigAssetExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -396,63 +397,46 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 	return count, nil
 }
 
-//func (ds *cachedMysql) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-//	err := ds.Datastore.InsertMDMConfigAssets(ctx, assets)
-//	if err != nil {
-//		return err
-//	}
-//
-//	for _, a := range assets {
-//		ds.c.Delete(fmt.Sprintf(mdmConfigAssetKey, a.Name))
-//	}
-//
-//	return nil
-//}
-//
-//func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-//	cachedAssets := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset)
-//	var missingAssets []fleet.MDMAssetName
-//
-//	for _, name := range assetNames {
-//		key := fmt.Sprintf(mdmConfigAssetKey, name)
-//		if x, found := ds.c.Get(ctx, key); found {
-//			asset, ok := x.(fleet.MDMConfigAsset)
-//			if ok {
-//				cachedAssets[name] = asset
-//				continue
-//			}
-//		}
-//
-//		missingAssets = append(missingAssets, name)
-//	}
-//
-//	if len(missingAssets) == 0 {
-//		return cachedAssets, nil
-//	}
-//
-//	assetMap, err := ds.Datastore.GetAllMDMConfigAssetsByName(ctx, missingAssets)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	for name, asset := range assetMap {
-//		key := fmt.Sprintf(mdmConfigAssetKey, name)
-//		ds.c.Set(ctx, key, asset, ds.mdmConfigAssetExp)
-//		cachedAssets[name] = asset
-//	}
-//
-//	return cachedAssets, nil
-//}
-//
-//func (ds *cachedMysql) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
-//	err := ds.Datastore.DeleteMDMConfigAssetsByName(ctx, assetNames)
-//	if err != nil {
-//		return err
-//	}
-//
-//	for _, name := range assetNames {
-//		ds.c.Delete(fmt.Sprintf(mdmConfigAssetKey, name))
-//	}
-//
-//	return nil
-//}
+func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	// always reach the database to get the latest hashes
+	latestHashes, err := ds.Datastore.GetAllMDMConfigAssetsHashes(ctx, assetNames)
+	if err != nil {
+		return nil, err
+	}
+
+	cachedAssets := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset)
+	var missingAssets []fleet.MDMAssetName
+
+	for _, name := range assetNames {
+		key := fmt.Sprintf(mdmConfigAssetKey, name, latestHashes[name])
+
+		if x, found := ds.c.Get(ctx, key); found {
+			asset, ok := x.(fleet.MDMConfigAsset)
+			if ok {
+				cachedAssets[name] = asset
+				continue
+			}
+		}
+
+		missingAssets = append(missingAssets, name)
+	}
+
+	if len(missingAssets) == 0 {
+		return cachedAssets, nil
+	}
+
+	// fetch missing assets from the database
+	assetMap, err := ds.Datastore.GetAllMDMConfigAssetsByName(ctx, missingAssets)
+	if err != nil {
+		return nil, err
+	}
+
+	// update the cache with the fetched assets and their hashes
+	for name, asset := range assetMap {
+		key := fmt.Sprintf(mdmConfigAssetKey, name, latestHashes[name])
+		ds.c.Set(ctx, key, asset, ds.mdmConfigAssetExp)
+		cachedAssets[name] = asset
+	}
+
+	return cachedAssets, nil
+}

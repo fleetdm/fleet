@@ -810,6 +810,7 @@ CREATE TABLE `mdm_config_assets` (
   `value` longblob NOT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   `deletion_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `md5_checksum` binary(16) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_mdm_config_assets_name_deletion_uuid` (`name`,`deletion_uuid`)
