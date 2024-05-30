@@ -3636,10 +3636,15 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return ctxerr.Wrap(ctx, err, "saving ABM token in database")
 	}
 
-	// TODO: flip AppConfig.MDM.AppleBMEnabledAndConfigured as part of
-	// https://github.com/fleetdm/fleet/issues/19180 here
+	// flip the app config flag
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
 
-	return nil
+	appCfg.MDM.AppleBMEnabledAndConfigured = true
+
+	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3671,9 +3676,16 @@ func (svc *Service) DisableABM(ctx context.Context) error {
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMToken,
 	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "disabling ABM config")
+	}
 
-	// TODO: flip AppConfig.MDM.AppleBMEnabledAndConfigured as part of
-	// https://github.com/fleetdm/fleet/issues/19180 here
+	// flip the app config flag
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
 
-	return ctxerr.Wrap(ctx, err, "disabling ABM config")
+	appCfg.MDM.AppleBMEnabledAndConfigured = false
+	return svc.ds.SaveAppConfig(ctx, appCfg)
 }

@@ -807,7 +807,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"verify_disk_encryption_keys",
 			func(ctx context.Context) error {
-				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
+				return verifyDiskEncryptionKeys(ctx, logger, ds)
 			},
 		),
 		schedule.WithJob(
@@ -904,7 +904,6 @@ func verifyDiskEncryptionKeys(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds fleet.Datastore,
-	config *config.FleetConfig,
 ) error {
 
 	appCfg, err := ds.AppConfig(ctx)

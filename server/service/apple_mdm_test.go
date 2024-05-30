@@ -2953,7 +2953,6 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 
 func TestRenewSCEPCertificatesMDMConfigNotSet(t *testing.T) {
 	ctx, logger, ds, cfg, _, commander := setupTest(t)
-	cfg.MDM = config.MDMConfig{} // ensure MDM is not fully configured
 	err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander)
 	require.NoError(t, err)
 }

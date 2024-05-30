@@ -2329,13 +2329,22 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	}
 
 	// Save to DB
-	return ctxerr.Wrap(
-		ctx,
-		svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-			{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
-		}),
-		"writing apns cert to db",
-	)
+	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "writing apns cert to db")
+	}
+
+	// flip the app config flag
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	appCfg.MDM.EnabledAndConfigured = true
+
+	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2365,10 +2374,23 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 		return err
 	}
 
-	return ctxerr.Wrap(ctx, svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+	err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetAPNSCert,
 		fleet.MDMAssetAPNSKey,
 		fleet.MDMAssetCACert,
 		fleet.MDMAssetCAKey,
-	}), "deleting apple mdm assets")
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting apple mdm assets")
+	}
+
+	// flip the app config flag
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	appCfg.MDM.EnabledAndConfigured = false
+
+	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
