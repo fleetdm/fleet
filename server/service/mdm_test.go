@@ -54,9 +54,6 @@ func TestGetMDMApple(t *testing.T) {
 		}, nil
 	}
 
-	_, _, _, err = cfg.MDM.AppleAPNs()
-	require.NoError(t, err)
-
 	ctx = test.UserContext(ctx, test.UserAdmin)
 	got, err := svc.GetAppleMDM(ctx)
 	require.NoError(t, err)
