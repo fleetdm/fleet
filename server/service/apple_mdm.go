@@ -3162,9 +3162,9 @@ func RenewSCEPCertificates(
 		return ctxerr.Wrap(ctx, err, "getting host cert associations")
 	}
 
-	mdmPushCertTopic, err := assets.APNSTopic(ctx, ds)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
+	if len(certAssociations) == 0 {
+		level.Debug(logger).Log("msg", "no certs to renew")
+		return nil
 	}
 
 	// assocsWithRefs stores hosts that have enrollment references on their
@@ -3180,6 +3180,11 @@ func RenewSCEPCertificates(
 			continue
 		}
 		assocsWithoutRefs = append(assocsWithoutRefs, assoc)
+	}
+
+	mdmPushCertTopic, err := assets.APNSTopic(ctx, ds)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
 	}
 
 	// send a single command for all the hosts without references.

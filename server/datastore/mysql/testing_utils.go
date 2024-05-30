@@ -507,7 +507,7 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 }
 
 func SetTestABMAssets(t testing.TB, ds *Datastore) {
-	certPEM, keyPEM, err := generateTestCertBytes()
+	certPEM, keyPEM, err := GenerateTestCertBytes()
 	require.NoError(t, err)
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
@@ -553,7 +553,8 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	require.NoError(t, err)
 }
 
-func generateTestCertBytes() ([]byte, []byte, error) {
+// TODO: move to mdmcrypto?
+func GenerateTestCertBytes() ([]byte, []byte, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err

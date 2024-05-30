@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -2921,9 +2922,6 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 	ctx := context.Background()
 	logger := kitlog.NewNopLogger()
 	cfg := config.TestConfig()
-	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
-	require.NoError(t, err)
-	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
 	ds := new(mock.Store)
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	pushFactory, _ := newMockAPNSPushProviderFactory()
@@ -2937,12 +2935,30 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 		AppleSCEPCert: "./testdata/server.pem",
 		AppleSCEPKey:  "./testdata/server.key",
 	}
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+	require.NoError(t, err)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appCfg := &fleet.AppConfig{}
+		appCfg.MDM.EnabledAndConfigured = true
+		return appCfg, nil
+	}
+
+	_, pemCert, pemKey, err := mdmConfig.AppleSCEP()
+	require.NoError(t, err)
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-		_, pemCert, pemKey, err := mdmConfig.AppleSCEP()
-		require.NoError(t, err)
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-			fleet.MDMAssetCACert: {Value: pemCert},
-			fleet.MDMAssetCAKey:  {Value: pemKey},
+			fleet.MDMAssetCACert:   {Value: pemCert},
+			fleet.MDMAssetCAKey:    {Value: pemKey},
+			fleet.MDMAssetAPNSKey:  {Value: apnsKey},
+			fleet.MDMAssetAPNSCert: {Value: apnsCert},
+		}, nil
+	}
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert:   {Value: pemCert},
+			fleet.MDMAssetCAKey:    {Value: pemKey},
+			fleet.MDMAssetAPNSKey:  {Value: apnsKey},
+			fleet.MDMAssetAPNSCert: {Value: apnsCert},
 		}, nil
 	}
 
@@ -2953,6 +2969,11 @@ func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *conf
 
 func TestRenewSCEPCertificatesMDMConfigNotSet(t *testing.T) {
 	ctx, logger, ds, cfg, _, commander := setupTest(t)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appCfg := &fleet.AppConfig{}
+		appCfg.MDM.EnabledAndConfigured = false
+		return appCfg, nil
+	}
 	err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander)
 	require.NoError(t, err)
 }
@@ -3084,6 +3105,7 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				appCfg := &fleet.AppConfig{}
 				appCfg.OrgInfo.OrgName = "fl33t"
 				appCfg.ServerSettings.ServerURL = "https://foo.example.com"
+				appCfg.MDM.EnabledAndConfigured = true
 				return appCfg, nil
 			}
 
@@ -3109,7 +3131,9 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 			}
 
 			appleStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
-				cert, err := tls.LoadX509KeyPair("./testdata/server.pem", "./testdata/server.key")
+				apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+				require.NoError(t, err)
+				cert, err := tls.X509KeyPair(apnsCert, apnsKey)
 				return &cert, "", err
 			}
 
