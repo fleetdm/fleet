@@ -867,6 +867,10 @@ None.
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
+  "activity_expiry_settings": {
+    "activity_expiry_enabled": false,
+    "activity_expiry_window": 0
+  },
   "features": {
     "additional_queries": null
   },
@@ -1076,6 +1080,8 @@ Modifies the Fleet's configuration with the supplied information.
 | metadata_url                      | string  | body  | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
 | host_expiry_enabled               | boolean | body  | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window                | integer | body  | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
+| activity_expiry_enabled           | boolean | body  | _Activity expiry settings_. When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.                                                          |
+| activity_expiry_window            | integer | body  | _Activity expiry settings_. The number of days to retain activity records, if activity expiry is enabled.   |
 | agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
 | transparency_url                  | string  | body  | _Fleet Desktop_. The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
 | enable_host_status_webhook        | boolean | body  | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
@@ -1187,6 +1193,10 @@ Note that when making changes to the `integrations` object, all integrations mus
   "host_expiry_settings": {
     "host_expiry_enabled": false,
     "host_expiry_window": 0
+  },
+  "activity_expiry_settings": {
+    "activity_expiry_enabled": false,
+    "activity_expiry_window": 0
   },
   "features": {
     "additional_queries": null
