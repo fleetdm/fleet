@@ -529,7 +529,8 @@ func SetTestABMAssets(t testing.TB, ds *Datastore) {
 	require.NoError(t, err)
 	appCfg.MDM.EnabledAndConfigured = true
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
-	ds.SaveAppConfig(context.Background(), appCfg)
+	err = ds.SaveAppConfig(context.Background(), appCfg)
+	require.NoError(t, err)
 }
 
 func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
