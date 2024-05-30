@@ -98,6 +98,9 @@ func getTCCAccessRows(username string) ([]map[string]string, error) {
 	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
 
 	rows, err := buildTableRows(username, parsedRows)
+	if err != nil {
+		return nil, err
+	}
 
 	return rows, nil
 }
