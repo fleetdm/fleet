@@ -6,6 +6,7 @@ package tcc_access
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -14,7 +15,9 @@ import (
 )
 
 var (
-	tccPathCommon = "/Library/Application Support/com.apple.TCC/TCC.db"
+	testContext   = false
+	tccPathPrefix = ""
+	tccPathSuffix = "/Library/Application Support/com.apple.TCC/TCC.db"
 	dbQuery       = "SELECT service, client, client_type, auth_value, auth_reason, last_modified, policy_id, indirect_object_identifier, indirect_object_identifier_type FROM access;"
 	sqlite3Path   = "/usr/bin/sqlite3"
 	dbColNames    = []string{"service", "client", "client_type", "auth_value", "auth_reason", "last_modified", "policy_id", "indirect_object_identifier", "indirect_object_identifier_type"}
@@ -57,6 +60,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		}
 	}
 
+	if testContext {
+		usernames = []string{"testUser1", "testUser2"}
+	}
+
 	// build rows for every user-level TCC.db
 	var rows []map[string]string
 	for _, username := range usernames {
@@ -81,11 +88,12 @@ func getTCCAccessRows(username string) ([]map[string]string, error) {
 	// avoids additional C compilation requirements that would be introduced by using
 	// https://github.com/mattn/go-sqlite3
 
-	dbPath := tccPathCommon
+	tccPath := tccPathPrefix
 	if username != "" {
-		dbPath = "/Users/" + username + tccPathCommon
+		tccPath += "/Users/" + username
 	}
-	cmd := exec.Command(sqlite3Path, dbPath, dbQuery)
+	tccPath += tccPathSuffix
+	cmd := exec.Command(sqlite3Path, tccPath, dbQuery)
 	var dbOut bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &dbOut
@@ -128,16 +136,13 @@ func buildTableRows(username string, parsedRows [][]string) ([]map[string]string
 	source := "system"
 	if username != "" {
 		// a user-scoped table, so get its uid
-		cmd := exec.Command("id", username)
-		out, err := cmd.Output()
+		parsedUid, err := getUidFromUsername(username)
 		if err != nil {
 			return nil, fmt.Errorf("generate failed: %w", err)
 		}
-
-		sOut := string(out[:])
-		unI := strings.Index(sOut, username)
-		uid = sOut[4 : unI-1]
+		uid = parsedUid
 		source = "user"
+
 	}
 
 	var rows []map[string]string
@@ -151,4 +156,24 @@ func buildTableRows(username string, parsedRows [][]string) ([]map[string]string
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+func getUidFromUsername(username string) (string, error) {
+	// QUESTION - possible to override global functions? Tried, haven't figured it out
+	if testContext {
+		testUId, ok := map[string]string{"testUser1": "1", "testUser2": "2"}[username]
+		if ok {
+			return testUId, nil
+		}
+		return "", errors.New("Invalid test username")
+	}
+	cmd := exec.Command("id", username)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("generate failed: %w", err)
+	}
+
+	sOut := string(out[:])
+	unI := strings.Index(sOut, username)
+	return sOut[4 : unI-1], nil
 }
