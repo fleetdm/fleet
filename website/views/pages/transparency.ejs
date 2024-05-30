@@ -1,21 +1,21 @@
 <div id="transparency" v-cloak>
 
   <div style="max-width: 1008px;" class="container-fluid d-flex flex-column justify-content-center align-items-center px-3 px-md-4 pt-3 pt-lg-5 pb-5 mx-auto my-5">
-    <% if(typeof showShareWithItTeam !== 'undefined' && showShareWithItTeam) {%>
+    <% if(typeof showContactFormCta !== 'undefined' && showContactFormCta) {%>
       <div purpose="hero-text">
       <h1>Does IT interrupt your day?</h1>
       <p>Fleet is dedicated to making IT and security less annoying, while maintaining privacy, transparency, and trust for end users.</p>
       </div>
       <div purpose="calendar-feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
         <div purpose="calendar-feature-text" class="d-flex flex-column">
-          <h2>"This is a terrible time to mess with my computer."</h2>
-          <p>Install updates and force restarts when your users’ computers are actually free.</p>
+          <h2>Tell me when and why</h2>
+          <p>Fleet installs updates and forces restarts when your computer is actually free.</p>
           <div purpose="calendar-checklist" class="flex-column d-flex">
             <p>No more annoying time wastes and notifications</p>
             <p>No more restarts blocking you from important meetings</p>
           </div>
           <a purpose="contact-button" class="btn btn-primary" href="/contact">
-            Share with your IT team
+            Ask us anything
           </a>
         </div>
         <div purpose="feature-video">
@@ -27,8 +27,10 @@
       </div>
     <% } %>
     <div class="container-fluid d-flex flex-column text-center justify-content-center align-items-center pb-5 mb-3 mx-auto">
-      <h3 class="pb-3">What personal information can Fleet see?</h3>
-      <p class="m-0">End users deserve to know what their employer can see on their laptops and the systems they manage.</p>
+      <div purpose="hero-text" class="mb-3">
+        <h3 class="pb-3">What personal information can Fleet see?</h3>
+        <p class="m-0">End users deserve to know what their employer can see and do on their laptops. Here’s what Fleet can manage on your devices:</p>
+      </div>
     </div>
     <div purpose="card" class="d-flex">
       <h4 class="text-center pb-4 mb-3">Fleet does <span style="font-weight: 900">NOT</span> have access to:</h4>
@@ -164,17 +166,19 @@
         </div>
       </div>
     </div>
-    <div purpose="card" class="d-flex flex-column flex-md-row align-items-center py-5 mb-5">
+    <div purpose="card" class="d-flex flex-column flex-md-row align-items-center py-5 mb-5" v-if="!showContactFormCta">
       <div class="d-flex align-items-start px-4 pb-4 pb-lg-0">
         <img style="max-height: 92px; width: auto" alt="privacy icon" src="/images/privacy-80x92@2x.png"/>
       </div>
       <div class="text-center text-md-left px-4">
         <p class="font-weight-bold">It’s important to be vigilant about the personal information you share on your devices.</p>
         <p>If you are unsure, or still have concerns about your privacy, it’s a good idea to talk to your employer about your organization’s privacy policy, and how your personal information is handled.</p>
-        <a href="https://blog.fleetdm.com/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think-10b7f25e92bb" target="_blank" class="d-inline-flex">Read about what to do, and not do on your work computer.</a>  
+        <a href="https://blog.fleetdm.com/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think-10b7f25e92bb" target="_blank" class="d-inline-flex">Read about what to do, and not do on your work computer.</a>
       </div>
     </div>
   </div>
-
+  <div purpose="bottom-gradient" v-if="showContactFormCta">
+  <parallax-city></parallax-city>
+  </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

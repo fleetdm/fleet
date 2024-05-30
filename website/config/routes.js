@@ -104,6 +104,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Transparency | Fleet',
       pageDescriptionForMeta: 'Learn what data osquery can see.',
+      showContactFormCta: false,
     }
   },
   'GET /new-license': {
@@ -292,7 +293,9 @@ module.exports.routes = {
   'GET /better': {
     action: 'view-transparency',
     locals: {
-      showShareWithItTeam: true,
+      showContactFormCta: true,
+      pageDescriptionForMeta: '',
+      pageTitleForMeta: 'Better with Fleet | Fleet'
     }
   },
 
