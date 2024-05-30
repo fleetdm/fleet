@@ -1,8 +1,8 @@
 name: "${TEST_TEAM_NAME}"
 team_settings:
   secrets:
-    - secret: "SampleSecret123"
-    - secret: "ABC"
+    - secret: "SampleSecret123-team"
+    - secret: "ABC-team"
   webhook_settings:
     host_status_webhook:
       days_count: 14
