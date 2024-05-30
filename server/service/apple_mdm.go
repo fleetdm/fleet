@@ -3618,7 +3618,7 @@ func (svc *Service) SaveABMToken(ctx context.Context, token io.Reader) error {
 		return ctxerr.Wrap(ctx, err, "parsing ABM certificate")
 	}
 
-	if _, err := assets.DecryptAndValidateABMToken(tokenBytes, cert, pair[fleet.MDMAssetABMKey].Value); err != nil {
+	if _, err := assets.DecryptRawABMToken(tokenBytes, cert, pair[fleet.MDMAssetABMKey].Value); err != nil {
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
 			InternalErr: err,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -71,6 +72,16 @@ func TestMDMAppleCommander(t *testing.T) {
 	}
 	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
 		return false, nil
+	}
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		certPEM, err := os.ReadFile("../../service/testdata/server.pem")
+		require.NoError(t, err)
+		keyPEM, err := os.ReadFile("../../service/testdata/server.key")
+		require.NoError(t, err)
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {Value: certPEM},
+			fleet.MDMAssetCAKey:  {Value: keyPEM},
+		}, nil
 	}
 
 	cmdUUID := uuid.New().String()
