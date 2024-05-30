@@ -16,10 +16,12 @@
           <strong>Talk to the team</strong>
           <p>Let’s get you set up!</p>
         <% } %>
-        <a purpose="continue-button" class="btn btn-primary" purpose="animated-arrow-btn-red" href="/start">Continue</a>
+        <div>
+          <a purpose="continue-button" href="/start">Continue</a>
+        </div>
       </div>
       <a purpose="continue-chevron" href="/start"> <img alt="continue" src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
-      <div>
+      <div class="d-flex flex-column align-self-start">
 
         <div purpose="banner-close-button">&times;</div>
       </div>
@@ -32,13 +34,7 @@
       // Toggle 'collapsed' on banner body when close button is clicked
       $('[purpose="banner-close-button"]').click(async function(event) {
           event.stopPropagation(); // Prevent the event from bubbling up to the banner body
-          Cloud.dismissStartCta().exec(function (err, result) {
-            if (err) {
-              // Handle error
-            } else {
-              // Handle success
-            }
-          });
+          Cloud.dismissStartCta().exec();
           $('[purpose="banner-body"]').addClass('collapsed');
 
       });
