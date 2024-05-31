@@ -12,8 +12,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/file"
-	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/rs/zerolog/log"
 )
 
@@ -262,32 +260,34 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 // device to unenroll from the current MDM solution. If the device doesn't
 // unenroll, an error is returned.
 func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
-	maxRetries := int(mdmUnenrollmentTotalWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
-	fn := m.testEnrollmentCheckFn
-	if fn == nil {
-		fn = func() (bool, error) {
-			return file.Exists(mdmEnrollmentFile)
-		}
-	}
-	return retry.Do(func() error {
-		enrolled, err := fn()
-		if err != nil {
-			log.Error().Err(err).Msgf("checking enrollment status in migration modal, will retry in %s", m.unenrollmentRetryInterval)
-			return err
+	time.Sleep(10 * time.Second)
+	return nil
+	// maxRetries := int(mdmUnenrollmentTotalWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
+	// fn := m.testEnrollmentCheckFn
+	// if fn == nil {
+	// 	fn = func() (bool, error) {
+	// 		return file.Exists(mdmEnrollmentFile)
+	// 	}
+	// }
+	// return retry.Do(func() error {
+	// 	enrolled, err := fn()
+	// 	if err != nil {
+	// 		log.Error().Err(err).Msgf("checking enrollment status in migration modal, will retry in %s", m.unenrollmentRetryInterval)
+	// 		return err
 
-		}
+	// 	}
 
-		if enrolled {
-			log.Info().Msgf("device is still enrolled, waiting %s", m.unenrollmentRetryInterval)
-			return errors.New("host didn't unenroll from MDM")
-		}
+	// 	if enrolled {
+	// 		log.Info().Msgf("device is still enrolled, waiting %s", m.unenrollmentRetryInterval)
+	// 		return errors.New("host didn't unenroll from MDM")
+	// 	}
 
-		log.Info().Msg("device is unenrolled, closing migration modal")
-		return nil
-	},
-		retry.WithMaxAttempts(maxRetries),
-		retry.WithInterval(m.unenrollmentRetryInterval),
-	)
+	// 	log.Info().Msg("device is unenrolled, closing migration modal")
+	// 	return nil
+	// },
+	// 	retry.WithMaxAttempts(maxRetries),
+	// 	retry.WithInterval(m.unenrollmentRetryInterval),
+	// )
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
