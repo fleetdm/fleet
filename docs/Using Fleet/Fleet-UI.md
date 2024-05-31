@@ -8,13 +8,9 @@
    <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
 </div>
 
-## Create a query or policy
+## Create a query
 
 Queries in Fleet allow you to ask a multitude of questions to help you manage, monitor, and identify threats on your devices. 
-
-Policies in Fleet are a specialized form of query that allow you to ask a question and get a simple yes or no answer.
-
-If you're unsure of what to ask, head to Fleet's [query library](https://fleetdm.com/queries). There you'll find common queries and policies that have been tested by members of our community.
 
 How to create a query:
 
@@ -26,17 +22,6 @@ How to create a query:
 > Avoid using dot notation (".") for column names in your queries as it can cause results to render incorrectly in Fleet UI. Please see [issue #15446](https://github.com/fleetdm/fleet/issues/15446) for more details. 
 
 4. Select **Save**, enter a name and description for your query, select the frequency that the query should run at, and select **Save query**.
-
-How to create a policy:
-1. In the top navigation, select **Policies**.
-
-2. Select **Add policy** to navigate to the policy selection dialog. Either choose an existing policy or select **create your own policy**.
-
-3. In the **Query** field, enter your query. When creating a policy, keep in mind that a policy will return a "yes" result if one or more results are returned and will return "No" if no results are returned. Because of this, most policies will begin with a "SELECT 1 FROM..." statement. 
-
-4. Select **Save**, enter a name, description, and resolution for your policy and then select **Save policy**.
-
-5. By default, policies are evaluated on an hourly interval, which is controlled by this [server setting](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval). Please see the article [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies#identifying-out-of-policy-devices) and [Understanding the intricacies of fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies#policy-creation) for more information.
 
 ## Run a query
 
