@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"text/tabwriter"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/google/uuid"
@@ -28,6 +30,7 @@ const (
 	testPassword              = "toor"
 	testAddress               = "localhost:3307"
 	testReplicaDatabaseSuffix = "_replica"
+	testReplicaAddress        = "localhost:3310"
 )
 
 func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
@@ -40,7 +43,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 
 	// Create datastore client
 	var replicaOpt DBOption
-	if opts.Replica {
+	if opts.DummyReplica {
 		replicaConf := config
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
@@ -57,14 +60,23 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"))
 	require.Nil(t, err)
 
-	if opts.Replica {
-		setupReadReplica(t, testName, ds, opts)
+	if opts.DummyReplica {
+		setupDummyReplica(t, testName, ds, opts)
+	}
+	if opts.RealReplica {
+		replicaOpts := &dbOptions{
+			minLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
+			maxAttempts:         1,
+			logger:              log.NewNopLogger(),
+			sqlMode:             "ANSI",
+		}
+		setupRealReplica(t, testName, ds, replicaOpts)
 	}
 
 	return ds
 }
 
-func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
 	t.Helper()
 
 	// create the context that will cancel the replication goroutine on test exit
@@ -185,6 +197,96 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 	}
 }
 
+func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
+	t.Helper()
+	const replicaUser = "replicator"
+	const replicaPassword = "rotacilper"
+
+	t.Cleanup(
+		func() {
+			// Stop slave
+			if out, err := exec.Command(
+				"docker-compose", "exec", "-T", "mysql_replica_test",
+				// Command run inside container
+				"mysql",
+				"-u"+testUsername, "-p"+testPassword,
+				"-e",
+				"STOP SLAVE; RESET SLAVE ALL;",
+			).CombinedOutput(); err != nil {
+				t.Log(err)
+				t.Log(string(out))
+			}
+		},
+	)
+
+	ctx := context.Background()
+
+	// Create replication user
+	_, err := ds.primary.ExecContext(ctx, fmt.Sprintf("DROP USER IF EXISTS '%s'", replicaUser))
+	require.NoError(t, err)
+	_, err = ds.primary.ExecContext(ctx, fmt.Sprintf("CREATE USER '%s'@'%%' IDENTIFIED BY '%s'", replicaUser, replicaPassword))
+	require.NoError(t, err)
+	_, err = ds.primary.ExecContext(ctx, fmt.Sprintf("GRANT REPLICATION SLAVE ON *.* TO '%s'@'%%'", replicaUser))
+	require.NoError(t, err)
+	_, err = ds.primary.ExecContext(ctx, "FLUSH PRIVILEGES")
+	require.NoError(t, err)
+
+	// Retrieve master binary log coordinates
+	ms, err := ds.MasterStatus(ctx)
+	require.NoError(t, err)
+
+	// Get MySQL version
+	var version string
+	err = ds.primary.GetContext(ctx, &version, "SELECT VERSION()")
+	require.NoError(t, err)
+	using57 := strings.HasPrefix(version, "5.7")
+	extraMasterOptions := ""
+	if !using57 {
+		extraMasterOptions = "GET_MASTER_PUBLIC_KEY=1," // needed for MySQL 8.0 caching_sha2_password authentication
+	}
+
+	// Configure slave and start replication
+	if out, err := exec.Command(
+		"docker-compose", "exec", "-T", "mysql_replica_test",
+		// Command run inside container
+		"mysql",
+		"-u"+testUsername, "-p"+testPassword,
+		"-e",
+		fmt.Sprintf(
+			`
+			STOP SLAVE;
+			RESET SLAVE ALL;
+			CHANGE MASTER TO
+				%s
+				MASTER_HOST='mysql_test',
+				MASTER_USER='%s',
+				MASTER_PASSWORD='%s',
+				MASTER_LOG_FILE='%s',
+				MASTER_LOG_POS=%d;
+			START SLAVE;
+			`, extraMasterOptions, replicaUser, replicaPassword, ms.File, ms.Position,
+		),
+	).CombinedOutput(); err != nil {
+		t.Error(err)
+		t.Error(string(out))
+		t.FailNow()
+	}
+
+	// Connect to the replica
+	replicaConfig := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Database: testName,
+		Address:  testReplicaAddress,
+	}
+	require.NoError(t, checkConfig(&replicaConfig))
+	replica, err := newDB(&replicaConfig, options)
+	require.NoError(t, err)
+	ds.replica = replica
+	ds.readReplicaConfig = &replicaConfig
+
+}
+
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
@@ -200,7 +302,7 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	// execute the schema for the test db, and once more for the replica db if
 	// that option is set.
 	dbs := []string{testName}
-	if opts.Replica {
+	if opts.DummyReplica {
 		dbs = append(dbs, testName+testReplicaDatabaseSuffix)
 	}
 	for _, dbName := range dbs {
@@ -221,20 +323,42 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 			t.FailNow()
 		}
 	}
+	if opts.RealReplica {
+		// Load schema from dumpfile
+		if out, err := exec.Command(
+			"docker-compose", "exec", "-T", "mysql_replica_test",
+			// Command run inside container
+			"mysql",
+			"-u"+testUsername, "-p"+testPassword,
+			"-e",
+			fmt.Sprintf(
+				"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+				testName, testName, testName, schema,
+			),
+		).CombinedOutput(); err != nil {
+			t.Error(err)
+			t.Error(string(out))
+			t.FailNow()
+		}
+	}
+
 	return connectMySQL(t, testName, opts)
 }
 
 // DatastoreTestOptions configures how the test datastore is created
 // by CreateMySQLDSWithOptions.
 type DatastoreTestOptions struct {
-	// Replica indicates that a read replica test database should be created.
-	Replica bool
+	// DummyReplica indicates that a read replica test database should be created.
+	DummyReplica bool
 
 	// RunReplication is the function to call to execute the replication of all
 	// missing changes from the primary to the replica. The function is created
 	// and set automatically by CreateMySQLDSWithOptions. The test is in full
-	// control of when the replication is executed.
+	// control of when the replication is executed. Only applies to DummyReplica.
 	RunReplication func()
+
+	// RealReplica indicates that the replica should be a real DB replica, with a dedicated connection.
+	RealReplica bool
 }
 
 func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datastore {
@@ -242,13 +366,19 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 		t.Skip("MySQL tests are disabled")
 	}
 
-	if tt, ok := t.(*testing.T); ok {
-		tt.Parallel()
-	}
-
 	if opts == nil {
 		// so it is never nil in internal helper functions
 		opts = new(DatastoreTestOptions)
+	}
+
+	if tt, ok := t.(*testing.T); ok && !opts.RealReplica {
+		tt.Parallel()
+	}
+
+	if opts.RealReplica {
+		if _, ok := os.LookupEnv("MYSQL_REPLICA_TEST"); !ok {
+			t.Skip("MySQL replica tests are disabled. Set env var MYSQL_REPLICA_TEST=1 to enable.")
+		}
 	}
 
 	pc, _, _, ok := runtime.Caller(2)
@@ -486,4 +616,58 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 		})
 	}
 	return now
+}
+
+// MasterStatus is a struct that holds the file and position of the master, retrieved by SHOW MASTER STATUS
+type MasterStatus struct {
+	File     string
+	Position uint64
+}
+
+func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
+
+	rows, err := ds.writer(ctx).Query("SHOW MASTER STATUS")
+	if err != nil {
+		return MasterStatus{}, ctxerr.Wrap(ctx, err, "show master status")
+	}
+	defer rows.Close()
+
+	// Since we don't control the column names, and we want to be future compatible,
+	// we only scan for the columns we care about.
+	ms := MasterStatus{}
+	// Get the column names from the query
+	columns, err := rows.Columns()
+	if err != nil {
+		return ms, ctxerr.Wrap(ctx, err, "get columns")
+	}
+	numberOfColumns := len(columns)
+	for rows.Next() {
+		cols := make([]interface{}, numberOfColumns)
+		for i := range cols {
+			cols[i] = new(string)
+		}
+		err := rows.Scan(cols...)
+		if err != nil {
+			return ms, ctxerr.Wrap(ctx, err, "scan row")
+		}
+		for i, col := range cols {
+			switch columns[i] {
+			case "File":
+				ms.File = *col.(*string)
+			case "Position":
+				ms.Position, err = strconv.ParseUint(*col.(*string), 10, 64)
+				if err != nil {
+					return ms, ctxerr.Wrap(ctx, err, "parse Position")
+				}
+
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return ms, ctxerr.Wrap(ctx, err, "rows error")
+	}
+	if ms.File == "" || ms.Position == 0 {
+		return ms, ctxerr.New(ctx, "missing required fields in master status")
+	}
+	return ms, nil
 }
