@@ -272,6 +272,22 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		t.FailNow()
 	}
 
+	// Show status
+	if out, err := exec.Command(
+		"docker-compose", "exec", "-T", "mysql_replica_test",
+		// Command run inside container
+		"mysql",
+		"-u"+testUsername, "-p"+testPassword,
+		"-e",
+		`SHOW SLAVE STATUS\G`,
+	).CombinedOutput(); err != nil {
+		t.Error(err)
+		t.Error(string(out))
+		t.FailNow()
+	} else {
+		t.Log(string(out))
+	}
+
 	// Connect to the replica
 	replicaConfig := config.MysqlConfig{
 		Username: testUsername,
