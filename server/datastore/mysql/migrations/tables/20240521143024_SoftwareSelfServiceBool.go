@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240531000000, Down_20240531000000)
+	MigrationClient.AddMigration(Up_20240521143024, Down_20240521143024)
 }
 
-func Up_20240531000000(tx *sql.Tx) error {
+func Up_20240521143024(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE software_installers ADD COLUMN self_service bool NOT NULL DEFAULT false`)
 	if err != nil {
 		return fmt.Errorf("failed to add self_service to software_installers: %w", err)
@@ -23,6 +23,6 @@ func Up_20240531000000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240531000000(tx *sql.Tx) error {
+func Down_20240521143024(tx *sql.Tx) error {
 	return nil
 }
