@@ -312,7 +312,6 @@ module.exports.routes = {
   'GET /handbook/customer-experience': '/handbook/customers',
   'GET /handbook/brand': '/handbook/digital-experience',
   'GET /guides/deploying-fleet-on-aws-with-terraform': '/deploy/deploying-fleet-on-aws-with-terraform',
-  'GET /guides/deploy-fleet-on-hetzner-cloud':'/deploy/deploy-fleet-on-hetzner-cloud',
   'GET /guides/deploying-fleet-on-render': '/deploy/deploying-fleet-on-render',
   'GET /use-cases/correlate-network-connections-with-community-id-in-osquery': '/guides/correlate-network-connections-with-community-id-in-osquery',
   'GET /use-cases/converting-unix-timestamps-with-osquery': '/guides/converting-unix-timestamps-with-osquery',
@@ -354,7 +353,6 @@ module.exports.routes = {
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
-  'GET /docs/using-fleet/mdm-setup': '/docs/using-fleet/mdm-macos-setup',
   'GET /platform': '/',
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/ceo',
@@ -388,7 +386,8 @@ module.exports.routes = {
   'GET /docs/deploying': '/docs/deploy',
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
-  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures ',
+  'GET /docs/deploy/introduction': '/docs/deploy/deploy-fleet',
+  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures',
   'GET /docs/deploying/upgrading-fleet': '/docs/deploy/upgrading-fleet',
   'GET /docs/deploying/server-installation': '/docs/deploy/server-installation',
   'GET /docs/deploying/cloudgov': '/docs/deploy/cloudgov',
@@ -429,6 +428,19 @@ module.exports.routes = {
   'GET /customers/new-license': '/new-license',
   'GET /try-fleet/fleetctl-preview': '/try-fleet',
   'GET /upgrade': '/pricing',
+  'GET /docs/deploy/system-d': '/docs/deploy/reference-architectures#systemd',
+  'GET /docs/deploy/proxies': '/docs/deploy/reference-architectures#using-a-proxy',
+  'GET /docs/deploy/public-ip': '/docs/deploy/reference-architectures#public-ips-of-devices',
+  'GET /docs/deploy/monitoring-fleet': '/docs/deploy/reference-architectures#monitoring-fleet',
+  'GET /docs/deploy/deploy-fleet-on-aws-ecs': '/guides/deploy-fleet-on-aws-ecs',
+  'GET /docs/deploy/deploy-fleet-on-centos': '/guides/deploy-fleet-on-centos',
+  'GET /docs/deploy/cloudgov': '/guides/deploy-fleet-on-cloudgov',
+  'GET /docs/deploy/deploy-on-aws-with-terraform': '/guides/deploy-fleet-on-aws-with-terraform',
+  'GET /docs/deploy/deploy-on-hetzner-cloud': '/guides/deploy-fleet-on-hetzner-cloud',
+  'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
+  'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
+  'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -439,6 +451,7 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
+  'GET /admin':                      '/admin/email-preview',
   'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
   'GET /contribute':                 '/docs/contributing',
@@ -493,8 +506,13 @@ module.exports.routes = {
   'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
   'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
   'GET /learn-more-about/rotating-enroll-secrets': '/docs/configuration/configuration-files#rotating-enroll-secrets',
-  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-macos-setup#renewing-apns',
+  'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
+  'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
+  'GET /learn-more-about/setup-windows-mdm': '/docs/using-fleet/mdm-setup',
+  'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#renewing-apns',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-macos-setup#renewing-abm',
+
 
   // Sitemap
   // =============================================================================================================
@@ -524,6 +542,12 @@ module.exports.routes = {
   'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
   'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
+
+  // Temporary redirects
+  // =============================================================================================================
+  // For events, etc. that can be removed after a certain date. Please leave a comment with a valid until date.
+  'GET /rsaparty':               'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm', // Valid until 2024-05-09
+  'GET /rsavip':                 'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm&discount=Fleet2024', // Valid until 2024-05-09
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗

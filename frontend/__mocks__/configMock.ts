@@ -14,6 +14,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     deferred_save_host: false,
     query_reports_disabled: false,
     scripts_disabled: false,
+    ai_features_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,
@@ -75,6 +76,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       enable_vulnerabilities_webhook: true,
       destination_url: "https://server.com",
       host_batch_size: 1000,
+    },
+    activities_webhook: {
+      enable_activities_webhook: true,
+      destination_url: "https://server.com",
     },
   },
   integrations: {

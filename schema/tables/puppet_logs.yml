@@ -1,18 +1,16 @@
 name: puppet_logs
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Outputs [Puppet](https://puppet.com/) logs from the last run. 
 platforms: 
   - darwin
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   List Puppet logs that are of a level of anything but informational.
 
   ```
-  
   SELECT * FROM puppet_logs WHERE level!='info';
-  
   ```
 columns:
   - name: level

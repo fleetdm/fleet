@@ -1,1 +1,0 @@
-* Fixed a bug that prevented the Fleet server to start if Windows MDM was configured but Apple MDM wasn't

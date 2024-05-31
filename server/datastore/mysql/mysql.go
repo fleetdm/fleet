@@ -792,6 +792,13 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fl
 		}
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
+		if opts.TestSecondaryOrderKey != "" {
+			direction := "ASC"
+			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
+				direction = "DESC"
+			}
+			sql += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.TestSecondaryOrderKey), direction)
+		}
 	}
 	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
 	// that an unbounded query with many results doesn't consume too much memory
@@ -971,7 +978,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -988,6 +995,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))

@@ -118,8 +118,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
-	// recalculate software counts will remove the software entries
-	require.NoError(t, ts.ds.SyncHostsSoftware(context.Background(), time.Now()))
+	// clean up any software installers
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_installers`)
+		return err
+	})
 
 	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -176,8 +179,12 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// SyncHostsSoftware performs a cleanup.
+	// Do the software/titles cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
+	require.NoError(t, err)
+	err = ts.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+	err = ts.ds.SyncHostsSoftwareTitles(ctx, time.Now())
 	require.NoError(t, err)
 
 	// delete orphaned scripts

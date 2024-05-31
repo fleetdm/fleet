@@ -1,10 +1,8 @@
 name: sudoers
-examples: >-
+examples: |-
   Identify systems where sudo is configured in a way to allow users to retain
   their existing environment variables, which is a security risk.
 
   ```
-
   SELECT header, source, rule_details FROM sudoers WHERE rule_details='!env_reset';
-
   ```

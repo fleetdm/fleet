@@ -1,7 +1,7 @@
 import React from "react";
 
-import { IActivity } from "interfaces/activity";
-import { IActivitiesResponse } from "services/entities/activities";
+import { IHostActivity } from "interfaces/activity";
+import { IUpcomingActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -15,7 +15,7 @@ import { ShowActivityDetailsHandler } from "../Activity";
 const baseClass = "upcoming-activity-feed";
 
 interface IUpcomingActivityFeedProps {
-  activities?: IActivitiesResponse;
+  activities?: IUpcomingActivitiesResponse;
   isError?: boolean;
   onDetailsClick: ShowActivityDetailsHandler;
   onNextPage: () => void;
@@ -52,8 +52,9 @@ const UpcomingActivityFeed = ({
   return (
     <div className={baseClass}>
       <div>
-        {activitiesList.map((activity: IActivity) => (
+        {activitiesList.map((activity: IHostActivity) => (
           <UpcomingActivity
+            key={activity.id}
             activity={activity}
             onDetailsClick={onDetailsClick}
           />

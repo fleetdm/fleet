@@ -276,7 +276,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// SMTPSettings used to be a non-pointer on previous iterations,
 		// so if current SMTPSettings are not present (with empty values),
 		// then this is a bug, let's log an error.
-		level.Error(svc.logger).Log("smtp_settings are not present")
+		level.Error(svc.logger).Log("msg", "smtp_settings are not present")
 	}
 
 	oldAgentOptions := ""
@@ -408,6 +408,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
+	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
@@ -546,7 +547,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedAgentOptions{
@@ -568,7 +569,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedMacOSMinVersion{
@@ -599,7 +600,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			return nil, ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedWindowsUpdates{
@@ -625,7 +626,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 					return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
 		}
@@ -639,7 +640,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		} else {
 			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
 		}
 	}
@@ -661,7 +662,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		} else {
 			act = fleet.ActivityTypeDisabledWindowsMDM{}
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
@@ -921,7 +922,8 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 // //////////////////////////////////////////////////////////////////////////////
 
 type applyEnrollSecretSpecRequest struct {
-	Spec *fleet.EnrollSecretSpec `json:"spec"`
+	Spec   *fleet.EnrollSecretSpec `json:"spec"`
+	DryRun bool                    `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
 type applyEnrollSecretSpecResponse struct {
@@ -932,14 +934,18 @@ func (r applyEnrollSecretSpecResponse) error() error { return r.Err }
 
 func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
-	err := svc.ApplyEnrollSecretSpec(ctx, req.Spec)
+	err := svc.ApplyEnrollSecretSpec(
+		ctx, req.Spec, fleet.ApplySpecOptions{
+			DryRun: req.DryRun,
+		},
+	)
 	if err != nil {
 		return applyEnrollSecretSpecResponse{Err: err}, nil
 	}
 	return applyEnrollSecretSpecResponse{}, nil
 }
 
-func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec) error {
+func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error {
 	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -955,6 +961,19 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 
 	if svc.config.Packaging.GlobalEnrollSecret != "" {
 		return ctxerr.New(ctx, "enroll secret cannot be changed when fleet_packaging.global_enroll_secret is set")
+	}
+
+	if applyOpts.DryRun {
+		for _, s := range spec.Secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, s.Secret, false, nil)
+			if err != nil {
+				return err
+			}
+			if !available {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "a provided global enroll secret is already being used"))
+			}
+		}
+		return nil
 	}
 
 	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)

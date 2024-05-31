@@ -138,32 +138,17 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
-
-    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-      emailAddress: newEmailAddress,
-      firstName: firstName,
-      lastName: lastName,
-      organization: organization,
-    });
-
-    // Send a POST request to Zapier
-    await sails.helpers.http.post.with({
-      url: 'https://hooks.zapier.com/hooks/catch/3627242/30bq2ib/',
-      data: {
-        newEmailAddress,
-        firstName,
-        lastName,
-        organization,
-        signupReason,
-        webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
-      }
-    })
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
-      return;
-    });
+    // Use timers.setImmediate() to update/create CRM records in the background.
+    require('timers').setImmediate(async ()=>{
+      await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: newEmailAddress,
+        firstName: firstName,
+        lastName: lastName,
+        organization: organization,
+      }).tolerate((err)=>{
+        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
+      });
+    });//_∏_  (Meanwhile...)
 
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;

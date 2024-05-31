@@ -34,7 +34,9 @@ type CarveStore interface {
 }
 
 // InstallerStore is used to communicate to a blob storage containing pre-built
-// fleet-osquery installers
+// fleet-osquery installers. This was originally implemented to support the
+// Fleet Sandbox and is not expected to be used outside of this:
+// https://fleetdm.com/docs/configuration/fleet-server-configuration#packaging
 type InstallerStore interface {
 	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installer Installer) (string, error)
@@ -186,10 +188,10 @@ type Datastore interface {
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
 	// members of this label, or an error.
-	SaveLabel(ctx context.Context, label *Label) (*Label, []uint, error)
+	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*Label, []uint, error)
 	DeleteLabel(ctx context.Context, name string) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
-	Label(ctx context.Context, lid uint) (*Label, []uint, error)
+	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*Label, []uint, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
@@ -211,6 +213,8 @@ type Datastore interface {
 
 	// LabelIDsByName retrieves the IDs associated with the given label names
 	LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error)
+	// LabelsByName retrieves the labels associated with the given label names
+	LabelsByName(ctx context.Context, names []string) (map[string]*Label, error)
 
 	// Methods used for async processing of host label query results.
 	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
@@ -320,6 +324,10 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
+
+	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
+	// updated in the given `interval`).
+	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
@@ -485,8 +493,13 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Software Titles
 
-	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitle, int, *PaginationMetadata, error)
+	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
+
+	// InsertSoftwareInstallRequest tracks a new request to install the provided
+	// software installer in the host. It returns the auto-generated installation
+	// uuid.
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -542,6 +555,12 @@ type Datastore interface {
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
+	ListHostSoftware(ctx context.Context, host *Host, includeAvailableForInstall bool, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
+
+	// SetHostSoftwareInstallResult records the result of a software installation
+	// attempt on the host.
+	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
@@ -568,12 +587,15 @@ type Datastore interface {
 	// upgraded from a prior version).
 	CleanupHostOperatingSystems(ctx context.Context) error
 
-	UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error
+	// MDMTurnOff updates Fleet host information related to MDM when a
+	// host turns off MDM. Anything related to the protocol itself is
+	// managed separately.
+	MDMTurnOff(ctx context.Context, uuid string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
-	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
+	NewActivity(ctx context.Context, user *User, activity ActivityDetails, details []byte, createdAt time.Time) error
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
@@ -598,16 +620,18 @@ type Datastore interface {
 
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
+	PolicyLite(ctx context.Context, id uint) (*PolicyLite, error)
 
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
 	// It is also used to update team policies.
-	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool) error
+	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -657,6 +681,8 @@ type Datastore interface {
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions) ([]*Policy, error)
+
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
@@ -869,6 +895,9 @@ type Datastore interface {
 	// matched, that secret is returned. Otherwise, an error is returned.
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 
+	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.
+	IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error)
+
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
@@ -1040,16 +1069,16 @@ type Datastore interface {
 	// joined (nil for no team), and an error.
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, *uint, error)
 
-	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
-	// not already enrolled in Fleet.
-	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
+	// MDMAppleUpsertHost creates or matches a Fleet host record for an
+	// MDM-enrolled device.
+	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host) error
 
 	// RestoreMDMApplePendingDEPHost restores a host that was previously deleted from Fleet.
 	RestoreMDMApplePendingDEPHost(ctx context.Context, host *Host) error
 
-	// ResetMDMAppleEnrollment resets all tables with enrollment-related
+	// MDMResetEnrollment resets all tables with enrollment-related
 	// information if a matching row for the host exists.
-	ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error
+	MDMResetEnrollment(ctx context.Context, hostUUID string) error
 
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
@@ -1448,6 +1477,45 @@ type Datastore interface {
 	// Apple hosts. It is optimized to update using only the information
 	// available in the Apple MDM protocol.
 	UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID, cmdUUID, requestType string, succeeded bool) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Software installers
+	//
+
+	// GetSoftwareInstallDetails returns details required to fetch and
+	// run software installers
+	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
+	// ListPendingSoftwareInstalls returns a list of software
+	// installer execution IDs that have not yet been run for a given host
+	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
+
+	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
+	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
+
+	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
+	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
+
+	// GetSoftwareInstallerMetadataByTitleID returns the software installer
+	// corresponding to the specified team and title ids. If withScriptContents
+	// is true, also returns the contents of the install and (if set)
+	// post-install scripts, otherwise those fields are left empty.
+	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
+	DeleteSoftwareInstaller(ctx context.Context, id uint) error
+
+	// GetSoftwareInstallerContents returns the software install summary for the given
+	// software installer id.
+	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
+
+	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
+
+	// CleanupUnusedSoftwareInstallers will remove software installers that have
+	// no references to them from the software_installers table.
+	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore) error
+
+	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

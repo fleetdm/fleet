@@ -146,6 +146,9 @@ type HostListOptions struct {
 	// use. This identifies a "software title" independent of the specific
 	// version.
 	SoftwareTitleIDFilter *uint
+	// SoftwareStatusFilter filters the hosts by the status of the software installer, if any,
+	// managed by Fleet. If specified, the SoftwareTitleIDFilter must also be specified.
+	SoftwareStatusFilter *SoftwareInstallerStatus
 
 	OSIDFilter        *uint
 	OSNameFilter      *string
@@ -210,6 +213,7 @@ func (h HostListOptions) Empty() bool {
 		h.SoftwareIDFilter == nil &&
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
+		h.SoftwareStatusFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
@@ -361,7 +365,9 @@ type Host struct {
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
 type HostOrbitInfo struct {
-	ScriptsEnabled *bool `json:"scripts_enabled" db:"scripts_enabled"`
+	Version        string  `json:"version" db:"version"`
+	DesktopVersion *string `json:"desktop_version" db:"desktop_version"`
+	ScriptsEnabled *bool   `json:"scripts_enabled" db:"scripts_enabled"`
 }
 
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
@@ -834,9 +840,14 @@ func (h *Host) FleetPlatform() string {
 	return PlatformFromHost(h.Platform)
 }
 
+// SupportsOsquery returns whether the device runs osquery.
+func (h *Host) SupportsOsquery() bool {
+	return h.Platform != "ios" && h.Platform != "ipados"
+}
+
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo",
 }
 
 func IsLinux(hostPlatform string) bool {
@@ -873,7 +884,9 @@ func PlatformFromHost(hostPlatform string) string {
 		// TODO remove this once that customer migrates to Fleetd for Chrome
 		hostPlatform == "CrOS",
 		// Fleet now supports Chrome via fleetd
-		hostPlatform == "chrome":
+		hostPlatform == "chrome",
+		hostPlatform == "ios",
+		hostPlatform == "ipados":
 		return hostPlatform
 	default:
 		return ""
@@ -1232,13 +1245,15 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
-	HardwareSerial        string `json:"hardware_serial" db:"hardware_serial"`
-	InstalledFromDEP      bool   `json:"installed_from_dep" db:"installed_from_dep"`
-	DisplayName           string `json:"display_name" db:"display_name"`
-	TeamID                uint   `json:"team_id" db:"team_id"`
-	DEPAssignedToFleet    bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
-	OsqueryEnrolled       bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName        string `json:"display_name" db:"display_name"`
+	TeamID             uint   `json:"team_id" db:"team_id"`
+	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
+	Platform              string `json:"-" db:"platform"`
 }
 
 type HostDiskEncryptionKey struct {

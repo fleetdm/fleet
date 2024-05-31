@@ -1,9 +1,9 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
+import classNames from "classnames";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { RouteProps } from "react-router";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
@@ -13,7 +13,7 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
-  IPastActivitiesResponse,
+  IHostActivitiesResponse,
   IUpcomingActivitiesResponse,
 } from "services/entities/activities";
 import hostAPI from "services/entities/hosts";
@@ -31,7 +31,7 @@ import {
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import { ISoftware } from "interfaces/software";
+import { IHostSoftware } from "interfaces/software";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import {
@@ -58,6 +58,7 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import { SoftwareInstallDetailsModal } from "pages/SoftwarePage/components/SoftwareInstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -91,16 +92,16 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
+import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
-  route: RouteProps;
   router: InjectedRouter; // v3
   location: {
     pathname: string;
     query: {
-      vulnerable?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -128,14 +129,11 @@ interface IHostDetailsSubNavItem {
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
 
 const HostDetailsPage = ({
-  route,
   router,
   location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
-  const routeTemplate = route?.path ?? "";
-  const queryParams = location.query;
 
   const {
     config,
@@ -171,19 +169,22 @@ const HostDetailsPage = ({
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
+  const [softwareInstallUuid, setSoftwareInstallUuid] = useState("");
   const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
   const [packsState, setPackState] = useState<IPackStats[]>();
-  const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
-  const [pathname, setPathname] = useState("");
   const [
     hostMdmDeviceStatus,
     setHostMdmDeviceState,
   ] = useState<HostMdmDeviceStatusUIState>("unlocked");
+  const [
+    selectedSoftwareDetails,
+    setSelectedSoftwareDetails,
+  ] = useState<IHostSoftware | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -332,7 +333,6 @@ const HostDetailsPage = ({
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
         setSchedule(schedule);
         if (returnedHost.pack_stats) {
@@ -369,9 +369,9 @@ const HostDetailsPage = ({
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
-    IPastActivitiesResponse,
+    IHostActivitiesResponse,
     Error,
-    IPastActivitiesResponse,
+    IHostActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -387,8 +387,12 @@ const HostDetailsPage = ({
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
-      return activitiesAPI.getHostPastActivities(hostIdFromURL, page, perPage);
+    ({ queryKey: [{ pageIndex, perPage }] }) => {
+      return activitiesAPI.getHostPastActivities(
+        hostIdFromURL,
+        pageIndex,
+        perPage
+      );
     },
     {
       keepPreviousData: true,
@@ -421,10 +425,10 @@ const HostDetailsPage = ({
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+    ({ queryKey: [{ pageIndex, perPage }] }) => {
       return activitiesAPI.getHostUpcomingActivities(
         hostIdFromURL,
-        page,
+        pageIndex,
         perPage
       );
     },
@@ -459,11 +463,6 @@ const HostDetailsPage = ({
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
-
-  // Used for back to software pathname
-  useEffect(() => {
-    setPathname(location.pathname + location.search);
-  }, [location]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -552,6 +551,9 @@ const HostDetailsPage = ({
         case "ran_script":
           setScriptDetailsId(details?.script_execution_id || "");
           break;
+        case "installed_software":
+          setSoftwareInstallUuid(details?.install_uuid || "");
+          break;
         default: // do nothing
       }
     },
@@ -582,7 +584,11 @@ const HostDetailsPage = ({
 
   const onCancelScriptDetailsModal = useCallback(() => {
     setScriptDetailsId("");
-  }, [setScriptDetailsId]);
+  }, []);
+
+  const onCancelSoftwareInstallDetailsModal = useCallback(() => {
+    setSoftwareInstallUuid("");
+  }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
     setIsUpdatingHost(true);
@@ -660,7 +666,7 @@ const HostDetailsPage = ({
   //   host.mdm.pending_action
   // );
 
-  const renderActionButtons = () => {
+  const renderActionDropdown = () => {
     if (!host) {
       return null;
     }
@@ -755,6 +761,13 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  const isIosOrIpadosHost =
+    host.platform === "ios" || host.platform === "ipados";
+
+  const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
+    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+  });
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -781,7 +794,7 @@ const HostDetailsPage = ({
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
-          renderActionButtons={renderActionButtons}
+          renderActionDropdown={renderActionDropdown}
           osSettings={host?.mdm.os_settings}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
@@ -797,64 +810,70 @@ const HostDetailsPage = ({
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
               })}
             </TabList>
-            <TabPanel className={`${baseClass}__details-panel`}>
+            <TabPanel className={detailsPanelClass}>
               <AboutCard
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              <ActivityCard
-                activeTab={activeActivityTab}
-                activities={
-                  activeActivityTab === "past"
-                    ? pastActivities
-                    : upcomingActivities
-                }
-                isLoading={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsFetching
-                    : upcomingActivitiesIsFetching
-                }
-                isError={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsError
-                    : upcomingActivitiesIsError
-                }
-                upcomingCount={upcomingActivities?.count || 0}
-                onChangeTab={onChangeActivityTab}
-                onNextPage={() => setActivityPage(activityPage + 1)}
-                onPreviousPage={() => setActivityPage(activityPage - 1)}
-                onShowDetails={onShowActivityDetails}
-              />
-              <AgentOptionsCard
-                osqueryData={osqueryData}
-                wrapFleetHelper={wrapFleetHelper}
-                isChromeOS={host?.platform === "chrome"}
-              />
+              {!isIosOrIpadosHost && (
+                <ActivityCard
+                  activeTab={activeActivityTab}
+                  activities={
+                    activeActivityTab === "past"
+                      ? pastActivities
+                      : upcomingActivities
+                  }
+                  isLoading={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsFetching
+                      : upcomingActivitiesIsFetching
+                  }
+                  isError={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsError
+                      : upcomingActivitiesIsError
+                  }
+                  upcomingCount={upcomingActivities?.count || 0}
+                  onChangeTab={onChangeActivityTab}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onShowDetails={onShowActivityDetails}
+                />
+              )}
+              {!isIosOrIpadosHost && (
+                <AgentOptionsCard
+                  osqueryData={osqueryData}
+                  wrapFleetHelper={wrapFleetHelper}
+                  isChromeOS={host?.platform === "chrome"}
+                />
+              )}
               <LabelsCard
                 labels={host?.labels || []}
                 onLabelClick={onLabelClick}
               />
-              <UsersCard
-                users={host?.users || []}
-                usersState={usersState}
-                isLoading={isLoadingHost}
-                onUsersTableSearchChange={onUsersTableSearchChange}
-                hostUsersEnabled={featuresConfig?.enable_host_users}
-              />
+              {!isIosOrIpadosHost && (
+                <UsersCard
+                  users={host?.users || []}
+                  usersState={usersState}
+                  isLoading={isLoadingHost}
+                  onUsersTableSearchChange={onUsersTableSearchChange}
+                  hostUsersEnabled={featuresConfig?.enable_host_users}
+                />
+              )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard
-                isLoading={isLoadingHost}
-                software={hostSoftware}
+                id={host.id}
+                isFleetdHost={!!host.orbit_version}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
-                deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
-                queryParams={queryParams}
-                routeTemplate={routeTemplate}
-                pathname={pathname}
-                pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
+                queryParams={parseHostSoftwareQueryParams(location.query)}
+                pathname={location.pathname}
+                onShowSoftwareDetails={setSelectedSoftwareDetails}
+                hostTeamId={host.team_id || 0}
+                hostPlatform={host.platform}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -868,7 +887,7 @@ const HostDetailsPage = ({
               <QueriesCard
                 hostId={host.id}
                 router={router}
-                isChromeOSHost={host.platform === "chrome"}
+                hostPlatform={host.platform}
                 schedule={schedule}
                 queryReportsDisabled={
                   config?.server_settings?.query_reports_disabled
@@ -883,6 +902,7 @@ const HostDetailsPage = ({
                 policies={host?.policies || []}
                 isLoading={isLoadingHost}
                 togglePolicyDetailsModal={togglePolicyDetailsModal}
+                hostPlatform={host.platform}
               />
             </TabPanel>
           </Tabs>
@@ -967,6 +987,12 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
+        {!!softwareInstallUuid && (
+          <SoftwareInstallDetailsModal
+            installUuid={softwareInstallUuid}
+            onCancel={onCancelSoftwareInstallDetailsModal}
+          />
+        )}
         {showLockHostModal && (
           <LockModal
             id={host.id}
@@ -993,6 +1019,12 @@ const HostDetailsPage = ({
             hostName={host.display_name}
             onSuccess={() => setHostMdmDeviceState("wiping")}
             onClose={() => setShowWipeModal(false)}
+          />
+        )}
+        {selectedSoftwareDetails && (
+          <SoftwareDetailsModal
+            software={selectedSoftwareDetails}
+            onExit={() => setSelectedSoftwareDetails(null)}
           />
         )}
       </>

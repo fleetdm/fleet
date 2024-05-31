@@ -496,8 +496,8 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	for platform := range platforms {
 		commandPlatform = platform
 	}
-	if commandPlatform != "windows" && commandPlatform != "darwin" {
-		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows or macOS hosts.")
+	if !fleet.MDMSupported(commandPlatform) {
+		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows or Apple hosts.")
 		return nil, ctxerr.Wrap(ctx, err, "check host platform")
 	}
 
@@ -1162,11 +1162,12 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedWindowsProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: prof.Name,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedWindowsProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: prof.Name,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm windows config profile")
 	}
 
@@ -1371,11 +1372,12 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		actTeamID = &teamID
 		actTeamName = &teamName
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedWindowsProfile{
-		TeamID:      actTeamID,
-		TeamName:    actTeamName,
-		ProfileName: newCP.Name,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedWindowsProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: newCP.Name,
+		}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm windows config profile")
 	}
 
@@ -1437,7 +1439,7 @@ type batchSetMDMProfilesRequest struct {
 	TeamID        *uint                        `json:"-" query:"team_id,optional"`
 	TeamName      *string                      `json:"-" query:"team_name,optional"`
 	DryRun        bool                         `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
-	AssumeEnabled bool                         `json:"-" query:"assume_enabled,optional"` // if true, assume MDM is enabled
+	AssumeEnabled *bool                        `json:"-" query:"assume_enabled,optional"` // if true, assume MDM is enabled
 	Profiles      backwardsCompatProfilesParam `json:"profiles"`
 }
 
@@ -1481,7 +1483,9 @@ func (r batchSetMDMProfilesResponse) Status() int { return http.StatusNoContent 
 
 func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetMDMProfilesRequest)
-	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled); err != nil {
+	if err := svc.BatchSetMDMProfiles(
+		ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled,
+	); err != nil {
 		return batchSetMDMProfilesResponse{Err: err}, nil
 	}
 	return batchSetMDMProfilesResponse{}, nil
@@ -1489,7 +1493,7 @@ func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc f
 
 func (svc *Service) BatchSetMDMProfiles(
 	ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool,
-	assumeEnabled bool,
+	assumeEnabled *bool,
 ) error {
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
@@ -1500,8 +1504,8 @@ func (svc *Service) BatchSetMDMProfiles(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
-	if assumeEnabled {
-		appCfg.MDM.WindowsEnabledAndConfigured = true
+	if assumeEnabled != nil {
+		appCfg.MDM.WindowsEnabledAndConfigured = *assumeEnabled
 	}
 
 	if err := validateProfiles(profiles); err != nil {
@@ -1560,22 +1564,25 @@ func (svc *Service) BatchSetMDMProfiles(
 	// TODO(roberto): should we generate activities only of any profiles were
 	// changed? this is the existing behavior for macOS profiles so I'm
 	// leaving it as-is for now.
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
 	}
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
 	}
 
@@ -2031,7 +2038,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
 		}
-		if host.Platform != "darwin" {
+		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
@@ -2045,7 +2052,7 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
 		}
-		if host.Platform != "darwin" {
+		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
 		}
 		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
@@ -2097,11 +2104,12 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err, "resending host mdm profile")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfile{
-		HostID:          &host.ID,
-		HostDisplayName: ptr.String(host.DisplayName()),
-		ProfileName:     profileName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfile{
+			HostID:          &host.ID,
+			HostDisplayName: ptr.String(host.DisplayName()),
+			ProfileName:     profileName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
 	}
 

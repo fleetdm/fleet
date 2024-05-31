@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -409,13 +410,16 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
-	// load user again to get team-details like names.
-	user, err = svc.User(ctx, userID)
+	// Load user again to get team-details like names.
+	// Since we just modified the user and the changes may not have replicated to the read replica(s) yet,
+	// we must use the master to ensure we get the most up-to-date information.
+	ctxUsePrimary := ctxdb.RequirePrimary(ctx, true)
+	user, err = svc.User(ctxUsePrimary, userID)
 	if err != nil {
 		return nil, err
 	}
 	adminUser := authz.UserFromContext(ctx)
-	if err := fleet.LogRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, oldGlobalRole, oldTeams, user); err != nil {
 		return nil, err
 	}
 
@@ -459,7 +463,7 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 	}
 
 	adminUser := authz.UserFromContext(ctx)
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		adminUser,
 		fleet.ActivityTypeDeletedUser{

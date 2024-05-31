@@ -33,7 +33,7 @@ export interface IGetVulnerabilityQueryKey extends IGetVulnerabilityOptions {
 export interface IVulnerabilitiesResponse {
   count: number;
   counts_updated_at: string;
-  vulnerabilities: IVulnerability[];
+  vulnerabilities: IVulnerability[] | null; // API can return null
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;

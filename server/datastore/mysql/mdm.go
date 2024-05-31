@@ -307,11 +307,22 @@ ORDER BY
 	return labels, nil
 }
 
+func (ds *Datastore) BulkSetPendingMDMHostProfiles(
+	ctx context.Context,
+	hostIDs, teamIDs []uint,
+	profileUUIDs, hostUUIDs []string,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
+	})
+}
+
 // Note that team ID 0 is used for profiles that apply to hosts in no team
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
-func (ds *Datastore) BulkSetPendingMDMHostProfiles(
+func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
+	tx sqlx.ExtContext,
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) error {
@@ -414,7 +425,7 @@ FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
 	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 WHERE
-	macp.profile_uuid IN (?) AND h.platform = 'darwin'`
+	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')`
 		args = append(args, macProfUUIDs)
 
 	case len(winProfUUIDs) > 0:
@@ -431,60 +442,58 @@ WHERE
 
 	}
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO: this could be optimized to avoid querying for platform when
-		// profileIDs or profileUUIDs are provided.
-		if len(hosts) == 0 && !hasAppleDecls {
-			uuidStmt, args, err := sqlx.In(uuidStmt, args...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
-			}
-			if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
-			}
+	// TODO: this could be optimized to avoid querying for platform when
+	// profileIDs or profileUUIDs are provided.
+	if len(hosts) == 0 && !hasAppleDecls {
+		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
 		}
+		if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+		}
+	}
 
-		var macHosts []string
-		var winHosts []string
-		for _, h := range hosts {
-			switch h.Platform {
-			case "darwin":
-				macHosts = append(macHosts, h.UUID)
-			case "windows":
-				winHosts = append(winHosts, h.UUID)
-			default:
-				level.Debug(ds.logger).Log(
-					"msg", "tried to set profile status for a host with unsupported platform",
-					"platform", h.Platform,
-					"host_uuid", h.UUID,
-				)
-			}
+	var appleHosts []string
+	var winHosts []string
+	for _, h := range hosts {
+		switch h.Platform {
+		case "darwin", "ios", "ipados":
+			appleHosts = append(appleHosts, h.UUID)
+		case "windows":
+			winHosts = append(winHosts, h.UUID)
+		default:
+			level.Debug(ds.logger).Log(
+				"msg", "tried to set profile status for a host with unsupported platform",
+				"platform", h.Platform,
+				"host_uuid", h.UUID,
+			)
 		}
+	}
 
-		if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-		}
+	if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
+	}
 
-		if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
-		}
+	if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+	}
 
-		const defaultBatchSize = 1000
-		batchSize := defaultBatchSize
-		if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-			batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-		}
-		// TODO(roberto): this method currently sets the state of all
-		// declarations for all hosts. I don't see an immediate concern
-		// (and my hunch is that we could even do the same for
-		// profiles) but this could be optimized to use only a provided
-		// set of host uuids.
-		if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
-		}
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+	// TODO(roberto): this method currently sets the state of all
+	// declarations for all hosts. I don't see an immediate concern
+	// (and my hunch is that we could even do the same for
+	// profiles) but this could be optimized to use only a provided
+	// set of host uuids.
+	if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
+	}
 
-		return nil
-	})
+	return nil
 }
 
 func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {
@@ -528,7 +537,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -568,7 +577,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -621,7 +630,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -658,7 +667,7 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 	}
 
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID)
 	case "windows":
 		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
@@ -814,7 +823,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = darwinStmt
 	case "windows":
 		stmt = windowsStmt
@@ -851,7 +860,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = darwinStmt
 	case "windows":
 		stmt = windowsStmt
@@ -1029,23 +1038,46 @@ func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiry
 	//
 	// Note that we use GROUP BY because we can't guarantee unique entries
 	// based on uuid in the hosts table.
-	stmt, args, err := sqlx.In(
-		`SELECT
-			h.uuid as host_uuid,
-			ncaa.sha256 as sha256,
-			COALESCE(MAX(hm.fleet_enroll_ref), '') as enroll_reference
-		 FROM
-			nano_cert_auth_associations ncaa
-			LEFT JOIN hosts h ON h.uuid = ncaa.id
-			LEFT JOIN host_mdm hm ON hm.host_id = h.id
-		 WHERE
-			cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
-			AND renew_command_uuid IS NULL
-		GROUP BY
-			host_uuid, ncaa.sha256, cert_not_valid_after
-		ORDER BY cert_not_valid_after ASC
-		LIMIT ?
-		`, expiryDays, limit)
+	stmt, args, err := sqlx.In(`
+SELECT
+    h.uuid AS host_uuid,
+    ncaa.sha256 AS sha256,
+    COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference
+FROM (
+    -- grab only the latest certificate associated with this device 
+    SELECT
+        n1.id,
+	n1.sha256,
+	n1.cert_not_valid_after,
+	n1.renew_command_uuid
+    FROM
+        nano_cert_auth_associations n1
+    WHERE
+        n1.sha256 = (
+            SELECT
+                n2.sha256
+            FROM
+                nano_cert_auth_associations n2
+            WHERE
+                n1.id = n2.id
+            ORDER BY
+                n2.created_at DESC,
+                n2.sha256 ASC
+            LIMIT 1
+        )
+) ncaa
+JOIN
+    hosts h ON h.uuid = ncaa.id
+LEFT JOIN
+    host_mdm hm ON hm.host_id = h.id
+WHERE
+    ncaa.cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+    AND ncaa.renew_command_uuid IS NULL
+GROUP BY
+    host_uuid, ncaa.sha256, ncaa.cert_not_valid_after
+ORDER BY
+    cert_not_valid_after ASC
+LIMIT ?`, expiryDays, limit)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query")
 	}
@@ -1103,7 +1135,9 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	stmt := `
 	UPDATE nano_cert_auth_associations
 	SET renew_command_uuid = NULL
-	WHERE id = ?`
+	WHERE id = ?
+	ORDER BY created_at desc
+	LIMIT 1`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
 	if err != nil {

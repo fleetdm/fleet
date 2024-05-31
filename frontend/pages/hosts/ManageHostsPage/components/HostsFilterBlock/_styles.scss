@@ -14,7 +14,8 @@
 
   // NOTE: Look more into this styling
   &__os_settings-dropdown,
-  &__macsettings-dropdown {
+  &__macsettings-dropdown,
+  &__sw-install-status-dropdown {
     .Select-value {
       display: flex;
       align-items: center;

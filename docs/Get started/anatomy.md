@@ -23,7 +23,7 @@ Fleet Desktop is a menu bar icon that gives end users visibility into the securi
 The Fleetd Chrome extension enrolls ChromeOS devices in Fleet. [Docs](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 ## Host
-A host is a computer, server, or other endpoint. Fleet gathers information from an osquery agent installed on each of your hosts. [Docs](https://fleetdm.com/docs/using-fleet/adding-hosts).
+A host is a computer, server, or other endpoint. Fleet gathers information from Fleet's agent (fleetd) installed on each of your hosts. [Docs](https://fleetdm.com/docs/using-fleet/adding-hosts).
 
 ## Team
 A team is a group of hosts. Use teams to segment your hosts into groups that reflect your organization's IT and security policies. [Docs](https://fleetdm.com/docs/using-fleet/teams).

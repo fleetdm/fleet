@@ -23,9 +23,8 @@ CREATE TABLE mdm_apple_declarative_requests (
   CONSTRAINT mdm_apple_declarative_requests_enrollment_id FOREIGN KEY (enrollment_id) REFERENCES nano_enrollments (id) ON DELETE CASCADE
 )
 `)
-
 	if err != nil {
-		return fmt.Errorf("creating mdm_apple_declarative_requsts: %w", err)
+		return fmt.Errorf("creating mdm_apple_declarative_requests: %w", err)
 	}
 
 	return nil
