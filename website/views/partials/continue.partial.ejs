@@ -29,42 +29,47 @@
   </div>
 
   <script>
+    if (window._hasAlreadyLoadedContinuePartialScript) {
+      throw new Error('continue.partial.ejs should never be included in the HTML more than once.');
+    }
+    window._hasAlreadyLoadedContinuePartialScript = true;
+
     document.addEventListener('DOMContentLoaded', () => {
       // Toggle 'collapsed' on banner body when close button is clicked
-      $('[purpose="banner-close-button"]').click(async function(event) {
+      $('[purpose="banner-close-button"]').click((event)=>{
         event.stopPropagation(); // Prevent the event from triggering the event listener that removes the collapsed class from running.
         Cloud.updateStartCtaVisibility().exec();
         $('[purpose="banner-body"]').addClass('collapsed');
-      });
+      });//œ
 
       // Toggle 'collapsed' on banner body when it is clicked (if it has the class)
-      $('[purpose="banner-body"]').click(function() {
-        if ($(this).hasClass('collapsed')) {
+      $('[purpose="banner-body"]').click((event)=> {
+        let $el = $(event.currentTarget);
+        if ($el.hasClass('collapsed')) {
           Cloud.updateStartCtaVisibility().exec();
-          $(this).removeClass('collapsed');
+          $el.removeClass('collapsed');
         }
-      });
+      });//œ
 
       if(SAILS_LOCALS.isHomepage){
         // If this is on the Fleet homepage, remove the invisible class after the user scrolls the height of their viewport.
         let lastScrollTop = 0;
         let banner = document.querySelector('[purpose="banner-body"]');
-        window.addEventListener('scroll', windowScrolled);
-        function windowScrolled() {
+        window.addEventListener('scroll', ()=>{
           let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           if(scrollTop > lastScrollTop && scrollTop > window.innerHeight) {
             // If the user scrolls 1.5x the height of their browser window, hide the page banner.
             banner.classList.remove('invisible');
             lastScrollTop = scrollTop;
           }
-        }
+        });//œ
       } else {
         // OTehrwise, remove the 'invisible' class 1 second after page loads
         setTimeout(() => {
           $('[purpose="banner-body"]').toggleClass('invisible');
-        }, 1000);
+        }, 1000);;//œ
       }
-    });
+    });//œ
   </script>
 <% } %>
 
