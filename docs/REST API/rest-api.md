@@ -1054,23 +1054,23 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | In    | Description   |
 | ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| organization_information          | object  | body  | See [organization_information object](#organization-information-object). |
-| server_settings         | object  | body    | See [server_settings object](#server-settings-object). |
-| smtp_settings         | object  | body    | See [smtp_settings object](#smtp-settings-object). |
-| sso_settings         | object  | body    | See [sso_settings object](#sso-settings-object). |
-| host_expiry_settings         | object  | body    | See [host_expiry_settings object](#host-expiry-settings-object). |
-| activity_expiry_settings         | object  | body    | See [activity_expiry_settings object](#activity-expiry-settings-object). |
+| organization_information          | object  | body  | See [organization_information](#organization-information). |
+| server_settings         | object  | body    | See [server_settings](#server-settings). |
+| smtp_settings         | object  | body    | See [smtp_settings](#smtp-settings). |
+| sso_settings         | object  | body    | See [sso_settings](#sso-settings). |
+| host_expiry_settings         | object  | body    | See [host_expiry_settings](#host-expiry-settings). |
+| activity_expiry_settings         | object  | body    | See [activity_expiry_settings](#activity-expiry-settings). |
 | agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| fleet_desktop         | object  | body    | See [fleet_desktop object](#fleet-desktop-object). |
-| webhook_settings      | object  | body    | See [webhook_settings object](#webhook-settings-object). |
-| integrations                      | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations object](#integrations-object) for details. |
-| mdm_settings      | object  | body    | See [mdm_settings object](#mdm-settings-object). |
+| fleet_desktop         | object  | body    | See [fleet_desktop](#fleet-desktop). |
+| webhook_settings      | object  | body    | See [webhook_settings](#webhook-settings). |
+| integrations                      | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details. |
+| mdm_settings      | object  | body    | See [mdm_settings](#mdm-settings). |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
 
-#### organization_information object
+#### organization_information
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1079,7 +1079,7 @@ Modifies the Fleet's configuration with the supplied information.
 | org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
 | contact_url                       | string  | A URL that can be used by end users to contact the organization.                                                                                          |
 
-#### server_settings object
+#### server_settings
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1089,7 +1089,7 @@ Modifies the Fleet's configuration with the supplied information.
 | query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
 | ai_features_disabled              | boolean | body  | _Server settings_. Whether AI features are disabled. |
 
-#### smtp_settings object
+#### smtp_settings
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1106,7 +1106,7 @@ Modifies the Fleet's configuration with the supplied information.
 | verify_ssl_certs                  | boolean | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
 | enabled_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
 
-#### sso_settings object
+#### sso_settings
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1116,14 +1116,14 @@ Modifies the Fleet's configuration with the supplied information.
 | idp_image_url                     | string  | An optional link to an image such as a logo for the identity provider.                                                                                                 |
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
 
-#### host_expiry_settings object
+#### host_expiry_settings
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | host_expiry_enabled               | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window                | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 
-#### activity_expiry_settings object
+#### activity_expiry_settings
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1131,7 +1131,7 @@ Modifies the Fleet's configuration with the supplied information.
 | activity_expiry_window            | integer | _Activity expiry settings_. The number of days to retain activity records, if activity expiry is enabled.   |
 
 
-#### fleet_desktop object
+#### fleet_desktop
 
 _Available in Fleet Premium._
 
@@ -1139,7 +1139,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.                                                      |
 
-#### webhook_settings object
+#### webhook_settings
 
 Contains the following webhook settings: 
 + [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook)
@@ -1183,7 +1183,7 @@ Contains the following webhook settings:
 | destination_url                   | string  | The URL to deliver the webhook requests to.                                                     |
 | host_batch_size                   | integer | Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 
-#### integrations object
+#### integrations
 
 Contains the following arrays of integration settings: 
 + [`integrations.jira`](#integrations-jira)
@@ -1232,7 +1232,7 @@ Contains the following arrays of integration settings:
 | api_key_json                      | object  | The private key JSON downloaded when generating the service account API key to be used for this calendar integration. |
 
 
-#### mdm_settings object
+#### mdm_settings
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1240,7 +1240,7 @@ Contains the following arrays of integration settings:
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 
 
-#### mdm object
+#### mdm
 
 Contains the following MDM settings: 
 + [`mdm.macos_updates`](#mdm-macos-updates)
