@@ -50,7 +50,7 @@ func newS3store(config config.S3Config) (*s3store, error) {
 	// Assume role if configured
 	if config.StsAssumeRoleArn != "" {
 		creds := stscreds.NewCredentials(sess, config.StsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
-			if config.StsAssumeRoleArn != "" {
+			if config.StsExternalID != "" {
 				provider.ExternalID = &config.StsExternalID
 			}
 		})
