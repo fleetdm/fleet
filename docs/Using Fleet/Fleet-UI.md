@@ -10,7 +10,9 @@
 
 ## Create a query
 
-Queries in Fleet allow you to ask a multitude of questions to help you manage, monitor, and identify threats on your devices. 
+Queries in Fleet allow you to ask a multitude of questions to help you manage, monitor, and identify threats on your devices.
+
+If you're unsure of what to ask, head to Fleet's [query library](https://fleetdm.com/queries). There you'll find common queries that have been tested by members of our community.
 
 How to create a query:
 
