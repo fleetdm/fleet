@@ -301,7 +301,7 @@ export interface IHost {
   gigs_disk_space_available: number;
   labels: ILabel[];
   packs: IPack[];
-  software: ISoftware[];
+  software?: ISoftware[];
   issues: IHostIssues;
   status: HostStatus;
   display_text: string;

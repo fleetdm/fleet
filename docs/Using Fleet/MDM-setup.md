@@ -105,9 +105,8 @@ fleetctl get mdm-apple
 ### Step 1: generate the required files
 
 - A new APNs certificate. 
-- A new APNs private key.
 
-Run the following command in `fleetctl`. This will download three files and send an email to you with an attached CSR file. You may ignore the SCEP certificate and SCEP key as you do not need these to renew APNs.
+Run the following command in `fleetctl`. This will download three files and send an email to you with an attached CSR file. You may ignore the APNs key, SCEP certificate, and SCEP key as you do not need these to renew APNs.
 
 ```sh
 fleetctl generate mdm-apple --email <email> --org <org>
@@ -122,11 +121,8 @@ fleetctl generate mdm-apple --email <email> --org <org>
 
 ### Step 3: configure Fleet with the generated files
 
-Restart the Fleet server with the contents of the APNs certificate and APNs private key in following environment variables:
+Restart the Fleet server with the contents of the APNs certificate in the following environment variable:
 * [FLEET_MDM_APPLE_APNS_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes)
-* [FLEET_MDM_APPLE_APNS_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes)
-
-> You do not need to provide the APNs CSR which was emailed to you.
 
 ### Step 4: confirm that Fleet is set up correctly
 
