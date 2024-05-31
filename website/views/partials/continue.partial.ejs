@@ -44,10 +44,14 @@
 
       // Toggle 'collapsed' on banner body when it is clicked (if it has the class)
       $('[purpose="banner-body"]').click((event)=> {
-        let $el = $(event.currentTarget);
-        if ($el.hasClass('collapsed')) {
-          Cloud.updateStartCtaVisibility().exec();
-          $el.removeClass('collapsed');
+        if(window.innerWidth < 991) {// If the mobile version of the CTA is visible, the entire body is a clickable link.
+          window.location = '/start';
+        } else {
+          let $el = $(event.currentTarget);
+          if ($el.hasClass('collapsed')) {
+            Cloud.updateStartCtaVisibility().exec();
+            $el.removeClass('collapsed');
+          }
         }
       });//œ
 
