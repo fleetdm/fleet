@@ -148,12 +148,11 @@ const ManagePolicyPage = ({
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
-  const initialPage = (() =>
-    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
+  const page =
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [page, setPage] = useState(initialPage);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
@@ -168,7 +167,6 @@ const ManagePolicyPage = ({
     if (!isRouteOk) {
       return;
     }
-    setPage(initialPage);
     setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
@@ -361,10 +359,7 @@ const ManagePolicyPage = ({
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
     setResetPageIndex(false);
-    if (queryParams.page === page.toString()) {
-      setPage(page);
-    }
-  }, [queryParams, page]);
+  }, [page]);
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
