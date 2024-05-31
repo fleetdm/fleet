@@ -139,6 +139,7 @@ const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
   package_available_for_install: "mockSoftware.app",
+  self_service: false,
   source: "apps",
   bundle_identifier: "com.test.mock",
   status: "installed",
