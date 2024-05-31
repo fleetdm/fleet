@@ -193,6 +193,9 @@ func TestBasicTeamGitOps(t *testing.T) {
 		}
 		return nil, nil
 	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	var savedTeam *fleet.Team
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
@@ -365,6 +368,9 @@ func TestFullGlobalGitOps(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
@@ -506,6 +512,9 @@ func TestFullTeamGitOps(t *testing.T) {
 			return team, nil
 		}
 		return nil, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
 	}
 	var savedTeam *fleet.Team
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -695,6 +704,9 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		Name:      teamName,
 	}
 
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		if teamID == nil {
 			enrolledSecrets = secrets
@@ -787,7 +799,7 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: ${ORG_NAME}
-  secrets:
+  secrets: [{"secret":"globalSecret"}]
 `,
 	)
 	require.NoError(t, err)
@@ -811,6 +823,21 @@ team_settings:
 	)
 	require.NoError(t, err)
 
+	teamFileDupSecret, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFileDupSecret.WriteString(
+		`
+controls:
+queries:
+policies:
+agent_options:
+name: ${TEST_TEAM_NAME}
+team_settings:
+  secrets: [{"secret":"${TEST_SECRET}"},{"secret":"globalSecret"}]
+`,
+	)
+	require.NoError(t, err)
+
 	// Files out of order
 	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
@@ -820,6 +847,11 @@ team_settings:
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
+
+	// Duplicate secret
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "duplicate enroll secret found")
 
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
@@ -835,7 +867,7 @@ team_settings:
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
-	assert.Empty(t, enrolledSecrets)
+	assert.Len(t, enrolledSecrets, 1)
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
 	require.Len(t, enrolledTeamSecrets, 1)
@@ -1074,6 +1106,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
