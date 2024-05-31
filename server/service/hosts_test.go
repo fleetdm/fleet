@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1215,20 +1214,13 @@ func TestHostEncryptionKey(t *testing.T) {
 		},
 	}
 
-	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "")
 
 	recoveryKey := "AAA-BBB-CCC"
 	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{testCert})
@@ -1268,6 +1260,13 @@ func TestHostEncryptionKey(t *testing.T) {
 				require.Equal(t, tt.host.ID, act.HostID)
 				require.EqualValues(t, act.HostDisplayName, tt.host.DisplayName())
 				return nil
+			}
+
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+					fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
+					fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+				}, nil
 			}
 
 			t.Run("allowed users", func(t *testing.T) {
@@ -1314,6 +1313,12 @@ func TestHostEncryptionKey(t *testing.T) {
 		keyErr := errors.New("key error")
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return nil, keyErr
+		}
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
+				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+			}, nil
 		}
 		_, err = svc.HostEncryptionKey(ctx, 1)
 		require.ErrorIs(t, err, keyErr)
@@ -1369,6 +1374,12 @@ func TestHostEncryptionKey(t *testing.T) {
 				) error {
 					return nil
 				}
+				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+					return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+						fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
+						fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+					}, nil
+				}
 
 				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 				ctx = test.UserContext(ctx, test.UserAdmin)
@@ -1386,20 +1397,13 @@ func TestHostEncryptionKey(t *testing.T) {
 
 func TestHostMDMProfileDetail(t *testing.T) {
 	ds := new(mock.Store)
-	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "")
 
 	svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 	ctx = test.UserContext(ctx, test.UserAdmin)

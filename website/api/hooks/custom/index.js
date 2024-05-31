@@ -154,7 +154,12 @@ will be disabled and/or hidden in the UI.
             //   https://fleetdm.com/device-management?utm_content=mdm
             if (['clear','eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
               req.session.primaryBuyingSituation = req.param('utm_content') === 'clear' ? undefined : req.param('utm_content');
-              return res.redirect(req.path);// « auto-redirect without querystring to make it prettier in the URL bar.
+              // FUTURE: reimplement the following (auto-redirect without querystring to make it prettier in the URL bar), but do it in the client-side JS
+              // using whatever that poppushstateblah thing is that makes it so you can change the URL bar from the browser-side code without screwing up
+              // the history stack (i.e. back button)
+              // ```
+              // return res.redirect(req.path);
+              // ```
             }//ﬁ
 
             if (req.method === 'GET' || req.method === 'HEAD') {

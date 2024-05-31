@@ -21,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1040,13 +1039,6 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewNopLogger()
 
-	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -1057,8 +1049,18 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	require.NoError(t, err)
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
-	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
+	assets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+		fleet.MDMAssetCACert: {Value: testCertPEM},
+		fleet.MDMAssetCAKey:  {Value: testKeyPEM},
+	}
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return assets, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appCfg := fleet.AppConfig{}
+		appCfg.MDM.EnabledAndConfigured = true
+		return &appCfg, nil
+	}
 
 	now := time.Now()
 
@@ -1087,7 +1089,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 			return nil
 		}
 
-		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		err = verifyDiskEncryptionKeys(ctx, logger, ds)
 		require.NoError(t, err)
 		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
 		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
@@ -1110,7 +1112,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 			return nil
 		}
 
-		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		err = verifyDiskEncryptionKeys(ctx, logger, ds)
 		require.NoError(t, err)
 		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
 		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)

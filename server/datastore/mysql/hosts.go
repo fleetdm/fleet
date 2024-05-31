@@ -2354,7 +2354,7 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			return fleet.ConflictError{Message: "auth token conflicts with another host"}
 		}
 		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")

@@ -59,6 +59,7 @@ import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExper
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
+import AppleAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/AppleAutomaticEnrollmentPage";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
@@ -157,6 +158,10 @@ const routes = (
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={MacOSMdmPage} />
+            <Route
+              path="integrations/automatic-enrollment/apple"
+              component={AppleAutomaticEnrollmentPage}
+            />
             <Route
               path="integrations/automatic-enrollment/windows"
               component={WindowsAutomaticEnrollmentPage}

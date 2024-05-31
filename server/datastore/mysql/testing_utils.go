@@ -2,9 +2,18 @@ package mysql
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/asn1"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"os/exec"
 	"path"
@@ -19,10 +28,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 const (
@@ -34,7 +45,7 @@ const (
 )
 
 func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
-	config := config.MysqlConfig{
+	cfg := config.MysqlConfig{
 		Username: testUsername,
 		Password: testPassword,
 		Database: testName,
@@ -44,10 +55,17 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// Create datastore client
 	var replicaOpt DBOption
 	if opts.DummyReplica {
-		replicaConf := config
+		replicaConf := cfg
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
+
+	// For use with WithFleetConfig. Note that since we're setting up the DB in a different way
+	// than in production, we have to reset the MinSoftwareLastOpenedAtDiff field to its default so
+	// it's not overwritten here.
+	tc := config.TestConfig()
+	tc.Osquery.MinSoftwareLastOpenedAtDiff = defaultMinLastOpenedAtDiff
+
 	// set SQL mode to ANSI, as it's a special mode equivalent to:
 	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
 	// ONLY_FULL_GROUP_BY
@@ -57,7 +75,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// standard SQL.
 	//
 	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"))
+	ds, err := New(cfg, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
@@ -616,6 +634,109 @@ func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.T
 		})
 	}
 	return now
+}
+
+func SetTestABMAssets(t testing.TB, ds *Datastore) {
+	apnsCert, apnsKey, err := GenerateTestCertBytes()
+	require.NoError(t, err)
+
+	certPEM, keyPEM, tokenBytes, err := GenerateTestABMAssets(t)
+	require.NoError(t, err)
+	assets := []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetABMCert, Value: certPEM},
+		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
+		{Name: fleet.MDMAssetABMToken, Value: tokenBytes},
+		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+		{Name: fleet.MDMAssetCACert, Value: certPEM},
+		{Name: fleet.MDMAssetCAKey, Value: keyPEM},
+	}
+
+	err = ds.InsertMDMConfigAssets(context.Background(), assets)
+	require.NoError(t, err)
+
+	appCfg, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = true
+	appCfg.MDM.AppleBMEnabledAndConfigured = true
+	err = ds.SaveAppConfig(context.Background(), appCfg)
+	require.NoError(t, err)
+}
+
+func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
+	certPEM, keyPEM, err := GenerateTestCertBytes()
+	require.NoError(t, err)
+
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	rawToken, err := json.Marshal(testBMToken)
+	require.NoError(t, err)
+
+	smimeToken := fmt.Sprintf(
+		"Content-Type: text/plain;charset=UTF-8\r\n"+
+			"Content-Transfer-Encoding: 7bit\r\n"+
+			"\r\n%s", rawToken,
+	)
+
+	block, _ := pem.Decode(certPEM)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE", block.Type)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	encryptedToken, err := pkcs7.Encrypt([]byte(smimeToken), []*x509.Certificate{cert})
+	require.NoError(t, err)
+
+	tokenBytes := fmt.Sprintf(
+		"Content-Type: application/pkcs7-mime; name=\"smime.p7m\"; smime-type=enveloped-data\r\n"+
+			"Content-Transfer-Encoding: base64\r\n"+
+			"Content-Disposition: attachment; filename=\"smime.p7m\"\r\n"+
+			"Content-Description: S/MIME Encrypted Message\r\n"+
+			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
+
+	return certPEM, keyPEM, []byte(tokenBytes), nil
+}
+
+// TODO: move to mdmcrypto?
+func GenerateTestCertBytes() ([]byte, []byte, error) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test Org"},
+			ExtraNames: []pkix.AttributeTypeAndValue{
+				{
+					Type:  asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1},
+					Value: "com.apple.mgmt.Example",
+				},
+			},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	return certPEM, keyPEM, nil
 }
 
 // MasterStatus is a struct that holds the file and position of the master, retrieved by SHOW MASTER STATUS
