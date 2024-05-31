@@ -35,8 +35,7 @@ import AdvancedOptionsModal from "../AdvancedOptionsModal";
 const baseClass = "software-package-card";
 
 /** TODO: pull this hook and SoftwareName component out. We could use this other places */
-
-function useTruncatedElement(ref: any) {
+function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
   const [isTruncated, setIsTruncated] = useState(false);
 
   useLayoutEffect(() => {
