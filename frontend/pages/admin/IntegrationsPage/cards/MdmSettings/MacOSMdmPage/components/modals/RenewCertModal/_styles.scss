@@ -1,0 +1,69 @@
+.renew-cert-modal {
+  width: 730px;
+
+  &__info-header {
+    margin-bottom: $pad-xlarge;
+  }
+
+  &__setup-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    color: $core-fleet-black;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__setup-instructions-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    li > p {
+      margin: 0;
+    }
+  }
+
+  &__request-button {
+    display: flex;
+    gap: $pad-small;
+    align-items: center;
+    margin-top: $pad-small;
+    margin-left: $pad-medium;
+
+    label {
+      display: flex;
+      gap: $pad-small;
+      cursor: pointer;
+    }
+  }
+
+  &__file-uploader {
+    margin-top: $pad-medium;
+    margin-left: $pad-medium;
+    border-radius: 6px;
+
+    .file-uploader__message {
+      color: $ui-fleet-black-75;
+      margin: 0;
+    }
+
+    button {
+      margin-top: 0;
+    }
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+
+    .renew-cert-modal__submit-button.uploading.button--disabled {
+      opacity: 1;
+    }
+  }
+}

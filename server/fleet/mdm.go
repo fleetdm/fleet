@@ -537,6 +537,56 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	return len(pathLabelCounts) == 0
 }
 
+type MDMAssetName string
+
+const (
+	// MDMAssetCACert is the name of the root CA certificate used by MDM, for
+	// Apple this is the SCEP certificate, for Windows the WSTEP certificate
+	MDMAssetCACert MDMAssetName = "ca_cert"
+	// MDMAssetCAKey is the name of the root CA private key used by MDM, for
+	// Apple this is the SCEP key, for Windows the WSTEP key
+	MDMAssetCAKey MDMAssetName = "ca_key"
+	// MDMAssetAPNSKey is the name of the APNs (Apple Push Notifications
+	// service) private key used by MDM
+	MDMAssetAPNSKey MDMAssetName = "apns_key"
+	// MDMAssetAPNSCert is the name of the APNs (Apple Push Notifications
+	// service) private key used by MDM
+	MDMAssetAPNSCert MDMAssetName = "apns_cert"
+	// MDMAssetABMKey is the name of the ABM (Apple Business Manager)
+	// private key used to decrypt MDMAssetABMToken
+	MDMAssetABMKey MDMAssetName = "abm_key"
+	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
+	// private key used to encrypt MDMAssetABMToken
+	MDMAssetABMCert MDMAssetName = "abm_cert"
+	// MDMAssetABMToken is an encrypted JSON file that contains a token
+	// that can be used for the authentication process with the ABM API
+	MDMAssetABMToken MDMAssetName = "abm_token"
+)
+
+type MDMConfigAsset struct {
+	Name        MDMAssetName `db:"name"`
+	Value       []byte       `db:"value"`
+	MD5Checksum string       `db:"md5_checksum"`
+}
+
+func (m MDMConfigAsset) Clone() (Cloner, error) {
+	return m.Copy(), nil
+}
+
+func (m MDMConfigAsset) Copy() MDMConfigAsset {
+	var clone MDMConfigAsset
+
+	clone.Name = m.Name
+	clone.MD5Checksum = m.MD5Checksum
+
+	if len(m.Value) > 0 {
+		clone.Value = make([]byte, len(m.Value))
+		copy(clone.Value, m.Value)
+	}
+
+	return clone
+}
+
 // MDMPlatform returns "darwin" or "windows" as MDM platforms
 // derived from a host's platform (hosts.platform field).
 //

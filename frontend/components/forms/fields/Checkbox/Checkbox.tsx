@@ -22,7 +22,6 @@ export interface ICheckboxProps {
   tooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
   helpText?: React.ReactNode;
-  smallTick?: boolean;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -40,7 +39,6 @@ const Checkbox = (props: ICheckboxProps) => {
     tooltipContent,
     isLeftLabel,
     helpText,
-    smallTick = false,
   } = props;
 
   const handleChange = () => {
@@ -61,7 +59,6 @@ const Checkbox = (props: ICheckboxProps) => {
   const checkBoxTickClass = classnames(`${baseClass}__tick`, {
     [`${baseClass}__tick--disabled`]: disabled,
     [`${baseClass}__tick--indeterminate`]: indeterminate,
-    [`${baseClass}__tick--small`]: smallTick,
   });
 
   const checkBoxLabelClass = classnames(checkBoxClass, {
