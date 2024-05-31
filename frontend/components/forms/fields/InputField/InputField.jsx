@@ -56,7 +56,7 @@ class InputField extends Component {
     value: "",
     parseTarget: false,
     tooltip: "",
-    labelTooltipPosition: "",
+    labelTooltipPosition: undefined,
     helpText: "",
     enableCopy: false,
     ignore1password: false,
