@@ -35,9 +35,9 @@ var countHostSoftwareBatchSize = uint64(100000)
 // This is a variable, so it can be adjusted during unit testing.
 var softwareInsertBatchSize = 1000
 
-func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
-	result := make(map[string]fleet.Software)
-	for _, s := range softwares {
+func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
+	result := make(map[string]fleet.Software, len(softwareItems))
+	for _, s := range softwareItems {
 		result[s.ToUniqueStr()] = s
 	}
 	return result
@@ -239,19 +239,31 @@ func insertHostSoftwareInstalledPaths(
 	return nil
 }
 
-func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) bool {
-	if len(current) != len(incoming) {
-		return false
+func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) (
+	map[string]fleet.Software, map[string]fleet.Software, bool,
+) {
+	// Process incoming software to ensure there are no duplicates, since the same software can be installed at multiple paths.
+	incomingMap := make(map[string]fleet.Software, len(current)) // setting len(current) as the length since that should be the common case
+	for _, s := range incoming {
+		uniqueStr := s.ToUniqueStr()
+		if duplicate, ok := incomingMap[uniqueStr]; ok {
+			// Check the last opened at timestamp and keep the latest.
+			if s.LastOpenedAt == nil ||
+				(duplicate.LastOpenedAt != nil && !s.LastOpenedAt.After(*duplicate.LastOpenedAt)) {
+				continue // keep the duplicate
+			}
+		}
+		incomingMap[uniqueStr] = s
+	}
+	currentMap := softwareSliceToMap(current)
+	if len(currentMap) != len(incomingMap) {
+		return currentMap, incomingMap, false
 	}
 
-	currentMap := make(map[string]fleet.Software)
-	for _, s := range current {
-		currentMap[s.ToUniqueStr()] = s
-	}
-	for _, s := range incoming {
+	for _, s := range incomingMap {
 		cur, ok := currentMap[s.ToUniqueStr()]
 		if !ok {
-			return false
+			return currentMap, incomingMap, false
 		}
 
 		// if the incoming software has a last opened at timestamp and it differs
@@ -259,18 +271,18 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 		// timestamp), then consider that something changed.
 		if s.LastOpenedAt != nil {
 			if cur.LastOpenedAt == nil {
-				return false
+				return currentMap, incomingMap, false
 			}
 
 			oldLast := *cur.LastOpenedAt
 			newLast := *s.LastOpenedAt
 			if newLast.Sub(oldLast) >= minLastOpenedAtDiff {
-				return false
+				return currentMap, incomingMap, false
 			}
 		}
 	}
 
-	return true
+	return currentMap, incomingMap, true
 }
 
 func (ds *Datastore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
@@ -330,12 +342,10 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	}
 	r.WasCurrInstalled = currentSoftware
 
-	if nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff) {
+	current, incoming, notChanged := nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff)
+	if notChanged {
 		return r, nil
 	}
-
-	current := softwareSliceToMap(currentSoftware)
-	incoming := softwareSliceToMap(software)
 
 	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {

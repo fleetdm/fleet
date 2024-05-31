@@ -45,6 +45,7 @@ type statsTracker struct {
 	saveStats         bool
 	aggregationNeeded bool
 	stats             []statsToSave
+	lastStatsEntry    *fleet.LiveQueryStats
 }
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
@@ -298,6 +299,10 @@ func calculateOutputSize(perfStatsTracker *statsTracker, res *fleet.DistributedQ
 	return outputSize
 }
 
+// overwriteLastExecuted is used for testing purposes to overwrite the last executed time of the live query stats.
+var overwriteLastExecuted = false
+var overwriteLastExecutedTime time.Time
+
 func (svc Service) updateStats(
 	ctx context.Context, queryID uint, logger log.Logger, tracker *statsTracker, aggregateStats bool,
 ) {
@@ -327,6 +332,12 @@ func (svc Service) updateStats(
 		}
 
 		// Update stats
+		// We round to the nearest second because MySQL default precision of TIMESTAMP is 1 second.
+		// We could alter the table to increase precision. However, this precision granularity is sufficient for the live query stats use case.
+		lastExecuted := time.Now().Round(time.Second)
+		if overwriteLastExecuted {
+			lastExecuted = overwriteLastExecutedTime
+		}
 		for _, gatheredStats := range tracker.stats {
 			stats, ok := statsMap[gatheredStats.hostID]
 			if !ok {
@@ -338,6 +349,7 @@ func (svc Service) updateStats(
 					UserTime:      gatheredStats.UserTime,
 					WallTime:      gatheredStats.WallTimeMs,
 					OutputSize:    gatheredStats.outputSize,
+					LastExecuted:  lastExecuted,
 				}
 				currentStats = append(currentStats, &newStats)
 			} else {
@@ -348,6 +360,7 @@ func (svc Service) updateStats(
 				stats.UserTime = stats.UserTime + gatheredStats.UserTime
 				stats.WallTime = stats.WallTime + gatheredStats.WallTimeMs
 				stats.OutputSize = stats.OutputSize + gatheredStats.outputSize
+				stats.LastExecuted = lastExecuted
 			}
 		}
 
@@ -359,12 +372,58 @@ func (svc Service) updateStats(
 			return
 		}
 
+		if len(currentStats) > 0 {
+			tracker.lastStatsEntry = currentStats[0]
+		}
 		tracker.aggregationNeeded = true
 		tracker.stats = nil
 	}
 
 	// Do aggregation
 	if aggregateStats && tracker.aggregationNeeded {
+		// Since we just wrote new stats, we need the write data to sync to the replica before calculating aggregated stats.
+		// The calculations are done on the replica to reduce the load on the master.
+		// Although this check is not necessary if replica is not used, we leave it in for consistency and to ensure the code is exercised in dev/test environments.
+		// To sync with the replica, we read the last stats entry from the replica and compare the timestamp to what was written on the master.
+		if tracker.lastStatsEntry != nil { // This check is just to be safe. It should never be nil.
+			done := make(chan error, 1)
+			stop := make(chan struct{}, 1)
+			go func() {
+				var stats []*fleet.LiveQueryStats
+				var err error
+				for {
+					select {
+					case <-stop:
+						return
+					default:
+						stats, err = svc.ds.GetLiveQueryStats(ctx, queryID, []uint{tracker.lastStatsEntry.HostID})
+						if err != nil {
+							done <- err
+							return
+						}
+						if !(len(stats) == 0 || stats[0].LastExecuted.Before(tracker.lastStatsEntry.LastExecuted)) {
+							// Replica is in sync with the last query stats update
+							done <- nil
+							return
+						}
+						time.Sleep(30 * time.Millisecond) // We see the replication time less than 30 ms in production.
+					}
+				}
+			}()
+			select {
+			case err := <-done:
+				if err != nil {
+					level.Error(logger).Log("msg", "error syncing replica to master", "err", err)
+					tracker.saveStats = false
+					return
+				}
+			case <-time.After(5 * time.Second):
+				stop <- struct{}{}
+				level.Error(logger).Log("msg", "replica sync timeout: replica did not catch up to the master in 5 seconds")
+				// We proceed with the aggregation even if the replica is not in sync.
+			}
+		}
+
 		err := svc.ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
 		if err != nil {
 			level.Error(logger).Log("msg", "error aggregating performance stats", "err", err)

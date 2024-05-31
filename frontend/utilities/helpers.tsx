@@ -814,6 +814,9 @@ export const normalizeEmptyValues = (
   );
 };
 
+export const wait = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
 export const wrapFleetHelper = (
   helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
@@ -1001,6 +1004,7 @@ export default {
   setupData,
   syntaxHighlight,
   normalizeEmptyValues,
+  wait,
   wrapFleetHelper,
   TAGGED_TEMPLATES,
 };

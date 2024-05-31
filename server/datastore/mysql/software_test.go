@@ -423,15 +423,33 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
 			true,
 		},
+		{
+			"identical with duplicates incoming",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "A", Version: "1.0", Source: "ASD"}},
+			true,
+		},
+		{
+			"identical with duplicates incoming and insignificantly changed last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now().Add(-time.Second))}},
+			[]fleet.Software{
+				{Name: "A", Version: "1.0", Source: "ASD"},
+				{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now().Add(-time.Hour))},
+				{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())},
+			},
+			true,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
+			current, incoming, got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
 			if c.want {
-				require.True(t, got)
+				assert.True(t, got)
+				assert.Equal(t, len(current), len(incoming))
 			} else {
-				require.False(t, got)
+				assert.False(t, got)
 			}
+			assert.Equal(t, len(c.current), len(current))
 		})
 	}
 }
