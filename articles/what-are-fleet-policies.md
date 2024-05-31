@@ -4,9 +4,9 @@ Fleet policies are a great way to quickly monitor your devices by asking yes or 
 
 Read more about [getting and staying compliant across your fleet.](https://fleetdm.com/use-cases/get-and-stay-compliant-across-your-devices-with-fleet)
 
-## Modify and add policies
+## Add policies
 
-[Fleet makes adding and modifying policies using the Fleet API easy](https://fleetdm.com/docs/using-fleet/rest-api#add-policy). To reduce the barrier of entry with Fleet for our less-technical users, we’ve introduced our [standard templates](fleetdm.com/queries) that allow users to choose from a library of pre-made policies. Of course, those handy with [osquery](https://osquery.io/) and SQL can still create custom policies to their heart’s content: 
+To reduce the barrier of entry with Fleet for our less-technical users, we’ve introduced our [standard templates](fleetdm.com/queries) that allow users to choose from a library of pre-made policies. Of course, those handy with [osquery](https://osquery.io/) and SQL can still create custom policies to their heart’s content: 
 
 1. In the top navigation, select **Policies**.
 
