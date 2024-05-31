@@ -141,10 +141,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams?.order_direction === undefined
       ? DEFAULT_SORT_DIRECTION
       : queryParams.order_direction;
-  const initialPage = (() =>
+  const page =
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
-      : DEFAULT_PAGE)();
+      : DEFAULT_PAGE;
   // TODO: move these down into the Software Titles component.
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
@@ -160,7 +160,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
-  const [page, setPage] = useState(initialPage);
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   const {
@@ -281,29 +280,20 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
     setResetPageIndex(false);
-
-    // Ensures setting page to same page as seen in URL
-    if (initialPage !== page) {
-      setPage(initialPage);
-    }
   }, [queryParams, page]);
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    setResetPageIndex(true);
-  };
 
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      handleResetPageIndex();
+      // NOTE: used to reset page number to 0 when modifying filters
+      setResetPageIndex(true);
     },
     [handleTeamChange]
   );
 
   const navigateToNav = useCallback(
     (i: number): void => {
-      handleResetPageIndex(); // Fixes flakey page reset in table state when switching between tabs
+      setResetPageIndex(true); // Fixes flakey page reset in table state when switching between tabs
 
       // Only query param to persist between tabs is team id
       const teamIdParam = buildQueryStringFromParams({
