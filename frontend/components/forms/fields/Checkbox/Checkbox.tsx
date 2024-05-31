@@ -91,7 +91,10 @@ const Checkbox = (props: ICheckboxProps) => {
           <span className={checkBoxTickClass} />
           {tooltipContent ? (
             <span className={`${baseClass}__label-tooltip tooltip`}>
-              <TooltipWrapper tipContent={tooltipContent}>
+              <TooltipWrapper
+                tipContent={tooltipContent}
+                clickable={false} // Not block form behind tooltip
+              >
                 {children}
               </TooltipWrapper>
             </span>

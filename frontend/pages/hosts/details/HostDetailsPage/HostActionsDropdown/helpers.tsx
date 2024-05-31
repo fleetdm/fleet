@@ -136,10 +136,8 @@ const canWipeHost = ({
   isPremiumTier,
   isGlobalAdmin,
   isGlobalMaintainer,
-  isGlobalObserver,
   isTeamAdmin,
   isTeamMaintainer,
-  isTeamObserver,
   isFleetMdm,
   isEnrolledInMdm,
   isMacMdmEnabledAndConfigured,
@@ -159,12 +157,7 @@ const canWipeHost = ({
     isPremiumTier &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeMacOrWindows) &&
-    (isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isGlobalObserver ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
-      isTeamObserver)
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
 

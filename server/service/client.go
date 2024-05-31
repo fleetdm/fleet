@@ -503,12 +503,12 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.EnrollSecret != nil {
+		if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret, opts.ApplySpecOptions); err != nil {
+			return nil, fmt.Errorf("applying enroll secrets: %w", err)
+		}
 		if opts.DryRun {
 			logfn("[+] would've applied enroll secrets\n")
 		} else {
-			if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
-				return nil, fmt.Errorf("applying enroll secrets: %w", err)
-			}
 			logfn("[+] applied enroll secrets\n")
 		}
 	}
@@ -1347,6 +1347,37 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 					return fmt.Errorf("error deleting queries: %w", err)
 				}
 				logFn("[-] deleted %d queries\n", deleteCount)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetGitOpsSecrets(
+	config *spec.GitOps,
+) []string {
+	if config.TeamName == nil {
+		orgSecrets, ok := config.OrgSettings["secrets"]
+		if ok {
+			secrets, ok := orgSecrets.([]*fleet.EnrollSecret)
+			if ok {
+				secretValues := make([]string, 0, len(secrets))
+				for _, secret := range secrets {
+					secretValues = append(secretValues, secret.Secret)
+				}
+				return secretValues
+			}
+		}
+	} else {
+		teamSecrets, ok := config.TeamSettings["secrets"]
+		if ok {
+			secrets, ok := teamSecrets.([]*fleet.EnrollSecret)
+			if ok {
+				secretValues := make([]string, 0, len(secrets))
+				for _, secret := range secrets {
+					secretValues = append(secretValues, secret.Secret)
+				}
+				return secretValues
 			}
 		}
 	}

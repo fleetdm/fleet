@@ -1,3 +1,14 @@
+## Fleet 4.50.1 (May 29, 2024)
+
+### Bug fixes
+
+* Fixed a bug that might prevent enqueing commands to renew SCEP certificates if the host was enrolled more than once.
+* Fixed a bug by preventing the `host_id`s field from being returned from the list labels endpoint.
+* Fixed a number of related issues with the filtering and sorting of the queries table.
+* Added various optimizations to the rendering of the queries table.
+* Fixed a bug where Bulk Host Delete and Transfer now support status and labelID filters together.
+* Added the ability to automatically log off and lock out `Administrator` users on Windows hosts.
+* Removed references to Administrator accounts in the comments of the Windows lock script.
 ## Fleet 4.50.0 (May 22, 2024)
 
 ### Endpoint Operations

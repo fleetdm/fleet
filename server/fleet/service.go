@@ -427,7 +427,7 @@ type Service interface {
 	SandboxEnabled() bool
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
-	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec) error
+	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec, applyOpts ApplySpecOptions) error
 	// GetEnrollSecretSpec gets the spec for the current enroll secrets.
 	GetEnrollSecretSpec(ctx context.Context) (*EnrollSecretSpec, error)
 

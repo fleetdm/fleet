@@ -915,6 +915,20 @@ func (svc *Service) createTeamFromSpec(
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
+
+	if dryRun {
+		for _, secret := range secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
+			if err != nil {
+				return nil, err
+			}
+			if !available {
+				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for team '%s' is already being used", spec.Name))
+				break
+			}
+		}
+	}
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -1116,6 +1130,19 @@ func (svc *Service) editTeamFromSpec(
 			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
 		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
+	}
+
+	if opts.DryRun {
+		for _, secret := range secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, false, &team.ID)
+			if err != nil {
+				return err
+			}
+			if !available {
+				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for team '%s' is already being used", spec.Name))
+				break
+			}
+		}
 	}
 
 	if invalid.HasErrors() {
