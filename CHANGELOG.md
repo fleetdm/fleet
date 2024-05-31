@@ -1,3 +1,9 @@
+## Fleet 4.50.2 (May 31, 2024)
+
+### Bug fixes
+
+* Fixed a critical bug where S3 operation were not possible on a different AWS account.
+
 ## Fleet 4.50.1 (May 29, 2024)
 
 ### Bug fixes
