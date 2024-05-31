@@ -5,5 +5,5 @@ examples: |-
   patched as frequently as they should be.
 
   ```
-  SELECT days FROM uptime WHERE days|-='31'
+  SELECT days FROM uptime WHERE days >='31'
   ```
