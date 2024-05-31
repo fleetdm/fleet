@@ -1066,9 +1066,9 @@ Modifies the Fleet's configuration with the supplied information.
 | integrations                      | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details. |
 | mdm_settings      | object  | body    | See [mdm_settings](#mdm-settings). |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
-| additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
-| force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
-| dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
+| additional_queries                | boolean | body  | Whether additional queries are enabled on hosts.                                                                                                                                |
+| force                             | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                                                                 |
+| dry_run                           | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                                                         |
 
 #### organization_information
 
