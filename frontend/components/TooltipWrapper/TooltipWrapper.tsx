@@ -28,9 +28,9 @@ interface ITooltipWrapper {
   disableTooltip?: boolean;
   /** If set to `true`, will not show the arrow on the tooltip.
    * This can be used to dynamically hide the arrow from the parent component.
-   * @default true
+   * @default false
    */
-  hideArrow?: boolean;
+  showArrow?: boolean;
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -48,7 +48,7 @@ const TooltipWrapper = ({
   tooltipClass,
   clickable = true,
   disableTooltip = false,
-  hideArrow = true,
+  showArrow = false,
 }: ITooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
@@ -76,7 +76,7 @@ const TooltipWrapper = ({
           id={tipId}
           delayShow={isDelayed ? 500 : undefined}
           delayHide={isDelayed ? 500 : undefined}
-          noArrow={hideArrow}
+          noArrow={!showArrow}
           place={position}
           opacity={1}
           disableStyleInjection

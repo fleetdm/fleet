@@ -63,6 +63,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
       position="top"
       underline={false}
       disableTooltip={!isTruncated}
+      showArrow
     >
       <div ref={titleRef} className={`${baseClass}__title`}>
         {name}
