@@ -952,6 +952,9 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 
 	// Invalid APNS cert upload attempt
 	s.uploadAPNSCert([]byte("invalid-cert"), http.StatusUnprocessableEntity, "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal.")
+
+	// simulate a renew flow
+	s.appleCoreCertsSetup()
 }
 
 func (s *integrationMDMTestSuite) uploadAPNSCert(pemBytes []byte, expectedStatus int, wantErr string) {
@@ -8700,6 +8703,9 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	require.Nil(t, renewABMResp.Err)
 	require.NotEmpty(t, renewABMResp.PublicKey)
 	require.Equal(t, renewABMResp.PublicKey, newABMResp.PublicKey)
+
+	// simulate a renew flow
+	s.enableABM()
 }
 
 func (s *integrationMDMTestSuite) enableABM() {

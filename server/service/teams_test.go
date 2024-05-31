@@ -416,6 +416,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 	})
 
 	t.Run("does not create enroll secret when one is included for a new team spec", func(t *testing.T) {
+		ds.NewTeamFuncInvoked = false
 		enrollSecret := fleet.EnrollSecret{Secret: "test"}
 
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {

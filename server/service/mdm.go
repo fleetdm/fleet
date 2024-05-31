@@ -2334,7 +2334,12 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("certificate", "Invalid certificate. Please provide a valid certificate from Apple Push Certificate Portal."))
 	}
 
-	// Save to DB
+	// delete the old certificate and insert the new one
+	// TODO(roberto): replacing the certificate should be done in a single transaction in the DB
+	err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAPNSCert})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting old apns cert from db")
+	}
 	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetAPNSCert, Value: certBytes},
 	})
