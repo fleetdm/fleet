@@ -372,7 +372,9 @@ func (svc Service) updateStats(
 			return
 		}
 
-		tracker.lastStatsEntry = currentStats[0]
+		if len(currentStats) > 0 {
+			tracker.lastStatsEntry = currentStats[0]
+		}
 		tracker.aggregationNeeded = true
 		tracker.stats = nil
 	}
