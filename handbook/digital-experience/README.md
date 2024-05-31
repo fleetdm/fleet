@@ -333,7 +333,12 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
     - CEO's email
     - LinkedIn messages (careful not to mark things as read!)
     - Google Drive 
-  6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped. 
+  6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped.
+
+> If a meeting agenda is for an advisor, you will find the existing journal by using the advisors name and/or email.
+  1. Start with the date
+  2. Pattern match the document
+  3. Link the document to the calendar description as the agenda
 
 
 ### Process the CEO's inbox
