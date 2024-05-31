@@ -583,12 +583,7 @@ const ManageHostsPage = ({
   // NOTE: Solution also used on ManagePoliciesPage.tsx
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
-    // TODO: cleanup this effect
     setResetPageIndex(false);
-
-    if (queryParams.page === page) {
-      setPage(queryParams.page);
-    }
   }, [queryParams, page]);
 
   // NOTE: used to reset page number to 0 when modifying filters
