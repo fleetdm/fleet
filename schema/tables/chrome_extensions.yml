@@ -7,7 +7,7 @@ platforms:
 description: The `chrome_extensions` table maps browser extensions installed in [Chromium](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers like [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).
 examples: |- 
 
-Because browser data lives in user space, this query uses a join to include a UID: 
+  Because browser data lives in user space, this query uses a join to include a UID: 
 
   ```
   SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
