@@ -20,6 +20,7 @@ import Pagination from "pages/ManageControlsPage/components/Pagination";
 
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import SelfServiceItem from "./SelfServiceItem";
+import { ISoftware } from "interfaces/software";
 
 const baseClass = "software-self-service";
 
@@ -32,6 +33,15 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   self_service: true,
 } as const;
 
+interface ISoftwareSelfServiceProps {
+  contactUrl: string;
+  deviceToken: string;
+  isSoftwareEnabled?: boolean;
+  pathname: string;
+  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
+  router: InjectedRouter;
+}
+
 const SoftwareSelfService = ({
   contactUrl,
   deviceToken,
@@ -39,15 +49,7 @@ const SoftwareSelfService = ({
   pathname,
   queryParams,
   router,
-}: {
-  contactUrl: string; // TODO: confirm this has been added to the device API response
-  deviceToken: string;
-  isSoftwareEnabled?: boolean;
-  pathname: string;
-  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
-  router: InjectedRouter;
-}) => {
-  // TOOD: loading state for fetching?
+}: ISoftwareSelfServiceProps) => {
   const { data, isLoading, isError, refetch } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
@@ -121,7 +123,8 @@ const SoftwareSelfService = ({
                   </div>
                   <div className={`${baseClass}__items`}>
                     {data.software.map((s) => {
-                      const key = `${s.id}${s.last_install?.install_uuid}`; // concatenating install_uuid so item updates with fresh data on refetch
+                      // concatenating install_uuid so item updates with fresh data on refetch
+                      const key = `${s.id}${s.last_install?.install_uuid}`;
                       return (
                         <SelfServiceItem
                           key={key}
