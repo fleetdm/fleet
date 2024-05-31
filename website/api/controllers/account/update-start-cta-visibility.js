@@ -18,10 +18,16 @@ module.exports = {
 
 
   fn: async function () {
-
-    let nowAt = Date.now();
-    let tomorrowAt = nowAt + (24 * 60 * 60 * 1000);
-    this.req.session.expandCtaAt = tomorrowAt;
+    if(!this.req.session){
+      throw new Error('Consistency violation. When a user sent a request to the update start CTA visibility endpoint, a session is missing.');
+    }
+    if(this.req.session.expandCtaAt){
+      this.req.session.expandCtaAt = 0;
+    } else {
+      let nowAt = Date.now();
+      let tomorrowAt = nowAt + (24 * 60 * 60 * 1000);
+      this.req.session.expandCtaAt = tomorrowAt;
+    }
     return;
   }
 

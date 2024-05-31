@@ -35,12 +35,12 @@
         event.stopPropagation(); // Prevent the event from triggering the event listener that removes the collapsed class from running.
         Cloud.updateStartCtaVisibility().exec();
         $('[purpose="banner-body"]').addClass('collapsed');
-
       });
 
       // Toggle 'collapsed' on banner body when it is clicked (if it has the class)
       $('[purpose="banner-body"]').click(function() {
         if ($(this).hasClass('collapsed')) {
+          Cloud.updateStartCtaVisibility().exec();
           $(this).removeClass('collapsed');
         }
       });
