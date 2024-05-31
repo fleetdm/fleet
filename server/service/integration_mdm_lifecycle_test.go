@@ -674,7 +674,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	cert, key, err := generateCertWithAPNsTopic()
 	require.NoError(t, err)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, testBMToken, "")
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
 	logger := kitlog.NewJSONLogger(os.Stdout)
 
 	// run without expired certs, no command enqueued

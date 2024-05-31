@@ -80,13 +80,10 @@ const mdmService = {
       timeout
     );
   },
-  requestCSR: (email: string, organization: string) => {
+  requestCSR: () => {
     const { MDM_REQUEST_CSR } = endpoints;
 
-    return sendRequest("POST", MDM_REQUEST_CSR, {
-      email_address: email,
-      organization,
-    });
+    return sendRequest("GET", MDM_REQUEST_CSR);
   },
 
   getProfiles: (

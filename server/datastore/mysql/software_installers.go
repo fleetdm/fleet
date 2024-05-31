@@ -122,7 +122,7 @@ INSERT INTO software_installers (
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			// already exists for this team/no team
 			err = alreadyExists("SoftwareInstaller", payload.Title)
 		}
