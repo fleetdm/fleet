@@ -35,7 +35,7 @@
       margin-left: auto;
       margin-right: auto;
       max-width: 526px;
-
+      margin-bottom: 0px;
     }
   }
   [purpose='bottom-gradient'] {
@@ -123,11 +123,19 @@
   @media (max-width: 991px) {
 
     [purpose='calendar-feature'] {
+      margin-bottom: 64px;
       [purpose='feature-video'] {
         margin-left: auto;
         margin-right: auto;
         margin-bottom: 40px;
       }
+      [purpose='contact-button'] {
+        width: 100%;
+      }
+    }
+    [purpose='hero-text'] {
+      text-align: center;
+      margin-bottom: 64px;
     }
   }
 
