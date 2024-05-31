@@ -423,6 +423,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 			require.Equal(t, enrollSecret.Secret, team.Secrets[0].Secret)
 			return &fleet.Team{ID: 1}, nil
 		}
+		ds.NewTeamFuncInvoked = false
 
 		// Dry run -- secret already used
 		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
