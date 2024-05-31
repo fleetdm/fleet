@@ -195,7 +195,6 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.Len(t, stats, 1)
 	assert.Equal(t, hostID, stats[0].HostID)
 	assert.Equal(t, uint64(1), stats[0].Executions)
-	assert.False(t, lastExecuted.Before(stats[0].LastExecuted))
 	assert.Equal(t, lastExecuted.UTC(), stats[0].LastExecuted.UTC())
 
 	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, query.ID)

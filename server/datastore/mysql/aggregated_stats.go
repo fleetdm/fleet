@@ -95,6 +95,8 @@ func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 
 // CalculateAggregatedPerfStatsPercentiles calculates the aggregated user/system time performance statistics for the given query.
 func (ds *Datastore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error {
+	// Before calling this method to update stats after a live query, we make sure the reader (replica) is up-to-date with the latest stats.
+	// We are using the reader because the below SELECT queries are expensive, and we don't want to impact the performance of the writer.
 	reader := ds.reader(ctx)
 	var totalExecutions int
 	statsMap := make(map[string]interface{})
