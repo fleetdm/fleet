@@ -1141,7 +1141,6 @@ _Available in Fleet Premium._
 
 #### webhook_settings
 
-Contains the following webhook settings: 
 + [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook)
 + [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook)
 + [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook)
@@ -1185,7 +1184,6 @@ Contains the following webhook settings:
 
 #### integrations
 
-Contains the following arrays of integration settings: 
 + [`integrations.jira`](#integrations-jira)
 + [`integrations.zendesk`](#integrations-zendesk)
 + [`integrations.google_calendar`](#integrations-google-calendar)
@@ -1242,7 +1240,6 @@ Contains the following arrays of integration settings:
 
 #### mdm
 
-Contains the following MDM settings: 
 + [`mdm.macos_updates`](#mdm-macos-updates)
 + [`mdm.windows_updates`](#mdm-windows-updates)
 + [`mdm.macos_migration`](#mdm-macos-migration)
