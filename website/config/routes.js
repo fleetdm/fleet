@@ -87,6 +87,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
     locals: {
+      hideStartCTA: true,
       currentSection: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
@@ -111,6 +112,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Get Fleet Premium | Fleet',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
@@ -138,6 +140,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Customer dashboard | Fleet',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
@@ -147,6 +150,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Forgot password | Fleet',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
@@ -156,6 +160,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'New password | Fleet',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
@@ -190,6 +195,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -199,6 +205,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -207,6 +214,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -222,6 +230,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     }
   },
 
@@ -284,6 +293,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       hideGetStartedButton: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Start | Fleet',
       pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
     }
@@ -583,4 +593,5 @@ module.exports.routes = {
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
   'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
   'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },
+  'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
 };
