@@ -284,6 +284,21 @@ will be disabled and/or hidden in the UI.
               // Include information about the primary buying situation
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
+
+              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+              // FUTURE: Only show this CTA to users who are below psyStage 6.
+              // > The code below is so we don't bother users who have completed the questionnaire
+
+              // Determine if this user should see the CTA to bring them to the /start questionnaire using the user's last submitted questionnaire answer.
+              res.locals.showStartCta = !['how-many-hosts','will-you-be-self-hosting','managed-cloud-for-growing-deployments','self-hosted-deploy', 'whats-left-to-get-you-set-up'].includes(req.me.lastSubmittedGetStartedQuestionnaireStep);
+              //  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+              // If an expandCtaAt timestamp is set in the user's sesssion, check the value to see if we should expand the CTA.
+              if(req.session.expandCtaAt && req.session.expandCtaAt > Date.now()) {
+                res.locals.collapseStartCta = true;
+              } else {
+                res.locals.collapseStartCta = false;
+              }
             }//ﬁ
 
             return next();
