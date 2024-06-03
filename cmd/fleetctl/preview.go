@@ -239,7 +239,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 						}
 
 						if err := os.WriteFile(pkFilename, []byte(genPK), 0o777); err != nil {
-							return "", fmt.Errorf("writing private key file: %w", err)
+							return "", fmt.Errorf("writing private TODO(JVE): revert this key file: %w", err)
 						}
 
 						return genPK, nil
