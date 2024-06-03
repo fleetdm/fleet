@@ -161,13 +161,15 @@ the way that the Fleet server works.
 				}
 			}
 
-			if len([]byte(config.Server.PrivateKey)) < 32 {
-				initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
-			}
+			if len(config.Server.PrivateKey) > 0 {
+				if len(config.Server.PrivateKey) < 32 {
+					initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
+				}
 
-			// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
-			// infra setups generate keys that are longer than 32 bytes.
-			config.Server.PrivateKey = config.Server.PrivateKey[:32]
+				// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+				// infra setups generate keys that are longer than 32 bytes.
+				config.Server.PrivateKey = config.Server.PrivateKey[:32]
+			}
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
@@ -581,23 +583,27 @@ the way that the Fleet server works.
 				return true, nil
 			}
 
-			appCfg.MDM.EnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
-				fleet.MDMAssetCACert,
-				fleet.MDMAssetCAKey,
-				fleet.MDMAssetAPNSKey,
-				fleet.MDMAssetAPNSCert,
-			})
-			if err != nil {
-				initFatal(err, "validating MDM assets from database")
-			}
+			appCfg.MDM.EnabledAndConfigured = false
+			appCfg.MDM.AppleBMEnabledAndConfigured = false
+			if len(config.Server.PrivateKey) > 0 {
+				appCfg.MDM.EnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+					fleet.MDMAssetCACert,
+					fleet.MDMAssetCAKey,
+					fleet.MDMAssetAPNSKey,
+					fleet.MDMAssetAPNSCert,
+				})
+				if err != nil {
+					initFatal(err, "validating MDM assets from database")
+				}
 
-			appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
-				fleet.MDMAssetABMCert,
-				fleet.MDMAssetABMKey,
-				fleet.MDMAssetABMToken,
-			})
-			if err != nil {
-				initFatal(err, "validating MDM ABM assets from database")
+				appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+					fleet.MDMAssetABMCert,
+					fleet.MDMAssetABMKey,
+					fleet.MDMAssetABMToken,
+				})
+				if err != nil {
+					initFatal(err, "validating MDM ABM assets from database")
+				}
 			}
 
 			// register the Microsoft MDM services
@@ -949,16 +955,22 @@ the way that the Fleet server works.
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			ddmService := service.NewMDMAppleDDMService(ds, logger)
 			mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
-			if err := service.RegisterAppleMDMProtocolServices(
-				rootMux,
-				config.MDM,
-				mdmStorage,
-				scepStorage,
-				logger,
-				mdmCheckinAndCommandService,
-				ddmService,
-			); err != nil {
-				initFatal(err, "setup mdm apple services")
+
+			// TODO(roberto): we should always register the
+			// protocol services and generate a SCEP challenge if
+			// not provided.
+			if config.MDM.AppleSCEPChallenge != "" {
+				if err := service.RegisterAppleMDMProtocolServices(
+					rootMux,
+					config.MDM,
+					mdmStorage,
+					scepStorage,
+					logger,
+					mdmCheckinAndCommandService,
+					ddmService,
+				); err != nil {
+					initFatal(err, "setup mdm apple services")
+				}
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
