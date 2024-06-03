@@ -49,14 +49,14 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Filter hosts by software                                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
 | Filter software by team\*                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
 | Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |            |            | ✅    | ✅      |
-| Run queries designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅    |         |
-| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
+|  queries designated "**observer can **" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅    |         |
+|  any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
 | View all queries and their reports                                                                                                         | ✅       | ✅         | ✅         | ✅    | ✅      |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            | ✅         | ✅    | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    | ✅      |
-| Run all policies                                                                                                                           |          | ✅         | ✅         | ✅    |         |
+|  all policies                                                                                                                           |          | ✅         | ✅         | ✅    |         |
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
@@ -91,7 +91,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run arbitrary scripts on hosts\*                                                                                                           |          |            | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
-| Run saved scripts on hosts\*                                                                                                               | ✅       | ✅         | ✅         | ✅    |         |
+| Run saved scripts on hosts\*                                                                                                               |          |            | ✅         | ✅    |         |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
