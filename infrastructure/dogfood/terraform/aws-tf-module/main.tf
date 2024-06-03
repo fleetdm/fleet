@@ -126,6 +126,7 @@ module "main" {
       module.vuln-processing.extra_environment_variables
     )
     extra_secrets = merge(module.mdm.extra_secrets, local.sentry_secrets)
+    private_key_secret_name = "${local.customer}-fleet-server-private-key"
     # extra_load_balancers         = [{
     #   target_group_arn = module.saml_auth_proxy.lb_target_group_arn
     #   container_name   = "fleet"
