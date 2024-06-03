@@ -557,7 +557,7 @@
     - description: Target profiles to specific hosts using SQL.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
     - description: Automatically re-deploy configuration profiles when they're not installed.
-    - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-06-30).
+    - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-07-15).
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Self service
@@ -582,9 +582,9 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-03-31)
+    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-07-15)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
-    - description: MDM commands for iOS/iPadOS are coming soon (2024-06-30).
+    - description: MDM commands for iOS/iPadOS are coming soon (2024-07-15).
 - industryName: Native macOS update reminders
   description: Send low-level MDM commands to tell end users to update their OS.
   moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
@@ -599,7 +599,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: Zero-touch for iOS/iPadOS is coming soon (2024-06-30).
+    - description: Zero-touch for iOS/iPadOS is coming soon (2024-07-15).
     - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
