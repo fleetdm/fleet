@@ -10133,15 +10133,21 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 
 func (s *integrationEnterpriseTestSuite) TestHostScriptAndSoftwareInstallSoftDelete() {
 	t := s.T()
+	ctx := context.Background()
 
 	// create a host and request a software install and a script execution
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "host_soft_delete_team"})
+	require.NoError(t, err)
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	require.NoError(t, err)
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   "install script",
 		Filename:        "ruby.deb",
 		Title:           "ruby",
 		PreInstallQuery: "select 'ok'",
+		TeamID:          &tm.ID,
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
@@ -10173,26 +10179,58 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptAndSoftwareInstallSoftDel
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
+	// create an anonymous script execution request
 	var runResp runScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
-	scriptID := runResp.ExecutionID
+	scriptExecID := runResp.ExecutionID
 
 	// post a script result so that the (past) activity is created
 	s.Do("POST", "/api/fleet/orbit/scripts/result",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptID)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptExecID)),
 		http.StatusOK)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true}`,
-			host.ID, host.DisplayName(), scriptID), 0)
+			host.ID, host.DisplayName(), scriptExecID), 0)
 
-	// get the script result details
+	// create a saved script execution request
+	var newScriptResp createScriptResponse
+	body, headers := generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {strconv.Itoa(int(tm.ID))}})
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
+	require.NoError(t, err)
+	require.NotZero(t, newScriptResp.ScriptID)
+	savedScriptID := newScriptResp.ScriptID
+
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScriptID}, http.StatusAccepted, &runResp)
+	savedScriptExecID := runResp.ExecutionID
+
+	// post a script result so that the (past) activity is created
+	s.Do("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "saved"}`, *host.OrbitNodeKey, savedScriptExecID)),
+		http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), savedScriptExecID), 0)
+
+	// get the anoymous script result details
 	var scriptRes getScriptResultResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptID, nil, http.StatusOK, &scriptRes)
-	require.Equal(t, scriptID, scriptRes.ExecutionID)
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
 	require.Equal(t, host.ID, scriptRes.HostID)
 	require.Equal(t, "ok", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// get the saved script result details
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
 	require.NotNil(t, scriptRes.ExitCode)
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 
@@ -10208,16 +10246,25 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptAndSoftwareInstallSoftDel
 	// we don't render the exit codes in the JSON response, so they are null
 	require.Nil(t, softwareRes.Results.InstallScriptExitCode)
 
-	// TODO(mna): delete the host, get the details again, confirm it still works
+	// delete the host
 	var deleteResp deleteHostResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &deleteResp)
 
-	// get the script result details, still works
+	// get the anonymous script result details, still works
 	scriptRes = getScriptResultResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptID, nil, http.StatusOK, &scriptRes)
-	require.Equal(t, scriptID, scriptRes.ExecutionID)
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
 	require.Equal(t, host.ID, scriptRes.HostID)
 	require.Equal(t, "ok", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// get the saved script result details, still works
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
 	require.NotNil(t, scriptRes.ExitCode)
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 
@@ -10233,6 +10280,26 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptAndSoftwareInstallSoftDel
 	require.EqualValues(t, "Query returned result\nProceeding to install...", *softwareRes.Results.PreInstallQueryOutput)
 	// we don't render the exit codes in the JSON response, so they are null
 	require.Nil(t, softwareRes.Results.InstallScriptExitCode)
+
+	// delete the software installer/named script
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/%d/package", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", savedScriptID), nil, http.StatusNoContent)
+
+	// get the saved script result details, still works because the saved script
+	// is a "soft-reference", when deleted the results become essentially results
+	// for an anonymous script (i.e. the script_id FK is "ON DELETE SET NULL").
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// get the software install details, does not work because the installer does
+	// not exist anymore.
+	softwareRes = getSoftwareInstallResultsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/install/results/"+installID, nil, http.StatusNotFound, &softwareRes)
 }
 
 func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {

@@ -238,7 +238,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     hsr.exit_code,
     hsr.created_at,
     hsr.user_id,
-    hsr.sync_request
+    hsr.sync_request,
+    hsr.host_deleted_at
   FROM
     host_script_results hsr
   JOIN
