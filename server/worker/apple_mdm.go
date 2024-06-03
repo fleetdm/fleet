@@ -55,9 +55,11 @@ type appleMDMArgs struct {
 
 // Run executes the apple_mdm job.
 func (a *AppleMDM) Run(ctx context.Context, argsJSON json.RawMessage) error {
-	// if Commander is nil, then mdm is not enabled, so just return without
-	// error so we clean up any pending jobs.
-	if a.Commander == nil {
+	appCfg, err := a.Datastore.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+	if !appCfg.MDM.EnabledAndConfigured || a.Commander == nil {
 		return nil
 	}
 

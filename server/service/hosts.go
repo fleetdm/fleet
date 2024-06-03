@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -2113,9 +2114,9 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		}
 
 		// use Apple's SCEP certificate for decrypting
-		cert, _, _, err := svc.config.MDM.AppleSCEP()
+		cert, err := assets.CAKeyPair(ctx, svc.ds)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting Apple SCEP certificate to decrypt key")
+			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 		}
 		decryptCert = cert
 	}

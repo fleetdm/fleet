@@ -4,15 +4,18 @@ import getInstallScript from "utilities/software_install_scripts";
 
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import FileUploader from "components/FileUploader";
-import Graphic from "components/Graphic";
 import Editor from "components/Editor";
+import FileUploader, {
+  FileDetails,
+} from "components/FileUploader/FileUploader";
+
+import { getFileDetails } from "utilities/file/fileUtils";
 
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions";
 
-import { generateFormValidation, getFileDetails } from "./helpers";
+import { generateFormValidation } from "./helpers";
 
-const baseClass = "add-software-form";
+export const baseClass = "add-software-form";
 
 const UploadingSoftware = () => {
   return (
@@ -22,28 +25,6 @@ const UploadingSoftware = () => {
     </div>
   );
 };
-
-// TODO: if we reuse this one more time, we should consider moving this
-// into FileUploader as a default preview. Currently we have this in
-// AddProfileModal.tsx and here.
-const FileDetails = ({
-  details: { name, platform },
-}: {
-  details: {
-    name: string;
-    platform: string;
-  };
-}) => (
-  <div className={`${baseClass}__selected-file`}>
-    <Graphic name="file-pkg" />
-    <div className={`${baseClass}__selected-file--details`}>
-      <div className={`${baseClass}__selected-file--details--name`}>{name}</div>
-      <div className={`${baseClass}__selected-file--details--platform`}>
-        {platform}
-      </div>
-    </div>
-  </div>
-);
 
 export interface IAddSoftwareFormData {
   software: File | null;

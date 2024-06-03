@@ -416,6 +416,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 	})
 
 	t.Run("does not create enroll secret when one is included for a new team spec", func(t *testing.T) {
+		ds.NewTeamFuncInvoked = false
 		enrollSecret := fleet.EnrollSecret{Secret: "test"}
 
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -423,6 +424,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 			require.Equal(t, enrollSecret.Secret, team.Secrets[0].Secret)
 			return &fleet.Team{ID: 1}, nil
 		}
+		ds.NewTeamFuncInvoked = false
 
 		// Dry run -- secret already used
 		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {

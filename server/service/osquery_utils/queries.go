@@ -2015,9 +2015,13 @@ func GetDetailQueries(
 		generatedMap["software_chrome"] = softwareChrome
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 
-		for key, query := range SoftwareOverrideQueries {
-			generatedMap["software_"+key] = query
-		}
+		//
+		// Commenting out until we find root cause of discovery query hanging osquery:
+		// https://github.com/fleetdm/fleet/issues/19401
+		//
+		// for key, query := range SoftwareOverrideQueries {
+		//     generatedMap["software_"+key] = query
+		// }
 	}
 
 	if features != nil && features.EnableHostUsers {

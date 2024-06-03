@@ -4,5 +4,5 @@ examples: |-
   ratio of 2 was arbitrarily chosen.
 
   ```
-  SELECT * FROM cpu_time WHERE user/system|-2;
+  SELECT * FROM cpu_time WHERE user/system>2;
   ```
