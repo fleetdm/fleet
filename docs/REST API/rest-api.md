@@ -2577,7 +2577,7 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
-Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, or `hostname` as an identifier.
+Returns the information of the host specified using the `id`, `uuid`, `hardware_serial`, `osquery_host_id`, or `hostname` as an identifier.
 
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. In Fleet, hostnames are fully qualified domain names (FQDNs).
 
@@ -2589,7 +2589,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| identifier | integer or string | path | **Required**. The host's `uuid`, `hardware_serial`, `osquery_host_id`, or `hostname` |
+| identifier | integer or string | path | **Required**. The host's `id`, `uuid`, `hardware_serial`, `osquery_host_id`, or `hostname` |
 
 #### Example
 
