@@ -5,11 +5,13 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { omit } from "lodash";
 
 import PATHS from "router/paths";
 import softwareAPI, {
-  ISoftwareApiParams,
+  ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
+  ISoftwareVersionsQueryKey,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
 
@@ -17,7 +19,10 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 
 import SoftwareTable from "./SoftwareTable";
-import { ISoftwareDropdownFilterVal } from "./SoftwareTable/helpers";
+import {
+  ISoftwareDropdownFilterVal,
+  getSoftwareFilterForQueryKey,
+} from "./SoftwareTable/helpers";
 
 const baseClass = "software-titles";
 
@@ -26,14 +31,6 @@ const QUERY_OPTIONS = {
   keepPreviousData: true,
   staleTime: DATA_STALE_TIME,
 };
-
-interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
-  scope: "software-titles";
-}
-
-interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
-  scope: "software-versions";
-}
 
 interface ISoftwareTitlesProps {
   router: InjectedRouter;
@@ -62,25 +59,6 @@ const SoftwareTitles = ({
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
-  const generateSoftwareTitlesQueryKey = (): ISoftwareTitlesQueryKey => {
-    const queryKey: ISoftwareTitlesQueryKey = {
-      scope: "software-titles",
-      page: currentPage,
-      perPage,
-      query,
-      orderDirection,
-      orderKey,
-      teamId,
-    };
-    if (softwareFilter === "installableSoftware") {
-      queryKey.availableForInstall = true;
-    } else {
-      queryKey.vulnerable = softwareFilter === "vulnerableSoftware";
-    }
-
-    return queryKey;
-  };
-
   // request to get software data
   const {
     data: titlesData,
@@ -91,10 +69,22 @@ const SoftwareTitles = ({
     ISoftwareTitlesResponse,
     Error,
     ISoftwareTitlesResponse,
-    ISoftwareTitlesQueryKey[]
+    [ISoftwareTitlesQueryKey]
   >(
-    [generateSoftwareTitlesQueryKey()],
-    ({ queryKey }) => softwareAPI.getSoftwareTitles(queryKey[0]),
+    [
+      {
+        scope: "software-titles",
+        page: currentPage,
+        perPage,
+        query,
+        orderDirection,
+        orderKey,
+        teamId,
+        ...getSoftwareFilterForQueryKey(softwareFilter),
+      },
+    ],
+    ({ queryKey: [queryKey] }) =>
+      softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
     {
       ...QUERY_OPTIONS,
       enabled: location.pathname === PATHS.SOFTWARE_TITLES,
@@ -111,7 +101,7 @@ const SoftwareTitles = ({
     ISoftwareVersionsResponse,
     Error,
     ISoftwareVersionsResponse,
-    ISoftwareVersionsQueryKey[]
+    [ISoftwareVersionsQueryKey]
   >(
     [
       {
@@ -125,7 +115,8 @@ const SoftwareTitles = ({
         vulnerable: softwareFilter === "vulnerableSoftware",
       },
     ],
-    ({ queryKey }) => softwareAPI.getSoftwareVersions(queryKey[0]),
+    ({ queryKey: [queryKey] }) =>
+      softwareAPI.getSoftwareVersions(omit(queryKey, "scope")),
     {
       ...QUERY_OPTIONS,
       enabled: location.pathname === PATHS.SOFTWARE_VERSIONS,

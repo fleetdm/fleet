@@ -415,7 +415,7 @@ type Service interface {
 
 	// ListHostSoftware lists the software installed or available for install on
 	// the specified host.
-	ListHostSoftware(ctx context.Context, hostID uint, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
+	ListHostSoftware(ctx context.Context, hostID uint, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -641,6 +641,10 @@ type Service interface {
 	// BatchSetSoftwareInstallers replaces the software installers for a
 	// specified team
 	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) error
+
+	// SelfServiceInstallSoftwareTitle installs a software title
+	// initiated by the user
+	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities

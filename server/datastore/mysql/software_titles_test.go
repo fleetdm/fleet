@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -297,6 +298,11 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
+	// make installer1 "self-service" available
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET self_service = 1 WHERE id = ?`, installer1)
+		return err
+	})
 	// create a software installer with an install request on host1
 	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer2",
@@ -305,7 +311,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		Filename:      "installer2.pkg",
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -455,6 +461,16 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[0].Source)
 	require.Equal(t, "installer1", titles[1].Name)
 	require.Equal(t, "apps", titles[1].Source)
+
+	// filter on self-service only
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderDescending,
+	}, SelfServiceOnly: true}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "installer1", titles[0].Name)
+	require.Equal(t, "apps", titles[0].Source)
 }
 
 func listSoftwareTitlesCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareTitleListOptions) []fleet.SoftwareTitleListResult {
@@ -509,6 +525,11 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
+	// make installer1 "self-service" available
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET self_service = 1 WHERE id = ?`, installer1)
+		return err
+	})
 	// create a software installer for team2
 	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer2",
@@ -605,6 +626,24 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	require.Equal(t, uint(1), titles[1].VersionsCount)
 	require.Equal(t, uint(0), titles[2].VersionsCount)
+
+	// Testing the team 1 user with self-service only
+	titles, _, _, err = ds.ListSoftwareTitles(
+		context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, SelfServiceOnly: true, TeamID: &team1.ID}, team1TeamFilter,
+	)
+	// installer1 is associated with team 1
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "installer1", titles[0].Name)
+	require.Equal(t, "apps", titles[0].Source)
+
+	// Testing the team 2 user with self-service only
+	titles, _, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, SelfServiceOnly: true, TeamID: &team2.ID}, fleet.TeamFilter{
+		User:            userTeam2Admin,
+		IncludeObserver: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, titles, 0)
 }
 
 func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {

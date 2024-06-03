@@ -616,6 +616,7 @@ func (c *Client) ApplyGroup(
 
 				softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 					URL:               si.URL,
+					SelfService:       si.SelfService,
 					PreInstallQuery:   qc,
 					InstallScript:     string(ic),
 					PostInstallScript: string(pc),

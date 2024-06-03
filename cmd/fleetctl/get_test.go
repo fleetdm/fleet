@@ -681,6 +681,7 @@ spec:
 - hosts_count: 2
   id: 0
   name: foo
+  self_service: false
   software_package: null
   source: chrome_extensions
   versions:
@@ -701,6 +702,7 @@ spec:
 - hosts_count: 0
   id: 0
   name: bar
+  self_service: false
   software_package: null
   source: deb_packages
   versions:
@@ -745,6 +747,7 @@ spec:
           ]
         }
       ],
+      "self_service": false,
 	  "software_package": null
     },
     {
@@ -760,6 +763,7 @@ spec:
 		  "vulnerabilities": null
         }
       ],
+      "self_service": false,
 	  "software_package": null
     }
   ]
