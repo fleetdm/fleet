@@ -201,14 +201,10 @@ gke:
 # All of the environment variables that can be set for Fleet
 environments:
   # MDM Settings
-  # The following environment variables are used to configure Fleet to work with
-  # Apple's MDM service. These are optional and only required if you are using
-  # Fleet to manage Apple devices.
-  # To more information: https://fleetdm.com/docs/using-fleet/mdm-setup#step-3-configure-fleet-with-the-required-files
-  FLEET_MDM_APPLE_APNS_CERT_BYTES: ""
-  FLEET_MDM_APPLE_APNS_KEY_BYTES: ""
-  FLEET_MDM_APPLE_SCEP_CERT_BYTES: ""
-  FLEET_MDM_APPLE_SCEP_KEY_BYTES: ""
+  # The following environment variable is required if you are using
+  # Fleet's macOS MDM features.
+  # To more information: https://fleetdm.com/docs/using-fleet/fleet-server-configuration#server-private-key
+  FLEET_SERVER_PRIVATE_KEY: ""
 
 ## Section: Environment Variables from Secrets/CMs
 # envsFrom:
