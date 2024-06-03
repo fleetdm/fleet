@@ -32,7 +32,7 @@ const TextCell = ({
 
   const formattedValue = formatter(val);
 
-  // Check if the give value is empty or if the formatted value is empty.
+  // Check if the given value is empty or if the formatted value is empty.
   // 'empty' is defined as null, undefined, or an empty string.
   const isEmptyValue =
     value === null ||
