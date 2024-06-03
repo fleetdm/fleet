@@ -105,6 +105,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Transparency | Fleet',
       pageDescriptionForMeta: 'Learn what data osquery can see.',
+      showContactFormCta: false,
     }
   },
   'GET /new-license': {
@@ -296,6 +297,15 @@ module.exports.routes = {
       hideStartCTA: true,
       pageTitleForMeta: 'Start | Fleet',
       pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
+    }
+  },
+
+  'GET /better': {
+    action: 'view-transparency',
+    locals: {
+      showContactFormCta: true,
+      pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
+      pageTitleForMeta: 'Better with Fleet | Fleet'
     }
   },
 
