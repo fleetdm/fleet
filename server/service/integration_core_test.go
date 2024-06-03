@@ -2840,13 +2840,15 @@ func (s *integrationTestSuite) TestListActivities() {
 	prevActivities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{})
+	timestamp := time.Now()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{})
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{})
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{}, nil, timestamp)
 	require.NoError(t, err)
 
 	lenPage := len(prevActivities) + 2
@@ -2989,7 +2991,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.Equal(t, hosts[0].ID, getResp.Host.ID)
 	require.Nil(t, getResp.Host.TeamID)
 
-	// assign hosts to team 1
+	// assign host0 and host1 to team 1
 	var addResp addHostsToTeamResponse
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &tm1.ID,
@@ -3002,7 +3004,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 		0,
 	)
 
-	// check that hosts are now part of that team
+	// check that hosts are now part of team 1
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
@@ -3012,7 +3014,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[2].ID), nil, http.StatusOK, &getResp)
 	require.Nil(t, getResp.Host.TeamID)
 
-	// assign host to team 2 with filter
+	// assign host2 to team 2 with filter
 	var addfResp addHostsToTeamByFilterResponse
 	req := addHostsToTeamByFilterRequest{
 		TeamID:  &tm2.ID,
@@ -3027,15 +3029,62 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 		0,
 	)
 
-	// check that host 2 is now part of team 2
+	// check that host2 is now part of team 2
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[2].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm2.ID, *getResp.Host.TeamID)
 
-	// delete host 0
-	var delResp deleteHostResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &delResp)
+	// get all hosts label
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	labelID := lblIDs["All Hosts"]
+
+	// Add label to host0
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{labelID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// offline status filter request should not move hosts
+	req = addHostsToTeamByFilterRequest{
+		TeamID:  &tm2.ID,
+		Filters: &map[string]interface{}{"status": "offline", "label_id": float64(labelID)},
+	}
+	var hostsResp listHostsResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp)
+	require.Len(t, hostsResp.Hosts, 3)
+	require.Equal(t, tm1.ID, *hostsResp.Hosts[0].TeamID)
+	require.Equal(t, tm1.ID, *hostsResp.Hosts[1].TeamID)
+	require.Equal(t, tm2.ID, *hostsResp.Hosts[2].TeamID)
+
+	// assign host0 to team 2 with filter
+	req = addHostsToTeamByFilterRequest{
+		TeamID:  &tm2.ID,
+		Filters: &map[string]interface{}{"status": "online", "label_id": float64(labelID)},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
+	require.NotNil(t, getResp.Host.TeamID)
+	require.Equal(t, tm2.ID, *getResp.Host.TeamID)
+
+	// status filter request should not delete hosts
+	dreq := deleteHostsRequest{
+		Filters: &map[string]interface{}{"status": "offline", "label_id": float64(labelID)},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &dreq)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp)
+	require.Len(t, hostsResp.Hosts, 3)
+
+	// delete host 0 with filter
+	dreq = deleteHostsRequest{
+		Filters: &map[string]interface{}{"status": "online", "label_id": float64(labelID)},
+	}
+	var delHostsResp deleteHostsResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", dreq, http.StatusOK, &delHostsResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusNotFound, &getResp)
+
 	// delete non-existing host
+	var delResp deleteHostResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[2].ID+1), nil, http.StatusNotFound, &delResp)
 
 	// assign host 1 to no team
@@ -4580,6 +4629,27 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 
 	config = s.getConfig()
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
+
+func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
+	t := s.T()
+
+	s.DoRaw(
+		"PATCH", "/api/latest/fleet/config", []byte(
+			`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "http://some/url"
+    		}
+  		}
+	}`,
+		), http.StatusOK,
+	)
+
+	appConfig := s.getConfig()
+	require.True(t, appConfig.WebhookSettings.ActivitiesWebhook.Enable)
+	require.Equal(t, "http://some/url", appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
 }
 
 func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
@@ -6610,6 +6680,17 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		sws[i] = sw
 	}
 
+	sortByNameAlphanumeric := func(sw []fleet.Software, a, b int) bool {
+		aNum, _ := strconv.Atoi(strings.TrimPrefix(sw[a].Name, "sw"))
+		bNum, _ := strconv.Atoi(strings.TrimPrefix(sw[b].Name, "sw"))
+		return aNum < bNum
+	}
+	sortEntryByNameAlphanumeric := func(sw []fleet.HostSoftwareEntry, a, b int) bool {
+		aNum, _ := strconv.Atoi(strings.TrimPrefix(sw[a].Name, "sw"))
+		bNum, _ := strconv.Atoi(strings.TrimPrefix(sw[b].Name, "sw"))
+		return aNum < bNum
+	}
+
 	// mark them as installed on the hosts, with host at index 0 having all 20,
 	// at index 1 having 19, index 2 = 18, etc. until index 19 = 1. So software
 	// sws[0] is only used by 1 host, while sws[19] is used by all.
@@ -6624,6 +6705,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			for _, s := range h.Software {
 				sws = append(sws, s.Software)
 			}
+			// Sort software by Name (alphanumeric)
+			sort.Slice(
+				sws, func(a, b int) bool {
+					return sortByNameAlphanumeric(sws, a, b)
+				},
+			)
 		}
 	}
 
@@ -6639,6 +6726,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+	// Sort software by Name (alphanumeric)
+	sort.Slice(
+		hosts[0].Software, func(a, b int) bool {
+			return sortEntryByNameAlphanumeric(hosts[0].Software, a, b)
+		},
+	)
 	testCvePrefix := "cve-123-123"
 	for i, sw := range hosts[0].Software[:10] {
 		inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
@@ -6685,9 +6778,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
 			wantID, gotID := want[i].ID, resp.Software[i].ID
-			assert.Equal(t, wantID, gotID)
-			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
-			assert.Equal(t, wantCount, gotCount)
+			assert.Equal(t, wantID, gotID, "want.Name: %s got.Name: %s", want[i].Name, resp.Software[i].Name)
 			wantName, gotName := want[i].Name, resp.Software[i].Name
 			assert.Equal(t, wantName, gotName)
 			wantVersion, gotVersion := want[i].Version, resp.Software[i].Version
@@ -6696,6 +6787,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, wantSource, gotSource)
 			wantBrowser, gotBrowser := want[i].Browser, resp.Software[i].Browser
 			assert.Equal(t, wantBrowser, gotBrowser)
+			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
+			assert.Equal(t, wantCount, gotCount)
 		}
 		if ts.IsZero() {
 			assert.Nil(t, resp.CountsUpdatedAt)
@@ -6858,7 +6951,6 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	assertVersionsResp(versResp, nil, time.Time{}, "", expectedVulnVersionsCount)
 
 	// /software/versions  filtered by name, version, cve (`/software` is deprecated)
-	// TODO(jacob) use `assertVersionsResp`
 	versionsResp := listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", sws[0].Name)
 	assertVersionsResp(versionsResp, []fleet.Software{sws[0]}, hostsCountTs, "", 1, 1)
@@ -11162,7 +11254,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
-	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID)
+	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, false)
 	require.NoError(t, err)
 
 	// force an order to the activities

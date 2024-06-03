@@ -387,6 +387,7 @@ export const HOST_ABOUT_DATA = [
   "batteries",
   "detail_updated_at",
   "last_restarted_at",
+  "platform",
 ];
 
 export const HOST_OSQUERY_DATA = [

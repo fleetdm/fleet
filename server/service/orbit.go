@@ -625,7 +625,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		}
 
 		// TODO(sarah): We may need to special case lock/unlock script results here?
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			user,
 			fleet.ActivityTypeRanScript{
@@ -917,7 +917,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{

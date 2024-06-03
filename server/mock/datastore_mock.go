@@ -135,11 +135,11 @@ type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []
 
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type DeleteLabelFunc func(ctx context.Context, name string) error
 
-type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, []uint, error)
+type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
@@ -238,6 +238,8 @@ type GetHostMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.Hos
 type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
+
+type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
@@ -367,7 +369,7 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
-type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (string, error)
+type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareTitleID uint, selfService bool) (string, error)
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -419,7 +421,7 @@ type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 
 type MDMTurnOffFunc func(ctx context.Context, uuid string) error
 
-type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
@@ -618,6 +620,8 @@ type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []
 type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error
 
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
+
+type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error)
 
 type EnrollHostFunc func(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
@@ -820,6 +824,14 @@ type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]strin
 type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
 
 type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
+
+type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
+
+type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
+
+type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error)
+
+type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) error
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -1283,6 +1295,9 @@ type DataStore struct {
 
 	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
 	GetHostMDMCheckinInfoFuncInvoked bool
+
+	ListIOSAndIPadOSToRefetchFunc        ListIOSAndIPadOSToRefetchFunc
+	ListIOSAndIPadOSToRefetchFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
@@ -1854,6 +1869,9 @@ type DataStore struct {
 	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
 	VerifyEnrollSecretFuncInvoked bool
 
+	IsEnrollSecretAvailableFunc        IsEnrollSecretAvailableFunc
+	IsEnrollSecretAvailableFuncInvoked bool
+
 	EnrollHostFunc        EnrollHostFunc
 	EnrollHostFuncInvoked bool
 
@@ -2156,6 +2174,18 @@ type DataStore struct {
 
 	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
 	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
+
+	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
+	InsertMDMConfigAssetsFuncInvoked bool
+
+	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
+	GetAllMDMConfigAssetsByNameFuncInvoked bool
+
+	GetAllMDMConfigAssetsHashesFunc        GetAllMDMConfigAssetsHashesFunc
+	GetAllMDMConfigAssetsHashesFuncInvoked bool
+
+	DeleteMDMConfigAssetsByNameFunc        DeleteMDMConfigAssetsByNameFunc
+	DeleteMDMConfigAssetsByNameFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -2764,11 +2794,11 @@ func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fl
 	return s.NewLabelFunc(ctx, Label, opts...)
 }
 
-func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, []uint, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.SaveLabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveLabelFunc(ctx, label)
+	return s.SaveLabelFunc(ctx, label, teamFilter)
 }
 
 func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
@@ -2778,11 +2808,11 @@ func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
 	return s.DeleteLabelFunc(ctx, name)
 }
 
-func (s *DataStore) Label(ctx context.Context, lid uint) (*fleet.Label, []uint, error) {
+func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.LabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.LabelFunc(ctx, lid)
+	return s.LabelFunc(ctx, lid, teamFilter)
 }
 
 func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
@@ -3126,6 +3156,13 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	s.GetHostMDMCheckinInfoFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error) {
+	s.mu.Lock()
+	s.ListIOSAndIPadOSToRefetchFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval)
 }
 
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
@@ -3576,11 +3613,11 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
-func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) (string, error) {
+func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint, selfService bool) (string, error) {
 	s.mu.Lock()
 	s.InsertSoftwareInstallRequestFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareTitleID)
+	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareTitleID, selfService)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {
@@ -3758,11 +3795,11 @@ func (s *DataStore) MDMTurnOff(ctx context.Context, uuid string) error {
 	return s.MDMTurnOffFunc(ctx, uuid)
 }
 
-func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 	s.mu.Lock()
 	s.NewActivityFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewActivityFunc(ctx, user, activity)
+	return s.NewActivityFunc(ctx, user, activity, details, createdAt)
 }
 
 func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
@@ -4456,6 +4493,13 @@ func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fle
 	s.VerifyEnrollSecretFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyEnrollSecretFunc(ctx, secret)
+}
+
+func (s *DataStore) IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	s.mu.Lock()
+	s.IsEnrollSecretAvailableFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsEnrollSecretAvailableFunc(ctx, secret, new, teamID)
 }
 
 func (s *DataStore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
@@ -5163,6 +5207,34 @@ func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUU
 	s.MDMAppleSetPendingDeclarationsAsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleSetPendingDeclarationsAsFunc(ctx, hostUUID, status, detail)
+}
+
+func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	s.mu.Lock()
+	s.InsertMDMConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMConfigAssetsFunc(ctx, assets)
+}
+
+func (s *DataStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	s.mu.Lock()
+	s.GetAllMDMConfigAssetsByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames)
+}
+
+func (s *DataStore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+	s.mu.Lock()
+	s.GetAllMDMConfigAssetsHashesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllMDMConfigAssetsHashesFunc(ctx, assetNames)
+}
+
+func (s *DataStore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	s.mu.Lock()
+	s.DeleteMDMConfigAssetsByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMConfigAssetsByNameFunc(ctx, assetNames)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

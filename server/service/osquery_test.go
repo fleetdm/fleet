@@ -1050,6 +1050,7 @@ func TestGetMostRecentResults(t *testing.T) {
 }
 
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
+	t.Helper()
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
@@ -2954,7 +2955,9 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
@@ -2988,7 +2991,9 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	lq.On("RunQuery", "21", "select 1;", []uint{1, 3, 5}).Return(nil)
@@ -3028,7 +3033,9 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	// var gotQuery *fleet.Query
@@ -3046,7 +3053,9 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
@@ -3637,6 +3646,31 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 	someRow := map[string]string{
 		"1": "1",
 	}
+	appToOverride := map[string]string{
+		"name":              "OverrideMe.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.overrideme",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "OverrideMe",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/override/path",
+	}
+
+	appThatOverrides := map[string]string{
+		"name":              "OverrideMeSuccess.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.overrideme",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "OverrideMe",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/override/path",
+	}
 
 	for _, tc := range []struct {
 		name string
@@ -3644,6 +3678,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		resultsIn  fleet.OsqueryDistributedQueryResults
 		statusesIn map[string]fleet.OsqueryStatus
 		messagesIn map[string]string
+		overrides  map[string]osquery_utils.DetailQuery
 
 		resultsOut fleet.OsqueryDistributedQueryResults
 	}{
@@ -3827,10 +3862,41 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "override works",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":      fleet.StatusOK,
+				hostDetailQueryPrefix + "software_overrideMe": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					appToOverride,
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_overrideMe": []map[string]string{
+					appThatOverrides,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					appThatOverrides,
+				},
+			},
+			overrides: map[string]osquery_utils.DetailQuery{
+				"overrideMe": {
+					SoftwareOverrideMatch: func(row map[string]string) bool {
+						return row["name"] == "OverrideMe.app"
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, log.NewNopLogger())
+			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
 			require.Equal(t, tc.resultsOut, tc.resultsIn)
 		})
 	}

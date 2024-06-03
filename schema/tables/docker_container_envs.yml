@@ -1,11 +1,9 @@
 name: docker_container_envs
-examples: >-
+examples: |-
   This table allows you to list environment variables for running Docker
   containers. This query will output the value of a variable called
   *MYSQL_VERSION* for example.
 
   ```
-
   SELECT key, value FROM docker_container_envs WHERE key LIKE 'MYSQL_VERSION';
-
   ```

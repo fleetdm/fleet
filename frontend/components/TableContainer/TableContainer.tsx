@@ -21,10 +21,6 @@ export interface ITableQueryData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
-  /**  Only used for showing inherited policies table */
-  showInheritedTable?: boolean;
-  /** Only used for sort/query changes to inherited policies table */
-  editingInheritedTable?: boolean;
 }
 interface IRowProps extends Row {
   original: {
@@ -73,7 +69,9 @@ interface ITableContainerProps<T = any> {
    * */
   filteredCount?: number;
   searchToolTipText?: string;
+  // TODO - consolidate this functionality within `filters`
   searchQueryColumn?: string;
+  // TODO - consolidate this functionality within `filters`
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
   /** Used to set URL to correct path and include page query param */
@@ -101,6 +99,8 @@ interface ITableContainerProps<T = any> {
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  /** Use for serverside filtering: Set to true when filters change in URL
+   * bar and API call so TableContainer will reset its page state to 0  */
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
   show0Count?: boolean;
@@ -218,10 +218,6 @@ const TableContainer = <T,>({
       onPaginationChange(0);
     }
   }, [resetPageIndex, pageIndex, isClientSidePagination]);
-
-  const onResultsCountChange = useCallback((resultsCount: number) => {
-    setClientFilterCount(resultsCount);
-  }, []);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -451,7 +447,7 @@ const TableContainer = <T,>({
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
                 onClickRow={onClickRow}
-                onResultsCountChange={onResultsCountChange}
+                onResultsCountChange={setClientFilterCount}
                 isClientSidePagination={isClientSidePagination}
                 onClientSidePaginationChange={onClientSidePaginationChange}
                 isClientSideFilter={isClientSideFilter}

@@ -44,11 +44,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
-	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -161,6 +159,16 @@ the way that the Fleet server works.
 						"setting server URL prefix",
 					)
 				}
+			}
+
+			if len(config.Server.PrivateKey) > 0 {
+				if len(config.Server.PrivateKey) < 32 {
+					initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
+				}
+
+				// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+				// infra setups generate keys that are longer than 32 bytes.
+				config.Server.PrivateKey = config.Server.PrivateKey[:32]
 			}
 
 			var ds fleet.Datastore
@@ -352,6 +360,7 @@ the way that the Fleet server works.
 					AccessKeyID:      config.Firehose.AccessKeyID,
 					SecretAccessKey:  config.Firehose.SecretAccessKey,
 					StsAssumeRoleArn: config.Firehose.StsAssumeRoleArn,
+					StsExternalID:    config.Firehose.StsExternalID,
 				},
 				Kinesis: logging.KinesisConfig{
 					Region:           config.Kinesis.Region,
@@ -359,12 +368,14 @@ the way that the Fleet server works.
 					AccessKeyID:      config.Kinesis.AccessKeyID,
 					SecretAccessKey:  config.Kinesis.SecretAccessKey,
 					StsAssumeRoleArn: config.Kinesis.StsAssumeRoleArn,
+					StsExternalID:    config.Kinesis.StsExternalID,
 				},
 				Lambda: logging.LambdaConfig{
 					Region:           config.Lambda.Region,
 					AccessKeyID:      config.Lambda.AccessKeyID,
 					SecretAccessKey:  config.Lambda.SecretAccessKey,
 					StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
+					StsExternalID:    config.Lambda.StsExternalID,
 				},
 				PubSub: logging.PubSubConfig{
 					Project: config.PubSub.Project,
@@ -454,19 +465,29 @@ the way that the Fleet server works.
 				}
 			}
 
-			var (
-				scepStorage                 scep_depot.Depot
-				appleSCEPCertPEM            []byte
-				appleSCEPKeyPEM             []byte
-				appleAPNsCertPEM            []byte
-				appleAPNsKeyPEM             []byte
-				depStorage                  *mysql.NanoDEPStorage
-				mdmStorage                  *mysql.NanoMDMStorage
-				mdmPushService              push.Pusher
-				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
-				ddmService                  *service.MDMAppleDDMService
-				mdmPushCertTopic            string
-			)
+			mdmStorage, err := mds.NewMDMAppleMDMStorage()
+			if err != nil {
+				initFatal(err, "initialize mdm apple MySQL storage")
+			}
+
+			depStorage, err := mds.NewMDMAppleDEPStorage()
+			if err != nil {
+				initFatal(err, "initialize Apple BM DEP storage")
+			}
+
+			scepStorage, err := mds.NewSCEPDepot()
+			if err != nil {
+				initFatal(err, "initialize mdm apple scep storage")
+			}
+
+			var mdmPushService push.Pusher
+			nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+			pushProviderFactory := buford.NewPushProviderFactory()
+			if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
+				mdmPushService = nopPusher{}
+			} else {
+				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+			}
 
 			// validate Apple APNs/SCEP config
 			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
@@ -480,14 +501,8 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "validate Apple APNs certificate and key")
 				}
-				appleAPNsCertPEM, appleAPNsKeyPEM = apnsCertPEM, apnsKeyPEM
 
-				mdmPushCertTopic, err = cryptoutil.TopicFromCert(apnsCert.Leaf)
-				if err != nil {
-					initFatal(err, "validate Apple APNs certificate: failed to get topic from certificate")
-				}
-
-				_, appleSCEPCertPEM, appleSCEPKeyPEM, err = config.MDM.AppleSCEP()
+				_, appleSCEPCertPEM, appleSCEPKeyPEM, err := config.MDM.AppleSCEP()
 				if err != nil {
 					initFatal(err, "validate Apple SCEP certificate and key")
 				}
@@ -503,16 +518,25 @@ the way that the Fleet server works.
 					initFatal(err, "validate authentication with Apple APNs certificate")
 				}
 				cancel()
-			}
 
-			appCfg, err := ds.AppConfig(context.Background())
-			if err != nil {
-				initFatal(err, "loading app config")
+				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+					{Name: fleet.MDMAssetAPNSCert, Value: apnsCertPEM},
+					{Name: fleet.MDMAssetAPNSKey, Value: apnsKeyPEM},
+					{Name: fleet.MDMAssetCACert, Value: appleSCEPCertPEM},
+					{Name: fleet.MDMAssetCAKey, Value: appleSCEPKeyPEM},
+				})
+				if err != nil {
+					// duplicate key errors mean that we already
+					// have a value for those keys in the
+					// database, fail to initalize on other
+					// cases.
+					if !mysql.IsDuplicate(err) {
+						initFatal(err, "inserting MDM APNs and SCEP assets")
+					}
+
+					level.Warn(logger).Log("msg", "Your server already has stored SCEP and APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
+				}
 			}
-			// assume MDM is disabled until we verify that
-			// everything is properly configured below
-			appCfg.MDM.EnabledAndConfigured = false
-			appCfg.MDM.AppleBMEnabledAndConfigured = false
 
 			// validate Apple BM config
 			if config.MDM.IsAppleBMSet() {
@@ -520,37 +544,66 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
 				}
 
-				tok, err := config.MDM.AppleBM()
+				appleBM, err := config.MDM.AppleBM()
 				if err != nil {
 					initFatal(err, "validate Apple BM token, certificate and key")
 				}
-				depStorage, err = mds.NewMDMAppleDEPStorage(*tok)
+
+				err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+					{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
+					{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM},
+					{Name: fleet.MDMAssetABMToken, Value: appleBM.EncryptedToken},
+				})
 				if err != nil {
-					initFatal(err, "initialize Apple BM DEP storage")
+					// duplicate key errors mean that we already
+					// have a value for those keys in the
+					// database, fail to initalize on other
+					// cases.
+					if !mysql.IsDuplicate(err) {
+						initFatal(err, "inserting MDM ABM assets")
+					}
+
+					level.Warn(logger).Log("msg", "Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
-				appCfg.MDM.AppleBMEnabledAndConfigured = true
 			}
 
-			if config.MDM.IsAppleAPNsSet() && config.MDM.IsAppleSCEPSet() {
-				scepStorage, err = mds.NewSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
+			appCfg, err := ds.AppConfig(context.Background())
+			if err != nil {
+				initFatal(err, "loading app config")
+			}
+
+			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
+				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names)
 				if err != nil {
-					initFatal(err, "initialize mdm apple scep storage")
+					if fleet.IsNotFound(err) || errors.Is(err, mysql.ErrPartialResult) {
+						return false, nil
+					}
+					return false, err
 				}
-				mdmStorage, err = mds.NewMDMAppleMDMStorage(appleAPNsCertPEM, appleAPNsKeyPEM)
+				return true, nil
+			}
+
+			appCfg.MDM.EnabledAndConfigured = false
+			appCfg.MDM.AppleBMEnabledAndConfigured = false
+			if len(config.Server.PrivateKey) > 0 {
+				appCfg.MDM.EnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+					fleet.MDMAssetCACert,
+					fleet.MDMAssetCAKey,
+					fleet.MDMAssetAPNSKey,
+					fleet.MDMAssetAPNSCert,
+				})
 				if err != nil {
-					initFatal(err, "initialize mdm apple MySQL storage")
+					initFatal(err, "validating MDM assets from database")
 				}
-				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
-				pushProviderFactory := buford.NewPushProviderFactory()
-				if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
-					mdmPushService = nopPusher{}
-				} else {
-					mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+
+				appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+					fleet.MDMAssetABMCert,
+					fleet.MDMAssetABMKey,
+					fleet.MDMAssetABMToken,
+				})
+				if err != nil {
+					initFatal(err, "validating MDM ABM assets from database")
 				}
-				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
-				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
-				ddmService = service.NewMDMAppleDDMService(ds, logger)
-				appCfg.MDM.EnabledAndConfigured = true
 			}
 
 			// register the Microsoft MDM services
@@ -619,7 +672,6 @@ the way that the Fleet server works.
 				depStorage,
 				mdmStorage,
 				mdmPushService,
-				mdmPushCertTopic,
 				cronSchedules,
 				wstepCertManager,
 			)
@@ -629,10 +681,7 @@ the way that the Fleet server works.
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
-				var profileMatcher fleet.ProfileMatcher
-				if appCfg.MDM.EnabledAndConfigured {
-					profileMatcher = apple_mdm.NewProfileMatcher(redisPool)
-				}
+				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.Bucket != "" {
 					store, err := s3.NewSoftwareInstallerStore(config.S3)
 					if err != nil {
@@ -663,8 +712,7 @@ the way that the Fleet server works.
 					mailService,
 					clock.C,
 					depStorage,
-					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
-					mdmPushCertTopic,
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 					ssoSessionStore,
 					profileMatcher,
 					softwareInstallStore,
@@ -719,10 +767,7 @@ the way that the Fleet server works.
 
 			if err := cronSchedules.StartCronSchedule(
 				func() (fleet.CronSchedule, error) {
-					var commander *apple_mdm.MDMAppleCommander
-					if appCfg.MDM.EnabledAndConfigured {
-						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
-					}
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
 						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore,
 					)
@@ -762,36 +807,36 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				var commander *apple_mdm.MDMAppleCommander
-				if appCfg.MDM.EnabledAndConfigured {
-					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM)
-				}
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander)
 			}); err != nil {
 				initFatal(err, "failed to register worker integrations schedule")
 			}
 
-			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
-				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
-				}); err != nil {
-					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
-				}
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
+			}); err != nil {
+				initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 			}
 
-			if appCfg.MDM.EnabledAndConfigured || appCfg.MDM.WindowsEnabledAndConfigured {
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newMDMProfileManager(
+					ctx,
+					instanceID,
+					ds,
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					logger,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_apple_profile_manager schedule")
+			}
+
+			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newMDMProfileManager(
-						ctx,
-						instanceID,
-						ds,
-						apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
-						logger,
-						config.Logging.Debug,
-						config.MDM,
-					)
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger)
 				}); err != nil {
-					initFatal(err, "failed to register mdm_apple_profile_manager schedule")
+					initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
 				}
 			}
 
@@ -907,7 +952,14 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			if appCfg.MDM.EnabledAndConfigured {
+			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+			ddmService := service.NewMDMAppleDDMService(ds, logger)
+			mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+
+			// TODO(roberto): we should always register the
+			// protocol services and generate a SCEP challenge if
+			// not provided.
+			if config.MDM.AppleSCEPChallenge != "" {
 				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
 					config.MDM,

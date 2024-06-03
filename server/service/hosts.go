@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -293,7 +294,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 		for _, host := range hosts {
-			if host.Platform == "darwin" || host.Platform == "windows" {
+			if fleet.MDMSupported(host.Platform) {
 				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 					Action:   mdmlifecycle.HostActionDelete,
 					Host:     host,
@@ -374,10 +375,11 @@ func (svc *Service) CountHosts(ctx context.Context, labelID *uint, opts fleet.Ho
 }
 
 func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt fleet.HostListOptions) (int, error) {
-	filter, err := processHostFilters(ctx, opt, nil)
-	if err != nil {
-		return 0, err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return 0, fleet.ErrNoContext
 	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
@@ -385,6 +387,7 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 	}
 
 	var count int
+	var err error
 	if labelID != nil {
 		count, err = svc.ds.CountHostsInLabel(ctx, filter, *labelID, opt)
 	} else {
@@ -747,7 +750,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host")
 	}
 
-	if host.Platform == "windows" || host.Platform == "darwin" {
+	if fleet.MDMSupported(host.Platform) {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionDelete,
@@ -865,7 +868,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 		}
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeTransferredHostsToTeam{
@@ -1102,7 +1105,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				profiles = append(profiles, p.ToHostMDMProfile())
 			}
 
-		case "darwin":
+		case "darwin", "ios", "ipados":
 			if ac.MDM.EnabledAndConfigured {
 				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 				if err != nil {
@@ -1118,7 +1121,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-					profiles = append(profiles, p.ToHostMDMProfile())
+					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
 				}
 			}
 		}
@@ -1277,13 +1280,15 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 }
 
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, []*fleet.Host, error) {
-	filter, err := processHostFilters(ctx, opt, lid)
-	if err != nil {
-		return nil, nil, nil, err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, nil, fleet.ErrNoContext
 	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	// Load hosts, either from label if provided or from all hosts.
 	var hosts []*fleet.Host
+	var err error
 	if lid != nil {
 		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
@@ -1305,21 +1310,6 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 		hostNames = append(hostNames, h.DisplayName())
 	}
 	return hostIDs, hostNames, hosts, nil
-}
-
-func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) (fleet.TeamFilter, error) {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return fleet.TeamFilter{}, fleet.ErrNoContext
-	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	if opt.StatusFilter != "" && lid != nil {
-		return fleet.TeamFilter{}, fleet.NewInvalidArgumentError("status", "may not be provided with label_id")
-	}
-
-	opt.PerPage = fleet.PerPageUnlimited
-	return filter, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2124,9 +2114,9 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		}
 
 		// use Apple's SCEP certificate for decrypting
-		cert, _, _, err := svc.config.MDM.AppleSCEP()
+		cert, err := assets.CAKeyPair(ctx, svc.ds)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting Apple SCEP certificate to decrypt key")
+			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 		}
 		decryptCert = cert
 	}
@@ -2145,7 +2135,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 	key.DecryptedValue = string(decryptedKey)
 
-	err = svc.ds.NewActivity(
+	err = svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeReadHostDiskEncryptionKey{
@@ -2433,7 +2423,10 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 
 	var dynamicLabels []string
 	for labelName, labelID := range labels {
-		label, _, err := svc.ds.Label(ctx, labelID)
+		// we use a global admin filter because we want to get that label
+		// regardless of user roles
+		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+		label, _, err := svc.ds.Label(ctx, labelID, filter)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load label from id")
 		}
@@ -2536,8 +2529,15 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	opts.IncludeAvailableForInstall = includeAvailableForInstall || opts.SelfServiceOnly
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
-	if !includeAvailableForInstall {
-		// for the device page, we don't want to return the package name
+	if includeAvailableForInstall {
+		// for the host software page, we don't want to return the package object,
+		// only the package name
+		for _, s := range software {
+			s.Package = nil
+		}
+	} else {
+		// for the device page, we don't want to return the package name, only the
+		// package object
 		for _, s := range software {
 			s.PackageAvailableForInstall = nil
 		}

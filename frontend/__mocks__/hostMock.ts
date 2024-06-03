@@ -112,6 +112,23 @@ const createMockHost = (overrides?: Partial<IHost>): IHost => {
 
 export const createMockHostResponse = { host: createMockHost() };
 
+export const createMockIosHostResponse = {
+  host: createMockHost({
+    hostname: "Test device (iPhone)",
+    display_name: "Test device (iPhone)",
+    team_id: 2,
+    team_name: "Mobile",
+    platform: "ios",
+    os_version: "iOS 14.7.1",
+    hardware_serial: "C8QH6T96DPNA",
+    created_at: "2024-01-01T12:00:00Z",
+    updated_at: "2024-05-02T12:00:00Z",
+    detail_updated_at: "2024-05-02T12:00:00Z",
+    last_restarted_at: "2024-04-02T12:00:00Z",
+    last_enrolled_at: "2024-01-02T12:00:00Z",
+  }),
+};
+
 export const createMockHostSummary = (overrides?: Partial<IHost>) => {
   return normalizeEmptyValues(
     pick(createMockHost(overrides), HOST_SUMMARY_DATA)
@@ -122,6 +139,7 @@ const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
   package_available_for_install: "mockSoftware.app",
+  self_service: false,
   source: "apps",
   bundle_identifier: "com.test.mock",
   status: "installed",

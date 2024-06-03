@@ -60,16 +60,10 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[4].ID, hosts[5].ID})
 	require.NoError(t, err)
 
-	testBMToken := nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
+	mysql.SetTestABMAssets(t, ds)
 
 	logger := kitlog.NewNopLogger()
-	depStorage, err := ds.NewMDMAppleDEPStorage(testBMToken)
+	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 	macosJob := &MacosSetupAssistant{
 		Datastore:  ds,

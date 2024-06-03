@@ -3,10 +3,14 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -48,7 +52,7 @@ INSERT INTO
 			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
-			case isDuplicate(err):
+			case IsDuplicate(err):
 				return ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
 			default:
 				return ctxerr.Wrap(ctx, err, "creating new apple mdm config profile")
@@ -707,7 +711,7 @@ WHERE
 func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+		return ctxerr.Wrap(ctx, err, "mdm apple upsert host get app config")
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger, appCfg)
@@ -743,6 +747,20 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	}
 }
 
+func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnrolledAt time.Time) {
+	supportsOsquery := mdmHost.SupportsOsquery()
+	// 2000-01-01 00:00:00 is what Fleet considers the zero/"Never" time.
+	lastEnrolledAt, err := time.Parse("2006-01-02 15:04:05", "2000-01-01 00:00:00")
+	if err != nil {
+		panic(err)
+	}
+	if !supportsOsquery {
+		// Given the device does not have osquery, we set the last_enrolled_at as the MDM enroll time.
+		lastEnrolledAt = time.Now()
+	}
+	return supportsOsquery, lastEnrolledAt
+}
+
 func updateMDMAppleHostDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -750,6 +768,8 @@ func updateMDMAppleHostDB(
 	mdmHost *fleet.Host,
 	appCfg *fleet.AppConfig,
 ) error {
+	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
+
 	updateStmt := `
 		UPDATE hosts SET
 			hardware_serial = ?,
@@ -757,6 +777,7 @@ func updateMDMAppleHostDB(
 			hardware_model = ?,
 			platform =  ?,
 			refetch_requested = ?,
+			last_enrolled_at = ?,
 			osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?)
 		WHERE id = ?`
 
@@ -766,8 +787,9 @@ func updateMDMAppleHostDB(
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
-		"darwin",
-		1,
+		mdmHost.Platform,
+		refetchRequested,
+		lastEnrolledAt,
 		// Set osquery_host_id to the device UUID only if it is not already set.
 		mdmHost.UUID,
 		hostID,
@@ -794,6 +816,7 @@ func insertMDMAppleHostDB(
 	logger log.Logger,
 	appCfg *fleet.AppConfig,
 ) error {
+	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 	insertStmt := `
 		INSERT INTO hosts (
 			hardware_serial,
@@ -812,11 +835,11 @@ func insertMDMAppleHostDB(
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
-		"darwin",
-		"2000-01-01 00:00:00",
+		mdmHost.Platform,
+		lastEnrolledAt,
 		"2000-01-01 00:00:00",
 		mdmHost.UUID,
-		1,
+		refetchRequested,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert mdm apple host")
@@ -896,18 +919,18 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			SELECT
 				us.hardware_serial,
 				COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), ''),
-				'darwin' AS platform,
+				us.platform,
 				'2000-01-01 00:00:00' AS last_enrolled_at,
 				'2000-01-01 00:00:00' AS detail_updated_at,
 				NULL AS osquery_host_id,
-				1 AS refetch_requested,
+				IF(us.platform = 'ios' OR us.platform = 'ipados', 0, 1) AS refetch_requested,
 				? AS team_id
 			FROM (%s) us
 			LEFT JOIN hosts h ON us.hardware_serial = h.hardware_serial
 		WHERE
 			h.id IS NULL
 		GROUP BY
-			us.hardware_serial)`,
+			us.hardware_serial, us.platform)`,
 			us,
 		)
 
@@ -933,6 +956,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		err = sqlx.SelectContext(ctx, tx, &hostsWithMDMInfo, fmt.Sprintf(`
 			SELECT
 				h.id,
+				h.platform,
 				h.hardware_model,
 				h.hardware_serial,
 				COALESCE(hmdm.enrolled, 0) as enrolled
@@ -1096,25 +1120,42 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	// now because it may still be some time before osquery is running on these
 	// devices. Because these are Apple devices, we're adding them to the "All
 	// Hosts" and "macOS" labels.
-	labelIDs := []uint{}
-	err := sqlx.SelectContext(ctx, tx, &labelIDs, `SELECT id FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS')`)
+	labels := []struct {
+		ID   uint   `db:"id"`
+		Name string `db:"name"`
+	}{}
+	err := sqlx.SelectContext(ctx, tx, &labels, `SELECT id, name FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS')`)
 	switch {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get builtin labels")
-	case len(labelIDs) != 2:
+	case len(labels) != 2:
 		// Builtin labels can get deleted so it is important that we check that
 		// they still exist before we continue.
-		level.Error(logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labelIDs)))
+		level.Error(logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labels)))
 		return nil
 	default:
 		// continue
 	}
 
+	// Put "All Hosts" label first (we don't want to make assumptions around ids of builtin labels).
+	labelIDs := make([]uint, 0, 2)
+	if labels[0].Name == "All Hosts" {
+		labelIDs = append(labelIDs, labels[0].ID, labels[1].ID)
+	} else {
+		labelIDs = append(labelIDs, labels[1].ID, labels[0].ID)
+	}
+
 	parts := []string{}
 	args := []interface{}{}
 	for _, h := range hosts {
-		parts = append(parts, "(?,?),(?,?)")
-		args = append(args, h.ID, labelIDs[0], h.ID, labelIDs[1])
+		// iOS/iPadOS devices only get the "All Hosts" label.
+		if h.Platform == "ios" || h.Platform == "ipados" {
+			parts = append(parts, "(?,?)")
+			args = append(args, h.ID, labelIDs[0])
+		} else { // macOS devices get both labels, "All Hosts" and "macOS".
+			parts = append(parts, "(?,?),(?,?)")
+			args = append(args, h.ID, labelIDs[0], h.ID, labelIDs[1])
+		}
 	}
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 			INSERT INTO label_membership (host_id, label_id) VALUES %s
@@ -1131,6 +1172,8 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
 	tableMap := map[string][]string{
 		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"ios":     {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"ipados":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
 		"windows": {"host_mdm_windows_profiles"},
 	}
 
@@ -1162,8 +1205,8 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if host.Platform != "darwin" && host.Platform != "windows" {
-			return ctxerr.Errorf(ctx, "unsupported host platform: %s", host.Platform)
+		if !fleet.MDMSupported(host.Platform) {
+			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
 		// NOTE: set installed_from_dep = 0 so DEP host will not be
@@ -1192,6 +1235,11 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
 
+		// iPhones and iPads have no osquery thus we don't need to refetch.
+		if host.Platform == "ios" || host.Platform == "ipados" {
+			return nil
+		}
+
 		// request a refetch to update any eventually consistent stale information.
 		err = updateHostRefetchRequestedDB(ctx, tx, host.ID, true)
 		return ctxerr.Wrap(ctx, err, "setting host refetch requested")
@@ -1201,11 +1249,19 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
 	for i, d := range devices {
 		if i == 0 {
-			stmt = "SELECT ? hardware_serial, ? hardware_model"
+			stmt = "SELECT ? hardware_serial, ? hardware_model, ? platform"
 		} else {
-			stmt += " UNION SELECT ?, ?"
+			stmt += " UNION SELECT ?, ?, ?"
 		}
-		args = append(args, d.SerialNumber, d.Model)
+		// Map Apple's device family to Fleet's hosts.platform field.
+		platform := "darwin"
+		switch d.DeviceFamily {
+		case "iPhone":
+			platform = "ios"
+		case "iPad":
+			platform = "ipados"
+		}
+		args = append(args, d.SerialNumber, d.Model, platform)
 	}
 
 	return stmt, args
@@ -1590,6 +1646,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	SELECT
 		ds.profile_uuid as profile_uuid,
 		ds.host_uuid as host_uuid,
+		ds.host_platform as host_platform,
 		ds.profile_identifier as profile_identifier,
 		ds.profile_name as profile_name,
 		ds.checksum as checksum
@@ -1618,6 +1675,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 	}
+
+	// Exclude macOS only profiles from iPhones/iPads.
+	wantedProfiles = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(wantedProfiles)
 
 	toRemoveStmt := fmt.Sprintf(`
 	SELECT
@@ -1817,6 +1877,7 @@ func generateDesiredStateQuery(entityType string) string {
 	SELECT
 		mae.%[1]s_uuid,
 		h.uuid as host_uuid,
+		h.platform as host_platform,
 		mae.identifier as %[1]s_identifier,
 		mae.name as %[1]s_name,
 		mae.checksum as checksum,
@@ -1829,7 +1890,7 @@ func generateDesiredStateQuery(entityType string) string {
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
 	WHERE
-		h.platform = 'darwin' AND
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
 		NOT EXISTS (
@@ -1845,6 +1906,7 @@ func generateDesiredStateQuery(entityType string) string {
 	SELECT
 		mae.%[1]s_uuid,
 		h.uuid as host_uuid,
+		h.platform as host_platform,
 		mae.identifier as %[1]s_identifier,
 		mae.name as %[1]s_name,
 		mae.checksum as checksum,
@@ -1861,12 +1923,12 @@ func generateDesiredStateQuery(entityType string) string {
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mel.label_id AND lm.host_id = h.id
 	WHERE
-		h.platform = 'darwin' AND
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
 		( %[3]s )
 	GROUP BY
-		mae.%[1]s_uuid, h.uuid, mae.identifier, mae.name, mae.checksum
+		mae.%[1]s_uuid, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
 	HAVING
 		count_%[1]s_labels > 0 AND count_host_labels = count_%[1]s_labels
 
@@ -1978,6 +2040,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	SELECT
 		ds.profile_uuid,
 		ds.host_uuid,
+		ds.host_platform,
 		ds.profile_identifier,
 		ds.profile_name,
 		ds.checksum
@@ -2466,7 +2529,8 @@ SELECT
   COUNT(id) as count
 FROM
   hosts h
-GROUP BY status, platform, team_id HAVING platform = 'darwin' AND status IN (?, ?, ?, ?) AND %s`
+WHERE platform = 'darwin' OR platform = 'ios' OR platform = 'ipados'
+GROUP BY status, team_id HAVING status IN (?, ?, ?, ?) AND %s`
 
 	args = append(args, fleet.MDMDeliveryFailed, fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified)
 
@@ -2765,7 +2829,7 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
 		}
 		return ctxerr.Wrap(ctx, err, "create bootstrap package")
@@ -2792,7 +2856,7 @@ WHERE team_id = 0
 `
 		_, err := tx.ExecContext(ctx, insertStmt, toTeamID, uuid.New().String())
 		if err != nil {
-			if isDuplicate(err) {
+			if IsDuplicate(err) {
 				return ctxerr.Wrap(ctx, &existsError{
 					ResourceType: "BootstrapPackage",
 					TeamID:       &toTeamID,
@@ -3415,8 +3479,8 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if host.Platform != "darwin" && host.Platform != "windows" {
-			return ctxerr.Errorf(ctx, "unsupported host platform: %s", host.Platform)
+		if !fleet.MDMSupported(host.Platform) {
+			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
 		// Deleting profiles from this table will cause all profiles to
@@ -3705,7 +3769,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
-			case isDuplicate(err):
+			case IsDuplicate(err):
 				return ctxerr.Wrap(ctx, formatErrorDuplicateDeclaration(err, declaration))
 			default:
 				return ctxerr.Wrap(ctx, err, "creating new apple mdm declaration")
@@ -4115,4 +4179,200 @@ VALUES
 	}
 
 	return nil
+}
+
+func encrypt(plainText []byte, privateKey string) ([]byte, error) {
+	block, err := aes.NewCipher([]byte(privateKey))
+	if err != nil {
+		return nil, fmt.Errorf("create new cipher: %w", err)
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("create new gcm: %w", err)
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, fmt.Errorf("generate nonce: %w", err)
+	}
+
+	return aesGCM.Seal(nonce, nonce, plainText, nil), nil
+}
+
+func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
+	block, err := aes.NewCipher([]byte(privateKey))
+	if err != nil {
+		return nil, fmt.Errorf("create new cipher: %w", err)
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("create new gcm: %w", err)
+	}
+
+	// Get the nonce size
+	nonceSize := aesGCM.NonceSize()
+
+	// Extract the nonce from the encrypted data
+	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
+
+	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, fmt.Errorf("generate nonce: %w", err)
+	}
+
+	return decrypted, nil
+}
+
+func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	stmt := `
+INSERT INTO mdm_config_assets
+  (name, value, md5_checksum)
+VALUES
+  %s`
+
+	var args []any
+	var insertVals strings.Builder
+
+	for _, a := range assets {
+		encryptedVal, err := encrypt(a.Value, ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
+		}
+
+		hexChecksum := md5ChecksumBytes(encryptedVal)
+		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
+		args = append(args, a.Name, encryptedVal, hexChecksum)
+	}
+
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	})
+
+	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
+}
+
+func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	if len(assetNames) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+    name, value
+FROM
+   mdm_config_assets
+WHERE
+    name IN (?)
+	AND deletion_uuid = ''
+	`
+
+	stmt, args, err := sqlx.In(stmt, assetNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
+	}
+
+	var res []fleet.MDMConfigAsset
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name")
+	}
+
+	if len(res) == 0 {
+		return nil, notFound("MDMConfigAsset")
+	}
+
+	assetMap := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(res))
+	for _, asset := range res {
+		decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "decrypting mdm config asset %s", asset.Name)
+		}
+
+		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal}
+	}
+
+	if len(res) < len(assetNames) {
+		return assetMap, ErrPartialResult
+	}
+
+	return assetMap, nil
+}
+
+func (ds *Datastore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+	if len(assetNames) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT name, HEX(md5_checksum) as md5_checksum
+FROM mdm_config_assets
+WHERE name IN (?) AND deletion_uuid = ''`
+
+	stmt, args, err := sqlx.In(stmt, assetNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
+	}
+
+	var res []fleet.MDMConfigAsset
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config checksums by name")
+	}
+
+	if len(res) == 0 {
+		return nil, notFound("MDMConfigAsset")
+	}
+
+	assetMap := make(map[fleet.MDMAssetName]string, len(res))
+	for _, asset := range res {
+		assetMap[asset.Name] = asset.MD5Checksum
+	}
+
+	if len(res) < len(assetNames) {
+		return assetMap, ErrPartialResult
+	}
+
+	return assetMap, nil
+}
+
+func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	stmt := `
+UPDATE
+    mdm_config_assets
+SET
+    deleted_at = CURRENT_TIMESTAMP(),
+	deletion_uuid = ?
+WHERE
+    name IN (?) AND deletion_uuid = ''
+	`
+
+	deletionUUID := uuid.New().String()
+
+	stmt, args, err := sqlx.In(stmt, deletionUUID, assetNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In DeleteMDMConfigAssetsByName")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	return ctxerr.Wrap(ctx, err, "deleting mdm config assets")
+}
+
+// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
+// (their details haven't been updated in the given `interval`).
+func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (uuids []string, err error) {
+	var deviceUUIDs []string
+	hostsStmt := fmt.Sprintf(`
+SELECT h.uuid FROM hosts h
+JOIN host_mdm hmdm ON hmdm.host_id = h.id
+WHERE (h.platform = 'ios' OR h.platform = 'ipados')
+AND hmdm.enrolled
+AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &deviceUUIDs, hostsStmt, interval.Seconds()); err != nil {
+		return nil, err
+	}
+
+	return deviceUUIDs, nil
 }

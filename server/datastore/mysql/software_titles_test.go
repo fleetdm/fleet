@@ -311,7 +311,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		Filename:      "installer2.pkg",
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))

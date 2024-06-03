@@ -1,11 +1,9 @@
 name: osquery_schedule
-examples: >-
+examples: |-
   Identify scheduled queries that have been denylisted by the osquery watchdog.
   This could indicate queries that required a lot of resources to be executed.
   They will not be executed again until osquery restarts.
 
   ```
-
   SELECT name, query FROM osquery_schedule WHERE denylisted='1';
-
   ```

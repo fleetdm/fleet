@@ -41,6 +41,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.host_id AS host_id,
     hsi.execution_id AS execution_id,
     hsi.software_installer_id AS installer_id,
+    hsi.self_service AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     inst.contents AS install_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -124,7 +125,7 @@ INSERT INTO software_installers (
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			// already exists for this team/no team
 			err = alreadyExists("SoftwareInstaller", payload.Title)
 		}
@@ -248,13 +249,13 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	return nil
 }
 
-func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint) (string, error) {
+func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool) (string, error) {
 	const (
 		insertStmt = `
 		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id, user_id)
+		    (execution_id, host_id, software_installer_id, user_id, self_service)
 		  VALUES
-		    (?, ?, ?, ?)
+		    (?, ?, ?, ?, ?)
 		    `
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
@@ -281,6 +282,7 @@ func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID ui
 		hostID,
 		softwareInstallerID,
 		userID,
+		selfService,
 	)
 
 	return installID, ctxerr.Wrap(ctx, err, "inserting new install software request")

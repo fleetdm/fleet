@@ -9,6 +9,7 @@
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
+- [Software](#software)
 
 This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
@@ -1285,6 +1286,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels` list of label names.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
+| software                                   | list   | body  | An array of software objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -1361,6 +1363,13 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
+      "software": [
+        {
+          "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
+          "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+          "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+        }
+      ]
     }
   ]
 }
@@ -2283,6 +2292,8 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Refetch device's host](#refetch-devices-host)
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
+- [Get Fleet Desktop information](#get-fleet-desktop-information)
+- [Get device's software](#get-devices-software)
 - [Get device's policies](#get-devices-policies)
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
@@ -2396,6 +2407,77 @@ In regards to the `notifications` key:
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
 - `enforce_bitlocker_encryption` applies only to Windows devices and means that it should encrypt the disk and report the encryption key back to Fleet.
+
+
+#### Get device's software
+
+Lists the software installed on the current device.
+
+`GET /api/v1/fleet/device/{token}/software`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+##### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 2,
+  "software": [
+    {
+      "id": 121,
+      "name": "Google Chrome.app",
+      "source": "apps",
+      "bundle_identifier": "com.google.Chrome",
+      "status": "failed",
+      "last_install": {
+        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+        "installed_at": "2024-05-15T15:23:57Z"
+      },
+      "installed_versions": [
+        { 
+          "version": "121.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Google Chrome.app"]
+        }
+      ]
+    },
+    {
+      "id": 143,
+      "name": "Firefox.app",
+      "source": "apps",
+      "bundle_identifier": "com.google.Chrome",
+      "status": null,
+      "last_install": null,
+      "installed_versions": [
+        { 
+          "version": "125.6",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Firefox.app"]
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
 
 
 #### Get device's policies
@@ -2758,11 +2840,35 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 #### Example
 
-`POST /api/v1/fleet/mdm/scripts/batch`
+`POST /api/v1/fleet/scripts/batch`
 
 ##### Default response
 
-`204`
+`Status: 204`
 
-<meta name="pageOrderInSection" value="800">
-<meta name="description" value="Read about Fleet API routes that are helpful when developing or contributing to Fleet.">
+## Software
+
+### Batch-apply software 
+
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. |
+| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. |
+| dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
+| software  | list   | body  | An array of software objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
+
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+#### Example
+
+`POST /api/v1/fleet/software/batch`
+
+##### Default response
+
+`Status: 204`

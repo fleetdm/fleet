@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -14,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -62,7 +64,6 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		depStorage,
 		nil,
 		nil,
-		"",
 		nil,
 		nil,
 	)
@@ -78,7 +79,6 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		clock.C,
 		depStorage,
 		nil,
-		"",
 		nil,
 		nil,
 		nil,
@@ -138,6 +138,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.LabelIDsByNameFuncInvoked = false
 		ds.SetOrUpdateMDMAppleDeclarationFuncInvoked = false
 		ds.BulkSetPendingMDMHostProfilesFuncInvoked = false
+		ds.GetAllMDMConfigAssetsByNameFuncInvoked = false
 	}
 	setupDS := func(t *testing.T) {
 		resetInvoked()
@@ -145,7 +146,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appConfig, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails) error {
+		ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 			return nil
 		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -199,6 +200,21 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
 			return nil
+		}
+		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+		require.NoError(t, err)
+		certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
+		require.NoError(t, err)
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetABMCert:  {Name: fleet.MDMAssetABMCert, Value: certPEM},
+				fleet.MDMAssetABMKey:   {Name: fleet.MDMAssetABMKey, Value: keyPEM},
+				fleet.MDMAssetABMToken: {Name: fleet.MDMAssetABMToken, Value: tokenBytes},
+				fleet.MDMAssetAPNSCert: {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+				fleet.MDMAssetAPNSKey:  {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+				fleet.MDMAssetCACert:   {Name: fleet.MDMAssetCACert, Value: certPEM},
+				fleet.MDMAssetCAKey:    {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+			}, nil
 		}
 	}
 

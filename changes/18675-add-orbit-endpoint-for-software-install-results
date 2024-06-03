@@ -1,1 +1,0 @@
-* Added the `POST /api/fleet/orbit/software_install/result` endpoint for fleetd to send results for a software installation attempt.

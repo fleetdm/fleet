@@ -427,7 +427,7 @@ type Service interface {
 	SandboxEnabled() bool
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
-	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec) error
+	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec, applyOpts ApplySpecOptions) error
 	// GetEnrollSecretSpec gets the spec for the current enroll secrets.
 	GetEnrollSecretSpec(ctx context.Context) (*EnrollSecretSpec, error)
 
@@ -642,6 +642,10 @@ type Service interface {
 	// specified team
 	BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []SoftwareInstallerPayload, dryRun bool) error
 
+	// SelfServiceInstallSoftwareTitle installs a software title
+	// initiated by the user
+	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
@@ -688,6 +692,14 @@ type Service interface {
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
+
+	// GetMDMAppleCSR returns a signed CSR as base64 encoded bytes for Apple MDM. The first time
+	// this method is called, it will create a SCEP certificate, a SCEP key, and an APNS key and
+	// write these to the DB. On subsequent calls, it will use the saved APNS key for generating the CSR.
+	GetMDMAppleCSR(ctx context.Context) ([]byte, error)
+
+	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
+	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
@@ -772,7 +784,20 @@ type Service interface {
 	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
 
 	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
+	//
+	// Deprecated: NewMDMAppleDEPKeyPair exists only to support a deprecated endpoint.
 	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
+
+	// GenerateABMKeyPair generates and stores in the database public and
+	// private keys to use in ABM to generate an encrypted auth token.
+	GenerateABMKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
+
+	// SaveABMToken reads and validates if the provided token can be
+	// decrypted using the keys stored in the database, then saves the token.
+	SaveABMToken(ctx context.Context, token io.Reader) error
+
+	// DisableABM disables ABM by soft-deleting the relevant assets
+	DisableABM(ctx context.Context) error
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given
 	// devices. Note that a deviceID is the same as a host's UUID.

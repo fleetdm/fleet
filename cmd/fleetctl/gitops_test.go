@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +48,9 @@ func TestBasicGlobalGitOps(t *testing.T) {
 		return nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
@@ -161,7 +165,9 @@ func TestBasicTeamGitOps(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.ListTeamPoliciesFunc = func(
@@ -186,6 +192,9 @@ func TestBasicTeamGitOps(t *testing.T) {
 			return team, nil
 		}
 		return nil, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
 	}
 	var savedTeam *fleet.Team
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -258,12 +267,12 @@ func TestFullGlobalGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	// License is not needed because we are not using any premium features in our config.
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			MDMStorage:  new(mock.MDMAppleStore),
+			MDMStorage:  new(mdmmock.MDMAppleStore),
 			MDMPusher:   mockPusher{},
 			FleetConfig: &fleetCfg,
 		},
@@ -274,7 +283,9 @@ func TestFullGlobalGitOps(t *testing.T) {
 		appliedScripts = scripts
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
@@ -357,6 +368,9 @@ func TestFullGlobalGitOps(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
@@ -406,6 +420,8 @@ func TestFullGlobalGitOps(t *testing.T) {
 	assert.True(t, savedAppConfig.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Equal(t, 60, savedAppConfig.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
+	assert.True(t, savedAppConfig.WebhookSettings.ActivitiesWebhook.Enable)
+	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
 }
 
 func TestFullTeamGitOps(t *testing.T) {
@@ -418,13 +434,13 @@ func TestFullTeamGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	// License is not needed because we are not using any premium features in our config.
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
 			License:          license,
-			MDMStorage:       new(mock.MDMAppleStore),
+			MDMStorage:       new(mdmmock.MDMAppleStore),
 			MDMPusher:        mockPusher{},
 			FleetConfig:      &fleetCfg,
 			NoCacheDatastore: true,
@@ -447,7 +463,9 @@ func TestFullTeamGitOps(t *testing.T) {
 		appliedScripts = scripts
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
@@ -494,6 +512,9 @@ func TestFullTeamGitOps(t *testing.T) {
 			return team, nil
 		}
 		return nil, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
 	}
 	var savedTeam *fleet.Team
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -683,6 +704,9 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		Name:      teamName,
 	}
 
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		if teamID == nil {
 			enrolledSecrets = secrets
@@ -720,7 +744,9 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
@@ -773,7 +799,7 @@ org_settings:
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: ${ORG_NAME}
-  secrets:
+  secrets: [{"secret":"globalSecret"}]
 `,
 	)
 	require.NoError(t, err)
@@ -797,6 +823,21 @@ team_settings:
 	)
 	require.NoError(t, err)
 
+	teamFileDupSecret, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFileDupSecret.WriteString(
+		`
+controls:
+queries:
+policies:
+agent_options:
+name: ${TEST_TEAM_NAME}
+team_settings:
+  secrets: [{"secret":"${TEST_SECRET}"},{"secret":"globalSecret"}]
+`,
+	)
+	require.NoError(t, err)
+
 	// Files out of order
 	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
@@ -806,6 +847,11 @@ team_settings:
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
+
+	// Duplicate secret
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "duplicate enroll secret found")
 
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
@@ -821,7 +867,7 @@ team_settings:
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
-	assert.Empty(t, enrolledSecrets)
+	assert.Len(t, enrolledSecrets, 1)
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
 	require.Len(t, enrolledTeamSecrets, 1)
@@ -898,11 +944,27 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 		return *savedTeamPtr, nil
 	}
 
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+	require.NoError(t, err)
+	crt, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	scepCert := tokenpki.PEMCertificate(crt.Raw)
+	scepKey := tokenpki.PEMRSAPrivateKey(key)
+
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert:   {Value: scepCert},
+			fleet.MDMAssetCAKey:    {Value: scepKey},
+			fleet.MDMAssetAPNSKey:  {Value: apnsKey},
+			fleet.MDMAssetAPNSCert: {Value: apnsCert},
+		}, nil
+	}
+
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
 	// Dry run on global file should fail because Apple BM Default Team does not exist (and has not been provided)
-	_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "--dry-run"})
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "team name not found"))
 
@@ -989,12 +1051,12 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			MDMStorage:       new(mock.MDMAppleStore),
+			MDMStorage:       new(mdmmock.MDMAppleStore),
 			MDMPusher:        mockPusher{},
 			FleetConfig:      &fleetCfg,
 			License:          license,
@@ -1046,6 +1108,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
@@ -1063,7 +1128,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil, nil
 	}
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {

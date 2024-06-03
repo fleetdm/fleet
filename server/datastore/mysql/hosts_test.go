@@ -6604,13 +6604,20 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}
+	detailsBytes, err := json.Marshal(activity)
+	require.NoError(t, err)
+
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity( // automatically creates the host_activities entry
-		context.Background(),
+		ctx,
 		user1,
-		fleet.ActivityTypeRanScript{
-			HostID:          host.ID,
-			HostDisplayName: host.DisplayName(),
-		},
+		activity,
+		detailsBytes,
+		time.Now(),
 	)
 	require.NoError(t, err)
 
@@ -7407,6 +7414,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		HardwareSerial:  "123456789",
 		TeamID:          &tm.ID,
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "")
@@ -7419,6 +7427,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, tm.ID, info.TeamID)
 	require.False(t, info.DEPAssignedToFleet)
 	require.True(t, info.OsqueryEnrolled)
+	require.Equal(t, "darwin", info.Platform)
 
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host})
 	require.NoError(t, err)

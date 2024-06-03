@@ -9,6 +9,8 @@ import (
 	"strconv"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -317,6 +319,49 @@ func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Self Service Install
+//////////////////////////////////////////////////////////////////////////////
+
+type fleetSelfServiceSoftwareInstallRequest struct {
+	Token           string `url:"token"`
+	SoftwareTitleID uint   `url:"software_title_id"`
+}
+
+func (r *fleetSelfServiceSoftwareInstallRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type submitSelfServiceSoftwareInstallResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r submitSelfServiceSoftwareInstallResponse) error() error { return r.Err }
+func (r submitSelfServiceSoftwareInstallResponse) Status() int  { return http.StatusAccepted }
+
+func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return submitSelfServiceSoftwareInstallResponse{Err: err}, nil
+	}
+
+	req := request.(*fleetSelfServiceSoftwareInstallRequest)
+	if err := svc.SelfServiceInstallSoftwareTitle(ctx, host, req.SoftwareTitleID); err != nil {
+		return submitSelfServiceSoftwareInstallResponse{Err: err}, nil
+	}
+
+	return submitSelfServiceSoftwareInstallResponse{}, nil
+}
+
+func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

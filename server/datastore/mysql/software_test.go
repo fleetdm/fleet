@@ -423,15 +423,33 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
 			true,
 		},
+		{
+			"identical with duplicates incoming",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "A", Version: "1.0", Source: "ASD"}},
+			true,
+		},
+		{
+			"identical with duplicates incoming and insignificantly changed last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now().Add(-time.Second))}},
+			[]fleet.Software{
+				{Name: "A", Version: "1.0", Source: "ASD"},
+				{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now().Add(-time.Hour))},
+				{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())},
+			},
+			true,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
+			current, incoming, got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
 			if c.want {
-				require.True(t, got)
+				assert.True(t, got)
+				assert.Equal(t, len(current), len(incoming))
 			} else {
-				require.False(t, got)
+				assert.False(t, got)
 			}
+			assert.Equal(t, len(c.current), len(current))
 		})
 	}
 }
@@ -1621,15 +1639,23 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	require.NotZero(t, barSoftwareID)
 	require.NotZero(t, baz2SoftwareID)
 
+	// "baz2" is still present in the database, even though no hosts are using it, until ds.SyncHostsSoftware is executed.
+	soft, err := ds.SoftwareByID(ctx, baz2SoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "baz2", soft.Name)
+	assert.Zero(t, soft.HostsCount)
+
 	// "new" is not returned until ds.SyncHostsSoftware is executed.
-	// "baz2" is gone from the software list.
+	// "bar" and "baz2" are gone from host_software, but will not be deleted until ds.SyncHostsSoftware is executed.
 	// "baz" still has the wrong count because ds.SyncHostsSoftware hasn't run yet.
 	//
 	// So... counts are "off" until ds.SyncHostsSoftware is run.
-	software = listSoftwareCheckCount(t, ds, 2, 2, opts, false)
+	software = listSoftwareCheckCount(t, ds, 4, 4, opts, false)
 	expectedSoftware = []fleet.Software{
 		{Name: "foo", Version: "0.0.1", HostsCount: 2},
 		{Name: "baz", Version: "0.0.3", HostsCount: 2},
+		{Name: "bar", Version: "0.0.2", HostsCount: 2},
+		{Name: "baz2", Version: "0.0.3", HostsCount: 1},
 	}
 	cmpNameVersionCount(expectedSoftware, software)
 
@@ -1660,6 +1686,13 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	softwareInsertBatchSizeOrig := softwareInsertBatchSize
+	t.Cleanup(
+		func() {
+			softwareInsertBatchSize = softwareInsertBatchSizeOrig
+		},
+	)
+	softwareInsertBatchSize = 2
 
 	now := time.Now()
 	lastYear := now.Add(-365 * 24 * time.Hour)
@@ -1739,6 +1772,17 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
+
+	// more changes: all software receives a date further in the future, so all should be updated
+	farFuture := now.Add(4 * 24 * time.Hour)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &farFuture},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &farFuture},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux", LastOpenedAt: &farFuture},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{"bar", farFuture}, tup{"baz", farFuture}, tup{"qux", farFuture})
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
@@ -2835,6 +2879,8 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// remove the bar software title from host 2
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:2])
 	require.NoError(t, err)
+	// SyncHostsSoftware will remove the above software item from the software table
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]}, nil)
 
 	// bar is no longer associated with any host so the title should be deleted
@@ -3144,6 +3190,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			require.True(t, ok)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
+			if e.SelfService != nil {
+				// there is a software installer, so package information should be present
+				require.Equal(t, e.SelfService, g.SelfService)
+				require.NotNil(t, g.Package)
+				require.NotNil(t, g.PackageAvailableForInstall)
+				require.Equal(t, e.PackageAvailableForInstall, g.PackageAvailableForInstall)
+				require.Equal(t, *e.PackageAvailableForInstall, g.Package.Name)
+				require.NotEmpty(t, g.Package.Version)
+			}
 			require.Len(t, g.InstalledVersions, len(e.InstalledVersions))
 			if len(e.InstalledVersions) > 0 {
 				byVers := make(map[string]fleet.HostSoftwareInstalledVersion, len(e.InstalledVersions))
@@ -3313,6 +3368,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:                     expectStatus(fleet.SoftwareInstallerPending),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid1"},
 		PackageAvailableForInstall: ptr.String("installer-0.pkg"),
+		SelfService:                ptr.Bool(true),
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -3322,6 +3378,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source:                     "apps",
 		Status:                     expectStatus(fleet.SoftwareInstallerInstalled),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid2"},
+		SelfService:                ptr.Bool(true),
 		PackageAvailableForInstall: ptr.String("installer-1.pkg"),
 	}
 	expected[i0.Name+i0.Source] = i0
@@ -3331,6 +3388,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source:                     "apps",
 		Status:                     expectStatus(fleet.SoftwareInstallerFailed),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid3"},
+		SelfService:                ptr.Bool(false),
 		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
 	}
 	expected[i1.Name+i1.Source] = i1
@@ -3349,6 +3407,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:                     nil,
 		LastInstall:                nil,
 		PackageAvailableForInstall: ptr.String("installer-3.pkg"),
+		SelfService:                ptr.Bool(false),
 	}
 	expected[i2.Name+i2.Source] = i2
 
@@ -3358,6 +3417,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:                     nil,
 		LastInstall:                nil,
 		PackageAvailableForInstall: ptr.String("installer-4.pkg"),
+		SelfService:                ptr.Bool(false),
 	}
 	expected[i3.Name+i3.Source] = i3
 
@@ -3405,6 +3465,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:                     expectStatus(fleet.SoftwareInstallerFailed),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid1"},
 		PackageAvailableForInstall: ptr.String("installer-0.pkg"),
+		SelfService:                ptr.Bool(true),
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -3414,6 +3475,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source:                     "apps",
 		Status:                     expectStatus(fleet.SoftwareInstallerPending),
 		LastInstall:                &fleet.HostSoftwareInstall{InstallUUID: "uuid4"},
+		SelfService:                ptr.Bool(false),
 		PackageAvailableForInstall: ptr.String("installer-2.pkg"),
 	}
 

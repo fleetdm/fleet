@@ -59,3 +59,8 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]flee
 
 	return vuln, nil
 }
+
+// EvalUname is not implemented for Rhel based distros
+func (r RhelResult) EvalKernel(software []fleet.Software) ([]fleet.SoftwareVulnerability, error) {
+	return nil, nil
+}
