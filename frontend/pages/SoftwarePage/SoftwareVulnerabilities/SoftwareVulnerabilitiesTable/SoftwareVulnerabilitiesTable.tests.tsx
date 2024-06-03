@@ -51,6 +51,7 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 
@@ -88,6 +89,7 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 
@@ -126,6 +128,7 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 
@@ -158,6 +161,7 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 
@@ -192,6 +196,7 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 

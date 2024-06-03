@@ -39,6 +39,7 @@ interface ISoftwareOSTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
+  resetPageIndex: boolean;
 }
 
 const SoftwareOSTable = ({
@@ -51,6 +52,7 @@ const SoftwareOSTable = ({
   currentPage,
   teamId,
   isLoading,
+  resetPageIndex,
 }: ISoftwareOSTableProps) => {
   const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
 
@@ -197,6 +199,7 @@ const SoftwareOSTable = ({
         renderFooter={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );
