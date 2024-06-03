@@ -99,6 +99,8 @@ interface ITableContainerProps<T = any> {
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  /** Use for serverside filtering: Set to true when filters change in URL
+   * bar and API call so TableContainer will reset its page state to 0  */
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
   show0Count?: boolean;

@@ -580,6 +580,12 @@ const ManageHostsPage = ({
     return true;
   };
 
+  // NOTE: Solution also used on ManagePoliciesPage.tsx
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [queryParams, page]);
+
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
     setTableQueryData(
@@ -762,18 +768,6 @@ const ManageHostsPage = ({
     setHiddenColumns(newHiddenColumns);
     setShowEditColumnsModal(false);
   };
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    // TODO: cleanup this effect
-    setResetPageIndex(false);
-    if (queryParams.add_hosts === "true") {
-      setShowAddHostsModal(true);
-    }
-    if (queryParams.page === page) {
-      setPage(queryParams.page);
-    }
-  }, [queryParams, page]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
