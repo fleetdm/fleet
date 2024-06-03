@@ -522,7 +522,7 @@ module.exports.routes = {
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#renewing-apns',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-macos-setup#renewing-abm',
-
+  'GET /learn-more-about/fleet-server-private-key': '/docs/using-fleet/fleet-server-configuration#server-private-key',
 
   // Sitemap
   // =============================================================================================================
