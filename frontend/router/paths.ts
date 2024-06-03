@@ -137,6 +137,9 @@ export default {
   DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
+  DEVICE_USER_DETAILS_SELF_SERVICE: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/self-service`;
+  },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/software`;
   },

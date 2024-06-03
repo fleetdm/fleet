@@ -80,7 +80,11 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					calendarSchedule, err = cron.NewCalendarSchedule(ctx, s.T().Name(), s.ds, 24*time.Hour, log.NewJSONLogger(os.Stdout))
+					cronLog := log.NewJSONLogger(os.Stdout)
+					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+						cronLog = kitlog.NewNopLogger()
+					}
+					calendarSchedule, err = cron.NewCalendarSchedule(ctx, s.T().Name(), s.ds, 24*time.Hour, cronLog)
 					return calendarSchedule, err
 				}
 			},
@@ -2471,14 +2475,22 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
+	ctx := context.Background()
 
 	// set the logo via the modify appconfig endpoint, so that the cache is
 	// properly updated.
 	var acResp appConfigResponse
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_logo_url": "http://example.com/logo"}}`), http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{
+		"org_info":{
+			"org_logo_url": "http://example.com/logo",
+			"contact_url": "http://example.com/contact"
+		}
+	}`), http.StatusOK, &acResp)
 	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL)
+	require.Equal(t, "http://example.com/contact", acResp.OrgInfo.ContactURL)
 
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
 		ID:          51,
 		Name:        "team1-policies",
 		Description: "desc team1",
@@ -2487,10 +2499,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 
 	token := "much_valid"
 	host := createHostAndDeviceToken(t, s.ds, token)
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+	qr, err := s.ds.NewQuery(ctx, &fleet.Query{
 		Name:           "TestQueryEnterpriseGlobalPolicy",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
@@ -2509,7 +2521,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NotNil(t, gpResp.Policy)
 
 	// add a policy execution
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host,
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(ctx, host,
 		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false))
 
 	// add a policy to team
@@ -2534,7 +2546,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	}
 
 	require.NoError(t, u.SetPassword(password, 10, 10))
-	_, err = s.ds.NewUser(context.Background(), u)
+	_, err = s.ds.NewUser(ctx, u)
 	require.NoError(t, err)
 
 	s.token = s.getTestToken(email, password)
@@ -2574,7 +2586,9 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
@@ -2586,6 +2600,17 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, getDesktopResp.Err)
 	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
+
+	// update the team to enable software inventory
+	team.Config.Features.EnableSoftwareInventory = true
+	_, err = s.ds.SaveTeam(ctx, team)
+	require.NoError(t, err)
+
+	getDeviceHostResp = getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
+	require.True(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
@@ -7010,6 +7035,16 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		sort.Slice(want, func(i, j int) bool {
 			return want[i].Name < want[j].Name
 		})
+		for _, v := range got {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
+		for _, v := range want {
+			sort.Slice(v.Versions, func(i, j int) bool {
+				return v.Versions[i].Version < v.Versions[j].Version
+			})
+		}
 
 		require.EqualValues(t, want, got)
 	}
@@ -7124,6 +7159,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	var resp listSoftwareTitlesResponse
+	// no self-service software yet
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "self_service", "1")
+	require.Empty(t, resp.SoftwareTitles)
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
 	require.Equal(t, 2, resp.Count)
 	require.NotEmpty(t, resp.CountsUpdatedAt)
@@ -7137,6 +7175,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.1", Vulnerabilities: nil},
 				{Version: "0.0.3", Vulnerabilities: nil},
 			},
+			SelfService: false,
 		},
 		{
 			Name:          "bar",
@@ -7146,6 +7185,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
+			SelfService: false,
 		},
 	}, resp.SoftwareTitles)
 
@@ -7626,12 +7666,20 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	// verify that software installers contain SoftwarePackage field
-	payload := &fleet.UploadSoftwareInstallerPayload{
+	payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "ruby.deb",
+		SelfService:   false,
 		TeamID:        &team1.ID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(payloadRubyTm1, http.StatusOK, "")
+
+	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "emacs.deb",
+		SelfService:   true,
+	}
+	s.uploadSoftwareInstaller(payloadEmacs, http.StatusOK, "")
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -7647,15 +7695,14 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 
 	// Upload an installer for the same software but different arch to a different team
-	payload = &fleet.UploadSoftwareInstallerPayload{
+	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "ruby_arm64.deb",
 		TeamID:        &team2.ID,
 	}
-	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	s.uploadSoftwareInstaller(payloadRubyTm2, http.StatusOK, "")
 
 	// We should only see the one we uploaded to team 1
-
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -7664,10 +7711,50 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"query", "ruby",
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
-
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+
+	// software installer not returned with self-service only (not marked as such)
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
+		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
+	require.Len(t, resp.SoftwareTitles, 0)
+
+	// update it to be self-service, check that it gets returned
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payloadRubyTm1.Filename)
+		return err
+	})
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
+		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+
+	// no team but self-service returns the emacs software (technically impossible via the UI)
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"self_service", "true",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+
+	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
+	respTitle := getSoftwareTitleResponse{}
+	s.DoJSON("GET", emacsPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
+
+	require.NotNil(t, respTitle.SoftwareTitle)
+	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.SoftwarePackage.Name)
+	require.True(t, respTitle.SoftwareTitle.SoftwarePackage.SelfService)
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
@@ -8940,10 +9027,16 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	var getHostSw getHostSoftwareResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 0)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 0)
 
 	var getDeviceSw getDeviceSoftwareResponse
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	err := json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 0)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 0)
 
@@ -8964,6 +9057,13 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
+	// no package information as there is no installer
+	require.Nil(t, getHostSw.Software[0].SelfService)
+	require.Nil(t, getHostSw.Software[0].Package)
+	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
+	require.Nil(t, getHostSw.Software[1].SelfService)
+	require.Nil(t, getHostSw.Software[1].Package)
+	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
@@ -8973,26 +9073,52 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
+	// no package information as there is no installer
+	require.Nil(t, getHostSw.Software[0].SelfService)
+	require.Nil(t, getHostSw.Software[0].Package)
+	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
+	require.Nil(t, getHostSw.Software[1].SelfService)
+	require.Nil(t, getHostSw.Software[1].Package)
+	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
 
 	// create a software installer, not installed on the host
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "ruby.deb",
+		Version:       "1:2.5.1",
 	}
 	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+	// update it to be self-service
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payload.Filename)
+		return err
+	})
 
 	// available installer is returned by user-authenticated endpoint
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
+	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 	require.NotNil(t, getHostSw.Software[2].PackageAvailableForInstall)
 	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
+	require.NotNil(t, getHostSw.Software[2].SelfService)
+	require.True(t, *getHostSw.Software[2].SelfService)
 	require.Nil(t, getHostSw.Software[2].Status)
+	// package object is not returned for user-authenticated endpoint
+	require.Nil(t, getHostSw.Software[2].Package)
+
+	// only the installer is returned for self-service only
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.Equal(t, getHostSw.Software[0].Name, "ruby")
 
 	// available installer is not returned by device-authenticated endpoint
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
@@ -9005,6 +9131,22 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
 	require.Nil(t, getDeviceSw.Software[1].PackageAvailableForInstall)
+
+	// but it gets returned for self-service only
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	// package available for install is not returned for device-authenticated
+	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
+	// but package object is
+	require.NotNil(t, getDeviceSw.Software[0].Package)
+	require.NotNil(t, getDeviceSw.Software[0].SelfService)
+	require.True(t, *getDeviceSw.Software[0].SelfService)
+	require.Equal(t, payload.Filename, getDeviceSw.Software[0].Package.Name)
+	require.Equal(t, payload.Version, getDeviceSw.Software[0].Package.Version)
 
 	// request installation on the host
 	var installResp installSoftwareResponse
@@ -9023,8 +9165,17 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
 	require.NotNil(t, getHostSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
+	require.NotNil(t, getHostSw.Software[2].SelfService)
+	require.True(t, *getHostSw.Software[2].SelfService)
+	require.Nil(t, getHostSw.Software[2].Package)
 
-	// now returned by device-authenticated endpoin
+	// still returned with self-service filter
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+
+	// now returned by device-authenticated endpoint
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
@@ -9037,6 +9188,21 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Nil(t, getDeviceSw.Software[2].PackageAvailableForInstall)
 	require.NotNil(t, getDeviceSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
+	require.NotNil(t, getDeviceSw.Software[2].SelfService)
+	require.True(t, *getDeviceSw.Software[2].SelfService)
+	require.NotNil(t, getDeviceSw.Software[2].Package)
+
+	// still returned for self-service only too
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.NotNil(t, getDeviceSw.Software[0].SelfService)
+	require.True(t, *getDeviceSw.Software[0].SelfService)
+	require.NotNil(t, getDeviceSw.Software[0].Package)
+	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
 
 	// test with a query
 	getHostSw = getHostSoftwareResponse{}
@@ -9165,7 +9331,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
 		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null}`, 0)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), `{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": false}`, 0)
 
 		// check the software installer
 		_, titleID := checkSoftwareInstaller(t, payload)
@@ -9200,11 +9366,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			PostInstallScript: "another post install script",
 			Filename:          "ruby.deb",
 			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
-			Title:     "ruby",
-			Version:   "1:2.5.1",
-			Source:    "deb_packages",
-			StorageID: "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
-			Platform:  "linux",
+			Title:       "ruby",
+			Version:     "1:2.5.1",
+			Source:      "deb_packages",
+			StorageID:   "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:    "linux",
+			SelfService: true,
 		}
 		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
@@ -9212,7 +9379,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		installerID, titleID := checkSoftwareInstaller(t, payload)
 
 		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// upload again fails
 		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
@@ -9252,7 +9419,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/%d/package", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 	})
 }
 
@@ -9279,7 +9446,8 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 				"name": teamName,
 				"software": []map[string]any{
 					{
-						"url": "http://foo.com",
+						"url":          "http://foo.com",
+						"self_service": true,
 						"install_script": map[string]string{
 							"path": "./foo/install-script.sh",
 						},
@@ -9311,12 +9479,14 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	wantSoftware := []fleet.TeamSpecSoftware{
 		{
 			URL:               "http://foo.com",
+			SelfService:       true,
 			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
 			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
 		},
 		{
 			URL:               "http://bar.com",
+			SelfService:       false,
 			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
 			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
@@ -9749,6 +9919,88 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
 }
 
+func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
+	t := s.T()
+
+	host1 := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	token := "secret_token"
+	createDeviceTokenForHost(t, s.ds, host1.ID, token)
+
+	payloadNoSS := &fleet.UploadSoftwareInstallerPayload{
+		PreInstallQuery:   "SELECT 1",
+		InstallScript:     "install",
+		PostInstallScript: "echo hi",
+		Filename:          "ruby.deb",
+		Title:             "ruby",
+		SelfService:       false,
+	}
+	s.uploadSoftwareInstaller(payloadNoSS, http.StatusOK, "")
+	titleIDNoSS := getSoftwareTitleID(t, s.ds, payloadNoSS.Title, "deb_packages")
+
+	payloadSS := &fleet.UploadSoftwareInstallerPayload{
+		PreInstallQuery:   "SELECT 2",
+		InstallScript:     "install again",
+		PostInstallScript: "echo bye",
+		Filename:          "emacs.deb",
+		Title:             "emacs",
+		SelfService:       true,
+	}
+	s.uploadSoftwareInstaller(payloadSS, http.StatusOK, "")
+	titleIDSS := getSoftwareTitleID(t, s.ds, payloadSS.Title, "deb_packages")
+
+	// cannot self-install if software installer does not allow it
+	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDNoSS), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Software title is not available through self-service")
+
+	// request self-install of software that allows it
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleIDSS), nil, http.StatusAccepted)
+
+	// it shows up as "self-installed" in the upcoming activities of the host
+	var listUpcomingAct listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	require.Nil(t, listUpcomingAct.Activities[0].ActorID)
+
+	var details fleet.ActivityTypeInstalledSoftware
+	err := json.Unmarshal([]byte(*listUpcomingAct.Activities[0].Details), &details)
+	require.NoError(t, err)
+	require.Equal(t, host1.ID, details.HostID)
+	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
+	require.True(t, details.SelfService)
+	require.EqualValues(t, fleet.SoftwareInstallerPending, details.Status)
+	installID := details.InstallUUID
+
+	// record the installation results
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 0,
+			"install_script_output": "ok"
+		}`, *host1.OrbitNodeKey, installID)),
+		http.StatusNoContent)
+
+	// nothing in upcoming activities anymore
+	listUpcomingAct = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 0)
+
+	// installation shows up in past activities
+	var listPastAct listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &listPastAct)
+	require.Len(t, listPastAct.Activities, 1)
+	require.Nil(t, listPastAct.Activities[0].ActorID)
+
+	err = json.Unmarshal([]byte(*listPastAct.Activities[0].Details), &details)
+	require.NoError(t, err)
+	require.Equal(t, host1.ID, details.HostID)
+	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
+	require.True(t, details.SelfService)
+	require.EqualValues(t, fleet.SoftwareInstallerInstalled, details.Status)
+}
+
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	ctx := context.Background()
 	t := s.T()
@@ -9822,6 +10074,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		SoftwareTitle:   payload.Title,
+		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUIDs[0],
 		Status:          string(fleet.SoftwareInstallerFailed),
 	}
@@ -9909,6 +10162,9 @@ func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.
 	require.NoError(t, w.WriteField("install_script", payload.InstallScript))
 	require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
 	require.NoError(t, w.WriteField("post_install_script", payload.PostInstallScript))
+	if payload.SelfService {
+		require.NoError(t, w.WriteField("self_service", "true"))
+	}
 
 	w.Close()
 

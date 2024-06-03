@@ -67,13 +67,13 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// Create activity
-	if err := svc.NewActivity(
-		ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-			SoftwareTitle:   payload.Title,
-			SoftwarePackage: payload.Filename,
-			TeamName:        teamName,
-			TeamID:          payload.TeamID,
-		}); err != nil {
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+		SoftwareTitle:   payload.Title,
+		SoftwarePackage: payload.Filename,
+		TeamName:        teamName,
+		TeamID:          payload.TeamID,
+		SelfService:     payload.SelfService,
+	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
@@ -112,13 +112,13 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		teamName = &t.Name
 	}
 
-	if err := svc.NewActivity(
-		ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
-			SoftwareTitle:   meta.SoftwareTitle,
-			SoftwarePackage: meta.Name,
-			TeamName:        teamName,
-			TeamID:          meta.TeamID,
-		}); err != nil {
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
+		SoftwareTitle:   meta.SoftwareTitle,
+		SoftwarePackage: meta.Name,
+		TeamName:        teamName,
+		TeamID:          meta.TeamID,
+		SelfService:     meta.SelfService,
+	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
 
@@ -242,15 +242,8 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	}
 
 	ext := filepath.Ext(installer.Name)
-	var requiredPlatform string
-	switch ext {
-	case ".msi", ".exe":
-		requiredPlatform = "windows"
-	case ".pkg":
-		requiredPlatform = "darwin"
-	case ".deb":
-		requiredPlatform = "linux"
-	default:
+	requiredPlatform := packageExtensionToPlatform(ext)
+	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
 	}
@@ -265,7 +258,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		}
 	}
 
-	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, installer.InstallerID)
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, installer.InstallerID, false)
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
@@ -455,6 +448,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 				PreInstallQuery:   p.PreInstallQuery,
 				PostInstallScript: p.PostInstallScript,
 				InstallerFile:     bytes.NewReader(bodyBytes),
+				SelfService:       p.SelfService,
 			}
 
 			// set the filename before adding metadata, as it is used as fallback
@@ -517,4 +511,69 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 	// anymore, so that's intentionally skipped.
 
 	return nil
+}
+
+func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{
+				Message: "Software title has no package added. Please add software package to install.",
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "couldn't find an installer for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
+			}
+		}
+
+		return ctxerr.Wrap(ctx, err, "finding software installer for title")
+	}
+
+	if !installer.SelfService {
+		return &fleet.BadRequestError{
+			Message: "Software title is not available through self-service",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "software title not available through self-service",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
+		}
+	}
+
+	ext := filepath.Ext(installer.Name)
+	requiredPlatform := packageExtensionToPlatform(ext)
+	if requiredPlatform == "" {
+		// this should never happen
+		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
+	}
+
+	if host.FleetPlatform() != requiredPlatform {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+			InternalErr: ctxerr.WrapWithData(
+				ctx, err, "invalid host platform for requested installer",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
+		}
+	}
+
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true)
+	return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
+}
+
+// packageExtensionToPlatform returns the platform name based on the
+// package extension. Returns an empty string if there is no match.
+func packageExtensionToPlatform(ext string) string {
+	var requiredPlatform string
+	switch ext {
+	case ".msi", ".exe":
+		requiredPlatform = "windows"
+	case ".pkg":
+		requiredPlatform = "darwin"
+	case ".deb":
+		requiredPlatform = "linux"
+	default:
+		return ""
+	}
+
+	return requiredPlatform
 }

@@ -29,7 +29,7 @@ import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
-import { ISoftwareDropdownFilterVal } from "./SoftwareTitles/SoftwareTable/helpers";
+import { getSoftwareFilterFromQueryParams } from "./SoftwareTitles/SoftwareTable/helpers";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -61,16 +61,6 @@ const getTabIndex = (path: string): number => {
     // tab stays highlighted for paths that start with same pathname
     return path.startsWith(navItem.pathname);
   });
-};
-
-const getSoftwareFilter = (
-  vulnerable?: string,
-  installable?: string
-): ISoftwareDropdownFilterVal => {
-  if (installable === "true") return "installableSoftware";
-  return vulnerable && vulnerable === "true"
-    ? "vulnerableSoftware"
-    : "allSoftware";
 };
 
 // default values for query params used on this page if not provided
@@ -149,10 +139,11 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
-  const softwareFilter = getSoftwareFilter(
-    queryParams.vulnerable,
-    queryParams.available_for_install
-  );
+
+  // TODO: there should be better validation of the params depending on the route (e.g., self_service
+  // and available_for_install don't apply to versions, os, or vulnerabilities routes) and some
+  // defined redirect behavior if the params are invalid
+  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false

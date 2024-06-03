@@ -617,7 +617,7 @@ func TestHostAuth(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
-	ds.ListHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	ds.ListHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
 
@@ -762,10 +762,10 @@ func TestHostAuth(t *testing.T) {
 			_, err = svc.SetCustomHostDeviceMapping(ctx, 2, "a@b.c")
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			_, _, err = svc.ListHostSoftware(ctx, 1, fleet.ListOptions{})
+			_, _, err = svc.ListHostSoftware(ctx, 1, fleet.HostSoftwareTitleListOptions{})
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, _, err = svc.ListHostSoftware(ctx, 2, fleet.ListOptions{})
+			_, _, err = svc.ListHostSoftware(ctx, 2, fleet.HostSoftwareTitleListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 		})
 	}

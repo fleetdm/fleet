@@ -57,7 +57,7 @@ WITH encrypted(enabled) AS (
 
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, tuxedo
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin
 
 - Query:
 ```sql
@@ -235,7 +235,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, tuxedo
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin
 
 - Query:
 ```sql
@@ -249,8 +249,8 @@ FROM
 	-- whereas on Windows ia.interface is the IP of the interface.
     JOIN routes r ON r.interface = ia.interface
 WHERE
-	-- Destination 0.0.0.0/0 is the default route on route tables.
-    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+    (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
 	-- Type of route is "gateway" for Unix, "remote" for Windows.
     AND r.type = 'gateway'
 	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
@@ -287,8 +287,8 @@ FROM
 	-- whereas on Windows ia.interface is the IP of the interface.
     JOIN routes r ON r.interface = ia.address
 WHERE
-	-- Destination 0.0.0.0/0 is the default route on route tables.
-    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+    (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
 	-- Type of route is "gateway" for Unix, "remote" for Windows.
     AND r.type = 'remote'
 	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
@@ -311,7 +311,7 @@ LIMIT 1;
 
 ## orbit_info
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Discovery query:
 ```sql
@@ -345,7 +345,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, tuxedo
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin
 
 - Query:
 ```sql
@@ -384,16 +384,23 @@ WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		ubr_table AS (
+			SELECT data AS ubr
+			FROM registry
+			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
 		)
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			k.version
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			ubr_table u
 ```
 
 ## os_windows
@@ -406,24 +413,31 @@ WITH display_version_table AS (
 		SELECT data as display_version
 		FROM registry
 		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	),
+	ubr_table AS (
+	SELECT data AS ubr
+	FROM registry
+	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
 	)
 	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version,
+		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
 		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
 		kernel_info k
 	LEFT JOIN
 		display_version_table d
+	LEFT JOIN
+		ubr_table u
 ```
 
 ## osquery_flags
 
-- Platforms: all
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Query:
 ```sql
@@ -441,7 +455,7 @@ select * from osquery_info limit 1
 
 ## scheduled_query_stats
 
-- Platforms: all
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Query:
 ```sql
@@ -662,7 +676,7 @@ FROM homebrew_packages;
 
 ## software_vscode_extensions
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows, tuxedo
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Discovery query:
 ```sql
@@ -777,7 +791,7 @@ select * from system_info limit 1
 
 ## uptime
 
-- Platforms: all
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Query:
 ```sql
@@ -786,7 +800,7 @@ select * from uptime limit 1
 
 ## users
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Query:
 ```sql
