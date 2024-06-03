@@ -63,7 +63,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.7.1"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.8.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -125,7 +125,8 @@ module "main" {
       module.geolite2.extra_environment_variables,
       module.vuln-processing.extra_environment_variables
     )
-    extra_secrets = merge(module.mdm.extra_secrets, local.sentry_secrets)
+    extra_secrets           = merge(module.mdm.extra_secrets, local.sentry_secrets)
+    private_key_secret_name = "${local.customer}-fleet-server-private-key"
     # extra_load_balancers         = [{
     #   target_group_arn = module.saml_auth_proxy.lb_target_group_arn
     #   container_name   = "fleet"
@@ -448,13 +449,14 @@ module "geolite2" {
 }
 
 module "vuln-processing" {
-  source                 = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.0.2"
-  ecs_cluster            = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
-  execution_iam_role_arn = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
-  subnets                = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
-  security_groups        = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
-  fleet_config           = module.main.byo-vpc.byo-db.byo-ecs.fleet_config
-  task_role_arn          = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
+  source                              = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.1.0"
+  ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
+  execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
+  subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
+  security_groups                     = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
+  fleet_config                        = module.main.byo-vpc.byo-db.byo-ecs.fleet_config
+  task_role_arn                       = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
+  fleet_server_private_key_secret_arn = module.main.byo-vpc.byo-db.byo-ecs.fleet_server_private_key_secret_arn
   awslogs_config = {
     group  = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.name
     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region

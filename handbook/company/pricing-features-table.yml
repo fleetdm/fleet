@@ -24,7 +24,7 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
-    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-06-30).
+    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-09-30).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
     - description: Implement multivariate device trust
       moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
@@ -557,7 +557,7 @@
     - description: Target profiles to specific hosts using SQL.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
     - description: Automatically re-deploy configuration profiles when they're not installed.
-    - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-06-30).
+    - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-07-15).
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Self service
@@ -582,9 +582,9 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-03-31)
+    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-07-15)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
-    - description: MDM commands for iOS/iPadOS are coming soon (2024-06-30).
+    - description: MDM commands for iOS/iPadOS are coming soon (2024-07-15).
 - industryName: Native macOS update reminders
   description: Send low-level MDM commands to tell end users to update their OS.
   moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
@@ -599,7 +599,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: Zero-touch for iOS/iPadOS is coming soon (2024-06-30).
+    - description: Zero-touch for iOS/iPadOS is coming soon (2024-07-15).
     - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
@@ -635,10 +635,10 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Deploy and update apps on macOS, Windows, and Linux computers.
+- industryName: Update apps on macOS, Windows, and Linux computers.
   description: Install Zoom, Slack, Chrome, and other apps without interrupting your end users.
   tier: Premium
-  comingSoonOn: 2024-06-30
+  comingSoonOn: 2024-07-15
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]

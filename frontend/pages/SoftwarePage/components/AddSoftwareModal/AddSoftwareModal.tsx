@@ -2,11 +2,11 @@ import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import team, { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 import { NotificationContext } from "context/notification";
-import { buildQueryStringFromParams } from "utilities/url";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -95,21 +95,29 @@ const AddSoftwareModal = ({
       return;
     }
 
+    // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await softwareAPI.addSoftwarePackage(formData, teamId);
       renderFlash(
         "success",
         <>
-          <b>{formData.software?.name}</b> successfully added. Go to Host
-          details page to install software.
+          <b>{formData.software?.name}</b> successfully added.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
         </>
       );
       onExit();
+
+      const newQueryParams: QueryParams = { team_id: teamId };
+      if (formData.selfService) {
+        newQueryParams.self_service = true;
+      } else {
+        newQueryParams.available_for_install = true;
+      }
+
       router.push(
-        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-          available_for_install: true,
-          team_id: teamId,
-        })}`
+        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
       renderFlash("error", getErrorReason(e));

@@ -6672,7 +6672,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	// create a bunch of software
 	sws := make([]fleet.Software, 20)
 	for i := range sws {
-		sw := fleet.Software{Name: "sw" + strconv.Itoa(i), Version: "0.0." + strconv.Itoa(i), Source: "apps"}
+		sw := fleet.Software{Name: fmt.Sprintf("sw%02d", i), Version: fmt.Sprintf("0.0.%02d", i), Source: "apps"}
 		if i%2 == 0 {
 			sw.Source = "chrome_extensions"
 			sw.Browser = "chrome"
@@ -11254,7 +11254,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
-	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID)
+	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, false)
 	require.NoError(t, err)
 
 	// force an order to the activities

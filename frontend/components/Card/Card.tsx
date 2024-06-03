@@ -3,12 +3,15 @@ import classnames from "classnames";
 
 const baseClass = "card";
 
-type BorderRadiusSize = "small" | "medium" | "large";
+type BorderRadiusSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
 type CardColor = "white" | "gray" | "purple" | "yellow";
 
 interface ICardProps {
   children?: React.ReactNode;
-  /** The size of the border radius. Defaults to `small`. */
+  /** The size of the border radius. Defaults to `small`.
+   *
+   * These correspond to the boarder radius in the design system. Look at
+   * `var/_global.scss` for values */
   borderRadiusSize?: BorderRadiusSize;
   /** Includes the card shadows. Defaults to `false` */
   includeShadow?: boolean;
@@ -17,9 +20,11 @@ interface ICardProps {
   className?: string;
   /** The size of the padding around the content of the card. Defaults to `large`.
    *
-   * These correspond to the padding sizes in the design system. Look at `padding.scss` for values */
+   * These correspond to the padding sizes in the design system. Look at
+   * `padding.scss` for values */
   paddingSize?: "small" | "medium" | "large" | "xlarge" | "xxlarge";
-  /** NOTE: DEPRICATED. Use `paddingSize` prop instead.
+  /**
+   * @deprecated Use `paddingSize` prop instead.
    *
    * Increases to 40px padding. Defaults to `false` */
   largePadding?: boolean;

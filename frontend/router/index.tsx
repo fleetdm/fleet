@@ -293,6 +293,7 @@ const routes = (
 
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
+            <Route path="self-service" component={DeviceUserPage} />
             <Route path="software" component={DeviceUserPage} />
             <Route path="policies" component={DeviceUserPage} />
           </Route>
