@@ -34,9 +34,9 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
-		return nil
-	}
+	//	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
+	//		return nil
+	//	}
 
 	updaterHasTarget := s.UpdateRunner.HasRunnerOptTarget("swiftDialog")
 	runnerHasLocalHash := s.UpdateRunner.HasLocalHash("swiftDialog")

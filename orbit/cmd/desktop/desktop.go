@@ -12,12 +12,10 @@ import (
 	"fyne.io/systray"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/useraction"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -121,9 +119,9 @@ func main() {
 		systray.AddSeparator()
 
 		migrateMDMItem := systray.AddMenuItem("Migrate to Fleet", "")
-		migrateMDMItem.Disable()
+		// migrateMDMItem.Disable()
 		// this item is only shown if certain conditions are met below.
-		migrateMDMItem.Hide()
+		// migrateMDMItem.Hide()
 
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
@@ -281,7 +279,7 @@ func main() {
 		// tray icon accordingly
 		go func() {
 			<-deviceEnabledChan
-			tic := time.NewTicker(5 * time.Minute)
+			tic := time.NewTicker(10 * time.Second)
 			defer tic.Stop()
 
 			for {
@@ -328,23 +326,25 @@ func main() {
 				}
 				myDeviceItem.Enable()
 
-				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
+				// shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
+				shouldRunMigrator := true
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
-					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
-					if err != nil {
-						log.Error().Err(err).Msg("fetching enrollment status to show mdm migrator")
-						continue
-					}
+					// enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
+					// if err != nil {
+					// 	log.Error().Err(err).Msg("fetching enrollment status to show mdm migrator")
+					// 	continue
+					// }
 
 					// we perform this check locally on the client too to avoid showing the
 					// dialog if the client has already migrated but the Fleet server
 					// doesn't know about this state yet.
-					enrolledIntoFleet, err := fleethttp.HostnamesMatch(enrollURL, fleetURL)
-					if err != nil {
-						log.Error().Err(err).Msg("comparing MDM server URLs")
-						continue
-					}
+					// enrolledIntoFleet, err := fleethttp.HostnamesMatch(enrollURL, fleetURL)
+					// if err != nil {
+					// 	log.Error().Err(err).Msg("comparing MDM server URLs")
+					// 	continue
+					// }
+					enrolledIntoFleet := false
 					if !enrolledIntoFleet {
 						// isUnmanaged captures two important bits of information:
 						//
@@ -352,9 +352,11 @@ func main() {
 						//   not available in the client (eg: is MDM configured? are migrations enabled?
 						//   is this device elegible for migration?)
 						// - The current enrollment status of the device.
-						isUnmanaged := sum.Notifications.RenewEnrollmentProfile && !enrolled
-						forceModeEnabled := sum.Notifications.NeedsMDMMigration &&
-							sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced
+						// isUnmanaged := sum.Notifications.RenewEnrollmentProfile && !enrolled
+						isUnmanaged := false
+						forceModeEnabled := false
+						// forceModeEnabled := sum.Notifications.NeedsMDMMigration &&
+						// sum.Config.MDM.MacOSMigration.Mode == fleet.MacOSMigrationModeForced
 
 						// update org info in case it changed
 						mdmMigrator.SetProps(useraction.MDMMigratorProps{
@@ -428,13 +430,15 @@ type mdmMigrationHandler struct {
 func (m *mdmMigrationHandler) NotifyRemote() error {
 	log.Info().Msg("sending request to trigger mdm migration webhook")
 
+	time.Sleep(5 * time.Second)
+
 	// TODO: Revisit if/when we should hide the migration menu item depending on the
 	// result of the client request.
-	if err := m.client.MigrateMDM(m.tokenReader.GetCached()); err != nil {
-		log.Error().Err(err).Msg("triggering migration webhook")
-		return fmt.Errorf("on migration start: %w", err)
-	}
-	log.Info().Msg("successfully sent request to trigger mdm migration webhook")
+	//	if err := m.client.MigrateMDM(m.tokenReader.GetCached()); err != nil {
+	//		log.Error().Err(err).Msg("triggering migration webhook")
+	//		return fmt.Errorf("on migration start: %w", err)
+	//	}
+	//	log.Info().Msg("successfully sent request to trigger mdm migration webhook")
 	return nil
 }
 
