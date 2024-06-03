@@ -2,12 +2,15 @@ package fleet_logs
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog"
 )
+
+var logger = Logger{}
 
 func TablePlugin() *table.Plugin {
 	columns := []table.ColumnDefinition{
@@ -20,7 +23,16 @@ func TablePlugin() *table.Plugin {
 }
 
 func generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	return nil, nil
+	output := make([]map[string]string, len(logger.logs))
+
+	for _, entry := range logger.logs {
+		row := make(map[string]string, 3)
+		row["time"] = strconv.FormatInt(entry.Time, 10)
+		row["level"] = entry.Level.String()
+		row["message"] = string(entry.Message)
+		output = append(output, row)
+	}
+	return output, nil
 }
 
 type Message struct {
