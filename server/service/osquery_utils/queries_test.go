@@ -1944,3 +1944,13 @@ func TestGenerateSQLForAllExists(t *testing.T) {
 	sql = generateSQLForAllExists()
 	require.Equal(t, "SELECT 0 LIMIT 0", sql)
 }
+
+func TestOverrideDiscoveryQueryValidation(t *testing.T) {
+	for n, q := range SoftwareOverrideQueries {
+		// Ensure that the discovery query does not contain a semicolon
+		// to ensure subqueries are not terminated early (Issue #19401)
+		if strings.Contains(q.Discovery, ";") {
+			t.Errorf("Software override query %s contains semicolon", n)
+		}
+	}
+}
