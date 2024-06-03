@@ -13,9 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -6112,14 +6110,10 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 
 func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
-	require.NoError(t, err)
-	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
-	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
-	scepDepot, err := ds.NewSCEPDepot(testCertPEM, testKeyPEM)
+	scepDepot, err := ds.NewSCEPDepot()
 	require.NoError(t, err)
 
-	nanoStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	nanoStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
 	addCert := func(notAfter time.Time, h *fleet.Host) {

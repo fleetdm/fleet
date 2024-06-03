@@ -86,7 +86,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
         setABMExpiry(abmInfo.renew_date);
       }
-      if (configResponse.mdm.apple_bm_enabled_and_configured) {
+      if (configResponse.mdm.enabled_and_configured) {
         const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
         setAPNsExpiry(apnsInfo.renew_date);
       }

@@ -678,6 +678,23 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
+##### server_private_key
+
+The private key used to encrypt sensitive data in Fleet, for example, MDM certificates and keys.
+The key must be at least 32 bytes long. If the key is longer than 32 bytes, only the first 32 bytes
+will be used (the data is encrypted using AES-256, which requires a 32 byte key). This key is
+required for enabling MDM features in Fleet. If you are using the `FLEET_APPLE_APNS_*` and
+`FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using
+`FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
+
+- Default value: ""
+- Environment variable: FLEET_SERVER_PRIVATE_KEY
+- Config file format:
+  ```yaml
+  server:
+    private_key: 72414F4A688151F75D032F5CDA095FC4
+  ```
+
 ##### Example YAML
 
 ```yaml

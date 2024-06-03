@@ -878,10 +878,11 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
   - "Please, can I have a Kleenex?"
 - Acronyms _("MDM", "REST", "API", "JSON")_
   - "MDM commands in Fleet are available over a REST API that returns JSON"
-- Stylizations _("macOS", "osquery", "MySQL")
+- Stylizations _("macOS", "osquery", "MySQL", "APNs")
   - "Although 'macOS' is a proper noun, macOS uses its own style guide from Apple, to which we adhere"
   - "Zach is the co-creator of osquery"
   - "Does it work with MySQL?"
+  - "Does it use APNs (the Apple Push Notification service)?"
 
 - ***Struggling with this?*** It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself. Contributors have given feedback that this [opinionated solution](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-sentence-case) is a huge relief once you build the habit of sentence case capitalization. You don't have to think as hard, nor choose between flouting and diligently adhering to the style guide.
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/cca980db-24e1-4303-a120-ecdb7419aac4">

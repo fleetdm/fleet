@@ -825,6 +825,14 @@ type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string,
 
 type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
 
+type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
+
+type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
+
+type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error)
+
+type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -2166,6 +2174,18 @@ type DataStore struct {
 
 	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
 	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
+
+	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
+	InsertMDMConfigAssetsFuncInvoked bool
+
+	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
+	GetAllMDMConfigAssetsByNameFuncInvoked bool
+
+	GetAllMDMConfigAssetsHashesFunc        GetAllMDMConfigAssetsHashesFunc
+	GetAllMDMConfigAssetsHashesFuncInvoked bool
+
+	DeleteMDMConfigAssetsByNameFunc        DeleteMDMConfigAssetsByNameFunc
+	DeleteMDMConfigAssetsByNameFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5187,6 +5207,34 @@ func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUU
 	s.MDMAppleSetPendingDeclarationsAsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleSetPendingDeclarationsAsFunc(ctx, hostUUID, status, detail)
+}
+
+func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	s.mu.Lock()
+	s.InsertMDMConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMConfigAssetsFunc(ctx, assets)
+}
+
+func (s *DataStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	s.mu.Lock()
+	s.GetAllMDMConfigAssetsByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames)
+}
+
+func (s *DataStore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+	s.mu.Lock()
+	s.GetAllMDMConfigAssetsHashesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllMDMConfigAssetsHashesFunc(ctx, assetNames)
+}
+
+func (s *DataStore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	s.mu.Lock()
+	s.DeleteMDMConfigAssetsByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMConfigAssetsByNameFunc(ctx, assetNames)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

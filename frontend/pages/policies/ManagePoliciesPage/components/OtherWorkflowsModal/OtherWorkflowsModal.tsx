@@ -426,7 +426,6 @@ const OtherWorkflowsModal = ({
                               !isChecked &&
                                 setErrors((errs) => omit(errs, "policyItems"));
                             }}
-                            smallTick
                           >
                             {name}
                           </Checkbox>
