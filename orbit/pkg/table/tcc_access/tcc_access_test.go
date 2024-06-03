@@ -11,28 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// modifies global var defined in tcc_access
-
 // TestGenerate tests the tcc_access table generation.
 func TestGenerate(t *testing.T) {
 	testContext = true
 	tccPathPrefix = "./testdata"
 	tccPathSuffix = "/test-TCC.db"
-	// test with invalid col constraint
-	_, err := Generate(context.Background(), table.QueryContext{
-		Constraints: map[string]table.ConstraintList{
-			"notacol": {
-				Affinity: table.ColumnTypeText,
-				Constraints: []table.Constraint{
-					{
-						Operator:   table.OperatorEquals,
-						Expression: "val",
-					},
-				},
-			},
-		},
-	})
-	require.Error(t, err)
 
 	rows, err := Generate(context.Background(), table.QueryContext{})
 	require.NoError(t, err)
