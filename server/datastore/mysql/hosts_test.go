@@ -6589,7 +6589,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		Platform:      "linux",
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, installerID)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, installerID, false)
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
