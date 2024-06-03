@@ -561,6 +561,9 @@ const (
 	// MDMAssetABMToken is an encrypted JSON file that contains a token
 	// that can be used for the authentication process with the ABM API
 	MDMAssetABMToken MDMAssetName = "abm_token"
+	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
+	// certificatges to Apple devices.
+	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
 )
 
 type MDMConfigAsset struct {

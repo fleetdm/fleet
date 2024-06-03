@@ -1344,10 +1344,16 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetSCEPChallenge,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
+	}
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		enrollURL,
-		svc.config.MDM.AppleSCEPChallenge,
+		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 	)
 	if err != nil {
@@ -3257,12 +3263,20 @@ func RenewSCEPCertificates(
 		return ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
 	}
 
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetSCEPChallenge,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "loading SCEP challenge from the database")
+	}
+	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
+
 	// send a single command for all the hosts without references.
 	if len(assocsWithoutRefs) > 0 {
 		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 			appConfig.OrgInfo.OrgName,
 			appConfig.ServerSettings.ServerURL,
-			config.MDM.AppleSCEPChallenge,
+			scepChallenge,
 			mdmPushCertTopic,
 		)
 		if err != nil {
@@ -3307,7 +3321,7 @@ func RenewSCEPCertificates(
 		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 			appConfig.OrgInfo.OrgName,
 			enrollURL,
-			config.MDM.AppleSCEPChallenge,
+			scepChallenge,
 			mdmPushCertTopic,
 		)
 		if err != nil {
