@@ -100,7 +100,7 @@ func getTCCAccessRows(username string) ([]map[string]string, error) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("Generate failed at `cmd.Run()`:"+stderr.String()+":%w", err)
+		return nil, fmt.Errorf("Generate failed at `cmd.Run()`%s: %w", stderr.String(), err)
 	}
 
 	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
@@ -117,13 +117,10 @@ func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	// split by newLine for rows, then by "|" for columns
 	rawRows := strings.Split(string(dbOut[:]), "\n")
 	n := len(rawRows)
-	for len(rawRows[n-1]) == 0 {
-		// if the end of the db response is "\n", the final row will be "", which we want to omit
-		rawRows = rawRows[:n-1]
-		n = len(rawRows)
-	}
+	// the end of the db response is "\n", making the final row "", which we want to omit
+	rawRows = rawRows[:n-1]
 
-	var parsedRows [][]string
+	parsedRows := make([][]string, 0, len(rawRows))
 	for _, rawRow := range rawRows {
 		parsedRows = append(parsedRows, strings.Split(rawRow, "|"))
 	}
@@ -159,7 +156,6 @@ func buildTableRows(username string, parsedRows [][]string) ([]map[string]string
 }
 
 func getUidFromUsername(username string) (string, error) {
-	// QUESTION - possible to override global functions? Tried, haven't figured it out
 	if testContext {
 		testUId, ok := map[string]string{"testUser1": "1", "testUser2": "2"}[username]
 		if ok {
