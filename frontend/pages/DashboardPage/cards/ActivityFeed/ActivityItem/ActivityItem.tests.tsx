@@ -262,7 +262,7 @@ describe("Activity Feed", () => {
   it("renders a user_logged_in type activity without public IP", () => {
     const activity = createMockActivity({
       type: ActivityType.UserLoggedIn,
-      details: { public_ip: undefined },
+      details: {},
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
