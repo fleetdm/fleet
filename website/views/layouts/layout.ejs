@@ -9,7 +9,7 @@
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
   var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
-  
+  var hideStartCTA;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
   var defaultMetaTitle = 'Fleet | Open-source '+(primaryBuyingSituation === 'mdm' ? 'device management' : primaryBuyingSituation === 'vm' ? 'vulnerability management' : 'endpoint ops');
@@ -426,8 +426,10 @@
             </div>
           </div>
       <% } %>
+    <%if(!hideStartCTA){%>
+      <%- partial('../partials/continue.partial.ejs') %>
+    <%}%>
     </div>
-
     <% /*
       Client-side JavaScript
       ========================
