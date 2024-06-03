@@ -42,6 +42,7 @@ interface ISoftwareTitlesProps {
   softwareFilter: ISoftwareDropdownFilterVal;
   currentPage: number;
   teamId?: number;
+  resetPageIndex: boolean;
 }
 
 const SoftwareTitles = ({
@@ -54,6 +55,7 @@ const SoftwareTitles = ({
   softwareFilter,
   currentPage,
   teamId,
+  resetPageIndex,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
@@ -144,6 +146,7 @@ const SoftwareTitles = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isTitlesFetching || isVersionsFetching}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );

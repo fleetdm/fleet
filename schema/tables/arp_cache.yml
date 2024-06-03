@@ -19,9 +19,7 @@ notes: |-
 
   OUI is used to populate manufacturer information in applications like [Wi-Fi Explorer](https://www.intuitibits.com/products/wifiexplorer/)
 
-  [ARP Cache](https://en.wikipedia.org/wiki/ARP_cache)
-
-  Monitoring the ARP cache is useful for maintaining network integrity & security. Querying data from this table can help to:
+  Monitoring the [ARP Cache](https://en.wikipedia.org/wiki/ARP_cache) is useful for maintaining network integrity & security. Querying data from this table can help to:
 
     - Find network anomalies
     - Troubleshoot network connectivity

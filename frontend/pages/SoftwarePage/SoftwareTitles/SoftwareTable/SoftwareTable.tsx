@@ -71,6 +71,7 @@ interface ISoftwareTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
+  resetPageIndex: boolean;
 }
 
 const baseClass = "software-table";
@@ -88,6 +89,7 @@ const SoftwareTable = ({
   currentPage,
   teamId,
   isLoading,
+  resetPageIndex,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
@@ -368,6 +370,7 @@ const SoftwareTable = ({
         renderFooter={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );
