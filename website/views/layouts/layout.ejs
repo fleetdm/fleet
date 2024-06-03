@@ -634,6 +634,12 @@
     $(function() {
       $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
     });
+    $(function() {
+      if (window.location.search && window.location.search.includes('utm_content')) {
+        let url = window.location.protocol + '//' + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: url }, '', url);
+      }
+    });
     <%/* Adding hover events to header dropdown menus*/%>
     $(function(){
       $('[purpose=dropdown-button]').hover(
