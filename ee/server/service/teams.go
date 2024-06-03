@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -586,15 +587,36 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
-		return nil, err
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	if alreadyAuthd {
+		// device-authenticated request can only get the device's team
+		host, ok := hostctx.FromContext(ctx)
+		if !ok {
+			err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+			return nil, err
+		}
+		if host.TeamID == nil || *host.TeamID != teamID {
+			return nil, authz.ForbiddenWithInternal("device-authenticated host does not belong to requested team", nil, "team", "read")
+		}
+	} else {
+		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
+	var user *fleet.User
+	if alreadyAuthd {
+		// device-authenticated, there is no user in the context, use a global
+		// observer with no special permissions
+		user = &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
+	} else {
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, fleet.ErrNoContext
+		}
+		user = vc.User
 	}
 
 	team, err := svc.ds.Team(ctx, teamID)
@@ -602,7 +624,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return nil, err
 	}
 
-	if err = obfuscateSecrets(vc.User, []*fleet.Team{team}); err != nil {
+	if err = obfuscateSecrets(user, []*fleet.Team{team}); err != nil {
 		return nil, err
 	}
 

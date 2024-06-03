@@ -10,12 +10,19 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
 import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
+import {
+  ISoftwareApiParams,
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import {
+  ISoftwareTitleWithPackageName,
+  ISoftwareVersion,
+} from "interfaces/software";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -33,6 +40,7 @@ import {
   ISoftwareDropdownFilterVal,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
   SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
+  getSoftwareFilterForQueryKey,
 } from "./helpers";
 
 interface IRowProps extends Row {
@@ -154,7 +162,10 @@ const SoftwareTable = ({
     [determineQueryParamChange, generateNewQueryParams, router, currentPath]
   );
 
-  let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
+  let tableData:
+    | ISoftwareTitleWithPackageName[]
+    | ISoftwareVersion[]
+    | undefined;
   let generateTableConfig: ITableConfigGenerator;
 
   if (data === undefined) {
@@ -225,28 +236,23 @@ const SoftwareTable = ({
     );
   };
 
-  const handleVulnFilterDropdownChange = (
+  const handleCustomFilterDropdownChange = (
     value: ISoftwareDropdownFilterVal
   ) => {
-    const queryParams: Record<string, any> = {
+    const queryParams: ISoftwareApiParams = {
       query,
-      team_id: teamId,
-      order_direction: orderDirection,
-      order_key: orderKey,
+      teamId,
+      orderDirection,
+      orderKey,
       page: 0, // resets page index
+      ...getSoftwareFilterForQueryKey(value),
     };
-
-    if (value === "installableSoftware") {
-      queryParams.available_for_install = true;
-    } else {
-      queryParams.vulnerable = value === "vulnerableSoftware";
-    }
 
     router.replace(
       getNextLocationPath({
         pathPrefix: currentPath,
         routeTemplate: "",
-        queryParams,
+        queryParams: convertParamsToSnakeCase(queryParams),
       })
     );
   };
@@ -304,7 +310,7 @@ const SoftwareTable = ({
           className={`${baseClass}__vuln_dropdown`}
           options={options}
           searchable={false}
-          onChange={handleVulnFilterDropdownChange}
+          onChange={handleCustomFilterDropdownChange}
           tableFilterDropdown
         />
       </div>
@@ -347,6 +353,9 @@ const SoftwareTable = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        disablePagination={
+          !data?.meta.has_next_results && !data?.meta.has_previous_results
+        }
         disableNextPage={!data?.meta.has_next_results}
         searchable={searchable}
         inputPlaceHolder="Search by name or vulnerabilities (CVEs)"

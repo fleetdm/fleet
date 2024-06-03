@@ -20,3 +20,5 @@ software:
       path: lib/query_ruby.yml
     post_install_script:
       path: lib/post_install_ruby.sh
+  - url: ${SOFTWARE_INSTALLER_URL}/other.deb
+    self_service: true

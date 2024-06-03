@@ -24,7 +24,7 @@ import {
 } from "date-fns";
 import yaml from "js-yaml";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -828,7 +828,7 @@ interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
   routeParams?: { [key: string]: string };
-  queryParams?: { [key: string]: string | number | undefined };
+  queryParams?: QueryParams;
 }
 
 type RouteParams = Record<string, string>;

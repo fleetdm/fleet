@@ -499,7 +499,7 @@ type Datastore interface {
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
 	// uuid.
-	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) (string, error)
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint, selfService bool) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -555,7 +555,7 @@ type Datastore interface {
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
-	ListHostSoftware(ctx context.Context, host *Host, includeAvailableForInstall bool, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
+	ListHostSoftware(ctx context.Context, host *Host, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.

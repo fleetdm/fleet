@@ -103,6 +103,10 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
+  selfService: {
+    // no validations related to self service
+    validations: [],
+  },
 };
 
 const getErrorMessage = (
