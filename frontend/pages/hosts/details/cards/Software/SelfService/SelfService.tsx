@@ -20,7 +20,6 @@ import Pagination from "pages/ManageControlsPage/components/Pagination";
 
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import SelfServiceItem from "./SelfServiceItem";
-import { ISoftware } from "interfaces/software";
 
 const baseClass = "software-self-service";
 
