@@ -332,7 +332,7 @@ resource "random_password" "fleet_server_private_key" {
 } 
     
 resource "aws_secretsmanager_secret" "fleet_server_private_key" { 
-  name = var.fleet_config.private_key_secret_name
+  name = "${terraform.workspace}-fleet-server-private-key"
 
   recovery_window_in_days = "0"
   lifecycle {
