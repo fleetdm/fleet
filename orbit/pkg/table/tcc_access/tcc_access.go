@@ -55,44 +55,67 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	allUsernames := strings.Split(string(out[:]), "\n")
 	var usernames []string
 	for _, username := range allUsernames {
-		if !strings.HasPrefix(username, "_") && username != "nobody" && username != "root" && username != "daemon" {
+		if !strings.HasPrefix(username, "_") && username != "nobody" && username != "root" && username != "daemon" && len(username) > 0 {
 			usernames = append(usernames, username)
 		}
 	}
-
 	if testContext {
 		usernames = []string{"testUser1", "testUser2"}
 	}
 
 	// build rows for every user-level TCC.db
 	var rows []map[string]string
+
+	uidConstraintList, ok := queryContext.Constraints["uid"]
 	for _, username := range usernames {
-		uRs, err := getTCCAccessRows(username)
+		uid, err := getUidFromUsername(username)
 		if err != nil {
 			return nil, err
 		}
-		rows = append(rows, uRs...)
+
+		satisfiesUidConstraints := true
+		if ok {
+			// if there are uid constraints
+			satisfiesUidConstraints, err = satisfiesConstraints(uid, uidConstraintList.Constraints)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if satisfiesUidConstraints {
+			tccPath := tccPathPrefix + "/Users/" + username + tccPathSuffix
+			uRs, err := getTCCAccessRows(uid, tccPath)
+			if err != nil {
+				return nil, err
+			}
+			rows = append(rows, uRs...)
+
+		}
 	}
 
 	// and for the system-level TCC.db
-	sRs, err := getTCCAccessRows("")
-	if err != nil {
-		return nil, err
+	sysSatisfiesUidConstraints := true
+	if ok {
+		// if there are uid constraints
+		sysSatisfiesUidConstraints, err = satisfiesConstraints("0", uidConstraintList.Constraints)
+		if err != nil {
+			return nil, err
+		}
 	}
-	rows = append(rows, sRs...)
+	if sysSatisfiesUidConstraints {
+		sRs, err := getTCCAccessRows("0", tccPathPrefix+tccPathSuffix)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, sRs...)
+	}
 
 	return rows, nil
 }
 
-func getTCCAccessRows(username string) ([]map[string]string, error) {
-	// avoids additional C compilation requirements that would be introduced by using
+func getTCCAccessRows(uid, tccPath string) ([]map[string]string, error) {
+	// querying direclty with sqlite3 avoids additional C compilation requirements that would be introduced by using
 	// https://github.com/mattn/go-sqlite3
-
-	tccPath := tccPathPrefix
-	if username != "" {
-		tccPath += "/Users/" + username
-	}
-	tccPath += tccPathSuffix
 	cmd := exec.Command(sqlite3Path, tccPath, dbQuery)
 	var dbOut bytes.Buffer
 	var stderr bytes.Buffer
@@ -105,7 +128,7 @@ func getTCCAccessRows(username string) ([]map[string]string, error) {
 
 	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
 
-	rows, err := buildTableRows(username, parsedRows)
+	rows, err := buildTableRows(uid, parsedRows)
 	if err != nil {
 		return nil, err
 	}
@@ -127,19 +150,10 @@ func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	return parsedRows
 }
 
-func buildTableRows(username string, parsedRows [][]string) ([]map[string]string, error) {
-	// root's uid, for "system" rows by default
-	uid := "0"
+func buildTableRows(uid string, parsedRows [][]string) ([]map[string]string, error) {
 	source := "system"
-	if username != "" {
-		// a user-scoped table, so get its uid
-		parsedUid, err := getUidFromUsername(username)
-		if err != nil {
-			return nil, fmt.Errorf("generate failed: %w", err)
-		}
-		uid = parsedUid
+	if uid != "0" {
 		source = "user"
-
 	}
 
 	var rows []map[string]string
@@ -172,4 +186,35 @@ func getUidFromUsername(username string) (string, error) {
 	sOut := string(out[:])
 	unI := strings.Index(sOut, username)
 	return sOut[4 : unI-1], nil
+}
+
+func satisfiesConstraints(uid string, constraints []table.Constraint) (bool, error) {
+	for _, constraint := range constraints {
+		// for each constraint on the column
+		switch constraint.Operator {
+		case table.OperatorEquals:
+			if constraint.Expression != uid {
+				return false, nil
+			}
+		case table.OperatorGreaterThan:
+			if constraint.Expression >= uid {
+				return false, nil
+			}
+		case table.OperatorLessThan:
+			if constraint.Expression <= uid {
+				return false, nil
+			}
+		case table.OperatorGreaterThanOrEquals:
+			if constraint.Expression > uid {
+				return false, nil
+			}
+		case table.OperatorLessThanOrEquals:
+			if constraint.Expression < uid {
+				return false, nil
+			}
+		default:
+			return false, errors.New("Invalid operator for column 'uid' – only =, <, >, <=, >= are supported")
+		}
+	}
+	return true, nil
 }
