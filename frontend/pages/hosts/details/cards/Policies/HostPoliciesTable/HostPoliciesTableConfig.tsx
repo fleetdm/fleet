@@ -69,12 +69,17 @@ const generatePolicyTableHeaders = (
       disableSortBy: true,
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
+
+        const onClickPolicyName = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+          togglePolicyDetails(cellProps.row.original);
+        };
+
         return (
           <Button
             className="policy-info"
-            onClick={() => {
-              togglePolicyDetails(cellProps.row.original);
-            }}
+            onClick={onClickPolicyName}
             variant="text-icon"
           >
             <span className={`policy-info-text`}>{name}</span>

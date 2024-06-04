@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
+import { noop } from "lodash";
 
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, SUPPORT_LINK } from "utilities/constants";
@@ -124,9 +125,9 @@ const Policies = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disableCount
-          disableMultiRowSelect
+          disableMultiRowSelect={!deviceUser} // Removes hover/click state if deviceUser
           isClientSidePagination
-          onClickRow={onClickRow}
+          onClickRow={deviceUser ? noop : onClickRow}
         />
       </>
     );
