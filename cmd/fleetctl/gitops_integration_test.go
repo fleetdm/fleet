@@ -69,6 +69,10 @@ func (s *integrationGitopsTestSuite) SetupSuite() {
 		Pool:        redisPool,
 		APNSTopic:   "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 	}
+	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte("scepchallenge")},
+	})
+	require.NoError(s.T(), err)
 	users, server := service.RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.server = server
