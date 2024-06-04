@@ -191,7 +191,7 @@ func main() {
 	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 		return nil
 	}
-	
+
 	printf("Translating software to CPE...\n")
 	err := nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger)
 	if err != nil {
