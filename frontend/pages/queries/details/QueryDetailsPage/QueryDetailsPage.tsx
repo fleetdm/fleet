@@ -217,12 +217,24 @@ const QueryDetailsPage = ({
 
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
-  const isClipped = queryReport?.report_clipped;
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const isClipped =
+    (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
+  const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
+    // Team admins/maintainers can only edit queries assigned to a team
     const canEditQuery =
-      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
+
+    const canLiveQuery =
+      lastEditedQueryObserverCanRun ||
+      isObserverPlus ||
+      isAnyTeamObserverPlus ||
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamMaintainerOrTeamAdmin;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
@@ -270,10 +282,7 @@ const QueryDetailsPage = ({
                     Edit query
                   </Button>
                 )}
-                {(lastEditedQueryObserverCanRun ||
-                  isObserverPlus ||
-                  isAnyTeamObserverPlus ||
-                  canEditQuery) && (
+                {canLiveQuery && (
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
@@ -281,7 +290,7 @@ const QueryDetailsPage = ({
                       data-tip
                       data-for="live-query-button"
                       // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!disabledLiveQuery}
+                      data-tip-disable={!isLiveQueryDisabled}
                     >
                       <Button
                         className={`${baseClass}__run`}
@@ -292,7 +301,7 @@ const QueryDetailsPage = ({
                               PATHS.LIVE_QUERY(queryId, currentTeamId)
                             );
                         }}
-                        disabled={disabledLiveQuery}
+                        disabled={isLiveQueryDisabled}
                       >
                         Live query
                       </Button>

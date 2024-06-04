@@ -674,12 +674,6 @@ const EditQueryForm = ({
 
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
-    // Save disabled for team maintainer/admins viewing global queries
-    const disableSavePermissionDenied =
-      isAnyTeamMaintainerOrTeamAdmin &&
-      !storedQuery?.team_id &&
-      !!queryIdForEdit;
-
     // Save and save as new disabled for query name blank on existing query or sql errors
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
@@ -796,42 +790,19 @@ const EditQueryForm = ({
                   </Button>
                 )}
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
-                  <div
-                    data-tip
-                    data-for="save-query-button"
-                    // Tooltip shows for team maintainer/admins viewing global queries
-                    data-tip-disable={!disableSavePermissionDenied}
+                  <Button
+                    className="save-loading"
+                    variant="brand"
+                    onClick={
+                      confirmChanges
+                        ? toggleConfirmSaveChangesModal
+                        : promptSaveQuery()
+                    }
+                    disabled={disableSaveFormErrors}
+                    isLoading={isQueryUpdating}
                   >
-                    <Button
-                      className="save-loading"
-                      variant="brand"
-                      onClick={
-                        confirmChanges
-                          ? toggleConfirmSaveChangesModal
-                          : promptSaveQuery()
-                      }
-                      // Button disabled for team maintainer/admins viewing global queries
-                      disabled={
-                        disableSavePermissionDenied || disableSaveFormErrors
-                      }
-                      isLoading={isQueryUpdating}
-                    >
-                      Save
-                    </Button>
-                  </div>{" "}
-                  <ReactTooltip
-                    className={`save-query-button-tooltip`}
-                    place="top"
-                    effect="solid"
-                    backgroundColor={COLORS["tooltip-bg"]}
-                    id="save-query-button"
-                    data-html
-                  >
-                    <>
-                      You can only save changes
-                      <br /> to a team level query.
-                    </>
-                  </ReactTooltip>
+                    Save
+                  </Button>
                 </div>
               </>
             )}

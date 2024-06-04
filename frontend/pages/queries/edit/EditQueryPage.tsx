@@ -194,10 +194,13 @@ const EditQueryPage = ({
   };
 
   /* Observer/Observer+ cannot edit existing query (O+ has access to edit new query to run live),
+  Team admin/team maintainer cannot edit existing query,
  reroute edit existing query page (/:queryId/edit) to query report page (/:queryId) */
   useEffect(() => {
     const canEditExistingQuery =
-      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
 
     if (
       !isStoredQueryLoading && // Confirms teamId for storedQuery before RBAC reroute
