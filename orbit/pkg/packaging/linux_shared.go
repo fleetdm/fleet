@@ -255,14 +255,6 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	return filename, nil
 }
 
-func getPackager(pkger nfpm.Packager) string {
-	packager := "deb"
-	if _, ok := pkger.(*rpm.RPM); ok {
-		packager = "rpm"
-	}
-	return packager
-}
-
 func writeSystemdUnit(opt Options, rootPath string) error {
 	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
 	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
