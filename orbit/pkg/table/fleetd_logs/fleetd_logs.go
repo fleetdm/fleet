@@ -108,7 +108,7 @@ func processLogEntry(event []byte) (Event, error) {
 	var evt map[string]interface{}
 	dec := json.NewDecoder(bytes.NewReader(event))
 	dec.UseNumber()
-	if err := dec.Decode(&event); err != nil {
+	if err := dec.Decode(&evt); err != nil {
 		return Event{}, fmt.Errorf("cannot decode: %w", err)
 	}
 
