@@ -13,7 +13,7 @@ import (
 )
 
 // No timezone, always return in UTC. Use this format because SQLite3
-// can work with this format in queries.
+// knows how to parse it.
 // See https://www.sqlite.org/lang_datefunc.html
 const timeFormatString = "2006-01-02 15:04:05.999999999"
 
