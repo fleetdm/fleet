@@ -51,6 +51,7 @@ const TooltipWrapper = ({
   showArrow = false,
 }: ITooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
+    "show-arrow": showArrow,
     // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
   });
 
@@ -76,7 +77,8 @@ const TooltipWrapper = ({
           id={tipId}
           delayShow={isDelayed ? 500 : undefined}
           delayHide={isDelayed ? 500 : undefined}
-          noArrow={!showArrow}
+          // noArrow={!showArrow}
+          noArrow={false}
           place={position}
           opacity={1}
           disableStyleInjection

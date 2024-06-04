@@ -125,6 +125,7 @@ const PackageStatusCount = ({
           position="top"
           tipContent={displayData.tooltip}
           underline={false}
+          showArrow
         >
           <div className={`${baseClass}__status-title`}>
             <Icon name={displayData.iconName} />
