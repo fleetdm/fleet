@@ -31,7 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleet_logs"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -249,19 +249,19 @@ func main() {
 				// #3100). Thus, we log to the logFile only.
 				log.Logger = log.Output(zerolog.MultiLevelWriter(
 					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
-					&fleet_logs.DefaultLogger,
+					&fleetd_logs.DefaultLogger,
 				))
 			} else {
 				log.Logger = log.Output(zerolog.MultiLevelWriter(
 					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
 					zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-					&fleet_logs.DefaultLogger,
+					&fleetd_logs.DefaultLogger,
 				))
 			}
 		} else {
 			log.Logger = log.Output(zerolog.MultiLevelWriter(
 				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-				&fleet_logs.DefaultLogger,
+				&fleetd_logs.DefaultLogger,
 			))
 		}
 

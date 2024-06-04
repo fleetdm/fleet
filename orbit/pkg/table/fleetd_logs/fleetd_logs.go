@@ -1,4 +1,4 @@
-package fleet_logs
+package fleetd_logs
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ func TablePlugin() *table.Plugin {
 		table.TextColumn("message"),
 	}
 
-	return table.NewPlugin("fleet_logs", columns, generate)
+	return table.NewPlugin("fleetd_logs", columns, generate)
 }
 
 func generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
@@ -55,6 +55,12 @@ func (l *Logger) Write(message []byte) (int, error) {
 		return 0, fmt.Errorf("fleet_logs.Write: %w", err)
 	}
 
+	if len(msg.Message) == 0 {
+		// If message contains nothing but log level and time but no
+		// actual content, return instead of logging it
+		return len(message), nil
+	}
+
 	l.writeMutex.Lock()
 	defer l.writeMutex.Unlock()
 
@@ -74,6 +80,12 @@ func (l *Logger) WriteLevel(level zerolog.Level, message []byte) (int, error) {
 	}
 
 	msg.Level = level
+
+	if len(msg.Message) == 0 {
+		// If message contains nothing but log level and time but no
+		// actual content, return instead of logging it
+		return len(message), nil
+	}
 
 	l.writeMutex.Lock()
 	defer l.writeMutex.Unlock()
