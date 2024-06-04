@@ -24,7 +24,7 @@ func TablePlugin() *table.Plugin {
 	columns := []table.ColumnDefinition{
 		table.TextColumn("time"),
 		table.TextColumn("level"),
-		table.TextColumn("message"),
+		table.TextColumn("payload"),
 	}
 
 	return table.NewPlugin("fleetd_logs", columns, generate)
@@ -37,7 +37,7 @@ func generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		row := make(map[string]string, 3)
 		row["time"] = entry.Time
 		row["level"] = entry.Level.String()
-		row["message"] = string(entry.Message)
+		row["payload"] = string(entry.Payload)
 		output = append(output, row)
 	}
 	return output, nil
@@ -46,7 +46,7 @@ func generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 type Message struct {
 	Time    string
 	Level   zerolog.Level
-	Message []byte
+	Payload []byte
 }
 
 type Logger struct {
@@ -60,7 +60,7 @@ func (l *Logger) Write(message []byte) (int, error) {
 		return 0, fmt.Errorf("fleet_logs.Write: %w", err)
 	}
 
-	if len(msg.Message) == 0 {
+	if len(msg.Payload) == 0 {
 		// If message contains nothing but log level and time but no
 		// actual content, return instead of logging it
 		return len(message), nil
@@ -86,7 +86,7 @@ func (l *Logger) WriteLevel(level zerolog.Level, message []byte) (int, error) {
 
 	msg.Level = level
 
-	if len(msg.Message) == 0 {
+	if len(msg.Payload) == 0 {
 		// If message contains nothing but log level and time but no
 		// actual content, return instead of logging it
 		return len(message), nil
@@ -145,7 +145,7 @@ func processLogEntry(message []byte) (Message, error) {
 	msg := Message{
 		Time:    sqliteTime,
 		Level:   level,
-		Message: enc,
+		Payload: enc,
 	}
 
 	return msg, nil
