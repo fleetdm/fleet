@@ -3152,7 +3152,7 @@ spec:
     This setting affects all policy settings that use the built-in security template of Group Policy (e.g. Windows Settings\Security Settings).
     The recommended state for this setting is: Enabled: FALSE (unchecked).
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Do not apply during periodic background processing option to FALSE (unchecked):
+    To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Do not apply during periodic background processing option to FALSE (unchecked), then set the Process even if the group policies have not changed option to TRUE (checked):
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure security policy processing'
   query: |
     SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Group Policy\{%}\NoGPOListChanges' AND data = '0';
