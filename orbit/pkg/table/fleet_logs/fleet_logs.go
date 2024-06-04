@@ -11,6 +11,7 @@ import (
 )
 
 var DefaultLogger = Logger{}
+var MaxEntries uint = 10_000
 
 func TablePlugin() *table.Plugin {
 	columns := []table.ColumnDefinition{
@@ -59,6 +60,10 @@ func (l *Logger) Write(message []byte) (int, error) {
 		Message: message,
 	})
 
+	if MaxEntries > 0 && len(l.logs) > int(MaxEntries) {
+		l.logs = l.logs[len(l.logs)-int(MaxEntries):]
+	}
+
 	return len(message), nil
 }
 
@@ -73,6 +78,10 @@ func (l *Logger) WriteLevel(level zerolog.Level, message []byte) (int, error) {
 		Level:   level,
 		Message: message,
 	})
+
+	if MaxEntries > 0 && len(l.logs) > int(MaxEntries) {
+		l.logs = l.logs[len(l.logs)-int(MaxEntries):]
+	}
 
 	return len(message), nil
 }
