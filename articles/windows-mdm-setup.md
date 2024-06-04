@@ -12,15 +12,14 @@ To use automatic enrollment (aka zero-touch) features on Windows, follow instruc
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
 
-> If you're already using Fleet's macOS MDM features, you already have a SCEP certificate and key. Skip to step 2 and reuse the SCEP certificate and key as your WSTEP certificate and key.
+How to generate a certificate and key:
 
-If you're not using macOS MDM features, run the following command to download three files and send an email to you with an attached CSR file.
+1. With [OpenSSL](https://www.openssl.org/) installed, open your Terminal (macOS) or PowerShell (Windows) and run the following command to create a key: `openssl genrsa -out cert.key 2048`.
 
-```
-fleetctl generate mdm-apple --email <email> --org <org> 
-```
+2. Create a certificate signing request (CSR): `openssl req -new -key cert.key -out cert.csr`.
 
-Save the SCEP certificate and SCEP key. These are your certificate and key. You can ignore the downloaded APNs key and the APNs CSR that was sent to your email.
+3. Create a certificate: `openssl x509 -req -days 3650 -in cert.csr -signkey cert.key -out cert.crt`.
+
 
 ### Step 2: Configure Fleet with your certificate and key
 
