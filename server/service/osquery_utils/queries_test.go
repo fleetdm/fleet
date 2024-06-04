@@ -1935,22 +1935,19 @@ func TestIngestNetworkInterface(t *testing.T) {
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {
+	// Combine two queries
 	query1 := "SELECT 1 WHERE foo = bar"
 	query2 := "SELECT 1 WHERE baz = qux"
-
 	sql := generateSQLForAllExists(query1, query2)
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
 
+	// Default
 	sql = generateSQLForAllExists()
 	require.Equal(t, "SELECT 0 LIMIT 0", sql)
-}
 
-func TestOverrideDiscoveryQueryValidation(t *testing.T) {
-	for n, q := range SoftwareOverrideQueries {
-		// Ensure that the discovery query does not contain a semicolon
-		// to ensure subqueries are not terminated early (Issue #19401)
-		if strings.Contains(q.Discovery, ";") {
-			t.Errorf("Software override query %s contains semicolon", n)
-		}
-	}
+	// sanitize semicolons from subqueries
+	query1 = "SELECT 1 WHERE foo = bar;"
+	query2 = "SELECT 1 WHERE baz = qux;"
+	sql = generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
 }
