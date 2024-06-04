@@ -255,7 +255,6 @@ parasails.registerPage('start', {
         case 'what-did-you-think':
           if(this.formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it'){
             nextStepInForm = 'thanks-for-checking-out-fleet';
-            // nextStepInForm = '/announcements';
           } else if(this.formData['what-did-you-think'].whatDidYouThink === 'host-fleet-for-me') {
             nextStepInForm = 'how-many-hosts';
           } else {
