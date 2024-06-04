@@ -436,6 +436,7 @@ const DeviceUserPage = ({
                       deviceUser
                       togglePolicyDetailsModal={togglePolicyDetailsModal}
                       hostPlatform={host?.platform || ""}
+                      router={router}
                     />
                   </TabPanel>
                 )}

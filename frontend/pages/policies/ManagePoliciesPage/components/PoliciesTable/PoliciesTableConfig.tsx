@@ -17,7 +17,7 @@ import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
+import { createHostsByPolicyPath } from "utilities/helpers";
 import InheritedBadge from "components/InheritedBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import PassingColumnHeader from "../PassingColumnHeader";
@@ -59,18 +59,6 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
-
-const createHostsByPolicyPath = (
-  policyId: number,
-  policyResponse: PolicyResponse,
-  teamId?: number | null
-) => {
-  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
-    policy_id: policyId,
-    policy_response: policyResponse,
-    team_id: teamId,
-  })}`;
-};
 
 const getPolicyRefreshTime = (ms: number): string => {
   const seconds = ms / 1000;

@@ -1,8 +1,11 @@
 import React from "react";
-import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import Button from "components/buttons/Button";
+
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import Button from "components/buttons/Button";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
@@ -42,7 +45,8 @@ interface IDataColumn {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generatePolicyTableHeaders = (
-  togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void
+  togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void,
+  currentTeamId?: number
 ): IDataColumn[] => {
   const STATUS_CELL_VALUES: Record<PolicyStatus, IStatusCellValue> = {
     pass: {
@@ -80,9 +84,15 @@ const generatePolicyTableHeaders = (
     },
     {
       title: "Status",
-      Header: "Status",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
+      sortType: "caseInsensitive",
       accessor: "response",
-      disableSortBy: true,
       Cell: (cellProps) => {
         if (cellProps.row.original.response === "") {
           return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
@@ -114,6 +124,7 @@ const generatePolicyTableHeaders = (
                     cellProps.row.original.response === "pass"
                       ? PolicyResponse.PASSING
                       : PolicyResponse.FAILING,
+                  team_id: currentTeamId,
                 }}
                 className="policy-link"
               />
