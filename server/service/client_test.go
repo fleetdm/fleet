@@ -510,6 +510,7 @@ func TestGetProfilesContents(t *testing.T) {
 		expandEnv   bool
 		expectError bool
 		want        []fleet.MDMProfileBatchPayload
+		wantErr     string
 	}{
 		{
 			name:    "invalid darwin xml",
@@ -642,6 +643,33 @@ func TestGetProfilesContents(t *testing.T) {
 			expandEnv:   true,
 			expectError: true,
 		},
+		{
+			name:    "with unprocessable json",
+			baseDir: tempDir,
+			setupFiles: [][2]string{
+				{"bar.json", string(windowsProfile)},
+			},
+			expectError: true,
+			wantErr:     "processing bar.json: macOS configuration profiles must be valid .mobileconfig or .json files",
+		},
+		{
+			name:    "with unprocessable xml",
+			baseDir: tempDir,
+			setupFiles: [][2]string{
+				{"bar.xml", string(darwinProfile)},
+			},
+			expectError: true,
+			wantErr:     "processing bar.xml: Windows configuration profiles can only have <Replace> or <Add> top level elements",
+		},
+		{
+			name:    "with unsupported extension",
+			baseDir: tempDir,
+			setupFiles: [][2]string{
+				{"bar.cfg", string(darwinProfile)},
+			},
+			expectError: true,
+			wantErr:     "processing bar.cfg: Windows configuration profiles must be .xml files and macOS configuration profiles must be .mobileconfig or .json files",
+		},
 	}
 
 	for _, tt := range tests {
@@ -669,6 +697,9 @@ func TestGetProfilesContents(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err)
+				if tt.wantErr != "" {
+					require.Contains(t, err.Error(), tt.wantErr)
+				}
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, profileContents)

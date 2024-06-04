@@ -322,15 +322,26 @@ func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec, expand
 			}
 		}
 
-		// by default, use the file name. macOS profiles use their PayloadDisplayName
 		ext := filepath.Ext(filePath)
+		// by default, use the file name. macOS profiles use their PayloadDisplayName
 		name := strings.TrimSuffix(filepath.Base(filePath), ext)
-		if mdm.GetRawProfilePlatform(fileContents) == "darwin" && ext == ".mobileconfig" {
+		switch ext {
+		case ".mobileconfig":
 			mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
 			if err != nil {
-				return nil, fmt.Errorf("applying fleet config: %w", err)
+				return nil, fmt.Errorf("processing %s%s: %s", name, ext, strings.TrimPrefix(err.Error(), "new MDMAppleConfigProfile: "))
 			}
 			name = strings.TrimSpace(mc.Name)
+		case ".json":
+			if mdm.GetRawProfilePlatform(fileContents) != "darwin" {
+				return nil, fmt.Errorf("processing %s%s: %s", name, ext, "macOS configuration profiles must be valid .mobileconfig or .json files")
+			}
+		case ".xml":
+			if mdm.GetRawProfilePlatform(fileContents) != "windows" {
+				return nil, fmt.Errorf("processing %s%s: %s", name, ext, "Windows configuration profiles can only have <Replace> or <Add> top level elements")
+			}
+		default:
+			return nil, fmt.Errorf("processing %s%s: %s", name, ext, "Windows configuration profiles must be .xml files and macOS configuration profiles must be .mobileconfig or .json files")
 		}
 		if e, isDuplicate := extByName[name]; isDuplicate {
 			return nil, errors.New(fmtDuplicateNameErrMsg(name, e, ext))
@@ -433,7 +444,7 @@ func (c *Client) ApplyGroup(
 		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(allCustomSettings) > 0 {
 			fileContents, err := getProfilesContents(baseDir, allCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 			// Figure out if MDM should be enabled.
 			assumeEnabled := false
@@ -523,7 +534,7 @@ func (c *Client) ApplyGroup(
 		for k, paths := range tmMDMSettings {
 			fileContents, err := getProfilesContents(baseDir, paths, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 			tmFileContents[k] = fileContents
 		}
