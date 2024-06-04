@@ -20,10 +20,11 @@ func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byt
 	cmd.WaitDelay = time.Second
 	output, err = cmd.CombinedOutput()
 
-	// we still check if the context was cancelled before setting an exitCode
-	// != -1, as killing a process on Windows is not straightforward (see the
-	// WaitDelay documentation) and may have timed out even if exit code is 1,
-	// so switch it to -1 so that all user messages are as expected.
+	// we still check if the context was cancelled before setting an exitCode !=
+	// -1, as killing a process on Windows is not straightforward (see the
+	// WaitDelay documentation) and may have timed out even if exit code is
+	// reported as 1, so keep it to -1 in that case so that all user messages are
+	// as expected.
 	if cmd.ProcessState != nil && ctx.Err() == nil {
 		// The windows exit code is a 32-bit unsigned integer, but the
 		// interpreter treats it like a signed integer. When a process

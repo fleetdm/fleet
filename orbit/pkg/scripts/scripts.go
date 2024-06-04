@@ -104,7 +104,6 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 			}
 		}()
 	}
-	log.Debug().Msgf("running script %v in directory %v", script.ExecutionID, runDir)
 
 	var ext string
 	if runtime.GOOS == "windows" {
