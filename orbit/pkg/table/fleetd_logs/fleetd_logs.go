@@ -12,6 +12,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// No timezone, always return in UTC. Use this format because SQLite3
+// can work with this format in queries.
+// See https://www.sqlite.org/lang_datefunc.html
+const timeFormatString = "2006-01-02 15:04:05.999999999"
+
 var DefaultLogger = Logger{}
 var MaxEntries uint = 10_000
 
@@ -118,11 +123,17 @@ func processLogEntry(message []byte) (Message, error) {
 		delete(event, "level")
 	}
 
+	var sqliteTime string
 	msgTime, ok := event["time"].(string)
 	if ok {
+		goTime, err := time.Parse("2006-01-02T15:04:05-07:00", msgTime)
+		if err != nil {
+			return Message{}, fmt.Errorf("processLogEntry parsing time: %w", err)
+		}
+		sqliteTime = goTime.UTC().Format(timeFormatString)
 		delete(event, "time")
 	} else {
-		msgTime = time.Now().Format("2006-01-02T15:04:05-0700")
+		sqliteTime = time.Now().UTC().Format(timeFormatString)
 	}
 
 	enc, err := json.Marshal(event)
@@ -132,7 +143,7 @@ func processLogEntry(message []byte) (Message, error) {
 	}
 
 	msg := Message{
-		Time:    msgTime,
+		Time:    sqliteTime,
 		Level:   level,
 		Message: enc,
 	}
