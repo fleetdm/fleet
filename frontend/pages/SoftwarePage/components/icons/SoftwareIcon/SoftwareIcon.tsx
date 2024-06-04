@@ -4,6 +4,7 @@ import {
   SOFTWARE_SOURCE_TO_ICON_MAP,
   SOFTWARE_ICON_SIZES,
   SoftwareIconSizes,
+  isSoftwareNameToIconException,
 } from "../";
 
 const baseClass = "software-icon";
@@ -38,8 +39,12 @@ const SoftwareIcon = ({
   source,
   size = "medium",
 }: ISoftwareIconProps) => {
-  // try to find a match for name
-  let MatchedIcon = matchInMap(SOFTWARE_NAME_TO_ICON_MAP, name);
+  let MatchedIcon: ComponentType<SVGProps<SVGSVGElement>> | null = null;
+
+  if (name && !isSoftwareNameToIconException(name)) {
+    // try to find a match for name
+    MatchedIcon = matchInMap(SOFTWARE_NAME_TO_ICON_MAP, name);
+  }
 
   // otherwise, try to find a match for source
   if (!MatchedIcon) {

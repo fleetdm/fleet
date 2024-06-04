@@ -78,3 +78,22 @@ export const SOFTWARE_ICON_SIZES: Record<string, string> = {
 } as const;
 
 export type SoftwareIconSizes = keyof typeof SOFTWARE_ICON_SIZES;
+
+/**
+ * List of software names that are exceptions to the software name-to-icon mapping. If one of the
+ * listed exceptions is included in the software name, the SOFTWARE_NAME_TO_ICON_MAP should not be used.
+ */
+const SOFTWARE_NAME_TO_ICON_EXCEPTIONS = ["zoominfo"] as const;
+
+/**
+ *
+ * Determines if the software name is an exception to the software icon mapping. It indicates to the
+ * caller that it should not use the icon mapping for this software name.
+ *
+ * Example: ZoomInfo is an exception that would otherwise be matched to the Zoom icon.
+ */
+export const isSoftwareNameToIconException = (name: string) => {
+  return SOFTWARE_NAME_TO_ICON_EXCEPTIONS.some((exception) =>
+    name.trim().toLowerCase().includes(exception)
+  );
+};
