@@ -764,7 +764,7 @@
       //   ┴ ┴ ┴┴ ┴┘└┘┴ ┴└─┘  └  └─┘┴└─  └─┘┴ ┴└─┘└─┘┴ ┴┴┘└┘└─┘  └─┘└─┘ ┴   ╚  ┴─┘└─┘└─┘ ┴ %>
     <div v-if="currentStep === 'thanks-for-checking-out-fleet'">
       <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['thanks-for-checking-out-fleet']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
-        <div class="mx-auto">
+        <div style="padding-top: 50px;" class="mx-auto">
           <h2>Thanks for checking out Fleet</h2>
           <p>Come back at any time to pick up where you left off.</p>
         </div>
