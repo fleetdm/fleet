@@ -25,6 +25,7 @@ func TablePlugin() *table.Plugin {
 		table.TextColumn("time"),
 		table.TextColumn("level"),
 		table.TextColumn("payload"),
+		table.TextColumn("message"),
 	}
 
 	return table.NewPlugin("fleetd_logs", columns, generate)
@@ -34,10 +35,11 @@ func generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	output := []map[string]string{}
 
 	for _, entry := range DefaultLogger.logs {
-		row := make(map[string]string, 3)
+		row := make(map[string]string, 4)
 		row["time"] = entry.Time
 		row["level"] = entry.Level.String()
 		row["payload"] = string(entry.Payload)
+		row["message"] = entry.Message
 		output = append(output, row)
 	}
 	return output, nil
@@ -47,6 +49,7 @@ type Event struct {
 	Time    string
 	Level   zerolog.Level
 	Payload []byte
+	Message string
 }
 
 type Logger struct {
@@ -114,9 +117,9 @@ func processLogEntry(event []byte) (Event, error) {
 
 	level := zerolog.GlobalLevel()
 	var err error
-	msgLevel, ok := evt["level"].(string)
+	evtLevel, ok := evt["level"].(string)
 	if ok {
-		level, err = zerolog.ParseLevel(msgLevel)
+		level, err = zerolog.ParseLevel(evtLevel)
 		if err != nil {
 			return Event{}, fmt.Errorf("unable to parse log event level: %w", err)
 		}
@@ -124,9 +127,9 @@ func processLogEntry(event []byte) (Event, error) {
 	}
 
 	var sqliteTime string
-	msgTime, ok := evt["time"].(string)
+	evtTime, ok := evt["time"].(string)
 	if ok {
-		goTime, err := time.Parse("2006-01-02T15:04:05-07:00", msgTime)
+		goTime, err := time.Parse("2006-01-02T15:04:05-07:00", evtTime)
 		if err != nil {
 			return Event{}, fmt.Errorf("processLogEntry parsing time: %w", err)
 		}
@@ -134,6 +137,13 @@ func processLogEntry(event []byte) (Event, error) {
 		delete(evt, "time")
 	} else {
 		sqliteTime = time.Now().UTC().Format(timeFormatString)
+	}
+
+	evtMessage, ok := evt["message"].(string)
+	if ok {
+		delete(evt, "message")
+	} else {
+		evtMessage = ""
 	}
 
 	enc, err := json.Marshal(evt)
@@ -146,6 +156,7 @@ func processLogEntry(event []byte) (Event, error) {
 		Time:    sqliteTime,
 		Level:   level,
 		Payload: enc,
+		Message: evtMessage,
 	}
 
 	return msg, nil
