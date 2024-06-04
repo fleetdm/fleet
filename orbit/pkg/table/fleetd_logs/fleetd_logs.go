@@ -136,7 +136,7 @@ func processLogEntry(event []byte) (Event, error) {
 		sqliteTime = time.Now().UTC().Format(timeFormatString)
 	}
 
-	enc, err := json.Marshal(event)
+	enc, err := json.Marshal(evt)
 	if err != nil {
 		return Event{}, fmt.Errorf("unable to marshall log event: %w", err)
 
