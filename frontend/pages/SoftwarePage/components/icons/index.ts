@@ -87,8 +87,9 @@ const SOFTWARE_NAME_TO_ICON_EXCEPTIONS = ["zoominfo"] as const;
 
 /**
  *
- * Determines if the software name is an exception to the software icon mapping. It indicates to the
- * caller that it should not use the icon mapping for this software name.
+ * Determines if the software name is an exception to the software icon mapping.
+ * If the return value is true, it indicates to the caller that it should not use
+ * the name-to-icon mapping for this software name.
  *
  * Example: ZoomInfo is an exception that would otherwise be matched to the Zoom icon.
  */
