@@ -346,6 +346,7 @@ func (h *runScriptsConfigReceiver) runDynamicScriptsEnabledCheck() {
 // them.
 func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+		log.Debug().Msgf("received scripts notifications, will try to acquire lock: %v", cfg.Notifications.PendingScriptExecutionIDs)
 		if h.mu.TryLock() {
 			log.Debug().Msgf("received request to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
 
@@ -361,7 +362,10 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 			}
 
 			go func() {
-				defer h.mu.Unlock()
+				defer func() {
+					h.mu.Unlock()
+					log.Debug().Msg("scripts notifications releasing lock")
+				}()
 
 				if err := fn(cfg.Notifications.PendingScriptExecutionIDs); err != nil {
 					log.Info().Err(err).Msg("running scripts failed")
