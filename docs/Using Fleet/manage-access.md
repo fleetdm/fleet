@@ -160,7 +160,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Run arbitrary scripts on hosts                                                                                                   |               |                | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
-| Run saved scripts on hosts                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
+| Run saved scripts on hosts                                                                                                       |              |               |   ✅               | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅              | ✅         |             |
 
