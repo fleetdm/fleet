@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var logger = Logger{}
+var DefaultLogger = Logger{}
 
 func TablePlugin() *table.Plugin {
 	columns := []table.ColumnDefinition{
@@ -23,9 +23,9 @@ func TablePlugin() *table.Plugin {
 }
 
 func generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	output := make([]map[string]string, len(logger.logs))
+	output := make([]map[string]string, len(DefaultLogger.logs))
 
-	for _, entry := range logger.logs {
+	for _, entry := range DefaultLogger.logs {
 		row := make(map[string]string, 3)
 		row["time"] = strconv.FormatInt(entry.Time, 10)
 		row["level"] = entry.Level.String()
@@ -42,14 +42,13 @@ type Message struct {
 }
 
 type Logger struct {
-	writeMutex   sync.Mutex
-	defaultLevel zerolog.Level
-	logs         []Message
+	writeMutex sync.Mutex
+	logs       []Message
 }
 
 func (l *Logger) Write(message []byte) (int, error) {
 	time := time.Now().UnixMilli()
-	level := l.defaultLevel
+	level := zerolog.GlobalLevel()
 
 	l.writeMutex.Lock()
 	defer l.writeMutex.Unlock()
