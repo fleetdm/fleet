@@ -14,7 +14,7 @@ columns:
     required: false
     description: |-
       The JSON output parsed from `authorizationdb` plist. 
-example: |-
+examples: |-
   The “right_name” string `system.login.console` is used in the mandatory WHERE clause for this table:
 
   ```
