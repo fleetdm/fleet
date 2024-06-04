@@ -123,7 +123,7 @@ func (mm *multiMatcher) Match(attrs []*Attributes, requireVersion bool) []*Attri
 		matches = append(matches, m)
 	}
 
-	if mm.depth == 0 && !attributesIncludeApp(matches) {
+	if mm.depth == 0 && len(matches) > 1 && !attributesIncludeApp(matches) {
 		return nil
 	}
 
