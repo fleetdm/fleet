@@ -1950,4 +1950,10 @@ func TestGenerateSQLForAllExists(t *testing.T) {
 	query2 = "SELECT 1 WHERE baz = qux;"
 	sql = generateSQLForAllExists(query1, query2)
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
+
+	// sanitize only trailing semicolons
+	query1 = "SELECT 1 WHERE foo = 'ba;r';"
+	query2 = "SELECT 1 WHERE baz = 'qu;x';;;"
+	sql = generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
 }
