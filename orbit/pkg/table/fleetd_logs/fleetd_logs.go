@@ -26,7 +26,7 @@ func TablePlugin() *table.Plugin {
 }
 
 func generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	output := make([]map[string]string, len(DefaultLogger.logs))
+	output := []map[string]string{}
 
 	for _, entry := range DefaultLogger.logs {
 		row := make(map[string]string, 3)
