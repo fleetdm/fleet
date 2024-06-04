@@ -43,6 +43,11 @@ func TestMatchJSON(t *testing.T) {
 			Inventory: []*wfn.Attributes{},
 		},
 		{
+			Rule:      0,
+			Inventory: []*wfn.Attributes{{}},
+			Matches:   []*wfn.Attributes{{}},
+		},
+		{
 			Inventory: []*wfn.Attributes{
 				{Part: "o", Vendor: "linux", Product: "linux_kernel", Version: "2\\.6\\.1"},
 				{Part: "a", Vendor: "djvulibre_project", Product: "djvulibre", Version: "3\\.5\\.11"},
@@ -106,9 +111,6 @@ func TestMatchJSON(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			mm := items[c.Rule].Match(c.Inventory, false)
-			if len(mm) > 0 {
-				t.Logf("matches: %v", mm)
-			}
 			if len(mm) != len(c.Matches) {
 				t.Fatalf("expected %d matches, got %d matches", len(c.Matches), len(mm))
 			}
