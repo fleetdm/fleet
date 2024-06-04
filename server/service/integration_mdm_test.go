@@ -936,6 +936,15 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Validate errors if no private key is set
+	testSetEmptyPrivateKey = true
+	t.Cleanup(func() { testSetEmptyPrivateKey = false })
+	s.uploadAPNSCert([]byte("-----BEGIN CERTIFICATE-----\nZm9vCg==\n-----END CERTIFICATE-----"), http.StatusInternalServerError, "Couldn't upload APNs certificate. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+
+	r := s.Do("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusInternalServerError)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't download signed CSR. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	testSetEmptyPrivateKey = false
+
 	// ensure we leave everything in a clean state for other tests
 	t.Cleanup(s.appleCoreCertsSetup)
 
@@ -8673,6 +8682,14 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 
 	// ensure enable ABM again for other tests
 	t.Cleanup(s.enableABM)
+
+	// Validate error when server private key not set
+	testSetEmptyPrivateKey = true
+	t.Cleanup(func() { testSetEmptyPrivateKey = false })
+
+	r := s.Do("GET", "/api/latest/fleet/mdm/apple/abm_public_key", generateABMKeyPairResponse{}, http.StatusInternalServerError)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't download public key. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	testSetEmptyPrivateKey = false
 
 	// grab the current public key
 	var abmResp generateABMKeyPairResponse
