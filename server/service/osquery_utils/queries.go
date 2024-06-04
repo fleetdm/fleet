@@ -776,7 +776,7 @@ func generateSQLForAllExists(subqueries ...string) string {
 	for _, query := range subqueries {
 		// Remove trailing semicolons from the query to ensure subqueries
 		// are not terminated early (Issue #19401)
-		sanitized := strings.TrimRight(query, ";")
+		sanitized := strings.TrimRight(strings.TrimSpace(query), ";")
 
 		condition := fmt.Sprintf("EXISTS (%s)", sanitized)
 		conditions = append(conditions, condition)
