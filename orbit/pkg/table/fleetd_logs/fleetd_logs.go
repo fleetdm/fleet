@@ -43,7 +43,7 @@ func generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	return output, nil
 }
 
-type Message struct {
+type Event struct {
 	Time    string
 	Level   zerolog.Level
 	Payload []byte
@@ -51,19 +51,19 @@ type Message struct {
 
 type Logger struct {
 	writeMutex sync.Mutex
-	logs       []Message
+	logs       []Event
 }
 
-func (l *Logger) Write(message []byte) (int, error) {
-	msg, err := processLogEntry(message)
+func (l *Logger) Write(event []byte) (int, error) {
+	msg, err := processLogEntry(event)
 	if err != nil {
 		return 0, fmt.Errorf("fleet_logs.Write: %w", err)
 	}
 
 	if len(msg.Payload) == 0 {
-		// If message contains nothing but log level and time but no
+		// If event contains nothing but log level and time but no
 		// actual content, return instead of logging it
-		return len(message), nil
+		return len(event), nil
 	}
 
 	l.writeMutex.Lock()
@@ -75,11 +75,11 @@ func (l *Logger) Write(message []byte) (int, error) {
 		l.logs = l.logs[len(l.logs)-int(MaxEntries):]
 	}
 
-	return len(message), nil
+	return len(event), nil
 }
 
-func (l *Logger) WriteLevel(level zerolog.Level, message []byte) (int, error) {
-	msg, err := processLogEntry(message)
+func (l *Logger) WriteLevel(level zerolog.Level, event []byte) (int, error) {
+	msg, err := processLogEntry(event)
 	if err != nil {
 		return 0, fmt.Errorf("fleet_logs.WriteLevel: %w", err)
 	}
@@ -87,9 +87,9 @@ func (l *Logger) WriteLevel(level zerolog.Level, message []byte) (int, error) {
 	msg.Level = level
 
 	if len(msg.Payload) == 0 {
-		// If message contains nothing but log level and time but no
+		// If event contains nothing but log level and time but no
 		// actual content, return instead of logging it
-		return len(message), nil
+		return len(event), nil
 	}
 
 	l.writeMutex.Lock()
@@ -101,48 +101,48 @@ func (l *Logger) WriteLevel(level zerolog.Level, message []byte) (int, error) {
 		l.logs = l.logs[len(l.logs)-int(MaxEntries):]
 	}
 
-	return len(message), nil
+	return len(event), nil
 }
 
-func processLogEntry(message []byte) (Message, error) {
-	var event map[string]interface{}
-	dec := json.NewDecoder(bytes.NewReader(message))
+func processLogEntry(event []byte) (Event, error) {
+	var evt map[string]interface{}
+	dec := json.NewDecoder(bytes.NewReader(event))
 	dec.UseNumber()
 	if err := dec.Decode(&event); err != nil {
-		return Message{}, fmt.Errorf("cannot decode: %w", err)
+		return Event{}, fmt.Errorf("cannot decode: %w", err)
 	}
 
 	level := zerolog.GlobalLevel()
 	var err error
-	msgLevel, ok := event["level"].(string)
+	msgLevel, ok := evt["level"].(string)
 	if ok {
 		level, err = zerolog.ParseLevel(msgLevel)
 		if err != nil {
-			return Message{}, fmt.Errorf("unable to parse log event level: %w", err)
+			return Event{}, fmt.Errorf("unable to parse log event level: %w", err)
 		}
-		delete(event, "level")
+		delete(evt, "level")
 	}
 
 	var sqliteTime string
-	msgTime, ok := event["time"].(string)
+	msgTime, ok := evt["time"].(string)
 	if ok {
 		goTime, err := time.Parse("2006-01-02T15:04:05-07:00", msgTime)
 		if err != nil {
-			return Message{}, fmt.Errorf("processLogEntry parsing time: %w", err)
+			return Event{}, fmt.Errorf("processLogEntry parsing time: %w", err)
 		}
 		sqliteTime = goTime.UTC().Format(timeFormatString)
-		delete(event, "time")
+		delete(evt, "time")
 	} else {
 		sqliteTime = time.Now().UTC().Format(timeFormatString)
 	}
 
 	enc, err := json.Marshal(event)
 	if err != nil {
-		return Message{}, fmt.Errorf("unable to marshall log event: %w", err)
+		return Event{}, fmt.Errorf("unable to marshall log event: %w", err)
 
 	}
 
-	msg := Message{
+	msg := Event{
 		Time:    sqliteTime,
 		Level:   level,
 		Payload: enc,
