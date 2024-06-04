@@ -42,3 +42,35 @@ func (sta ObjectStateString) Eval(other string) (bool, error) {
 
 	return false, fmt.Errorf("can not compute op %q", op)
 }
+
+// ParseKernelVariants extracts kernel variants from the encoded value in sta.
+// The encoded value must be of the form of a uname pattern match regex string
+// ex.'pattern match|5.15.0-\d+(-generic|-generic-64k|-generic-lpae|-lowlatency|-lowlatency-64k)'
+// and returns a slice of the extracted variants.
+// ex. ['generic', 'generic-64k', 'generic-lpae', 'lowlatency', 'lowlatency-64k']
+func (sta ObjectStateString) ParseKernelVariants() []string {
+	op, v := sta.unpack()
+	if op != PatternMatch {
+		return []string{}
+	}
+
+	pattern := `\(-(.*)\)$`
+
+	re := regexp.MustCompile(pattern)
+
+	match := re.FindStringSubmatch(string(v))
+	if len(match) < 2 {
+		return []string{}
+	}
+
+	// Variants are separated by '|'
+	variantsRe := regexp.MustCompile(`\|`)
+	variants := variantsRe.Split(match[1], -1)
+
+	// Remove leading '-'
+	for i, v := range variants {
+		variants[i] = strings.TrimPrefix(v, "-")
+	}
+
+	return variants
+}

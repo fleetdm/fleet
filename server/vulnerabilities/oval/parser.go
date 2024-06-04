@@ -490,5 +490,20 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 		}
 	}
 
+	// Extract kernel variants from uname tests
+	kernelVariants := make(map[string]struct{})
+	for _, v := range r.UnameTests {
+		for _, s := range v.States {
+			variants := s.ParseKernelVariants()
+			for _, v := range variants {
+				kernelVariants[v] = struct{}{}
+			}
+		}
+	}
+
+	for v := range kernelVariants {
+		r.AddKernelVariant(v)
+	}
+
 	return r, nil
 }

@@ -75,3 +75,41 @@ func TestObjectStateString(t *testing.T) {
 		})
 	})
 }
+
+func TestParseKernelVariantsinObject(t *testing.T) {
+	tests := []struct {
+		input    ObjectStateString
+		expected []string
+	}{
+		{
+			input:    ObjectStateString(`pattern match|5.15.0-\d+(-generic|-generic-64k|-generic-lpae|-lowlatency|-lowlatency-64k)`),
+			expected: []string{"generic", "generic-64k", "generic-lpae", "lowlatency", "lowlatency-64k"},
+		},
+		{
+			input:    ObjectStateString(`pattern match|5.15.0-\d+(-generic|-lowlatency)`),
+			expected: []string{"generic", "lowlatency"},
+		},
+		{
+			input:    ObjectStateString(`pattern match|5.15.0-\d+(-custom)`),
+			expected: []string{"custom"},
+		},
+		{
+			input:    ObjectStateString(`pattern match|5.15.0-\d+()`),
+			expected: []string{},
+		},
+		{
+			input:    ObjectStateString(`pattern match|invalid-string`),
+			expected: []string{},
+		},
+		{
+			input:    ObjectStateString(`less than|5.15.0-\d+(-generic)`),
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("input: %s", tc.input), func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.input.ParseKernelVariants())
+		})
+	}
+}
