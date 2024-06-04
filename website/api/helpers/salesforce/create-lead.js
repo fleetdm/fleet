@@ -126,11 +126,6 @@ module.exports = {
         // Information from contact record:
         FirstName: contactRecord.FirstName,
         LastName: contactRecord.LastName,
-        Email: contactRecord.Email,
-        Website: contactRecord.Website,
-        of_hosts__c: numberOfHostsToSet,// eslint-disable-line camelcase
-        Primary_buying_scenario__c: primaryBuyingSituationToSet,// eslint-disable-line camelcase
-        LinkedIn_profile__c: contactRecord.LinkedIn_profile__c,// eslint-disable-line camelcase
         // Information from the account record:
         OwnerId: salesforceAccountOwnerId
       });
