@@ -109,11 +109,6 @@ module.exports = {
       'eo-security': 'Endpoint operations - Security',
     };
 
-    // If numberOfHosts or primaryBuyingSituationToSet was provided, set that value on the new Lead, otherwise fallback to the value on the contact record. (If it has one)
-    // Note: If these were not provided and a retreived contact record does not have this information, these values will be set to 'null' and are safe to pass into the sobject('Lead').create method below.
-    let numberOfHostsToSet = numberOfHosts ? numberOfHosts : contactRecord.of_hosts__c;
-    let primaryBuyingSituationToSet = primaryBuyingSituation ? primaryBuyingSituationValuesByCodename[primaryBuyingSituation] : contactRecord.Primary_buying_situation__c;
-
     // Create the new Lead record.
     await sails.helpers.flow.build(async ()=>{
       return await salesforceConnection.sobject('Lead')
