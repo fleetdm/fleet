@@ -14,11 +14,9 @@ Fleet uses a certificate and key pair to authenticate and manage interactions be
 
 How to generate a certificate and key:
 
-1. With [OpenSSL](https://www.openssl.org/) installed, open your Terminal (macOS) or PowerShell (Windows) and run the following command to create a key: `openssl genrsa -out cert.key 2048`.
+1. With [OpenSSL](https://www.openssl.org/) installed, open your Terminal (macOS) or PowerShell (Windows) and run the following command to create a key: `openssl genrsa --traditional -out fleet-mdm-win-wstep.key 4096`.
 
-2. Create a certificate signing request (CSR): `openssl req -new -key cert.key -out cert.csr`.
-
-3. Create a certificate: `openssl x509 -req -days 3650 -in cert.csr -signkey cert.key -out cert.crt`.
+2. Create a certificate: `openssl req -x509 -new -nodes -key fleet-mdm-win-wstep.key -sha256 -days 3652 -out fleet-mdm-win-wstep.crt -subj '/CN=Fleet Root CA/C=US/O=Fleet.'`.
 
 
 ### Step 2: Configure Fleet with your certificate and key
