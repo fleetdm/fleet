@@ -499,8 +499,10 @@ const PolicyForm = ({
     );
   };
 
-  // Non-editable form used for Team Observers and Observer+ of their team policy and inherited policies
-  // And Global Observers and Observer+ of all policies
+  // Non-editable form used for:
+  // Team observers and team observer+ viewing any of their team's policies and any inherited policies
+  // Team admins and team maintainers viewing any inherited policy
+  // And Global observers and global observer+ viewing any team's policies and any inherited policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -552,7 +554,9 @@ const PolicyForm = ({
     </form>
   );
 
-  // Admin or maintainer
+  // Editable form is used for:
+  // Global admins and global maintainers
+  // Team admins and team maintainers viewing any of their team's policies
   const renderEditableQueryForm = () => {
     // Save disabled for no platforms selected, query name blank on existing query, or sql errors
     const disableSaveFormErrors =
@@ -692,7 +696,6 @@ const PolicyForm = ({
 
   // Render non-editable form only
   if (noEditPermissions) {
-    console.log("no edit permission");
     return renderNonEditableForm;
   }
 
