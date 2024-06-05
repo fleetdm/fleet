@@ -11,7 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 
-	bolt "go.etcd.io/bbolt"
+	"github.com/boltdb/bolt"
 )
 
 // Depot implements a SCEP certificate store using boltdb.

@@ -1,51 +1,28 @@
 package main
 
 import (
-	"context"
+	"crypto/rsa"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
+	"github.com/boltdb/bolt"
 	boltdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
-	"github.com/groob/plist"
-	apnsbuiltin "github.com/micromdm/micromdm/platform/apns/builtin"
-	"github.com/micromdm/micromdm/platform/device"
-	devicebuiltin "github.com/micromdm/micromdm/platform/device/builtin"
+	configbuiltin "github.com/micromdm/micromdm/platform/config/builtin"
 	"github.com/micromdm/micromdm/platform/pubsub/inmem"
-	bolt "go.etcd.io/bbolt"
 )
 
-type Authenticate struct {
-	MessageType  string
-	UDID         string
-	Topic        string
-	BuildVersion string `plist:",omitempty"`
-	DeviceName   string `plist:",omitempty"`
-	Model        string `plist:",omitempty"`
-	ModelName    string `plist:",omitempty"`
-	OSVersion    string `plist:",omitempty"`
-	ProductName  string `plist:",omitempty"`
-	SerialNumber string `plist:",omitempty"`
-	IMEI         string `plist:",omitempty"`
-	MEID         string `plist:",omitempty"`
-}
-
-type TokenUpdate struct {
-	MessageType   string
-	UDID          string
-	PushMagic     string
-	Topic         string
-	Token         []byte
-	UnlockToken   []byte `plist:",omitempty"`
-	UserID        string `plist:",omitempty"`
-	UserShortName string `plist:",omitempty"`
-	UserLongName  string `plist:",omitempty"`
-}
+var (
+	apnsKeyPath  = "apns.key"
+	apnsCertPath = "apns.crt"
+	scepKeyPath  = "scep.key"
+	scepCertPath = "scep.crt"
+	depKeyPath   = "ade.key"
+	depCertPath  = "ade.crt"
+)
 
 func main() {
 	var (
@@ -60,16 +37,7 @@ func main() {
 
 	ps := inmem.NewPubSub()
 
-	apnsDB, err := apnsbuiltin.NewDB(boltDB, ps)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	deviceDB, err := devicebuiltin.NewDB(boltDB)
-	if err != nil {
-		log.Fatal(err)
-	}
-	devices, err := deviceDB.List(context.Background(), device.ListDevicesOption{})
+	configDB, err := configbuiltin.NewDB(boltDB, ps)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,7 +63,7 @@ func main() {
 		Bytes: privateKeyBytes,
 	})
 
-	if err := os.WriteFile("scep.key", privateKeyPEM, 0o777); err != nil {
+	if err := os.WriteFile(scepKeyPath, privateKeyPEM, 0o777); err != nil {
 		log.Fatal(err)
 	}
 
@@ -104,114 +72,70 @@ func main() {
 		Bytes: crt.Raw,
 	})
 
-	if err := os.WriteFile("scep.cert", certPEM, 0o777); err != nil {
+	if err := os.WriteFile(scepCertPath, certPEM, 0o777); err != nil {
 		log.Fatal(err)
 	}
 
-	var sb strings.Builder
-
-	for _, device := range devices {
-		pushInfo, err := apnsDB.PushInfo(context.Background(), device.UDID)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		authenticate := &Authenticate{
-			MessageType:  "Authenticate",
-			UDID:         device.UDID,
-			Topic:        pushInfo.MDMTopic,
-			BuildVersion: device.BuildVersion,
-			DeviceName:   device.DeviceName,
-			Model:        device.Model,
-			ModelName:    device.ModelName,
-			OSVersion:    device.OSVersion,
-			ProductName:  device.ProductName,
-			SerialNumber: device.SerialNumber,
-			IMEI:         device.IMEI,
-			MEID:         device.MEID,
-		}
-		authenticatePlist, err := plist.Marshal(authenticate)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		fmt.Println(authenticatePlist)
-
-		token, err := hex.DecodeString(pushInfo.Token)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		unlockToken, err := hex.DecodeString(device.UnlockToken)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		tokenUpdate := &TokenUpdate{
-			MessageType: "TokenUpdate",
-			UDID:        device.UDID,
-
-			PushMagic: pushInfo.PushMagic,
-			Token:     token,
-			Topic:     pushInfo.MDMTopic,
-
-			UnlockToken: unlockToken,
-		}
-		tokenPlist, err := plist.Marshal(tokenUpdate)
-		fmt.Println(tokenPlist)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		certHash, err := deviceDB.GetUDIDCertHash([]byte(device.UDID))
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Println("================", string(certHash))
-
-		sb.WriteString(fmt.Sprintf(`
-INSERT INTO nano_devices
-    (id, identity_cert, serial_number, authenticate, authenticate_at, token_update, token_update_at)
-VALUES
-    ('%s', HEX('%s'), '%s', '%s', CURRENT_TIMESTAMP, '%s', CURRENT_TIMESTAMP)
-ON DUPLICATE KEY
-UPDATE
-    identity_cert = VALUES(identity_cert),
-    serial_number = VALUES(serial_number),
-    authenticate = VALUES(authenticate),
-    authenticate_at = CURRENT_TIMESTAMP,
-    token_update = VALUES(token_update),
-    token_update_at = CURRENT_TIMESTAMP;
-		`, device.UDID, hex.EncodeToString(certHash[:]), device.SerialNumber, "", ""))
-
-		sb.WriteString(fmt.Sprintf(`
-INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally)
-VALUES
-	('%s', '%s', NULL, "Device", '%s', '%s', '%s', CURRENT_TIMESTAMP, 1)
-ON DUPLICATE KEY
-UPDATE
-    device_id = VALUES(device_id),
-    user_id = VALUES(user_id),
-    type = VALUES(type),
-    topic = VALUES(topic),
-    push_magic = VALUES(push_magic),
-    token_hex = VALUES(token_hex),
-    enabled = 1,
-    last_seen_at = CURRENT_TIMESTAMP,
-    token_update_tally = nano_enrollments.token_update_tally + 1;`,
-			device.UDID,
-			device.UDID,
-			tokenUpdate.Topic,
-			tokenUpdate.PushMagic,
-			hex.EncodeToString(tokenUpdate.Token),
-		))
-	}
-
-	if err := os.WriteFile("dump.sql", []byte(sb.String()), 0o777); err != nil {
+	pushCert, err := configDB.PushCertificate()
+	if err != nil {
 		log.Fatal(err)
 	}
+
+	rsaKey, ok := pushCert.PrivateKey.(*rsa.PrivateKey)
+	if !ok {
+		log.Fatal("stored APNs key is not in RSA format")
+	}
+
+	pushKeyBytes := x509.MarshalPKCS1PrivateKey(rsaKey)
+	pushKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: pushKeyBytes,
+	})
+	if err := os.WriteFile(apnsKeyPath, pushKeyPEM, 0o777); err != nil {
+		log.Fatal(err)
+	}
+
+	pushCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: pushCert.Certificate[0],
+	})
+	if err := os.WriteFile(apnsCertPath, pushCertPEM, 0o777); err != nil {
+		log.Fatal(err)
+	}
+
+	depKey, depCert, err := configDB.DEPKeypair()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	depKeyBytes := x509.MarshalPKCS1PrivateKey(depKey)
+	depKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: depKeyBytes,
+	})
+	if err := os.WriteFile(depKeyPath, depKeyPEM, 0o777); err != nil {
+		log.Fatal(err)
+	}
+
+	depCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: depCert.Raw,
+	})
+	if err := os.WriteFile(depCertPath, depCertPEM, 0o777); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf(`
+============================
+
+Success! Exported:
+
+- %s
+- %s
+- %s
+- %s
+- %s
+- %s
+`, apnsKeyPath, apnsCertPath, scepKeyPath, scepCertPath, depKeyPath, depCertPath)
+
 }
