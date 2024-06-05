@@ -15,6 +15,7 @@ import {
 } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
+
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -45,8 +46,21 @@ import OSSettingsModal from "../OSSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import SelfService from "../cards/Software/SelfService";
 
 const baseClass = "device-user";
+
+const PREMIUM_TABS = [
+  PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
+  PATHS.DEVICE_USER_DETAILS_SOFTWARE,
+  PATHS.DEVICE_USER_DETAILS_POLICIES,
+] as const;
+
+const FREE_TABS = [
+  PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_SOFTWARE,
+] as const;
 
 interface IDeviceUserPageProps {
   location: {
@@ -80,6 +94,7 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [orgLogoURL, setOrgLogoURL] = useState("");
+  const [orgContactURL, setOrgContactURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -152,15 +167,19 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
+      // TODO: refactor to use non-refetch data directly in the component and remove
+      // unnecesary derived states for values that aren't related to the refetch status
       onSuccess: ({
         license,
         org_logo_url,
+        org_contact_url,
         global_config,
         host: responseHost,
       }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
         setIsPremiumTier(license.tier === "premium");
         setOrgLogoURL(org_logo_url);
+        setOrgContactURL(org_contact_url);
         setGlobalConfig(global_config);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
@@ -324,14 +343,17 @@ const DeviceUserPage = ({
       host?.mdm.macos_settings?.disk_encryption === "action_required" &&
       host?.mdm.macos_settings?.action_required === "rotate_key";
 
-    const tabPaths = [
-      PATHS.DEVICE_USER_DETAILS(deviceAuthToken),
-      PATHS.DEVICE_USER_DETAILS_SOFTWARE(deviceAuthToken),
-      PATHS.DEVICE_USER_DETAILS_POLICIES(deviceAuthToken),
-    ];
-
+    // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
+    // a premium-only message in the case that a user tries direct navigation to a premium-only page
+    // or silently redirect as below?
+    const tabPaths = isPremiumTier
+      ? PREMIUM_TABS.map((t) => t(deviceAuthToken))
+      : FREE_TABS.map((t) => t(deviceAuthToken));
     const findSelectedTab = (pathname: string) =>
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
+    if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
+      router.push(tabPaths[0]);
+    }
 
     // TODO: This is a temporary fix that conditionally shows the new software tab depending on
     // whether software items returned in the device details response (legacy endpoint).
@@ -394,6 +416,7 @@ const DeviceUserPage = ({
               >
                 <TabList>
                   <Tab>Details</Tab>
+                  {isPremiumTier && <Tab>Self-service</Tab>}
                   {isSoftwareEnabled && <Tab>Software</Tab>}
                   {isPremiumTier && (
                     <Tab>
@@ -413,6 +436,18 @@ const DeviceUserPage = ({
                     munki={deviceMacAdminsData?.munki}
                   />
                 </TabPanel>
+                {isPremiumTier && (
+                  <TabPanel>
+                    <SelfService
+                      contactUrl={orgContactURL}
+                      deviceToken={deviceAuthToken}
+                      isSoftwareEnabled
+                      pathname={location.pathname}
+                      queryParams={parseHostSoftwareQueryParams(location.query)}
+                      router={router}
+                    />
+                  </TabPanel>
+                )}
                 {isSoftwareEnabled && (
                   <TabPanel>
                     <SoftwareCard

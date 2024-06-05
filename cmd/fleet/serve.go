@@ -58,6 +58,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
+	"github.com/google/uuid"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -161,13 +162,15 @@ the way that the Fleet server works.
 				}
 			}
 
-			if len([]byte(config.Server.PrivateKey)) < 32 {
-				initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
-			}
+			if len(config.Server.PrivateKey) > 0 {
+				if len(config.Server.PrivateKey) < 32 {
+					initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
+				}
 
-			// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
-			// infra setups generate keys that are longer than 32 bytes.
-			config.Server.PrivateKey = config.Server.PrivateKey[:32]
+				// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+				// infra setups generate keys that are longer than 32 bytes.
+				config.Server.PrivateKey = config.Server.PrivateKey[:32]
+			}
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
@@ -495,6 +498,10 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
 				}
 
+				if len(config.Server.PrivateKey) == 0 {
+					initFatal(errors.New("inserting APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+				}
+
 				apnsCert, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
 				if err != nil {
 					initFatal(err, "validate Apple APNs certificate and key")
@@ -542,6 +549,10 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
 				}
 
+				if len(config.Server.PrivateKey) == 0 {
+					initFatal(errors.New("inserting MDM ABM assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+				}
+
 				appleBM, err := config.MDM.AppleBM()
 				if err != nil {
 					initFatal(err, "validate Apple BM token, certificate and key")
@@ -581,23 +592,27 @@ the way that the Fleet server works.
 				return true, nil
 			}
 
-			appCfg.MDM.EnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
-				fleet.MDMAssetCACert,
-				fleet.MDMAssetCAKey,
-				fleet.MDMAssetAPNSKey,
-				fleet.MDMAssetAPNSCert,
-			})
-			if err != nil {
-				initFatal(err, "validating MDM assets from database")
-			}
+			appCfg.MDM.EnabledAndConfigured = false
+			appCfg.MDM.AppleBMEnabledAndConfigured = false
+			if len(config.Server.PrivateKey) > 0 {
+				appCfg.MDM.EnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+					fleet.MDMAssetCACert,
+					fleet.MDMAssetCAKey,
+					fleet.MDMAssetAPNSKey,
+					fleet.MDMAssetAPNSCert,
+				})
+				if err != nil {
+					initFatal(err, "validating MDM assets from database")
+				}
 
-			appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
-				fleet.MDMAssetABMCert,
-				fleet.MDMAssetABMKey,
-				fleet.MDMAssetABMToken,
-			})
-			if err != nil {
-				initFatal(err, "validating MDM ABM assets from database")
+				appCfg.MDM.AppleBMEnabledAndConfigured, err = checkMDMAssets([]fleet.MDMAssetName{
+					fleet.MDMAssetABMCert,
+					fleet.MDMAssetABMKey,
+					fleet.MDMAssetABMToken,
+				})
+				if err != nil {
+					initFatal(err, "validating MDM ABM assets from database")
+				}
 			}
 
 			// register the Microsoft MDM services
@@ -946,19 +961,47 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			ddmService := service.NewMDMAppleDDMService(ds, logger)
-			mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
-			if err := service.RegisterAppleMDMProtocolServices(
-				rootMux,
-				config.MDM,
-				mdmStorage,
-				scepStorage,
-				logger,
-				mdmCheckinAndCommandService,
-				ddmService,
-			); err != nil {
-				initFatal(err, "setup mdm apple services")
+			if len(config.Server.PrivateKey) > 0 {
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				ddmService := service.NewMDMAppleDDMService(ds, logger)
+				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+
+				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
+				if err != nil {
+					initFatal(err, "checking SCEP challenge in database")
+				}
+				if !hasSCEPChallenge {
+					scepChallenge := config.MDM.AppleSCEPChallenge
+					if scepChallenge == "" {
+						scepChallenge = uuid.NewString()
+					}
+
+					err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+						{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(scepChallenge)},
+					})
+					if err != nil {
+						// duplicate key errors mean that we already
+						// have a value for those keys in the
+						// database, fail to initalize on other
+						// cases.
+						if !mysql.IsDuplicate(err) {
+							initFatal(err, "inserting SCEP challenge")
+						}
+
+						level.Warn(logger).Log("msg", "Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
+					}
+				}
+				if err := service.RegisterAppleMDMProtocolServices(
+					rootMux,
+					config.MDM,
+					mdmStorage,
+					scepStorage,
+					logger,
+					mdmCheckinAndCommandService,
+					ddmService,
+				); err != nil {
+					initFatal(err, "setup mdm apple services")
+				}
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {

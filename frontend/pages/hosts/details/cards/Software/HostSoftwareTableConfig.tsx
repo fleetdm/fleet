@@ -143,16 +143,8 @@ export const generateSoftwareTableHeaders = ({
       Header: "Install status",
       disableSortBy: true,
       accessor: "status",
-      Cell: (cellProps: IInstalledStatusCellProps) => {
-        const { original } = cellProps.row;
-        const { value } = cellProps.cell;
-        return (
-          <InstallStatusCell
-            status={value}
-            packageToInstall={original.package_available_for_install}
-            installedAt={original.last_install?.installed_at}
-          />
-        );
+      Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
+        return <InstallStatusCell {...original} />;
       },
     },
     {
