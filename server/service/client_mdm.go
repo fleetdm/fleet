@@ -41,16 +41,21 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 }
 
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
-// SCEP certificate and key along with the APNs key used for the CSR.
-func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
-	verb, path := "POST", "/api/latest/fleet/mdm/apple/request_csr"
-	request := requestMDMAppleCSRRequest{
-		EmailAddress: email,
-		Organization: org,
-	}
-	var responseBody requestMDMAppleCSRResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
-	return responseBody.AppleCSR, err
+// CSR bytes
+func (c *Client) RequestAppleCSR() ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/request_csr"
+	var resp getMDMAppleCSRResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.CSR, err
+}
+
+// RequestAppleABM requests a signed CSR from the Fleet server and returns the
+// public key bytes
+func (c *Client) RequestAppleABM() ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/abm_public_key"
+	var resp generateABMKeyPairResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.PublicKey, err
 }
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
@@ -287,7 +292,7 @@ func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform st
 	case "windows":
 		prepareFn = c.prepareWindowsMDMCommand
 	default:
-		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or macOS hosts.", forPlatform)
+		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or Apple hosts.", forPlatform)
 	}
 
 	rawCmd, err := prepareFn(rawCmd)

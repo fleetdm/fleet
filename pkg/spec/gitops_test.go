@@ -59,13 +59,19 @@ func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 func TestValidGitOpsYaml(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
-		filePath string
-		isTeam   bool
+		environment map[string]string
+		filePath    string
+		isTeam      bool
 	}{
 		"global_config_no_paths": {
 			filePath: "testdata/global_config_no_paths.yml",
 		},
 		"global_config_with_paths": {
+			environment: map[string]string{
+				"LINUX_OS":                      "linux",
+				"DISTRIBUTED_DENYLIST_DURATION": "0",
+				"ORG_NAME":                      "Fleet Device Management",
+			},
 			filePath: "testdata/global_config.yml",
 		},
 		"team_config_no_paths": {
@@ -73,6 +79,12 @@ func TestValidGitOpsYaml(t *testing.T) {
 			isTeam:   true,
 		},
 		"team_config_with_paths": {
+			environment: map[string]string{
+				"POLICY":                          "policy",
+				"LINUX_OS":                        "linux",
+				"DISTRIBUTED_DENYLIST_DURATION":   "0",
+				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
+			},
 			filePath: "testdata/team_config.yml",
 			isTeam:   true,
 		},
@@ -83,7 +95,19 @@ func TestValidGitOpsYaml(t *testing.T) {
 		name := name
 		t.Run(
 			name, func(t *testing.T) {
-				t.Parallel()
+				if len(test.environment) > 0 {
+					for k, v := range test.environment {
+						os.Setenv(k, v)
+					}
+					t.Cleanup(func() {
+						for k := range test.environment {
+							os.Unsetenv(k)
+						}
+					})
+				} else {
+					t.Parallel()
+				}
+
 				gitops, err := GitOpsFromFile(test.filePath, "./testdata")
 				require.NoError(t, err)
 
@@ -91,6 +115,15 @@ func TestValidGitOpsYaml(t *testing.T) {
 					// Check team settings
 					assert.Equal(t, "Team1", *gitops.TeamName)
 					assert.Contains(t, gitops.TeamSettings, "webhook_settings")
+					webhookSettings, ok := gitops.TeamSettings["webhook_settings"].(map[string]interface{})
+					assert.True(t, ok, "webhook_settings not found")
+					assert.Contains(t, webhookSettings, "failing_policies_webhook")
+					failingPoliciesWebhook, ok := webhookSettings["failing_policies_webhook"].(map[string]interface{})
+					assert.True(t, ok, "webhook_settings not found")
+					assert.Contains(t, failingPoliciesWebhook, "enable_failing_policies_webhook")
+					enableFailingPoliciesWebhook, ok := failingPoliciesWebhook["enable_failing_policies_webhook"].(bool)
+					assert.True(t, ok)
+					assert.True(t, enableFailingPoliciesWebhook)
 					assert.Contains(t, gitops.TeamSettings, "host_expiry_settings")
 					assert.Contains(t, gitops.TeamSettings, "features")
 					assert.Contains(t, gitops.TeamSettings, "secrets")
@@ -105,6 +138,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.True(t, ok, "server_settings not found")
 					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]interface{})["server_url"])
 					assert.Contains(t, gitops.OrgSettings, "org_info")
+					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]interface{})
+					assert.True(t, ok)
+					assert.Equal(t, "Fleet Device Management", orgInfo["org_name"])
 					assert.Contains(t, gitops.OrgSettings, "smtp_settings")
 					assert.Contains(t, gitops.OrgSettings, "sso_settings")
 					assert.Contains(t, gitops.OrgSettings, "integrations")
@@ -151,12 +187,13 @@ func TestValidGitOpsYaml(t *testing.T) {
 
 				// Check agent options
 				assert.NotNil(t, gitops.AgentOptions)
-				assert.Contains(t, string(*gitops.AgentOptions), "distributed_denylist_duration")
+				assert.Contains(t, string(*gitops.AgentOptions), "\"distributed_denylist_duration\":0")
 
 				// Check queries
 				require.Len(t, gitops.Queries, 3)
 				assert.Equal(t, "Scheduled query stats", gitops.Queries[0].Name)
 				assert.Equal(t, "orbit_info", gitops.Queries[1].Name)
+				assert.Equal(t, "darwin,linux,windows", gitops.Queries[1].Platform)
 				assert.Equal(t, "osquery_info", gitops.Queries[2].Name)
 
 				// Check policies
@@ -165,6 +202,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.Equal(t, "Passing policy", gitops.Policies[1].Name)
 				assert.Equal(t, "No root logins (macOS, Linux)", gitops.Policies[2].Name)
 				assert.Equal(t, "🔥 Failing policy", gitops.Policies[3].Name)
+				assert.Equal(t, "linux", gitops.Policies[3].Platform)
 				assert.Equal(t, "😊😊 Failing policy", gitops.Policies[4].Name)
 			},
 		)
@@ -283,7 +321,7 @@ queries:
 `
 	_, err = gitOpsFromString(t, config)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "variable \"NOT_DEFINED\" not set")
+	require.Contains(t, err.Error(), "environment variable \"NOT_DEFINED\" not set")
 }
 
 func TestMixingGlobalAndTeamConfig(t *testing.T) {

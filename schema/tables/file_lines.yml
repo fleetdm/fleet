@@ -1,5 +1,5 @@
 name: file_lines
-notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Allows reading an arbitrary file.
 platforms: 
   - darwin

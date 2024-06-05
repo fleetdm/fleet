@@ -66,7 +66,6 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "fd7a:115c:a1e0::d401:6637", host.PrimaryIP)
 	assert.Equal(t, "b2:a2:e4:62:0f:1e", host.PrimaryMac)
-
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
@@ -1933,4 +1932,15 @@ func TestIngestNetworkInterface(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateSQLForAllExists(t *testing.T) {
+	query1 := "SELECT 1 WHERE foo = bar"
+	query2 := "SELECT 1 WHERE baz = qux"
+
+	sql := generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
+
+	sql = generateSQLForAllExists()
+	require.Equal(t, "SELECT 0 LIMIT 0", sql)
 }

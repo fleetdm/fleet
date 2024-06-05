@@ -215,7 +215,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.50.0")
+    image                        = optional(string, "fleetdm/fleet:v4.50.2")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -229,6 +229,7 @@ variable "fleet_config" {
     security_group_name          = optional(string, "fleet")
     iam_role_arn                 = optional(string, null)
     repository_credentials       = optional(string, "")
+    private_key_secret_name      = optional(string, "fleet-server-private-key")
     service = optional(object({
       name = optional(string, "fleet")
       }), {
@@ -326,6 +327,7 @@ variable "fleet_config" {
     security_group_name          = "fleet"
     iam_role_arn                 = null
     repository_credentials       = ""
+    private_key_secret_name      = "fleet-server-private-key"
     service = {
       name = "fleet"
     }

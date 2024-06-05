@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import PATHS from "router/paths";
 
+import { AppContext } from "context/app";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
 import { InjectedRouter } from "react-router";
@@ -12,12 +13,14 @@ interface ITurnOnMdmMessageProps {
 }
 
 const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
+  const { isGlobalAdmin } = useContext(AppContext);
+
   const onConnectClick = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
 
   const renderConnectButton = () => {
-    return (
+    return isGlobalAdmin ? (
       <Button
         variant="brand"
         onClick={onConnectClick}
@@ -25,13 +28,15 @@ const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
       >
         Turn on
       </Button>
+    ) : (
+      <></>
     );
   };
 
   return (
     <EmptyTable
       header="Manage your hosts"
-      info="Turn on MDM to change settings on your hosts."
+      info="MDM must be turned on to change settings on your hosts."
       primaryButton={renderConnectButton()}
     />
   );

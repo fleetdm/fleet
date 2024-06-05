@@ -39,6 +39,137 @@ html, body {
   transition-duration: 500ms;
 }
 
+[purpose='continue-banner'] {
+  z-index: 199;
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  [purpose='banner-body'].invisible {
+    transform: translateY(200px);
+  }
+  [purpose='banner-body'] {
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    [purpose='banner-close-button'] {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 4px;
+      font-size: 20px;
+      line-height: 24px;
+      cursor: pointer;
+    }
+    width: 260px;
+    position: relative;
+    border-radius: 12px;
+    border: 1px solid #E2E4EA;
+    box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    background: #FFFFFF;
+    [purpose='banner-text'] {
+      width: 100%;
+      padding: 0 0 0 16px;
+      strong {
+        font-size: 13px;
+      }
+      p {
+        color: #192147;
+        font-size: 12px;
+        font-style: normal;
+        line-height: 18px; /* 150% */
+        margin-bottom: 0;
+      }
+      [purpose='form-progress-bar'] {
+        height: 6px;
+        margin-bottom: 16px;
+        width: 100%;
+        background: #E2E4EA;
+        border-radius: 3px;
+        [purpose='current-progress'] {
+          background-color: #3DB67B;
+          height: 6px;
+          border-radius: 3px;
+        }
+      }
+      [purpose='continue-button'] {
+        padding-right: 4px;
+        font-size: 12px;
+        color: @core-fleet-black;
+        font-weight: 600;
+        cursor: pointer;
+        position: relative;
+        width: auto;
+        user-select: none;
+        transition: 0.2s ease-in-out;
+        -o-transition: 0.2s ease-in-out;
+        -ms-transition: 0.2s ease-in-out;
+        -moz-transition: 0.2s ease-in-out;
+        -webkit-transition: 0.2s ease-in-out;
+        &:hover {
+          text-decoration: none;
+        }
+        &:before {
+          content: url('/images/arrow-right-red-16x16@2x.png');
+          transform: scale(0.25);
+          position: absolute;
+          top: -10px;
+          left: 80%; // <--- here
+          transition: 0.2s ease-in-out;
+          -o-transition: 0.2s ease-in-out;
+          -ms-transition: 0.2s ease-in-out;
+          -moz-transition: 0.2s ease-in-out;
+          -webkit-transition: 0.2s ease-in-out;
+        }
+        &:hover:before {
+          left: 85%; // <--- here
+          transition: 0.2s ease-in-out;
+          -o-transition: 0.2s ease-in-out;
+          -ms-transition: 0.2s ease-in-out;
+          -moz-transition: 0.2s ease-in-out;
+          -webkit-transition: 0.2s ease-in-out;
+        }
+      }
+    }
+    [purpose='continue-chevron'] {
+      display: none;
+    }
+    [purpose='banner-image'] {
+      height: 80px;
+      min-width: 80px;
+      background-image: url('/images/continue-thumbnail.png');
+      background-size: cover;
+    }
+  }
+  [purpose='banner-body'].collapsed {
+    [purpose='banner-image'] {
+      height: 100px;
+      min-width: 100px;
+    }
+    [purpose='banner-text'] {
+      display: none;
+    }
+    &:hover {
+      transform: scale(0.9);
+    }
+    transform: scale(0.8);
+    cursor: pointer;
+    min-height: unset;
+    overflow: hidden;
+    border-radius: 50%;
+    border: 4px solid #FFF;
+    padding: 0;
+    background: #EEF9FE;
+    box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
+    width: 100px;
+    height: 100px;
+    &.invisible {
+      transform: translateY(200px);
+    }
+  }
+}
+
+
 [purpose='header-ribbon-cta'] {
   background-color: #7487C2;
   p {
@@ -456,6 +587,93 @@ body.detected-mobile {
       margin-bottom: 32px;
     }
   }
+  [purpose='continue-banner'] {
+    position: fixed;
+    bottom: 70px;
+    height: 0px;
+    left: 0;
+    right: unset;
+    width: 100%;
+    [purpose='banner-body'].invisible {
+      transform: translateY(200px);
+    }
+    [purpose='banner-body'] {
+      transition: transform 1s ease-in-out;
+      [purpose='banner-close-button'] {
+        display: none;
+      }
+      height: 70px;
+      min-height: unset;
+      width: 100%;
+      margin-right: 0px;
+      position: relative;
+      border-radius: 0px;
+      border: 1px solid #E2E4EA;
+      box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
+      padding: 8px;
+      background: #FFFFFF;
+      cursor: pointer;
+      [purpose='banner-text'] {
+        width: 100%;
+        margin-right: 24px;
+        padding: 8px 8px 8px 16px;
+        p {
+          font-size: 12px;
+          line-height: 18px;
+          margin-bottom: 0;
+        }
+        [purpose='form-progress-bar'] {
+          height: 6px;
+          margin-bottom: 4px;
+          width: 100%;
+          background: #E2E4EA;
+          border-radius: 3px;
+          [purpose='current-progress'] {
+            background-color: #3DB67B;
+            height: 6px;
+            border-radius: 3px;
+          }
+        }
+        [purpose='continue-button'] {
+          display: none;
+        }
+      }
+      [purpose='continue-chevron'] {
+        display: block;
+        img {
+          width: 5px;
+          height: 10px;
+          margin-right: 8px;
+        }
+      }
+      [purpose='banner-image'] {
+        height: 54px;
+        min-width: 54px;
+        background-image: url('/images/continue-thumbnail.png');
+        background-size: cover;
+      }
+    }
+    [purpose='banner-body'].collapsed {
+      [purpose='banner-text'] {
+        display: flex;
+      }
+      transform: none;
+      transition: none;
+      &:hover {
+        transform: none;
+      }
+      height: 70px;
+      min-height: unset;
+      width: 100%;
+      margin-right: 0px;
+      position: relative;
+      border-radius: 0px;
+      border: 1px solid #E2E4EA;
+      box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.15);
+      padding: 8px;
+      background: #FFFFFF;
+    }
+  }
 }
 
 @media (max-width: 767px) {
@@ -526,15 +744,7 @@ body.detected-mobile {
   [purpose='license-information'] {
     margin-bottom: 32px;
   }
-  // For hiding the hubspot chat widget on mobile devices.
-  #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
-    display: none !important;//lesshint-disable-line importantRule
-  }
-  html.hs-messages-widget-open, html.hs-messages-mobile.hs-messages-widget-open {// Shows the hubspot chat widget when the widget is opened from a "Talk to an expert" button.
-    #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
-      display: initial !important;//lesshint-disable-line importantRule
-    }
-  }
+
 }
 
 @media (max-width: 375px) {

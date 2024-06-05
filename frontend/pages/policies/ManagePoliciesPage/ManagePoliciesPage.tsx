@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { isEqual } from "lodash";
 
-import { getNextLocationPath } from "utilities/helpers";
+import { getNextLocationPath, wait } from "utilities/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -123,21 +123,23 @@ const ManagePolicyPage = ({
     },
   });
 
-  const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
-  const [
-    updatingPolicyEnabledCalendarEvents,
-    setUpdatingPolicyEnabledCalendarEvents,
-  ] = useState(false);
+  const [isUpdatingCalendarEvents, setIsUpdatingCalendarEvents] = useState(
+    false
+  );
+  const [isUpdatingOtherWorkflows, setIsUpdatingOtherWorkflows] = useState(
+    false
+  );
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
-  const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
+  const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
@@ -147,12 +149,11 @@ const ManagePolicyPage = ({
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
-  const initialPage = (() =>
-    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
+  const page =
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [page, setPage] = useState(initialPage);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
@@ -167,7 +168,6 @@ const ManagePolicyPage = ({
     if (!isRouteOk) {
       return;
     }
-    setPage(initialPage);
     setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
@@ -356,10 +356,29 @@ const ManagePolicyPage = ({
     }
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  // NOTE: Solution reused from ManageHostPage.tsx
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [page]);
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    setResetPageIndex(true);
+  };
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
+      handleResetPageIndex();
     },
     [handleTeamChange]
   );
@@ -408,7 +427,7 @@ const ManagePolicyPage = ({
 
       router?.replace(locationPath);
     },
-    [isRouteOk, teamIdForApi, searchQuery, sortDirection] // Other dependencies can cause infinite re-renders as URL is source of truth
+    [isRouteOk, teamIdForApi, searchQuery, sortDirection, page, sortHeader] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
   const toggleOtherWorkflowsModal = () =>
@@ -435,11 +454,11 @@ const ManagePolicyPage = ({
     }
   };
 
-  const handleUpdateOtherWorkflows = async (requestBody: {
+  const onUpdateOtherWorkflows = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
     integrations: IZendeskJiraIntegrations;
   }) => {
-    setIsUpdatingAutomations(true);
+    setIsUpdatingOtherWorkflows(true);
     try {
       await (isAnyTeamSelected
         ? teamsAPI.update(requestBody, teamIdForApi)
@@ -452,16 +471,13 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleOtherWorkflowsModal();
-      setIsUpdatingAutomations(false);
-      refetchConfig();
-      isAnyTeamSelected && refetchTeamConfig();
+      setIsUpdatingOtherWorkflows(false);
+      isAnyTeamSelected ? refetchTeamConfig() : refetchConfig();
     }
   };
 
-  const updatePolicyEnabledCalendarEvents = async (
-    formData: ICalendarEventsFormData
-  ) => {
-    setUpdatingPolicyEnabledCalendarEvents(true);
+  const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
+    setIsUpdatingCalendarEvents(true);
 
     try {
       // update team config if either field has been changed
@@ -510,6 +526,10 @@ const ManagePolicyPage = ({
       );
 
       await Promise.all(responses);
+      await wait(100); // Wait 100ms to avoid race conditions with refetch
+      await refetchTeamPolicies();
+      await refetchTeamConfig();
+
       renderFlash("success", "Successfully updated policy automations.");
     } catch {
       renderFlash(
@@ -518,9 +538,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleCalendarEventsModal();
-      setUpdatingPolicyEnabledCalendarEvents(false);
-      refetchTeamPolicies();
-      refetchTeamConfig();
+      setIsUpdatingCalendarEvents(false);
     }
   };
 
@@ -650,6 +668,7 @@ const ManagePolicyPage = ({
             sortDirection={sortDirection}
             page={page}
             onQueryChange={onQueryChange}
+            resetPageIndex={resetPageIndex}
           />
         )}
         {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
@@ -674,6 +693,7 @@ const ManagePolicyPage = ({
             sortDirection={sortDirection}
             page={page}
             onQueryChange={onQueryChange}
+            resetPageIndex={resetPageIndex}
           />
         )}
       </div>
@@ -781,9 +801,9 @@ const ManagePolicyPage = ({
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
             availablePolicies={policiesAvailableToAutomate}
-            isUpdatingAutomations={isUpdatingAutomations}
+            isUpdating={isUpdatingOtherWorkflows}
             onExit={toggleOtherWorkflowsModal}
-            handleSubmit={handleUpdateOtherWorkflows}
+            onSubmit={onUpdateOtherWorkflows}
           />
         )}
         {showAddPolicyModal && (
@@ -804,9 +824,7 @@ const ManagePolicyPage = ({
         {showCalendarEventsModal && (
           <CalendarEventsModal
             onExit={toggleCalendarEventsModal}
-            updatePolicyEnabledCalendarEvents={
-              updatePolicyEnabledCalendarEvents
-            }
+            onSubmit={onUpdateCalendarEvents}
             configured={isCalEventsConfigured}
             enabled={
               teamConfig?.integrations.google_calendar
@@ -814,7 +832,7 @@ const ManagePolicyPage = ({
             }
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={policiesAvailableToAutomate}
-            isUpdating={updatingPolicyEnabledCalendarEvents}
+            isUpdating={isUpdatingCalendarEvents}
           />
         )}
       </div>

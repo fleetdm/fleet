@@ -77,10 +77,15 @@ export enum ActivityType {
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
-export type IHostActivityType =
+export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
+  | ActivityType.InstalledSoftware;
+
+// This is a subset of ActivityType that are shown only for the host upcoming activities
+export type IHostUpcomingActivityType =
+  | ActivityType.RanScript
   | ActivityType.InstalledSoftware;
 
 export interface IActivity {
@@ -94,8 +99,13 @@ export interface IActivity {
   details?: IActivityDetails;
 }
 
-export type IHostActivity = Omit<IActivity, "type" | "details"> & {
-  type: IHostActivityType;
+export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
+  type: IHostPastActivityType;
+  details: IActivityDetails;
+};
+
+export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+  type: IHostUpcomingActivityType;
   details: IActivityDetails;
 };
 
@@ -142,4 +152,5 @@ export interface IActivityDetails {
   software_package?: string;
   status?: string;
   install_uuid?: string;
+  self_service?: boolean;
 }

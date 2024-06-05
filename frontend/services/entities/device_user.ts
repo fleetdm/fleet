@@ -1,5 +1,5 @@
 import { IDeviceUserResponse } from "interfaces/host";
-import { IHostSoftware } from "interfaces/software";
+import { IDeviceSoftware } from "interfaces/software";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -13,7 +13,7 @@ export interface IDeviceSoftwareQueryKey extends IHostSoftwareQueryParams {
 }
 
 export interface IGetDeviceSoftwareResponse {
-  software: IHostSoftware[];
+  software: IDeviceSoftware[];
   count: number;
   meta: {
     has_next_results: boolean;
@@ -52,5 +52,15 @@ export default {
     const { id, scope, ...rest } = params;
     const queryString = buildQueryStringFromParams(rest);
     return sendRequest("GET", `${DEVICE_SOFTWARE(id)}?${queryString}`);
+  },
+
+  installSelfServiceSoftware: (
+    deviceToken: string,
+    softwareTitleId: number
+  ) => {
+    const { DEVICE_SOFTWARE_INSTALL } = endpoints;
+    const path = DEVICE_SOFTWARE_INSTALL(deviceToken, softwareTitleId);
+
+    return sendRequest("POST", path);
   },
 };

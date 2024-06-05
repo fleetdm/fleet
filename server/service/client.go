@@ -303,7 +303,7 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 
 // getProfilesContents takes file paths and creates a slice of profile payloads
 // ready to batch-apply.
-func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fleet.MDMProfileBatchPayload, error) {
+func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMProfileBatchPayload, error) {
 	// map to check for duplicate names
 	extByName := make(map[string]string, len(profiles))
 	result := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
@@ -313,6 +313,13 @@ func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fle
 		fileContents, err := os.ReadFile(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("applying fleet config: %w", err)
+		}
+
+		if expandEnv {
+			fileContents, err = spec.ExpandEnvBytes(fileContents)
+			if err != nil {
+				return nil, fmt.Errorf("expanding environment on file %q: %w", profile.Path, err)
+			}
 		}
 
 		// by default, use the file name. macOS profiles use their PayloadDisplayName
@@ -345,7 +352,7 @@ func (c *Client) ApplyGroup(
 	specs *spec.Group,
 	baseDir string,
 	logf func(format string, args ...interface{}),
-	opts fleet.ApplySpecOptions,
+	opts fleet.ApplyClientSpecOptions,
 ) (map[string]uint, error) {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -424,7 +431,7 @@ func (c *Client) ApplyGroup(
 		// custom settings but windows is present and empty (but mac is absent),
 		// shouldn't that clear the windows ones?
 		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(allCustomSettings) > 0 {
-			fileContents, err := getProfilesContents(baseDir, allCustomSettings)
+			fileContents, err := getProfilesContents(baseDir, allCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				return nil, err
 			}
@@ -439,7 +446,7 @@ func (c *Client) ApplyGroup(
 					assumeEnabled = ok && assumeEnabled
 				}
 			}
-			if err := c.ApplyNoTeamProfiles(fileContents, opts, assumeEnabled); err != nil {
+			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
 				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
@@ -481,11 +488,11 @@ func (c *Client) ApplyGroup(
 					Name:           filepath.Base(f),
 				}
 			}
-			if err := c.ApplyNoTeamScripts(scriptPayloads, opts); err != nil {
+			if err := c.ApplyNoTeamScripts(scriptPayloads, opts.ApplySpecOptions); err != nil {
 				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
-		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
+		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
 			return nil, fmt.Errorf("applying fleet config: %w", err)
 		}
 		if opts.DryRun {
@@ -496,12 +503,12 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.EnrollSecret != nil {
+		if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret, opts.ApplySpecOptions); err != nil {
+			return nil, fmt.Errorf("applying enroll secrets: %w", err)
+		}
 		if opts.DryRun {
 			logfn("[+] would've applied enroll secrets\n")
 		} else {
-			if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
-				return nil, fmt.Errorf("applying enroll secrets: %w", err)
-			}
 			logfn("[+] applied enroll secrets\n")
 		}
 	}
@@ -514,7 +521,7 @@ func (c *Client) ApplyGroup(
 
 		tmFileContents := make(map[string][]fleet.MDMProfileBatchPayload, len(tmMDMSettings))
 		for k, paths := range tmMDMSettings {
-			fileContents, err := getProfilesContents(baseDir, paths)
+			fileContents, err := getProfilesContents(baseDir, paths, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				return nil, err
 			}
@@ -609,6 +616,7 @@ func (c *Client) ApplyGroup(
 
 				softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 					URL:               si.URL,
+					SelfService:       si.SelfService,
 					PreInstallQuery:   qc,
 					InstallScript:     string(ic),
 					PostInstallScript: string(pc),
@@ -622,7 +630,7 @@ func (c *Client) ApplyGroup(
 		// non-existing team gets created.
 		var err error
 		teamOpts := fleet.ApplyTeamSpecOptions{
-			ApplySpecOptions:  opts,
+			ApplySpecOptions:  opts.ApplySpecOptions,
 			DryRunAssumptions: specs.TeamsDryRunAssumptions,
 		}
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
@@ -659,14 +667,14 @@ func (c *Client) ApplyGroup(
 		}
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
-				if err := c.ApplyTeamScripts(tmName, scripts, opts); err != nil {
+				if err := c.ApplyTeamScripts(tmName, scripts, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
 				}
 			}
 		}
 		if len(tmSoftwarePayloads) > 0 {
 			for tmName, software := range tmSoftwarePayloads {
-				if err := c.ApplyTeamSoftwareInstallers(tmName, software, opts); err != nil {
+				if err := c.ApplyTeamSoftwareInstallers(tmName, software, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 				}
 			}
@@ -1193,7 +1201,12 @@ func (c *Client) DoGitOps(
 	}
 
 	// Apply org settings, scripts, enroll secrets, and controls
-	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
+	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplyClientSpecOptions{
+		ApplySpecOptions: fleet.ApplySpecOptions{
+			DryRun: dryRun,
+		},
+		ExpandEnvConfigProfiles: true,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -1335,6 +1348,37 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 					return fmt.Errorf("error deleting queries: %w", err)
 				}
 				logFn("[-] deleted %d queries\n", deleteCount)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetGitOpsSecrets(
+	config *spec.GitOps,
+) []string {
+	if config.TeamName == nil {
+		orgSecrets, ok := config.OrgSettings["secrets"]
+		if ok {
+			secrets, ok := orgSecrets.([]*fleet.EnrollSecret)
+			if ok {
+				secretValues := make([]string, 0, len(secrets))
+				for _, secret := range secrets {
+					secretValues = append(secretValues, secret.Secret)
+				}
+				return secretValues
+			}
+		}
+	} else {
+		teamSecrets, ok := config.TeamSettings["secrets"]
+		if ok {
+			secrets, ok := teamSecrets.([]*fleet.EnrollSecret)
+			if ok {
+				secretValues := make([]string, 0, len(secrets))
+				for _, secret := range secrets {
+					secretValues = append(secretValues, secret.Secret)
+				}
+				return secretValues
 			}
 		}
 	}

@@ -43,6 +43,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
+  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilitiesTable = ({
@@ -57,6 +58,7 @@ const SoftwareVulnerabilitiesTable = ({
   currentPage,
   teamId,
   isLoading,
+  resetPageIndex,
 }: ISoftwareVulnerabilitiesTableProps) => {
   const { isPremiumTier, isSandboxMode, noSandboxHosts } = useContext(
     AppContext
@@ -288,6 +290,7 @@ const SoftwareVulnerabilitiesTable = ({
         renderFooter={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );
