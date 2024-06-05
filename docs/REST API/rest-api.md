@@ -8492,11 +8492,17 @@ Returns information about the specified software version.
 
 Returns the list of software purchased in Apple Business Manager.
 
-`GET /api/v1/fleet/software/vpp`
+`GET /api/v1/fleet/software/vpp/:team_id`
+
+#### Parameters
+
+| Name    | Type | In | Description |
+| ------- | ---- | -- | ----------- |
+| team_id | integer | query | **Required**. The team ID. Lists available VPP software for specified team. |
 
 #### Example
 
-`GET /api/v1/fleet/software/versions/12`
+`GET /api/v1/fleet/software/vpp/3`
 
 ##### Default response
 
