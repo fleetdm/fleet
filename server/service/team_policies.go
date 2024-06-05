@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strconv"
 
@@ -269,6 +270,15 @@ func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	_, err := svc.ds.Team(ctx, teamID)
+	if err != nil {
+		return nil, fleet.NewInvalidArgumentError("team_id", "The team does not exist").WithStatus(http.StatusBadRequest)
+	}
+
 	if len(ids) == 0 {
 		return nil, nil
 	}
