@@ -28,8 +28,7 @@
   .Select-option {
     .dropdown__option {
       [data-id="tooltip"] {
-        color: #fff;
-        font-size: $xx-small;
+        @include tooltip-text;
         font-style: normal;
       }
     }
