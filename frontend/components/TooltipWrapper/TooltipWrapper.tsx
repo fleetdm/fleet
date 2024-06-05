@@ -26,7 +26,7 @@ interface ITooltipWrapper {
    * @default false
    */
   disableTooltip?: boolean;
-  /** If set to `true`, will not show the arrow on the tooltip.
+  /** If set to `true`, will show the arrow on the tooltip.
    * This can be used to dynamically hide the arrow from the parent component.
    * @default false
    */
@@ -77,8 +77,7 @@ const TooltipWrapper = ({
           id={tipId}
           delayShow={isDelayed ? 500 : undefined}
           delayHide={isDelayed ? 500 : undefined}
-          // noArrow={!showArrow}
-          noArrow={false}
+          noArrow={!showArrow}
           place={position}
           opacity={1}
           disableStyleInjection
