@@ -8515,11 +8515,13 @@ Returns the list of software purchased in Apple Business Manager.
       "id": 1,
       "name": "Xcode",
       "latest_version": "15.4",
+      "store_id": 497799835
     },
     {
       "id": 2,
-      "name": "Xcode",
-      "latest_version": "15.4",
+      "name": "Logic Pro",
+      "latest_version": "2.04",
+      "store_id": 634148309
     },
 }
 }
