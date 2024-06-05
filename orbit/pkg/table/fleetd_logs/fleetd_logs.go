@@ -17,7 +17,7 @@ import (
 // See https://www.sqlite.org/lang_datefunc.html
 const timeFormatString = "2006-01-02 15:04:05.999999999"
 
-var DefaultLogger = Logger{}
+var Logger = logger{}
 var MaxEntries uint = 10_000
 
 func TablePlugin() *table.Plugin {
@@ -35,7 +35,7 @@ func TablePlugin() *table.Plugin {
 func generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	output := []map[string]string{}
 
-	for _, entry := range DefaultLogger.logs {
+	for _, entry := range Logger.logs {
 		row := make(map[string]string, 5)
 		// It would be nice if we could return NULL instead of an
 		// empty string when the error is empty
@@ -57,12 +57,12 @@ type Event struct {
 	Error   string
 }
 
-type Logger struct {
+type logger struct {
 	writeMutex sync.Mutex
 	logs       []Event
 }
 
-func (l *Logger) Write(event []byte) (int, error) {
+func (l *logger) Write(event []byte) (int, error) {
 	msg, err := processLogEntry(event)
 	if err != nil {
 		return 0, fmt.Errorf("fleet_logs.Write: %w", err)
@@ -80,7 +80,7 @@ func (l *Logger) Write(event []byte) (int, error) {
 	return len(event), nil
 }
 
-func (l *Logger) WriteLevel(level zerolog.Level, event []byte) (int, error) {
+func (l *logger) WriteLevel(level zerolog.Level, event []byte) (int, error) {
 	msg, err := processLogEntry(event)
 	if err != nil {
 		return 0, fmt.Errorf("fleet_logs.WriteLevel: %w", err)
@@ -151,7 +151,6 @@ func processLogEntry(event []byte) (Event, error) {
 		payload, err = json.Marshal(evt)
 		if err != nil {
 			return Event{}, fmt.Errorf("unable to marshall log event: %w", err)
-
 		}
 	}
 

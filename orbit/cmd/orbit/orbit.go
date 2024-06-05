@@ -249,19 +249,19 @@ func main() {
 				// #3100). Thus, we log to the logFile only.
 				log.Logger = log.Output(zerolog.MultiLevelWriter(
 					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
-					&fleetd_logs.DefaultLogger,
+					&fleetd_logs.Logger,
 				))
 			} else {
 				log.Logger = log.Output(zerolog.MultiLevelWriter(
 					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
 					zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-					&fleetd_logs.DefaultLogger,
+					&fleetd_logs.Logger,
 				))
 			}
 		} else {
 			log.Logger = log.Output(zerolog.MultiLevelWriter(
 				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-				&fleetd_logs.DefaultLogger,
+				&fleetd_logs.Logger,
 			))
 		}
 
