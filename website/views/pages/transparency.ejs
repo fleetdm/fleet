@@ -1,7 +1,6 @@
 <div id="transparency" v-cloak>
 
   <div style="max-width: 1008px;" class="container-fluid d-flex flex-column justify-content-center align-items-center px-3 px-md-4 pt-3 pt-lg-5 pb-5 mx-auto my-5">
-    <% if(typeof showContactFormCta !== 'undefined' && showContactFormCta) {%>
       <div purpose="hero-text">
       <h1>A better user experience</h1>
       <p>Fleet is dedicated to making IT and security less annoying, while maintaining privacy, transparency, and trust for end users.</p>
@@ -25,7 +24,6 @@
       <div purpose="logos" class="mx-auto">
         <logo-carousel></logo-carousel>
       </div>
-    <% } %>
     <div class="container-fluid d-flex flex-column text-center justify-content-center align-items-center pb-5 mb-3 mx-auto">
       <div purpose="hero-text" class="mb-3">
         <h3 class="pb-3">What personal information can Fleet see?</h3>
@@ -166,19 +164,9 @@
         </div>
       </div>
     </div>
-    <div purpose="card" class="d-flex flex-column flex-md-row align-items-center py-5 mb-5" v-if="!showContactFormCta">
-      <div class="d-flex align-items-start px-4 pb-4 pb-lg-0">
-        <img style="max-height: 92px; width: auto" alt="privacy icon" src="/images/privacy-80x92@2x.png"/>
-      </div>
-      <div class="text-center text-md-left px-4">
-        <p class="font-weight-bold">It’s important to be vigilant about the personal information you share on your devices.</p>
-        <p>If you are unsure, or still have concerns about your privacy, it’s a good idea to talk to your employer about your organization’s privacy policy, and how your personal information is handled.</p>
-        <a href="https://blog.fleetdm.com/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think-10b7f25e92bb" target="_blank" class="d-inline-flex">Read about what to do, and not do on your work computer.</a>
-      </div>
-    </div>
   </div>
-  <div purpose="bottom-gradient" v-if="showContactFormCta">
-  <parallax-city></parallax-city>
+  <div purpose="bottom-gradient">
+    <parallax-city></parallax-city>
   </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
