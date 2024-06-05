@@ -26,6 +26,7 @@ func TablePlugin() *table.Plugin {
 		table.TextColumn("level"),
 		table.TextColumn("payload"),
 		table.TextColumn("message"),
+		table.TextColumn("error"),
 	}
 
 	return table.NewPlugin("fleetd_logs", columns, generate)
@@ -35,11 +36,14 @@ func generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	output := []map[string]string{}
 
 	for _, entry := range DefaultLogger.logs {
-		row := make(map[string]string, 4)
+		row := make(map[string]string, 5)
+		// It would be nice if we could return NULL instead of an
+		// empty string when the error is empty
 		row["time"] = entry.Time
 		row["level"] = entry.Level.String()
 		row["payload"] = string(entry.Payload)
 		row["message"] = entry.Message
+		row["error"] = entry.Error
 		output = append(output, row)
 	}
 	return output, nil
@@ -50,6 +54,7 @@ type Event struct {
 	Level   zerolog.Level
 	Payload []byte
 	Message string
+	Error   string
 }
 
 type Logger struct {
@@ -61,12 +66,6 @@ func (l *Logger) Write(event []byte) (int, error) {
 	msg, err := processLogEntry(event)
 	if err != nil {
 		return 0, fmt.Errorf("fleet_logs.Write: %w", err)
-	}
-
-	if len(msg.Payload) == 0 {
-		// If event contains nothing but log level and time but no
-		// actual content, return instead of logging it
-		return len(event), nil
 	}
 
 	l.writeMutex.Lock()
@@ -88,12 +87,6 @@ func (l *Logger) WriteLevel(level zerolog.Level, event []byte) (int, error) {
 	}
 
 	msg.Level = level
-
-	if len(msg.Payload) == 0 {
-		// If event contains nothing but log level and time but no
-		// actual content, return instead of logging it
-		return len(event), nil
-	}
 
 	l.writeMutex.Lock()
 	defer l.writeMutex.Unlock()
@@ -146,18 +139,29 @@ func processLogEntry(event []byte) (Event, error) {
 		evtMessage = ""
 	}
 
-	enc, err := json.Marshal(evt)
-	if err != nil {
-		return Event{}, fmt.Errorf("unable to marshall log event: %w", err)
-
+	evtError, ok := evt["error"].(string)
+	if ok {
+		delete(evt, "error")
+	} else {
+		evtError = ""
 	}
 
-	msg := Event{
+	payload := []byte{}
+	if len(evt) > 0 {
+		payload, err = json.Marshal(evt)
+		if err != nil {
+			return Event{}, fmt.Errorf("unable to marshall log event: %w", err)
+
+		}
+	}
+
+	entry := Event{
 		Time:    sqliteTime,
 		Level:   level,
-		Payload: enc,
+		Payload: payload,
 		Message: evtMessage,
+		Error:   evtError,
 	}
 
-	return msg, nil
+	return entry, nil
 }
