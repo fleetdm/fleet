@@ -9555,7 +9555,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	require.Empty(t, teamResp.Team.Config.Software.Value)
 }
 
-func (s *integrationMDMTestSuite) TestBatchSetSoftwareInstallers() {
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
 
 	// a team name is required (we don't allow installers for "no team")
@@ -9618,6 +9618,14 @@ func (s *integrationMDMTestSuite) TestBatchSetSoftwareInstallers() {
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
 	newTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, titlesResp, newTitlesResp)
+
+	// setting self-service to true updates the software title metadata
+	softwareToInstall[0].SelfService = true
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
+	newTitlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	titlesResp.SoftwareTitles[0].SelfService = true
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// empty payload cleans the software items
