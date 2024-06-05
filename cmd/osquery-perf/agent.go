@@ -2182,7 +2182,6 @@ func runAppleIDeviceMDMLoop(i int, stats *Stats, model string, serverURL string,
 		}
 		stats.IncrementMDMSessions()
 
-	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
 			stats.IncrementMDMCommandsReceived()
 			if mdmCommandPayload.Command.RequestType == "DeviceInformation" {
@@ -2193,7 +2192,7 @@ func runAppleIDeviceMDMLoop(i int, stats *Stats, model string, serverURL string,
 			if err != nil {
 				log.Printf("MDM Acknowledge request failed: %s: %s", model, err)
 				stats.IncrementMDMErrors()
-				break INNER_FOR_LOOP
+				break
 			}
 		}
 	}
@@ -2256,7 +2255,7 @@ func main() {
 
 	var (
 		serverURL      = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret   = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		enrollSecret   = flag.String("enroll_secreNewTestMDMClientAppleDirectt", "", "Enroll secret to authenticate enrollment")
 		hostCount      = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
 		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
 		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
