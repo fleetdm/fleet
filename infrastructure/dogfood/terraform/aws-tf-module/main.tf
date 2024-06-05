@@ -290,7 +290,8 @@ module "firehose-logging" {
 module "osquery-carve" {
   source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.0"
   osquery_carve_s3_bucket = {
-    name = "${local.customer}-osquery-carve"
+    name         = "fleet-${local.customer}-osquery-carve"
+    expires_days = 3650
   }
 }
 
