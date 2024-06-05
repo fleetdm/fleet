@@ -21,16 +21,3 @@ columns:
   - name: pid_with_namespace
     platforms:
       - linux
-
-
-
-
-
-
-
-
-
-
-
-
-
