@@ -424,6 +424,7 @@ The day before the All hands, Mike will prepare slides that reflect the CEO visi
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
 Template to use:
+
 ```
 Thanks to everyone who contributed to today's "All hands" call.
 
@@ -432,18 +433,13 @@ Thanks to everyone who contributed to today's "All hands" call.
 You can also grab a copy of the [original slides](https://fleetdm.com/handbook/company/communications#all-hands) for use in your own confidential presentations.
 ```
 
-- Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
- - To create the recording link:
- - Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and `Share call`
- - `Share with customers`
- - `Copy link` and paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
-  
- - The PDF can be found in the current months [👋All hands folder](https://drive.google.com/drive/u/0/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) in Google Drive.
- - Download the PDF and upload (double click the `+`) into your updated Slack message, which will look like this:👇 
+1. Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
+2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share with customers`, then `Copy link`.
+3. Paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
-📬 **Send it!**
+4. Schedule the Slack message to go out at 6pm CT (18:00).
 
 
 ### Process and backup Sid agenda
