@@ -15,7 +15,6 @@ import (
 )
 
 var (
-	testContext   = false
 	tccPathPrefix = ""
 	tccPathSuffix = "/Library/Application Support/com.apple.TCC/TCC.db"
 	dbQuery       = "SELECT service, client, client_type, auth_value, auth_reason, last_modified, policy_id, indirect_object_identifier, indirect_object_identifier_type FROM access;"
@@ -180,7 +179,7 @@ func satisfiesConstraints(uid string, constraints []table.Constraint) (bool, err
 				return false, nil
 			}
 		default:
-			return false, errors.New("Invalid comparison for column 'uid'. Supported comparisons are `=`, `<`, `>`, `<=`, and `>=`")
+			return false, errors.New("invalid comparison for column 'uid': supported comparisons are `=`, `<`, `>`, `<=`, and `>=`")
 		}
 	}
 	return true, nil
@@ -204,11 +203,6 @@ func getUsersInfo() ([][]string, error) {
 				parsedFilteredUsersInfo = append(parsedFilteredUsersInfo, split)
 			}
 		}
-	}
-
-	if testContext {
-		// test still runs above system command to surface any errors, but replaces output with these values
-		parsedFilteredUsersInfo = [][]string{{"testUser1", "1"}, {"testUser2", "2"}}
 	}
 
 	return parsedFilteredUsersInfo, nil
