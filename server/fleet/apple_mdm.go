@@ -255,7 +255,7 @@ type HostMDMAppleProfile struct {
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
-func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
+func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 	return HostMDMProfile{
 		HostUUID:      p.HostUUID,
 		ProfileUUID:   p.ProfileUUID,
@@ -264,7 +264,7 @@ func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 		Status:        p.Status,
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
-		Platform:      "darwin",
+		Platform:      platform,
 	}
 }
 
@@ -292,11 +292,18 @@ type MDMAppleProfilePayload struct {
 	ProfileIdentifier string             `db:"profile_identifier"`
 	ProfileName       string             `db:"profile_name"`
 	HostUUID          string             `db:"host_uuid"`
+	HostPlatform      string             `db:"host_platform"`
 	Checksum          []byte             `db:"checksum"`
 	Status            *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType     MDMOperationType   `db:"operation_type"`
 	Detail            string             `db:"detail"`
 	CommandUUID       string             `db:"command_uuid"`
+}
+
+// FailedToInstallOnHost indicates whether this profile failed to be installed on the host (and
+// therefore is not, as far as Fleet knows, currently on the host).
+func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
+	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {

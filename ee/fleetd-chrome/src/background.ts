@@ -1,5 +1,5 @@
 import VirtualDatabase from "./db";
-import {Mutex, withTimeout, tryAcquire, E_ALREADY_LOCKED} from 'async-mutex';
+import {E_ALREADY_LOCKED, Mutex, tryAcquire, withTimeout} from 'async-mutex';
 
 // ENV Vars
 declare var FLEET_URL: string;
@@ -37,6 +37,15 @@ const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
     response = await fetch(target, options);
     response_body = await response.json();
   } catch (err) {
+    if (response && !response.ok) {
+      let text = ""
+      try {
+        text = await response.text()
+      } catch (e) {
+        // ignore, since we already know response is not ok
+      }
+      throw new Error(`Failed to fetch ${target}: ${response.status} ${response.statusText} ${text}`);
+    }
     console.warn(`Failed to fetch ${target}: ${err}`);
     throw new Error(`${path} request failed`);
   }
@@ -66,8 +75,7 @@ const authenticatedRequest = async ({
   }
 
   try {
-    const response_body = await request({ path, body: { ...body, node_key } });
-    return response_body;
+    return await request({path, body: {...body, node_key}});
   } catch (err) {
     // Reenroll if it's a node_invalid issue (and we haven't already tried a reenroll), otherwise
     // rethrow the error.

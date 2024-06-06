@@ -975,9 +975,12 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 func (ds *Datastore) applyHostFilters(
-	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, params []interface{},
+	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, selectParams []interface{},
 	leftJoinFailingPolicies bool,
 ) (string, []interface{}, error) {
+	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
+	var whereParams, joinParams []interface{}
+
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
 	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
@@ -999,6 +1002,7 @@ func (ds *Datastore) applyHostFilters(
 		policyMembershipJoin = "LEFT " + policyMembershipJoin
 	}
 
+	softwareStatusJoin := ""
 	softwareFilter := "TRUE"
 	var softwareIDFilter *uint
 	if opt.SoftwareVersionIDFilter != nil {
@@ -1008,12 +1012,26 @@ func (ds *Datastore) applyHostFilters(
 	}
 	if softwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
-		params = append(params, *softwareIDFilter)
+		whereParams = append(whereParams, *softwareIDFilter)
 	} else if opt.SoftwareTitleIDFilter != nil {
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
-		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
-		params = append(params, *opt.SoftwareTitleIDFilter)
+		if opt.SoftwareStatusFilter != nil {
+			// get the installer id
+			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+			}
+			installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+			}
+			softwareStatusJoin = installerJoin
+			joinParams = append(joinParams, installerParams...)
+		} else {
+			softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
+			whereParams = append(whereParams, *opt.SoftwareTitleIDFilter)
+		}
 	}
 
 	failingPoliciesJoin := ""
@@ -1034,7 +1052,7 @@ func (ds *Datastore) applyHostFilters(
 	if opt.MunkiIssueIDFilter != nil {
 		munkiJoin = ` JOIN host_munki_issues hmi ON h.id = hmi.host_id `
 		munkiFilter = "hmi.munki_issue_id = ?"
-		params = append(params, opt.MunkiIssueIDFilter)
+		whereParams = append(whereParams, opt.MunkiIssueIDFilter)
 	}
 
 	displayNameJoin := ""
@@ -1048,7 +1066,7 @@ func (ds *Datastore) applyHostFilters(
 	lowDiskSpaceFilter := "TRUE"
 	if opt.LowDiskSpaceFilter != nil {
 		lowDiskSpaceFilter = `hd.gigs_disk_space_available < ?`
-		params = append(params, *opt.LowDiskSpaceFilter)
+		whereParams = append(whereParams, *opt.LowDiskSpaceFilter)
 	}
 
 	sqlStmt += fmt.Sprintf(
@@ -1064,6 +1082,7 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
+	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s
     `,
 
@@ -1071,6 +1090,7 @@ func (ds *Datastore) applyHostFilters(
 		hostMDMJoin,
 		deviceMappingJoin,
 		policyMembershipJoin,
+		softwareStatusJoin,
 		failingPoliciesJoin,
 		operatingSystemJoin,
 		munkiJoin,
@@ -1084,16 +1104,16 @@ func (ds *Datastore) applyHostFilters(
 	)
 
 	now := ds.clock.Now()
-	sqlStmt, params = filterHostsByStatus(now, sqlStmt, opt, params)
-	sqlStmt, params = filterHostsByTeam(sqlStmt, opt, params)
-	sqlStmt, params = filterHostsByPolicy(sqlStmt, opt, params)
-	sqlStmt, params = filterHostsByMDM(sqlStmt, opt, params)
+	sqlStmt, whereParams = filterHostsByStatus(now, sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByTeam(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByPolicy(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByMDM(sqlStmt, opt, whereParams)
 	var err error
-	sqlStmt, params, err = filterHostsByMacOSSettingsStatus(sqlStmt, opt, params)
+	sqlStmt, whereParams, err = filterHostsByMacOSSettingsStatus(sqlStmt, opt, whereParams)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, err, "building query to filter macOS settings status")
 	}
-	sqlStmt, params = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, params)
+	sqlStmt, whereParams = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, whereParams)
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
@@ -1105,19 +1125,22 @@ func (ds *Datastore) applyHostFilters(
 		}
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		sqlStmt, params, err = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, params, enableDiskEncryption)
+		sqlStmt, whereParams, err = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, whereParams, enableDiskEncryption)
 		if err != nil {
 			return "", nil, err
 		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		sqlStmt, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, params, enableDiskEncryption)
+		sqlStmt, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, whereParams, enableDiskEncryption)
 	}
 
-	sqlStmt, params = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, params)
-	sqlStmt, params = filterHostsByOS(sqlStmt, opt, params)
-	sqlStmt, params = filterHostsByVulnerability(sqlStmt, opt, params)
-	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
-	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
+	sqlStmt, whereParams = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByOS(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByVulnerability(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams, _ = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
+	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt.ListOptions)
+
+	params := append(selectParams, joinParams...)
+	params = append(params, whereParams...)
 
 	return sqlStmt, params, nil
 }
@@ -1165,7 +1188,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN('darwin', 'windows')`
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados')`
 	}
 	return sql, params
 }
@@ -1274,7 +1297,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
 	// current implementation.
 
-	sqlFmt := ` AND h.platform IN('windows', 'darwin')`
+	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados')`
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -1283,7 +1306,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	var whereMacOS, whereWindows string
 	sqlFmt += `
 AND ((h.platform = 'windows' AND (%s))
-OR (h.platform = 'darwin' AND (%s)))`
+OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s)))`
 
 	whereMacOS, paramsMacOS, err := subqueryOSSettingsStatusMac()
 	if err != nil {
@@ -1718,8 +1741,8 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, enrol
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE hardware_serial = ? AND platform = ? ORDER BY id LIMIT 1)`)
-		args = append(args, serial, "darwin")
+		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`)
+		args = append(args, serial)
 	}
 
 	if err := sqlx.SelectContext(ctx, q, &rows, query.String(), args...); err != nil {
@@ -2331,7 +2354,7 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			return fleet.ConflictError{Message: "auth token conflicts with another host"}
 		}
 		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
@@ -3791,7 +3814,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			COALESCE(h.team_id, 0) as team_id,
 			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
 			h.node_key IS NOT NULL as osquery_enrolled,
-			ncaa.renew_command_uuid IS NOT NULL as scep_renewal_in_progress
+			ncaa.renew_command_uuid IS NOT NULL as scep_renewal_in_progress,
+			h.platform
 		FROM
 			hosts h
 		LEFT JOIN

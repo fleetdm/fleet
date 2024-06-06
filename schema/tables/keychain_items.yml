@@ -2,14 +2,12 @@ name: keychain_items
 columns:
   - name: created
     description: Date item was created
-examples: >-
+examples: |-
   Identify Macs that contain certificates related to Apple application signing
   and notarization. (replace with your Apple Developer ID string)
 
   ```
-
   SELECT * FROM keychain_items WHERE label LIKE '%8EHZ83LZNU%';
-
   ```
-notes: >-
+notes: |-
   - This table should be used sparingly as it uses an Apple API which occasionally corrupts the underlying certificate. Learn more [here](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).

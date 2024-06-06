@@ -20,7 +20,6 @@ import (
 
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -95,6 +94,7 @@ type ServerConfig struct {
 	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
 	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
 	FrequentCleanupsEnabled     bool   `yaml:"frequent_cleanups_enabled"`
+	PrivateKey                  string `yaml:"private_key"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -243,6 +243,7 @@ type FirehoseConfig struct {
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 	StatusStream     string `yaml:"status_stream"`
 	ResultStream     string `yaml:"result_stream"`
 	AuditStream      string `yaml:"audit_stream"`
@@ -255,6 +256,7 @@ type KinesisConfig struct {
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 	StatusStream     string `yaml:"status_stream"`
 	ResultStream     string `yaml:"result_stream"`
 	AuditStream      string `yaml:"audit_stream"`
@@ -267,6 +269,7 @@ type SESConfig struct {
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 	SourceArn        string `yaml:"source_arn"`
 }
 
@@ -280,6 +283,7 @@ type LambdaConfig struct {
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 	StatusFunction   string `yaml:"status_function"`
 	ResultFunction   string `yaml:"result_function"`
 	AuditFunction    string `yaml:"audit_function"`
@@ -294,6 +298,7 @@ type S3Config struct {
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 	DisableSSL       bool   `yaml:"disable_ssl"`
 	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
 }
@@ -448,6 +453,12 @@ type MDMConfig struct {
 	AppleBMKey              string `yaml:"apple_bm_key"`
 	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
 
+	// the following fields hold the PEM-encoded bytes for the certificate
+	// and private key set the first time AppleBM is called
+	appleBMPEMCert  []byte
+	appleBMPEMKey   []byte
+	appleBMRawToken []byte
+
 	// the following fields hold the decrypted, validated Apple BM token set the
 	// first time AppleBM is called.
 	appleBMToken *nanodep_client.OAuth1Tokens
@@ -596,20 +607,6 @@ func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
 }
 
-func (m *MDMConfig) AppleAPNsTopic() (string, error) {
-	apnsCert, _, _, err := m.AppleAPNs()
-	if err != nil {
-		return "", fmt.Errorf("parsing APNs certificates: %w", err)
-	}
-
-	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert.Leaf)
-	if err != nil {
-		return "", fmt.Errorf("extracting topic from APNs certificate: %w", err)
-	}
-
-	return mdmPushCertTopic, nil
-}
-
 // AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
@@ -631,10 +628,36 @@ func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleSCEP, m.appleSCEPPEMCert, m.appleSCEPPEMKey, nil
 }
 
+type ParsedAppleBM struct {
+	CertPEM        []byte
+	KeyPEM         []byte
+	EncryptedToken []byte
+	Token          *nanodep_client.OAuth1Tokens
+}
+
+func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
+	bmKey, err := tokenpki.RSAKeyFromPEM(keyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
+	}
+	token, err := tokenpki.DecryptTokenJSON(tokenBytes, cert, bmKey)
+	if err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: decrypt token: %w", err)
+	}
+	var jsonTok nanodep_client.OAuth1Tokens
+	if err := json.Unmarshal(token, &jsonTok); err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
+	}
+	if jsonTok.AccessTokenExpiry.Before(time.Now()) {
+		return nil, errors.New("Apple BM configuration: token is expired")
+	}
+	return &jsonTok, nil
+}
+
 // AppleBM returns the parsed, validated and decrypted server token for Apple
 // Business Manager. It also parses and validates the Apple BM certificate and
 // private key in the process, in order to decrypt the token.
-func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
+func (m *MDMConfig) AppleBM() (*ParsedAppleBM, error) {
 	if m.appleBMToken == nil {
 		pair := x509KeyPairConfig{
 			m.AppleBMCert,
@@ -650,24 +673,22 @@ func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("Apple BM configuration: %w", err)
 		}
-		bmKey, err := tokenpki.RSAKeyFromPEM(pair.keyBytes)
+		jsonTok, err := decryptAndValidateABMToken(encToken, cert.Leaf, pair.keyBytes)
 		if err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
+			return nil, err
 		}
-		token, err := tokenpki.DecryptTokenJSON(encToken, cert.Leaf, bmKey)
-		if err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: decrypt token: %w", err)
-		}
-		var jsonTok nanodep_client.OAuth1Tokens
-		if err := json.Unmarshal(token, &jsonTok); err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
-		}
-		if jsonTok.AccessTokenExpiry.Before(time.Now()) {
-			return nil, errors.New("Apple BM configuration: token is expired")
-		}
-		m.appleBMToken = &jsonTok
+		m.appleBMToken = jsonTok
+		m.appleBMPEMCert = pair.certBytes
+		m.appleBMPEMKey = pair.keyBytes
+		m.appleBMRawToken = encToken
 	}
-	return m.appleBMToken, nil
+
+	return &ParsedAppleBM{
+		CertPEM:        m.appleBMPEMCert,
+		KeyPEM:         m.appleBMPEMKey,
+		EncryptedToken: m.appleBMRawToken,
+		Token:          m.appleBMToken,
+	}, nil
 }
 
 func (m *MDMConfig) loadAppleBMEncryptedToken() ([]byte, error) {
@@ -843,6 +864,7 @@ func (man Manager) addConfigs() {
 		"When enabled, Fleet limits some features for the Sandbox")
 	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
+	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
@@ -948,6 +970,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("ses.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("ses.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("ses.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
 
 	// Firehose
@@ -958,6 +981,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("firehose.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("firehose.sts_assume_role_arn", "",
 		"ARN of role to assume for AWS")
+	man.addConfigString("firehose.sts_external_id", "",
+		"Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("firehose.status_stream", "",
 		"Firehose stream name for status logs")
 	man.addConfigString("firehose.result_stream", "",
@@ -973,6 +998,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("kinesis.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("kinesis.sts_assume_role_arn", "",
 		"ARN of role to assume for AWS")
+	man.addConfigString("kinesis.sts_external_id", "",
+		"Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("kinesis.status_stream", "",
 		"Kinesis stream name for status logs")
 	man.addConfigString("kinesis.result_stream", "",
@@ -986,6 +1013,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("lambda.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("lambda.sts_assume_role_arn", "",
 		"ARN of role to assume for AWS")
+	man.addConfigString("lambda.sts_external_id", "",
+		"Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("lambda.status_function", "",
 		"Lambda function name for status logs")
 	man.addConfigString("lambda.result_function", "",
@@ -1001,6 +1030,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("s3.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("s3.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
@@ -1088,6 +1118,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("packaging.s3.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("packaging.s3.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("packaging.s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("packaging.s3.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
@@ -1194,6 +1225,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
 			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
 			FrequentCleanupsEnabled:     man.getConfigBool("server.frequent_cleanups_enabled"),
+			PrivateKey:                  man.getConfigString("server.private_key"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
@@ -1253,6 +1285,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AccessKeyID:      man.getConfigString("firehose.access_key_id"),
 			SecretAccessKey:  man.getConfigString("firehose.secret_access_key"),
 			StsAssumeRoleArn: man.getConfigString("firehose.sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString("firehose.sts_external_id"),
 			StatusStream:     man.getConfigString("firehose.status_stream"),
 			ResultStream:     man.getConfigString("firehose.result_stream"),
 			AuditStream:      man.getConfigString("firehose.audit_stream"),
@@ -1266,6 +1299,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			ResultStream:     man.getConfigString("kinesis.result_stream"),
 			AuditStream:      man.getConfigString("kinesis.audit_stream"),
 			StsAssumeRoleArn: man.getConfigString("kinesis.sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString("kinesis.sts_external_id"),
 		},
 		Lambda: LambdaConfig{
 			Region:           man.getConfigString("lambda.region"),
@@ -1275,6 +1309,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			ResultFunction:   man.getConfigString("lambda.result_function"),
 			AuditFunction:    man.getConfigString("lambda.audit_function"),
 			StsAssumeRoleArn: man.getConfigString("lambda.sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
 		S3: S3Config{
 			Bucket:           man.getConfigString("s3.bucket"),
@@ -1284,6 +1319,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AccessKeyID:      man.getConfigString("s3.access_key_id"),
 			SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString("s3.sts_external_id"),
 			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
 			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 		},
@@ -1296,6 +1332,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AccessKeyID:      man.getConfigString("ses.access_key_id"),
 			SecretAccessKey:  man.getConfigString("ses.secret_access_key"),
 			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString("ses.sts_external_id"),
 			SourceArn:        man.getConfigString("ses.source_arn"),
 		},
 		PubSub: PubSubConfig{
@@ -1365,6 +1402,7 @@ func (man Manager) LoadConfig() FleetConfig {
 				AccessKeyID:      man.getConfigString("packaging.s3.access_key_id"),
 				SecretAccessKey:  man.getConfigString("packaging.s3.secret_access_key"),
 				StsAssumeRoleArn: man.getConfigString("packaging.s3.sts_assume_role_arn"),
+				StsExternalID:    man.getConfigString("packaging.s3.sts_external_id"),
 				DisableSSL:       man.getConfigBool("packaging.s3.disable_ssl"),
 				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
 			},
@@ -1709,6 +1747,7 @@ func TestConfig() FleetConfig {
 			AuditLogFile:  testLogFile,
 			MaxSize:       500,
 		},
+		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"},
 	}
 }
 
@@ -1717,35 +1756,8 @@ func TestConfig() FleetConfig {
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens, wstepCertAndKeyDir string) {
-	tlsCert, err := tls.X509KeyPair(cert, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	parsed, err := x509.ParseCertificate(tlsCert.Certificate[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	tlsCert.Leaf = parsed
-
-	cfg.MDM.AppleAPNsCertBytes = string(cert)
-	cfg.MDM.AppleAPNsKeyBytes = string(key)
-	cfg.MDM.AppleSCEPCertBytes = string(cert)
-	cfg.MDM.AppleSCEPKeyBytes = string(key)
-	cfg.MDM.AppleBMCertBytes = string(cert)
-	cfg.MDM.AppleBMKeyBytes = string(key)
-	cfg.MDM.AppleBMServerTokenBytes = "whatever-will-not-be-accessed"
-
-	cfg.MDM.appleAPNs = &tlsCert
-	cfg.MDM.appleAPNsPEMCert = cert
-	cfg.MDM.appleAPNsPEMKey = key
-	cfg.MDM.appleSCEP = &tlsCert
-	cfg.MDM.appleSCEPPEMCert = cert
-	cfg.MDM.appleSCEPPEMKey = key
-	cfg.MDM.appleBMToken = appleBMToken
+func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
-	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 
 	if wstepCertAndKeyDir == "" {
 		wstepCertAndKeyDir = "testdata"

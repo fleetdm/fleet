@@ -71,13 +71,22 @@ export enum ActivityType {
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
+  AddedSoftware = "added_software",
+  DeletedSoftware = "deleted_software",
+  InstalledSoftware = "installed_software",
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
-  | ActivityType.UnlockedHost;
+  | ActivityType.UnlockedHost
+  | ActivityType.InstalledSoftware;
+
+// This is a subset of ActivityType that are shown only for the host upcoming activities
+export type IHostUpcomingActivityType =
+  | ActivityType.RanScript
+  | ActivityType.InstalledSoftware;
 
 export interface IActivity {
   created_at: string;
@@ -90,8 +99,14 @@ export interface IActivity {
   details?: IActivityDetails;
 }
 
-export type IPastActivity = Omit<IActivity, "type"> & {
+export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
   type: IHostPastActivityType;
+  details: IActivityDetails;
+};
+
+export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+  type: IHostUpcomingActivityType;
+  details: IActivityDetails;
 };
 
 export interface IActivityDetails {
@@ -118,6 +133,7 @@ export interface IActivityDetails {
   host_display_name?: string;
   host_display_names?: string[];
   host_ids?: number[];
+  host_id?: number;
   host_platform?: string;
   installed_from_dep?: boolean;
   mdm_platform?: "microsoft" | "apple";
@@ -132,5 +148,9 @@ export interface IActivityDetails {
   deadline_days?: number;
   grace_period_days?: number;
   stats?: ISchedulableQueryStats;
-  host_id?: number;
+  software_title?: string;
+  software_package?: string;
+  status?: string;
+  install_uuid?: string;
+  self_service?: boolean;
 }

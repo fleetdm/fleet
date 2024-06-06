@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
@@ -623,9 +627,9 @@ func TestGetSoftwareTitles(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
-		return []fleet.SoftwareTitle{
+		return []fleet.SoftwareTitleListResult{
 			{
 				Name:          "foo",
 				Source:        "chrome_extensions",
@@ -677,6 +681,8 @@ spec:
 - hosts_count: 2
   id: 0
   name: foo
+  self_service: false
+  software_package: null
   source: chrome_extensions
   versions:
   - id: 0
@@ -696,6 +702,8 @@ spec:
 - hosts_count: 0
   id: 0
   name: bar
+  self_service: false
+  software_package: null
   source: deb_packages
   versions:
   - id: 0
@@ -738,7 +746,9 @@ spec:
             "cve-123-456-003"
           ]
         }
-      ]
+      ],
+      "self_service": false,
+	  "software_package": null
     },
     {
       "id": 0,
@@ -752,7 +762,9 @@ spec:
           "version": "0.0.3",
 		  "vulnerabilities": null
         }
-      ]
+      ],
+      "self_service": false,
+	  "software_package": null
     }
   ]
 }
@@ -1992,13 +2004,35 @@ func TestGetAppleMDM(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 
-	// can only test when no MDM cert is provided, otherwise they would have to
-	// be valid Apple APNs and SCEP certs.
-	expected := `Error: No Apple Push Notification service (APNs) certificate found.`
-	assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple"}), expected)
+	out := runAppForTest(t, []string{"get", "mdm_apple"})
+	assert.Contains(t, out, "Common name (CN):")
+	assert.Contains(t, out, "Serial number:")
+	assert.Contains(t, out, "Issuer:")
 }
 
 func TestGetAppleBM(t *testing.T) {
+	depStorage := new(nanodep_mock.Storage)
+	depSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/account":
+			_, _ = w.Write([]byte(`{"admin_id": "abc", "org_name": "test_org"}`))
+		}
+	}))
+	t.Cleanup(depSrv.Close)
+
+	depStorage.RetrieveConfigFunc = func(p0 context.Context, p1 string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: depSrv.URL}, nil
+	}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	depStorage.StoreAssignerProfileFunc = func(ctx context.Context, name string, profileUUID string) error {
+		return nil
+	}
+
 	t.Run("free license", func(t *testing.T) {
 		runServerWithMockedDS(t)
 
@@ -2009,10 +2043,14 @@ func TestGetAppleBM(t *testing.T) {
 	})
 
 	t.Run("premium license", func(t *testing.T) {
-		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 
-		expected := `No Apple Business Manager server token found`
-		assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple_bm"}), expected)
+		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		assert.Contains(t, out, "Apple ID:")
+		assert.Contains(t, out, "Organization name:")
+		assert.Contains(t, out, "MDM server URL:")
+		assert.Contains(t, out, "Renew date:")
+		assert.Contains(t, out, "Default team:")
 	})
 }
 
@@ -2200,7 +2238,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -2230,6 +2270,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})

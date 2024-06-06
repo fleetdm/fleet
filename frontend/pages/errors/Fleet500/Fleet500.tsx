@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import PATHS from "router/paths";
 
+import { SUPPORT_LINK } from "utilities/constants";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg";
@@ -35,11 +36,7 @@ const Fleet500 = () => (
       </h1>
       <p>Please file an issue if you believe this is a bug.</p>
       <div className={`${baseClass}__button-wrapper`}>
-        <a
-          href="https://fleetdm.com/support"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href={SUPPORT_LINK} target="_blank" rel="noopener noreferrer">
           <Button
             type="button"
             variant="unstyled"

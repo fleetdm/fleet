@@ -6,42 +6,42 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 export interface IEmptySoftwareTableProps {
+  softwareFilter?: ISoftwareDropdownFilterVal;
   isSoftwareDisabled?: boolean;
-  isFilterVulnerable?: boolean;
-  isSandboxMode?: boolean;
   isCollectingSoftware?: boolean;
   isSearching?: boolean;
-  noSandboxHosts?: boolean;
 }
 
+const generateTypeText = (softwareFilter?: ISoftwareDropdownFilterVal) => {
+  if (softwareFilter === "installableSoftware") {
+    return "installable";
+  }
+  return softwareFilter === "vulnerableSoftware" ? "vulnerable" : "";
+};
+
 const EmptySoftwareTable = ({
+  softwareFilter,
   isSoftwareDisabled,
-  isFilterVulnerable,
-  isSandboxMode,
   isCollectingSoftware,
   isSearching,
-  noSandboxHosts,
 }: IEmptySoftwareTableProps): JSX.Element => {
+  const softwareTypeText = generateTypeText(softwareFilter);
+
   const emptySoftware: IEmptyTableProps = {
-    header: `No ${
-      isFilterVulnerable ? "vulnerable " : ""
-    }software match the current search criteria`,
-    info: `This report is updated every ${
-      isSandboxMode ? "15 minutes" : "hour"
-    } to protect the performance of your devices.`,
+    header: `No ${softwareTypeText} software match the current search criteria`,
+    info:
+      "This report is updated every hour to protect the performance of your devices.",
   };
+
   if (isCollectingSoftware) {
     emptySoftware.header = "No software detected";
     emptySoftware.info =
       "This report is updated every hour to protect the performance of your devices.";
-    if (isSandboxMode) {
-      emptySoftware.info = noSandboxHosts
-        ? "Fleet begins collecting software inventory after a host is enrolled."
-        : "Fleet is collecting software inventory";
-    }
   }
+
   if (isSoftwareDisabled) {
     emptySoftware.header = "Software inventory disabled";
     emptySoftware.info = (
@@ -56,11 +56,10 @@ const EmptySoftwareTable = ({
       </>
     );
   }
-  if (isFilterVulnerable && !isSearching) {
+  if (softwareFilter === "vulnerableSoftware" && !isSearching) {
     emptySoftware.header = "No vulnerable software detected";
-    emptySoftware.info = `This report is updated every ${
-      isSandboxMode ? "15 minutes" : "hour"
-    } to protect the performance of your devices.`;
+    emptySoftware.info =
+      "This report is updated every hour to protect the performance of your devices.";
   }
 
   return (

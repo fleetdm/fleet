@@ -66,6 +66,20 @@ func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScrip
 	return &script, nil
 }
 
+func truncateScriptResult(output string) string {
+	const maxOutputRuneLen = 10000
+	if len(output) > utf8.UTFMax*maxOutputRuneLen {
+		// truncate the bytes as we know the output is too long, no point
+		// converting more bytes than needed to runes.
+		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
+	}
+	if utf8.RuneCountInString(output) > maxOutputRuneLen {
+		outputRunes := []rune(output)
+		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
+	}
+	return output
+}
+
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
 	const resultExistsStmt = `
 	SELECT
@@ -101,17 +115,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_id = ?
 `
 
-	const maxOutputRuneLen = 10000
-	output := result.Output
-	if len(output) > utf8.UTFMax*maxOutputRuneLen {
-		// truncate the bytes as we know the output is too long, no point
-		// converting more bytes than needed to runes.
-		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
-	}
-	if utf8.RuneCountInString(output) > maxOutputRuneLen {
-		outputRunes := []rune(output)
-		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
-	}
+	output := truncateScriptResult(result.Output)
 
 	var hsr *fleet.HostScriptResult
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -294,7 +298,7 @@ VALUES
 	res, err := tx.ExecContext(ctx, insertStmt,
 		script.TeamID, globalOrTeamID, script.Name, scriptContentsID)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			// name already exists for this team/global
 			err = alreadyExists("Script", script.Name)
 		} else if isChildForeignKeyError(err) {
@@ -327,7 +331,11 @@ ON DUPLICATE KEY UPDATE
 }
 
 func md5ChecksumScriptContent(s string) string {
-	rawChecksum := md5.Sum([]byte(s)) //nolint:gosec
+	return md5ChecksumBytes([]byte(s))
+}
+
+func md5ChecksumBytes(b []byte) string {
+	rawChecksum := md5.Sum(b) //nolint:gosec
 	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
@@ -702,7 +710,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	}
 
 	switch fleetPlatform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		if mdmActions.UnlockPIN != nil {
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
@@ -1092,4 +1100,22 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "cleaning up unused script contents")
 	}
 	return nil
+}
+
+func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents string) (uint, error) {
+	csum := md5ChecksumScriptContent(contents)
+	scriptContentsID, err := ds.optimisticGetOrInsert(ctx,
+		&parameterizedStmt{
+			Statement: `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?)`,
+			Args:      []interface{}{csum},
+		},
+		&parameterizedStmt{
+			Statement: `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(?), ?)`,
+			Args:      []interface{}{csum, contents},
+		},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return scriptContentsID, nil
 }

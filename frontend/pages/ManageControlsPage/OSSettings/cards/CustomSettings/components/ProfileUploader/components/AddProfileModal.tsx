@@ -62,6 +62,9 @@ const FileChooser = ({
   </div>
 );
 
+// TODO: if we reuse this one more time, we should consider moving this
+// into FileUploader as a default preview. Currently we have this in
+// AddSoftwareForm.tsx and here.
 const FileDetails = ({
   baseClass,
   details: { name, platform },

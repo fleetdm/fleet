@@ -5,7 +5,7 @@ This section provides instructions for migrating your hosts away from your old M
 ## Requirements
 
 1. A [deployed Fleet instance](../Deploying/Introduction.md)
-2. [Fleet connected to Apple](./mdm-macos-setup.md)
+2. [Fleet connected to Apple](./mdm-setup.md)
 
 ## Migrate manually enrolled hosts
 
@@ -46,7 +46,7 @@ To migrate automatically enrolled hosts, we will do the following steps:
 
 ### Step 1: prepare to migrate hosts
 
-1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-macos-setup.md#apple-business-manager-abm).
+1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-setup.md#apple-business-manager-abm).
 2. [Enroll](./Adding-hosts.md) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts#including-fleet-desktop) 
 3. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 4. Migrate your hosts to Fleet in ABM:

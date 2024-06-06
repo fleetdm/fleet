@@ -88,14 +88,6 @@
       cursor: default;
     }
 
-    &--small {
-      @include size(16px);
-
-      &::after {
-        @include size(16px);
-      }
-    }
-
     &--indeterminate {
       &::after {
         background-color: $core-vibrant-blue;

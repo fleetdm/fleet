@@ -1,9 +1,7 @@
 name: authorized_keys
-examples: >-
+examples: |-
   ```
-
   SELECT * FROM users CROSS JOIN authorized_keys USING (uid);
-
   ```
 columns:
   - name: pid_with_namespace

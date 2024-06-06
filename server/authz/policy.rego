@@ -643,6 +643,76 @@ allow {
   action == read
 }
 
+# Global admins, maintainers, observers, and observer_plus can read any software installer.
+allow {
+  object.type == "software_installer"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write any software installer.
+allow {
+  object.type == "software_installer"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, observers, and observer_plus can read any software installer in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "software_installer"
+  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admins, maintainers, and gitops can write any software installer in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "software_installer"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+##
+# Host software installs
+##
+
+# Global admins and maintainers can write (install) software on hosts (not
+# gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Team admin and maintainers can write (install) software on hosts for their
+# teams (not gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  not is_null(object.host_team_id)
+  team_role(subject, object.host_team_id) == [admin, maintainer][_]
+  action == write
+}
+
+
+# Global admins and maintainers can read software install results on hosts (not
+# gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admin and maintainers can read software install results on hosts for their
+# teams (not gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  not is_null(object.host_team_id)
+  team_role(subject, object.host_team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+
 ##
 # Apple and Windows MDM
 ##

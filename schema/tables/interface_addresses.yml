@@ -1,12 +1,10 @@
 name: interface_addresses
-examples: >-
+examples: |-
   Find all interfaces that have a public Internet IP. This query filters out all
   RFC1918 IPv4 addresses as well as IPv6 localhost.
 
   ```
-
   SELECT * FROM interface_addresses WHERE address NOT LIKE '192.168%%' AND address NOT LIKE '172.16%%' AND address NOT LIKE '172.17%%' AND address NOT LIKE '172.18%%' AND address NOT LIKE '172.19%%' AND address NOT LIKE '172.20%%' AND address NOT LIKE '172.21%%' AND address NOT LIKE '172.22%%' AND address NOT LIKE '172.23%%' AND address NOT LIKE '10.%%'  AND address NOT LIKE '127.%%' AND address IS NOT NULL AND address IS NOT ' ' AND address IS NOT '' AND address IS NOT '::1' AND mask IS NOT 'ffff:ffff:ffff:ffff::';
-
   ```
 columns:
   - name: friendly_name

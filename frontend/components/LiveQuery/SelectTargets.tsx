@@ -75,6 +75,11 @@ const DEBOUNCE_DELAY = 500;
 const STALE_TIME = 60000;
 
 const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
+const isBuiltInLabel = (
+  entity: ISelectTargetsEntity
+): entity is ISelectLabel & { label_type: "builtin" } => {
+  return "label_type" in entity && entity.label_type === "builtin";
+};
 const isAllHosts = (entity: ISelectTargetsEntity) =>
   "label_type" in entity &&
   entity.name === "All Hosts" &&
@@ -101,16 +106,22 @@ const TargetPillSelector = ({
   onClick,
 }: ITargetPillSelectorProps): JSX.Element => {
   const displayText = () => {
-    switch (entity.name) {
-      case "All Hosts":
-        return "All hosts";
-      case "All Linux":
-        return "Linux";
-      case "chrome":
-        return "ChromeOS";
-      default:
-        return entity.name || "Missing display name"; // TODO
+    if (isBuiltInLabel(entity)) {
+      switch (entity.name) {
+        case "All Hosts":
+          return "All hosts";
+        case "All Linux":
+          return "Linux";
+        case "chrome":
+          return "ChromeOS";
+        case "MS Windows":
+          return "Windows";
+        default:
+          return entity.name || "Missing display name"; // TODO
+      }
     }
+
+    return entity.name || "Missing display name"; // TODO
   };
 
   return (

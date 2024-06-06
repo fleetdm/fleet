@@ -1,9 +1,8 @@
 name: yara
-examples: >-
+examples: |-
   Look for files under `/root` that match a Yara signature. This example uses the [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/).
 
   ```
-
   SELECT * FROM yara WHERE path like '/root/%%' AND sigrule IN (
     'rule eicar {
     strings:
@@ -12,5 +11,4 @@ examples: >-
     all of them
   }'
    ) AND matches='eicar';
-
   ```
