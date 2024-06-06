@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -84,7 +85,9 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 						cronLog = kitlog.NewNopLogger()
 					}
-					calendarSchedule, err = cron.NewCalendarSchedule(ctx, s.T().Name(), s.ds, 24*time.Hour, cronLog)
+					calendarSchedule, err = cron.NewCalendarSchedule(
+						ctx, s.T().Name(), s.ds, config.CalendarConfig{Periodicity: 24 * time.Hour}, cronLog,
+					)
 					return calendarSchedule, err
 				}
 			},

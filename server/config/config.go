@@ -424,6 +424,7 @@ type FleetConfig struct {
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
 	MDM              MDMConfig
+	Calendar         CalendarConfig
 }
 
 type MDMConfig struct {
@@ -496,6 +497,11 @@ type MDMConfig struct {
 	microsoftWSTEP        *tls.Certificate
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
+}
+
+type CalendarConfig struct {
+	AlwaysReloadEvent bool
+	Periodicity       time.Duration `yaml:"periodicity"`
 }
 
 type x509KeyPairConfig struct {
@@ -1147,6 +1153,12 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 
+	// Calendar integration
+	man.addConfigDuration(
+		"calendar.periodicity", 0,
+		"How much time to wait between processing calendar integration.",
+	)
+
 	// Hide Microsoft/Windows MDM flags as we don't want it to be discoverable for users for now
 	betaMDMFlags := []string{
 		"mdm.windows_wstep_identity_cert",
@@ -1431,6 +1443,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+		},
+		Calendar: CalendarConfig{
+			Periodicity: man.getConfigDuration("calendar.periodicity"),
 		},
 	}
 
