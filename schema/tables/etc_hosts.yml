@@ -14,6 +14,7 @@ notes: |-
   - macOS: /private/etc/hosts
   - Windows: C:\Windows\system32\drivers\etc
 
+  **More info**:
   - [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)
   - The `/etc/hosts` [Guide For Linux](https://thelinuxcode.com/etc-hosts-file-complete-guide-for-linux/)
   - [How to edit the hosts file on Windows](https://www.howtogeek.com/784196/how-to-edit-the-hosts-file-on-windows-10-or-11)
