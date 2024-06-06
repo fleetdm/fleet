@@ -1047,6 +1047,11 @@ func (ds *Datastore) AllSoftwareIterator(
 		arg["included_sources"] = query.IncludedSources
 	}
 
+	if query.NameFilter != "" {
+		conditionals = append(conditionals, "s.name LIKE :name_filter")
+		arg["name_filter"] = likePattern(query.NameFilter)
+	}
+
 	if len(conditionals) != 0 {
 		cond := strings.Join(conditionals, " AND ")
 		stmt, args, err = sqlx.Named(stmt+" WHERE "+cond, arg)
