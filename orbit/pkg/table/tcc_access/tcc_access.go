@@ -127,12 +127,10 @@ func getTCCAccessRows(uid, tccPath string) ([]map[string]string, error) {
 	}
 
 	parsedRows := parseTCCDbReadOutput(dbOut.Bytes())
-
 	rows, err := buildTableRows(uid, parsedRows)
 	if err != nil {
 		return nil, err
 	}
-
 	return rows, nil
 }
 
@@ -140,6 +138,9 @@ func parseTCCDbReadOutput(dbOut []byte) [][]string {
 	// split by newLine for rows, then by "|" for columns
 	rawRows := strings.Split(string(dbOut[:]), "\n")
 	n := len(rawRows)
+	if n == 0 {
+		return nil
+	}
 	// the end of the db response is "\n", making the final row "", which we want to omit
 	rawRows = rawRows[:n-1]
 
