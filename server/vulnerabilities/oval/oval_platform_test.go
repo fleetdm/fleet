@@ -74,3 +74,20 @@ func TestOvalPlatform(t *testing.T) {
 		}
 	})
 }
+
+func TestIsInList(t *testing.T) {
+	cases := []struct {
+		platform Platform
+		expected bool
+	}{
+		{"ubuntu_2004", true},
+		{"ubuntu_2204", false},
+		{"rhel_07", true},
+	}
+
+	list := []Platform{"ubuntu_2004", "ubuntu_1804", "ubuntu_1604", "rhel_07"}
+
+	for _, c := range cases {
+		require.Equal(t, c.expected, c.platform.IsInList(list))
+	}
+}

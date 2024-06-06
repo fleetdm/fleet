@@ -397,7 +397,7 @@ func TestOvalParser(t *testing.T) {
 		xmlResult, err := parseUbuntuXML(r)
 		require.NoError(t, err)
 
-		result, err := mapToUbuntuResult(xmlResult)
+		result, kv, err := mapToUbuntuResult(xmlResult)
 		require.NoError(t, err)
 
 		var expectedVulns []string
@@ -452,6 +452,10 @@ func TestOvalParser(t *testing.T) {
 
 		variableState := []oval_parsed.ObjectStateString{"less than|0:5.15.0-43"}
 		require.ElementsMatch(t, result.UnameTests[554410000010].States, variableState)
+
+		require.Len(t, kv, 5)
+		expectedKernelVariants := []string{"generic", "generic-64k", "generic-lpae", "lowlatency", "lowlatency-64k"}
+		require.ElementsMatch(t, kv, expectedKernelVariants)
 	})
 
 	t.Run("#parseRhelXML", func(t *testing.T) {

@@ -11,30 +11,31 @@ import (
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 )
 
-func parseDefinitions(platform Platform, inputFile string, outputFile string) error {
+func parseDefinitions(platform Platform, inputFile string, outputFile string) ([]string, error) {
 	r, err := os.Open(inputFile)
 	if err != nil {
-		return fmt.Errorf("oval parser: %w", err)
+		return nil, fmt.Errorf("oval parser: %w", err)
 	}
 	defer r.Close()
 
 	var payload []byte
+	var kv []string
 	switch {
 	case platform.IsUbuntu():
-		payload, err = processUbuntuDef(r)
+		payload, kv, err = processUbuntuDef(r)
 	case platform.IsRedHat():
 		payload, err = processRhelDef(r)
 	}
 	if err != nil {
-		return fmt.Errorf("oval parser: %w", err)
+		return nil, fmt.Errorf("oval parser: %w", err)
 	}
 
 	err = os.WriteFile(outputFile, payload, 0o644)
 	if err != nil {
-		return fmt.Errorf("oval parser: %w", err)
+		return nil, fmt.Errorf("oval parser: %w", err)
 	}
 
-	return nil
+	return kv, nil
 }
 
 // -----------------
@@ -251,23 +252,23 @@ func mapToRhelResult(xmlResult *oval_input.RhelResultXML) (*oval_parsed.RhelResu
 // Ubuntu
 // -----------------
 
-func processUbuntuDef(r io.Reader) ([]byte, error) {
+func processUbuntuDef(r io.Reader) ([]byte, []string, error) {
 	xmlResult, err := parseUbuntuXML(r)
 	if err != nil {
-		return nil, fmt.Errorf("parsing ubuntu xml: %w", err)
+		return nil, nil, fmt.Errorf("parsing ubuntu xml: %w", err)
 	}
 
-	result, err := mapToUbuntuResult(xmlResult)
+	result, kv, err := mapToUbuntuResult(xmlResult)
 	if err != nil {
-		return nil, fmt.Errorf("mapping ubuntu result: %w", err)
+		return nil, nil, fmt.Errorf("mapping ubuntu result: %w", err)
 	}
 
 	payload, err := json.Marshal(result)
 	if err != nil {
-		return nil, fmt.Errorf("marshalling ubuntu result: %w", err)
+		return nil, nil, fmt.Errorf("marshalling ubuntu result: %w", err)
 	}
 
-	return payload, nil
+	return payload, kv, nil
 }
 
 func parseUbuntuXML(reader io.Reader) (*oval_input.UbuntuResultXML, error) {
@@ -368,7 +369,7 @@ func parseUbuntuXML(reader io.Reader) (*oval_input.UbuntuResultXML, error) {
 	}
 }
 
-func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.UbuntuResult, error) {
+func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.UbuntuResult, []string, error) {
 	r := oval_parsed.NewUbuntuResult()
 
 	staToTst := make(map[string][]int)
@@ -380,7 +381,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 		if len(d.Vulnerabilities) > 0 {
 			def, err := mapDefinition(d)
 			if err != nil {
-				return nil, fmt.Errorf("mapping definition: %w", err)
+				return nil, nil, fmt.Errorf("mapping definition: %w", err)
 			}
 			r.AddDefinition(*def)
 		}
@@ -389,7 +390,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 	for _, t := range xmlResult.DpkgInfoTests {
 		id, tst, err := mapDpkgInfoTest(t)
 		if err != nil {
-			return nil, fmt.Errorf("mapping dpkg info test: %w", err)
+			return nil, nil, fmt.Errorf("mapping dpkg info test: %w", err)
 		}
 
 		objToTst[t.Object.Id] = append(objToTst[t.Object.Id], id)
@@ -402,7 +403,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 	for _, o := range xmlResult.DpkgInfoObjects {
 		obj, err := mapPackageInfoTestObject(o, xmlResult.Variables)
 		if err != nil {
-			return nil, fmt.Errorf("mapping dpkg info object: %w", err)
+			return nil, nil, fmt.Errorf("mapping dpkg info object: %w", err)
 		}
 
 		for _, tId := range objToTst[o.Id] {
@@ -410,7 +411,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 			if ok {
 				t.Objects = obj
 			} else {
-				return nil, fmt.Errorf("test not found: %d", tId)
+				return nil, nil, fmt.Errorf("test not found: %d", tId)
 			}
 		}
 	}
@@ -418,14 +419,14 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 	for _, s := range xmlResult.DpkgInfoStates {
 		sta, err := mapDpkgInfoState(s)
 		if err != nil {
-			return nil, fmt.Errorf("mapping dpkg info state: %w", err)
+			return nil, nil, fmt.Errorf("mapping dpkg info state: %w", err)
 		}
 		for _, tId := range staToTst[s.Id] {
 			t, ok := r.PackageTests[tId]
 			if ok {
 				t.States = append(t.States, *sta)
 			} else {
-				return nil, fmt.Errorf("test not found: %d", tId)
+				return nil, nil, fmt.Errorf("test not found: %d", tId)
 			}
 		}
 	}
@@ -433,7 +434,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 	for _, t := range xmlResult.UnameTests {
 		id, tst, err := mapUnixUnameTest(t)
 		if err != nil {
-			return nil, fmt.Errorf("mapping uname test: %w", err)
+			return nil, nil, fmt.Errorf("mapping uname test: %w", err)
 		}
 
 		for _, sta := range t.States {
@@ -449,7 +450,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 			if ok {
 				t.States = append(t.States, *sta)
 			} else {
-				return nil, fmt.Errorf("test not found: %d", tId)
+				return nil, nil, fmt.Errorf("test not found: %d", tId)
 			}
 		}
 	}
@@ -457,7 +458,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 	for _, t := range xmlResult.VariableTests {
 		id, tst, err := mapVariableTest(t)
 		if err != nil {
-			return nil, fmt.Errorf("mapping variable test: %w", err)
+			return nil, nil, fmt.Errorf("mapping variable test: %w", err)
 		}
 
 		// Skip tests that are not used in any uname test
@@ -465,7 +466,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 		if obj, ok := xmlResult.VariableObjects[id]; ok {
 			id, err := extractId(obj.RefID)
 			if err != nil {
-				return nil, fmt.Errorf("extracting variable object id: %w", err)
+				return nil, nil, fmt.Errorf("extracting variable object id: %w", err)
 			}
 			if _, ok := r.UnameTests[id]; !ok {
 				continue
@@ -485,7 +486,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 			if ok {
 				t.States = append(t.States, *sta)
 			} else {
-				return nil, fmt.Errorf("test not found: %d", tId)
+				return nil, nil, fmt.Errorf("test not found: %d", tId)
 			}
 		}
 	}
@@ -501,9 +502,10 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 		}
 	}
 
+	kvSlice := make([]string, 0, len(kernelVariants))
 	for v := range kernelVariants {
-		r.AddKernelVariant(v)
+		kvSlice = append(kvSlice, v)
 	}
 
-	return r, nil
+	return r, kvSlice, nil
 }

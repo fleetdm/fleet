@@ -99,6 +99,15 @@ func (op Platform) IsSupported() bool {
 	return false
 }
 
+func (op Platform) IsInList(platforms []Platform) bool {
+	for _, p := range platforms {
+		if p == op {
+			return true
+		}
+	}
+	return false
+}
+
 // IsUbuntu checks whether the current Platform targets Ubuntu.
 func (op Platform) IsUbuntu() bool {
 	return strings.HasPrefix(string(op), "ubuntu")

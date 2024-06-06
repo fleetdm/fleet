@@ -2,6 +2,7 @@ package oval
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -98,14 +99,13 @@ func Sync(dstDir string, platforms []Platform) error {
 		return fmt.Errorf("getOvalSources: %w", err)
 	}
 
-	if platforms == nil {
-		for s := range sources {
-			platforms = append(platforms, s)
-		}
+	for s := range sources {
+		platforms = append(platforms, s)
 	}
 
 	client := fleethttp.NewClient()
 	dwn := downloadDecompressed(client)
+	kernelVariants := make(map[string]struct{})
 	for _, platform := range platforms {
 		defFile, err := downloadDefinitions(sources, platform, dwn)
 		if err != nil {
@@ -114,15 +114,42 @@ func Sync(dstDir string, platforms []Platform) error {
 
 		dstFile := strings.Replace(filepath.Base(defFile), ".xml", ".json", 1)
 		dstPath := filepath.Join(dstDir, dstFile)
-		err = parseDefinitions(platform, defFile, dstPath)
+		kv, err := parseDefinitions(platform, defFile, dstPath)
 		if err != nil {
 			return fmt.Errorf("parseDefinitions: %w", err)
+		}
+
+		for _, v := range kv {
+			kernelVariants[v] = struct{}{}
 		}
 
 		err = os.Remove(defFile)
 		if err != nil {
 			return fmt.Errorf("removing %s: %w", defFile, err)
 		}
+	}
+
+	err = writeUbuntuKernelVariants(dstDir, kernelVariants)
+	if err != nil {
+		return fmt.Errorf("writing kernel variants: %w", err)
+	}
+
+	return nil
+}
+
+func writeUbuntuKernelVariants(dstDir string, kernelVariants map[string]struct{}) error {
+	kernelVariantsFile := filepath.Join(dstDir, "fleet_oval_ubuntu_kernel_variants.json")
+	kvSlice := make([]string, 0, len(kernelVariants))
+	for kv := range kernelVariants {
+		kvSlice = append(kvSlice, kv)
+	}
+	kvBytes, err := json.Marshal(kvSlice)
+	if err != nil {
+		return fmt.Errorf("marshaling kernel variants: %w", err)
+	}
+	err = os.WriteFile(kernelVariantsFile, kvBytes, 0o644)
+	if err != nil {
+		return fmt.Errorf("writing kernel variants: %w", err)
 	}
 	return nil
 }
