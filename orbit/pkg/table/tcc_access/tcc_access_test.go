@@ -33,7 +33,7 @@ func TestGenerate(t *testing.T) {
 			require.Equal(t, "0", row["uid"])
 		} else if strings.HasPrefix(row["service"], "test-u1-service-") {
 			require.Equal(t, "1", row["uid"])
-		} else if strings.HasPrefix(row["service"], "test-u3-service-") {
+		} else if strings.HasPrefix(row["service"], "test-u2-service-") {
 			require.Equal(t, "2", row["uid"])
 		}
 	}
