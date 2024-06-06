@@ -1,5 +1,9 @@
 name: fleetd_logs
 evented: false
+platforms:
+  - darwin
+  - windows
+  - linux
 description: |-
   Returns the logs from fleetd's current session. Logs are stored in memory, so they are erased when it restarts.
 examples: |-
