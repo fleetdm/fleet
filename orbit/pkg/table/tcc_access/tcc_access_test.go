@@ -24,37 +24,23 @@ func TestGenerate(t *testing.T) {
 
 	rows, err = Generate(context.Background(), table.QueryContext{
 		Constraints: map[string]table.ConstraintList{
-			"client": {
+			"uid": {
 				Affinity: table.ColumnTypeText,
 				Constraints: []table.Constraint{
 					{
 						Operator:   table.OperatorEquals,
-						Expression: "test-sys-client-1",
+						Expression: "1",
 					},
 				},
 			},
 		},
 	})
 	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	require.Equal(t, rows[0]["service"], "test-sys-service-1")
-
-	rows, err = Generate(context.Background(), table.QueryContext{
-		Constraints: map[string]table.ConstraintList{
-			"source": {
-				Affinity: table.ColumnTypeText,
-				Constraints: []table.Constraint{
-					{
-						Operator:   table.OperatorEquals,
-						Expression: "user",
-					},
-				},
-			},
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, rows, 62)
+	require.Len(t, rows, 31)
 	for _, row := range rows {
-		require.NotEqual(t, row["source"], "system")
+		serviceName := row["service"]
+		require.Contains(t, serviceName, "u1-service")
+		require.NotContains(t, serviceName, "u2-service")
+		require.NotContains(t, serviceName, "sys-service")
 	}
 }
