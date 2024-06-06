@@ -387,7 +387,7 @@ func processFailingHostExistingCalendarEvent(
 func shouldReloadCalendarEvent(now time.Time, calendarEvent *fleet.CalendarEvent, hostCalendarEvent *fleet.HostCalendarEvent) bool {
 	// Check the user calendar every 30 minutes (and not every cron run)
 	// to reduce load on both Fleet and the calendar service.
-	if time.Since(calendarEvent.UpdatedAt) > 30*time.Minute {
+	if time.Since(calendarEvent.UpdatedAt) > 30*time.Second {
 		return true
 	}
 	// If the event is supposed to be happening now, we want to check if the user moved/deleted the

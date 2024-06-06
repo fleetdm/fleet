@@ -860,7 +860,7 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(
 					func() (fleet.CronSchedule, error) {
-						return cron.NewCalendarSchedule(ctx, instanceID, ds, 5*time.Minute, logger)
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, 30*time.Second, logger)
 					},
 				); err != nil {
 					initFatal(err, "failed to register calendar schedule")
