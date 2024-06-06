@@ -95,7 +95,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         } catch (error) {
           console.error(error);
           const abmError = error as AxiosResponse;
-          if (abmError.status === 403) {
+          if (abmError.status === 400) {
             const pastDate = "2024-06-03T17:28:44Z";
             setABMExpiry(pastDate);
           }
