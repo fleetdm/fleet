@@ -91,7 +91,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         // should be fixed upstream.
         try {
           const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
-          setABMExpiry(abmInfo.renew_date || "");
+          setABMExpiry(abmInfo.renew_date);
         } catch (error) {
           console.error(error);
           const abmError = error as AxiosResponse;
