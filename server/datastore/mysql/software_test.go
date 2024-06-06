@@ -1732,6 +1732,16 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 			want := expect[i]
 			require.Equal(t, want.name, sw.Name)
 
+			var titleID uint
+			require.NoError(
+				t, ds.writer(ctx).GetContext(
+					ctx, &titleID,
+					`SELECT s.title_id FROM software s INNER JOIN software_titles st ON (s.name = st.name AND s.source = st.source AND s.browser = st.browser) WHERE st.id = ?`,
+					sw.ID,
+				),
+			)
+			assert.NotZero(t, titleID)
+
 			if want.ts.IsZero() {
 				require.Nil(t, sw.LastOpenedAt)
 			} else {
@@ -1742,7 +1752,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 
 	// set the initial software list
 	sw := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo", Browser: "chrome"},
 		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &lastYear},
 		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &now},
 	}

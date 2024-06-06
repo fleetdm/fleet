@@ -501,6 +501,23 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				end = len(keys)
 			}
 			totalToProcess := end - start
+
+			// Insert into software_titles
+			const numberOfArgsPerSoftwareTitles = 3 // number of ? in each VALUES clause
+			titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", totalToProcess), ",")
+			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
+			titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser) VALUES %s", titlesValues)
+			titlesArgs := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftwareTitles)
+			for j := start; j < end; j++ {
+				checksum := keys[j]
+				sw := softwareChecksums[checksum]
+				titlesArgs = append(titlesArgs, sw.Name, sw.Source, sw.Browser)
+			}
+			if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
+			}
+
+			// Insert into software
 			const numberOfArgsPerSoftware = 10 // number of ? in each VALUES clause
 			values := strings.TrimSuffix(
 				strings.Repeat("(?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
@@ -521,6 +538,24 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			}
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "insert software")
+			}
+
+			// update title ids for software table entries
+			updateSoftwareStmt := `
+				UPDATE
+					software s,
+					software_titles st
+				SET
+					s.title_id = st.id
+				WHERE
+					(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+					AND s.checksum IN (?)`
+			updateSoftwareStmt, args, err := sqlx.In(updateSoftwareStmt, keys[start:end])
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "build update software title_id")
+			}
+			if _, err = tx.ExecContext(ctx, updateSoftwareStmt, args...); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update software title_id")
 			}
 		}
 
