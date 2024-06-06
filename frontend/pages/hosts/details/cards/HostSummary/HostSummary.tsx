@@ -187,8 +187,6 @@ const HostSummary = ({
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
-  console.log("summaryData", summaryData);
-
   const isChromeHost = platform === "chrome";
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
@@ -237,6 +235,7 @@ const HostSummary = ({
           totalIssuesCount={summaryData.issues.total_issues_count}
           criticalVulnerabilitiesCount={2}
           failingPoliciesCount={summaryData.issues.failing_policies_count}
+          tooltipPosition="bottom"
         />
       }
     />

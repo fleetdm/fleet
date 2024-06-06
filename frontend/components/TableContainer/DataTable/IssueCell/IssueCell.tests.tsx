@@ -12,6 +12,7 @@ describe("Issue cell", () => {
       <IssueCell
         issues={{
           total_issues_count: 4,
+          critical_vulnerabilities_count: 2,
           failing_policies_count: 2,
         }}
         rowId={1}
