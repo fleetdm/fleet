@@ -2462,8 +2462,8 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSoftwareRequest struct {
-	ID          uint              `url:"id"`
-	ListOptions fleet.ListOptions `url:"list_options"`
+	ID uint `url:"id"`
+	fleet.HostSoftwareTitleListOptions
 }
 
 type getHostSoftwareResponse struct {
@@ -2477,7 +2477,7 @@ func (r getHostSoftwareResponse) error() error { return r.Err }
 
 func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostSoftwareRequest)
-	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.ListOptions)
+	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.HostSoftwareTitleListOptions)
 	if err != nil {
 		return getHostSoftwareResponse{Err: err}, nil
 	}
@@ -2487,9 +2487,11 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 	return getHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil
 }
 
-func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// if the request is token-authenticated ("My device" page), we don't include software
-	// that is not installed but for which there's an installer available for that host.
+func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	// if the request is token-authenticated ("My device" page), we don't include
+	// software that is not installed but for which there's an installer
+	// available for that host (unless the request filters for self-service
+	// software only).
 	var includeAvailableForInstall bool
 
 	var host *fleet.Host
@@ -2519,15 +2521,23 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	}
 
 	// cursor-based pagination is not supported
-	opts.After = ""
+	opts.ListOptions.After = ""
 	// custom ordering is not supported, always by name (but asc/desc is configurable)
-	opts.OrderKey = "name"
+	opts.ListOptions.OrderKey = "name"
 	// always include metadata
-	opts.IncludeMetadata = true
+	opts.ListOptions.IncludeMetadata = true
+	opts.IncludeAvailableForInstall = includeAvailableForInstall || opts.SelfServiceOnly
 
-	software, meta, err := svc.ds.ListHostSoftware(ctx, host, includeAvailableForInstall, opts)
-	if !includeAvailableForInstall {
-		// for the device page, we don't want to return the package name
+	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
+	if includeAvailableForInstall {
+		// for the host software page, we don't want to return the package object,
+		// only the package name
+		for _, s := range software {
+			s.Package = nil
+		}
+	} else {
+		// for the device page, we don't want to return the package name, only the
+		// package object
 		for _, s := range software {
 			s.PackageAvailableForInstall = nil
 		}

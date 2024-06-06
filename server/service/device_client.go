@@ -125,6 +125,15 @@ func (dc *DeviceClient) BrowserTransparencyURL(token string) string {
 	return transparencyURL.String()
 }
 
+// BrowserSelfServiceURL returns the "Self-service" URL for the browser.
+func (dc *DeviceClient) BrowserSelfServiceURL(token string) string {
+	selfServiceURL := dc.baseClient.url("/device/"+token+"/self-service", "")
+	if dc.fleetAlternativeBrowserHost != "" {
+		selfServiceURL.Host = dc.fleetAlternativeBrowserHost
+	}
+	return selfServiceURL.String()
+}
+
 // BrowserDeviceURL returns the "My device" URL for the browser.
 func (dc *DeviceClient) BrowserDeviceURL(token string) string {
 	deviceURL := dc.baseClient.url("/device/"+token, "")

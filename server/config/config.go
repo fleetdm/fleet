@@ -1758,7 +1758,6 @@ func TestConfig() FleetConfig {
 // server's flags.
 func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
-	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 
 	if wstepCertAndKeyDir == "" {
 		wstepCertAndKeyDir = "testdata"

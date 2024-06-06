@@ -1825,6 +1825,9 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 	if colAlias != "" {
 		colAlias = " AS " + colAlias
 	}
+	// the computed column assumes that all results (pre, install and post) are
+	// stored at once, so that if there is an exit code for the install script
+	// and none for the post-install, it is because there is no post-install.
 	return fmt.Sprintf(`
 			CASE
 				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
@@ -1848,17 +1851,19 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 			END %[2]s `, tblAlias, colAlias)
 }
 
-func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// `status` computed column assumes that all results (pre, install and post)
-	// are stored at once, so that if there is an exit code for the install
-	// script and none for the post-install, it is because there is no
-	// post-install.
+func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	var onlySelfServiceClause string
+	if opts.SelfServiceOnly {
+		onlySelfServiceClause = ` AND si.self_service = 1 `
+	}
 	stmtInstalled := fmt.Sprintf(`
 		SELECT
 			st.id,
 			st.name,
 			st.source,
+			si.self_service as self_service,
 			si.filename as package_available_for_install,
+			si.version as package_version,
 			hsi.created_at as last_install_installed_at,
 			hsi.execution_id as last_install_install_uuid,
 			%s,
@@ -1890,14 +1895,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 			) OR
 			-- or software install has been attempted on host
 			hsi.host_id IS NOT NULL )
-`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
+			%s
+`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause)
 
 	const stmtAvailable = `
 		SELECT
 			st.id,
 			st.name,
 			st.source,
+			si.self_service as self_service,
 			si.filename as package_available_for_install,
+			si.version as package_version,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
 			NULL as status,
@@ -1929,6 +1937,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 					hsi.software_installer_id = si.id
 			) AND
 			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
+			%s
 `
 
 	const selectColNames = `
@@ -1936,7 +1945,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		id,
 		name,
 		source,
+		self_service,
 		package_available_for_install,
+		package_version,
 		last_install_installed_at,
 		last_install_install_uuid,
 		status
@@ -1954,7 +1965,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
 	}
 
-	if includeAvailableForInstall {
+	if opts.IncludeAvailableForInstall {
 		platformArgs := []string{host.Platform}
 		if fleet.IsLinux(host.Platform) {
 			platformArgs = fleet.HostLinuxOSs
@@ -1964,20 +1975,20 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 			placeholders += "?,"
 			args = append(args, p)
 		}
-		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","))
+		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","), onlySelfServiceClause)
 		args = append(args, host.ID, host.ID, host.ID)
 	}
 
 	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
 
-	if opts.MatchQuery != "" {
+	if opts.ListOptions.MatchQuery != "" {
 		stmt += " WHERE TRUE " // searchLike adds a "AND <condition>"
-		stmt, args = searchLike(stmt, args, opts.MatchQuery, "name")
+		stmt, args = searchLike(stmt, args, opts.ListOptions.MatchQuery, "name")
 	}
 
 	// build the count statement before adding pagination constraints
 	countStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
-	stmt, _ = appendListOptionsToSQL(stmt, &opts)
+	stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
 
 	// perform a second query to grab the titleCount
 	var titleCount uint
@@ -1990,6 +2001,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		LastInstallInstalledAt *time.Time    `db:"last_install_installed_at"`
 		LastInstallInstallUUID *string       `db:"last_install_install_uuid"`
 		StatusSort             sql.NullInt32 `db:"status_sort"`
+		PackageVersion         *string       `db:"package_version"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2010,6 +2022,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 				hs.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
 			}
 		}
+
+		// promote the package name and version to the proper destination fields
+		// (the service layer will arbitrate whether package_available_for_install
+		// or package fields are returned).
+		if hs.PackageAvailableForInstall != nil {
+			var version string
+			if hs.PackageVersion != nil {
+				version = *hs.PackageVersion
+			}
+			hs.Package = &fleet.DeviceSoftwarePackage{
+				Name:    *hs.PackageAvailableForInstall,
+				Version: version,
+			}
+		}
+
 		titleIDs = append(titleIDs, hs.ID)
 		byTitleID[hs.ID] = hs
 	}
@@ -2115,14 +2142,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		}
 	}
 
-	perPage := opts.PerPage
+	perPage := opts.ListOptions.PerPage
 	var metaData *fleet.PaginationMetadata
-	if opts.IncludeMetadata {
+	if opts.ListOptions.IncludeMetadata {
 		if perPage <= 0 {
 			perPage = defaultSelectLimit
 		}
 		metaData = &fleet.PaginationMetadata{
-			HasPreviousResults: opts.Page > 0,
+			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
 		if len(hostSoftwareList) > int(perPage) {

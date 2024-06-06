@@ -1,0 +1,1 @@
+- Adds clearer error messages when attempting to set up Apple MDM without a server private key configured.

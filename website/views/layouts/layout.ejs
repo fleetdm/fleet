@@ -634,6 +634,13 @@
     $(function() {
       $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
     });
+    $(function() {
+      // Clean up URLs that contain UTM parameters
+      if (window.location.search && window.location.search.includes('utm_content')) {
+        let queryParameterLessUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', queryParameterLessUrl);// https://caniuse.com/mdn-api_history_replacestate
+      }
+    });
     <%/* Adding hover events to header dropdown menus*/%>
     $(function(){
       $('[purpose=dropdown-button]').hover(

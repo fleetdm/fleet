@@ -776,6 +776,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_software", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("install_self_service", desktopQuota),
+	).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
 
 	// mdm-related endpoints available via device authentication
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
@@ -1061,11 +1064,12 @@ func registerSCEP(
 		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
 		scep_depot.WithAllowRenewalDays(scepConfig.AppleSCEPSignerAllowRenewalDays),
 	)
-	scepChallenge := scepConfig.AppleSCEPChallenge
-	if scepChallenge == "" {
-		return errors.New("missing SCEP challenge")
+	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
+	if err != nil {
+		return fmt.Errorf("retrieving SCEP challenge: %w", err)
 	}
 
+	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
 	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
 	scepService := NewSCEPService(
 		mdmStorage,
