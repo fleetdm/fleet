@@ -15,12 +15,13 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
+import StatusIndicator from "pages/hosts/components/StatusIndicator";
+import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import StatusIndicator from "components/StatusIndicator";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
@@ -186,6 +187,8 @@ const HostSummary = ({
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
+  console.log("summaryData", summaryData);
+
   const isChromeHost = platform === "chrome";
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
@@ -230,28 +233,11 @@ const HostSummary = ({
     <DataSet
       title={<>Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}</>}
       value={
-        <>
-          <span
-            className="host-issue tooltip tooltip__tooltip-icon"
-            data-tip
-            data-for="host-issue-count"
-            data-tip-disable={false}
-          >
-            <Icon name="error-outline" color="ui-fleet-black-50" />
-          </span>
-          <ReactTooltip
-            place="bottom"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id="host-issue-count"
-            data-html
-          >
-            <span className={`tooltip__tooltip-text`}>
-              Failing policies ({summaryData.issues.failing_policies_count})
-            </span>
-          </ReactTooltip>
-          <span>{summaryData.issues.total_issues_count}</span>
-        </>
+        <IssuesIndicator
+          totalIssuesCount={summaryData.issues.total_issues_count}
+          criticalVulnerabilitiesCount={2}
+          failingPoliciesCount={summaryData.issues.failing_policies_count}
+        />
       }
     />
   );
@@ -274,7 +260,7 @@ const HostSummary = ({
       <DataSet
         title="Disk space"
         value={
-          <DiskSpaceGraph
+          <DiskSpaceIndicator
             baseClass="info-flex"
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}

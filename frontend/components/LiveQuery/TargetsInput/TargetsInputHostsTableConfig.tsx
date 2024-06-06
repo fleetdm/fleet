@@ -8,7 +8,7 @@ import { IHost } from "interfaces/host";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
-import StatusIndicator from "components/StatusIndicator";
+import StatusIndicator from "pages/hosts/components/StatusIndicator";
 import Icon from "components/Icon/Icon";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
