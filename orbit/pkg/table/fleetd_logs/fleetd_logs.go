@@ -41,7 +41,7 @@ func generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		// empty string when the error is empty
 		row["time"] = entry.Time
 		row["level"] = entry.Level.String()
-		row["payload"] = string(entry.Payload)
+		row["payload"] = entry.Payload
 		row["message"] = entry.Message
 		row["error"] = entry.Error
 		output = append(output, row)
@@ -52,7 +52,7 @@ func generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 type Event struct {
 	Time    string
 	Level   zerolog.Level
-	Payload []byte
+	Payload string
 	Message string
 	Error   string
 }
@@ -157,7 +157,7 @@ func processLogEntry(event []byte) (Event, error) {
 	entry := Event{
 		Time:    sqliteTime,
 		Level:   level,
-		Payload: payload,
+		Payload: string(payload),
 		Message: evtMessage,
 		Error:   evtError,
 	}
