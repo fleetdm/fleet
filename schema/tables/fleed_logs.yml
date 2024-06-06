@@ -15,21 +15,21 @@ examples: |-
 columns:
   - name: time
     description: The time the event was captured, UTC.
-    type: string
+    type: text
     required: false
   - name: level
     description: The log-level of the event. Info, Debug, etc.
-    type: string
+    type: text
     required: false
   - name: error
     description: The error attached to the event
-    type: string
+    type: text
     required: false
   - name: message
     description: The message attached to the event
-    type: string
+    type: text
     required: false
   - name: payload
     description: Any extra data attached to the event, JSON
-    type: string
+    type: text
     required: false
