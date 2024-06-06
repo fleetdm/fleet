@@ -46,36 +46,22 @@ func Columns() []table.ColumnDefinition {
 // Constraints for generating can be retrieved from the queryContext.
 
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	// get all usernames on the mac
-	cmd := exec.Command("dscl", ".", "list", "/Users")
-	out, err := cmd.Output()
+	// get all usernames and uids on the mac
+	usersInfo, err := getUsersInfo()
 	if err != nil {
 		return nil, err
 	}
-	allUsernames := strings.Split(string(out[:]), "\n")
-	var usernames []string
-	for _, username := range allUsernames {
-		if !strings.HasPrefix(username, "_") && username != "nobody" && username != "root" && username != "daemon" && len(username) > 0 {
-			usernames = append(usernames, username)
-		}
-	}
-	if testContext {
-		usernames = []string{"testUser1", "testUser2"}
-	}
+
+	var rows []map[string]string
+	uidConstraintList, ok := queryContext.Constraints["uid"]
 
 	// build rows for every user-level TCC.db
-	var rows []map[string]string
-
-	uidConstraintList, ok := queryContext.Constraints["uid"]
-	for _, username := range usernames {
-		uid, err := getUidFromUsername(username)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, userInfo := range usersInfo {
+		username, uid := userInfo[0], userInfo[1]
 		satisfiesUidConstraints := true
+
 		if ok {
-			// if there are uid constraints
+			// there are uid constraints
 			satisfiesUidConstraints, err = satisfiesConstraints(uid, uidConstraintList.Constraints)
 			if err != nil {
 				return nil, err
@@ -89,7 +75,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 				return nil, err
 			}
 			rows = append(rows, uRs...)
-
 		}
 	}
 
@@ -170,25 +155,6 @@ func buildTableRows(uid string, parsedRows [][]string) ([]map[string]string, err
 	return rows, nil
 }
 
-func getUidFromUsername(username string) (string, error) {
-	if testContext {
-		testUId, ok := map[string]string{"testUser1": "1", "testUser2": "2"}[username]
-		if ok {
-			return testUId, nil
-		}
-		return "", errors.New("Invalid test username")
-	}
-	cmd := exec.Command("id", username)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("generate failed: %w", err)
-	}
-
-	sOut := string(out[:])
-	unI := strings.Index(sOut, username)
-	return sOut[4 : unI-1], nil
-}
-
 func satisfiesConstraints(uid string, constraints []table.Constraint) (bool, error) {
 	for _, constraint := range constraints {
 		// for each constraint on the column
@@ -214,8 +180,36 @@ func satisfiesConstraints(uid string, constraints []table.Constraint) (bool, err
 				return false, nil
 			}
 		default:
-			return false, errors.New("Invalid operator for column 'uid' – only =, <, >, <=, >= are supported")
+			return false, errors.New("Invalid comparison for column 'uid'. Supported comparisons are `=`, `<`, `>`, `<=`, and `>=`")
 		}
 	}
 	return true, nil
+}
+
+func getUsersInfo() ([][]string, error) {
+	var parsedFilteredUsersInfo [][]string
+
+	cmd := exec.Command("dscl", ".", "list", "/Users", "UniqueID")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	usersInfo := strings.Split(string(out[:]), "\n")
+	for _, userInfo := range usersInfo {
+		if len(userInfo) > 0 {
+			split := strings.Fields(userInfo)
+			uN := split[0]
+			// filter for relevant users
+			if !strings.HasPrefix(uN, "_") && uN != "nobody" && uN != "root" && uN != "daemon" && len(uN) > 0 {
+				parsedFilteredUsersInfo = append(parsedFilteredUsersInfo, split)
+			}
+		}
+	}
+
+	if testContext {
+		// test still runs above system command to surface any errors, but replaces output with these values
+		parsedFilteredUsersInfo = [][]string{{"testUser1", "1"}, {"testUser2", "2"}}
+	}
+
+	return parsedFilteredUsersInfo, nil
 }
