@@ -537,6 +537,8 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
+- [Disable VPP](#disable-vpp)
+
 
 ### Generate Apple DEP Key Pair
 
