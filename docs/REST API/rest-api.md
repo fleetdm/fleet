@@ -880,6 +880,7 @@ None.
     "apple_bm_terms_expired": false,
     "enabled_and_configured": true,
     "windows_enabled_and_configured": true,
+    "enable_disk_encryption": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -894,8 +895,7 @@ None.
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
         }
-      ],
-      "enable_disk_encryption": false
+      ]
     },
     "windows_settings": {
       "custom_settings": [
@@ -1226,6 +1226,7 @@ Note that when making changes to the `integrations` object, all integrations mus
     "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "windows_enabled_and_configured": false,
+    "enable_disk_encryption": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1244,8 +1245,7 @@ Note that when making changes to the `integrations` object, all integrations mus
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
-      ],
-      "enable_disk_encryption": true
+      ]
     },
     "windows_settings": {
       "custom_settings": [
@@ -9023,6 +9023,7 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
+      "enable_disk_encryption": true,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
@@ -9037,8 +9038,7 @@ _Available in Fleet Premium_
             "path": "path/to/profile1.mobileconfig",
             "labels": ["Label 1", "Label 2"]
           }
-        ],
-        "enable_disk_encryption": false
+        ]
       },
       "windows_settings": {
         "custom_settings": [
@@ -9317,6 +9317,7 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
+      "enable_disk_encryption": true,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
@@ -9331,8 +9332,7 @@ _Available in Fleet Premium_
            "path": "path/to/profile1.mobileconfig",
            "labels": ["Label 1", "Label 2"]
           }
-        ],
-        "enable_disk_encryption": false
+        ]
       },
       "windows_settings": {
         "custom_settings": [
