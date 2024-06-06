@@ -123,18 +123,17 @@ func main() {
 	}
 	mds, err := mysql.New(cfg, clock.C, opts...)
 	fatal(err)
-	//toWrite := map[string][]byte{
-	//	"abm.crt":   certPEM,
-	//	"abm.key":   keyPEM,
-	//	"abm.token": []byte(tokenBytes),
-	//	"apns.crt":  certPEM,
-	//	"apns.key":  keyPEM,
-	//}
 
-	//formattedTime := expiry.Format(time.DateOnly)
-	//for name, value := range toWrite {
-	//	fatal(os.WriteFile(formattedTime+"-"+name, value, 0o777))
-	//}
+	mds.DeleteMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetABMCert,
+		fleet.MDMAssetABMKey,
+		fleet.MDMAssetABMToken,
+		fleet.MDMAssetAPNSCert,
+		fleet.MDMAssetAPNSKey,
+		fleet.MDMAssetCACert,
+		fleet.MDMAssetCAKey,
+	})
+
 	assets := []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetABMCert, Value: certPEM},
 		{Name: fleet.MDMAssetABMKey, Value: keyPEM},
