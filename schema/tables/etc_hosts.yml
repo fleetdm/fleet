@@ -9,11 +9,12 @@ examples: |-
 notes: |-
   The `hosts` file is customized by many organizations. As part of a defense-in-depth security posture it's important to track `hosts` modifications. Endpoints with a modified `hosts` configuration connected to enterprise networks can potentially bypass network rules, proxies and firewalls or be routed to malicious sites.
   
-  File paths:
-  Linux: /etc/hosts
-  macOS: /private/etc/hosts
-  Windows: C:\Windows\system32\drivers\etc
+  File paths to `hosts`:
+  - Linux: /etc/hosts
+  - macOS: /private/etc/hosts
+  - Windows: C:\Windows\system32\drivers\etc
 
+  **More info**:
   - [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)
   - The `/etc/hosts` [Guide For Linux](https://thelinuxcode.com/etc-hosts-file-complete-guide-for-linux/)
   - [How to edit the hosts file on Windows](https://www.howtogeek.com/784196/how-to-edit-the-hosts-file-on-windows-10-or-11)
@@ -21,3 +22,4 @@ columns:
   - name: pid_with_namespace
     platforms:
       - linux
+      
