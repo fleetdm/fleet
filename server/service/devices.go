@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -110,6 +111,7 @@ type getDeviceHostResponse struct {
 	Host                      *HostDetailResponse      `json:"host"`
 	OrgLogoURL                string                   `json:"org_logo_url"`
 	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
+	OrgContactURL             string                   `json:"org_contact_url"`
 	Err                       error                    `json:"error,omitempty"`
 	License                   fleet.LicenseInfo        `json:"license"`
 	GlobalConfig              fleet.DeviceGlobalConfig `json:"global_config"`
@@ -152,12 +154,6 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
-	deviceGlobalConfig := fleet.DeviceGlobalConfig{
-		MDM: fleet.DeviceGlobalMDMConfig{
-			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
-		},
-	}
-
 	resp.DEPAssignedToFleet = ptr.Bool(false)
 	if ac.MDM.EnabledAndConfigured && license.IsPremium() {
 		hdep, err := svc.GetHostDEPAssignment(ctx, host)
@@ -167,11 +163,36 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		resp.DEPAssignedToFleet = ptr.Bool(hdep.IsDEPAssignedToFleet())
 	}
 
+	softwareInventoryEnabled := ac.Features.EnableSoftwareInventory
+	if resp.TeamID != nil {
+		// load the team to get the device's team's software inventory config.
+		tm, err := svc.GetTeam(ctx, *resp.TeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return getDeviceHostResponse{Err: err}, nil
+		}
+		if tm != nil {
+			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory
+		}
+	}
+
+	deviceGlobalConfig := fleet.DeviceGlobalConfig{
+		MDM: fleet.DeviceGlobalMDMConfig{
+			// TODO(mna): It currently only returns the Apple enabled and configured,
+			// regardless of the platform of the device. See
+			// https://github.com/fleetdm/fleet/pull/19304#discussion_r1618792410.
+			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
+		},
+		Features: fleet.DeviceFeatures{
+			EnableSoftwareInventory: softwareInventoryEnabled,
+		},
+	}
+
 	return getDeviceHostResponse{
-		Host:         resp,
-		OrgLogoURL:   ac.OrgInfo.OrgLogoURL,
-		License:      *license,
-		GlobalConfig: deviceGlobalConfig,
+		Host:          resp,
+		OrgLogoURL:    ac.OrgInfo.OrgLogoURL,
+		OrgContactURL: ac.OrgInfo.ContactURL,
+		License:       *license,
+		GlobalConfig:  deviceGlobalConfig,
 	}, nil
 }
 
@@ -501,17 +522,29 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	topic, err := svc.mdmPushCertTopic(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
+	}
+
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetSCEPChallenge,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
+	}
+
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
-		svc.config.MDM.AppleSCEPChallenge,
-		svc.mdmPushCertTopic,
+		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		topic,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
 
-	signed, err := mobileconfig.Sign(enrollmentProf, svc.config.MDM)
+	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
@@ -596,8 +629,8 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 ////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceSoftwareRequest struct {
-	Token       string            `url:"token"`
-	ListOptions fleet.ListOptions `url:"list_options"`
+	Token string `url:"token"`
+	fleet.HostSoftwareTitleListOptions
 }
 
 func (r *getDeviceSoftwareRequest) deviceAuthToken() string {
@@ -621,7 +654,7 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	}
 
 	req := request.(*getDeviceSoftwareRequest)
-	res, meta, err := svc.ListHostSoftware(ctx, host.ID, req.ListOptions)
+	res, meta, err := svc.ListHostSoftware(ctx, host.ID, req.HostSoftwareTitleListOptions)
 	if err != nil {
 		return getDeviceSoftwareResponse{Err: err}, nil
 	}

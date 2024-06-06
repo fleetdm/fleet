@@ -1261,13 +1261,22 @@ type KafkaRESTConfig struct {
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
-	MDM DeviceGlobalMDMConfig `json:"mdm"`
+	MDM      DeviceGlobalMDMConfig `json:"mdm"`
+	Features DeviceFeatures        `json:"features"`
 }
 
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+}
+
+// DeviceFeatures is a subset of AppConfig.Features with information used by
+// the device endpoints.
+type DeviceFeatures struct {
+	// EnableSoftwareInventory is the setting used by the device's team (or
+	// globally in the AppConfig if the device is not in any team).
+	EnableSoftwareInventory bool `json:"enable_software_inventory"`
 }
 
 // Version is the authz type used to check access control to the version endpoint.

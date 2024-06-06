@@ -15,7 +15,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.8.1"
+  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.9.0"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -77,6 +77,7 @@ module "free" {
     }
     extra_iam_policies          = module.ses-free.fleet_extra_iam_policies
     extra_environment_variables = merge(module.ses-free.fleet_extra_environment_variables, local.extra_environment_variables_free, module.geolite2.extra_environment_variables)
+    private_key_secret_name     = "${local.customer_free}-fleet-server-private-key"
   }
   alb_config = {
     name            = local.customer_free

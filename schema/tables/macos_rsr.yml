@@ -14,7 +14,7 @@ columns:
     required: false
     type: text
   - name: rsr_supported
-    description: Whether this macOS version supports RSRs (|-= 13). Possible values are 'true' or 'false'.
+    description: Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.
     required: false
     type: text
   - name: rsr_version

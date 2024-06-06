@@ -135,7 +135,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 				dupeClient := mdmtest.NewTestMDMClientAppleDirect(
 					mdmtest.AppleEnrollInfo{
 
-						SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+						SCEPChallenge: s.scepChallenge,
 						SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 						MDMURL:        s.server.URL + apple_mdm.MDMPath,
 					},
@@ -160,7 +160,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 				dupeClient := mdmtest.NewTestMDMClientAppleDirect(
 					mdmtest.AppleEnrollInfo{
 
-						SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+						SCEPChallenge: s.scepChallenge,
 						SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 						MDMURL:        s.server.URL + apple_mdm.MDMPath,
 					},
@@ -674,7 +674,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	cert, key, err := generateCertWithAPNsTopic()
 	require.NoError(t, err)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, testBMToken, "")
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
 	logger := kitlog.NewJSONLogger(os.Stdout)
 
 	// run without expired certs, no command enqueued

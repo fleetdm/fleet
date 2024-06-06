@@ -833,9 +833,10 @@ None.
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
+    "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
-    "enable_analytics": true
+    "ai_features_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -1056,10 +1057,12 @@ Modifies the Fleet's configuration with the supplied information.
 | org_name                          | string  | body  | _Organization information_. The organization name.                                                                                                                                     |
 | org_logo_url                      | string  | body  | _Organization information_. The URL for the organization logo.                                                                                                                         |
 | org_logo_url_light_background     | string  | body  | _Organization information_. The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
-| contact_url                       | string  | body  | _Organization information_. A URL that can be used by end users to contact the organization.                                                                                          |
+| contact_url                       | string  | body  | _Organization information_. A URL that can be used by end users to contact the organization.                                                                                           |
 | server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
+| enable_analytics                  | boolean | body  | _Server settings_. Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.                                                                             |
 | live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
-| query_reports_disabled            | boolean | body  | _Server settings_. Whether query report capabilities are disabled.                                                                                                                   |
+| query_reports_disabled            | boolean | body  | _Server settings_. Whether query report capabilities are disabled.                                                                                                                     |
+| ai_features_disabled              | boolean | body  | _Server settings_. Whether AI features are disabled. |
 | enable_smtp                       | boolean | body  | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
 | sender_address                    | string  | body  | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
 | server                            | string  | body  | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
@@ -1163,8 +1166,10 @@ Note that when making changes to the `integrations` object, all integrations mus
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
+    "enable_analytics": true, 
     "live_query_disabled": false,
-    "query_reports_disabled": false
+    "query_reports_disabled": false,
+    "ai_features_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": true,

@@ -10,6 +10,8 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "policy_response",
   "macos_settings",
   "software_id",
+  "software_version_id",
+  "software_title_id",
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
   "status",
   "mdm_id",

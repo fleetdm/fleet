@@ -922,7 +922,8 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 // //////////////////////////////////////////////////////////////////////////////
 
 type applyEnrollSecretSpecRequest struct {
-	Spec *fleet.EnrollSecretSpec `json:"spec"`
+	Spec   *fleet.EnrollSecretSpec `json:"spec"`
+	DryRun bool                    `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
 type applyEnrollSecretSpecResponse struct {
@@ -933,14 +934,18 @@ func (r applyEnrollSecretSpecResponse) error() error { return r.Err }
 
 func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
-	err := svc.ApplyEnrollSecretSpec(ctx, req.Spec)
+	err := svc.ApplyEnrollSecretSpec(
+		ctx, req.Spec, fleet.ApplySpecOptions{
+			DryRun: req.DryRun,
+		},
+	)
 	if err != nil {
 		return applyEnrollSecretSpecResponse{Err: err}, nil
 	}
 	return applyEnrollSecretSpecResponse{}, nil
 }
 
-func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec) error {
+func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error {
 	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -956,6 +961,19 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 
 	if svc.config.Packaging.GlobalEnrollSecret != "" {
 		return ctxerr.New(ctx, "enroll secret cannot be changed when fleet_packaging.global_enroll_secret is set")
+	}
+
+	if applyOpts.DryRun {
+		for _, s := range spec.Secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, s.Secret, false, nil)
+			if err != nil {
+				return err
+			}
+			if !available {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "a provided global enroll secret is already being used"))
+			}
+		}
+		return nil
 	}
 
 	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)

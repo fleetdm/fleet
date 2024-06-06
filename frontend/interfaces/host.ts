@@ -235,6 +235,7 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: string;
   global_config: IDeviceGlobalConfig;
@@ -301,7 +302,7 @@ export interface IHost {
   gigs_disk_space_available: number;
   labels: ILabel[];
   packs: IPack[];
-  software: ISoftware[];
+  software?: ISoftware[];
   issues: IHostIssues;
   status: HostStatus;
   display_text: string;

@@ -3,8 +3,8 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IActivityDetails } from "interfaces/activity";
 import {
-  IHostActivitiesResponse,
-  IUpcomingActivitiesResponse,
+  IHostPastActivitiesResponse,
+  IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
 
 import Card from "components/Card";
@@ -31,8 +31,8 @@ const UpcomingTooltip = () => {
     <TooltipWrapper
       tipContent={
         <>
-          Upcoming activities will run as listed. Failure of one activity won’t
-          cancel other activities.
+          Upcoming activities will run as listed. Failure of one activity
+          won&apos;t cancel other activities.
           <br />
           <br />
           Currently, only scripts are guaranteed to run in order.
@@ -47,7 +47,7 @@ const UpcomingTooltip = () => {
 
 interface IActivityProps {
   activeTab: "past" | "upcoming";
-  activities?: IHostActivitiesResponse | IUpcomingActivitiesResponse;
+  activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
   upcomingCount: number;
@@ -71,7 +71,7 @@ const Activity = ({
   // TODO: add count to upcoming activities tab when available via API
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={baseClass}
@@ -100,7 +100,7 @@ const Activity = ({
           </TabList>
           <TabPanel>
             <PastActivityFeed
-              activities={activities as IHostActivitiesResponse | undefined}
+              activities={activities as IHostPastActivitiesResponse | undefined}
               onDetailsClick={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
@@ -110,7 +110,9 @@ const Activity = ({
           <TabPanel>
             <UpcomingTooltip />
             <UpcomingActivityFeed
-              activities={activities as IUpcomingActivitiesResponse | undefined}
+              activities={
+                activities as IHostUpcomingActivitiesResponse | undefined
+              }
               onDetailsClick={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
