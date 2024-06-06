@@ -311,7 +311,7 @@ const SoftwarePackageCard = ({
         </div>
       </div>
       <div className={`${baseClass}__actions-wrapper`}>
-        {true && (
+        {softwarePackage.self_service && (
           <div className={`${baseClass}__self-service-badge`}>
             <Icon
               name="install-self-service"
