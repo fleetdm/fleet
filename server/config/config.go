@@ -500,8 +500,16 @@ type MDMConfig struct {
 }
 
 type CalendarConfig struct {
-	AlwaysReloadEvent bool
-	Periodicity       time.Duration `yaml:"periodicity"`
+	Periodicity time.Duration
+	// Hide alwaysReloadEvent from YAML config
+	alwaysReloadEvent bool
+}
+
+func (c *CalendarConfig) AlwaysReloadEvent() bool {
+	return c.alwaysReloadEvent
+}
+func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
+	c.alwaysReloadEvent = value
 }
 
 type x509KeyPairConfig struct {

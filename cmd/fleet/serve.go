@@ -861,7 +861,7 @@ the way that the Fleet server works.
 				if err := cronSchedules.StartCronSchedule(
 					func() (fleet.CronSchedule, error) {
 						if config.Calendar.Periodicity > 0 {
-							config.Calendar.AlwaysReloadEvent = true
+							config.Calendar.SetAlwaysReloadEvent(true)
 						} else {
 							config.Calendar.Periodicity = 5 * time.Minute
 						}

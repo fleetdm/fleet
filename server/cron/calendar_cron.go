@@ -330,7 +330,7 @@ func processFailingHostExistingCalendarEvent(
 	updated := false
 	now := time.Now()
 
-	if calendarConfig.AlwaysReloadEvent || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
+	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
 		var err error
 		updatedEvent, _, err = calendar.GetAndUpdateEvent(
 			calendarEvent, func(conflict bool) string {
