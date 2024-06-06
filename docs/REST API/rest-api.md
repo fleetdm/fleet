@@ -8550,6 +8550,28 @@ Add a VPP software form App Store to the Fleet software title.
 
 `Status: 200`
 
+### Delete VPP software
+
+_Available in Fleet Premium._
+
+Delete a VPP app from software title.
+
+`DELETE /api/v1/fleet/software/titles/:software_title_id/vpp`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software_title_id              | integer | path | **Required**. The ID of the software title for the VPP app to delete. |
+| team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
+
+#### Example
+
+`DELETE /api/v1/fleet/software/titles/24/vpp?team_id=2`
+
+##### Default response
+
+`Status: 204`
 
 ## Vulnerabilities
 
