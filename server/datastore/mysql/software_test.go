@@ -2409,7 +2409,7 @@ func testSoftwareIteratorForLinuxKernelCustomImages(t *testing.T, ds *Datastore)
 
 	opts := fleet.SoftwareIterQueryOptions{
 		NameMatch:       nvd.LinuxImageRegex,
-		NameExclude:     nvd.LinuxImageExclusions,
+		NameExclude:     nvd.BuildLinuxExclusionRegex(),
 		IncludedSources: []string{"deb_packages"},
 	}
 

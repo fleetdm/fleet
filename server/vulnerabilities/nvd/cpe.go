@@ -380,10 +380,54 @@ func consumeCPEBuffer(
 	return nil
 }
 
-const (
-	LinuxImageRegex      = `^linux-image-\d+\.\d+\.\d+-\d+-\w+`
-	LinuxImageExclusions = `-(azure|raspi2|powerpc64-emb|powerpc-e500mc|powerpc64-smp|kvm|gkeop|xilinx-zynqmp|intel|euclid|nvidia|lowlatency-64k|aws|raspi-nolpae|aws-hwe|oem-osp1|azure-fde|intel-iotg|iot|raspi|bluefield|oracle-64k|starfive|generic-lpae|dell300x|laptop|powerpc-e500|nvidia-lowlatency|powerpc-smp|generic|ibm|allwinner|gcp|snapdragon|gke|oem|lowlatency|generic-64k|oracle|nvidia-64k)$`
-)
+const LinuxImageRegex = `^linux-image-\d+\.\d+\.\d+-\d+-\w+`
+
+var knownUbuntuKernelVariants []string = []string{
+	"allwinner",
+	"aws",
+	"aws-hwe",
+	"azure",
+	"azure-fde",
+	"bluefield",
+	"dell300x",
+	"euclid",
+	"gcp",
+	"generic",
+	"generic-64k",
+	"generic-lpae",
+	"gke",
+	"gkeop",
+	"intel",
+	"intel-iotg",
+	"ibm",
+	"iot",
+	"kvm",
+	"laptop",
+	"lowlatency",
+	"lowlatency-64k",
+	"nvidia",
+	"nvidia-64k",
+	"nvidia-lowlatency",
+	"oem",
+	"oem-osp1",
+	"oracle",
+	"oracle-64k",
+	"powerpc-e500",
+	"powerpc-e500mc",
+	"powerpc-smp",
+	"powerpc64-emb",
+	"powerpc64-smp",
+	"raspi",
+	"raspi-nolpae",
+	"raspi2",
+	"snapdragon",
+	"starfive",
+	"xilinx-zynqmp",
+}
+
+func BuildLinuxExclusionRegex() string {
+	return fmt.Sprintf("-(%s)$", strings.Join(knownUbuntuKernelVariants, "|"))
+}
 
 func TranslateSoftwareToCPE(
 	ctx context.Context,
@@ -413,7 +457,7 @@ func TranslateSoftwareToCPE(
 		fleet.SoftwareIterQueryOptions{
 			IncludedSources: []string{"deb_packages"},
 			NameMatch:       LinuxImageRegex,
-			NameExclude:     LinuxImageExclusions,
+			NameExclude:     BuildLinuxExclusionRegex(),
 		},
 	)
 	if err != nil {
