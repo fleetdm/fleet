@@ -1210,21 +1210,25 @@ Note that when making changes to the `integrations` object, all integrations mus
       "grace_period_days": 1
     },
     "macos_settings": {
-      "custom_settings": {
-        "path": "path/to/profile1.mobileconfig",
-        "labels_exclude_any": ["Label 1", "Label 2"]
-      },
-      {
-        "path": "path/to/profile2.json",
-        "labels_include_all": ["Label 3", "Label 4"]
-      },
+      "custom_settings": [
+        {
+          "path": "path/to/profile1.mobileconfig",
+          "labels_exclude_any": ["Label 1", "Label 2"]
+        },
+        {
+          "path": "path/to/profile2.json",
+          "labels_include_all": ["Label 3", "Label 4"]
+        },
+      ],
       "enable_disk_encryption": true
     },
     "windows_settings": {
-      "custom_settings": {
-        "path": "path/to/profile3.xml",
-        "labels_exclude_any": ["Label 1", "Label 2"]
-      }      
+      "custom_settings": [
+        {
+          "path": "path/to/profile3.xml",
+          "labels_exclude_any": ["Label 1", "Label 2"]
+        }
+      ]      
     },
     "end_user_authentication": {
       "entity_id": "",
