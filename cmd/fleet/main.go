@@ -72,7 +72,7 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		cfg.Prometheus.BasicAuth.Password = "insecure"
 	}
 
-	cfg.S3 = config.S3Config{
+	cfg.CarvesS3 = config.S3Config{
 		Bucket:           "carves-dev",
 		Region:           "minio",
 		Prefix:           "dev-prefix",

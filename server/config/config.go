@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -397,33 +398,34 @@ type PackagingConfig struct {
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
-	Mysql            MysqlConfig
-	MysqlReadReplica MysqlConfig `yaml:"mysql_read_replica"`
-	Redis            RedisConfig
-	Server           ServerConfig
-	Auth             AuthConfig
-	App              AppConfig
-	Session          SessionConfig
-	Osquery          OsqueryConfig
-	Activity         ActivityConfig
-	Logging          LoggingConfig
-	Firehose         FirehoseConfig
-	Kinesis          KinesisConfig
-	Lambda           LambdaConfig
-	S3               S3Config
-	Email            EmailConfig
-	SES              SESConfig
-	PubSub           PubSubConfig
-	Filesystem       FilesystemConfig
-	KafkaREST        KafkaRESTConfig
-	License          LicenseConfig
-	Vulnerabilities  VulnerabilitiesConfig
-	Upgrades         UpgradesConfig
-	Sentry           SentryConfig
-	GeoIP            GeoIPConfig
-	Prometheus       PrometheusConfig
-	Packaging        PackagingConfig
-	MDM              MDMConfig
+	Mysql                MysqlConfig
+	MysqlReadReplica     MysqlConfig `yaml:"mysql_read_replica"`
+	Redis                RedisConfig
+	Server               ServerConfig
+	Auth                 AuthConfig
+	App                  AppConfig
+	Session              SessionConfig
+	Osquery              OsqueryConfig
+	Activity             ActivityConfig
+	Logging              LoggingConfig
+	Firehose             FirehoseConfig
+	Kinesis              KinesisConfig
+	Lambda               LambdaConfig
+	CarvesS3             S3Config
+	SoftwareInstallersS3 S3Config
+	Email                EmailConfig
+	SES                  SESConfig
+	PubSub               PubSubConfig
+	Filesystem           FilesystemConfig
+	KafkaREST            KafkaRESTConfig
+	License              LicenseConfig
+	Vulnerabilities      VulnerabilitiesConfig
+	Upgrades             UpgradesConfig
+	Sentry               SentryConfig
+	GeoIP                GeoIPConfig
+	Prometheus           PrometheusConfig
+	Packaging            PackagingConfig
+	MDM                  MDMConfig
 }
 
 type MDMConfig struct {
@@ -1022,7 +1024,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("lambda.audit_function", "",
 		"Lambda function name for audit logs")
 
-	// S3 for file carving
+	// S3 for file carving: Deprecated
+	// TODO(JVE): do we need to add a deprecation warning to all these messages?
 	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
 	man.addConfigString("s3.prefix", "", "Prefix under which carves are stored")
 	man.addConfigString("s3.region", "", "AWS Region (if blank region is derived)")
@@ -1033,6 +1036,30 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+
+	// S3 for file carving
+	man.addConfigString("s3.carves_bucket", "", "Bucket where to store file carves")
+	man.addConfigString("s3.carves_prefix", "", "Prefix under which carves are stored")
+	man.addConfigString("s3.carves_region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("s3.carves_endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
+	man.addConfigString("s3.carves_access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("s3.carves_secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("s3.carves_sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("s3.carves_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
+	man.addConfigBool("s3.carves_disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.carves_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+
+	// S3 for software installers
+	man.addConfigString("s3.software_installers_bucket", "", "Bucket where to store uploaded software installers")
+	man.addConfigString("s3.software_installers_prefix", "", "Prefix under which software installers are stored")
+	man.addConfigString("s3.software_installers_region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("s3.software_installers_endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
+	man.addConfigString("s3.software_installers_access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("s3.software_installers_secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("s3.software_installers_sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
+	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -1311,17 +1338,18 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("lambda.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
-		S3: S3Config{
-			Bucket:           man.getConfigString("s3.bucket"),
-			Prefix:           man.getConfigString("s3.prefix"),
-			Region:           man.getConfigString("s3.region"),
-			EndpointURL:      man.getConfigString("s3.endpoint_url"),
-			AccessKeyID:      man.getConfigString("s3.access_key_id"),
-			SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
-			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
-			StsExternalID:    man.getConfigString("s3.sts_external_id"),
-			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
-			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
+		CarvesS3: man.getCarvesConfig(),
+		SoftwareInstallersS3: S3Config{
+			Bucket:           man.getConfigString("s3.software_installers_bucket"),
+			Prefix:           man.getConfigString("s3.software_installers_prefix"),
+			Region:           man.getConfigString("s3.software_installers_region"),
+			EndpointURL:      man.getConfigString("s3.software_installers_endpoint_url"),
+			AccessKeyID:      man.getConfigString("s3.software_installers_access_key_id"),
+			SecretAccessKey:  man.getConfigString("s3.software_installers_secret_access_key"),
+			StsAssumeRoleArn: man.getConfigString("s3.software_installers_sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString("s3.software_installers_sts_external_id"),
+			DisableSSL:       man.getConfigBool("s3.software_installers_disable_ssl"),
+			ForceS3PathStyle: man.getConfigBool("s3.software_installers_force_s3_path_style"),
 		},
 		Email: EmailConfig{
 			EmailBackend: man.getConfigString("email.backend"),
@@ -1438,6 +1466,55 @@ func (man Manager) LoadConfig() FleetConfig {
 	for task := range knownAsyncTasks {
 		cfg.Osquery.AsyncConfigForTask(task)
 	}
+
+	return cfg
+}
+
+func (man Manager) getCarvesConfig() S3Config {
+	var cfg S3Config
+
+	cfg.Bucket = man.getConfigString("s3.carves_bucket")
+	if cfg.Bucket == "" {
+		cfg.Bucket = man.getConfigString("s3.bucket")
+	}
+	cfg.Prefix = man.getConfigString("s3.carves_prefix")
+	if cfg.Prefix == "" {
+		cfg.Prefix = man.getConfigString("s3.prefix")
+	}
+	cfg.Region = man.getConfigString("s3.carves_region")
+	if cfg.Region == "" {
+		cfg.Region = man.getConfigString("s3.region")
+	}
+	cfg.EndpointURL = man.getConfigString("s3.carves_endpoint_url")
+	if cfg.EndpointURL == "" {
+		cfg.EndpointURL = man.getConfigString("s3.endpoint_url")
+	}
+	cfg.AccessKeyID = man.getConfigString("s3.carves_access_key_id")
+	if cfg.AccessKeyID == "" {
+		cfg.AccessKeyID = man.getConfigString("s3.access_key_id")
+	}
+	cfg.SecretAccessKey = man.getConfigString("s3.carves_secret_access_key")
+	if cfg.SecretAccessKey == "" {
+		cfg.SecretAccessKey = man.getConfigString("s3.secret_access_key")
+	}
+	cfg.StsAssumeRoleArn = man.getConfigString("s3.carves_sts_assume_role_arn")
+	if cfg.StsAssumeRoleArn == "" {
+		cfg.StsAssumeRoleArn = man.getConfigString("s3.sts_assume_role_arn")
+	}
+	cfg.StsExternalID = man.getConfigString("s3.carves_sts_external_id")
+	if cfg.StsExternalID == "" {
+		cfg.StsExternalID = man.getConfigString("s3.sts_external_id")
+	}
+	cfg.DisableSSL = man.getConfigBool("s3.carves_disable_ssl")
+	if cfg.DisableSSL == false {
+		cfg.DisableSSL = man.getConfigBool("s3.disable_ssl")
+	}
+	cfg.ForceS3PathStyle = man.getConfigBool("s3.carves_force_s3_path_style")
+	if cfg.ForceS3PathStyle == false {
+		cfg.ForceS3PathStyle = man.getConfigBool("s3.force_s3_path_style")
+	}
+
+	slog.With("filename", "server/config/config.go", "func", "getCarvesConfig").Info("JVE_LOG: bucket when calculcating config ", "carvesBucket", cfg.Bucket)
 
 	return cfg
 }
