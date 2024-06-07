@@ -91,10 +91,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
 | Edit setup experience (end user authentication, bootstrap package, Setup Assistant)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Edit end user license agreement (EULA)\*                                                                                         |          |            |              | ✅    |         |
-| Run arbitrary scripts on hosts\*                                                                                                           |          |            | ✅         | ✅    |         |
-| View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
-| Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
-| Run saved scripts on hosts\*                                                                                                               | ✅       | ✅         | ✅         | ✅    |         |
+| Run arbitrary scripts on hosts                                                                                                             |          |            | ✅         | ✅    |         |
+| View saved scripts                                                                                                                         | ✅       | ✅         | ✅         | ✅    |         |
+| Edit/upload saved scripts                                                                                                                  |          |            | ✅         | ✅    | ✅      |
+| Run saved scripts on hosts                                                                                                                 | ✅       | ✅         | ✅         | ✅    |         |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium

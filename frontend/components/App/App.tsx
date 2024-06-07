@@ -56,6 +56,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   const {
     config,
     currentUser,
+    isGlobalAdmin,
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
@@ -82,14 +83,37 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         setNoSandboxHosts(noSandboxHosts);
       }
 
-      if (configResponse.mdm.apple_bm_enabled_and_configured) {
-        const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
-        setABMExpiry(abmInfo.renew_date);
+      // These endpoints 403 for non-global admins
+      if (isGlobalAdmin) {
+        if (configResponse.mdm.apple_bm_enabled_and_configured) {
+          // FIXME: we need to catch and check for a 400 status code because the
+          // API behaves this way when the token is already expired or invalid.
+          //
+          // This is a quick fix to not completely break the UI, but it doesn't
+          // allow us to show ABM information when the token is expired so it
+          // should be fixed upstream.
+          try {
+            const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
+            setABMExpiry(abmInfo.renew_date);
+          } catch (error) {
+            console.error(error);
+            const abmError = error as AxiosResponse;
+            if (abmError.status === 400) {
+              const pastDate = "2024-06-03T17:28:44Z";
+              setABMExpiry(pastDate);
+            }
+          }
+        }
+        if (configResponse.mdm.enabled_and_configured) {
+          try {
+            const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
+            setAPNsExpiry(apnsInfo.renew_date);
+          } catch (error) {
+            console.error(error);
+          }
+        }
       }
-      if (configResponse.mdm.enabled_and_configured) {
-        const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
-        setAPNsExpiry(apnsInfo.renew_date);
-      }
+
       setConfig(configResponse);
     } catch (error) {
       console.error(error);
