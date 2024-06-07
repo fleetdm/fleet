@@ -100,14 +100,6 @@ module.exports.routes = {
     }
   },// handles /handbook and /handbook/foo/bar
 
-  'GET /transparency': {
-    action: 'view-transparency',
-    locals: {
-      pageTitleForMeta: 'Transparency | Fleet',
-      pageDescriptionForMeta: 'Learn what data osquery can see.',
-      showContactFormCta: false,
-    }
-  },
   'GET /new-license': {
     action: 'customers/view-new-license',
     locals: {
@@ -303,7 +295,6 @@ module.exports.routes = {
   'GET /better': {
     action: 'view-transparency',
     locals: {
-      showContactFormCta: true,
       pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
       pageTitleForMeta: 'Better with Fleet | Fleet'
     }
@@ -460,6 +451,7 @@ module.exports.routes = {
   'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
   'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
   'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
+  'GET /transparency': '/better',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
