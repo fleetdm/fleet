@@ -674,24 +674,32 @@ fi
 next_tag="fleet-$next_ver"
 
 if [[ "$target_milestone_number" == "" ]]; then
-    echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
-    exit 1
+    if [ "$announce_only" = "false" ]; then
+        echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
+        exit 1
+    fi
 fi
 echo "Found milestone $target_milestone with number $target_milestone_number"
 
 if [ "$print_info" = "true" ]; then
-    print_announce_info
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        print_announce_info
+        exit 0
+    fi
 fi
 
 if [ "$do_tag" = "true" ]; then
-    tag
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        tag
+        exit 0
+    fi
 fi
 
 if [ "$release_notes" = "true" ]; then
-    update_release_notes
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        update_release_notes
+        exit 0
+    fi
 fi
 
 if [ "$publish_release" = "true" ]; then
