@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -63,7 +64,7 @@ type logger struct {
 }
 
 func (l *logger) Write(event []byte) (int, error) {
-	msg, err := processLogEntry(event)
+	msgs, err := processLogEntry(event)
 	if err != nil {
 		return 0, fmt.Errorf("fleet_logs.Write: %w", err)
 	}
@@ -71,7 +72,7 @@ func (l *logger) Write(event []byte) (int, error) {
 	l.writeMutex.Lock()
 	defer l.writeMutex.Unlock()
 
-	l.logs = append(l.logs, msg)
+	l.logs = append(l.logs, msgs...)
 
 	if MaxEntries > 0 && len(l.logs) > int(MaxEntries) {
 		l.logs = l.logs[len(l.logs)-int(MaxEntries):]
@@ -81,17 +82,19 @@ func (l *logger) Write(event []byte) (int, error) {
 }
 
 func (l *logger) WriteLevel(level zerolog.Level, event []byte) (int, error) {
-	msg, err := processLogEntry(event)
+	msgs, err := processLogEntry(event)
 	if err != nil {
 		return 0, fmt.Errorf("fleet_logs.WriteLevel: %w", err)
 	}
 
-	msg.Level = level
+	for idx := range msgs {
+		msgs[idx].Level = level
+	}
 
 	l.writeMutex.Lock()
 	defer l.writeMutex.Unlock()
 
-	l.logs = append(l.logs, msg)
+	l.logs = append(l.logs, msgs...)
 
 	if MaxEntries > 0 && len(l.logs) > int(MaxEntries) {
 		l.logs = l.logs[len(l.logs)-int(MaxEntries):]
@@ -100,67 +103,79 @@ func (l *logger) WriteLevel(level zerolog.Level, event []byte) (int, error) {
 	return len(event), nil
 }
 
-func processLogEntry(event []byte) (Event, error) {
-	var evt map[string]interface{}
+func processLogEntry(event []byte) ([]Event, error) {
+	var evts []map[string]interface{}
 	dec := json.NewDecoder(bytes.NewReader(event))
 	dec.UseNumber()
-	if err := dec.Decode(&evt); err != nil {
-		return Event{}, fmt.Errorf("cannot decode: %w", err)
-	}
-
-	level := zerolog.GlobalLevel()
-	var err error
-	evtLevel, ok := evt["level"].(string)
-	if ok {
-		level, err = zerolog.ParseLevel(evtLevel)
-		if err != nil {
-			return Event{}, fmt.Errorf("unable to parse log event level: %w", err)
+	for {
+		var evt map[string]interface{}
+		if err := dec.Decode(&evt); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("cannot decode: %w", err)
 		}
-		delete(evt, "level")
+		evts = append(evts, evt)
 	}
 
-	var sqliteTime string
-	evtTime, ok := evt["time"].(string)
-	if ok {
-		goTime, err := time.Parse("2006-01-02T15:04:05-07:00", evtTime)
-		if err != nil {
-			return Event{}, fmt.Errorf("processLogEntry parsing time: %w", err)
+	var entries []Event
+
+	for _, evt := range evts {
+		level := zerolog.GlobalLevel()
+		var err error
+		evtLevel, ok := evt["level"].(string)
+		if ok {
+			level, err = zerolog.ParseLevel(evtLevel)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse log event level: %w", err)
+			}
+			delete(evt, "level")
 		}
-		sqliteTime = goTime.UTC().Format(timeFormatString)
-		delete(evt, "time")
-	} else {
-		sqliteTime = time.Now().UTC().Format(timeFormatString)
-	}
 
-	evtMessage, ok := evt["message"].(string)
-	if ok {
-		delete(evt, "message")
-	} else {
-		evtMessage = ""
-	}
-
-	evtError, ok := evt["error"].(string)
-	if ok {
-		delete(evt, "error")
-	} else {
-		evtError = ""
-	}
-
-	payload := []byte{}
-	if len(evt) > 0 {
-		payload, err = json.Marshal(evt)
-		if err != nil {
-			return Event{}, fmt.Errorf("unable to marshall log event: %w", err)
+		var sqliteTime string
+		evtTime, ok := evt["time"].(string)
+		if ok {
+			goTime, err := time.Parse("2006-01-02T15:04:05-07:00", evtTime)
+			if err != nil {
+				return nil, fmt.Errorf("processLogEntry parsing time: %w", err)
+			}
+			sqliteTime = goTime.UTC().Format(timeFormatString)
+			delete(evt, "time")
+		} else {
+			sqliteTime = time.Now().UTC().Format(timeFormatString)
 		}
+
+		evtMessage, ok := evt["message"].(string)
+		if ok {
+			delete(evt, "message")
+		} else {
+			evtMessage = ""
+		}
+
+		evtError, ok := evt["error"].(string)
+		if ok {
+			delete(evt, "error")
+		} else {
+			evtError = ""
+		}
+
+		payload := []byte{}
+		if len(evt) > 0 {
+			payload, err = json.Marshal(evt)
+			if err != nil {
+				return nil, fmt.Errorf("unable to marshall log event: %w", err)
+			}
+		}
+
+		entry := Event{
+			Time:    sqliteTime,
+			Level:   level,
+			Payload: string(payload),
+			Message: evtMessage,
+			Error:   evtError,
+		}
+
+		entries = append(entries, entry)
 	}
 
-	entry := Event{
-		Time:    sqliteTime,
-		Level:   level,
-		Payload: string(payload),
-		Message: evtMessage,
-		Error:   evtError,
-	}
-
-	return entry, nil
+	return entries, nil
 }
