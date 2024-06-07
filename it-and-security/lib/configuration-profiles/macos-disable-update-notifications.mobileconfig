@@ -1,55 +1,84 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadDescription</key>
-			<string>Configures Passcode settings</string>
-			<key>PayloadDisplayName</key>
-			<string>Passcode</string>
-			<key>PayloadIdentifier</key>
-			<string>com.github.erikberglund.ProfileCreator.F7CF282E-D91B-44E9-922F-A719634F9C8E.com.apple.mobiledevice.passwordpolicy.231DFC90-D5A7-41B8-9246-564056048AC5</string>
-			<key>PayloadOrganization</key>
-			<string></string>
-			<key>PayloadType</key>
-			<string>com.apple.mobiledevice.passwordpolicy</string>
-			<key>PayloadUUID</key>
-			<string>231DFC90-D5A7-41B8-9246-564056048AC5</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>allowSimple</key>
-			<true/>
-			<key>forcePIN</key>
-			<true/>
-			<key>maxFailedAttempts</key>
-			<integer>11</integer>
-			<key>maxGracePeriod</key>
-			<integer>1</integer>
-			<key>maxInactivity</key>
-			<integer>15</integer>
-			<key>minLength</key>
-			<integer>10</integer>
-			<key>requireAlphanumeric</key>
-			<true/>
-		</dict>
-	</array>
-	<key>PayloadDescription</key>
-	<string>Configures our Macs to require passwords that are 10 character long</string>
-	<key>PayloadDisplayName</key>
-	<string>Enforce password length (10 characters)</string>
-	<key>PayloadIdentifier</key>
-	<string>com.github.erikberglund.ProfileCreator.F7CF282E-D91B-44E9-922F-A719634F9C8E</string>
-	<key>PayloadOrganization</key>
-	<string>FleetDM</string>
-	<key>PayloadScope</key>
-	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>F7CF282E-D91B-44E9-922F-A719634F9C8E</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
+<plist version="1">
+  <dict>
+    <key>PayloadUUID</key>
+    <string>CDB0BC64-F3EB-4B1A-AA5E-9A5D994CA592</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadOrganization</key>
+    <string>Macjutsu</string>
+    <key>PayloadIdentifier</key>
+    <string>CDB0BC64-F3EB-4B1A-AA5E-9A5D994CA592</string>
+    <key>PayloadDisplayName</key>
+    <string>Apple Software Update Disable Notifications</string>
+    <key>PayloadDescription</key>
+    <string>These settings disable the Apple software update notifications and banners.</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadEnabled</key>
+    <true/>
+    <key>PayloadRemovalDisallowed</key>
+    <true/>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadContent</key>
+    <array>
+      <dict>
+        <key>PayloadDisplayName</key>
+        <string>Notifications Payload</string>
+        <key>PayloadIdentifier</key>
+        <string>84DB38D0-8A4B-4382-B1D2-11235122FF6D</string>
+        <key>PayloadOrganization</key>
+        <string>Macjutsu</string>
+        <key>PayloadType</key>
+        <string>com.apple.notificationsettings</string>
+        <key>PayloadUUID</key>
+        <string>84DB38D0-8A4B-4382-B1D2-11235122FF6D</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>NotificationSettings</key>
+        <array>
+          <dict>
+            <key>BundleIdentifier</key>
+            <string>_system_center_:com.apple.softwareupdatenotification</string>
+            <key>CriticalAlertEnabled</key>
+            <false/>
+            <key>NotificationsEnabled</key>
+            <false/>
+          </dict>
+        </array>
+      </dict>
+      <dict>
+        <key>PayloadDisplayName</key>
+        <string>Custom Settings</string>
+        <key>PayloadIdentifier</key>
+        <string>87E2F5E4-1C8A-4D43-AA52-676364A3326E</string>
+        <key>PayloadOrganization</key>
+        <string>Macjutsu</string>
+        <key>PayloadType</key>
+        <string>com.apple.ManagedClient.preferences</string>
+        <key>PayloadUUID</key>
+        <string>87E2F5E4-1C8A-4D43-AA52-676364A3326E</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PayloadContent</key>
+        <dict>
+          <key>com.apple.systempreferences</key>
+          <dict>
+            <key>Forced</key>
+            <array>
+              <dict>
+                <key>mcx_preference_settings</key>
+                <dict>
+                  <key>AttentionPrefBundleIDs</key>
+                  <integer>0</integer>
+                </dict>
+              </dict>
+            </array>
+          </dict>
+        </dict>
+      </dict>
+    </array>
+  </dict>
 </plist>
