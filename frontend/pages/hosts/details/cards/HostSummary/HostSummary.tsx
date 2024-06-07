@@ -231,7 +231,9 @@ const HostSummary = ({
       value={
         <IssuesIndicator
           totalIssuesCount={summaryData.issues.total_issues_count}
-          criticalVulnerabilitiesCount={summaryData.issues.total_issues_count}
+          criticalVulnerabilitiesCount={
+            summaryData.issues.critical_vulnerabilities_count
+          }
           failingPoliciesCount={summaryData.issues.failing_policies_count}
           tooltipPosition="bottom"
         />
