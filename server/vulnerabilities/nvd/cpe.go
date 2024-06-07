@@ -380,7 +380,8 @@ func consumeCPEBuffer(
 	return nil
 }
 
-const LinuxImageRegex = `^linux-image-\d+\.\d+\.\d+-\d+-\w+`
+// mysql 5.7 compatible regexp for ubuntu kernel package names
+const LinuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
 
 // knownUbuntuKernelVariants is a list of known kernel variants that are used in the Ubuntu kernel
 // OVAL feeds.  These are used to determine if a kernel package is a custom variant and should be
