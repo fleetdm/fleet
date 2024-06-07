@@ -292,6 +292,7 @@ type LambdaConfig struct {
 
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
+	// Deprecated
 	Bucket           string `yaml:"bucket"`
 	Prefix           string `yaml:"prefix"`
 	Region           string `yaml:"region"`
@@ -302,6 +303,72 @@ type S3Config struct {
 	StsExternalID    string `yaml:"sts_external_id"`
 	DisableSSL       bool   `yaml:"disable_ssl"`
 	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
+
+	CarvesBucket           string `yaml:"carves_bucket"`
+	CarvesPrefix           string `yaml:"carves_prefix"`
+	CarvesRegion           string `yaml:"carves_region"`
+	CarvesEndpointURL      string `yaml:"carves_endpoint_url"`
+	CarvesAccessKeyID      string `yaml:"carves_access_key_id"`
+	CarvesSecretAccessKey  string `yaml:"carves_secret_access_key"`
+	CarvesStsAssumeRoleArn string `yaml:"carves_sts_assume_role_arn"`
+	CarvesStsExternalID    string `yaml:"carves_sts_external_id"`
+	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
+	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
+
+	SoftwareInstallersBucket           string `yaml:"software_installers_bucket"`
+	SoftwareInstallersPrefix           string `yaml:"software_installers_prefix"`
+	SoftwareInstallersRegion           string `yaml:"software_installers_region"`
+	SoftwareInstallersEndpointURL      string `yaml:"software_installers_endpoint_url"`
+	SoftwareInstallersAccessKeyID      string `yaml:"software_installers_access_key_id"`
+	SoftwareInstallersSecretAccessKey  string `yaml:"software_installers_secret_access_key"`
+	SoftwareInstallersStsAssumeRoleArn string `yaml:"software_installers_sts_assume_role_arn"`
+	SoftwareInstallersStsExternalID    string `yaml:"software_installers_sts_external_id"`
+	SoftwareInstallersDisableSSL       bool   `yaml:"software_installers_disable_ssl"`
+	SoftwareInstallersForceS3PathStyle bool   `yaml:"software_installers_force_s3_path_style"`
+}
+
+func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
+	return S3ConfigInternal{
+		Bucket:           s.SoftwareInstallersBucket,
+		Prefix:           s.SoftwareInstallersPrefix,
+		Region:           s.SoftwareInstallersRegion,
+		EndpointURL:      s.SoftwareInstallersEndpointURL,
+		AccessKeyID:      s.SoftwareInstallersAccessKeyID,
+		SecretAccessKey:  s.SoftwareInstallersSecretAccessKey,
+		StsAssumeRoleArn: s.SoftwareInstallersStsAssumeRoleArn,
+		StsExternalID:    s.SoftwareInstallersStsExternalID,
+		DisableSSL:       s.SoftwareInstallersDisableSSL,
+		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
+	}
+}
+
+func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
+	return S3ConfigInternal{
+		Bucket:           s.CarvesBucket,
+		Prefix:           s.CarvesPrefix,
+		Region:           s.CarvesRegion,
+		EndpointURL:      s.CarvesEndpointURL,
+		AccessKeyID:      s.CarvesAccessKeyID,
+		SecretAccessKey:  s.CarvesSecretAccessKey,
+		StsAssumeRoleArn: s.CarvesStsAssumeRoleArn,
+		StsExternalID:    s.CarvesStsExternalID,
+		DisableSSL:       s.CarvesDisableSSL,
+		ForceS3PathStyle: s.CarvesForceS3PathStyle,
+	}
+}
+
+// S3ConfigInternal is used internally
+type S3ConfigInternal struct {
+	Bucket           string
+	Prefix           string
+	Region           string
+	EndpointURL      string
+	AccessKeyID      string
+	SecretAccessKey  string
+	StsAssumeRoleArn string
+	StsExternalID    string
+	DisableSSL       bool
+	ForceS3PathStyle bool
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -398,34 +465,35 @@ type PackagingConfig struct {
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
-	Mysql                MysqlConfig
-	MysqlReadReplica     MysqlConfig `yaml:"mysql_read_replica"`
-	Redis                RedisConfig
-	Server               ServerConfig
-	Auth                 AuthConfig
-	App                  AppConfig
-	Session              SessionConfig
-	Osquery              OsqueryConfig
-	Activity             ActivityConfig
-	Logging              LoggingConfig
-	Firehose             FirehoseConfig
-	Kinesis              KinesisConfig
-	Lambda               LambdaConfig
-	CarvesS3             S3Config
-	SoftwareInstallersS3 S3Config
-	Email                EmailConfig
-	SES                  SESConfig
-	PubSub               PubSubConfig
-	Filesystem           FilesystemConfig
-	KafkaREST            KafkaRESTConfig
-	License              LicenseConfig
-	Vulnerabilities      VulnerabilitiesConfig
-	Upgrades             UpgradesConfig
-	Sentry               SentryConfig
-	GeoIP                GeoIPConfig
-	Prometheus           PrometheusConfig
-	Packaging            PackagingConfig
-	MDM                  MDMConfig
+	Mysql            MysqlConfig
+	MysqlReadReplica MysqlConfig `yaml:"mysql_read_replica"`
+	Redis            RedisConfig
+	Server           ServerConfig
+	Auth             AuthConfig
+	App              AppConfig
+	Session          SessionConfig
+	Osquery          OsqueryConfig
+	Activity         ActivityConfig
+	Logging          LoggingConfig
+	Firehose         FirehoseConfig
+	Kinesis          KinesisConfig
+	Lambda           LambdaConfig
+	S3               S3Config
+	// CarvesS3             S3Config `yaml:"s3"`
+	// SoftwareInstallersS3 S3Config
+	Email           EmailConfig
+	SES             SESConfig
+	PubSub          PubSubConfig
+	Filesystem      FilesystemConfig
+	KafkaREST       KafkaRESTConfig
+	License         LicenseConfig
+	Vulnerabilities VulnerabilitiesConfig
+	Upgrades        UpgradesConfig
+	Sentry          SentryConfig
+	GeoIP           GeoIPConfig
+	Prometheus      PrometheusConfig
+	Packaging       PackagingConfig
+	MDM             MDMConfig
 }
 
 type MDMConfig struct {
@@ -1356,19 +1424,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("lambda.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
-		CarvesS3: man.getCarvesConfig(),
-		SoftwareInstallersS3: S3Config{
-			Bucket:           man.getConfigString("s3.software_installers_bucket"),
-			Prefix:           man.getConfigString("s3.software_installers_prefix"),
-			Region:           man.getConfigString("s3.software_installers_region"),
-			EndpointURL:      man.getConfigString("s3.software_installers_endpoint_url"),
-			AccessKeyID:      man.getConfigString("s3.software_installers_access_key_id"),
-			SecretAccessKey:  man.getConfigString("s3.software_installers_secret_access_key"),
-			StsAssumeRoleArn: man.getConfigString("s3.software_installers_sts_assume_role_arn"),
-			StsExternalID:    man.getConfigString("s3.software_installers_sts_external_id"),
-			DisableSSL:       man.getConfigBool("s3.software_installers_disable_ssl"),
-			ForceS3PathStyle: man.getConfigBool("s3.software_installers_force_s3_path_style"),
-		},
+		S3: man.loadS3Config(),
+		// SoftwareInstallersS3: S3Config{},
 		Email: EmailConfig{
 			EmailBackend: man.getConfigString("email.backend"),
 		},
@@ -1488,49 +1545,62 @@ func (man Manager) LoadConfig() FleetConfig {
 	return cfg
 }
 
-func (man Manager) getCarvesConfig() S3Config {
+func (man Manager) loadS3Config() S3Config {
 	var cfg S3Config
 
-	cfg.Bucket = man.getConfigString("s3.carves_bucket")
-	if cfg.Bucket == "" {
+	// Prefer the new vars with the "carves_" prefix over the deprecated ones without prefix
+
+	cfg.CarvesBucket = man.getConfigString("s3.carves_bucket")
+	if cfg.CarvesBucket == "" {
 		cfg.Bucket = man.getConfigString("s3.bucket")
 	}
-	cfg.Prefix = man.getConfigString("s3.carves_prefix")
-	if cfg.Prefix == "" {
+	cfg.CarvesPrefix = man.getConfigString("s3.carves_prefix")
+	if cfg.CarvesPrefix == "" {
 		cfg.Prefix = man.getConfigString("s3.prefix")
 	}
-	cfg.Region = man.getConfigString("s3.carves_region")
-	if cfg.Region == "" {
+	cfg.CarvesRegion = man.getConfigString("s3.carves_region")
+	if cfg.CarvesRegion == "" {
 		cfg.Region = man.getConfigString("s3.region")
 	}
-	cfg.EndpointURL = man.getConfigString("s3.carves_endpoint_url")
-	if cfg.EndpointURL == "" {
+	cfg.CarvesEndpointURL = man.getConfigString("s3.carves_endpoint_url")
+	if cfg.CarvesEndpointURL == "" {
 		cfg.EndpointURL = man.getConfigString("s3.endpoint_url")
 	}
-	cfg.AccessKeyID = man.getConfigString("s3.carves_access_key_id")
-	if cfg.AccessKeyID == "" {
+	cfg.CarvesAccessKeyID = man.getConfigString("s3.carves_access_key_id")
+	if cfg.CarvesAccessKeyID == "" {
 		cfg.AccessKeyID = man.getConfigString("s3.access_key_id")
 	}
-	cfg.SecretAccessKey = man.getConfigString("s3.carves_secret_access_key")
-	if cfg.SecretAccessKey == "" {
+	cfg.CarvesSecretAccessKey = man.getConfigString("s3.carves_secret_access_key")
+	if cfg.CarvesSecretAccessKey == "" {
 		cfg.SecretAccessKey = man.getConfigString("s3.secret_access_key")
 	}
-	cfg.StsAssumeRoleArn = man.getConfigString("s3.carves_sts_assume_role_arn")
-	if cfg.StsAssumeRoleArn == "" {
+	cfg.CarvesStsAssumeRoleArn = man.getConfigString("s3.carves_sts_assume_role_arn")
+	if cfg.CarvesStsAssumeRoleArn == "" {
 		cfg.StsAssumeRoleArn = man.getConfigString("s3.sts_assume_role_arn")
 	}
-	cfg.StsExternalID = man.getConfigString("s3.carves_sts_external_id")
-	if cfg.StsExternalID == "" {
+	cfg.CarvesStsExternalID = man.getConfigString("s3.carves_sts_external_id")
+	if cfg.CarvesStsExternalID == "" {
 		cfg.StsExternalID = man.getConfigString("s3.sts_external_id")
 	}
-	cfg.DisableSSL = man.getConfigBool("s3.carves_disable_ssl")
-	if cfg.DisableSSL == false {
+	cfg.CarvesDisableSSL = man.getConfigBool("s3.carves_disable_ssl")
+	if cfg.CarvesDisableSSL == false {
 		cfg.DisableSSL = man.getConfigBool("s3.disable_ssl")
 	}
-	cfg.ForceS3PathStyle = man.getConfigBool("s3.carves_force_s3_path_style")
-	if cfg.ForceS3PathStyle == false {
+	cfg.CarvesForceS3PathStyle = man.getConfigBool("s3.carves_force_s3_path_style")
+	if cfg.CarvesForceS3PathStyle == false {
 		cfg.ForceS3PathStyle = man.getConfigBool("s3.force_s3_path_style")
 	}
+
+	cfg.SoftwareInstallersBucket = man.getConfigString("s3.software_installers_bucket")
+	cfg.SoftwareInstallersPrefix = man.getConfigString("s3.software_installers_prefix")
+	cfg.SoftwareInstallersRegion = man.getConfigString("s3.software_installers_region")
+	cfg.SoftwareInstallersEndpointURL = man.getConfigString("s3.software_installers_endpoint_url")
+	cfg.SoftwareInstallersAccessKeyID = man.getConfigString("s3.software_installers_access_key_id")
+	cfg.SoftwareInstallersSecretAccessKey = man.getConfigString("s3.software_installers_secret_access_key")
+	cfg.SoftwareInstallersStsAssumeRoleArn = man.getConfigString("s3.software_installers_sts_assume_role_arn")
+	cfg.SoftwareInstallersStsExternalID = man.getConfigString("s3.software_installers_sts_external_id")
+	cfg.SoftwareInstallersDisableSSL = man.getConfigBool("s3.software_installers_disable_ssl")
+	cfg.SoftwareInstallersForceS3PathStyle = man.getConfigBool("s3.software_installers_force_s3_path_style")
 
 	slog.With("filename", "server/config/config.go", "func", "getCarvesConfig").Info("JVE_LOG: bucket when calculcating config ", "carvesBucket", cfg.Bucket)
 

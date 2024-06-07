@@ -72,27 +72,28 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		cfg.Prometheus.BasicAuth.Password = "insecure"
 	}
 
-	cfg.CarvesS3 = config.S3Config{
-		Bucket:           "carves-dev",
-		Region:           "minio",
-		Prefix:           "dev-prefix",
-		EndpointURL:      "localhost:9000",
-		AccessKeyID:      "minio",
-		SecretAccessKey:  "minio123!",
-		DisableSSL:       true,
-		ForceS3PathStyle: true,
-	}
+	// TODO(JVE): FIXME
+	// cfg.CarvesS3 = config.S3Config{
+	// 	Bucket:           "carves-dev",
+	// 	Region:           "minio",
+	// 	Prefix:           "dev-prefix",
+	// 	EndpointURL:      "localhost:9000",
+	// 	AccessKeyID:      "minio",
+	// 	SecretAccessKey:  "minio123!",
+	// 	DisableSSL:       true,
+	// 	ForceS3PathStyle: true,
+	// }
 
-	cfg.SoftwareInstallersS3 = config.S3Config{
-		Bucket:           "software-installers-dev",
-		Region:           "minio",
-		Prefix:           "dev-prefix",
-		EndpointURL:      "localhost:9000",
-		AccessKeyID:      "minio",
-		SecretAccessKey:  "minio123!",
-		DisableSSL:       true,
-		ForceS3PathStyle: true,
-	}
+	// cfg.SoftwareInstallersS3 = config.S3Config{
+	// 	Bucket:           "software-installers-dev",
+	// 	Region:           "minio",
+	// 	Prefix:           "dev-prefix",
+	// 	EndpointURL:      "localhost:9000",
+	// 	AccessKeyID:      "minio",
+	// 	SecretAccessKey:  "minio123!",
+	// 	DisableSSL:       true,
+	// 	ForceS3PathStyle: true,
+	// }
 
 	cfg.Packaging.S3 = config.S3Config{
 		Bucket:           "installers-dev",
