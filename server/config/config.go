@@ -869,10 +869,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
-	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
-	if sandboxFlag != nil {
-		sandboxFlag.Hidden = true
-	}
+	man.hideConfig("server.sandbox_enabled")
 
 	// Auth
 	man.addConfigInt("auth.bcrypt_cost", 12,
@@ -1025,17 +1022,31 @@ func (man Manager) addConfigs() {
 		"Lambda function name for audit logs")
 
 	// S3 for file carving: Deprecated
-	// TODO(JVE): do we need to add a deprecation warning to all these messages?
-	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
-	man.addConfigString("s3.prefix", "", "Prefix under which carves are stored")
-	man.addConfigString("s3.region", "", "AWS Region (if blank region is derived)")
-	man.addConfigString("s3.endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
-	man.addConfigString("s3.access_key_id", "", "Access Key ID for AWS authentication")
-	man.addConfigString("s3.secret_access_key", "", "Secret Access Key for AWS authentication")
-	man.addConfigString("s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
-	man.addConfigString("s3.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
-	man.addConfigBool("s3.disable_ssl", false, "Disable SSL (typically for local testing)")
-	man.addConfigBool("s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigString("s3.bucket", "", "Deprecated: Bucket where to store file carves")
+	man.addConfigString("s3.prefix", "", "Deprecated: Prefix under which carves are stored")
+	man.addConfigString("s3.region", "", "Deprecated: AWS Region (if blank region is derived)")
+	man.addConfigString("s3.endpoint_url", "", "Deprecated: AWS Service Endpoint to use (leave blank for default service endpoints)")
+	man.addConfigString("s3.access_key_id", "", "Deprecated: Access Key ID for AWS authentication")
+	man.addConfigString("s3.secret_access_key", "", "Deprecated: Secret Access Key for AWS authentication")
+	man.addConfigString("s3.sts_assume_role_arn", "", "Deprecated: ARN of role to assume for AWS")
+	man.addConfigString("s3.sts_external_id", "", "Deprecated: Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
+	man.addConfigBool("s3.disable_ssl", false, "Deprecated: Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.force_s3_path_style", false, "Deprecated: Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+
+	// Hide deprecated S3 config options
+	for _, c := range []string{
+		"s3.bucket",
+		"s3.prefix",
+		"s3.region",
+		"s3.endpoint_url",
+		"s3.access_key_id",
+		"s3.secret_access_key",
+		"s3.sts_assume_role_arn",
+		"s3.sts_external_id",
+		"s3.disable_ssl",
+	} {
+		man.hideConfig(c)
+	}
 
 	// S3 for file carving
 	man.addConfigString("s3.carves_bucket", "", "Bucket where to store file carves")
@@ -1185,6 +1196,13 @@ func (man Manager) addConfigs() {
 		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
 			flag.Hidden = true
 		}
+	}
+}
+
+func (man Manager) hideConfig(name string) {
+	flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(name))
+	if flag != nil {
+		flag.Hidden = true
 	}
 }
 
