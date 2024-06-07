@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -342,19 +341,53 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 	}
 }
 
+// CarvesToInternalCfg creates an internal S3 config struct from the ingested S3 config. Note: we
+// fall back to the deprecated fields without the `carves_` prefix for backwards compatibility.
 func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
-	return S3ConfigInternal{
-		Bucket:           s.CarvesBucket,
-		Prefix:           s.CarvesPrefix,
-		Region:           s.CarvesRegion,
-		EndpointURL:      s.CarvesEndpointURL,
-		AccessKeyID:      s.CarvesAccessKeyID,
-		SecretAccessKey:  s.CarvesSecretAccessKey,
-		StsAssumeRoleArn: s.CarvesStsAssumeRoleArn,
-		StsExternalID:    s.CarvesStsExternalID,
-		DisableSSL:       s.CarvesDisableSSL,
-		ForceS3PathStyle: s.CarvesForceS3PathStyle,
+	var internal S3ConfigInternal
+
+	internal.Bucket = s.CarvesBucket
+	if s.CarvesBucket == "" {
+		internal.Bucket = s.Bucket
 	}
+	internal.Prefix = s.CarvesPrefix
+	if s.CarvesPrefix == "" {
+		internal.Prefix = s.Prefix
+	}
+	internal.Region = s.CarvesRegion
+	if s.CarvesRegion == "" {
+		internal.Region = s.Region
+	}
+	internal.EndpointURL = s.CarvesEndpointURL
+	if s.CarvesEndpointURL == "" {
+		internal.EndpointURL = s.EndpointURL
+	}
+	internal.AccessKeyID = s.CarvesAccessKeyID
+	if s.CarvesAccessKeyID == "" {
+		internal.AccessKeyID = s.AccessKeyID
+	}
+	internal.SecretAccessKey = s.CarvesSecretAccessKey
+	if s.CarvesSecretAccessKey == "" {
+		internal.SecretAccessKey = s.SecretAccessKey
+	}
+	internal.StsAssumeRoleArn = s.CarvesStsAssumeRoleArn
+	if s.CarvesStsAssumeRoleArn == "" {
+		internal.StsAssumeRoleArn = s.StsAssumeRoleArn
+	}
+	internal.StsExternalID = s.CarvesStsExternalID
+	if s.CarvesStsExternalID == "" {
+		internal.StsExternalID = s.StsExternalID
+	}
+	internal.DisableSSL = s.CarvesDisableSSL
+	if s.CarvesDisableSSL == false {
+		internal.DisableSSL = s.DisableSSL
+	}
+	internal.ForceS3PathStyle = s.CarvesForceS3PathStyle
+	if s.CarvesForceS3PathStyle == false {
+		internal.ForceS3PathStyle = s.ForceS3PathStyle
+	}
+
+	return internal
 }
 
 // S3ConfigInternal is used internally
@@ -1112,6 +1145,7 @@ func (man Manager) addConfigs() {
 		"s3.sts_assume_role_arn",
 		"s3.sts_external_id",
 		"s3.disable_ssl",
+		"s3.force_s3_path_style",
 	} {
 		man.hideConfig(c)
 	}
@@ -1546,65 +1580,40 @@ func (man Manager) LoadConfig() FleetConfig {
 }
 
 func (man Manager) loadS3Config() S3Config {
-	var cfg S3Config
+	return S3Config{
+		CarvesBucket:           man.getConfigString("s3.carves_bucket"),
+		CarvesPrefix:           man.getConfigString("s3.carves_prefix"),
+		CarvesRegion:           man.getConfigString("s3.carves_region"),
+		CarvesEndpointURL:      man.getConfigString("s3.carves_endpoint_url"),
+		CarvesAccessKeyID:      man.getConfigString("s3.carves_access_key_id"),
+		CarvesSecretAccessKey:  man.getConfigString("s3.carves_secret_access_key"),
+		CarvesStsAssumeRoleArn: man.getConfigString("s3.carves_sts_assume_role_arn"),
+		CarvesStsExternalID:    man.getConfigString("s3.carves_sts_external_id"),
+		CarvesDisableSSL:       man.getConfigBool("s3.carves_disable_ssl"),
+		CarvesForceS3PathStyle: man.getConfigBool("s3.carves_force_s3_path_style"),
 
-	// Prefer the new vars with the "carves_" prefix over the deprecated ones without prefix
+		Bucket:           man.getConfigString("s3.bucket"),
+		Prefix:           man.getConfigString("s3.prefix"),
+		Region:           man.getConfigString("s3.region"),
+		EndpointURL:      man.getConfigString("s3.endpoint_url"),
+		AccessKeyID:      man.getConfigString("s3.access_key_id"),
+		SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
+		StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
+		StsExternalID:    man.getConfigString("s3.sts_external_id"),
+		DisableSSL:       man.getConfigBool("s3.disable_ssl"),
+		ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 
-	cfg.CarvesBucket = man.getConfigString("s3.carves_bucket")
-	if cfg.CarvesBucket == "" {
-		cfg.Bucket = man.getConfigString("s3.bucket")
+		SoftwareInstallersBucket:           man.getConfigString("s3.software_installers_bucket"),
+		SoftwareInstallersPrefix:           man.getConfigString("s3.software_installers_prefix"),
+		SoftwareInstallersRegion:           man.getConfigString("s3.software_installers_region"),
+		SoftwareInstallersEndpointURL:      man.getConfigString("s3.software_installers_endpoint_url"),
+		SoftwareInstallersAccessKeyID:      man.getConfigString("s3.software_installers_access_key_id"),
+		SoftwareInstallersSecretAccessKey:  man.getConfigString("s3.software_installers_secret_access_key"),
+		SoftwareInstallersStsAssumeRoleArn: man.getConfigString("s3.software_installers_sts_assume_role_arn"),
+		SoftwareInstallersStsExternalID:    man.getConfigString("s3.software_installers_sts_external_id"),
+		SoftwareInstallersDisableSSL:       man.getConfigBool("s3.software_installers_disable_ssl"),
+		SoftwareInstallersForceS3PathStyle: man.getConfigBool("s3.software_installers_force_s3_path_style"),
 	}
-	cfg.CarvesPrefix = man.getConfigString("s3.carves_prefix")
-	if cfg.CarvesPrefix == "" {
-		cfg.Prefix = man.getConfigString("s3.prefix")
-	}
-	cfg.CarvesRegion = man.getConfigString("s3.carves_region")
-	if cfg.CarvesRegion == "" {
-		cfg.Region = man.getConfigString("s3.region")
-	}
-	cfg.CarvesEndpointURL = man.getConfigString("s3.carves_endpoint_url")
-	if cfg.CarvesEndpointURL == "" {
-		cfg.EndpointURL = man.getConfigString("s3.endpoint_url")
-	}
-	cfg.CarvesAccessKeyID = man.getConfigString("s3.carves_access_key_id")
-	if cfg.CarvesAccessKeyID == "" {
-		cfg.AccessKeyID = man.getConfigString("s3.access_key_id")
-	}
-	cfg.CarvesSecretAccessKey = man.getConfigString("s3.carves_secret_access_key")
-	if cfg.CarvesSecretAccessKey == "" {
-		cfg.SecretAccessKey = man.getConfigString("s3.secret_access_key")
-	}
-	cfg.CarvesStsAssumeRoleArn = man.getConfigString("s3.carves_sts_assume_role_arn")
-	if cfg.CarvesStsAssumeRoleArn == "" {
-		cfg.StsAssumeRoleArn = man.getConfigString("s3.sts_assume_role_arn")
-	}
-	cfg.CarvesStsExternalID = man.getConfigString("s3.carves_sts_external_id")
-	if cfg.CarvesStsExternalID == "" {
-		cfg.StsExternalID = man.getConfigString("s3.sts_external_id")
-	}
-	cfg.CarvesDisableSSL = man.getConfigBool("s3.carves_disable_ssl")
-	if cfg.CarvesDisableSSL == false {
-		cfg.DisableSSL = man.getConfigBool("s3.disable_ssl")
-	}
-	cfg.CarvesForceS3PathStyle = man.getConfigBool("s3.carves_force_s3_path_style")
-	if cfg.CarvesForceS3PathStyle == false {
-		cfg.ForceS3PathStyle = man.getConfigBool("s3.force_s3_path_style")
-	}
-
-	cfg.SoftwareInstallersBucket = man.getConfigString("s3.software_installers_bucket")
-	cfg.SoftwareInstallersPrefix = man.getConfigString("s3.software_installers_prefix")
-	cfg.SoftwareInstallersRegion = man.getConfigString("s3.software_installers_region")
-	cfg.SoftwareInstallersEndpointURL = man.getConfigString("s3.software_installers_endpoint_url")
-	cfg.SoftwareInstallersAccessKeyID = man.getConfigString("s3.software_installers_access_key_id")
-	cfg.SoftwareInstallersSecretAccessKey = man.getConfigString("s3.software_installers_secret_access_key")
-	cfg.SoftwareInstallersStsAssumeRoleArn = man.getConfigString("s3.software_installers_sts_assume_role_arn")
-	cfg.SoftwareInstallersStsExternalID = man.getConfigString("s3.software_installers_sts_external_id")
-	cfg.SoftwareInstallersDisableSSL = man.getConfigBool("s3.software_installers_disable_ssl")
-	cfg.SoftwareInstallersForceS3PathStyle = man.getConfigBool("s3.software_installers_force_s3_path_style")
-
-	slog.With("filename", "server/config/config.go", "func", "getCarvesConfig").Info("JVE_LOG: bucket when calculcating config ", "carvesBucket", cfg.Bucket)
-
-	return cfg
 }
 
 // IsSet determines whether a given config key has been explicitly set by any

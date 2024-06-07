@@ -692,7 +692,6 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
-					// slog.With("filename", "cmd/fleet/serve.go", "func", "createServeCmd").Info("JVE_LOG: software installers config ", "carvesS3Bucket", config.CarvesS3.Bucket, "siS3Bucket", config.SoftwareInstallersS3.Bucket)
 					store, err := s3.NewSoftwareInstallerStore(config.S3)
 					if err != nil {
 						initFatal(err, "initializing S3 software installer store")

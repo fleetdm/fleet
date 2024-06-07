@@ -60,6 +60,7 @@ func TestConfigRoundtrip(t *testing.T) {
 				case "AsyncHostCollectInterval", "AsyncHostCollectLockTimeout":
 					// supports a duration or per-task config
 					key_v.SetString("30s")
+				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "Bucket", "Prefix", "Region", "EndpointURL", "AccessKeyID", "SecretAccessKey", "StsAssumeRoleArn", "StsExternalID":
 					key_v.SetString("")
 				default:
@@ -69,6 +70,7 @@ func TestConfigRoundtrip(t *testing.T) {
 				key_v.SetInt(int64(conf_index*100 + key_index))
 			case bool:
 				switch conf_v.Type().Field(key_index).Name {
+				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "DisableSSL", "ForceS3PathStyle":
 					key_v.SetBool(false)
 				default:
