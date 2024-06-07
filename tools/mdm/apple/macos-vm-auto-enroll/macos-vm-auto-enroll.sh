@@ -43,12 +43,13 @@ if ! which tart >/dev/null; then
     exit 1
 fi
 
-echo "Deleting old fleet package"
-[ -f fleet-osquery.pkg ] && rm fleet-osquery.pkg
-
-echo "Creating fleet package..."
-./build/fleetctl package --type=pkg --enable-scripts --fleet-desktop --disable-open-folder --fleet-url="$FLEET_URL" --enroll-secret="$FLEET_ENROLL_SECRET"
-
+echo "Checking for fleetd"
+if [ -f fleet-osquery.pkg ]; then
+    echo "fleet-osquery.pkg exists, not rebuilding"
+else
+    echo "Creating fleet package..."
+    ./build/fleetctl package --type=pkg --enable-scripts --fleet-desktop --disable-open-folder --fleet-url="$FLEET_URL" --enroll-secret="$FLEET_ENROLL_SECRET"
+fi
 
 if tart list | grep $vm_name >/dev/null 2>&1; then
     echo 'Enrollment test VM exists, deleting...'
