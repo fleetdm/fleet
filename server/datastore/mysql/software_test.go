@@ -2862,6 +2862,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	}
 
 	swTitles, err := getTitles()
+	require.NoError(t, err)
 	for _, swt := range swTitles {
 		if _, ok := expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser]; ok {
 			expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser] = swt
