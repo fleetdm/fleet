@@ -11,12 +11,12 @@ You can manage teams by selecting **Settings** > **Teams** in the top navigation
 ## Best practice
 
 Fleet's best practice teams: 
-- `Workstations`: End user's work computers (macOS, Windows, and Linux)
-- `Workstations (canary)`: Test work computers. Sometimes, for demos or testing, end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
-- `Servers`: Production servers.
-- `Servers (canary)`: Test servers.
-- `Compliance exclusions`: Test work computers or virtual machines (VMs). Used for validating workflows for Fleet customers or reproducing bugs in the Fleet product.
-- `iPhones (test)`: Test iOS hosts. Used to dogfood Fleet's iOS features (coming soon).
+- `Workstations`: End user's production work computers (macOS, Windows, and Linux)
+- `Workstations (canary)`: IT team's test work computers. Sometimes, for demos or testing, end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
+- `Servers`: Security team's production servers.
+- `Servers (canary)`: Security team's test servers.
+- `Compliance exclusions`: All contributors' test work computers or virtual machines (VMs). Used for validating workflows for Fleet customers or reproducing bugs in the Fleet product.
+- `iPhones`: All contributors' test iOS hosts. Used to dogfood Fleet's iOS features (coming soon).
 
 If some of your hosts don't fall under the above teams, what are these hosts for? The answer determines the the hosts' risk/compliance needs, and thus their security basline, and thus their "team" in Fleet. If the hosts' have a different compliance needs, and thus different security baseline, then it's time to create a new team in Fleet.
 
