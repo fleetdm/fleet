@@ -83,7 +83,13 @@ const ProfileListItem = ({
   onDelete,
   setProfileLabelsModalData,
 }: IProfileListItemProps) => {
-  const { created_at, labels, name, platform } = profile;
+  const {
+    created_at,
+    labels_include_all,
+    labels_exclude_any,
+    name,
+    platform,
+  } = profile;
   const subClass = "list-item";
 
   const onClickDownload = async () => {
@@ -93,6 +99,21 @@ const ProfileListItem = ({
     const filename = `${formatDate}_${name}.${extension}`;
     const file = new File([fileContent], filename);
     FileSaver.saveAs(file);
+  };
+
+  const labels = labels_include_all || labels_exclude_any;
+
+  const renderLabelInfo = () => {
+    if (!isPremium || labels === undefined || labels.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className={`${subClass}__labels`}>
+        {labels?.some((label) => label.broken) && <Icon name="warning" />}
+        <LabelCount className={subClass} count={labels.length} />
+      </div>
+    );
   };
 
   return (
@@ -111,14 +132,9 @@ const ProfileListItem = ({
         </div>
       </div>
       <div className={`${subClass}__actions-wrap`}>
-        {isPremium && !!labels?.length && (
-          <div className={`${subClass}__labels`}>
-            {labels?.some((l) => l.broken) && <Icon name="warning" />}
-            <LabelCount className={subClass} count={labels.length} />
-          </div>
-        )}
+        {renderLabelInfo()}
         <div className={`${subClass}__actions`}>
-          {isPremium && !!labels?.length && (
+          {isPremium && labels !== undefined && labels.length && (
             <Button
               className={`${subClass}__action-button`}
               variant="text-icon"

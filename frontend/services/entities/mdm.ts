@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { createMockMdmProfile } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,
@@ -45,7 +46,6 @@ export interface IMdmProfilesResponse {
 export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
-  labels?: string[];
   labelsIncludeAll?: string[];
   labelsExcludeAny?: string[];
 }
@@ -64,7 +64,7 @@ export interface IAppleSetupEnrollmentProfileResponse {
   name: string;
   uploaded_at: string;
   // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
-  enrollment_profile: Record<string, any>;
+  enrollment_profile: Record<string, unknown>;
 }
 
 const mdmService = {
@@ -95,6 +95,28 @@ const mdmService = {
     const path = `${MDM_PROFILES}?${buildQueryStringFromParams({
       ...params,
     })}`;
+
+    // TODO: disable when API is ready;
+    return new Promise((resolve) => {
+      resolve({
+        profiles: [
+          createMockMdmProfile({
+            labels_exclude_any: [
+              {
+                // id: 1,
+                broken: true,
+                name: "Test Label",
+              },
+              {
+                id: 1,
+                name: "Test Label 2",
+              },
+            ],
+          }),
+        ],
+        meta: { has_next_results: false, has_previous_results: false },
+      });
+    });
 
     return sendRequest("GET", path);
   },
@@ -285,7 +307,7 @@ const mdmService = {
     return new Promise((resolve, reject) => {
       reader.addEventListener("load", () => {
         try {
-          const body: Record<string, any> = {
+          const body: Record<string, unknown> = {
             name: file.name,
             enrollment_profile: JSON.parse(reader.result as string),
           };
@@ -297,7 +319,7 @@ const mdmService = {
           );
         } catch {
           // catches invalid JSON
-          reject("Couldn’t upload. The file should include valid JSON.");
+          reject("Couldn't upload. The file should include valid JSON.");
         }
       });
     });

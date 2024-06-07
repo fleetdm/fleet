@@ -101,7 +101,7 @@ const CustomSettings = ({
       onMutation();
       renderFlash("success", "Successfully deleted!");
     } catch (e) {
-      renderFlash("error", "Couldn’t delete. Please try again.");
+      renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);
@@ -169,6 +169,10 @@ const CustomSettings = ({
     );
   };
 
+  const hasLabels =
+    !!profileLabelsModalData?.labels_include_all?.length ||
+    !!profileLabelsModalData?.labels_exclude_any?.length;
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Custom settings" />
@@ -203,7 +207,7 @@ const CustomSettings = ({
           onDelete={onDeleteProfile}
         />
       )}
-      {!!isPremiumTier && !!profileLabelsModalData?.labels?.length && (
+      {isPremiumTier && hasLabels && (
         <ProfileLabelsModal
           baseClass={baseClass}
           profile={profileLabelsModalData}

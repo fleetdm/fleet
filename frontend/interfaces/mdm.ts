@@ -84,9 +84,8 @@ export interface IMdmProfile {
   created_at: string;
   updated_at: string;
   checksum: string | null; // null for windows profiles
-  labels?: IProfileLabel[];
-  labels_include_all?: string[];
-  labels_exclude_any?: string[];
+  labels_include_all?: IProfileLabel[];
+  labels_exclude_any?: IProfileLabel[];
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
