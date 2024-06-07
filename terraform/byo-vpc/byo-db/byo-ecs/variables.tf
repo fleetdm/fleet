@@ -13,7 +13,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.50.2")
+    image                        = optional(string, "fleetdm/fleet:v4.51.0")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
