@@ -216,8 +216,12 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, doesStoreEncryptionKey } = config;
-  return isPremiumTier && doesStoreEncryptionKey;
+  const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
+
+  // Currently we cannot show disk encryption key for iOS or iPadOS
+  const isIosOrIpadosHost = hostPlatform === "ios" || hostPlatform === "ipados";
+
+  return isPremiumTier && doesStoreEncryptionKey && !isIosOrIpadosHost;
 };
 
 const canRunScript = ({

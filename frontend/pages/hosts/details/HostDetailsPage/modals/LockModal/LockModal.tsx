@@ -7,6 +7,7 @@ import hostAPI from "services/entities/hosts";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import { isApplePlatform } from "interfaces/platform";
 
 const baseClass = "lock-modal";
 
@@ -47,7 +48,7 @@ const LockModal = ({
       <>
         <div className={`${baseClass}__modal-content`}>
           <p>Lock a host when it needs to be returned to your organization.</p>
-          {platform === "darwin" && (
+          {isApplePlatform(platform) && (
             <p>Fleet will generate a six-digit unlock PIN.</p>
           )}
           <div className={`${baseClass}__confirm-message`}>

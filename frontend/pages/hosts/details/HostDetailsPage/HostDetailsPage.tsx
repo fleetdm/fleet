@@ -94,6 +94,7 @@ import {
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import { isApplePlatform } from "interfaces/platform";
 
 const baseClass = "host-details";
 
@@ -1008,7 +1009,8 @@ const HostDetailsPage = ({
             platform={host.platform}
             hostName={host.display_name}
             onSuccess={() => {
-              host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
+              !isApplePlatform(host.platform) &&
+                setHostMdmDeviceState("unlocking");
             }}
             onClose={() => setShowUnlockHostModal(false)}
           />
