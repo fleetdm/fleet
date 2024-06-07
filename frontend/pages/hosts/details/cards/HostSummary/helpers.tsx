@@ -1,6 +1,6 @@
 import React from "react";
-import { HostMdmDeviceStatusUIState } from "../../helpers";
 import { isApplePlatform } from "interfaces/platform";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {
   title: string;

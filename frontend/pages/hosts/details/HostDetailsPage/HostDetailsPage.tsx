@@ -39,6 +39,7 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { isApplePlatform } from "interfaces/platform";
 
 import {
   normalizeEmptyValues,
@@ -94,7 +95,6 @@ import {
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { isApplePlatform } from "interfaces/platform";
 
 const baseClass = "host-details";
 
