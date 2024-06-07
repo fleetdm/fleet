@@ -382,6 +382,9 @@ func consumeCPEBuffer(
 
 const LinuxImageRegex = `^linux-image-\d+\.\d+\.\d+-\d+-\w+`
 
+// knownUbuntuKernelVariants is a list of known kernel variants that are used in the Ubuntu kernel
+// OVAL feeds.  These are used to determine if a kernel package is a custom variant and should be
+// matched against the NVD feed rather than the OVAL feed.
 var knownUbuntuKernelVariants []string = []string{
 	"allwinner",
 	"aws",
