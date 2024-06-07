@@ -12,7 +12,7 @@ You can manage teams by selecting **Settings** > **Teams** in the top navigation
 
 Fleet's best practice teams: 
 - `Workstations`: End user's production work computers (macOS, Windows, and Linux)
-- `Workstations (canary)`: IT team's test work computers. Sometimes, for demos or testing, end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
+- `Workstations (canary)`: IT team's test work computers. Sometimes, for demos or testing, includes end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
 - `Servers`: Security team's production servers.
 - `Servers (canary)`: Security team's test servers.
 - `Compliance exclusions`: All contributors' test work computers or virtual machines (VMs). Used for validating workflows for Fleet customers or reproducing bugs in the Fleet product.
