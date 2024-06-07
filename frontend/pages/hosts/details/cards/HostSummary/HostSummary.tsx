@@ -108,7 +108,6 @@ interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
-  isSandboxMode?: boolean;
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
@@ -169,7 +168,6 @@ const HostSummary = ({
   summaryData,
   bootstrapPackageData,
   isPremiumTier,
-  isSandboxMode = false,
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
@@ -229,11 +227,11 @@ const HostSummary = ({
 
   const renderIssues = () => (
     <DataSet
-      title={<>Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}</>}
+      title="Issues"
       value={
         <IssuesIndicator
           totalIssuesCount={summaryData.issues.total_issues_count}
-          criticalVulnerabilitiesCount={2}
+          criticalVulnerabilitiesCount={summaryData.issues.total_issues_count}
           failingPoliciesCount={summaryData.issues.failing_policies_count}
           tooltipPosition="bottom"
         />
@@ -388,8 +386,7 @@ const HostSummary = ({
             }
           />
         )}
-        {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
-          isPremiumTier &&
+        {summaryData.issues?.total_issues_count > 0 &&
           !isIosOrIpadosHost &&
           renderIssues()}
         {isPremiumTier && renderHostTeam()}

@@ -251,8 +251,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
   },
   {
     title: "Issues",
-    Header: "Issues",
-    disableSortBy: true,
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell value="Issues" isSortedDesc={cellProps.column.isSortedDesc} />
+    ),
     accessor: "issues",
     id: "issues",
     Cell: (cellProps: IIssuesCellProps) => {

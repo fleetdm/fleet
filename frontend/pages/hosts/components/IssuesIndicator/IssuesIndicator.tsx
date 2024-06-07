@@ -7,6 +7,7 @@ import Icon from "components/Icon";
 interface IIssuesIndicatorProps {
   totalIssuesCount?: number;
   failingPoliciesCount?: number;
+  /** Premium only */
   criticalVulnerabilitiesCount?: number;
   rowId?: number;
   tooltipPosition?: "top" | "bottom";
@@ -40,7 +41,7 @@ const IssuesIndicator = ({
         <span className={`tooltip__tooltip-text`}>
           {criticalVulnerabilitiesCount &&
             `Critical vulnerabilities (${criticalVulnerabilitiesCount})`}
-          <br />
+          {criticalVulnerabilitiesCount && failingPoliciesCount && <br />}
           {failingPoliciesCount && `Failing policies (${failingPoliciesCount})`}
         </span>
       </ReactTooltip>

@@ -21,7 +21,7 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
   return (
     <IssuesIndicator
       totalIssuesCount={issues.total_issues_count}
-      criticalVulnerabilitiesCount={100}
+      criticalVulnerabilitiesCount={issues.critical_vulnerabilities_count}
       failingPoliciesCount={issues.failing_policies_count}
       rowId={rowId}
     />

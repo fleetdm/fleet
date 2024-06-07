@@ -141,7 +141,6 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isGlobalObserver,
     isPremiumTier = false,
-    isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
@@ -787,7 +786,6 @@ const HostDetailsPage = ({
           summaryData={summaryData}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
-          isSandboxMode={isSandboxMode}
           toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
