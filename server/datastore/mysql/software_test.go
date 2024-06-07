@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -51,6 +52,7 @@ func TestSoftware(t *testing.T) {
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
+		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
 		{"DeleteOutOfDateVulnerabilities", testDeleteOutOfDateVulnerabilities},
 		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
@@ -2272,10 +2274,12 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foobar", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "foo", Version: "v0.0.2", Source: "apps"},
 		{Name: "foo", Version: "0.0.3", Source: "apps"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
 	}
 	_, err := ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
@@ -2318,7 +2322,9 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
 				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 				{Name: "bar", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "foobar", Version: "0.0.1", Source: "chrome_extensions"},
 				{Name: "bar", Version: "0.0.3", Source: "deb_packages", GenerateCPE: "cpe:bar_v3"},
+				{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
 			},
 			q: fleet.SoftwareIterQueryOptions{ExcludedSources: []string{"apps"}},
 		},
@@ -2330,6 +2336,8 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 				{Name: "foo", Version: "0.0.3", Source: "apps"},
 				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 				{Name: "bar", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "foobar", Version: "0.0.1", Source: "chrome_extensions"},
+				{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
 				{Name: "bar", Version: "0.0.3", Source: "deb_packages", GenerateCPE: "cpe:bar_v3"},
 			},
 			q: fleet.SoftwareIterQueryOptions{},
@@ -2339,15 +2347,24 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 			expected: []fleet.Software{
 				{Name: "bar", Version: "0.0.3", Source: "deb_packages", GenerateCPE: "cpe:bar_v3"},
 			},
-			q: fleet.SoftwareIterQueryOptions{NameFilter: "ba", IncludedSources: []string{"deb_packages"}},
+			q: fleet.SoftwareIterQueryOptions{NameMatch: `ba[r|f]`, IncludedSources: []string{"deb_packages"}},
 		},
 		{
 			name: "name filter includes chrome_extensions",
 			expected: []fleet.Software{
 				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
 				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "foobar", Version: "0.0.1", Source: "chrome_extensions"},
 			},
-			q: fleet.SoftwareIterQueryOptions{NameFilter: "foo", IncludedSources: []string{"chrome_extensions"}},
+			q: fleet.SoftwareIterQueryOptions{NameMatch: "foo\\.*", IncludedSources: []string{"chrome_extensions"}},
+		},
+		{
+			name: "name filter and not name filter",
+			expected: []fleet.Software{
+				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
+				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			},
+			q: fleet.SoftwareIterQueryOptions{NameMatch: "foo\\.*", NameExclude: "bar$", IncludedSources: []string{"chrome_extensions"}},
 		},
 	}
 
@@ -2366,6 +2383,47 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 			test.ElementsMatchSkipID(t, tC.expected, actual)
 		})
 	}
+}
+
+func testSoftwareIteratorForLinuxKernelCustomImages(t *testing.T, ds *Datastore) {
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "linux-image-5.4.0-42-generic", Version: "5.4.0-42.46", Source: "deb_packages"},
+		{Name: "linux-image-6.5.0-42-generic", Version: "6.5.0-100.27", Source: "deb_packages"},
+		{Name: "linux-image-5.4.0-42-custom", Version: "5.4.0-42.46", Source: "deb_packages"},
+		{Name: "linux-image-6.5.0-42-1234-foo", Version: "6.5.0-100.27", Source: "deb_packages"},
+		{Name: "linux-image-generic", Version: "1.0.0", Source: "deb_packages"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+
+	_, err := ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
+
+	expected := []fleet.Software{
+		{Name: "linux-image-5.4.0-42-custom", Version: "5.4.0-42.46", Source: "deb_packages"},
+		{Name: "linux-image-6.5.0-42-1234-foo", Version: "6.5.0-100.27", Source: "deb_packages"},
+	}
+
+	opts := fleet.SoftwareIterQueryOptions{
+		NameMatch: nvd.LinuxImageRegex,
+		NameExclude: nvd.LinuxImageExclusions,
+		IncludedSources: []string{"deb_packages"},
+	}
+
+	iterator, err := ds.AllSoftwareIterator(context.Background(), opts)
+	require.NoError(t, err)
+
+	var actual []fleet.Software
+	for iterator.Next() {
+		software, err := iterator.Value()
+		require.NoError(t, err)
+		actual = append(actual, *software)
+	}
+	iterator.Close()
+	test.ElementsMatchSkipID(t, expected, actual)
 }
 
 func testUpsertSoftwareCPEs(t *testing.T, ds *Datastore) {

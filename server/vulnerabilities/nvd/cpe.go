@@ -241,6 +241,9 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 		}
 
 		if result.ID != 0 {
+			if translation.Part != "" {
+				result.Part = translation.Part
+			}
 			return result.FmtStr(software), nil
 		}
 	} else {
@@ -377,16 +380,19 @@ func consumeCPEBuffer(
 	return nil
 }
 
+const (
+	LinuxImageRegex      = `^linux-image-\d+\.\d+\.\d+-\d+-\w+`
+	LinuxImageExclusions = `-(azure|raspi2|powerpc64-emb|powerpc-e500mc|powerpc64-smp|kvm|gkeop|xilinx-zynqmp|intel|euclid|nvidia|lowlatency-64k|aws|raspi-nolpae|aws-hwe|oem-osp1|azure-fde|intel-iotg|iot|raspi|bluefield|oracle-64k|starfive|generic-lpae|dell300x|laptop|powerpc-e500|nvidia-lowlatency|powerpc-smp|generic|ibm|allwinner|gcp|snapdragon|gke|oem|lowlatency|generic-64k|oracle|nvidia-64k)$`
+)
+
 func TranslateSoftwareToCPE(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
 ) error {
-	dbPath := filepath.Join(vulnPath, cpeDBFilename)
-
 	// Skip software from sources for which we will be using OVAL for vulnerability detection.
-	iterator, err := ds.AllSoftwareIterator(
+	nonOvalIterator, err := ds.AllSoftwareIterator(
 		ctx,
 		fleet.SoftwareIterQueryOptions{
 			ExcludedSources: oval.SupportedSoftwareSources,
@@ -395,7 +401,42 @@ func TranslateSoftwareToCPE(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "software iterator")
 	}
-	defer iterator.Close()
+	defer nonOvalIterator.Close()
+
+	err = translateSoftwareToCPEWithIterator(ctx, ds, vulnPath, logger, nonOvalIterator)
+	if err != nil {
+		return fmt.Errorf("translate software to CPE: %w", err)
+	}
+
+	ubuntuKernelIterator, err := ds.AllSoftwareIterator(
+		ctx,
+		fleet.SoftwareIterQueryOptions{
+			IncludedSources: []string{"deb_packages"},
+			NameMatch:       LinuxImageRegex,
+			NameExclude:     LinuxImageExclusions,
+		},
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "ubuntu kernel iterator")
+	}
+	defer ubuntuKernelIterator.Close()
+
+	err = translateSoftwareToCPEWithIterator(ctx, ds, vulnPath, logger, ubuntuKernelIterator)
+	if err != nil {
+		return fmt.Errorf("translate ubuntu kernel to CPE: %w", err)
+	}
+
+	return nil
+}
+
+func translateSoftwareToCPEWithIterator(
+	ctx context.Context,
+	ds fleet.Datastore,
+	vulnPath string,
+	logger kitlog.Logger,
+	iterator fleet.SoftwareIterator,
+) error {
+	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
 	db, err := sqliteDB(dbPath)
 	if err != nil {
