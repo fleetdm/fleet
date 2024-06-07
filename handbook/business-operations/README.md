@@ -252,7 +252,36 @@ When BizOps receives notification of a Fleetie's manager changing, follow these 
     - For a team member moving from "classified" to "confidential" access, check Gusto, Plane, and other systems to remove their access.
 
 > **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
- 
+
+### Recognize employee workiversaries
+
+At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/handbook/company/communications#workiversaries). To ensure this happens, take the following steps:
+
+1. Bimonthly, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the following two months.
+2. Post in the #help-classifed Slack channel and cc the Head of Business Operations. Use the following template:
+
+   
+    ```
+    [Month]
+    [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
+    ```
+
+    
+   The Apprentice to the CEO will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
+3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
+
+
+    ```
+    Hey! Just a heads up, tomorrow is [teammate’s name] [number of years at Fleet] workiversary at Fleet.
+    BizOps were planning on posting something in the #random channel to recognize them, but I was wondering if you would like to instead?
+    ```
+
+    
+   > If a manager elects to post and hasn't done so by 2pm ET on the day of the workiversary, send them a friendly reminder and offer to post instead.
+
+4. If the manager has deferred to BizOps, schedule a Slack post for the following day to recognize the teammate's contributions at Fleet. If you’re unsure about what to post, take a look at what’s been [posted previously](https://docs.google.com/document/d/1Va4TYAs9Tb0soDQPeoeMr-qHxk0Xrlf-DUlBe4jn29Q/edit).
+
+
 
 ### Prepare salary benchmarking information
 1. Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
