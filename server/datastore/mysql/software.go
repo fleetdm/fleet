@@ -443,7 +443,7 @@ func (ds *Datastore) getExistingSoftware(
 		for checksum := range newSoftware {
 			sw := incomingByChecksum[checksum]
 			args = append(args, sw.Name, sw.Source, sw.Browser)
-			// Map software titles to software checksums
+			// Map software title identifier to software checksums so that we can map checksums to actual titles later.
 			uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
 		}
 		var existingSoftwareTitlesForNewSoftware []fleet.SoftwareTitle
@@ -452,8 +452,6 @@ func (ds *Datastore) getExistingSoftware(
 		}
 
 		// Map software titles to software checksums.
-		// First, we map the existing software titles to the software checksums.
-
 		for _, title := range existingSoftwareTitlesForNewSoftware {
 			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
 			if ok {
@@ -545,8 +543,6 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 
 	// For software items that don't already exist in the software table, we insert them.
 	if len(softwareChecksums) > 0 {
-		// Map software titles to software checksums
-
 		keys := make([]string, 0, len(softwareChecksums))
 		for checksum := range softwareChecksums {
 			keys = append(keys, checksum)
@@ -594,11 +590,6 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				return nil, ctxerr.Wrap(ctx, err, "insert software")
 			}
 
-			// Check which titles, if any need to be inserted.
-			// We will do a SELECT and then an INSERT into software_titles for each batch of software items.
-			// Although doing INSERT IGNORE may seem more efficient since it is only one query, it may actually be slower,
-			// and it will lock rows, potentially causing more deadlocks than desired.
-
 			// Insert into software_titles
 			totalTitlesToProcess := len(newTitlesNeeded)
 			if totalTitlesToProcess > 0 {
@@ -616,7 +607,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
 				}
 
-				// update title ids for software table entries
+				// update new title ids for new software table entries
 				updateSoftwareStmt := `
 				UPDATE
 					software s,
