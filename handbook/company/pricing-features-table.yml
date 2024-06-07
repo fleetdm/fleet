@@ -39,6 +39,12 @@
   tier: Premium
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
+- industryName: AI-generated descriptions
+  description: Use AI to explain why your security policies matter.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/18187
+  tier: Free
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Endpoint operations]
 #
 #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
 #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║

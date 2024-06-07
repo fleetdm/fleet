@@ -21,6 +21,7 @@ parasails.registerPage('start', {
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
       'deploy-fleet-in-your-environment': {stepCompleted: true},
+      'thanks-for-checking-out-fleet': {stepCompleted: true},
       'how-was-your-deployment': {},
       'whats-left-to-get-you-set-up': {},
     },
@@ -177,6 +178,13 @@ parasails.registerPage('start', {
         case 'whats-left-to-get-you-set-up':
           this.currentStep = 'how-was-your-deployment';
           break;
+        case 'thanks-for-checking-out-fleet':
+          if(this.formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it'){
+            this.currentStep = 'what-did-you-think';
+          } else {
+            this.currentStep = 'how-was-your-deployment';
+          }
+          break;
       }
     },
     getNextStep: function() {
@@ -246,7 +254,7 @@ parasails.registerPage('start', {
           break;
         case 'what-did-you-think':
           if(this.formData['what-did-you-think'].whatDidYouThink === 'let-me-think-about-it'){
-            nextStepInForm = '/announcements';
+            nextStepInForm = 'thanks-for-checking-out-fleet';
           } else if(this.formData['what-did-you-think'].whatDidYouThink === 'host-fleet-for-me') {
             nextStepInForm = 'how-many-hosts';
           } else {
@@ -255,6 +263,9 @@ parasails.registerPage('start', {
           break;
         case 'deploy-fleet-in-your-environment':
           nextStepInForm = 'how-was-your-deployment';
+          break;
+        case 'thanks-for-checking-out-fleet':
+          nextStepInForm = '/announcements';
           break;
         case 'how-was-your-deployment':
           if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'up-and-running') {
@@ -266,7 +277,7 @@ parasails.registerPage('start', {
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'changed-mind-want-managed-deployment'){
             nextStepInForm = 'how-many-hosts';
           } else if(this.formData['how-was-your-deployment'].howWasYourDeployment === 'decided-to-not-use-fleet'){
-            nextStepInForm = '/';
+            nextStepInForm = 'thanks-for-checking-out-fleet';
           }
           break;
         case 'whats-left-to-get-you-set-up':

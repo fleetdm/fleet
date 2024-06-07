@@ -556,7 +556,7 @@
       //   ║║├┤ ├─┘│  │ │└┬┘  ├┤ │  ├┤ ├┤  │   ││││  └┬┘│ ││ │├┬┘  ├┤ │││└┐┌┘│├┬┘│ │││││││├┤ │││ │
       //  ═╩╝└─┘┴  ┴─┘└─┘ ┴   └  ┴─┘└─┘└─┘ ┴   ┴┘└┘   ┴ └─┘└─┘┴└─  └─┘┘└┘ └┘ ┴┴└─└─┘┘└┘┴ ┴└─┘┘└┘ ┴%>
     <div v-if="currentStep === 'deploy-fleet-in-your-environment'">
-      <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['what-did-you-think']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+      <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['deploy-fleet-in-your-environment']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div purpose="progress-bar-container">
           <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 80%"></div></div>
           <img purpose="success-icon" alt="🏆" src="/images/icon-form-success-12x12@2x.png">
@@ -758,6 +758,21 @@
       <div purpose="form-buttons">
         <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
       </div>
+    </div>
+    <%//  ┌┬┐┬ ┬┌─┐┌┐┌┬┌─┌─┐  ┌─┐┌─┐┬─┐  ┌─┐┬ ┬┌─┐┌─┐┬┌─┬┌┐┌┌─┐  ┌─┐┬ ┬┌┬┐  ╔═╗┬  ┌─┐┌─┐┌┬┐
+      //   │ ├─┤├─┤│││├┴┐└─┐  ├┤ │ │├┬┘  │  ├─┤├┤ │  ├┴┐│││││ ┬  │ ││ │ │   ╠╣ │  ├┤ ├┤  │
+      //   ┴ ┴ ┴┴ ┴┘└┘┴ ┴└─┘  └  └─┘┴└─  └─┘┴ ┴└─┘└─┘┴ ┴┴┘└┘└─┘  └─┘└─┘ ┴   ╚  ┴─┘└─┘└─┘ ┴ %>
+    <div v-if="currentStep === 'thanks-for-checking-out-fleet'">
+      <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['thanks-for-checking-out-fleet']" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <div style="padding-top: 50px;" class="mx-auto">
+          <h2>Thanks for checking out Fleet</h2>
+          <p>Come back at any time to pick up where you left off.</p>
+        </div>
+        <div purpose="form-buttons">
+          <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing">Done</ajax-button>
+        </div>
+      </ajax-form>
     </div>
     </div>
   </div>
