@@ -92,6 +92,7 @@ type integrationMDMTestSuite struct {
 	worker                     *worker.Worker
 	mdmCommander               *apple_mdm.MDMAppleCommander
 	logger                     kitlog.Logger
+	scepChallenge              string
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -256,6 +257,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		},
 		APNSTopic: "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 	}
+
+	s.scepChallenge = "scepchallenge"
+	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(s.scepChallenge)},
+	})
+	require.NoError(s.T(), err)
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
 	s.users = users
@@ -415,7 +422,7 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
 	t := s.T()
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -765,7 +772,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 
 	// Enroll two devices into MDM
 	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}
@@ -863,7 +870,7 @@ func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 	t := s.T()
 
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -929,6 +936,15 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Validate errors if no private key is set
+	testSetEmptyPrivateKey = true
+	t.Cleanup(func() { testSetEmptyPrivateKey = false })
+	s.uploadAPNSCert([]byte("-----BEGIN CERTIFICATE-----\nZm9vCg==\n-----END CERTIFICATE-----"), http.StatusInternalServerError, "Couldn't upload APNs certificate. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+
+	r := s.Do("GET", "/api/latest/fleet/mdm/apple/request_csr", getMDMAppleCSRRequest{}, http.StatusInternalServerError)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't download signed CSR. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	testSetEmptyPrivateKey = false
+
 	// ensure we leave everything in a clean state for other tests
 	t.Cleanup(s.appleCoreCertsSetup)
 
@@ -989,7 +1005,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 
 	// Enroll a device into MDM.
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -2322,7 +2338,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 
 	// Create device enrolled in MDM but not enrolled via osquery.
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -2733,7 +2749,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	// - Offline means that the device will enroll but won't acknowledge nor fail the bp request
 	// - Pending means that the device won't enroll at all
 	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}
@@ -4358,7 +4374,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 	})
 	var lastSubmittedProfile *godep.Profile
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4876,7 +4892,7 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 		switch p.PayloadType {
 		case "com.apple.security.scep":
 			require.Equal(t, s.getConfig().ServerSettings.ServerURL+apple_mdm.SCEPPath, p.PayloadContent.URL)
-			require.Equal(t, s.fleetCfg.MDM.AppleSCEPChallenge, p.PayloadContent.Challenge)
+			require.Equal(t, s.scepChallenge, p.PayloadContent.Challenge)
 		case "com.apple.mdm":
 			require.Contains(t, p.ServerURL, s.getConfig().ServerSettings.ServerURL+apple_mdm.MDMPath)
 			if enrollmentRef != "" {
@@ -5273,7 +5289,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	// turn on MDM features
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -5330,7 +5346,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	// create a new host, still receives the global config
 	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
 	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -5353,7 +5369,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	h3 := createOrbitEnrolledHost(t, "darwin", "h3", s.ds)
 
 	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -5374,7 +5390,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	h4 := createOrbitEnrolledHost(t, "darwin", "h4", s.ds)
 
 	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -7778,7 +7794,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	// create a device that's not enrolled into Fleet, it should get a command to
 	// install fleetd
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPChallenge: s.scepChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	})
@@ -8666,6 +8682,14 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 
 	// ensure enable ABM again for other tests
 	t.Cleanup(s.enableABM)
+
+	// Validate error when server private key not set
+	testSetEmptyPrivateKey = true
+	t.Cleanup(func() { testSetEmptyPrivateKey = false })
+
+	r := s.Do("GET", "/api/latest/fleet/mdm/apple/abm_public_key", generateABMKeyPairResponse{}, http.StatusInternalServerError)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't download public key. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	testSetEmptyPrivateKey = false
 
 	// grab the current public key
 	var abmResp generateABMKeyPairResponse

@@ -43,21 +43,19 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
 // CSR bytes
 func (c *Client) RequestAppleCSR() ([]byte, error) {
-	verb, path := "GET", "/api/v1/fleet/mdm/apple/request_csr"
-	// TODO(roberto): adjust request/response type when the endpoint is ready
-	var request, resp map[string][]byte
-	err := c.authenticatedRequest(request, verb, path, &resp)
-	return resp["csr"], err
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/request_csr"
+	var resp getMDMAppleCSRResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.CSR, err
 }
 
 // RequestAppleABM requests a signed CSR from the Fleet server and returns the
 // public key bytes
 func (c *Client) RequestAppleABM() ([]byte, error) {
-	verb, path := "GET", "/api/v1/fleet/mdm/apple/abm_public_key?alt=media"
-	// TODO(roberto): adjust this request type when the endpoint is ready
-	var request, resp map[string][]byte
-	err := c.authenticatedRequest(request, verb, path, &resp)
-	return resp["public_key"], err
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/abm_public_key"
+	var resp generateABMKeyPairResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.PublicKey, err
 }
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {

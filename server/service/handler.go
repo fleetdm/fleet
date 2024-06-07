@@ -1064,11 +1064,12 @@ func registerSCEP(
 		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
 		scep_depot.WithAllowRenewalDays(scepConfig.AppleSCEPSignerAllowRenewalDays),
 	)
-	scepChallenge := scepConfig.AppleSCEPChallenge
-	if scepChallenge == "" {
-		return errors.New("missing SCEP challenge")
+	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
+	if err != nil {
+		return fmt.Errorf("retrieving SCEP challenge: %w", err)
 	}
 
+	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
 	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
 	scepService := NewSCEPService(
 		mdmStorage,

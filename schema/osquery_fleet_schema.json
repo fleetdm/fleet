@@ -1201,7 +1201,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "The first six digits of a MAC address are the known as the [Organizationally Unique Identifier](https://en.wikipedia.org/wiki/Organizationally_unique_identifier)\n\nManufacturer and model information can be looked up by MAC address using [Wireshark OUI Lookup](https://www.wireshark.org/tools/oui-lookup.html)\n\nOUI is used to populate manufacturer information in applications like [Wi-Fi Explorer](https://www.intuitibits.com/products/wifiexplorer/)\n\n[ARP Cache](https://en.wikipedia.org/wiki/ARP_cache)\n\nMonitoring the ARP cache is useful for maintaining network integrity & security. Querying data from this table can help to:\n\n  - Find network anomalies\n  - Troubleshoot network connectivity\n  - Uncover [ARP Spoofing](https://en.wikipedia.org/wiki/ARP_spoofing)",
+    "notes": "The first six digits of a MAC address are the known as the [Organizationally Unique Identifier](https://en.wikipedia.org/wiki/Organizationally_unique_identifier)\n\nManufacturer and model information can be looked up by MAC address using [Wireshark OUI Lookup](https://www.wireshark.org/tools/oui-lookup.html)\n\nOUI is used to populate manufacturer information in applications like [Wi-Fi Explorer](https://www.intuitibits.com/products/wifiexplorer/)\n\nMonitoring the [ARP Cache](https://en.wikipedia.org/wiki/ARP_cache) is useful for maintaining network integrity & security. Querying data from this table can help to:\n\n  - Find network anomalies\n  - Troubleshoot network connectivity\n  - Uncover [ARP Spoofing](https://en.wikipedia.org/wiki/ARP_spoofing)",
     "examples": "Basic query:\n\n```\nSELECT address, interface, mac FROM arp_cache;\n```\n\nCompare gateway IP addresses (which are typically routers) to a list of known MAC addresses:\n\n```\nSELECT * FROM arp_cache WHERE address IN (INSERT_GATEWAY_IPS) AND mac NOT IN (INSERT_EXPECTED_MAC_ADDRESSES);\n```",
     "columns": [
       {
@@ -1432,24 +1432,24 @@
     "platforms": [
       "darwin"
     ],
-    "description": "The macOS authorizationdb is used by Mac admins to give their users or themselves granular permissions on the Macs they manage. The `authdb` osquery table returns JSON output for the `authorizationdb read <right_name|-` command.",
+    "description": "The macOS authorizationdb is used by Mac admins to give their users or themselves granular permissions on the Macs they manage. The `authdb` osquery table returns JSON output for the `authorizationdb read <right_name>` command.",
     "evented": false,
     "columns": [
       {
         "name": "right_name",
         "type": "text",
         "required": true,
-        "description": "The right_name to query in the `authorizationdb read <right_name|-` command."
+        "description": "The right_name to query in the `authorizationdb read <right_name>` command."
       },
       {
         "name": "json_result",
         "type": "text",
         "required": false,
-        "description": "The JSON output parsed from the plist output of the `authorizationdb read <right_name|-` command. "
+        "description": "The JSON output parsed from `authorizationdb` plist. "
       }
     ],
-    "example": "\n```\nSELECT * FROM authdb WHERE right_name='system.login.console';\n```",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe authorizationdb is a SQLite database that can be dumped out with the following Terminal command:\n\n```\nsudo /usr/bin/sqlite3 /var/db/auth.db .dump\n```\n\nThe following command generates a .plist showing the attributes of the authorizationdb configuration:\n\n```\nsecurity authorizationdb read system.login.console\n```\n\nThe “right_name” string `system.login.console` is used in the mandatory WHERE clause for this table:\n\n```\nSELECT * FROM authdb WHERE right_name='system.login.console';\n```\n\n- [Apple documentation](https://developer.apple.com/library/archive/documentation/Security/Conceptual/authorization_concepts/02authconcepts/authconcepts.html)\n- A general purpose [authorizationdb article](https://theevilbit.github.io/posts/macos_authorization/)\n- Armin Briegel (Scripting OS X) on the [macOS root user and the authorizationdb](https://scriptingosx.com/2018/05/demystifying-root-on-macos-part-4-the-authorization-database/)\n- Elliot Jordan on using the authorizationdb in his tool [Escrow Buddy](https://www.elliotjordan.com/posts/macos-authdb-mechs/)",
+    "examples": "The “right_name” string `system.login.console` is used in the mandatory WHERE clause for this table:\n\n```\nSELECT * FROM authdb WHERE right_name='system.login.console';\n```",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\nThe authorizationdb is a SQLite database that can be dumped out with the following Terminal command:\n\n```\nsudo /usr/bin/sqlite3 /var/db/auth.db .dump\n```\n\nThe following command generates a .plist showing the attributes of the authorizationdb configuration:\n\n```\nsecurity authorizationdb read system.login.console\n```\n\n- [Apple documentation](https://developer.apple.com/library/archive/documentation/Security/Conceptual/authorization_concepts/02authconcepts/authconcepts.html)\n- A general purpose [authorizationdb article](https://theevilbit.github.io/posts/macos_authorization/)\n- Armin Briegel (Scripting OS X) on the [macOS root user and the authorizationdb](https://scriptingosx.com/2018/05/demystifying-root-on-macos-part-4-the-authorization-database/)\n- Elliot Jordan on using the authorizationdb in his tool [Escrow Buddy](https://www.elliotjordan.com/posts/macos-authdb-mechs/)",
     "url": "https://fleetdm.com/tables/authdb",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/authdb.yml"
   },
@@ -3802,7 +3802,7 @@
   },
   {
     "name": "chrome_extensions",
-    "description": "Installed extensions (plugins) for [Chromium-based](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers, including [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).",
+    "description": "The `chrome_extensions` table maps browser extensions installed in [Chromium](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers like [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).",
     "url": "https://fleetdm.com/tables/chrome_extensions",
     "platforms": [
       "darwin",
@@ -3812,8 +3812,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
-    "examples": "```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\n\nList Chrome extensions by user and profile which have full access to HTTPS\nbrowsing.\n\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
+    "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\nExamples of [malicious Chrome extensions](https://palant.info/2023/06/08/another-cluster-of-potentially-malicious-chrome-extensions/)\n\nLoosely restricted extension permissions can be an [indicator of malicious intent](https://developer.chrome.com/docs/extensions/reference/api/permissions)\n\nTracking browser extensions in an organization can help with:\n\n  - Compliance audits: Ensure extensions comply with company policies\n  - Security training: Educate users about Chrome extension risks\n  - Incident response: Identify suspicious or vulnerable extensions",
+    "examples": "\nBecause browser data lives in user space, this query uses a join to include a UID: \n\n```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\n\nThis query shows Chrome extensions that have full access to HTTPS browsing;\n\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -4749,7 +4749,7 @@
   },
   {
     "name": "cpu_info",
-    "description": "Retrieve cpu hardware info of the machine.",
+    "description": "The `cpu_info` table expresses the data made available from a computer or mobile device by its Central Processing Unit (CPU).",
     "url": "https://fleetdm.com/tables/cpu_info",
     "platforms": [
       "darwin",
@@ -4758,7 +4758,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
+    "notes": "The `cpu_info` table is a good example of the cross-platform capabilities of osquery. It can be used on Linux, Mac and Windows hardware.\n\nAs seen in the schema table above, there are differences in CPU metadata made available across different platforms. These differences arise from various hardware manufacturers and operating systems not necessarily being held to an industry-wide, agreed-upon standard or protocol for CPU data.",
+    "examples": "Basic query:\n\n```\nSELECT * FROM cpu_info;\n```",
     "columns": [
       {
         "name": "device_id",
@@ -4868,9 +4869,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
+          "Windows"
         ]
       },
       {
@@ -4882,9 +4881,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
+          "Windows"
         ]
       },
       {
@@ -4896,7 +4893,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "darwin"
+          "macOS"
         ]
       },
       {
@@ -4908,16 +4905,15 @@
         "required": false,
         "index": false,
         "platforms": [
-          "darwin"
+          "macOS"
         ]
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/cpu_info.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fcpu_info.yml&value=name%3A%20cpu_info%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cpu_info.yml"
   },
   {
     "name": "cpu_time",
-    "description": "Displays information from /proc/stat file about the time the cpu cores spent in different parts of the system.",
+    "description": "The `cpu_time` table displays data from the `/proc/stat` file which records how the Central Processing Unit (CPU) in a computer or mobile device allocates time to processing workloads.",
     "url": "https://fleetdm.com/tables/cpu_time",
     "platforms": [
       "darwin",
@@ -4925,8 +4921,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "Identify overworked CPUs using a ratio of system to user CPU usage. Here, a\nratio of 2 was arbitrarily chosen.\n\n```\nSELECT * FROM cpu_time WHERE user/system|-2;\n```",
+    "notes": "[CPU time](https://en.wikipedia.org/wiki/CPU_time)\n\n[Benchmarking code by referencing CPU time](https://dev.to/satrobit/cpu-time-how-to-accurately-benchmark-your-code-572p)",
+    "examples": "This query identifies Hosts on which the ratio of CPU time spent processing System workloads compared to User workloads is 2:1. This could be evidence of a corrupted operating system or malicious activity:\n\n```\nSELECT * FROM cpu_time WHERE user/system > 2;\n```\n\nThis query duplicates the macOS Activity Monitor.app GUI which shows the percentage of CPU time spent on System, User and Idle workloads:\n\n```\n  SELECT printf(ROUND((CAST(SUM(system) AS FLOAT)/(SUM(idle)+SUM(system)+SUM(user)))*100,2)) AS system_pct,\nprintf(ROUND((CAST(SUM(user) AS FLOAT)/(SUM(idle)+SUM(system)+SUM(user)))*100,2)) AS user_pct,\nprintf(ROUND((CAST(SUM(idle) AS FLOAT)/(SUM(idle)+SUM(system)+SUM(user)))*100,2)) AS idle_pct\nFROM cpu_time;\n```",
     "columns": [
       {
         "name": "core",
@@ -10676,7 +10672,7 @@
   },
   {
     "name": "file_lines",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Allows reading an arbitrary file.",
     "platforms": [
       "darwin",
@@ -10742,7 +10738,7 @@
   },
   {
     "name": "filevault_users",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
     "platforms": [
       "darwin"
@@ -11192,7 +11188,7 @@
   },
   {
     "name": "google_chrome_profiles",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Profiles configured in Google Chrome.",
     "platforms": [
       "darwin",
@@ -15143,7 +15139,7 @@
   },
   {
     "name": "macadmins_unified_log",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).",
     "platforms": [
       "darwin"
@@ -15259,7 +15255,7 @@
   },
   {
     "name": "macos_profiles",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "High level information on installed profiles enrollment.",
     "platforms": [
       "darwin"
@@ -15321,7 +15317,7 @@
   },
   {
     "name": "macos_rsr",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Returns information about installed Rapid Security Responses (RSRs).",
     "platforms": [
       "darwin"
@@ -15342,7 +15338,7 @@
       },
       {
         "name": "rsr_supported",
-        "description": "Whether this macOS version supports RSRs (|-= 13). Possible values are 'true' or 'false'.",
+        "description": "Whether this macOS version supports RSRs (>= 13). Possible values are 'true' or 'false'.",
         "required": false,
         "type": "text"
       },
@@ -15942,7 +15938,7 @@
   },
   {
     "name": "mdm",
-    "notes": "- This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\n- Code based on work by [Kolide](https://github.com/kolide/launcher).\n\n- Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\n- Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.",
     "description": "Information on the device's MDM enrollment.",
     "platforms": [
       "darwin"
@@ -16957,7 +16953,7 @@
   },
   {
     "name": "munki_info",
-    "notes": "- This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\n- Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
     "platforms": [
       "darwin"
@@ -17025,7 +17021,7 @@
   },
   {
     "name": "munki_installs",
-    "notes": "- This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\n- Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
     "platforms": [
       "darwin"
@@ -19042,7 +19038,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "This policy query will return a 1 if the password policy requires passwords that are 10 characters\nor longer.\n\n```\nSELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength |-= 10);\n``` ",
+    "examples": "This policy query will return a 1 if the password policy requires passwords that are 10 characters\nor longer.\n\n```\nSELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);\n``` ",
     "columns": [
       {
         "name": "uid",
@@ -22120,7 +22116,7 @@
   },
   {
     "name": "puppet_info",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
     "platforms": [
       "darwin",
@@ -22238,7 +22234,7 @@
   },
   {
     "name": "puppet_logs",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
     "platforms": [
       "darwin",
@@ -22290,7 +22286,7 @@
   },
   {
     "name": "puppet_state",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
     "platforms": [
       "darwin",
@@ -25239,7 +25235,7 @@
   },
   {
     "name": "sofa_security_release_info",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\n- By default this table will return vulnerability data for the running operating system.\n\n- Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\n- By default this table will return vulnerability data for the running operating system.\n\n- Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).",
     "description": "The information on the security release the device is running from [SOFA](https://sofa.macadmins.io/).",
     "examples": "For historical data, use the `os_version` predicate\n\n```\nSELECT * FROM sofa_security_release_info WHERE os_version=\"14.4.0\"\n```",
     "platforms": [
@@ -25295,7 +25291,7 @@
   },
   {
     "name": "sofa_unpatched_cves",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\n- By default this table will return all unpatched vulnerability data for the running operating system.\n\n- Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).",
+    "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\n- By default this table will return all unpatched vulnerability data for the running operating system.\n\n- Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).",
     "description": "The CVEs that are unpatched on the device from [SOFA](https://sofa.macadmins.io/).",
     "examples": "For historical data, use the `os_version` predicate\n\n```\nSELECT * FROM sofa_unpatched_cves WHERE os_version=\"14.4.0\"\n```",
     "platforms": [
@@ -25698,7 +25694,7 @@
   },
   {
     "name": "system_controls",
-    "description": "sysctl names, values, and settings information.",
+    "description": "The `sysctl` binary found in many UNIX-like operating systems reads and modifies system kernel attributes. The `system_controls` osquery table expresses the data made available by the `sysctl` binary on Linux and macOS.",
     "url": "https://fleetdm.com/tables/system_controls",
     "platforms": [
       "darwin",
@@ -25706,8 +25702,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See if IP forwarding is enabled (value=1) or not (current_value=0). This table\nprovides access to a large quantity of low-level settings and is ideal to\nbuild policies.\n\n```\nSELECT current_value, name FROM system_controls WHERE name='net.inet.ip.forwarding';\n```",
+    "notes": "Because the `system_control` table provides access to a large quantity of low-level, unique settings available via `sysctl` it is ideal for use in Fleet policies.\n\nE.g., the number of CPU cores can be obtained with the following `sysctl` command:\n\n```\n% sysctl hw.ncpu\nhw.ncpu: 12\n```\n\n[sysctl](https://en.wikipedia.org/wiki/Sysctl)\n\n[Apple sysctl documentation](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/sysctl.3.html)\n\n[Disable IP Forwarding](https://linuxconfig.org/how-to-turn-on-off-ip-forwarding-in-linux)\n\n[Use sysctl to collect boot, sleep and wake timestamps](https://osxdaily.com/2011/07/14/get-exact-boot-sleep-and-wake-times-from-the-command-line/)",
+    "examples": "Collect the hardware model and the number of CPU cores from a Mac:\n\n```\nSELECT current_value,name FROM system_controls WHERE name='hw.model' OR name='hw.ncpu';\n```\n\nCollect the reason for the last shutdown event, the duration since and timestamp of the most recent boot, and, the duration since and timestamp of the most recent wake from sleep:\n\n```\nSELECT current_value,name FROM system_controls WHERE name='kern.shutdownreason' OR name='kern.boottime' OR name='kern.waketime';\n```\n\nDiscover if IP Forwarding is enabled:\n\n```\nSELECT name,current_value FROM system_controls WHERE name='net.inet.ip.forwarding' AND current_value='1';\n```",
     "columns": [
       {
         "name": "name",
@@ -25772,7 +25768,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "macOS",
+          "Linux"
         ]
       }
     ],
@@ -26293,7 +26290,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "Identify systems with CPU temperature sensors above or equal to 90c.\n\n```\nSELECT name, celsius FROM temperature_sensors WHERE name LIKE 'CPU%' AND celsius|-='90';\n```",
+    "examples": "Identify systems with CPU temperature sensors above or equal to 90c.\n\n```\nSELECT name, celsius FROM temperature_sensors WHERE name LIKE 'CPU%' AND celsius >='90';\n```",
     "columns": [
       {
         "name": "key",
@@ -26876,7 +26873,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "See how long hosts that have been up for more than a month have been up. This\ncould indicate systems that are not ephemeral as expected, or not being\npatched as frequently as they should be.\n\n```\nSELECT days FROM uptime WHERE days|-='31'\n```",
+    "examples": "See how long hosts that have been up for more than a month have been up. This\ncould indicate systems that are not ephemeral as expected, or not being\npatched as frequently as they should be.\n\n```\nSELECT days FROM uptime WHERE days >='31'\n```",
     "columns": [
       {
         "name": "days",
@@ -27630,7 +27627,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "Identify systems where memory swapping is occuring. These systems might\nbenefit from more RAM.\n\n```\nSELECT * FROM virtual_memory_info WHERE swap_ins|-'0';\n```",
+    "examples": "Identify systems where memory swapping is occuring. These systems might\nbenefit from more RAM.\n\n```\nSELECT * FROM virtual_memory_info WHERE swap_ins>'0';\n```",
     "columns": [
       {
         "name": "free",

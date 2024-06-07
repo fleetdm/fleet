@@ -1895,7 +1895,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		// not be part of any team yet (team assignment is done when it enrolls
 		// with orbit).
 		mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-			SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+			SCEPChallenge: s.scepChallenge,
 			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 			MDMURL:        s.server.URL + apple_mdm.MDMPath,
 		})
