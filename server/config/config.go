@@ -291,7 +291,6 @@ type LambdaConfig struct {
 
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
-	// Deprecated
 	Bucket           string `yaml:"bucket"`
 	Prefix           string `yaml:"prefix"`
 	Region           string `yaml:"region"`
