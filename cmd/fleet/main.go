@@ -83,6 +83,17 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		ForceS3PathStyle: true,
 	}
 
+	cfg.SoftwareInstallersS3 = config.S3Config{
+		Bucket:           "software-installers-dev",
+		Region:           "minio",
+		Prefix:           "dev-prefix",
+		EndpointURL:      "localhost:9000",
+		AccessKeyID:      "minio",
+		SecretAccessKey:  "minio123!",
+		DisableSSL:       true,
+		ForceS3PathStyle: true,
+	}
+
 	cfg.Packaging.S3 = config.S3Config{
 		Bucket:           "installers-dev",
 		Region:           "minio",
