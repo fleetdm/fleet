@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptrace"
@@ -45,6 +46,8 @@ type OrbitClient struct {
 
 	lastIdleConnectionsCleanupMu sync.Mutex
 	lastIdleConnectionsCleanup   time.Time
+
+	rootDirPath string
 
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
@@ -164,6 +167,7 @@ func NewOrbitClient(
 		enrolled:                   false,
 		onGetConfigErrFns:          onGetConfigErrFns,
 		lastIdleConnectionsCleanup: time.Now(),
+		rootDirPath:                rootDir,
 		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
 		ReceiverUpdateContext:      ctx,
 		ReceiverUpdateCancelFunc:   cancelFunc,
@@ -201,10 +205,27 @@ func (oc *OrbitClient) closeIdleConnections() {
 	t.CloseIdleConnections()
 }
 
+func (oc *OrbitClient) resetOrbit() error {
+	if err := os.RemoveAll(oc.rootDirPath); err != nil {
+		return err
+	}
+	oc.InterruptConfigReceivers(fmt.Errorf("resetting Fleet, this is a new machine"))
+	return nil
+}
+
+// TODO(JVE): maybe reset happens here? if config.serial_number != what we have
+// But only if this happens before details queries are sent to Fleet, because at that point we've
+// already overwritten data in Fleet.
 func (oc *OrbitClient) RunConfigReceivers() error {
 	config, err := oc.GetConfig()
 	if err != nil {
 		return fmt.Errorf("RunConfigReceivers get config: %w", err)
+	}
+
+	if config.SerialNumber != oc.hostInfo.HardwareSerial {
+		// Then we should reset orbit, because this is a new
+		slog.With("filename", "server/service/orbit_client.go", "func", "RunConfigReceivers").Info("JVE_LOG: serial numbers did not match, resetting ", "orbitSerialNumber", oc.hostInfo.HardwareSerial, "fleetSerialNumber", config.SerialNumber)
+		return oc.resetOrbit()
 	}
 
 	var errs []error

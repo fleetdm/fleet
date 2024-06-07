@@ -47,6 +47,7 @@ type OrbitConfig struct {
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+	SerialNumber   string               `json:"serial_number,omitempty"`
 }
 
 type OrbitConfigReceiver interface {
