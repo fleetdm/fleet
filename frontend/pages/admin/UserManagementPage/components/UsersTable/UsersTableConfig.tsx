@@ -2,7 +2,7 @@ import React from "react";
 
 import ReactTooltip from "react-tooltip";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import StatusIndicator from "pages/hosts/components/StatusIndicator";
+import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";

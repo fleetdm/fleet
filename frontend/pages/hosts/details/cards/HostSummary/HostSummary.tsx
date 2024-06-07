@@ -15,7 +15,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
-import StatusIndicator from "pages/hosts/components/StatusIndicator";
+import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";

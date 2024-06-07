@@ -1,4 +1,4 @@
-import StatusIndicator from "pages/hosts/components/StatusIndicator";
+import StatusIndicator from "components/StatusIndicator";
 import React from "react";
 
 interface IQueryAutomationsStatusIndicator {
