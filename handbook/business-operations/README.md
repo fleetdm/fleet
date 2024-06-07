@@ -263,7 +263,7 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
     [Month]
     [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
     ```
-   The Apprentice to the CEO will also use this post to update the [All Hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
+   The Apprentice to the CEO will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
 3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
     ```
     Hey! Just a heads up, tomorrow is [teammate’s name] [number of years at Fleet] workiversary at Fleet.
