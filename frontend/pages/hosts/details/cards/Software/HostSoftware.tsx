@@ -121,7 +121,7 @@ const HostSoftware = ({
       {
         scope: "host_software",
         id: id as number,
-        softwareUpdatedAt: softwareUpdatedAt,
+        softwareUpdatedAt,
         ...queryParams,
       },
     ],
@@ -152,7 +152,7 @@ const HostSoftware = ({
       {
         scope: "device_software",
         id: id as string,
-        softwareUpdatedAt: softwareUpdatedAt,
+        softwareUpdatedAt,
         ...queryParams,
       },
     ],
